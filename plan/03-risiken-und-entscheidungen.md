@@ -1,6 +1,9 @@
 # Risiken und offene Entscheidungen
 
-Dieses Dokument enthält, was den Plan zum Kippen bringen kann, und die sechs Entscheidungen, die **vor M1** fallen müssen.
+Dieses Dokument enthält, was den Plan zum Kippen bringen kann, und die Entscheidungen, die **vor M1** fallen müssen.
+
+> **Revidiert am 2026-09-20 nach dem BrainSpeak-Ist-Audit** → [04-brainspeak-audit.md](04-brainspeak-audit.md).
+> R1 ist geschlossen. Drei neue Risiken (R10–R12) und zwei neue Entscheidungen (D7, D8) sind hinzugekommen.
 
 ---
 
@@ -9,15 +12,13 @@ Dieses Dokument enthält, was den Plan zum Kippen bringen kann, und die sechs En
 Bewertung: Auswirkung × Eintrittswahrscheinlichkeit auf Basis des heutigen Kenntnisstands. „Frühwarnsignal“ ist das,
 woran man den Eintritt erkennt, bevor er teuer wird.
 
-### R1 — BrainSpeak-Checkout bleibt unzugänglich · hoch × real eingetreten
+### R1 — BrainSpeak-Checkout unzugänglich · ✅ **geschlossen am 2026-09-20**
 
-Der Connector lieferte wiederholt 404 ([research-limitations.md](../references/research-limitations.md)). Daraus folgt
-**kein** Rückschluss auf privat, gelöscht oder umbenannt — aber Constitution II („BrainSpeak bleibt die Basis“) ist
-ohne lesbaren Checkout nicht erfüllbar, und jede Aufwandsschätzung bleibt Spekulation.
+Der Checkout liegt vor und ist auditiert. MIT-Lizenz, vier Plattform-Targets, 11 145 Zeilen Swift, eine externe
+Abhängigkeit (`KeyboardShortcuts`, nur macOS). Formal offen bleibt allein der Bezug auf einen echten Checkout mit
+Commit und Branch — die Lieferung war ein ZIP ohne `.git`. Das ist Buchhaltung, kein Risiko mehr.
 
-*Gegenmaßnahme:* D1 entscheiden. Bis dahin sind Spezifikationsarbeit, Domainmodell und Testinfrastruktur (T005–T010)
-trotzdem produktiv — sie hängen nicht am Altcode. Blockiert ist nur die **Integration**.
-*Frühwarnsignal:* T004 kann keine reale Mappingtabelle füllen.
+*Ersetzt durch:* R10, R11, R12.
 
 ### R2 — PCC-Entitlement wird nicht oder spät erteilt · hoch × mittel
 
@@ -95,18 +96,57 @@ Liste, weil eine einzige Abkürzung unter Termindruck genügt, um es zu realisie
 *Gegenmaßnahme:* Punkt 3 der Definition of Done — Rechte-, Scope- und Freigabeentscheidungen liegen in Swift-Policy,
 nie in einem Prompt. Deterministische Policy-Tests vor den Adaptern.
 
+### R10 — Das Produkt ist ein anderes, als das Paket annimmt · hoch × real eingetreten
+
+Das Paket beschreibt durchgehend eine **Erweiterung**: „BrainSpeak um einen quellenfähigen Medien-/Wissenskern
+erweitern“, „vorhandene geeignete Bausteine werden angepasst, nicht verdeckt durch eine Neuentwicklung ersetzt“.
+Der Audit zeigt: BrainSpeak ist eine Diktier-App mit **null Zeilen Podcast-Domäne**. Quellen, Wiedergabe mit exakten
+Grenzen, Wissen, Index, Chat, Fokus, Export, App Intents, Spotlight und Hintergrundverarbeitung sind sämtlich Neubau.
+
+Das Risiko ist nicht technisch, sondern in der Erwartungshaltung: Wer „wir bauen auf BrainSpeak auf“ als
+„das meiste steht schon“ liest, plant mit einem Bruchteil des tatsächlichen Aufwands.
+
+*Gegenmaßnahme:* Die Formulierung in Constitution II und `plan.md` schärfen — Wiederverwendung betrifft die
+**Sprach-, KI-, Persistenz- und Plattformschicht**, nicht die Produktdomäne. Die ausgefüllte Integrationskarte
+([04 §5](04-brainspeak-audit.md)) benennt je Zuständigkeit erweitern / ersetzen / neu.
+*Frühwarnsignal:* Eine Schätzung, die M1 als „Anpassung“ führt.
+
+### R11 — Transkript ohne Medienzeit wird zu spät bemerkt · sehr hoch × mittel
+
+`SpeechTranscriber` wird mit `attributeOptions: []` erzeugt; `TranscriptionResult` trägt nur Text, ein
+`isFinal`-Flag und eine Wanduhrzeit. Versprechen V1 und V2 stehen beide auf mediengenauen Zeitbereichen pro Segment.
+Entsteht in M3 auch nur eine Charge Segmente, Claims und Evidence ohne Medienzeit, ist jedes darauf aufbauende
+Artefakt wertlos und muss neu erzeugt werden — inklusive der Analysekosten.
+
+*Gegenmaßnahme:* Abweichung A5 — Zeitbezug ist die **erste** Aufgabe in M3, vor Segmenten und Claims. Neues
+GATE-TIME. Der Eingriff selbst ist klein: Zeitattribute anfordern und `CMTimeRange` durchreichen.
+*Frühwarnsignal:* In M3 entstehen Claims, bevor `validation/transcript-timing.md` existiert.
+
+### R12 — Versionssprung 26 → 27 wird als Buildeinstellung behandelt · hoch × mittel
+
+BrainSpeak steht auf macOS 26.0, iOS 26.0, **watchOS 11.0**, Xcode 26, Swift 6.2. Das Paket fordert 27.0 auf allen
+vier Plattformen, Xcode 27 und Swift 6.4 im Swift-6-Sprachmodus. Das hebt die Mindesthardware an, schließt
+Bestandsnutzer aus und ist damit eine Produktentscheidung. Der watchOS-Wert ist zusätzlich in sich auffällig und
+könnte bedeuten, dass die Watch nie mitgezogen wurde.
+
+*Gegenmaßnahme:* D7 vor M1 entscheiden, mit ausdrücklichem ADR. GATE-SDK klärt anschließend, welche der im Paket
+vorausgesetzten 27er-Symbole real existieren.
+*Frühwarnsignal:* Der erste 27er-Build scheitert an Symbolen, für die es keine 26er-Entsprechung gibt.
+
 ---
 
 ## 2. Entscheidungen, die jetzt fallen müssen
 
 | # | Entscheidung | Warum jetzt | Empfehlung |
 |---|---|---|---|
-| **D1** | **Zugang zum BrainSpeak-Checkout** herstellen — oder per ADR auf Greenfield umstellen | M0 ist sonst nicht abschließbar; die Architektur unterscheidet sich erheblich | Zugang herstellen. Scheitert das binnen zwei Wochen, ADR „Greenfield“ schreiben und Constitution II ändern, statt die Frage offen mitzuschleppen |
+| ~~D1~~ | ~~Zugang zum BrainSpeak-Checkout~~ | ✅ **erledigt am 2026-09-20** — Checkout liegt vor und ist auditiert | Nur noch: Audit an einem echten Checkout mit Commit/Branch gegenprüfen |
 | **D2** | **PCC-Entitlement beantragen** | Vorlaufzeit; M4 hängt daran | Sofort beantragen, unabhängig von D1 |
 | **D3** | **Umfang für das erste Release**: alle 144 FR oder Schnitt nach M8a | Bestimmt, ob R3 oder R5 das Ziel ist | Schnitt nach M8a (R3). M9b (60 Aufgaben) als 1.1 — das Produktversprechen ist bei R3 vollständig belegbar |
 | **D4** | **Smart Podcast List vorziehen** (Abweichung A1) | Ändert die Reihenfolge von 48 Aufgaben | Ja. Abhängigkeitstechnisch sauber, und es validiert das Konzept früher |
 | **D5** | **YouTube-Tiefe**: nur Metadaten plus sichtbarer offizieller Player, oder mehr? | Bestimmt, ob YouTube-Inhalte in Wissen und Fokus einfließen können | Zuerst Metadaten plus sichtbaren Player, mit klar sichtbarer Zählung „gefunden vs. analysierbar“. Rechtliche Prüfung vor M9a |
 | **D6** | **Die drei Konzeptlücken**: FR-145–147 aufnehmen oder per ADR ausschließen | Zwei davon (Onscreen-Kontext, Kadenz) sind später teuer | FR-146 und FR-147 aufnehmen, FR-145 bewusst zurückstellen und im Konzepttext als „nicht in 1.0“ benennen |
+| **D7** | **Plattformversionen**: 27.0 überall wie gefordert, oder zunächst auf 26.0 bleiben? Dazu: ist `.watchOS(.v11)` ein Fehler? | Bestimmt Mindesthardware, Bestandsnutzer und welche APIs überhaupt zur Verfügung stehen | 27.0 nur, wenn GATE-SDK zeigt, dass die vorausgesetzten Symbole wirklich 27er-exklusiv sind. Sonst auf 26.0 starten und den Sprung als eigenen Meilenstein planen — mit ADR, weil es Constitution III berührt |
+| **D8** | **Syncarchitektur**: SwiftData-Auto-Spiegelung behalten oder auf CKSyncEngine migrieren? | Constitution IX und ADR-0003 verbieten beides nebeneinander; die Auto-Spiegelung erzwingt optionale Felder ohne Unique-Constraints | Migrieren, wie das Paket es vorsieht — aber den Migrationspfad für bestehende iCloud-Aufnahmen im selben Beschluss festlegen und als GATE-MIGRATE prüfen. Ohne Migrationsplan die Entscheidung **nicht** treffen |
 
 ---
 
@@ -119,4 +159,7 @@ nie in einem Prompt. Deterministische Policy-Tests vor den Adaptern.
   keine Zusage. Ohne M0 gibt es keine belastbare Schätzung.
 * Die Konzeptbilder unter `design/images/` sind Illustration, keine Screenshots einer laufenden App. Ihr fiktiver
   Folgentext darf nicht in Fixtures oder Tatsachenbehauptungen wandern.
+* Der BrainSpeak-Audit beruht auf **Lesen des gelieferten ZIP**, nicht auf einem Build. Es wurde nichts kompiliert,
+  nichts ausgeführt und nichts am Checkout verändert. Das ZIP enthält kein `.git`, daher sind Commit und Branch
+  nicht belegbar.
 * FR-145–147 sind Vorschläge aus der Lückenanalyse, keine beschlossenen Anforderungen.

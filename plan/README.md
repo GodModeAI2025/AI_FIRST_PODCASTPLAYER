@@ -9,11 +9,21 @@ Nachweise und mit welchen offenen Entscheidungen*.
 |---|---|
 | [01-umsetzungsplan.md](01-umsetzungsplan.md) | Rückgrat, parallele Tracks, Meilensteine M0–M9, Release-Züge, Gates, Aufwandsszenario |
 | [02-konzept-abdeckung.md](02-konzept-abdeckung.md) | Konzeptkapitel 1–20 → US/FR/Tasks; drei echte Lücken mit Vorschlag FR-145–147 |
-| [03-risiken-und-entscheidungen.md](03-risiken-und-entscheidungen.md) | Top-Risiken mit Gegenmaßnahme, sechs Entscheidungen, die vor M1 fallen müssen |
+| [03-risiken-und-entscheidungen.md](03-risiken-und-entscheidungen.md) | Top-Risiken mit Gegenmaßnahme, die Entscheidungen, die vor M1 fallen müssen |
+| [04-brainspeak-audit.md](04-brainspeak-audit.md) | **Ist-Audit des echten BrainSpeak-Checkouts** (2026-09-20): was wiederverwendbar ist, was Neubau ist, zwei Architekturkonflikte |
+
+## Nach dem Ist-Audit: die wichtigste Erkenntnis zuerst
+
+> **BrainSpeak ist eine On-Device-Diktier-App, kein Podcast-Player.** 11 145 Zeilen Swift, vier Plattform-Targets,
+> MIT-Lizenz — aber null Zeilen Podcast-Domäne. Wiederverwendbar ist die Sprach-, KI-, Persistenz- und
+> Watch-Schicht; die Produktdomäne darüber ist vollständig Neubau. Und: das vorhandene Transkript trägt **keine
+> Medienzeit** — der Punkt, an dem das ganze Produkt hängt.
+> Details und Konsequenzen: [04-brainspeak-audit.md](04-brainspeak-audit.md).
 
 ## Der Plan in fünf Sätzen
 
-1. Vor jedem Code entscheiden drei Nachweise über den Rest: BrainSpeak-Checkout, Xcode-27-Toolchain, PCC-Berechtigung (**M0**).
+1. Vor jedem Code entscheiden zwei Nachweise und zwei Konflikte über den Rest: Xcode-27-Toolchain, PCC-Berechtigung,
+   Plattformversionen 26 gegen 27 und die Syncarchitektur (**M0**).
 2. Danach wächst ein einziger vertikaler Pfad vom Abo bis zur Fokuswiedergabe — jede Stufe endet auf echter Hardware (**M1–M6**).
 3. Die **Smart Podcast List** wird gegenüber der Task-Nummerierung des Pakets nach vorn gezogen: sie ist das stärkste
    Produktmerkmal und hängt abhängigkeitstechnisch an nichts, was nach ihr käme (**M7**).

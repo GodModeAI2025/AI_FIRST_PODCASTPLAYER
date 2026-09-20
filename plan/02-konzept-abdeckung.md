@@ -4,6 +4,11 @@
 **Methode:** Jedes Konzeptkapitel gegen `requirements.json` (144 FR), `stories.json` (20 US) und `tasks.json` (266 T) geprüft.
 **Ergebnis:** 17 von 20 Kapiteln sind vollständig abgedeckt. **Drei Lücken** sind real und unten als FR-145–147 formuliert.
 
+> **Nach dem BrainSpeak-Ist-Audit (2026-09-20):** Die Abdeckungsmatrix bleibt unverändert — sie prüft Konzept gegen
+> Spezifikation, nicht gegen Code. Der Audit bestätigt die Lücken aber von der Implementierungsseite:
+> `AppIntent`, `AppEntity`, `CoreSpotlight` und `CSSearchable` kommen im gesamten Checkout in **null Dateien** vor.
+> Die Lücken 1 und 2 sind also weder spezifiziert noch vorhanden. Siehe [04-brainspeak-audit.md](04-brainspeak-audit.md).
+
 ---
 
 ## 1. Abdeckungsmatrix

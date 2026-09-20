@@ -1,6 +1,6 @@
 # Umsetzungsplan — BrainSpeak, der AI-First Knowledge Podcast Player
 
-**Stand:** 2026-09-20 · **Basis:** Spec-Kit-Paket v1.3 (144 FR · 20 US · 266 Tasks), in diesem Repository eingecheckt
+**Stand:** 2026-09-20, revidiert nach dem BrainSpeak-Ist-Audit · **Basis:** Spec-Kit-Paket v1.3 (144 FR · 20 US · 266 Tasks), in diesem Repository eingecheckt
 **Gültigkeit:** Dieser Plan ordnet an und priorisiert. Er ändert keine Anforderung. Änderungen am Umfang folgen dem
 Änderungsverfahren der [Constitution](../.specify/memory/constitution.md).
 
@@ -28,10 +28,25 @@ V1 und V2 sind der kritische Pfad. V3 baut vollständig auf ihnen auf. V4 ist di
 
 * Das Repository war leer. Das Spec-Kit-Paket v1.3 liegt jetzt unverändert im Wurzelverzeichnis und validiert als Dokumentpaket.
 * **Alle 266 Aufgaben sind offen.** Es existiert kein Apple-Build, kein Gerätetest, keine Modellinferenz.
-* Drei Nachweise sind ungeklärt und bestimmen alles Weitere — sie sind Meilenstein M0, nicht eine Randnotiz:
-  * der **BrainSpeak-Checkout** (bisher 404, siehe [references/research-limitations.md](../references/research-limitations.md)),
-  * die **Xcode-27-/Swift-6.4-Toolchain** mit vier echten 27er-SDKs,
-  * das **PCC-Entitlement** des konkreten Entwicklerkontos.
+* **Der BrainSpeak-Checkout liegt seit dem 2026-09-20 vor und wurde auditiert** → [04-brainspeak-audit.md](04-brainspeak-audit.md).
+  Das Ergebnis ändert die Ausgangslage erheblich:
+
+  > **BrainSpeak ist eine On-Device-Diktier- und Aufnahme-App, kein Podcast-Player.** 11 145 Zeilen Swift, vier
+  > Plattform-Targets, MIT-Lizenz — aber **null Zeilen Podcast-Domäne**: kein RSS, kein XMLParser, kein OPML,
+  > kein Episode-, Feed- oder MediaVersion-Modell.
+
+  Der Wiederverwendungswert ist trotzdem real, liegt aber eine Ebene tiefer als das Paket annimmt: die Sprach-,
+  KI-, Persistenz- und Mehrplattformschicht ist vorhanden und gut gebaut. Der Satz aus `plan.md` — „BrainSpeak um
+  einen quellenfähigen Medien-/Wissenskern erweitern“ — liest sich nach dem Audit als: **einen Podcast-Player neu
+  bauen und dabei BrainSpeaks STT-, Foundation-Models-, Persistenz- und Watch-Schicht übernehmen.**
+
+* Zwei Nachweise bleiben offen und bestimmen den Rest — sie sind Meilenstein M0:
+  * die **Xcode-27-/Swift-6.4-Toolchain** mit vier echten 27er-SDKs (BrainSpeak steht heute auf Xcode 26 / Swift 6.2),
+  * das **PCC-Entitlement** des konkreten Entwicklerkontos (im Checkout ist **kein** PCC-Adapter und kein
+    PCC-Eintrag in den vier `.entitlements` vorhanden).
+
+* Zwei neue Konflikte kommen aus dem Audit hinzu und müssen vor M1 entschieden werden (D7, D8):
+  **Plattformversionen 26 gegen 27** und **SwiftData-CloudKit-Spiegelung gegen CKSyncEngine**.
 
 ---
 
@@ -89,22 +104,29 @@ Nutzerablauf bereits eine Abschlussaufgabe vor (`validation/device/USx.md`); die
 
 | Aufgabe | Ergebnis |
 |---|---|
-| T001 | `audit/brainspeak-baseline.md` — echte Pfade, Targets, Lizenz, Migrationsrisiken. Keine erfundenen Klassen. |
+| T001 | ✅ **inhaltlich erledigt** → [04-brainspeak-audit.md](04-brainspeak-audit.md). Formal offen bleibt nur der Bezug auf einen echten Checkout mit Commit/Branch — die Lieferung war ein ZIP ohne `.git`. |
 | T002 | `config/toolchain-lock.json` aus echten Ausgaben von `scripts/probe-apple-sdk.sh` |
 | T003 | `audit/pcc-eligibility.md` — Konto-Berechtigung und Gerätefähigkeit **getrennt** |
-| T004 | `audit/integration-map.md` — Zielmodule ↔ reale BrainSpeak-Module, je Abweichung ein ADR |
+| T004 | ✅ **Integrationskarte gefüllt** → [04-brainspeak-audit.md §5](04-brainspeak-audit.md). Offen: je Abweichung ein ADR, insbesondere für K1 (Sync) und K2 (Plattformversionen) |
 | T005–T010 | Domain-Invarianten, SwiftData + Outbox, Test-Doubles, CapabilityRegistry, vier App-Shells, Testkonfiguration |
 
-**Exit-Gates:** GATE-BS, GATE-SDK, GATE-PCC (§6)
-**Entscheidungspunkt:** D1 und D2 aus [03-risiken-und-entscheidungen.md](03-risiken-und-entscheidungen.md) müssen hier fallen.
-**Wenn M0 scheitert:** Ohne Checkout ist Constitution II nicht erfüllbar — dann braucht es einen ausdrücklichen ADR
-„Greenfield statt BrainSpeak-first“, keine stille Neuentwicklung.
+**Exit-Gates:** GATE-BS ✅ weitgehend geschlossen, GATE-SDK und GATE-PCC offen (§6)
+**Entscheidungspunkte:** D2, **D7 (26 vs. 27)** und **D8 (Syncarchitektur)** müssen hier fallen.
+**Was der Audit an M0 spart:** T001 und T004 sind inhaltlich erledigt, damit ist der größte Unsicherheitsblock weg.
+**Was er hinzufügt:** zwei ADRs (K1, K2) und die Klärung des auffälligen watchOS-Ziels (`.watchOS(.v11)` neben
+`.macOS(.v26)` / `.iOS(.v26)`).
+**Was er nicht ändert:** Constitution II bleibt erfüllbar — vorhandene geeignete Audio-, Persistenz- und
+Apple-Intelligence-Bausteine sind da und werden angepasst. Nur ist die Podcast-Domäne darüber vollständig neu.
 
 ### M1 — Quellen aufnehmen · T011–T020 · US2 · 10 Aufgaben
 
 RSS, Einzelfolge, lokale Datei; SourceResolver mit getrennten Rechte-/Fähigkeitsflags; XMLParser gehärtet
 (externe Entitäten aus, Größenlimit, Redirect-/Hostprüfung); Download über URLSession in atomaren FileStore;
 MediaVersion erst nach Validierung mit Hash finalisiert.
+
+**Aus dem Audit:** Dieser Meilenstein ist **vollständig Neubau**. `grep -riE "RSS|XMLParser|OPML|Atom|podcast"` über
+alle 115 Swift-Dateien liefert null Treffer. Wiederverwendbar ist hier nur der atomare `AudioFileWriter` und das
+App-Group-Muster aus `RecordingStore`. Nichts an M1 ist eine Anpassung.
 
 **Exit:** `validation/device/US2.md` — Abo ohne Zwang zum Download, Folge liegt reproduzierbar vor.
 **Noch nicht enthalten:** YouTube (das ist US14 in M9a). Bewusst: erst die Rechte- und Identitätsmechanik, dann der Sonderfall.
@@ -120,6 +142,10 @@ KI-Verarbeitung und gelesene Erkenntnisse getrennt speichern.
 > Historie zu verwerfen — das Paket sieht dafür ausdrücklich `historyQuality=unknown` vor.
 > Seek, Download, Analyse, Lesen und Buffering zählen **nie** als gehörte Zeit (FR-130).
 
+**Aus dem Audit:** Die Wiedergabeschicht ist **neu zu bauen**. `Sources/iOS/Detail/AudioPlayerView.swift` nutzt
+`AVAudioPlayer` für lokale Aufnahmen — das trägt keine exakten Segmentgrenzen und kein Remote-Streaming.
+Übernommen wird die bereits vorhandene Verdrahtung von `MPNowPlayingInfoCenter` und `MPRemoteCommandCenter`.
+
 **Exit:** `validation/device/US3.md` — erste demonstrierbare App. Hier lohnt der erste interne Release-Zug (R1).
 
 ### M3 — Eine ungehörte Folge verstehen · T028–T036 · US1 · 9 Aufgaben
@@ -127,6 +153,22 @@ KI-Verarbeitung und gelesene Erkenntnisse getrennt speichern.
 Publisher-Transkript prüfen (Vollständigkeit, Sprache, Fassungsbezug), sonst SpeechAnalyzer/SpeechTranscriber mit
 Checkpoint und deduplizierter Überlappung. Danach Segmente → Claims → Evidence-IDs → Coverage-Status.
 Ungetakteter Text liefert Wissen, aber **deaktiviert** zeitgenaue Wiedergabe (FR-019).
+
+**Aus dem Audit — der größte Hebel und die größte Falle:**
+
+*Hebel:* `TranscriptionEngine.swift` (223 Z.), `AudioFileReader.swift` und `BufferConverter.swift` sind vorhanden und
+passen. `AudioFileReader.audioStreamFromFile` liest eine Datei bereits lazy in 4096-Frame-Blöcken in die Engine und
+erfüllt damit wörtlich, was `plan.md` §2 fordert. Das spart echte Wochen.
+
+*Falle:* **Das Transkript trägt heute keine Medienzeit.** `SpeechTranscriber` wird mit `attributeOptions: []`
+erzeugt, und `TranscriptionResult` kennt nur `text`, `isFinal` und eine Wanduhrzeit zur Latenzmessung. Für eine
+Diktier-App ist das richtig; für BrainSpeak-als-Wissensplayer ist es disqualifizierend — die Versprechen V1 und V2
+stehen beide auf mediengenauen Zeitbereichen.
+
+> **Erste Aufgabe in M3, vor allem anderen:** Zeitattribute anfordern, `CMTimeRange` durch `TranscriptionResult`
+> durchreichen, Checkpoint um Sampleposition, Asset-ID, Locale, Analysekonfiguration und Textrevision ergänzen.
+> Das sind Tage. Wird es später bemerkt, ist jedes darauf aufbauende Artefakt wertlos.
+> Details: [04-brainspeak-audit.md §3](04-brainspeak-audit.md).
 
 **Exit:** GATE-BG (Hintergrundanalyse-Realität), `validation/device/US1.md`, plus **T100 vorgezogen**: eine lange
 reale Audiofolge auf zwei Vollclients transkribieren und Timing, Abdeckung und Abbrüche messen.
@@ -136,6 +178,13 @@ reale Audiofolge auf zwei Vollclients transkribieren und Timing, Abdeckung und A
 AppleModelRouter (ausschließlich SystemLanguageModel und PCC), RetrievalService mit unveränderlichem
 ChatScopeSnapshot, EvidenceSweep für Vollständigkeitsfragen mit eigenem CoverageLedger.
 Das Modell wählt **IDs**, Swift löst Zeiten, Rechte, Scope und Fassung auf.
+
+**Aus dem Audit:** `FoundationModelsClient.swift` liefert die halbe Miete — Availability-Behandlung und eine
+**frische Session pro Anfrage**, was Kontextleckage zwischen Inhalten verhindert und genau der Eigenschaft
+entspricht, die der `ChatScopeSnapshot` braucht. `ModeEngine` plus `Modes/` zeigen bereits das Muster
+„Profil besitzt eigene Instruktion und typisierte `@Generable`-Ausgabe“ — die Vorlage für `extract`, `answer`,
+`recommend` und `proposePlayback`. **Neu sind:** PCC (kein Adapter, kein Entitlement im Checkout), Tools pro Profil,
+Evidence-ID-Auswahl, Retrieval und der gesamte Index.
 
 **Exit:** GATE-PCC zur Laufzeit, `validation/device/US4.md`, **T101 vorgezogen**: Apple Evaluations lokal und auf PCC
 getrennt, inklusive Kontingent-, Offline- und Modellwechselpfad.
@@ -167,6 +216,16 @@ CKSyncEngine als **einziger** Sync-Writer der definierten Recordtypen, Outbox un
 ConflictCopy statt Textverlust, append-only Lernsignale mit ResetEpoch, Abspielposition mit SessionID und monotoner
 Sequenz (größte Sekunde ist bei Rewind falsch).
 
+**Aus dem Audit — dieser Meilenstein ist eine Migration, keine Erweiterung:** BrainSpeak nutzt heute die
+**automatische CloudKit-Spiegelung von SwiftData** (`RecordingStore.makeContainer(cloudKit: true)`). Constitution IX
+und ADR-0003 verlangen das Gegenteil und verbieten beides nebeneinander für dieselben Records. Die automatische
+Spiegelung erzwingt zudem, dass jede Eigenschaft optional oder vorbelegt ist und keine Unique-Constraints existieren —
+im `Recording`-Modell gut sichtbar. Das verträgt sich nicht mit unveränderlichen oder revisionierten Artefakten,
+stabiler Identität, Outbox und Tombstones im selben Commit.
+
+**Nicht eingepreister Zusatzaufwand:** ein Migrationspfad für Aufnahmen echter Nutzer, die bereits in
+`iCloud.com.brainspeak.app` liegen. Entscheidung D8.
+
 **Exit:** GATE-SYNC (**T103 vorgezogen**: zwei echte Geräte, Offline-Rückkehr, Reset-Epoch), `validation/device/US10.md`.
 
 ### M8a — Smart Podcast List · T219–T266 · US17–US20 · 48 Aufgaben ← **vorgezogen**
@@ -196,6 +255,12 @@ Drei Regeln, die hier nicht verhandelbar sind:
 iPad als adaptiver NavigationSplitView mit Inspector; Mac als native App mit Multiwindow, Commands, Tabelle;
 Watch als eigenständige SwiftUI-Shell mit Offline-Pack und kurzem PCC-Weg — **kein erfundenes lokales Watch-Modell**.
 App Intents führen dieselben Policies aus wie die Oberfläche.
+
+**Aus dem Audit:** Die vier Shells **existieren bereits** (`project.yml`: macOS-, iOS/iPadOS-, watchOS-Target plus
+Keyboard-Extension) — das ist mehr, als der Plan angenommen hat. Offen bleibt aber viel: **App Intents, App Entities,
+Core Spotlight, BackgroundTasks und WidgetKit kommen in keiner einzigen Datei vor.** FR-056 und FR-053 sind Neubau.
+Zusätzlich ist die SwiftUI-Migration unvollständig: 9 Dateien nutzen `@Observable`, 6 noch `ObservableObject`.
+Die Watch ist heute ein reiner Rekorder, der an das iPhone überträgt — kein Wissensclient.
 
 **Exit:** GATE-DEVICE je Plattform, `validation/device/US8.md` + `US9.md`, **T104/T105 vorgezogen**.
 
@@ -256,12 +321,14 @@ ordnet jedem Gate Meilenstein, prüfende Aufgabe und Nachweisdatei zu.
 
 | Gate | Prüft | M | Aufgabe | Nachweis | Blockiert bei Fehlschlag |
 |---|---|---|---|---|---|
-| GATE-BS | BrainSpeak-Checkout lesbar, Lizenz, Targets | M0 | T001, T004 | `audit/brainspeak-baseline.md` | Integration (nicht: Spezifikation) → ADR nötig |
+| GATE-BS | BrainSpeak-Checkout lesbar, Lizenz, Targets | M0 | T001, T004 | ✅ [04-brainspeak-audit.md](04-brainspeak-audit.md) — MIT, vier Targets, 11 145 Z.; offen nur Commit/Branch-Bezug | — |
 | GATE-SDK | Xcode 27 / Swift 6.4, vier 27er-SDKs, Symbole vorhanden | M0 | T002, T086 | `config/toolchain-lock.json` | Jede neue API-Verwendung |
 | GATE-PCC | Konto-Entitlement **und** Gerätefähigkeit getrennt | M0/M4 | T003, T101 | `audit/pcc-eligibility.md` | Große Synthesen, Mehrfolgenvergleich |
 | GATE-BG | Hintergrundinferenz unter echten OS-Ressourcenregeln | M3 | T106 | `validation/performance.md` | Zusage „analysiert über Nacht“ |
 | GATE-PLAY | Fokusgrenzen, stale Callbacks, Wiedergaberaten | M6 | T102 | `validation/playback-boundaries.md` | V2 — Kernversprechen |
 | GATE-SYNC | CloudKit-Konflikte, Löschung, Offline, Reset-Epoch | M7 | T103 | `validation/cloudkit.md` | Mehrgerätebetrieb |
+| GATE-MIGRATE | Migration weg von SwiftData-Auto-Spiegelung ohne Datenverlust bei Bestandsnutzern (neu aus dem Audit, K1) | M7 | neu, siehe D8 | `validation/migration.md` | Bestandsnutzer |
+| GATE-TIME | Transkriptsegmente tragen mediengenaue Zeitbereiche (neu aus dem Audit, §M3) | M3 | neu, siehe [04 §3](04-brainspeak-audit.md) | `validation/transcript-timing.md` | V1 **und** V2 — alles danach |
 | GATE-LEDGER | Globale Intervallvereinigung, keine Dubletten über Feeds | M8a | T237–T252 | `validation/device/US19.md` | V4 — Vertrauen in persönliche Ausgaben |
 | GATE-COVER | Image-Playground-Systemdialog, atomare Übernahme vor Ablauf | M8a | T255–T260 | `validation/device/US20.md` | Nur Cover, nicht die Ausgabe |
 | GATE-YT | Sichtbare offizielle Wiedergabe, keine Extraktion | M9a | T107 | `validation/compliance.md` | YouTube als Quelle |
@@ -284,14 +351,20 @@ Die Task-IDs des Pakets sind stabil und werden **nicht** umnummeriert. Abweichen
 | A3 | **US11 Export (T093–T098) direkt nach US4** möglich | Braucht extern nur T046. Zieht das Markdown-Sicherheitsmodell (SafeSourceLink, Tokenausschluss) früh ins Licht. |
 | A4 | **US14 YouTube nicht in M1** | T111–T158 hängt an T086. Erst die Rechte-/Identitätsmechanik am unstrittigen RSS-Fall, dann der Sonderfall mit eigener Rechtslage. |
 
+| A5 | **Zeitbezug des Transkripts als allererste Aufgabe in M3**, vor Segmenten, Claims und Evidence | Aus dem Audit: die vorhandene Engine verwirft Medienzeiten. Jedes Artefakt, das vorher entsteht, müsste neu erzeugt werden. |
+
 Wird A1 oder A2 verworfen, bleibt der Plan gültig — die Meilensteine M8a und M10 tauschen dann die Position.
+A5 ist nicht verhandelbar: es ist keine Priorisierung, sondern eine Reihenfolgebedingung.
 
 ---
 
 ## 8. Aufwand — Szenario, keine Zusage
 
-Ohne M0 gibt es keine belastbare Schätzung: der Anteil wiederverwendbarer BrainSpeak-Bausteine ist unbekannt.
-Was ohne M0 sagbar ist, ist die **Struktur** des Aufwands.
+Nach dem Audit ist der Anteil wiederverwendbarer Bausteine **bekannt** — und er ist kleiner, als das Paket
+unterstellt. Von 11 145 Zeilen BrainSpeak sind für den Wissensplayer im Wesentlichen `BrainSpeakKit` mit
+Transcription, Audio und Intelligence relevant, dazu das Persistenz- und Watch-Gerüst: grob **2 000–2 500 Zeilen
+tragfähige Substanz**, mit Anpassungsbedarf. Die Diktier-, Hotkey-, Insertion-, Keyboard- und Modus-Oberflächen
+(`Sources/Hotkeys`, `Sources/Insertion`, `Sources/Keyboard`, `Sources/Settings`) sind für dieses Produkt nicht nutzbar.
 
 | Meilenstein | Aufgaben | davon Abnahmevorbereitung | Anteil |
 |---|---|---|---|
@@ -307,10 +380,25 @@ Was ohne M0 sagbar ist, ist die **Struktur** des Aufwands.
 Ein Drittel aller Aufgaben (89 von 266) ist Abnahmevorbereitung **vor** der Implementierung. Das ist Absicht und
 sollte nicht als Puffer missverstanden werden.
 
+**Was der Audit am Aufwand verschiebt:**
+
+| Verschiebung | Richtung |
+|---|---|
+| M3 Speech-Pipeline: Engine, Dateileser und Formatkonverter vorhanden | **entlastet** |
+| M4 Foundation-Models-Client und Profilmuster vorhanden | **entlastet** |
+| M8b vier Plattform-Shells vorhanden | **entlastet** |
+| M1 Quellen: vollständig Neubau statt Erweiterung | belastet |
+| M2/M6 Wiedergabe: `AVAudioPlayer` ist nicht die Grundlage | belastet |
+| M7 Sync: Migration statt Erweiterung, plus Bestandsdaten | **belastet, bisher nicht eingepreist** |
+| K2 Versionssprung 26 → 27 auf vier Plattformen | **belastet, bisher nicht eingepreist** |
+| App Intents, Spotlight, BackgroundTasks, WidgetKit: null Bestand | belastet |
+
 *Illustratives Kalenderszenario unter ausdrücklichen Annahmen* — drei Apple-Entwickelnde in Vollzeit, eine Person
-Design/Produkt zur Hälfte, Hardware für vier Plattformen vorhanden, PCC-Entitlement erteilt, BrainSpeak zu etwa
-einem Drittel wiederverwendbar: **R2 nach rund vier Monaten, R3 nach rund sechs, R5 nach neun bis zwölf.**
-Jede dieser Annahmen ist heute unbelegt. Die Spanne verengt sich mit M0, nicht mit mehr Planung.
+Design/Produkt zur Hälfte, Hardware für vier Plattformen vorhanden, PCC-Entitlement erteilt: **R2 nach rund vier bis
+fünf Monaten, R3 nach rund sieben, R5 nach zehn bis vierzehn.** Gegenüber der ersten Fassung leicht nach oben
+korrigiert: die Entlastung bei Speech und Foundation Models ist real, wird aber von Sync-Migration und
+Versionssprung mehr als aufgezehrt. Die verbleibende Unsicherheit steckt jetzt in GATE-SDK und GATE-PCC, nicht mehr
+im Altcode.
 
 ---
 
@@ -340,8 +428,17 @@ protokolliert, `traceability.csv` aktualisiert, und jede in diesem Meilenstein b
 
 ## 10. Nächste konkrete Schritte
 
-1. **D1 und D2 entscheiden** (Checkout-Zugang, PCC-Antrag) — beides hat Vorlaufzeit und blockiert M0.
-2. **Mac mit Xcode 27 bereitstellen** und `bash scripts/probe-apple-sdk.sh` laufen lassen; Ausgabe nach `validation/apple-sdk/`.
-3. **T001 starten**: BrainSpeak read-only inventarisieren, `audit/brainspeak-baseline.md` füllen.
-4. **D6 entscheiden**: die drei Konzeptlücken (§ [02-konzept-abdeckung.md](02-konzept-abdeckung.md)) als FR-145–147 aufnehmen oder per ADR ausschließen.
-5. Erst danach Code in `Packages/BrainSpeakDomain`.
+1. **D7 entscheiden — Plattformversionen.** BrainSpeak steht auf 26.0 / watchOS 11.0, das Paket fordert 27.0 überall.
+   Das ist eine Produktentscheidung über die Mindesthardware und Bestandsnutzer, keine Buildeinstellung.
+   Gleichzeitig klären, ob `.watchOS(.v11)` ein stehengebliebener Wert ist.
+2. **D8 entscheiden — Syncarchitektur.** SwiftData-Auto-Spiegelung behalten oder auf CKSyncEngine migrieren.
+   Bei Migration gehört der Pfad für bestehende iCloud-Aufnahmen in denselben Beschluss.
+3. **D2 anstoßen — PCC-Entitlement beantragen.** Im Checkout ist weder Adapter noch Entitlement vorhanden; die
+   Vorlaufzeit läuft ab Antrag, nicht ab M4.
+4. **Mac mit Xcode 27 bereitstellen** und `bash scripts/probe-apple-sdk.sh` laufen lassen; Ausgabe nach
+   `validation/apple-sdk/`. Das ist der letzte große offene Nachweis.
+5. **T001 formal schließen**: [04-brainspeak-audit.md](04-brainspeak-audit.md) an einem echten Checkout mit Commit
+   und Branch gegenprüfen, dann nach `audit/` übernehmen und das Manifest neu erzeugen.
+6. **D6 entscheiden**: die drei Konzeptlücken (§ [02-konzept-abdeckung.md](02-konzept-abdeckung.md)) als FR-145–147
+   aufnehmen oder per ADR ausschließen.
+7. Erst danach Code — und der erste Code ist der Zeitbezug im Transkript (Abweichung A5), nicht das Domainmodell.
