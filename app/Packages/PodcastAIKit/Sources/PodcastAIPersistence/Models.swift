@@ -19,6 +19,8 @@
 import Foundation
 import SwiftData
 import PodcastAICore
+import PodcastAIKnowledge
+import PodcastAISmartFeeds
 
 @Model
 public final class StoredSource {
@@ -333,9 +335,82 @@ public final class StoredHighlight {
     public var evidenceIdentifier: String = ""
     public var note: String?
     public var createdAt: Date = Date()
+    /// Der vollständige Wert als JSON. Siehe die Begründung bei
+    /// ``StoredSmartFeed``.
+    public var payload: Data?
 
     public init(identifier: String, evidenceIdentifier: String) {
         self.identifier = identifier; self.evidenceIdentifier = evidenceIdentifier
+    }
+}
+
+// MARK: - Was der Nutzer selbst anlegt
+
+//  Diese vier Typen wurden bisher **nur im Speicher** gehalten. Jeder
+//  Themenfeed, jede persönliche Ausgabe, jeder gemerkte Gedanke und jede
+//  geparkte Frage war beim nächsten App-Start weg. Das betraf ausgerechnet
+//  das, was der Nutzer selbst erzeugt hat — nicht das Nachladbare.
+//
+//  **Warum JSON und keine zerlegten Tabellen.** Eine persönliche Ausgabe ist
+//  ein Baum: Abschnitte, darin Zeitbereiche, Belegverweise, Begründungen,
+//  ein Cover. Ihn relational zu zerlegen hiesse, jedes Feld von Hand
+//  doppelt zu führen — und ein vergessenes Feld fällt nicht auf, es
+//  verschwindet einfach still. Die `Codable`-Ableitung ist bereits die eine
+//  Wahrheit über die Form dieser Typen; sie wird hier benutzt statt neben
+//  ihr eine zweite zu pflegen.
+//
+//  Der Preis, ausdrücklich: über Felder **innerhalb** des JSON lässt sich
+//  nicht mit `#Predicate` filtern. Deshalb stehen genau die Felder, nach
+//  denen tatsächlich gesucht wird, zusätzlich als eigene Spalten daneben.
+//  Reicht das eines Tages nicht mehr, ist das der Anlass zu zerlegen — bis
+//  dahin wäre es Arbeit ohne Nutzen.
+
+@Model
+public final class StoredSmartFeed {
+    #Index<StoredSmartFeed>([\.identifier], [\.createdAt])
+    @Attribute(.unique) public var identifier: String = ""
+    /// Zum Sortieren und Anzeigen, ohne das JSON zu lesen.
+    public var title: String = ""
+    public var createdAt: Date = Date()
+    public var payload: Data = Data()
+
+    public init(identifier: String, title: String, payload: Data) {
+        self.identifier = identifier
+        self.title = title
+        self.payload = payload
+    }
+}
+
+@Model
+public final class StoredPersonalEpisode {
+    #Index<StoredPersonalEpisode>([\.identifier], [\.feedIdentifier], [\.publishedAt])
+    @Attribute(.unique) public var identifier: String = ""
+    /// Die Spalte, nach der wirklich gefragt wird: „alle Ausgaben dieses Feeds“.
+    public var feedIdentifier: String = ""
+    public var publishedAt: Date = Date()
+    public var payload: Data = Data()
+
+    public init(identifier: String, feedIdentifier: String, publishedAt: Date, payload: Data) {
+        self.identifier = identifier
+        self.feedIdentifier = feedIdentifier
+        self.publishedAt = publishedAt
+        self.payload = payload
+    }
+}
+
+@Model
+public final class StoredKnowledgeTrail {
+    #Index<StoredKnowledgeTrail>([\.identifier], [\.parkedAt])
+    @Attribute(.unique) public var identifier: String = ""
+    public var question: String = ""
+    public var parkedAt: Date = Date()
+    public var payload: Data = Data()
+
+    public init(identifier: String, question: String, parkedAt: Date, payload: Data) {
+        self.identifier = identifier
+        self.question = question
+        self.parkedAt = parkedAt
+        self.payload = payload
     }
 }
 #endif

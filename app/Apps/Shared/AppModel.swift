@@ -87,6 +87,12 @@ public final class AppModel {
             sources = try await store.sources()
             profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
             ledger = try await store.ledger()
+            // Was der Nutzer selbst angelegt hat. Bis eben lag das alles
+            // nur im Speicher und war beim nächsten Start verschwunden.
+            smartFeeds = try await store.smartFeeds()
+            editions = try await store.editions()
+            highlights = try await store.highlights()
+            trails = try await store.trails()
             modelStatus = await ModelStatusProbe.current()
         } catch {
             lastError = error.localizedDescription
@@ -317,7 +323,43 @@ public final class AppModel {
             editionMode: .budgeted(MediaDuration(minutes: minutes))
         )
         smartFeeds.append(feed)
+        persistSmartFeeds()
         return feed.id
+    }
+
+    /// Sichert die selbst angelegten Bestände.
+    ///
+    /// Bewusst als eigene, kurze Methoden und nicht als eine große: jede
+    /// Änderung sichert genau das, was sie geändert hat. Ein gemerkter
+    /// Gedanke schreibt keine Themenfeeds neu.
+    private func persistSmartFeeds() {
+        let feeds = smartFeeds
+        Task { await persist { try await $0.save(smartFeeds: feeds) } }
+    }
+
+    private func persistEditions(for feedID: SmartFeedID) {
+        let list = editions[feedID] ?? []
+        Task { await persist { try await $0.save(editions: list, forFeed: feedID) } }
+    }
+
+    private func persistHighlights() {
+        let list = highlights
+        Task { await persist { try await $0.save(highlights: list) } }
+    }
+
+    private func persistTrails() {
+        let list = trails
+        Task { await persist { try await $0.save(trails: list) } }
+    }
+
+    /// Ein fehlgeschlagenes Sichern wird gemeldet, nicht verschluckt.
+    /// Sonst sieht der Nutzer seinen Eintrag, und beim nächsten Start ist er weg.
+    private func persist(_ work: (LibraryStore) async throws -> Void) async {
+        do {
+            try await work(store)
+        } catch {
+            lastError = "Konnte nicht gesichert werden: \(error.localizedDescription)"
+        }
     }
 
     /// Stellt eine neue Ausgabe zusammen. Startet ausdrücklich keinen Ton.
@@ -347,6 +389,7 @@ public final class AppModel {
             switch outcome {
             case .published(let episode):
                 editions[feedID, default: []].insert(episode, at: 0)
+                persistEditions(for: feedID)
                 return "\(episode.title): \(episode.segments.count) Stellen aus "
                     + "\(episode.distinctSourceCount) Quellen."
             case .noNewMaterial(let count):
@@ -385,6 +428,7 @@ public final class AppModel {
             note: note, capturedVia: route
         )
         highlights.insert(highlight, at: 0)
+        persistHighlights()
         return "Gemerkt: \(range.start.timecode)–\(range.end.timecode)"
     }
 
@@ -569,6 +613,7 @@ public final class AppModel {
             evidenceIDs: closure.supportingEvidenceIDs,
             highlightIDs: highlights.map(\.id)
         ), at: 0)
+        persistTrails()
     }
 
     /// Vertiefen: erzeugt eine neue, begrenzte Hörsession zur Anschlussfrage.

@@ -27,7 +27,13 @@ let package = Package(
         .target(name: "PodcastAIIntelligence", dependencies: ["PodcastAICore"]),
 
         // Persistenz: SwiftData-Modelle und ModelActor.
-        .target(name: "PodcastAIPersistence", dependencies: ["PodcastAICore"]),
+        // Persistenz kennt jetzt auch Wissen und Themenfeeds: dort liegen
+        // die Typen, die der Nutzer selbst anlegt (Merkzettel, geparkte
+        // Fragen, Themenfeeds, persönliche Ausgaben). Kein Kreis — keines
+        // dieser Module kennt die Persistenz.
+        .target(name: "PodcastAIPersistence", dependencies: [
+            "PodcastAICore", "PodcastAIKnowledge", "PodcastAISmartFeeds",
+        ]),
 
         // Wissen: Claims, Index, Retrieval, Hörhistorie.
         .target(name: "PodcastAIKnowledge", dependencies: ["PodcastAICore", "PodcastAIIntelligence"]),

@@ -14,6 +14,8 @@
 import Foundation
 import SwiftData
 import PodcastAICore
+import PodcastAIKnowledge
+import PodcastAISmartFeeds
 
 @ModelActor
 public actor LibraryStore {
@@ -34,6 +36,7 @@ public actor LibraryStore {
         StoredSource.self, StoredEpisode.self, StoredMediaVersion.self,
         StoredTranscript.self, StoredSegment.self, StoredListeningState.self,
         StoredInterest.self, StoredEvidence.self, StoredHighlight.self,
+        StoredSmartFeed.self, StoredPersonalEpisode.self, StoredKnowledgeTrail.self,
     ])
 
     /// Baut den Container.
@@ -316,6 +319,182 @@ public actor LibraryStore {
     public struct EpisodeTitles: Sendable {
         public let episode: String
         public let source: String
+    }
+
+    // MARK: - Was der Nutzer selbst anlegt
+
+    //  Themenfeeds, persönliche Ausgaben, Merkzettel und geparkte Fragen
+    //  lagen bisher nur im Speicher und waren beim nächsten Start weg.
+    //  Gespeichert wird der vollständige Wert als JSON; die Felder, nach
+    //  denen gesucht wird, stehen zusätzlich als Spalten daneben (siehe
+    //  `Models.swift`).
+
+    private static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        // Stabile Reihenfolge: zwei gleiche Werte ergeben dasselbe JSON.
+        // Sonst sähe jeder Speichervorgang nach einer Änderung aus.
+        encoder.outputFormatting = [.sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }()
+
+    private static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }()
+
+    public func save(smartFeeds: [SmartPodcastFeed]) throws {
+        let keep = Set(smartFeeds.map(\.id.rawValue))
+        var existing: [String: StoredSmartFeed] = [:]
+        // Ein Durchlauf: behalten oder löschen. Ein zweiter `fetch` nach
+        // dem Löschen sähe die gelöschten Zeilen noch.
+        for row in try modelContext.fetch(FetchDescriptor<StoredSmartFeed>()) {
+            if keep.contains(row.identifier) {
+                existing[row.identifier] = row
+            } else {
+                // Was der Nutzer gelöscht hat, verschwindet auch hier.
+                modelContext.delete(row)
+            }
+        }
+
+        for feed in smartFeeds {
+            let payload = try Self.encoder.encode(feed)
+            if let row = existing[feed.id.rawValue] {
+                row.title = feed.title
+                row.payload = payload
+            } else {
+                modelContext.insert(StoredSmartFeed(
+                    identifier: feed.id.rawValue, title: feed.title, payload: payload))
+            }
+        }
+        try modelContext.save()
+    }
+
+    public func smartFeeds() throws -> [SmartPodcastFeed] {
+        var descriptor = FetchDescriptor<StoredSmartFeed>()
+        descriptor.sortBy = [SortDescriptor(\.createdAt)]
+        return try modelContext.fetch(descriptor).compactMap {
+            // Ein einzelner unlesbarer Eintrag darf nicht die ganze Liste
+            // verschlucken — etwa nach einer Formatänderung.
+            try? Self.decoder.decode(SmartPodcastFeed.self, from: $0.payload)
+        }
+    }
+
+    public func save(editions: [PersonalEpisode], forFeed feedID: SmartFeedID) throws {
+        let feedKey = feedID.rawValue
+        let keep = Set(editions.map(\.id.rawValue))
+        let stored = try modelContext.fetch(
+            FetchDescriptor<StoredPersonalEpisode>(
+                predicate: #Predicate { $0.feedIdentifier == feedKey }
+            )
+        )
+        var existing: [String: StoredPersonalEpisode] = [:]
+        for row in stored {
+            if keep.contains(row.identifier) {
+                existing[row.identifier] = row
+            } else {
+                modelContext.delete(row)
+            }
+        }
+        for episode in editions {
+            let payload = try Self.encoder.encode(episode)
+            if let row = existing[episode.id.rawValue] {
+                row.publishedAt = episode.publishedAt
+                row.payload = payload
+            } else {
+                modelContext.insert(StoredPersonalEpisode(
+                    identifier: episode.id.rawValue,
+                    feedIdentifier: feedKey,
+                    publishedAt: episode.publishedAt,
+                    payload: payload))
+            }
+        }
+        try modelContext.save()
+    }
+
+    /// Alle Ausgaben, nach Feed gruppiert — so, wie die Oberfläche sie hält.
+    public func editions() throws -> [SmartFeedID: [PersonalEpisode]] {
+        var descriptor = FetchDescriptor<StoredPersonalEpisode>()
+        descriptor.sortBy = [SortDescriptor(\.publishedAt, order: .reverse)]
+        var result: [SmartFeedID: [PersonalEpisode]] = [:]
+        for row in try modelContext.fetch(descriptor) {
+            guard let episode = try? Self.decoder.decode(
+                PersonalEpisode.self, from: row.payload) else { continue }
+            result[SmartFeedID(rawValue: row.feedIdentifier), default: []].append(episode)
+        }
+        return result
+    }
+
+    public func save(trails: [KnowledgeTrail]) throws {
+        let keep = Set(trails.map(\.id.rawValue))
+        let stored = try modelContext.fetch(FetchDescriptor<StoredKnowledgeTrail>())
+        var existing: [String: StoredKnowledgeTrail] = [:]
+        for row in stored {
+            if keep.contains(row.identifier) {
+                existing[row.identifier] = row
+            } else {
+                modelContext.delete(row)
+            }
+        }
+        for trail in trails {
+            let payload = try Self.encoder.encode(trail)
+            if let row = existing[trail.id.rawValue] {
+                row.question = trail.question
+                row.payload = payload
+            } else {
+                modelContext.insert(StoredKnowledgeTrail(
+                    identifier: trail.id.rawValue, question: trail.question,
+                    parkedAt: trail.parkedAt, payload: payload))
+            }
+        }
+        try modelContext.save()
+    }
+
+    public func trails() throws -> [KnowledgeTrail] {
+        var descriptor = FetchDescriptor<StoredKnowledgeTrail>()
+        descriptor.sortBy = [SortDescriptor(\.parkedAt, order: .reverse)]
+        return try modelContext.fetch(descriptor).compactMap {
+            try? Self.decoder.decode(KnowledgeTrail.self, from: $0.payload)
+        }
+    }
+
+    public func save(highlights: [Highlight]) throws {
+        let keep = Set(highlights.map(\.id.rawValue))
+        let stored = try modelContext.fetch(FetchDescriptor<StoredHighlight>())
+        var existing: [String: StoredHighlight] = [:]
+        for row in stored {
+            if keep.contains(row.identifier) {
+                existing[row.identifier] = row
+            } else {
+                modelContext.delete(row)
+            }
+        }
+        for highlight in highlights {
+            let payload = try Self.encoder.encode(highlight)
+            if let row = existing[highlight.id.rawValue] {
+                row.note = highlight.note
+                row.payload = payload
+            } else {
+                let row = StoredHighlight(
+                    identifier: highlight.id.rawValue,
+                    evidenceIdentifier: highlight.evidenceID.rawValue)
+                row.note = highlight.note
+                row.createdAt = highlight.capturedAt
+                row.payload = payload
+                modelContext.insert(row)
+            }
+        }
+        try modelContext.save()
+    }
+
+    public func highlights() throws -> [Highlight] {
+        var descriptor = FetchDescriptor<StoredHighlight>()
+        descriptor.sortBy = [SortDescriptor(\.createdAt, order: .reverse)]
+        return try modelContext.fetch(descriptor).compactMap { row in
+            guard let payload = row.payload else { return nil }
+            return try? Self.decoder.decode(Highlight.self, from: payload)
+        }
     }
 }
 #endif
