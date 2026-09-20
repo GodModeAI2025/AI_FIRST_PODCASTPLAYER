@@ -59,7 +59,7 @@ KNOWN = {
     "Announcement","AccessibilityNotification","URLSessionDownloadDelegate",
     "AppDependencyManager","NSLock","NSLog","AVAudioSession",
     "AsyncIteratorProtocol","AVAudioTime","JSONEncoder","JSONDecoder",
-    "ViewModifier","Content",
+    "ViewModifier","Content","Substring","UTF8","NSRegularExpression","NSRange",
 }
 
 def enclosing_condition(text, offset):
@@ -109,6 +109,11 @@ for path in SWIFT:
     # Klammern ausgleichen. Reihenfolge wichtig: mehrzeilige Strings zuerst,
     # sonst zerlegt die einzeilige Regel sie und laesst Klammern zurueck.
     stripped = re.sub(r'"""(?:.|\n)*?"""', '""', text)
+    # Rohe Zeichenketten zuerst: in `#"..."#` bedeutet `\` nichts, und die
+    # Regel darunter wuerde sie deshalb an der falschen Stelle abschneiden.
+    # Regulaere Ausdruecke stehen in Swift genau so da -- voller Klammern,
+    # die keine sind.
+    stripped = re.sub(r'#+"(?:(?!"#).)*"#+', '""', stripped, flags=re.S)
     stripped = re.sub(r'"(?:[^"\\\n]|\\.)*"', '""', stripped)
     stripped = re.sub(r"//[^\n]*", "", stripped)
     stripped = re.sub(r"/\*.*?\*/", "", stripped, flags=re.S)

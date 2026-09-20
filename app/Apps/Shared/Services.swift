@@ -59,8 +59,18 @@ public actor FeedRefresher {
         case .youTubeChannel(_, let url):
             // Metadaten ja, Audiozugang nein — und das wird auch so angezeigt.
             feedURL = url; kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
-        case .youTubeVideo, .youTubePlaylist, .webPageNeedingDiscovery:
-            throw FeedRefreshError.needsDiscovery
+        case .youTubePlaylist:
+            // Regelhaft, ohne Anfrage.
+            guard let url = FeedDiscovery.directFeedURL(for: link) else {
+                throw FeedRefreshError.needsDiscovery
+            }
+            feedURL = url; kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
+        case .youTubeVideo:
+            feedURL = try await discoverYouTubeChannelFeed(for: link)
+            kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
+        case .webPageNeedingDiscovery:
+            feedURL = try await discoverFeedOnPage(for: link)
+            kind = .podcastRSS; capabilities = .fullPodcast
         case .localFile(let url):
             feedURL = url; kind = .localFile
             capabilities = SourceCapabilities(metadata: true, audioDownload: true)
@@ -130,6 +140,49 @@ public actor FeedRefresher {
         )
     }
 
+    /// Sucht den Feed auf einer gewöhnlichen Webseite.
+    ///
+    /// Gelesen wird nur der Kopf der Seite — genau das eine Element, das
+    /// laut Konvention den Feed benennt. Findet sich keines, ist das ein
+    /// eigener Fehler und keine allgemeine Ausrede: der Nutzer erfährt,
+    /// dass die Seite keinen Feed anbietet, nicht dass „etwas nicht
+    /// eingebaut“ sei.
+    private func discoverFeedOnPage(for link: ResolvedLink) async throws -> URL {
+        guard let page = FeedDiscovery.pageToInspect(for: link) else {
+            throw FeedRefreshError.needsDiscovery
+        }
+        let data = try await SafeHTTP.load(page, using: session, limit: Self.pageLimit)
+        let html = String(decoding: data, as: UTF8.self)
+
+        guard let feedURL = FeedDiscovery.feedLinks(inHTML: html, base: page).first else {
+            throw FeedRefreshError.noFeedOnPage(page.host ?? page.absoluteString)
+        }
+        return feedURL
+    }
+
+    /// Macht aus einem YouTube-Video den Feed seines Kanals.
+    ///
+    /// Ein einzelnes Video ist kein Feed. Abonniert wird deshalb der Kanal —
+    /// und das steht auch in der Oberfläche, statt so zu tun, als sei das
+    /// Video die Quelle.
+    private func discoverYouTubeChannelFeed(for link: ResolvedLink) async throws -> URL {
+        guard let page = FeedDiscovery.pageToInspect(for: link) else {
+            throw FeedRefreshError.needsDiscovery
+        }
+        let data = try await SafeHTTP.load(page, using: session, limit: Self.pageLimit)
+        let html = String(decoding: data, as: UTF8.self)
+
+        guard let channelID = FeedDiscovery.youTubeChannelID(inHTML: html),
+              let feedURL = FeedDiscovery.youTubeFeedURL(forChannel: channelID) else {
+            throw FeedRefreshError.noChannelForVideo
+        }
+        return feedURL
+    }
+
+    /// Eine HTML-Seite ist grösser als ein Feed, aber nicht beliebig gross.
+    /// YouTube-Seiten liegen bei wenigen Megabyte.
+    private static let pageLimit: Int64 = 12 * 1024 * 1024
+
     /// Holt einen Feed — mit Adressprüfung vor der Anfrage und einer
     /// Obergrenze, die *während* des Lesens greift.
     ///
@@ -142,12 +195,20 @@ public actor FeedRefresher {
 
 public enum FeedRefreshError: Error, LocalizedError {
     case needsDiscovery
+    case noFeedOnPage(String)
+    case noChannelForVideo
 
     public var errorDescription: String? {
         switch self {
         case .needsDiscovery:
-            "Zu diesem Link muss erst der Feed ermittelt werden. Das ist noch nicht eingebaut — "
-            + "füge bis dahin die Feed-Adresse direkt ein."
+            "Zu diesem Link lässt sich keine Feed-Adresse ermitteln. "
+            + "Füge die Feed-Adresse direkt ein."
+        case .noFeedOnPage(let host):
+            "\(host) bietet keinen Feed an. Manche Seiten verlinken ihn nur auf "
+            + "einer Unterseite — dann hilft die Adresse des Feeds selbst."
+        case .noChannelForVideo:
+            "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert "
+            + "Kanäle, keine einzelnen Videos."
         }
     }
 }

@@ -24,7 +24,7 @@ Stand: 62 Swift-Dateien, 13 299 Zeilen (mit Tests).
 
 | # | Konzeptkapitel | Stand | Was fehlt |
 |---|---|---|---|
-| 1 | Quellen: RSS, Folge, YouTube, lokal | ◐ | Nur direkte Feed-URLs. YouTube-Video, Playlist und Webseite mit Feed-Suche werfen „noch nicht eingebaut“ |
+| 1 | Quellen: RSS, Folge, YouTube, lokal | ✅ | Feed, Kanal, Playlist (regelhaft), Video (über seinen Kanal) und Webseite (Feed-Verweis im Kopf) |
 | 2 | Jede Folge wird verstanden | ✅ | Medienfassung, Transkript und Segmente werden gespeichert; eine Passage neu zu lesen braucht keine zweite Analyse |
 | 3 | Interessenmodell, bestätigt vs. vermutet | ✅ | `InterestSuggester` leitet Vorschläge aus tatsächlich Gehörtem ab; übernehmen und ablehnen wirken beide |
 | 4 | Relevante Stellen + „Warum für dich?“ | ✅ | `refreshRelevantToday` verbindet Bewerter, Belege und Hörzustand. Läuft beim Laden und nach jedem Refresh |
@@ -91,7 +91,7 @@ Dazu fünf Befunde, die kein Kapitel betreffen, sondern die Tragfähigkeit:
    `consumedGrants`, `sessionToken`, `forwardPlaybackEndTime`, jetzt mit
    SHA-256 statt FNV-1a. Regel 3 („automatisch vorbereiten, bewusst
    abspielen“) wird eingehalten, nicht nur behauptet.
-4. **Die Domänenschicht ist geprüft** — 16 Referenzmodelle, davon zehn
+4. **Die Domänenschicht ist geprüft** — 17 Referenzmodelle, davon zehn
    Brute-Force-Vergleiche gegen unabhängige Modelle.
 5. **Der PCC-Status ist als „nicht berechtigt“ hart verdrahtet** und als
    Vorgabe statt Messung ausgewiesen.
@@ -114,10 +114,9 @@ Messung, sondern eine Vorgabe, und sie ist im Code als solche ausgewiesen.
 Bis ein berechtigtes Gerät vorliegt, läuft alles auf dem Gerätemodell oder
 gar nicht.
 
-**Drei Lücken bleiben substanziell:**
+**Zwei Lücken bleiben substanziell:**
 
 * Kapitel 17 (MCP): eine Werkzeugklasse ohne Server ist kein Zugang.
-* Kapitel 1: YouTube-Video, Playlist und Feed-Suche auf einer Webseite.
 * Kapitel 19: Die PCC-Stufe ist Vorgabe, keine Messung.
 
 ## Grenzen der Verifikation
