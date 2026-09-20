@@ -41,7 +41,13 @@ public enum PlaybackState: Sendable, Equatable {
 }
 
 /// Was der Koordinator nach außen meldet.
-public protocol PlaybackObserver: AnyObject, Sendable {
+///
+/// `@MainActor`, weil der Koordinator es ist: diese Rückmeldungen kommen aus
+/// Player-Callbacks und gehen direkt in die Oberfläche und in den
+/// Hörzustand. Sie über eine Actor-Grenze zu schicken würde nur Latenz
+/// erzeugen, wo Genauigkeit gebraucht wird.
+@MainActor
+public protocol PlaybackObserver: AnyObject {
     func playbackStateChanged(_ state: PlaybackState)
     /// Fortschritt in der Zeitachse des Plans — für Anzeige und Hörhistorie.
     func playbackProgressed(segmentIndex: Int, position: MediaTime)
@@ -94,6 +100,12 @@ public final class PlaybackCoordinator {
         self.locator = locator
         self.observer = observer
         player.actionAtItemEnd = .pause
+    }
+
+    /// Nachträglich setzen, weil der Beobachter den Koordinator meist selbst
+    /// besitzt und sich deshalb nicht vor ihm bauen lässt.
+    public func setObserver(_ observer: any PlaybackObserver) {
+        self.observer = observer
     }
 
     // MARK: - Start

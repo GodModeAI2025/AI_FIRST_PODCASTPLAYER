@@ -51,7 +51,19 @@ public final class AppModel {
         let locator = LocalMediaLocator()
         self.player = PlaybackCoordinator(locator: locator)
         self.refresher = FeedRefresher(store: store)
+        // Erst diese Zeile macht aus dem Player einen, der den Hörzustand
+        // fortschreibt. Ohne sie läuft die Wiedergabe, und nichts davon
+        // kommt je im Ledger an.
+        self.player.setObserver(self)
     }
+
+    /// Der Zustand des Players, gespiegelt für die Oberfläche.
+    ///
+    /// `PlaybackCoordinator.state` ist keine beobachtbare Eigenschaft — eine
+    /// SwiftUI-Ansicht, die sie liest, aktualisiert sich nicht. Deshalb hier.
+    public private(set) var playerState: PlaybackState = .idle
+    /// Position innerhalb des laufenden Abschnitts, für die Fortschrittsanzeige.
+    public private(set) var playerPosition: MediaTime = .zero
 
     // MARK: - Laden
 
@@ -470,7 +482,85 @@ public final class AppModel {
         }
     }
 
+    /// Spielt eine einzelne relevante Stelle.
+    ///
+    /// Das war die Lücke, die „Für dich" wirkungslos machte: der Bildschirm
+    /// versprach „das kannst du nachhören" und bot keinen Weg dorthin.
+    public func playRelevantItem(_ item: RelevantItem) {
+        Task {
+            guard let found = try? await store.evidence(ids: [item.id]),
+                  let evidence = found[item.id] else {
+                lastError = "Diese Stelle ist nicht mehr verfügbar."
+                return
+            }
+            let context = SnapshotPlanningContext(evidence: [evidence])
+            let plan = FocusPlanner(context: context).plan(
+                from: PlaylistProposal(evidenceIDs: [item.id],
+                                       requestSummary: item.episodeTitle),
+                route: .interestFocus,
+                // Ausdrücklich gewählt heisst: auch dann abspielen, wenn es
+                // schon gehört wurde.
+                options: FocusPlannerOptions(skipAlreadyHeard: false, ledger: ledger)
+            )
+            guard !plan.isEmpty else {
+                lastError = plan.excluded.first?.reason ?? "Diese Stelle lässt sich nicht abspielen."
+                return
+            }
+            play(plan, from: .tap)
+        }
+    }
+
+    /// Hebt einen Vorschlag zu einem bestätigten Interesse.
+    public func confirmInterest(_ id: InterestID) async {
+        profile.confirm(id)
+        guard let interest = profile.interests.first(where: { $0.id == id }) else { return }
+        do {
+            try await store.upsert(interest: interest)
+            profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     public func clearError() { lastError = nil }
+}
+
+// MARK: - Hörzustand aus der Wiedergabe
+
+extension AppModel: PlaybackObserver {
+
+    public func playbackStateChanged(_ state: PlaybackState) {
+        playerState = state
+        if case .failed(let reason) = state { lastError = reason }
+    }
+
+    public func playbackProgressed(segmentIndex: Int, position: MediaTime) {
+        playerPosition = position
+    }
+
+    /// **Hier schliesst sich der Kreis.**
+    ///
+    /// Der Player meldet, was tatsächlich erklungen ist; der Store macht
+    /// daraus die Wahrheit über den Hörzustand. Ohne diese Methode wäre die
+    /// gesamte Intervalllogik korrekt und tot: sie würde nie aufgerufen, und
+    /// jede persönliche Ausgabe böte dieselben Stellen wieder an.
+    public func segmentCompleted(
+        segmentIndex: Int, heard: MediaTimeRange, mediaVersionID: MediaVersionID
+    ) {
+        let route = player.activePlan?.route ?? .originalEpisode
+        Task { await recordHeard(heard, in: mediaVersionID, via: route) }
+    }
+
+    /// Der Quellenwechsel wird angesagt.
+    ///
+    /// Wer nur hört, merkt sonst nur, dass Stimme und Aufnahmequalität
+    /// wechseln — ohne zu erfahren, woher das Neue stammt. Genau das wollte
+    /// die App vermeiden.
+    public func willChangeSource(to segment: PlanSegment) {
+        AccessibilityNotification.Announcement(
+            "Nächste Stelle: \(segment.episodeTitle), aus \(segment.sourceTitle)"
+        ).post()
+    }
 
     static func currentDeviceID() -> String {
         // Stabil je Installation, ohne Gerätekennung zu erheben.
