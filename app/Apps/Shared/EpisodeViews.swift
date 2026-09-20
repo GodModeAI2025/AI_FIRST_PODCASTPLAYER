@@ -65,10 +65,12 @@ struct EpisodeRow: View {
     private var stage: ProcessingStage? { model.stages[episode.id] }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(episode.title).font(.headline)
+        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            Text(episode.title)
+                .font(.headline)
+                .lineLimit(3)
 
-            HStack(spacing: 8) {
+            HStack(spacing: Design.Spacing.small) {
                 if let published = episode.publishedAt {
                     Text(published, style: .date)
                 }
@@ -80,11 +82,16 @@ struct EpisodeRow: View {
             .foregroundStyle(.secondary)
 
             if let stage {
-                Label(
-                    model.stageDetails[episode.id].map { "\(stage.label) · \($0)" } ?? stage.label,
-                    systemImage: stage == .failed ? "exclamationmark.triangle" : "circle.dotted"
-                )
-                .font(.caption2)
+                // Der Zustand trägt Symbol **und** Text. Farbe allein würde
+                // für jeden, der sie nicht unterscheiden kann, nichts sagen.
+                Label {
+                    Text(model.stageDetails[episode.id].map { "\(stage.label) · \($0)" }
+                         ?? stage.label)
+                } icon: {
+                    Image(systemName: stage.symbol)
+                        .symbolEffect(.pulse, isActive: stage.isRunning)
+                }
+                .font(.caption)
                 .foregroundStyle(stage == .failed ? .orange : .secondary)
             }
 
@@ -94,10 +101,13 @@ struct EpisodeRow: View {
                 } label: {
                     Label(stage == .failed ? "Erneut versuchen" : "Erschliessen",
                           systemImage: "waveform.badge.magnifyingglass")
+                        .frame(minHeight: Design.minimumTapTarget)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .padding(.top, 2)
+                .buttonStyle(.pressable)
+                .buttonBorderShape(.capsule)
+                .padding(.top, Design.Spacing.micro)
+                .accessibilityHint("Lädt die Folge und wertet sie aus. "
+                                   + "Das kann einige Minuten dauern.")
             } else if !episode.canBeAnalyzed {
                 // Ehrlich statt stiller Fehlschlag: ohne Audio und ohne
                 // getaktetes Transkript gibt es keinen Weg zu Timecodes.
@@ -107,7 +117,32 @@ struct EpisodeRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, Design.Spacing.micro)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+extension ProcessingStage {
+
+    /// Ein eigenes Symbol je Stufe, damit der Fortschritt erkennbar ist,
+    /// ohne die Beschriftung zu lesen.
+    var symbol: String {
+        switch self {
+        case .discovered: "arrow.down.circle"
+        case .mediaDownloaded: "waveform"
+        case .transcribed: "text.alignleft"
+        case .evidenceExtracted: "checkmark.circle.fill"
+        case .failed: "exclamationmark.triangle"
+        }
+    }
+
+    /// Läuft gerade etwas? Dann pulsiert das Symbol — eine Bewegung, die
+    /// Arbeit anzeigt, ohne den Bildschirm zu beanspruchen.
+    var isRunning: Bool {
+        switch self {
+        case .discovered, .mediaDownloaded, .transcribed: true
+        case .evidenceExtracted, .failed: false
+        }
     }
 }
 
@@ -130,7 +165,7 @@ struct KnowledgeView: View {
                 }
             }
             ForEach(model.highlights) { highlight in
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     if let note = highlight.note {
                         Text(note).font(.body)
                     }

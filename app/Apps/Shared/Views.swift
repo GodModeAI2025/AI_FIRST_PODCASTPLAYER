@@ -48,33 +48,52 @@ struct RelevantItemRow: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(item.sourceTitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            // Hierarchie über Gewicht und Farbe, nicht über Schriftwechsel:
+            // Quelle zurückgenommen, Folge als Überschrift, Zitat als Text.
+            HStack(spacing: Design.Spacing.micro) {
+                Text(item.sourceTitle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Text("·").foregroundStyle(.tertiary)
+                // Der Timecode steht sichtbar dabei. Er ist kein technisches
+                // Detail, sondern das Versprechen: das hier kannst du nachhören.
+                TimecodeLabel(item.range, emphasis: .medium)
+            }
 
             Text(item.episodeTitle)
                 .font(.headline)
-
-            // Der Timecode steht sichtbar dabei. Er ist kein technisches
-            // Detail, sondern das Versprechen: das hier kannst du nachhören.
-            Text("\(item.range.start.timecode)–\(item.range.end.timecode)")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .lineLimit(2)
 
             Text(item.excerpt)
                 .font(.callout)
+                .foregroundStyle(.secondary)
                 .lineLimit(3)
 
             if let relevance = item.relevance {
-                // „Warum sehe ich das?“ ist jederzeit beantwortet — nicht
-                // hinter einem Info-Symbol versteckt.
-                Label(relevance.explanation, systemImage: "target")
-                    .font(.caption)
-                    .foregroundStyle(.tint)
+                // „Warum sehe ich das?“ steht hier und nicht hinter einem
+                // Info-Symbol. Wer die Begründung suchen muss, glaubt sie nicht.
+                Label {
+                    Text(relevance.explanation)
+                } icon: {
+                    Image(systemName: "target")
+                }
+                .font(.caption)
+                .foregroundStyle(.tint)
+                .padding(.top, Design.Spacing.micro)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Design.Spacing.small)
+        // Für VoiceOver eine Einheit statt fünf Fragmente.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accessibilityDescription: String {
+        var parts = [item.episodeTitle, "aus \(item.sourceTitle)",
+                     TimecodeLabel.spoken("\(item.range.start.timecode)–\(item.range.end.timecode)")]
+        if let relevance = item.relevance { parts.append(relevance.explanation) }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -128,7 +147,7 @@ struct SmartFeedRow: View {
     let editions: [PersonalEpisode]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
             Text(feed.title).font(.headline)
             if let latest = editions.first {
                 Text("\(latest.title) · \(latest.totalMediaDuration.shortDescription)")
@@ -151,39 +170,50 @@ struct PersonalEpisodeView: View {
     var body: some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(episode.title).font(.title2.bold())
+                VStack(alignment: .leading, spacing: Design.Spacing.control) {
+                    Text(episode.title)
+                        .font(.title2.weight(.bold))
                     if let subtitle = episode.subtitle {
-                        Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
-                    Label(
-                        "\(episode.segments.count) Stellen · \(episode.distinctSourceCount) Quellen "
-                        + "· \(episode.totalMediaDuration.shortDescription)",
-                        systemImage: "waveform"
-                    )
-                    .font(.caption)
 
-                    Button {
-                        play()
-                    } label: {
+                    Label {
+                        Text("\(episode.segments.count) Stellen · "
+                             + "\(episode.distinctSourceCount) Quellen · "
+                             + "\(episode.totalMediaDuration.shortDescription)")
+                    } icon: {
+                        Image(systemName: "waveform")
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                    // Die primäre Aktion: gefüllt, getintet, in voller Breite.
+                    // Sie ist die einzige gefüllte Schaltfläche auf diesem
+                    // Bildschirm — sonst wäre keine mehr primär.
+                    Button(action: play) {
                         Label("Abspielen", systemImage: "play.fill")
-                            .frame(maxWidth: .infinity)
+                            .font(.body.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
                     }
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .buttonBorderShape(.capsule)
+                    .accessibilityHint("Spielt \(episode.segments.count) Originalstellen nacheinander ab")
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, Design.Spacing.small)
             }
 
             Section("Kapitel") {
                 ForEach(Array(episode.shownotes.enumerated()), id: \.offset) { _, entry in
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(entry.virtualStart.timecode)
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                        HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.control) {
+                            TimecodeLabel(entry.virtualStart, emphasis: .medium)
+                                // Feste Breite, damit die Titel eine Kante
+                                // bilden statt zu flattern.
                                 .frame(width: 52, alignment: .leading)
-                            Text(entry.title).font(.body)
+                            Text(entry.title)
+                                .font(.body)
                         }
                         // Jedes Kapitel zeigt seine Originalquelle. Ohne das
                         // wäre die Ausgabe ein Zusammenschnitt ohne Herkunft.
@@ -191,9 +221,14 @@ struct PersonalEpisodeView: View {
                              + "Original \(entry.originalRange.start.timecode)")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                            .padding(.leading, 52)
+                            .padding(.leading, 52 + Design.Spacing.control)
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, Design.Spacing.micro)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(
+                        "\(TimecodeLabel.spokenSingle(entry.virtualStart.timecode)), "
+                        + "\(entry.title), aus \(entry.sourceTitle)"
+                    )
                 }
             }
 
@@ -279,7 +314,7 @@ struct SourceRow: View {
     let source: Source
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
             Text(source.title).font(.headline)
             if let author = source.author {
                 Text(author).font(.caption).foregroundStyle(.secondary)
@@ -427,7 +462,7 @@ struct InterestRow: View {
     let interest: Interest
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
             Text(interest.label)
             Text(interest.origin.label)
                 .font(.caption2)
@@ -494,7 +529,7 @@ struct FocusPlayerView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Design.Spacing.standard) {
             if let plan = model.player.activePlan,
                case .playing(let index) = model.player.state,
                index < plan.segments.count {
@@ -517,18 +552,30 @@ struct FocusPlayerView: View {
                 Text("Stelle \(index + 1) von \(plan.segments.count)")
                     .font(.caption2).foregroundStyle(.secondary)
 
-                HStack(spacing: 28) {
+                HStack(spacing: Design.Spacing.large) {
                     Button { model.player.pause() } label: {
-                        Image(systemName: "pause.fill").font(.title)
+                        Image(systemName: "pause.fill")
+                            .font(.title)
+                            .tappableArea()
                     }
+                    .accessibilityLabel("Pausieren")
+
                     Button { model.player.skipSegment() } label: {
-                        Image(systemName: "forward.end.fill").font(.title)
+                        Image(systemName: "forward.end.fill")
+                            .font(.title)
+                            .tappableArea()
                     }
+                    .accessibilityLabel("Diese Stelle überspringen")
+                    .accessibilityHint("Der übersprungene Teil zählt nicht als gehört")
+
                     Button { model.player.stop() } label: {
-                        Image(systemName: "stop.fill").font(.title)
+                        Image(systemName: "stop.fill")
+                            .font(.title)
+                            .tappableArea()
                     }
+                    .accessibilityLabel("Wiedergabe beenden")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressable)
             } else {
                 ContentUnavailableView(
                     "Nichts wird abgespielt",
@@ -616,5 +663,42 @@ struct CapabilityRow: View {
                 .foregroundStyle(isAvailable ? .green : .secondary)
             Text(title)
         }
+    }
+}
+
+
+/// Platzhalter während des Ladens.
+///
+/// Ein Kreisel sagt „es passiert etwas“. Ein Platzhalter in der Form des
+/// erwarteten Inhalts sagt zusätzlich, *was* gleich da sein wird — und der
+/// Sprung beim Erscheinen ist kleiner, weil das Layout schon steht.
+struct SkeletonRow: View {
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shimmer = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            bar(width: 120, height: 11)
+            bar(width: .infinity, height: 16)
+            bar(width: 220, height: 13)
+        }
+        .padding(.vertical, Design.Spacing.small)
+        .opacity(shimmer ? 0.45 : 0.8)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1).repeatForever(autoreverses: true)) {
+                shimmer = true
+            }
+        }
+        // Für VoiceOver ist ein Platzhalter kein Inhalt.
+        .accessibilityHidden(true)
+    }
+
+    private func bar(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: Design.Radius.chip, style: .continuous)
+            .fill(.quaternary)
+            .frame(maxWidth: width)
+            .frame(height: height)
     }
 }

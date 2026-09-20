@@ -32,6 +32,8 @@ struct CounterpointView: View {
                 TextField("Deine These", text: $thesis, axis: .vertical)
                     .lineLimit(1...3)
                 Button("Prüfen") { check() }
+                    .frame(minHeight: Design.minimumTapTarget)
+                    .buttonStyle(.pressable)
                     .disabled(thesis.trimmingCharacters(in: .whitespaces).isEmpty)
             } header: {
                 Text("These")
@@ -89,7 +91,9 @@ struct CounterpointView: View {
                         model.playCounterpoints(candidates, thesis: thesis)
                     } label: {
                         Label("Nacheinander anhören", systemImage: "play.circle")
+                            .frame(minHeight: Design.minimumTapTarget)
                     }
+                    .buttonStyle(.pressable)
                 } footer: {
                     Text("Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie "
                          + "nicht zusammen und spricht sie nicht nach.")
@@ -126,7 +130,7 @@ struct CounterpointRow: View {
     let candidate: CounterpointCandidate
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
             Text(candidate.sourceTitle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -137,12 +141,16 @@ struct CounterpointRow: View {
                 // Eine vermutete Zuordnung wird als vermutet gezeigt. Sie als
                 // Tatsache auszugeben wäre genau der Fehler, den dieser
                 // Modus vermeiden soll.
-                Text("Zuordnung vermutet, nicht geprüft")
+                //
+                // Symbol **und** Text: Farbe allein trägt die Warnung nicht
+                // für jeden.
+                Label("Zuordnung vermutet, nicht geprüft",
+                      systemImage: "questionmark.circle")
                     .font(.caption2)
                     .foregroundStyle(.orange)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Design.Spacing.micro / 2)
     }
 }
 
@@ -164,7 +172,7 @@ struct SessionClosureSheet: View {
                 Section {
                     Text(closure.question)
                         .font(.title3)
-                        .padding(.vertical, 6)
+                        .padding(.vertical, Design.Spacing.small)
                 } header: {
                     Text("Was nimmst du daraus mit?")
                 }
@@ -173,7 +181,7 @@ struct SessionClosureSheet: View {
                     Button {
                         model.deepen(closure); dismiss()
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
                             Label("Vertiefen", systemImage: "arrow.down.circle")
                             Text(closure.followUpLabel)
                                 .font(.caption)
@@ -186,7 +194,7 @@ struct SessionClosureSheet: View {
                     Button {
                         model.park(closure); dismiss()
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
                             Label("Parken", systemImage: "tray.and.arrow.down")
                             Text("Frage, Belege und Notizen als Wissenslandkarte sichern.")
                                 .font(.caption)
@@ -197,7 +205,7 @@ struct SessionClosureSheet: View {
                     Button(role: .destructive) {
                         dismiss()
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
                             Label("Verwerfen", systemImage: "xmark.circle")
                             // Die wichtigste Zeile dieser Ansicht.
                             Text("Verwirft nur diesen Vorschlag. Gemerkte Stellen, Notizen "
@@ -235,7 +243,7 @@ struct TrailListView: View {
                 }
             }
             ForEach(model.trails) { trail in
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Text(trail.question).font(.headline)
                     Text("\(trail.evidenceIDs.count) Belege · geparkt \(trail.parkedAt, style: .date)")
                         .font(.caption)
@@ -245,7 +253,7 @@ struct TrailListView: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, Design.Spacing.micro / 2)
             }
         }
         .navigationTitle("Wissenslandkarten")

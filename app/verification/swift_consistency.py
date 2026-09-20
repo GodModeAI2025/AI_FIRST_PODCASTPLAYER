@@ -52,7 +52,8 @@ KNOWN = {
     "AppShortcut","AppShortcutsProvider","Dependency","Parameter","MainActor","NSWorkspace",
     "SecTaskCreateFromSelf","Never","PackageDescription","Package","NavigationLink",
     "CDATABlock","Test","Suite","Issue","Testing","ShareLink","ImageRenderer","CoreSpotlight","CSSearchableItem",
-    "CSSearchableItemAttributeSet","CSSearchableIndex","Toggle",
+    "CSSearchableItemAttributeSet","CSSearchableIndex","Toggle","Weight","Rectangle",
+    "Animation","Material","ButtonStyle","Configuration","CGFloat","Capsule",
     "BGTaskScheduler","BGAppRefreshTask","BGProcessingTask","BGAppRefreshTaskRequest",
     "BGProcessingTaskRequest","UIImage","NSImage","CGSize","LinearGradient","Gradient",
 }

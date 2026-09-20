@@ -22,15 +22,15 @@ struct ChatView: View {
     @State private var isAsking = false
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: Design.Spacing.none) {
             ScopeBar(scope: $scope)
             Divider()
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 20) {
+                LazyVStack(alignment: .leading, spacing: Design.Spacing.section) {
                     if answers.isEmpty {
                         ChatEmptyState(scope: scope)
-                            .padding(.top, 40)
+                            .padding(.top, Design.Spacing.generous)
                     }
                     ForEach(answers) { answer in
                         AnswerCard(answer: answer)
@@ -39,26 +39,35 @@ struct ChatView: View {
                 .padding()
             }
 
-            Divider()
             askField
         }
         .navigationTitle("Fragen")
     }
 
+    /// Das Eingabefeld liegt auf der Navigationsebene und bekommt deshalb
+    /// Glas — es schwebt über dem Inhalt, statt Teil davon zu sein.
     private var askField: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Design.Spacing.small) {
             TextField("Frage stellen …", text: $question, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...4)
                 .onSubmit(ask)
+                .accessibilityLabel("Frage")
 
             Button(action: ask) {
-                Image(systemName: "arrow.up.circle.fill").font(.title2)
+                Image(systemName: isAsking ? "ellipsis" : "arrow.up.circle.fill")
+                    .font(.title2)
+                    .symbolEffect(.pulse, isActive: isAsking)
+                    .tappableArea()
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pressable)
             .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || isAsking)
+            .accessibilityLabel("Frage senden")
         }
-        .padding(12)
+        .padding(.horizontal, Design.Spacing.standard)
+        .padding(.vertical, Design.Spacing.small)
+        .glassEffect(.regular, in: .capsule)
+        .padding(Design.Spacing.control)
     }
 
     private func ask() {
@@ -96,8 +105,8 @@ struct ScopeBar: View {
             .labelsHidden()
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Design.Spacing.control)
+        .padding(.vertical, Design.Spacing.small)
     }
 
     enum ScopeChoice: CaseIterable, Hashable {
@@ -133,7 +142,7 @@ struct ChatEmptyState: View {
     let scope: ChatScope
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: Design.Spacing.control) {
             Image(systemName: "text.bubble")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
@@ -145,7 +154,7 @@ struct ChatEmptyState: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .padding(.horizontal, 32)
+        .padding(.horizontal, Design.Spacing.large)
     }
 }
 
@@ -155,7 +164,7 @@ struct AnswerCard: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Design.Spacing.control) {
             Text(answer.question)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -173,12 +182,12 @@ struct AnswerCard: View {
             }
 
             if !answer.citations.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Design.Spacing.small) {
                     ForEach(answer.citations, id: \.id) { evidence in
                         CitationRow(evidence: evidence)
                     }
                 }
-                .padding(.top, 2)
+                .padding(.top, Design.Spacing.micro / 2)
             }
 
             // Der Übergang, der den Chat vom Suchfeld unterscheidet.
@@ -186,15 +195,21 @@ struct AnswerCard: View {
                 Button {
                     model.playAnswer(answer)
                 } label: {
-                    Label("Diese \(answer.playableCitations.count) Stellen anhören",
-                          systemImage: "play.circle")
+                    Label(
+                        answer.playableCitations.count == 1
+                            ? "Diese Stelle anhören"
+                            : "Diese \(answer.playableCitations.count) Stellen anhören",
+                        systemImage: "play.circle"
+                    )
+                    .frame(minHeight: Design.minimumTapTarget)
                 }
-                .buttonStyle(.bordered)
-                .padding(.top, 4)
+                .buttonStyle(.pressable)
+                .buttonBorderShape(.capsule)
+                .padding(.top, Design.Spacing.micro)
+                .accessibilityHint("Spielt die belegten Originalstellen nacheinander ab")
             }
         }
-        .padding(14)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+        .contentCard()
     }
 }
 
@@ -203,18 +218,16 @@ struct CitationRow: View {
     let evidence: Evidence
 
     var body: some View {
-        HStack(alignment: .top, spacing: 6) {
+        HStack(alignment: .top, spacing: Design.Spacing.small) {
             Image(systemName: "quote.opening")
                 .font(.caption2)
                 .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
                 Text(evidence.quotedText)
                     .font(.caption)
                     .lineLimit(3)
                 if let range = evidence.range {
-                    Text("\(range.start.timecode)–\(range.end.timecode)")
-                        .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                    TimecodeLabel(range)
                 } else {
                     // Ehrlich statt erfunden.
                     Text("ohne Zeitbezug — nicht anhörbar")

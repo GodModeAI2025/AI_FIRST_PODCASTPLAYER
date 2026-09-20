@@ -9,5 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 python3 swift_consistency.py
 echo
+python3 design_checklist.py
+echo
 for f in *_reference.py; do python3 "$f"; done
 echo "Alle Referenzmodelle bestanden."

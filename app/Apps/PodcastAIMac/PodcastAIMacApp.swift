@@ -62,7 +62,7 @@ struct MacRootView: View {
             switch self {
             case .forYou: "Für dich"
             case .feeds: "Meine Feeds"
-            case .chat: "Fragen"
+            case .chat: "Suchen und fragen"
             case .library: "Mediathek"
             case .knowledge: "Wissen"
             case .interests: "Interessen"
@@ -89,10 +89,28 @@ struct MacRootView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(Section.allCases, selection: $section) { item in
-                Label(item.label, systemImage: item.symbol).tag(item)
+            List(selection: $section) {
+                // Gruppiert statt einer langen Liste: Hören, Sammeln,
+                // Profil. Eine Seitenleiste verträgt mehr Einträge als eine
+                // Tab Bar, aber nicht beliebig viele ohne Ordnung.
+                SwiftUI.Section("Hören") {
+                    ForEach([Section.forYou, .feeds, .library, .player]) { item in
+                        Label(item.label, systemImage: item.symbol).tag(item)
+                    }
+                }
+                SwiftUI.Section("Wissen") {
+                    ForEach([Section.chat, .knowledge, .trails, .perspective]) { item in
+                        Label(item.label, systemImage: item.symbol).tag(item)
+                    }
+                }
+                SwiftUI.Section("Profil") {
+                    ForEach([Section.interests]) { item in
+                        Label(item.label, systemImage: item.symbol).tag(item)
+                    }
+                }
             }
-            .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
         } detail: {
             NavigationStack {
                 switch section {
@@ -112,16 +130,19 @@ struct MacRootView: View {
             ToolbarItem {
                 Button { Task { await model.refreshAll() } } label: {
                     Label("Aktualisieren", systemImage: "arrow.clockwise")
+                        .frame(minHeight: Design.minimumTapTarget)
                 }
+                .buttonStyle(.pressable)
+                .accessibilityLabel("Alle Feeds aktualisieren")
             }
         }
         .overlay(alignment: .bottom) {
             if let activity = model.activity {
                 Text(activity)
                     .font(.caption)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .padding(.horizontal, Design.Spacing.control).padding(.vertical, Design.Spacing.small)
                     .background(.thinMaterial, in: Capsule())
-                    .padding(.bottom, 12)
+                    .padding(.bottom, Design.Spacing.control)
             }
         }
     }

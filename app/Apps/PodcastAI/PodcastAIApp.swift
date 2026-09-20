@@ -2,9 +2,18 @@
 //  PodcastAIApp.swift
 //  PodcastAI (iOS / iPadOS)
 //
-//  Auf dem iPhone steht das Hören im Vordergrund: vier fachliche Bereiche,
-//  ein durchgehender Mini-Player. Das iPad bekommt dieselben Bereiche in
-//  einer Mehrspaltenansicht — nicht dieselbe Ansicht, nur breiter.
+//  Fünf Bereiche, nicht sieben.
+//
+//  Die Tab Bar verträgt drei bis fünf Einträge. Bei sieben wird jeder
+//  einzelne schmaler, die Beschriftungen brechen um, und der Nutzer muss
+//  lesen statt zu erkennen. Interessen, Gegenpositionen und
+//  Wissenslandkarten sind deshalb keine eigenen Tabs, sondern liegen unter
+//  „Wissen“ — sie gehören inhaltlich zusammen und werden seltener gebraucht
+//  als Hören und Mediathek.
+//
+//  „Fragen“ steht an der Stelle, an der seit WWDC25 die Suche erwartet wird:
+//  ein eigener Tab, immer erreichbar. In dieser App ist die Suche ein
+//  Gespräch — aber sie bleibt Suche.
 //
 
 import SwiftUI
@@ -22,8 +31,7 @@ struct PodcastAIApp: App {
             _model = State(initialValue: AppModel(store: LibraryStore(modelContainer: container)))
         } catch {
             // Der Speicher wird nicht stillschweigend durch einen flüchtigen
-            // ersetzt: das würde aussehen, als seien die Daten weg.
-            // Stattdessen ein ehrlicher Fehler mit Wiederholmöglichkeit.
+            // ersetzt: das sähe aus, als seien die Daten weg.
             let container = try! LibraryStore.makeContainer(inMemory: true)
             _model = State(initialValue: AppModel(store: LibraryStore(modelContainer: container)))
             _startupError = State(initialValue: error.localizedDescription)
@@ -53,9 +61,12 @@ struct PodcastAIApp: App {
 struct RootView: View {
 
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: Tab = .forYou
 
-    enum Tab: Hashable { case forYou, feeds, chat, library, knowledge, interests, perspective }
+    enum Tab: Hashable {
+        case forYou, feeds, ask, library, knowledge
+    }
 
     var body: some View {
         TabView(selection: $selection) {
@@ -65,75 +76,122 @@ struct RootView: View {
             Tab("Meine Feeds", systemImage: "waveform.circle", value: Tab.feeds) {
                 NavigationStack { SmartFeedListView() }
             }
-            Tab("Fragen", systemImage: "text.bubble", value: Tab.chat) {
+            // Eigener Such-Tab: die Rolle, die er seit WWDC25 hat.
+            Tab("Fragen", systemImage: "magnifyingglass", value: Tab.ask, role: .search) {
                 NavigationStack { ChatView() }
             }
             Tab("Mediathek", systemImage: "books.vertical", value: Tab.library) {
                 NavigationStack { LibraryView() }
             }
             Tab("Wissen", systemImage: "brain", value: Tab.knowledge) {
-                NavigationStack { KnowledgeView() }
-            }
-            Tab("Interessen", systemImage: "target", value: Tab.interests) {
-                NavigationStack { InterestsView() }
-            }
-            Tab("Prüfen", systemImage: "arrow.left.arrow.right", value: Tab.perspective) {
-                NavigationStack { CounterpointView() }
+                NavigationStack { KnowledgeHubView() }
             }
         }
-        .safeAreaInset(edge: .bottom) { MiniPlayerBar() }
+        // Der Mini-Player als Zubehör der Tab Bar statt als eigene Leiste.
+        // Er sitzt damit auf derselben Ebene wie die Navigation, statt eine
+        // zweite Leiste darüber zu stapeln — und das System kümmert sich um
+        // das Material, statt dass die App Glas auf Glas legt.
+        .tabViewBottomAccessory { MiniPlayerAccessory() }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .animation(
+            Design.Motion.respectingReduceMotion(Design.Motion.snappy,
+                                                 reduceMotion: reduceMotion),
+            value: model.player.activePlan?.id
+        )
         .overlay(alignment: .top) { ActivityBanner() }
     }
 }
 
-/// Der durchgehende Mini-Player. Zeigt, was läuft, und beendet es —
-/// er startet nie von sich aus etwas.
-struct MiniPlayerBar: View {
+/// Was gerade läuft — kompakt, immer erreichbar.
+///
+/// Der Mini-Player zeigt und beendet. Er startet nie von sich aus etwas:
+/// dafür gibt es keinen Knopf, weil es keine Freigabe gäbe.
+struct MiniPlayerAccessory: View {
 
     @Environment(AppModel.self) private var model
 
     var body: some View {
         if let plan = model.player.activePlan, !plan.isEmpty {
-            HStack(spacing: 12) {
+            HStack(spacing: Design.Spacing.control) {
                 Image(systemName: "waveform")
+                    .font(.body)
                     .foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 1) {
+                    .symbolEffect(.variableColor.iterative, isActive: isPlaying)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: Design.Spacing.micro / 4) {
                     Text(plan.requestSummary)
-                        .font(.caption.weight(.medium))
+                        .font(.subheadline.weight(.medium))
                         .lineLimit(1)
-                    Text("\(plan.segments.count) Stellen · \(plan.distinctSourceCount) Quellen")
+                    Text(subtitle(for: plan))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                Spacer()
-                Button { model.player.pause() } label: {
-                    Image(systemName: "pause.fill")
+                .accessibilityElement(children: .combine)
+
+                Spacer(minLength: Design.Spacing.small)
+
+                Button {
+                    isPlaying ? model.player.pause() : model.player.resume()
+                } label: {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.body)
+                        .tappableArea()
                 }
-                Button { model.player.stop() } label: {
+                .buttonStyle(.pressable)
+                .accessibilityLabel(isPlaying ? "Pausieren" : "Fortsetzen")
+
+                Button {
+                    model.player.stop()
+                } label: {
                     Image(systemName: "xmark")
+                        .font(.footnote.weight(.semibold))
+                        .tappableArea()
                 }
+                .buttonStyle(.pressable)
+                .accessibilityLabel("Wiedergabe beenden")
             }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(.bar)
+            .padding(.horizontal, Design.Spacing.control)
         }
+    }
+
+    private var isPlaying: Bool {
+        if case .playing = model.player.state { return true }
+        return false
+    }
+
+    private func subtitle(for plan: ValidatedPlaybackPlan) -> String {
+        let stellen = plan.segments.count == 1 ? "1 Stelle" : "\(plan.segments.count) Stellen"
+        let quellen = plan.distinctSourceCount == 1
+            ? "1 Quelle" : "\(plan.distinctSourceCount) Quellen"
+        return "\(stellen) · \(quellen)"
     }
 }
 
-/// Eine Zeile, die sagt, was gerade passiert. Kein endloser Spinner.
+/// Eine Zeile, die sagt, was gerade passiert.
+///
+/// Kein endloser Kreisel: „es tut sich etwas“ ist keine Information. Hier
+/// steht, *was* sich tut, und die Zeile verschwindet, wenn es vorbei ist.
 struct ActivityBanner: View {
 
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if let activity = model.activity {
             Text(activity)
-                .font(.caption)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(.thinMaterial, in: Capsule())
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .font(.footnote)
+                .padding(.horizontal, Design.Spacing.control)
+                .padding(.vertical, Design.Spacing.small)
+                .glassEffect(.regular, in: .capsule)
+                .padding(.top, Design.Spacing.small)
+                .transition(
+                    reduceMotion
+                        ? .opacity
+                        : .move(edge: .top).combined(with: .opacity)
+                )
+                .accessibilityAddTraits(.updatesFrequently)
         }
     }
 }
