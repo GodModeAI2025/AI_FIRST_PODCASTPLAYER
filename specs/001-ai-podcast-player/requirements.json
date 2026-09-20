@@ -1,0 +1,869 @@
+{
+  "schemaVersion": 1,
+  "requirements": [
+    {
+      "id": "FR-001",
+      "story": "US2",
+      "area": "Source",
+      "text": "RSS-Feeds, kanonische YouTube-Kanal-Atomfeeds und einzelne berechtigt verfügbare Medien aufnehmen; Quellentyp und Fähigkeiten separat darstellen."
+    },
+    {
+      "id": "FR-002",
+      "story": "US2",
+      "area": "Source",
+      "text": "Abo, Autoanalyse, Autoqueue und dauerhaften Offline-Download unabhängig konfigurieren; Autoanalyse kann temporäre Downloads auslösen und erklärt dies."
+    },
+    {
+      "id": "FR-003",
+      "story": "US2",
+      "area": "Source",
+      "text": "Einzelfolgenimport, Share-Import und OPML-Import/-Export ohne implizites Abo unterstützen; Duplikate anhand stabiler Quell-/Folgenidentitäten behandeln."
+    },
+    {
+      "id": "FR-004",
+      "story": "US2",
+      "area": "Source",
+      "text": "RSS enclosure/GUID, Redirects, Feedwechsel, ETag/Last-Modified, Publisher-Kapitel und Transkriptquellen verarbeiten; signierte Medien-URLs nicht durch pauschales Query-Stripping beschädigen."
+    },
+    {
+      "id": "FR-005",
+      "story": "US2",
+      "area": "Source",
+      "text": "YouTube nur als sichtbare offizielle Wiedergabe oder externes Öffnen anbieten; Vollanalyse nur mit gesondert autorisiertem Text/Audio; keine Audioextraktion aus YouTube-Streams."
+    },
+    {
+      "id": "FR-006",
+      "story": "US2",
+      "area": "Source",
+      "text": "Bei Quellzugang, Sprache, Format, Account oder Rechten konkrete capability reasons anzeigen; öffentlich erreichbar ist nicht pauschal eine Rechtefreigabe."
+    },
+    {
+      "id": "FR-007",
+      "story": "US2",
+      "area": "Source",
+      "text": "Archivnachladen begrenzen: zunächst gewählte aktuelle Folge, historische Zeiträume nur bewusst; Anzahl, Speicher und Netzwerkbedarf soweit bekannt anzeigen."
+    },
+    {
+      "id": "FR-008",
+      "story": "US2",
+      "area": "Source",
+      "text": "Private Feeds mit Keychain-referenzierten Geheimnissen behandeln; keine Rohcredentials in CloudKit-Fachdaten, KI-Kontext oder Export; neue Geräte können erneute Anmeldung benötigen."
+    },
+    {
+      "id": "FR-009",
+      "story": "US3",
+      "area": "Playback",
+      "text": "Native Audio-Wiedergabe, Pause, Seek, Geschwindigkeit, Sleep Timer, Queue, Kapitel sowie Wiederaufnahme anbieten; Analyse darf Abspielen nicht blockieren."
+    },
+    {
+      "id": "FR-010",
+      "story": "US3",
+      "area": "Playback",
+      "text": "Herausgeberkapitel, in der Datei enthaltene Kapitel und KI-Kapitel mit Herkunft und Konfliktauflösung zeigen; bei Fassungszweifeln nicht blind Zeiten übernehmen."
+    },
+    {
+      "id": "FR-011",
+      "story": "US3",
+      "area": "Playback",
+      "text": "Eine zentrale Wiedergabeinstanz pro Gerät/Prozess mit Now Playing, Remote Commands, Unterbrechungen, Bluetooth/AirPlay und Kopfhörertrennung integrieren, soweit Plattform unterstützt."
+    },
+    {
+      "id": "FR-012",
+      "story": "US3",
+      "area": "Playback",
+      "text": "Hörposition, tatsächlich gehörte Zeitintervalle, KI-Verarbeitung und gelesene Erkenntnisse getrennt speichern; Fokus-Sprünge markieren keine vollständige Folge als gehört."
+    },
+    {
+      "id": "FR-013",
+      "story": "US3",
+      "area": "Playback",
+      "text": "Aus einer Quelle oder Chat-Fundstelle zur bisherigen Queue/Position zurückkehren; Focus Session überschreibt die normale Queue nicht."
+    },
+    {
+      "id": "FR-014",
+      "story": "US1",
+      "area": "Ingestion",
+      "text": "Geeigneten Publisher-Text oder Audio-Dateitranskription verwenden; Titel/Shownotes allein niemals als analysierter Vollinhalt behandeln."
+    },
+    {
+      "id": "FR-015",
+      "story": "US1",
+      "area": "Ingestion",
+      "text": "Dateibasierte Apple-Sprachanalyse mit verwalteten Sprachassets, Streaming/Chunk-Verarbeitung, finalisierten zeitbezogenen Segmenten und persistenter Wiederaufnahme durchführen."
+    },
+    {
+      "id": "FR-016",
+      "story": "US1",
+      "area": "Ingestion",
+      "text": "Medienfassung und Transkriptrevision unveränderlich identifizieren; echte Bytehashes nach vollständigem Download getrennt von schwachen Servermetadaten führen."
+    },
+    {
+      "id": "FR-017",
+      "story": "US1",
+      "area": "Ingestion",
+      "text": "Analyseabdeckung als Vereinigung bearbeiteter Medienintervalle bzw. explizite Textabdeckung berechnen; Fehler, Werbefassungen und fehlende Abschnitte sichtbar halten."
+    },
+    {
+      "id": "FR-018",
+      "story": "US1",
+      "area": "Ingestion",
+      "text": "Claims, neutrale Zusammenfassung, persönliche Relevanz, offene Fragen und Evidence-IDs getrennt erzeugen; nur geprüfte strukturierte Ergebnisse persistieren."
+    },
+    {
+      "id": "FR-019",
+      "story": "US1",
+      "area": "Ingestion",
+      "text": "Transkript ohne Zeitbezug als nutzbares Textwissen zulassen, aber zeitgenaue Wiedergabe dafür deaktivieren; unbestätigte Sprecher nicht benennen."
+    },
+    {
+      "id": "FR-020",
+      "story": "US1",
+      "area": "Ingestion",
+      "text": "Verarbeitungsjobs priorisieren, pausieren, abbrechen, fortsetzen und nach Fehlern begrenzt wiederholen; höchstens definierte Parallelität pro Gerät und Arbeitsart."
+    },
+    {
+      "id": "FR-021",
+      "story": "US4",
+      "area": "Knowledge",
+      "text": "Chat-Scope explizit auf Folge, Auswahl, Sammlung oder alle analysierten Folgen setzen; Anzahl verfügbarer, ausgewählter und verwendeter Quellen unterscheiden."
+    },
+    {
+      "id": "FR-022",
+      "story": "US4",
+      "area": "Knowledge",
+      "text": "Antworten nur aus erlaubten Evidence-IDs des gewählten Scopes erzeugen; Toolergebnisse nochmals gegen Scope, Löschstand, Revisionsstand und Zugriffsrechte prüfen."
+    },
+    {
+      "id": "FR-023",
+      "story": "US4",
+      "area": "Knowledge",
+      "text": "Aussagen, Ableitungen und eigene Notizen visuell und im Export unterscheiden; Vollständigkeit und Unsicherheit ohne unkalibrierte Prozent-Konfidenz darstellen."
+    },
+    {
+      "id": "FR-024",
+      "story": "US4",
+      "area": "Knowledge",
+      "text": "Explizit umfassende Fragen über einen Coverage-Lauf aller ausgewählten analysierten Dokumente abarbeiten; Top-k-Suche allein darf keine Vollständigkeit behaupten."
+    },
+    {
+      "id": "FR-025",
+      "story": "US4",
+      "area": "Knowledge",
+      "text": "Auf keine Evidenz, widersprüchliche Quellen, unvollständige Analyse und Modellfehler mit unterscheidbaren Ergebniszuständen reagieren."
+    },
+    {
+      "id": "FR-026",
+      "story": "US4",
+      "area": "Knowledge",
+      "text": "Nur Apple-Modelle benutzen; lokale und PCC-Verfügbarkeit, Nutzereinwilligung, Kontingent und Kontextgrenzen vor und während einer Anfrage berücksichtigen."
+    },
+    {
+      "id": "FR-027",
+      "story": "US4",
+      "area": "Knowledge",
+      "text": "Gesprächsverlauf versionieren und verdichten; konkrete Evidence-Verweise außerhalb der bloßen Chat-Historie speichern; Modellwechsel ändert den Scope nicht."
+    },
+    {
+      "id": "FR-028",
+      "story": "US5",
+      "area": "Focus",
+      "text": "Aus explizitem Chat-Wiedergabewunsch ein PlaylistProposal aus bestehenden Evidence-IDs erzeugen; keine vom Modell erfundenen Originalzeiten oder Medien-URLs akzeptieren."
+    },
+    {
+      "id": "FR-029",
+      "story": "US5",
+      "area": "Focus",
+      "text": "Evidence-IDs deterministisch zu Start/Ende und Kontextintervallen derselben Medienfassung auflösen; ungültige, unzeitgestempelte und veraltete Belege sperren."
+    },
+    {
+      "id": "FR-030",
+      "story": "US5",
+      "area": "Focus",
+      "text": "Fokus-Vorschau mit Originalquelle, Zeitspanne, Relevanzgrund, Kontextzugabe, Reihenfolge, Medien-/Wandzeit und fehlenden Inhalten anzeigen."
+    },
+    {
+      "id": "FR-031",
+      "story": "US5",
+      "area": "Focus",
+      "text": "Vor Start einen kurzlebigen geräte-/sessionspezifischen PlaybackGrant prüfen; explizites Spiele ... kann den Start autorisieren, eine Wissensfrage allein nicht."
+    },
+    {
+      "id": "FR-032",
+      "story": "US5",
+      "area": "Focus",
+      "text": "Segmentwiedergabe am geprüften Ende begrenzen und den nächsten Start nur nach erfolgreichem Seek/Load und gültigem Grant auslösen; Race Conditions idempotent behandeln."
+    },
+    {
+      "id": "FR-033",
+      "story": "US6",
+      "area": "Focus",
+      "text": "Relevante Segmente mit Nutzerbudget, Themenbezug, Neuigkeitswert, Quellenvielfalt und Kontextbedarf auswählen; überlappende Stellen zusammenführen und Wiederholungen vermeiden."
+    },
+    {
+      "id": "FR-034",
+      "story": "US6",
+      "area": "Focus",
+      "text": "Autofortsetzung nur innerhalb einer bewusst aktivierten Focus Session zulassen; neue Hintergrundempfehlungen, Boot, Sync oder Push dürfen niemals unaufgefordert Ton starten."
+    },
+    {
+      "id": "FR-035",
+      "story": "US6",
+      "area": "Focus",
+      "text": "Explizite Grenze aktiver Hörzeit einschließlich Kontext, geplanter Übergangspausen und gewählter Geschwindigkeit berücksichtigen; Nutzerpause und Buffering zählen nicht; bei unzureichendem Budget weniger liefern statt Semantik abzuschneiden."
+    },
+    {
+      "id": "FR-036",
+      "story": "US6",
+      "area": "Focus",
+      "text": "Jederzeit ganze Folge, mehr Kontext, Skip, Stop, Zurück und Gründe anbieten; ein Quellenwechsel ist sichtbar und optional kurz haptisch, kein irreführender nahtloser Sprecherzusammenschnitt."
+    },
+    {
+      "id": "FR-037",
+      "story": "US6",
+      "area": "Focus",
+      "text": "Fokuslisten als referenzielle Wiedergabepläne speichern, nicht neue urheberrechtlich unklare Audio-Mashups exportieren; lokale Watch-Kopien nur im erlaubten Medienumfang."
+    },
+    {
+      "id": "FR-038",
+      "story": "US7",
+      "area": "Interest",
+      "text": "Bestätigte Interessen, automatisch vorgeschlagene Interessen, aktuelle Vorhaben und offene Fragen getrennt bearbeiten und anzeigen."
+    },
+    {
+      "id": "FR-039",
+      "story": "US7",
+      "area": "Interest",
+      "text": "Personalisierung opt-in anbieten; explizites Feedback stärker als indirekte Signale werten; Nicht gehört nicht mit Nicht relevant gleichsetzen."
+    },
+    {
+      "id": "FR-040",
+      "story": "US7",
+      "area": "Interest",
+      "text": "Warum empfohlen mit konkreter Interessen-/Fragezuordnung darstellen; Bereits bekannt, Mehr davon, Nicht relevant und Nicht aus dieser Quelle getrennt behandeln."
+    },
+    {
+      "id": "FR-041",
+      "story": "US7",
+      "area": "Interest",
+      "text": "Vorschläge zur Profiländerung prüfen lassen; keine sensiblen Persönlichkeits-, Gesundheits- oder politischen Präferenzprofile aus Inhalten ableiten."
+    },
+    {
+      "id": "FR-042",
+      "story": "US7",
+      "area": "Interest",
+      "text": "Neuigkeitswert ausschließlich relativ zu gespeichertem bzw. ausdrücklich bekanntem Wissen bezeichnen; neutrale chronologische Ansicht und relevante Gegenpositionen erhalten."
+    },
+    {
+      "id": "FR-043",
+      "story": "US7",
+      "area": "Interest",
+      "text": "Profil, Verlauf und Lernsignale separat löschbar machen; Reset-Epoch/Tombstones verhindern unbemerkten Wiederaufbau durch verspätete Sync-Events."
+    },
+    {
+      "id": "FR-044",
+      "story": "US10",
+      "area": "Reliability",
+      "text": "Jobs/Teilresultate vor Systemende atomar sichern und beim Neustart fortsetzen; keine endlose Retry-Schleife bei Rechte-/Modell-/Sprachfehlern."
+    },
+    {
+      "id": "FR-045",
+      "story": "US10",
+      "area": "Reliability",
+      "text": "Refresh, Hintergrunddownload, Audiowiedergabe und KI-Verarbeitung getrennt planen; iOS/iPadOS-Background-Gates und echte Ressourcenzustände beachten."
+    },
+    {
+      "id": "FR-046",
+      "story": "US10",
+      "area": "Reliability",
+      "text": "Optionalen privaten CloudKit-Sync für Bibliothek, Wissen, bestätigte Profile und Fokuslisten bereitstellen; lokaler Modus bleibt ohne iCloud nutzbar."
+    },
+    {
+      "id": "FR-047",
+      "story": "US10",
+      "area": "Reliability",
+      "text": "Konflikte für Hörposition, Annotationen, Reihenfolge, Löschung und generierte Artefakte explizit behandeln; LWW allein und größte Hörsekunde sind kein universeller Konfliktlöser."
+    },
+    {
+      "id": "FR-048",
+      "story": "US10",
+      "area": "Reliability",
+      "text": "Keinen permanenten Master benötigen; größere Analysen auf jedem geeigneten Vollclient erlauben; CloudKit nicht als exakt-einmal Jobbroker oder Instant-RPC darstellen."
+    },
+    {
+      "id": "FR-049",
+      "story": "US10",
+      "area": "Reliability",
+      "text": "App-Daten, Mediencache, Analysecache und Nutzer-Exporte getrennt verwalten; Medien löschen kann Wissen erhalten; Gesamtlöschung entfernt auch Index, Artefakte und synchronisierte Daten gemäß Scope."
+    },
+    {
+      "id": "FR-050",
+      "story": "US8",
+      "area": "Platforms",
+      "text": "iOS/iPadOS/watchOS/macOS als native 27er-Targets liefern; gemeinsame Domain und plattformspezifische Shells statt Catalyst oder skaliertem Telefonlayout."
+    },
+    {
+      "id": "FR-051",
+      "story": "US8",
+      "area": "Platforms",
+      "text": "iPad mit adaptiver Mehrspaltenansicht, Inspector, Drag/Drop, Tastatur und fensterbreitenabhängiger Navigation ausstatten."
+    },
+    {
+      "id": "FR-052",
+      "story": "US8",
+      "area": "Platforms",
+      "text": "Mac mit Sidebar, Table/List, Inspector, Menübefehlen, mehreren Fenstern, Dateiimport/-export und einem prozessweiten Player ausstatten."
+    },
+    {
+      "id": "FR-053",
+      "story": "US9",
+      "area": "Platforms",
+      "text": "Watch mit Tagesfokus, Segmentplayer, kurzen Erkenntnissen, Interesse-Feedback, Widget/Smart-Stack-Einstieg und gespeichertem Offline-Pack ausstatten."
+    },
+    {
+      "id": "FR-054",
+      "story": "US9",
+      "area": "Platforms",
+      "text": "Kurze Watch-Fragen über freigegebenes PCC mit lokalem Evidence-Pack oder sichtbaren Companion-Auftrag unterstützen; keinen lokalen Vollbibliotheksindex oder dauerhafte Watch-Transkription voraussetzen."
+    },
+    {
+      "id": "FR-055",
+      "story": "US9",
+      "area": "Platforms",
+      "text": "WatchConnectivity-Handoff/Dateitransfer mit Zustand und Wiederaufnahme implementieren; unerreichbares iPhone und unvollständige Packs sind sichtbare Zustände."
+    },
+    {
+      "id": "FR-056",
+      "story": "US8",
+      "area": "Platforms",
+      "text": "App Intents für Folge/Fokus starten, Stelle merken, Frage vorbereiten und Wissen öffnen bereitstellen; stabile IDs, Intent-Policies und entitlements prüfen."
+    },
+    {
+      "id": "FR-057",
+      "story": "US8",
+      "area": "Platforms",
+      "text": "Dynamic Type, VoiceOver, Reduce Motion/Transparency, hohen Kontrast, Tastaturbedienung und barrierefreie Zeitcodes auf jeder Plattform prüfen."
+    },
+    {
+      "id": "FR-058",
+      "story": "US11",
+      "area": "Export",
+      "text": "Markdown für Folge, Claim, Chatantwort, Vergleich und Sammlung mit YAML-Metadaten, Analyseumfang, Quellen, Originalzeiten und eigenen Notizen erzeugen."
+    },
+    {
+      "id": "FR-059",
+      "story": "US11",
+      "area": "Export",
+      "text": "Geheimnisse auch in URL-Pfaden entfernen; nur allowlist-basierte kanonische öffentliche Quellen ausgeben, andernfalls sichere interne Referenz mit lesbarer Quellenbezeichnung."
+    },
+    {
+      "id": "FR-060",
+      "story": "US11",
+      "area": "Export",
+      "text": "Exportvorschau, sicheren Dateinamen, stabile UTF-8-Kodierung, atomisches Schreiben, überschaubare Einzeldatei oder Asset-freies ZIP für Sammlungen bieten; Volltranskripte nicht standardmäßig exportieren."
+    },
+    {
+      "id": "FR-061",
+      "story": "US11",
+      "area": "Export",
+      "text": "Von der Watch einen nachvollziehbaren Export-/Save-Auftrag an Vollclients vermitteln; fertige Dateien erst nach Bestätigung der Erstellung anzeigen."
+    },
+    {
+      "id": "FR-062",
+      "story": "US10",
+      "area": "Security",
+      "text": "Externe Texte und Metadaten als untrusted data behandeln; keine daraus stammenden Anweisungen für Tools, Netzwerk, Profiländerungen, Sync oder Exporte ausführen."
+    },
+    {
+      "id": "FR-063",
+      "story": "US10",
+      "area": "Security",
+      "text": "Logs lokal, datensparsam und mit Privacy-Redaktion erzeugen; keine Audio-/Transkript-/Promptinhalte in Telemetrie, kein Third-Party-Analytics-SDK."
+    },
+    {
+      "id": "FR-064",
+      "story": "US10",
+      "area": "Security",
+      "text": "Parser-, URL-, Redirect-, Dateigrößen-, MIME-, Archiv- und Dekodiergrenzen erzwingen; keine automatischen Zugriffe auf lokale Netze/Loopback aus fremden Feeds."
+    },
+    {
+      "id": "FR-065",
+      "story": "US4",
+      "area": "Quality",
+      "text": "Modell-/Prompt-/Indexversionen dokumentieren und Apple Evaluations plus deterministische Referenz-/Policy-Tests vor Freigabe ausführen; Ergebnisse nicht nur visuell beurteilen."
+    },
+    {
+      "id": "FR-066",
+      "story": "US8",
+      "area": "Quality",
+      "text": "BrainSpeak-Ist-Audit und Apple-SDK-Compile-Probes vor Integration abschließen; neue Framework-Symbole nicht aus unbestätigten Erinnerungen implementieren."
+    },
+    {
+      "id": "FR-067",
+      "story": "US14",
+      "area": "Discovery",
+      "text": "Eine einzige YouTube-URL aus Video, youtu.be, Shorts, Live, Kanal-ID, Handle oder Share Sheet erkennen; Kanal-ID autoritativ auflösen, Zeitmarke für den Einzelimport erhalten."
+    },
+    {
+      "id": "FR-068",
+      "story": "US14",
+      "area": "Discovery",
+      "text": "Nach Auflösung eine Vorschau mit „Nur diese Folge“, „Kanal abonnieren“ und „Frühere Folgen analysieren“ anbieten; keine Aktion allein durch Einfügen ausführen."
+    },
+    {
+      "id": "FR-069",
+      "story": "US14",
+      "area": "Discovery",
+      "text": "Den Kanal-Atomfeed aus der verifizierten channelID automatisch ermitteln und prüfen; Nutzer müssen im Normalfall keine RSS-URL kennen oder manuell suchen."
+    },
+    {
+      "id": "FR-070",
+      "story": "US14",
+      "area": "Archive",
+      "text": "Ältere YouTube-Folgen über den verfügbaren Kanal-Uploads-Katalog mit offizieller Pagination erschließen; Auswahl letzte N, Zeitraum, manuell oder gesamtes verfügbares Archiv, auch über den aktuellen Atomfeed hinaus."
+    },
+    {
+      "id": "FR-071",
+      "story": "US14",
+      "area": "Archive",
+      "text": "Archivauffindbarkeit, Inhaltszugang und Analyseabdeckung getrennt zählen; gefundene Videos ohne autorisierte Text-/Audioquelle niemals als inhaltlich analysiert ausweisen."
+    },
+    {
+      "id": "FR-072",
+      "story": "US14",
+      "area": "Archive",
+      "text": "Historische Batchjobs pausieren, fortsetzen, abbrechen, priorisieren und selektiv wiederholen; Cursor und Seiten-Commit atomar sichern, aktuelle Folgen nicht durch das Archiv blockieren."
+    },
+    {
+      "id": "FR-073",
+      "story": "US14",
+      "area": "Archive",
+      "text": "Auch Podcast-RSS rückwirkend über alle tatsächlich verfügbaren Feed-/Publisher-Archivquellen erschließen; gekürzte Feeds als unvollständig kennzeichnen, keine nicht vorhandenen Archivendpunkte erfinden."
+    },
+    {
+      "id": "FR-074",
+      "story": "US12",
+      "area": "Knowledge",
+      "text": "Eine relevante Stelle mit einer nativen Aktion aus Player, Transkript, Watch oder App Intent als Highlight sichern; Headset-Aktion nur bei tatsächlich öffentlicher unterstützter API und ausdrücklichem Mapping."
+    },
+    {
+      "id": "FR-075",
+      "story": "US12",
+      "area": "Knowledge",
+      "text": "Highlights als eigenständige versionierte Wissensobjekte mit Originalauszug, Evidence-IDs, eigener Notiz, separater KI-Kurzfassung, Tags und Herkunft verwalten."
+    },
+    {
+      "id": "FR-076",
+      "story": "US12",
+      "area": "Export",
+      "text": "Finale Transkripte als SRT, WebVTT, TXT und strukturiertes JSON exportieren; Sprecher- und Wortzeitdaten nur mit vorhandenem belegtem Alignment, sonst explizit unbekannt."
+    },
+    {
+      "id": "FR-077",
+      "story": "US12",
+      "area": "Search",
+      "text": "Semantische und exakte Suche über den freigegebenen erschlossenen Bestand einschließlich ungehörter Folgen anbieten; indexiert, analysiert und gehört bleiben getrennte Zähler."
+    },
+    {
+      "id": "FR-078",
+      "story": "US12",
+      "area": "Search",
+      "text": "Suchindex als erneuerbares Derivat behandeln; Revisionen, Löschungen, Zugangsänderungen und Privatsphäreeinstellungen invalidieren Treffer und verhindern obsolete Evidence-IDs."
+    },
+    {
+      "id": "FR-079",
+      "story": "US12",
+      "area": "Playback",
+      "text": "Smart Skip für zulässiges Originalaudio nur ausdrücklich pro Quelle aktivieren; Werbung/Intro/Outro mit Herkunft und Unsicherheit markieren, Skip rückgängig machen und Originalzeitachse erhalten."
+    },
+    {
+      "id": "FR-080",
+      "story": "US12",
+      "area": "Pipeline",
+      "text": "Erwerb, Transkription, Alignment, Kapitel, Zusammenfassung, Index und Relevanz separat wiederholbar und versioniert cachen; Änderung eines Prompts löst nicht automatisch neuen Audiodownload aus."
+    },
+    {
+      "id": "FR-081",
+      "story": "US12",
+      "area": "Playback",
+      "text": "Container/Codec-Kombinationen nativ pro Plattform prüfen; MP3/AAC/ALAC/FLAC/OGG als konkrete Capability-Testfälle statt pauschaler Formatgarantie behandeln; keine FFmpeg-/Drittcodec-Laufzeit hinzufügen."
+    },
+    {
+      "id": "FR-082",
+      "story": "US12",
+      "area": "Translation",
+      "text": "Optionale native Übersetzung separat vom Original speichern und als Übersetzung markieren; Zeitbelege bleiben am Original, Sprachpaare und Modellassets werden geprüft."
+    },
+    {
+      "id": "FR-083",
+      "story": "US13",
+      "area": "Agent",
+      "text": "Auf macOS einen standardmäßig ausgeschalteten nativen Swift-MCP-Zugang anbieten; zunächst lokaler stdio-Helfer, keine automatisch öffentliche Netzwerkfreigabe oder iOS-Daemon-Fiktion."
+    },
+    {
+      "id": "FR-084",
+      "story": "US13",
+      "area": "Agent",
+      "text": "MCP-Verträge für Bibliothekssuche, Evidence-Abruf, Highlightliste, Exportvorschau und Fokusplan-Vorbereitung definieren; keine freie SQL-, Datei-, Shell- oder URL-Ausführung und keine Tonwiedergabe durch Suchtools."
+    },
+    {
+      "id": "FR-085",
+      "story": "US13",
+      "area": "Privacy",
+      "text": "MCP-Datenweitergabe als eigene Einwilligung mit Client-/Scopebindung, Widerruf und Redaction behandeln; externe Agenten können eigene Modelle verwenden, ohne dadurch Modellanbieter der App zu werden."
+    },
+    {
+      "id": "FR-086",
+      "story": "US14",
+      "area": "Archive",
+      "text": "Bereits bekannte alte Folgen nachträglich gezielt neu analysieren, etwa nach Änderung von Interessen, Modell oder Pipeline; Umfang und betroffene Stufen vorher anzeigen, menschliche Notizen nie überschreiben."
+    },
+    {
+      "id": "FR-087",
+      "story": "US14",
+      "area": "Discovery",
+      "text": "Offline-, API-Quota-, Zugangs-, gelöschte Video- und uneindeutige URL-Zustände mit Wiederholen oder kanonischem Link-Import behandeln; keinen Erfolg oder manuell zu suchenden RSS als normalen Ablauf vortäuschen."
+    },
+    {
+      "id": "FR-088",
+      "story": "US14",
+      "area": "Archive",
+      "text": "Archivjobs auf Wunsch nach Interessen priorisieren; eine nur aus Titel/Beschreibung geschätzte Priorität ausdrücklich als vorläufig kennzeichnen und keinen unbeachteten Rest als irrelevant verwerfen."
+    },
+    {
+      "id": "FR-089",
+      "story": "US14",
+      "area": "Discovery",
+      "text": "Abo anhand stabiler Kanal-/Quell-ID deduplizieren; Handlewechsel darf kein zweites Abo erzeugen, historische Analyse und Autoanalyse neuer Folgen bleiben unabhängig schaltbar."
+    },
+    {
+      "id": "FR-090",
+      "story": "US14",
+      "area": "Archive",
+      "text": "Vor Batchstart gewählten Umfang, verfügbare/gesperrte Inhalte, Daten-/Speicherbedarf soweit bekannt und Analysepolicy anzeigen; „alle“ bedeutet alle zugänglichen Einträge im bestätigten Snapshot, nicht private oder gelöschte Videos."
+    },
+    {
+      "id": "FR-091",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Bestätigte Standpunkte, vermutete Interessen, Quellenpositionen und bloßes Hör-/Speicherverhalten getrennt halten; Hören oder Highlight allein darf niemals als Zustimmung gelten."
+    },
+    {
+      "id": "FR-092",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Den Widerspruchs-Mixer standardmäßig ausschalten; Nutzer wählt These oder Thema, zulässige Quellen, Zeitbudget und ob Vorschläge künftig vorbereitet werden dürfen."
+    },
+    {
+      "id": "FR-093",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Gegenpositionen gegen eine konkrete These samt Bedingungen vergleichen; starker fairer Gegenstandpunkt statt Karikatur, bloße Themenähnlichkeit ist kein Widerspruch."
+    },
+    {
+      "id": "FR-094",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Jede Gegenposition mit vollständigem Kontext, Evidence-ID, Quelle, Datum und konkreter Medienfassung ausgeben; Audio bleibt Original, Einordnung bleibt getrennt."
+    },
+    {
+      "id": "FR-095",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Verschiedene Perspektiven nach nachgewiesener Passung und Quellenvielfalt auswählen; Syndikation und inhaltliche Duplikate nicht als unabhängige Bestätigung zählen."
+    },
+    {
+      "id": "FR-096",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Direkten Widerspruch, Einschränkung, andere Annahme und bloße Ergänzung unterscheiden; Interpretationen als vorgeschlagen kennzeichnen und korrigierbar machen."
+    },
+    {
+      "id": "FR-097",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Mixer als budgetgebundenen Original-Hörplan mit Vorschau, Quellenwechsel, Stop und Rückkehr aufbauen; gleicher PlaybackGrant wie anderer Fokusmodus."
+    },
+    {
+      "id": "FR-098",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Ohne belastbare Gegenposition offen fehlende Evidenz zeigen; keine Quellen, Gegenargumente, Zeitcodes oder künstliche Ausgewogenheit erfinden."
+    },
+    {
+      "id": "FR-099",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Eigene These, Quelleninterpretation und Modus jederzeit ändern, pausieren oder widerrufen; Änderungen invalidieren noch nicht gestartete darauf basierende Pläne."
+    },
+    {
+      "id": "FR-100",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Politische Inhalte nicht zur Ableitung politischer Nutzerpräferenzen oder individualisierten Überzeugungsänderung nutzen; nur explizit gewünschte neutrale, quellenbasierte Gegenüberstellung ohne Empfehlung oder Ranking politischer Optionen."
+    },
+    {
+      "id": "FR-101",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Erfolg nicht an Meinungsänderung, Empörung oder Hörzeit optimieren; Nutzer kann Gegenposition als hilfreich, bereits bekannt, unpassend oder fehlerhaft markieren, ohne eigene These ändern zu müssen."
+    },
+    {
+      "id": "FR-102",
+      "story": "US15",
+      "area": "Perspective",
+      "text": "Standpunkte und Gegenpositionsbeziehungen nicht ungefragt exportieren, an Agenten freigeben oder in Systemsuche veröffentlichen; gesonderte Scopeentscheidung für persönliche Inhalte."
+    },
+    {
+      "id": "FR-103",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Jede Hör-/Fokus-/Mixer-Session mit stabiler ID, Ausgangsfrage, tatsächlich verwendeten Belegen, Budget und Checkpoint verknüpfen; aus Verlauf wird nur nach Kuration ein Wissenspfad."
+    },
+    {
+      "id": "FR-104",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Nach natürlichem Ende, Budgetende oder bewusstem Beenden eine kompakte Abschlussfrage mit Vertiefen, Parken und Verwerfen anbieten; Schließen ohne Entscheidung bleibt möglich."
+    },
+    {
+      "id": "FR-105",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "In der Abschlussfrage nur tatsächlich auffindbare und zugängliche Quellen zählen; Anzahl, Scope, Relevanz und Inhaltsstatus sind am Zeitpunkt des Angebots überprüfbar."
+    },
+    {
+      "id": "FR-106",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Vertiefen erzeugt eine neue begrenzte Kindsession aus einer gewählten Folgefrage und geprüften Quellen; kein endloses Autoplay und kein automatischer Scope-/Kostenanstieg."
+    },
+    {
+      "id": "FR-107",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Parken sichert eine Wissenslandkarte aus Frage, Erkenntnissen, Originalbelegen, eigenen Notizen und offenen Fragen; Markdown, Graph-JSON und Mermaid sind portable Exportziele."
+    },
+    {
+      "id": "FR-108",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Verwerfen verwirft den vorgeschlagenen Wissenspfad, nicht Medien, Abos, existierende Notizen oder Highlights; Undo ist möglich, Desinteresse wird nicht automatisch gelernt."
+    },
+    {
+      "id": "FR-109",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Wissensgraph mit typisierten Knoten und Kanten modellieren: Frage, Aussage, Beleg, Notiz, Thema und Session sowie stützt, widerspricht, qualifiziert, folgt aus und vertieft."
+    },
+    {
+      "id": "FR-110",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Generierte Graphbeziehungen als Vorschläge von bestätigten Kurationen trennen; Parken bestätigt Aufbewahrung, nicht Wahrheit oder Zustimmung zu allen Aussagen."
+    },
+    {
+      "id": "FR-111",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Graphableitungen mit Prompt-/Modell-/Inputrevision speichern und selektiv neu berechnen; menschliche Notizen, manuelle Kanten und bewusste Entscheidungen nicht überschreiben."
+    },
+    {
+      "id": "FR-112",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Export an ein Wissens-Tool über explizit gewählte Datei-/Ordnerfreigabe oder autorisierten Agent-Scope ausführen; Vorschau, Redaction, transaktionales Schreiben und Retrystatus vorsehen."
+    },
+    {
+      "id": "FR-113",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Unterbrechung, OS-Beendigung, Netzverlust, Sleep Timer und vorübergehende Pause als fortsetzbare Zustände behandeln; Abschlussangebot erst am passenden bewussten Ende nachholen."
+    },
+    {
+      "id": "FR-114",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Parken und Verwerfen geräteübergreifend idempotent und revisionsgebunden synchronisieren; konkurrierende Entscheidungen erhalten beide Varianten oder sichtbaren Konflikt statt Datenverlust."
+    },
+    {
+      "id": "FR-115",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Auf iPhone kompakte Abschlusskarte, iPad/Mac Karte plus Wissensansicht und Watch kurze Auswahl anbieten; Graph besitzt immer zugängliche Listen-/Baumalternative."
+    },
+    {
+      "id": "FR-116",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Abschluss und Übergänge standardmäßig visuell, optional mit nativer Systemstimme darstellen; nie Publisher-Credits verändern oder eine Sprecheridentität imitieren."
+    },
+    {
+      "id": "FR-117",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Kuration an nützlichen beantworteten/offenen Fragen und nachvollziehbarer Wiederverwendung messen; überspringbare Abschlusskarte, abschaltbarer Modus und kein Streak-/Druckmechanismus."
+    },
+    {
+      "id": "FR-118",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Offene geparkte Fragen nur innerhalb ausdrücklich aktivierter Quellenbeobachtung erneut anbieten; Parken allein aktiviert keine automatischen Benachrichtigungen, Downloads oder Dauersuchen."
+    },
+    {
+      "id": "FR-119",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "Beim Entfernen einer Quelle oder persönlicher Daten abhängige Graph-/Index-/Exportvorschläge markieren oder bereinigen; exportierte Dateien nur innerhalb bestehender Schreibfreigabe verändern und externe Kopien nicht als gelöscht behaupten."
+    },
+    {
+      "id": "FR-120",
+      "story": "US16",
+      "area": "Breadcrumb",
+      "text": "KI-generierte Fragen und Graphlabels als nicht vertrauenswürdige Daten behandeln; sie dürfen keine URL-/Datei-/Tool-Aktion außerhalb des bestätigten Scopes auslösen."
+    },
+    {
+      "id": "FR-121",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Persistente persönliche Themen-Feeds mit eigenen Ausgaben, Titel, Shownotes, Cover und unveränderlichem Originalsegmentmanifest bereitstellen; getrennte und gemischte Themenlisten ermöglichen."
+    },
+    {
+      "id": "FR-122",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Bestätigte konfigurierte Interessen übernehmen und optional korrigierbar dazulernen; vor jedem Play keine erneute Interessenabfrage verlangen."
+    },
+    {
+      "id": "FR-123",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Den Quellen-Scope je Feed festhalten; verfügbare, analysierte, passende und enthaltene Inhalte getrennt ausweisen; keine unangekündigte Websuche ausführen."
+    },
+    {
+      "id": "FR-124",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Neue persönliche Folgen nur aus neuen passenden, ungehörten und abspielbaren Kernsegmenten veröffentlichen; wiederholten Refresh und Offline-Doppelentwürfe anhand stabiler Identität deduplizieren."
+    },
+    {
+      "id": "FR-125",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Titel und textuelle Shownotes nur aus dem finalen Segmentmanifest erzeugen; Originaldatum und persönliche Veröffentlichung unterscheiden; alte Inhalte als neu für dich statt neu veröffentlicht kennzeichnen."
+    },
+    {
+      "id": "FR-126",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Alles Ungehörte als umfassenden Modus von budgetierter Auswahl unterscheiden; bei Pagination, Limits oder unvollständiger Analyse Restbestand und Abdeckung sichtbar halten."
+    },
+    {
+      "id": "FR-127",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Publizierte oder gestartete persönliche Ausgaben nicht heimlich neu zusammensetzen; bewusste Restfassungen als neue Revision mit aktualisierten Shownotes und Grant behandeln."
+    },
+    {
+      "id": "FR-128",
+      "story": "US18",
+      "area": "EpisodeFocus",
+      "text": "Pro Originalfolge Ganz hören, Für mich relevante Stellen und einzelne Belegsprünge anbieten; passende Originalabschnitte innerhalb eines bestätigten Plans automatisch nacheinander spielen."
+    },
+    {
+      "id": "FR-129",
+      "story": "US18",
+      "area": "EpisodeFocus",
+      "text": "Einmaliges Play oder expliziten Chat-Wiedergabewunsch als begrenzte Startfreigabe verwenden; keine erneute Bestätigung pro Segment und kein Tonstart durch Empfehlungen, Refresh oder Sync."
+    },
+    {
+      "id": "FR-130",
+      "story": "US19",
+      "area": "ListeningHistory",
+      "text": "Abgespielte Originalzeitintervalle pro MediaVersion global vereinigen; Seek, Download, Analyse, Lesen und Buffering niemals als gehörte Zeit erfassen."
+    },
+    {
+      "id": "FR-131",
+      "story": "US19",
+      "area": "ListeningHistory",
+      "text": "Gemeinsamen Hörverlauf zwischen Originalfolgen, Chat-Fokus, Themenfeeds und Geräten anwenden; Fokuswiedergabe markiert nicht die komplette Originalfolge als gehört."
+    },
+    {
+      "id": "FR-132",
+      "story": "US19",
+      "area": "ListeningHistory",
+      "text": "Noch ungehörte Kernbereiche von nötiger Kontextwiederholung trennen; bereits geplante Dubletten und explizite Ausschlüsse gesondert führen; semantische Ähnlichkeit allein ist keine Dublette."
+    },
+    {
+      "id": "FR-133",
+      "story": "US19",
+      "area": "ListeningHistory",
+      "text": "Ungehörte Abschnitte auch aus angefangenen Folgen und Nur noch nicht gestartete Originalfolgen als zwei Filter anbieten; unbekannte Historie und manuell erledigte Inhalte separat kennzeichnen."
+    },
+    {
+      "id": "FR-134",
+      "story": "US18",
+      "area": "EpisodeFocus",
+      "text": "Persönliche und originale Zeitachsen deterministisch aus dem Manifest abbilden; Resume, Kapitel, Fernsteuerung und Watch verwenden denselben bestätigten Plan."
+    },
+    {
+      "id": "FR-135",
+      "story": "US18",
+      "area": "EpisodeFocus",
+      "text": "Audio in Originalstimmen ohne KI-Nachsprache oder gesprochene KI-Überleitungen wiedergeben; Quellenwechsel kenntlich machen, Kontext und Qualifikationen erhalten."
+    },
+    {
+      "id": "FR-136",
+      "story": "US18",
+      "area": "EpisodeFocus",
+      "text": "Kapitel, Quellen, belegte Sprechernamen, Originalzeitcodes, persönliche Zeit und Original-Weiterhören anbieten; Fragen zur persönlichen Ausgabe auf deren Originalbelege begrenzen."
+    },
+    {
+      "id": "FR-137",
+      "story": "US19",
+      "area": "ListeningHistory",
+      "text": "Feedkonfigurationen, Manifestrevisionen, Ledger-Events und Coverreferenzen optional über vorhandenen privaten Sync übertragen; Epochs, Deduplizierung und vollständige Watch-Packs prüfen."
+    },
+    {
+      "id": "FR-138",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Quellenverlust, geänderte Medienfassung, Löschung und Profilreset in abhängigen persönlichen Folgen und Reservierungen berücksichtigen; veraltete Belege nicht abspielen."
+    },
+    {
+      "id": "FR-139",
+      "story": "US20",
+      "area": "Artwork",
+      "text": "Image-Playground-Cover ausschließlich über unterstützten nutzergeführten Systemdialog auf Vollclients anbieten; Apple-Stile begrenzen und externe Provider ausschließen; ImageCreator nicht verwenden."
+    },
+    {
+      "id": "FR-140",
+      "story": "US20",
+      "area": "Artwork",
+      "text": "Sofort ein automatisches natives Titel-/Themen-Cover bereitstellen; optional bestätigtes Feedmotiv wiederverwenden; dies nicht als neue automatische Image-Playground-Generierung bezeichnen."
+    },
+    {
+      "id": "FR-141",
+      "story": "US20",
+      "area": "Artwork",
+      "text": "Bestätigtes Image-Playground-Ergebnis vor Ablauf temporärer Datei atomar speichern, prüfen und versionieren; Cover-Provenienz und Motivdatensparsamkeit beachten; Watch zeigt synchronisiertes Asset."
+    },
+    {
+      "id": "FR-142",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Keine neuen Segmente, unvollständige Analyse und nicht verfügbare Quellen als eigene Zustände zeigen; Veröffentlichung atomar vor optionaler Benachrichtigung committen; Accessibility und Datenschutz auf allen vier Plattformen berücksichtigen."
+    },
+    {
+      "id": "FR-143",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Persönliche Folge und Feedkonfiguration als Markdown bzw. sicheres Manifest exportieren: Originalquellen, Zeitmapping, Shownotes, Analyseumfang und Coverherkunft; keine implizite öffentliche Audioveröffentlichung."
+    },
+    {
+      "id": "FR-144",
+      "story": "US17",
+      "area": "SmartFeed",
+      "text": "Den gesamten Themenfeed-Ablauf von Konfiguration über ungehörte Originalsegmente, Publikation, Play, erneute Aktualisierung und Cover-Fallback mit plattformbezogenen Abnahmen belegen."
+    }
+  ]
+}

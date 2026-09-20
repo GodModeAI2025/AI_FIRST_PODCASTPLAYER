@@ -1,0 +1,10 @@
+flowchart LR
+ I[iPhone lokaler Store] <--> C[Privates CloudKit: sichere Records]
+ P[iPad lokaler Store] <--> C
+ M[Mac lokaler Store] <--> C
+ I <-->|WatchConnectivity: Pack und Status| W[Watch lokaler Evidence-Pack]
+ W --> Q[PCC kurze Frage, wenn freigegeben]
+ I --> A[Apple Intelligence]
+ P --> A
+ M --> A
+ C -.-> N[Kein Pflicht-Master und kein Exactly-once-Broker]

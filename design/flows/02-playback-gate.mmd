@@ -1,0 +1,14 @@
+flowchart TD
+ A[Chat oder Interessen] --> B[Untrusted Proposal: Evidence IDs]
+ B --> C{Scope, Rechte, Timing, Version korrekt?}
+ C -->|Nein| X[Blockieren und erklaeren]
+ C -->|Ja| D[Kontext erweitern und Budget pruefen]
+ D --> E[Immutable PlaybackPlan]
+ E --> F{Expliziter Startauftrag?}
+ F -->|Nein| G[Nur Vorschau, kein Ton]
+ F -->|Ja| H[Lokaler Grant an PlanHash gebunden]
+ H --> I[Atomare Revalidierung und Commit]
+ I --> J[Native Segmentwiedergabe]
+ J --> K{Weitere genehmigte Segmente?}
+ K -->|Ja| I
+ K -->|Nein| L[Ende oder zur alten Queue]

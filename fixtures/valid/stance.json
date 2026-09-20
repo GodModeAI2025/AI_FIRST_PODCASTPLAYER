@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "stance-demo",
+  "revision": 1,
+  "text": "Fuer mein synthetisches Testprojekt bevorzuge ich Local-first.",
+  "status": "confirmed",
+  "origin": "explicitUser",
+  "sensitivity": "ordinary",
+  "sourceSignalIDs": [],
+  "profileEpoch": 1
+}

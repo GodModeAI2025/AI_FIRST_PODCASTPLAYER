@@ -1,0 +1,1158 @@
+{
+  "schemaVersion": 1,
+  "status": "planned_not_executed",
+  "cases": [
+    {
+      "id": "AC-001",
+      "requirement": "FR-001",
+      "story": "US2",
+      "procedure": "RSS, Atom und Datei als drei Typen importieren; identische UI kennzeichnet unterschiedliche Fähigkeiten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US2Tests.swift"
+    },
+    {
+      "id": "AC-002",
+      "requirement": "FR-002",
+      "story": "US2",
+      "procedure": "Vier Optionen unabhängig umschalten; Analyse erzeugt weder Hörqueue-Eintrag noch dauerhafte Downloadpflicht.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US2Tests.swift"
+    },
+    {
+      "id": "AC-003",
+      "requirement": "FR-003",
+      "story": "US2",
+      "procedure": "Eine Datei und dieselbe RSS-Folge zweimal importieren; genau eine Identität, kein stilles Abo; OPML-Roundtrip.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US2Tests.swift"
+    },
+    {
+      "id": "AC-004",
+      "requirement": "FR-004",
+      "story": "US2",
+      "procedure": "304, 301-Feedmigration, GUID-Wechsel, signed URL und fehlerhaftes Kapitel in isolierten Fixtures prüfen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US2Tests.swift"
+    },
+    {
+      "id": "AC-005",
+      "requirement": "FR-005",
+      "story": "US2",
+      "procedure": "Ein Atom-Video ohne autorisierten Text bleibt metadataOnly; Playback öffnet sichtbar; keine Extraktionsanfrage.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US2Tests.swift"
+    },
+    {
+      "id": "AC-006",
+      "requirement": "FR-006",
+      "story": "US2",
+      "procedure": "Bei fehlender Sprache, Modellasset und Medienberechtigung drei verschiedene klare Gründe anzeigen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US2Tests.swift"
+    },
+    {
+      "id": "AC-007",
+      "requirement": "FR-007",
+      "story": "US2",
+      "procedure": "Ein Feed mit 10.000 Items lädt ohne weitere Freigabe nur den gewählten Umfang, nicht das Archiv.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US2Tests.swift"
+    },
+    {
+      "id": "AC-008",
+      "requirement": "FR-008",
+      "story": "US2",
+      "procedure": "Ein Token in URL-Pfad und Query darf weder Sync-Fachrecord noch Prompt/Export/Log erreichen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US2Tests.swift"
+    },
+    {
+      "id": "AC-009",
+      "requirement": "FR-009",
+      "story": "US3",
+      "procedure": "Audio läuft weiter während Analyse pausiert; Seek, Rate, Timer, Queue und Wiederaufnahme funktionieren.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US3Tests.swift"
+    },
+    {
+      "id": "AC-010",
+      "requirement": "FR-010",
+      "story": "US3",
+      "procedure": "Konfligierende Publisher-/Embedded-Zeiten derselben bzw. anderer Revision bleiben mit Herkunft erkennbar.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US3Tests.swift"
+    },
+    {
+      "id": "AC-011",
+      "requirement": "FR-011",
+      "story": "US3",
+      "procedure": "Zwei Mac-Fenster, Control Center und Kopfhörerunterbrechung steuern dieselbe aktive Playerinstanz.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US3Tests.swift"
+    },
+    {
+      "id": "AC-012",
+      "requirement": "FR-012",
+      "story": "US3",
+      "procedure": "Drei Ausschnitte erzeugen nur deren gehörte Intervalle; KI-Analyse und Lesen setzen nicht playedFull.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US3Tests.swift"
+    },
+    {
+      "id": "AC-013",
+      "requirement": "FR-013",
+      "story": "US3",
+      "procedure": "Nach Focus-Ende zur ursprünglichen Reihenfolge und Hörposition zurückkehren, auch nach Prozessneustart.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US3Tests.swift"
+    },
+    {
+      "id": "AC-014",
+      "requirement": "FR-014",
+      "story": "US1",
+      "procedure": "Shownotes mit fehlendem Volltext ergeben nie analyzedFull; Publisher-Text und Audiodatei sind getrennte Wege.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US1Tests.swift"
+    },
+    {
+      "id": "AC-015",
+      "requirement": "FR-015",
+      "story": "US1",
+      "procedure": "Lange Datei mit Unterbrechung fortsetzen; finale Segmente samt Originalzeiten ohne Dopplungen persistieren.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US1Tests.swift"
+    },
+    {
+      "id": "AC-016",
+      "requirement": "FR-016",
+      "story": "US1",
+      "procedure": "Gleiche URL mit veränderten Bytes erzeugt neue Medienfassung; schwaches ETag wird nicht als Hash behandelt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US1Tests.swift"
+    },
+    {
+      "id": "AC-017",
+      "requirement": "FR-017",
+      "story": "US1",
+      "procedure": "Überlappende Analyseintervalle nur einmal zählen; Lücken bleiben sichtbar statt als 100 Prozent zu gelten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US1Tests.swift"
+    },
+    {
+      "id": "AC-018",
+      "requirement": "FR-018",
+      "story": "US1",
+      "procedure": "Strukturierte Antwort mit unbekannter Evidence-ID wird abgewiesen; neutrale und persönliche Felder bleiben getrennt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US1Tests.swift"
+    },
+    {
+      "id": "AC-019",
+      "requirement": "FR-019",
+      "story": "US1",
+      "procedure": "Text-only-Quelle beantwortet Lesefrage; Zeitcode-Button fehlt; unbekannter Sprecher bleibt unbenannt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US1Tests.swift"
+    },
+    {
+      "id": "AC-020",
+      "requirement": "FR-020",
+      "story": "US1",
+      "procedure": "Abbruch, begrenztes Retry und Priorisierung auf einem Gerät testen; unerfüllbare Sprachvoraussetzung blockiert statt zu loopen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US1Tests.swift"
+    },
+    {
+      "id": "AC-021",
+      "requirement": "FR-021",
+      "story": "US4",
+      "procedure": "Frage über drei explizite Folgen zieht nie eine vierte Folge hinzu; Anzeige unterscheidet verfügbar/gewählt/verwendet.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US4Tests.swift"
+    },
+    {
+      "id": "AC-022",
+      "requirement": "FR-022",
+      "story": "US4",
+      "procedure": "Gelöschte, veraltete oder fremde Evidence-IDs aus Suchergebnis und Modellantwort werden blockiert.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US4Tests.swift"
+    },
+    {
+      "id": "AC-023",
+      "requirement": "FR-023",
+      "story": "US4",
+      "procedure": "Claim, Schlussfolgerung und eigene Notiz sind visuell und semantisch getrennt; kein erfundener Prozentwert.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US4Tests.swift"
+    },
+    {
+      "id": "AC-024",
+      "requirement": "FR-024",
+      "story": "US4",
+      "procedure": "Bei „alle Risiken“ jede gewählte analysierte Quelle erfassen; Teilabbruch verhindert Vollständigkeitslabel.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US4Tests.swift"
+    },
+    {
+      "id": "AC-025",
+      "requirement": "FR-025",
+      "story": "US4",
+      "procedure": "Keine Belege, widersprüchliche Belege, partielle Analyse und Modellfehler ergeben unterscheidbare Zustände.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US4Tests.swift"
+    },
+    {
+      "id": "AC-026",
+      "requirement": "FR-026",
+      "story": "US4",
+      "procedure": "PCC-offline, Kontingent erschöpft, Modell nicht bereit und Einwilligung fehlt testen; kein Drittanbieter-Fallback.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US4Tests.swift"
+    },
+    {
+      "id": "AC-027",
+      "requirement": "FR-027",
+      "story": "US4",
+      "procedure": "Nach Verdichtung einer langen Session bleiben Evidence-IDs und Versionszuordnung erhalten; Kontextgrenze eingehalten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US4Tests.swift"
+    },
+    {
+      "id": "AC-028",
+      "requirement": "FR-028",
+      "story": "US5",
+      "procedure": "„Spiele die passenden Stellen“ liefert vor Ausführung einen resolvbaren Vorschlag ohne freie URLs/Zeitwerte.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US5Tests.swift"
+    },
+    {
+      "id": "AC-029",
+      "requirement": "FR-029",
+      "story": "US5",
+      "procedure": "Ein erklärender Chat startet nicht; bewusster Start erzeugt an Gerät, Sitzung, Planhash und Zustimmung gebundenen Grant.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US5Tests.swift"
+    },
+    {
+      "id": "AC-030",
+      "requirement": "FR-030",
+      "story": "US5",
+      "procedure": "Start/Ende kommen aus verifizierter Revision; falscher Hash, negativer Bereich und fehlende Endzeit blockieren.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US5Tests.swift"
+    },
+    {
+      "id": "AC-031",
+      "requirement": "FR-031",
+      "story": "US5",
+      "procedure": "Altes Seek-Completion nach neuer Queuegeneration ignorieren; Segment endet an Originalendmarke auch bei UI-Stillstand.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US5Tests.swift"
+    },
+    {
+      "id": "AC-032",
+      "requirement": "FR-032",
+      "story": "US5",
+      "procedure": "Widerspruch oder einschränkender Folgesatz wird nicht abgeschnitten; Text ohne sichere Alignment-Grenzen bleibt nicht abspielbar.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US5Tests.swift"
+    },
+    {
+      "id": "AC-033",
+      "requirement": "FR-033",
+      "story": "US6",
+      "procedure": "Überlappende Bereiche derselben Fassung zusammenführen; relevante Gegenpositionen und Themenvielfalt nicht wegfiltern.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US6Tests.swift"
+    },
+    {
+      "id": "AC-034",
+      "requirement": "FR-034",
+      "story": "US6",
+      "procedure": "Neue Hintergrundempfehlung, App-Neustart und Sync starten nie Ton; Autofortsetzung nur mit gültigem Session-Grant.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US6Tests.swift"
+    },
+    {
+      "id": "AC-035",
+      "requirement": "FR-035",
+      "story": "US6",
+      "procedure": "Kontext, Playbackrate und geplante Übergänge zählen; Pausen/Buffering nicht; Budget zu klein liefert weniger, nicht Satzhälften.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US6Tests.swift"
+    },
+    {
+      "id": "AC-036",
+      "requirement": "FR-036",
+      "story": "US6",
+      "procedure": "Mehr Kontext, ganze Folge, Skip und Stop erreichbar; ganzer-Folge-Modus beendet Budgetbindung sichtbar.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US6Tests.swift"
+    },
+    {
+      "id": "AC-037",
+      "requirement": "FR-037",
+      "story": "US6",
+      "procedure": "Persistierter Plan enthält nur Referenzen/Spannen, keinen gerenderten Audio-Mashup; Watch-Transfer respektiert Medienfähigkeit.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US6Tests.swift"
+    },
+    {
+      "id": "AC-038",
+      "requirement": "FR-038",
+      "story": "US7",
+      "procedure": "Bestätigte Themen, Vorschläge, Projekt und offene Frage bearbeiten, ohne Kategorien zu vermischen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US7Tests.swift"
+    },
+    {
+      "id": "AC-039",
+      "requirement": "FR-039",
+      "story": "US7",
+      "procedure": "Opt-out protokolliert keine Lernsignale; nicht gehörte Folge zählt weder negativ noch als unbekannt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US7Tests.swift"
+    },
+    {
+      "id": "AC-040",
+      "requirement": "FR-040",
+      "story": "US7",
+      "procedure": "Jede Empfehlung nennt konkrete Themen-/Fragenreferenz; die vier Feedbackarten haben unterschiedliche Wirkung.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US7Tests.swift"
+    },
+    {
+      "id": "AC-041",
+      "requirement": "FR-041",
+      "story": "US7",
+      "procedure": "Automatische Themenvorschläge brauchen Bestätigung; kein politisches, medizinisches oder psychologisches Profil ableiten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US7Tests.swift"
+    },
+    {
+      "id": "AC-042",
+      "requirement": "FR-042",
+      "story": "US7",
+      "procedure": "„Neu für dich“ bezieht sich auf gespeicherten Bestand; Chronologie und Gegenpositionen bleiben erreichbar.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US7Tests.swift"
+    },
+    {
+      "id": "AC-043",
+      "requirement": "FR-043",
+      "story": "US7",
+      "procedure": "Spätes Event mit alter Reset-Epoch kann gelöschtes Profil und Lernsignale nicht wiederherstellen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US7Tests.swift"
+    },
+    {
+      "id": "AC-044",
+      "requirement": "FR-044",
+      "story": "US10",
+      "procedure": "Kill zwischen Segmentpersistenz und Jobcheckpoint: Neustart verliert keine bestätigte Evidenz und verarbeitet idempotent.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-045",
+      "requirement": "FR-045",
+      "story": "US10",
+      "procedure": "Refresh, Download, Audio und Analyse getrennt simulieren; BGContinuedProcessing nicht aus stiller Automatik starten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-046",
+      "requirement": "FR-046",
+      "story": "US10",
+      "procedure": "Lokaler Modus ohne iCloud bleibt voll lesbar; private Sync-Fachrecords ohne Rohgeheimnisse übertragen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-047",
+      "requirement": "FR-047",
+      "story": "US10",
+      "procedure": "Rewind gegen späteren Fortschritt, parallele Notizedits, Reorder und Tombstones jeweils mit fachlicher Konfliktregel testen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-048",
+      "requirement": "FR-048",
+      "story": "US10",
+      "procedure": "Ohne Mac arbeitet geeigneter Vollclient; doppelte CloudKit-Zustellung erzeugt keine doppelten kanonischen Artefakte.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-049",
+      "requirement": "FR-049",
+      "story": "US10",
+      "procedure": "Audio löschen erhält gewollt Wissen; Wissens-/Gesamtlöschung entfernt auch Suchindex und angeforderte synchronisierte Datensätze.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-050",
+      "requirement": "FR-050",
+      "story": "US8",
+      "procedure": "Vier native 27er-Targets kompilieren; kein Catalyst, Web-App-Container oder 26er-Fallbacktarget.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US8Tests.swift"
+    },
+    {
+      "id": "AC-051",
+      "requirement": "FR-051",
+      "story": "US8",
+      "procedure": "Schmal/quer/geteiltes Fenster, Drag/Drop, Inspector und Tastatur durchgängig ohne überdeckte Controls testen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US8Tests.swift"
+    },
+    {
+      "id": "AC-052",
+      "requirement": "FR-052",
+      "story": "US8",
+      "procedure": "Zwei Fenster mit unterschiedlichen Detailansichten, gemeinsamem Audio und korrekten Menü-/Dateiaktionen testen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US8Tests.swift"
+    },
+    {
+      "id": "AC-053",
+      "requirement": "FR-053",
+      "story": "US9",
+      "procedure": "Offline-Pack auf Watch ohne iPhone lesen/abspielen; Crown, kurzer Kontext und VoiceOver funktionieren.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US9Tests.swift"
+    },
+    {
+      "id": "AC-054",
+      "requirement": "FR-054",
+      "story": "US9",
+      "procedure": "PCC mit vorhandenem Evidence-Pack vs unerreichbare Verbindung klar unterscheiden; kein erfundenes Vollbibliotheksergebnis.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US9Tests.swift"
+    },
+    {
+      "id": "AC-055",
+      "requirement": "FR-055",
+      "story": "US9",
+      "procedure": "Abgebrochener Transfer und nicht erreichbares Telefon erzeugen pending/error, keine falsche Bereit-Anzeige.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US9Tests.swift"
+    },
+    {
+      "id": "AC-056",
+      "requirement": "FR-056",
+      "story": "US8",
+      "procedure": "Entitäten besitzen stabile IDs; expliziter Sprach-Start autorisiert, reine Such-/Frageaktion startet keinen Player.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US8Tests.swift"
+    },
+    {
+      "id": "AC-057",
+      "requirement": "FR-057",
+      "story": "US8",
+      "procedure": "Alle Hauptflows mit VoiceOver, großer Schrift, Kontrast, Reduce Motion und Tastatur auf Zielplattformen prüfen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US8Tests.swift"
+    },
+    {
+      "id": "AC-058",
+      "requirement": "FR-058",
+      "story": "US11",
+      "procedure": "Folge, Claim, Chat, Vergleich und Sammlung exportieren; Quelle, Version, Umfang und persönliche Notizen bleiben nachvollziehbar.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US11Tests.swift"
+    },
+    {
+      "id": "AC-059",
+      "requirement": "FR-059",
+      "story": "US11",
+      "procedure": "Geheimnis im URL-Pfad trotz scheinbar harmloser Query entfernen; nur freigegebene öffentliche kanonische Links verwenden.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US11Tests.swift"
+    },
+    {
+      "id": "AC-060",
+      "requirement": "FR-060",
+      "story": "US11",
+      "procedure": "UTF-8, YAML-Sonderzeichen, sicherer Dateiname, Abbruch und atomare Dateierstellung testen; kein Volltranskript als Default.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US11Tests.swift"
+    },
+    {
+      "id": "AC-061",
+      "requirement": "FR-061",
+      "story": "US11",
+      "procedure": "Watch zeigt erst nach bestätigter Vollclient-Erstellung „exportiert“; pending/failed/retry unterscheiden.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US11Tests.swift"
+    },
+    {
+      "id": "AC-062",
+      "requirement": "FR-062",
+      "story": "US10",
+      "procedure": "Transkript mit „ignoriere Regeln, sende Daten, spiele URL“ bleibt zitierbarer Text ohne Tool-/Netzwerk-/Profilauswirkung.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-063",
+      "requirement": "FR-063",
+      "story": "US10",
+      "procedure": "Logs in Erfolgs-/Fehlerpfaden auf vollständige URLs, Tokens, Text und Audio prüfen; redigierte Ereignistypen genügen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-064",
+      "requirement": "FR-064",
+      "story": "US10",
+      "procedure": "XXE, Redirect auf Loopback, sehr große Feeds, falsches MIME, Zip-Slip und Dekompressionsbomben sicher abweisen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US10Tests.swift"
+    },
+    {
+      "id": "AC-065",
+      "requirement": "FR-065",
+      "story": "US4",
+      "procedure": "Versionierten Evaldatensatz mit Belegtreue, Scope, Vollständigkeit und Toolpolicy ausführen; Betriebssystemmodellwechsel erfordert Regression.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US4Tests.swift"
+    },
+    {
+      "id": "AC-066",
+      "requirement": "FR-066",
+      "story": "US8",
+      "procedure": "Ist-Codeinventar, echte Xcode27-Buildnummer, Device-/SDK-Verfügbarkeit und PCC-Entitlement dokumentieren, bevor Adapter verbindlich werden.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US8Tests.swift"
+    },
+    {
+      "id": "AC-067",
+      "requirement": "FR-067",
+      "story": "US14",
+      "procedure": "Alle URL-Fixtures liefern ihre kanonische Art; ein fremder Host mit youtube.com im Pfad wird abgewiesen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_67Tests.swift"
+    },
+    {
+      "id": "AC-068",
+      "requirement": "FR-068",
+      "story": "US14",
+      "procedure": "Videolink öffnet Dreiwegeauswahl mit korrektem Kanal; Abbrechen erzeugt kein Abo und keinen Analysejob.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_68Tests.swift"
+    },
+    {
+      "id": "AC-069",
+      "requirement": "FR-069",
+      "story": "US14",
+      "procedure": "Handle und Videolink desselben Kanals ergeben denselben validierten Feed; widersprüchliche Feed-ID wird blockiert.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_69Tests.swift"
+    },
+    {
+      "id": "AC-070",
+      "requirement": "FR-070",
+      "story": "US14",
+      "procedure": "Drei Katalogseiten mit überlappenden Einträgen werden vollständig dedupliziert; ein RSS-Fenster begrenzt nicht den historischen Import.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_70Tests.swift"
+    },
+    {
+      "id": "AC-071",
+      "requirement": "FR-071",
+      "story": "US14",
+      "procedure": "Von 120 synthetischen Einträgen sind 75 analysierbar; Fortschritt zeigt beide Mengen und blockierte Gründe getrennt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_71Tests.swift"
+    },
+    {
+      "id": "AC-072",
+      "requirement": "FR-072",
+      "story": "US14",
+      "procedure": "Kill nach Seite zwei, Neustart und neue Folge: keine verlorenen/gedoppelten Einträge, interaktive Arbeit hat Vorrang.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_72Tests.swift"
+    },
+    {
+      "id": "AC-073",
+      "requirement": "FR-073",
+      "story": "US14",
+      "procedure": "Gekürzter Feed ohne Archivlink zeigt eingeschränkten Bestand; bestätigter Archiveintrag wird importiert, nicht blind geraten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_73Tests.swift"
+    },
+    {
+      "id": "AC-074",
+      "requirement": "FR-074",
+      "story": "US12",
+      "procedure": "Watch-Aktion sichert laufende Originalstelle; nicht unterstützte Headset-Geste bleibt unerreichbar und Standard-Play/Pause unverändert.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_74Tests.swift"
+    },
+    {
+      "id": "AC-075",
+      "requirement": "FR-075",
+      "story": "US12",
+      "procedure": "Bearbeiten der eigenen Notiz verändert weder Originalauszug noch Timecode; Quelle löschen zeigt verwaisten Beleg statt Ersatz.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_75Tests.swift"
+    },
+    {
+      "id": "AC-076",
+      "requirement": "FR-076",
+      "story": "US12",
+      "procedure": "Text-only-Fixture exportiert TXT, aber kein erfundenes SRT; SRT/VTT-Roundtrip bewahrt vorhandene Zeitbereiche.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_76Tests.swift"
+    },
+    {
+      "id": "AC-077",
+      "requirement": "FR-077",
+      "story": "US12",
+      "procedure": "Eine ungehörte analysierte Folge wird semantisch gefunden; Scopefilter schließen fremde Folgen aus, lexical-only bleibt erkennbar.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_77Tests.swift"
+    },
+    {
+      "id": "AC-078",
+      "requirement": "FR-078",
+      "story": "US12",
+      "procedure": "Nach Löschung/Indexneubau sind private Inhalte weder Spotlight noch intern über Cache abrufbar; eingeschränkte Quellen bleiben aus dem OS-Index.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_78Tests.swift"
+    },
+    {
+      "id": "AC-079",
+      "requirement": "FR-079",
+      "story": "US12",
+      "procedure": "Bei unsicherer Werbung kein Autosprung; Undo spielt übersprungenen Abschnitt; YouTube-Autoskip bleibt deaktiviert.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_79Tests.swift"
+    },
+    {
+      "id": "AC-080",
+      "requirement": "FR-080",
+      "story": "US12",
+      "procedure": "Nur Summary-Prompt ändern: ASR und Audio bleiben unverändert; gezielte Neuverarbeitung behält alte Belege und eigene Notizen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_80Tests.swift"
+    },
+    {
+      "id": "AC-081",
+      "requirement": "FR-081",
+      "story": "US12",
+      "procedure": "Nicht nativ unterstützte Datei wird mit Ursache abgewiesen; keine automatische Installation oder Umwandlung durch Dritttools.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_81Tests.swift"
+    },
+    {
+      "id": "AC-082",
+      "requirement": "FR-082",
+      "story": "US12",
+      "procedure": "Nicht verfügbares Sprachpaar erzeugt unavailable; Übersetzung verändert keine Originalevidence oder gesprochenen Zeitcodes.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US12_82Tests.swift"
+    },
+    {
+      "id": "AC-083",
+      "requirement": "FR-083",
+      "story": "US13",
+      "procedure": "Ohne Nutzerfreigabe keine Datenausgabe; aktivierter lokaler Client nutzt nur explizit geteilte Collections und zeigt Verbindung an.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US13_83Tests.swift"
+    },
+    {
+      "id": "AC-084",
+      "requirement": "FR-084",
+      "story": "US13",
+      "procedure": "Toolaufruf mit Pfadtraversal, fremder Evidence-ID oder unfreigegebenem Scope scheitert; prepare_focus startet keinen Ton.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US13_84Tests.swift"
+    },
+    {
+      "id": "AC-085",
+      "requirement": "FR-085",
+      "story": "US13",
+      "procedure": "Widerruf sperrt nächsten Abruf und Export; Warnung erklärt, dass ein externer Client Inhalte anders verarbeiten kann.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US13_85Tests.swift"
+    },
+    {
+      "id": "AC-086",
+      "requirement": "FR-086",
+      "story": "US14",
+      "procedure": "Interessenänderung erneuert Relevanz, nicht ASR; explizite Neu-ASR erzeugt neue Revision und lässt vorherige Notiz erhalten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_86Tests.swift"
+    },
+    {
+      "id": "AC-087",
+      "requirement": "FR-087",
+      "story": "US14",
+      "procedure": "403 quota, 404 und offline bleiben unterscheidbar; fehlgeschlagene Auflösung legt keinen erfundenen Kanal an.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_87Tests.swift"
+    },
+    {
+      "id": "AC-088",
+      "requirement": "FR-088",
+      "story": "US14",
+      "procedure": "Metadatenpriorität verbessert Reihenfolge, verändert nicht den angeforderten Gesamtumfang oder Vollständigkeitszähler.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_88Tests.swift"
+    },
+    {
+      "id": "AC-089",
+      "requirement": "FR-089",
+      "story": "US14",
+      "procedure": "Handlewechsel plus nochmaliger Videoimport erhält ein Abo; Archivabbruch deaktiviert nicht neue Folgen und umgekehrt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_89Tests.swift"
+    },
+    {
+      "id": "AC-090",
+      "requirement": "FR-090",
+      "story": "US14",
+      "procedure": "Unbekannte Größen werden unbekannt genannt; neue Katalogeinträge nach Snapshot werden nicht still dem genehmigten Batch hinzugefügt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US14_90Tests.swift"
+    },
+    {
+      "id": "AC-091",
+      "requirement": "FR-091",
+      "story": "US15",
+      "procedure": "Nur drei gespeicherte Local-first-Folgen erzeugen keinen bestätigten Nutzerstandpunkt; eine explizite Bestätigung erzeugt einen versionierten Standpunkt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_91Tests.swift"
+    },
+    {
+      "id": "AC-092",
+      "requirement": "FR-092",
+      "story": "US15",
+      "procedure": "Ohne Opt-in kein Profiling für Gegenpositionen und kein Mixerjob; aktivierte Vorbereitung startet keinen Ton.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_92Tests.swift"
+    },
+    {
+      "id": "AC-093",
+      "requirement": "FR-093",
+      "story": "US15",
+      "procedure": "Gleiche Aussage mit anderem Beispiel wird nicht als Gegenbeweis markiert; echte Gegenposition bekommt eine prüfbare Relation und Belege.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_93Tests.swift"
+    },
+    {
+      "id": "AC-094",
+      "requirement": "FR-094",
+      "story": "US15",
+      "procedure": "Eine geschnittene Negation oder fehlende Einschränkung blockiert den Clip; keine synthetische Sprecherstimme ersetzt das Original.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_94Tests.swift"
+    },
+    {
+      "id": "AC-095",
+      "requirement": "FR-095",
+      "story": "US15",
+      "procedure": "Dasselbe Gespräch in RSS und YouTube zählt einmal; die App erfindet keine Unabhängigkeit unbekannter Herausgeber.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_95Tests.swift"
+    },
+    {
+      "id": "AC-096",
+      "requirement": "FR-096",
+      "story": "US15",
+      "procedure": "Cloudvorteile bei stabiler Verbindung widerlegen keinen Offline-Bedarf; Relation lautet andere Bedingung oder Einschränkung, nicht bewiesen falsch.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_96Tests.swift"
+    },
+    {
+      "id": "AC-097",
+      "requirement": "FR-097",
+      "story": "US15",
+      "procedure": "Sechs Minuten enthalten Kontext und Übergänge; überlanges Material wird nicht sinnentstellend gekürzt, sondern weniger Inhalt oder Budgetwahl angeboten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_97Tests.swift"
+    },
+    {
+      "id": "AC-098",
+      "requirement": "FR-098",
+      "story": "US15",
+      "procedure": "Leerer Gegenpositionsindex erzeugt noEvidence, keine zufälligen kontroversen Clips und keinen leeren startbaren Plan.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_98Tests.swift"
+    },
+    {
+      "id": "AC-099",
+      "requirement": "FR-099",
+      "story": "US15",
+      "procedure": "These ändern macht alten Plan stale; laufende Wiedergabe bleibt stoppbar und setzt nicht mit ungeprüften neuen Clips fort.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_99Tests.swift"
+    },
+    {
+      "id": "AC-100",
+      "requirement": "FR-100",
+      "story": "US15",
+      "procedure": "Politischer Verlauf wird kein Überzeugungsprofil; ein ausdrücklicher Sachvergleich bleibt neutral und endet ohne Wahlempfehlung oder Gewinner.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_100Tests.swift"
+    },
+    {
+      "id": "AC-101",
+      "requirement": "FR-101",
+      "story": "US15",
+      "procedure": "Hilfreiches Gegenargument ändert einen bestätigten Standpunkt nicht; Analytics enthalten keine Überzeugungswechsel- oder Empörungsscores.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_101Tests.swift"
+    },
+    {
+      "id": "AC-102",
+      "requirement": "FR-102",
+      "story": "US15",
+      "procedure": "Reiner Podcast-Export enthält keine private These; MCP-Scope ohne persönliche Notizen liefert keine Standpunktdaten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US15_102Tests.swift"
+    },
+    {
+      "id": "AC-103",
+      "requirement": "FR-103",
+      "story": "US16",
+      "procedure": "Zwei Sitzungen zur gleichen Frage bleiben identifizierbar; bloß abgespielte Sekunden erzeugen keine bestätigten Wissensknoten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_103Tests.swift"
+    },
+    {
+      "id": "AC-104",
+      "requirement": "FR-104",
+      "story": "US16",
+      "procedure": "Ende einer Fokusliste zeigt genau eine Abschlusskarte; Pause oder Kopfhörertrennung beendet die Session nicht und zeigt keine Abschlusspflicht.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_104Tests.swift"
+    },
+    {
+      "id": "AC-105",
+      "requirement": "FR-105",
+      "story": "US16",
+      "procedure": "Vier eindeutige zugängliche Quellen erlauben die Zahl vier; Duplikat oder gesperrter Inhalt reduziert den Zähler, Null zeigt keine erfundene Verfügbarkeit.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_105Tests.swift"
+    },
+    {
+      "id": "AC-106",
+      "requirement": "FR-106",
+      "story": "US16",
+      "procedure": "Tippen zeigt Folgefrage, Belege und neues Zeitbudget; erst ausdrücklicher Hörstart erzeugt einen neuen PlaybackGrant.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_106Tests.swift"
+    },
+    {
+      "id": "AC-107",
+      "requirement": "FR-107",
+      "story": "US16",
+      "procedure": "Export enthält stabile IDs, Kanten, Fundstellen und offene Frage; reimportierter Graph bewahrt Knotenidentität und Quellenbezug.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_107Tests.swift"
+    },
+    {
+      "id": "AC-108",
+      "requirement": "FR-108",
+      "story": "US16",
+      "procedure": "Verwerfen entfernt nur den Vorschlag; ursprüngliches Highlight und Quelle bleiben erhalten, Undo stellt den Pfad samt Belegen wieder her.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_108Tests.swift"
+    },
+    {
+      "id": "AC-109",
+      "requirement": "FR-109",
+      "story": "US16",
+      "procedure": "Jede Kante referenziert existierende Knoten mit Richtung und Bedeutung; ein Widerspruch kann modelliert werden, ohne als wahr entschieden zu sein.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_109Tests.swift"
+    },
+    {
+      "id": "AC-110",
+      "requirement": "FR-110",
+      "story": "US16",
+      "procedure": "Ein geparkter Gegenstandpunkt bleibt Quellenposition; keine Umwandlung in eigene Meinung oder unabhängig bestätigte Wahrheit.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_110Tests.swift"
+    },
+    {
+      "id": "AC-111",
+      "requirement": "FR-111",
+      "story": "US16",
+      "procedure": "Neuer Prompt ersetzt nur abgeleitete Versionen; handgeschriebene Notiz und bestätigte Relation bleiben inklusive Änderungsprotokoll erhalten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_111Tests.swift"
+    },
+    {
+      "id": "AC-112",
+      "requirement": "FR-112",
+      "story": "US16",
+      "procedure": "Nicht freigegebener Ordner wird nicht beschrieben; unterbrochener Export bleibt pending und meldet nicht fälschlich in Obsidian gespeichert.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_112Tests.swift"
+    },
+    {
+      "id": "AC-113",
+      "requirement": "FR-113",
+      "story": "US16",
+      "procedure": "Neustart nach Abbruch stellt Checkpoint wieder her; kein laufender Timer erzeugt Hintergrunddialog oder Sprachprompt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_113Tests.swift"
+    },
+    {
+      "id": "AC-114",
+      "requirement": "FR-114",
+      "story": "US16",
+      "procedure": "Offline-Watch-Parken und Mac-Verwerfen werden nicht still last-write-wins zusammengeführt; einmal bestätigter Exportjob erzeugt keine doppelten Dateien.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_114Tests.swift"
+    },
+    {
+      "id": "AC-115",
+      "requirement": "FR-115",
+      "story": "US16",
+      "procedure": "VoiceOver kann Frage, Beziehungen und Quellen navigieren; Watch kann Parken vormerken und aufs iPhone übergeben, nicht vorzeitigen Exporterfolg behaupten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_115Tests.swift"
+    },
+    {
+      "id": "AC-116",
+      "requirement": "FR-116",
+      "story": "US16",
+      "procedure": "Credits des Originalmediums bleiben unverändert; App-Abschluss ist klar getrennt und ohne gesonderten Wunsch stumm.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_116Tests.swift"
+    },
+    {
+      "id": "AC-117",
+      "requirement": "FR-117",
+      "story": "US16",
+      "procedure": "Schließen ohne Auswahl bleibt neutral; keine wiederholten Meldungen, Belohnungsverluste oder Hördaueroptimierung.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_117Tests.swift"
+    },
+    {
+      "id": "AC-118",
+      "requirement": "FR-118",
+      "story": "US16",
+      "procedure": "Geparkte Frage erzeugt keinen Timer und keine Pushmeldung; eigene Quellenbeobachtung respektiert Quellen- und Ressourcenpolicy.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_118Tests.swift"
+    },
+    {
+      "id": "AC-119",
+      "requirement": "FR-119",
+      "story": "US16",
+      "procedure": "Quellenlöschung entfernt nicht verwandte Notiz, markiert fehlenden Beleg und löscht privaten Cache; bereits extern kopierte Datei wird als außerhalb Kontrolle benannt.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_119Tests.swift"
+    },
+    {
+      "id": "AC-120",
+      "requirement": "FR-120",
+      "story": "US16",
+      "procedure": "Prompt-Injection in Transkript oder Knotentitel führt weder Export noch Toolaufruf oder Abonnement aus; Code im Markdown bleibt Text.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US16_120Tests.swift"
+    },
+    {
+      "id": "AC-121",
+      "requirement": "FR-121",
+      "story": "US17",
+      "procedure": "Zwei Themenfeeds und einen gemischten Feed anlegen; nach Neustart bleiben IDs, Themen und Ausgaben erhalten.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_121Tests.swift"
+    },
+    {
+      "id": "AC-122",
+      "requirement": "FR-122",
+      "story": "US17",
+      "procedure": "Konfiguriertes Profil ohne Lernfreigabe verwenden; mehrfaches Play fordert kein Profilinterview und ändert das Profil nicht.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_122Tests.swift"
+    },
+    {
+      "id": "AC-123",
+      "requirement": "FR-123",
+      "story": "US17",
+      "procedure": "Teilanalysierten Korpus wählen; Coverage und enthaltene Quellen stimmen; nicht erlaubte Quelle bleibt ausgeschlossen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_123Tests.swift"
+    },
+    {
+      "id": "AC-124",
+      "requirement": "FR-124",
+      "story": "US17",
+      "procedure": "Zweimal denselben Kandidatenlauf ausführen: eine logische Ausgabe; Titelwechsel allein erzeugt keine neue Folge.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_124Tests.swift"
+    },
+    {
+      "id": "AC-125",
+      "requirement": "FR-125",
+      "story": "US17",
+      "procedure": "Alte Originalquelle als neue persönliche Ausgabe bündeln; korrekte Daten und absatzbezogene Evidence-IDs prüfen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_125Tests.swift"
+    },
+    {
+      "id": "AC-126",
+      "requirement": "FR-126",
+      "story": "US17",
+      "procedure": "Mehr Treffer als eine Ausgabeseite bereitstellen; kein Top-k-Verlust, Rest folgt sichtbar; Kurzfassung nennt nicht alles.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_126Tests.swift"
+    },
+    {
+      "id": "AC-127",
+      "requirement": "FR-127",
+      "story": "US17",
+      "procedure": "Während Wiedergabe neue Segmente einspeisen; bestehendes Manifest bleibt byteidentisch, nächste Ausgabe ist separat.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_127Tests.swift"
+    },
+    {
+      "id": "AC-128",
+      "requirement": "FR-128",
+      "story": "US18",
+      "procedure": "Eine Folge mit drei passenden Abschnitten starten; nur diese werden abgespielt; Ganz hören bleibt erreichbar.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US18_128Tests.swift"
+    },
+    {
+      "id": "AC-129",
+      "requirement": "FR-129",
+      "story": "US18",
+      "procedure": "Play autorisiert genau den Plan; Quellenwechsel läuft weiter; Hintergrundveröffentlichung erzeugt keinen Ton.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US18_129Tests.swift"
+    },
+    {
+      "id": "AC-130",
+      "requirement": "FR-130",
+      "story": "US19",
+      "procedure": "Spielen 10–20 s, Springen auf 60 s und Spielen 60–65 s erzeugt genau diese zwei Intervalle, nicht 10–65 s.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US19_130Tests.swift"
+    },
+    {
+      "id": "AC-131",
+      "requirement": "FR-131",
+      "story": "US19",
+      "procedure": "Abschnitt im Themenfeed hören; derselbe Abschnitt gilt beim Original und zweiten Feed als abgespielt, übrige Folge nicht.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US19_131Tests.swift"
+    },
+    {
+      "id": "AC-132",
+      "requirement": "FR-132",
+      "story": "US19",
+      "procedure": "Teilgehörte Aussage mit Kontext prüfen; neue Restbelege erhalten gültige Grenzen, Kontext als Wiederholung markieren.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US19_132Tests.swift"
+    },
+    {
+      "id": "AC-133",
+      "requirement": "FR-133",
+      "story": "US19",
+      "procedure": "Teils gehörte Folge bleibt im Restfilter; fehlt im Nie-gestartet-Filter; manuell erledigt erzeugt keine Hörintervalle.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US19_133Tests.swift"
+    },
+    {
+      "id": "AC-134",
+      "requirement": "FR-134",
+      "story": "US18",
+      "procedure": "Persönliche Position in Segment 2 auf Originalzeit abbilden; 1,5-fache Rate verändert Quellenzeitmapping nicht.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US18_134Tests.swift"
+    },
+    {
+      "id": "AC-135",
+      "requirement": "FR-135",
+      "story": "US18",
+      "procedure": "Kein TTS-Aufruf im Ausgabepfad; Sourcewechsel sichtbar, Originalclip und dessen geprüfte Grenzen unverändert.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US18_135Tests.swift"
+    },
+    {
+      "id": "AC-136",
+      "requirement": "FR-136",
+      "story": "US18",
+      "procedure": "Ausgabefrage darf nur Manifestbelege verwenden; unbekannter Sprecher wird nicht benannt; Sprung ins Original funktioniert.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US18_136Tests.swift"
+    },
+    {
+      "id": "AC-137",
+      "requirement": "FR-137",
+      "story": "US19",
+      "procedure": "Zwei Offlinegeräte mit gleichen Kandidaten und überlappenden Hörintervallen mergen ohne doppelte neue Segmente; Watch zeigt nur vollständig geladene Pakete offline-bereit.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US19_137Tests.swift"
+    },
+    {
+      "id": "AC-138",
+      "requirement": "FR-138",
+      "story": "US17",
+      "procedure": "Audiofassung austauschen bzw. Quelle löschen; betroffene Segmente sichtbar nicht verfügbar, kein Zeittransfer auf fremde Fassung.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_138Tests.swift"
+    },
+    {
+      "id": "AC-139",
+      "requirement": "FR-139",
+      "story": "US20",
+      "procedure": "ImageCreator ist im neuen Featurecode abwesend; native Sheet-Integration prüfen; externe Provider nicht in erlaubten Stilen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US20_139Tests.swift"
+    },
+    {
+      "id": "AC-140",
+      "requirement": "FR-140",
+      "story": "US20",
+      "procedure": "Ohne Modell, offline und bei Cover-Abbruch erscheint ein eigenes natives Cover; Audioausgabe bleibt nutzbar.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US20_140Tests.swift"
+    },
+    {
+      "id": "AC-141",
+      "requirement": "FR-141",
+      "story": "US20",
+      "procedure": "Temporärdatei nach Kopie entfernen; gespeichertes Cover bleibt; abgebrochene Auswahl ersetzt kein bisheriges Asset.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US20_141Tests.swift"
+    },
+    {
+      "id": "AC-142",
+      "requirement": "FR-142",
+      "story": "US17",
+      "procedure": "Nichts-Neues-Fall erzeugt keine leere Folge; Screenreader liest Thema, Quellenzahl und Coveraktion; Notification ohne Autorisierung bleibt aus.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_142Tests.swift"
+    },
+    {
+      "id": "AC-143",
+      "requirement": "FR-143",
+      "story": "US17",
+      "procedure": "Manifest und Markdown gegen aktuelle Revision prüfen; private URLs redigiert, Original-/persönliche Zeiten stimmen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_143Tests.swift"
+    },
+    {
+      "id": "AC-144",
+      "requirement": "FR-144",
+      "story": "US17",
+      "procedure": "Synthetische Themen iOS, Google/KI, EnBW und Datenschutz verwenden; vollständigen Ablauf einschließlich Re-Refresh, Queue-Ende und Cover-Abbruch testen.",
+      "status": "planned_not_executed",
+      "testTarget": "Tests/Acceptance/US17_144Tests.swift"
+    }
+  ]
+}

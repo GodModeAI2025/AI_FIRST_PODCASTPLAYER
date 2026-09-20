@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "recordID": "note-demo",
+  "entityKind": "InsightNote",
+  "revision": 2,
+  "baseRevision": 1,
+  "originDeviceID": "mac-demo",
+  "logicalCounter": 2,
+  "tombstone": false
+}

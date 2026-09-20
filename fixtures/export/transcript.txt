@@ -1,0 +1,5 @@
+SYNTHETISCHER TESTTEXT — KEIN REALER PODCAST
+
+Ein lokales Modell kann Anfragen ohne externen Modellanbieter verarbeiten.
+Der Betriebsaufwand bleibt eine eigene Aufgabe.
+Diese Einschätzung ist kein allgemeines Kostenversprechen.

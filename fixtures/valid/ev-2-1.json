@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "ev-2-1",
+  "episodeID": "episode-2",
+  "mediaVersionID": "media-2",
+  "transcriptRevisionID": "transcript-2",
+  "segmentIDs": [
+    "seg-2-1"
+  ],
+  "excerpt": "Dafuer werden Netzanbindung und die Freigabe der Datenverarbeitung beim Dienst benoetigt.",
+  "range": {
+    "startMs": 30000,
+    "endMs": 46000
+  },
+  "timingStatus": "verified",
+  "accessRevision": 1
+}

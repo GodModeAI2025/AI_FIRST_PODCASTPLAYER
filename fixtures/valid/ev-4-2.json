@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "ev-4-2",
+  "episodeID": "episode-4",
+  "mediaVersionID": "media-4",
+  "transcriptRevisionID": "transcript-4",
+  "segmentIDs": [
+    "seg-4-2"
+  ],
+  "excerpt": "Mehr Komponenten sind nicht automatisch eine bessere Loesung.",
+  "range": {
+    "startMs": 50000,
+    "endMs": 66000
+  },
+  "timingStatus": "verified",
+  "accessRevision": 1
+}

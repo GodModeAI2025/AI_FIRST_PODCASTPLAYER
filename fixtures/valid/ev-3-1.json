@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "ev-3-1",
+  "episodeID": "episode-3",
+  "mediaVersionID": "media-3",
+  "transcriptRevisionID": "transcript-3",
+  "segmentIDs": [
+    "seg-3-1"
+  ],
+  "excerpt": "Eine Cloudfunktion kann spaeter zusaetzliche Faehigkeiten bereitstellen.",
+  "range": {
+    "startMs": 30000,
+    "endMs": 46000
+  },
+  "timingStatus": "verified",
+  "accessRevision": 1
+}

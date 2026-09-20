@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "cover-native-demo",
+  "revision": 1,
+  "origin": "nativeTemplate",
+  "state": "templateReady",
+  "userConfirmed": false,
+  "provider": "none",
+  "externalProvider": false,
+  "templateID": "topics-square-v1",
+  "altText": "Layoutvorlage für den persönlichen KI-Betriebs-Podcast",
+  "syntheticFixture": true
+}

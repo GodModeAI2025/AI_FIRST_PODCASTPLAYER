@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "media-1",
+  "episodeID": "episode-1",
+  "durationMs": 180000,
+  "identityStatus": "verified",
+  "contentHash": "9ddcfd6b8ab2f13309968fb75babf915a603cbc8da5a211ab90e82b13488247d",
+  "rightsBasis": "syntheticFixture",
+  "capabilities": {
+    "nativeAudio": true,
+    "visibleVideo": false,
+    "analyzeText": true,
+    "analyzeAudio": true,
+    "timedPlayback": true,
+    "reasonCodes": []
+  }
+}

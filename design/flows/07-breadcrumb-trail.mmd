@@ -1,0 +1,15 @@
+flowchart TD
+    A[Hoer- oder Fokus-Session] --> B{Echtes Ende?}
+    B -->|Unterbrechung| C[Checkpoint speichern und pausieren]
+    C --> A
+    B -->|Budget oder bewusst beendet| D[Frage und belegte Folgequellen]
+    D --> E{Deine Entscheidung}
+    E -->|Vertiefen| F[Folgefrage und neues Budget waehlen]
+    F --> G[Neue Kindsession mit eigener Startfreigabe]
+    E -->|Parken| H[Wissensgraph und Markdownvorschau]
+    H --> I[Lokaler Commit]
+    I --> J{Exportziel freigegeben?}
+    J -->|Ja| K[Atomarer Export mit Ergebnisstatus]
+    J -->|Nein| L[Lokal gesichert oder spaeter exportieren]
+    E -->|Verwerfen| M[Nur Vorschlag verwerfen mit Undo]
+    E -->|Schliessen| N[Keine Wertung und kein Autoplay]

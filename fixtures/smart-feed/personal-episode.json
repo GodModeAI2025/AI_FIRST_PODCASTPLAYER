@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "id": "personal-episode-demo",
+  "feedID": "feed-ai-operations",
+  "revision": 1,
+  "policyRevision": 1,
+  "batchKey": "894faef72538da94d9a27c00dd840f1267fa5fae1c9793097c09bb9032783631",
+  "manifestHash": "8d842fe993098ab1a9b3f22ef924746936949c416a910f06e2324afcaf41e973",
+  "title": "Lokaler Betrieb und verwaltete Dienste — Testausgabe",
+  "publishedAt": "2026-09-20T06:00:00Z",
+  "publicationState": "published",
+  "consumptionState": "unplayed",
+  "segments": [
+    {
+      "id": "clip-1",
+      "episodeID": "episode-1",
+      "mediaVersionID": "media-1",
+      "transcriptRevisionID": "transcript-1",
+      "evidenceIDs": [
+        "ev-1-0"
+      ],
+      "coreRange": {
+        "startMs": 10000,
+        "endMs": 26000
+      },
+      "playbackRange": {
+        "startMs": 5000,
+        "endMs": 70000
+      },
+      "reason": "Aussage mit einschränkendem Kontext hören.",
+      "virtualRange": {
+        "startMs": 0,
+        "endMs": 65000
+      },
+      "topicIDs": [
+        "ai-operations"
+      ],
+      "contextReplay": false
+    },
+    {
+      "id": "clip-2",
+      "episodeID": "episode-2",
+      "mediaVersionID": "media-2",
+      "transcriptRevisionID": "transcript-2",
+      "evidenceIDs": [
+        "ev-2-1"
+      ],
+      "coreRange": {
+        "startMs": 30000,
+        "endMs": 46000
+      },
+      "playbackRange": {
+        "startMs": 25000,
+        "endMs": 70000
+      },
+      "reason": "Vergleichende Perspektive mit Kontext.",
+      "virtualRange": {
+        "startMs": 65000,
+        "endMs": 110000
+      },
+      "topicIDs": [
+        "ai-operations"
+      ],
+      "contextReplay": false
+    }
+  ],
+  "shownotes": [
+    {
+      "text": "Originalstelle zu lokalem Betrieb mit dem im Testtranskript enthaltenen Kontext.",
+      "evidenceIDs": [
+        "ev-1-0"
+      ]
+    },
+    {
+      "text": "Vergleichende Originalperspektive aus der zweiten Testquelle.",
+      "evidenceIDs": [
+        "ev-2-1"
+      ]
+    }
+  ],
+  "coverAssetID": "cover-native-demo",
+  "totalMediaMs": 110000,
+  "coverage": {
+    "discoveredEpisodes": 4,
+    "analyzedEpisodes": 4,
+    "includedEpisodes": 2,
+    "remainingMatchedSegments": 0,
+    "completeWithinAnalyzedScope": true
+  },
+  "audioPolicy": "originalOnly",
+  "syntheticFixture": true
+}

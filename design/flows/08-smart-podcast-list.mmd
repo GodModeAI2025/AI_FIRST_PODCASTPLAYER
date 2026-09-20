@@ -1,0 +1,20 @@
+flowchart TD
+    A[Bestätigte Interessen und Quellenscope] --> B[Themenfeed anlegen]
+    B --> C[Finale Originalbelege ermitteln]
+    C --> D[Globale Hörintervalle und Reservierungen prüfen]
+    D --> E{Neue passende Abschnitte?}
+    E -- Nein --> F[Nichts Neues und Analyseabdeckung zeigen]
+    E -- Ja --> G[Alles Ungehörte oder budgetierte Auswahl]
+    G --> H[Manifest mit Originalzeiten einfrieren]
+    H --> I[Belegte Shownotes und natives Layoutcover]
+    I --> J[Persönliche Folge publizieren]
+    J --> K{Nutzer drückt Play?}
+    K -- Nein --> L[Still bereitstellen]
+    K -- Ja --> M[Originalsegmente nacheinander spielen]
+    M --> N[Tatsächliche Originalintervalle speichern]
+    N --> D
+    J --> O{Cover gestalten gewählt?}
+    O -- Ja --> P[Image-Playground-Systemdialog]
+    P --> Q{Bild bestätigt?}
+    Q -- Ja --> R[Cover speichern und synchronisieren]
+    Q -- Nein --> S[Layoutcover bleibt]

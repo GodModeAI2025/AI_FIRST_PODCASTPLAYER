@@ -1,0 +1,14 @@
+flowchart TD
+    A["Frage eingeben"] --> B["Quellenumfang sichtbar wählen"]
+    B --> C["Analyseabdeckung prüfen"]
+    C --> D{"Gewählte Inhalte ausreichend vorbereitet?"}
+    D -->|Ja| E["Passende Originalpassagen suchen"]
+    D -->|Nein| F["Fehlende Inhalte und Grenzen anzeigen"]
+    F -->|Vorhandenen Bestand verwenden| E
+    F -->|Fehlende Inhalte analysieren| G["Analyseauftrag mit Fortschritt"]
+    G --> C
+    E --> H["Antwort oder Vergleich erzeugen"]
+    H --> I["Belege und Quellenumfang prüfen"]
+    I --> J["Antwort mit Aussagen, Ableitungen und Unsicherheiten"]
+    J --> K["Originalstelle öffnen"]
+    J --> L["Als Erkenntnis sichern oder Markdown exportieren"]

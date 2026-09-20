@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/brainspeak/knowledge-graph.schema.json",
+  "title": "knowledge-graph",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "sessionID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "question",
+              "claim",
+              "evidence",
+              "note",
+              "topic",
+              "session"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "user",
+              "source",
+              "model",
+              "system"
+            ]
+          },
+          "curationState": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "curated",
+              "discarded"
+            ]
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "sourceStatus": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable",
+              "notApplicable"
+            ]
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "origin",
+          "curationState",
+          "evidenceIDs",
+          "sourceStatus",
+          "revision"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fromID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "toID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "relation": {
+            "type": "string",
+            "enum": [
+              "asks",
+              "supportedBy",
+              "contradicts",
+              "qualifies",
+              "differentAssumptions",
+              "deepens",
+              "derivedFrom",
+              "annotates",
+              "about",
+              "usedIn"
+            ]
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "user",
+              "model",
+              "system"
+            ]
+          },
+          "reviewStatus": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "userReviewed",
+              "systemVerified"
+            ]
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "id",
+          "fromID",
+          "toID",
+          "relation",
+          "origin",
+          "reviewStatus",
+          "evidenceIDs"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "scopeEpisodeIDs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "exportState": {
+      "type": "string",
+      "enum": [
+        "localOnly",
+        "preview",
+        "pending",
+        "exported",
+        "failed"
+      ]
+    },
+    "includesPrivateNotes": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "revision",
+    "sessionID",
+    "nodes",
+    "edges",
+    "scopeEpisodeIDs",
+    "exportState",
+    "includesPrivateNotes"
+  ],
+  "additionalProperties": false
+}

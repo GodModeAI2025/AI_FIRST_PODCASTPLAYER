@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/brainspeak/chat-answer.schema.json",
+  "title": "chat-answer",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "scopeID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selectedEpisodeIDs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "analyzedEpisodeIDs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "usedEpisodeIDs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "sourceStatement",
+              "inference"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "kind",
+          "text",
+          "evidenceIDs"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "answered",
+        "partial",
+        "noEvidence",
+        "unavailable"
+      ]
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "scopeID",
+    "selectedEpisodeIDs",
+    "analyzedEpisodeIDs",
+    "usedEpisodeIDs",
+    "claims",
+    "status",
+    "limitations"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/brainspeak/evidence.schema.json",
+  "title": "evidence",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "episodeID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mediaVersionID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transcriptRevisionID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "segmentIDs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "excerpt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "range": {
+      "type": "object",
+      "properties": {
+        "startMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "endMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "startMs",
+        "endMs"
+      ],
+      "additionalProperties": false
+    },
+    "timingStatus": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "unverified",
+        "none"
+      ]
+    },
+    "accessRevision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "episodeID",
+    "transcriptRevisionID",
+    "segmentIDs",
+    "excerpt",
+    "timingStatus",
+    "accessRevision"
+  ],
+  "additionalProperties": false
+}

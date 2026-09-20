@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/brainspeak/media-version.schema.json",
+  "title": "media-version",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "episodeID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "durationMs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "identityStatus": {
+      "type": "string",
+      "enum": [
+        "provisional",
+        "verified"
+      ]
+    },
+    "contentHash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rightsBasis": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "nativeAudio": {
+          "type": "boolean"
+        },
+        "visibleVideo": {
+          "type": "boolean"
+        },
+        "analyzeText": {
+          "type": "boolean"
+        },
+        "analyzeAudio": {
+          "type": "boolean"
+        },
+        "timedPlayback": {
+          "type": "boolean"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "nativeAudio",
+        "visibleVideo",
+        "analyzeText",
+        "analyzeAudio",
+        "timedPlayback",
+        "reasonCodes"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "episodeID",
+    "durationMs",
+    "identityStatus",
+    "contentHash",
+    "rightsBasis",
+    "capabilities"
+  ],
+  "additionalProperties": false
+}

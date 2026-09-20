@@ -1,0 +1,1042 @@
+{
+  "protocolReference": "2026-07-28",
+  "kind": "tool_definitions_not_wire_transcript",
+  "tools": [
+    {
+      "name": "podcasts.search",
+      "description": "Suche im freigegebenen analysierten Bestand, auch ungehört.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scopeID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "scopeID",
+          "query",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "denied",
+              "unavailable"
+            ]
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "coverageNote": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "const": 1
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "episodeID": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mediaVersionID": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "transcriptRevisionID": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "segmentIDs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                },
+                "excerpt": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "range": {
+                  "type": "object",
+                  "properties": {
+                    "startMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "endMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "startMs",
+                    "endMs"
+                  ],
+                  "additionalProperties": false
+                },
+                "timingStatus": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "unverified",
+                    "none"
+                  ]
+                },
+                "accessRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "id",
+                "episodeID",
+                "transcriptRevisionID",
+                "segmentIDs",
+                "excerpt",
+                "timingStatus",
+                "accessRevision"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "status",
+          "evidenceIDs",
+          "coverageNote",
+          "matches"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "podcasts.get_evidence",
+      "description": "Belegte Originalstelle mit Quellen-/Timingstatus lesen.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scopeID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "scopeID",
+          "evidenceIDs"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "denied",
+              "unavailable"
+            ]
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "coverageNote": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "const": 1
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "episodeID": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mediaVersionID": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "transcriptRevisionID": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "segmentIDs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                },
+                "excerpt": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "range": {
+                  "type": "object",
+                  "properties": {
+                    "startMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "endMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "startMs",
+                    "endMs"
+                  ],
+                  "additionalProperties": false
+                },
+                "timingStatus": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "unverified",
+                    "none"
+                  ]
+                },
+                "accessRevision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "id",
+                "episodeID",
+                "transcriptRevisionID",
+                "segmentIDs",
+                "excerpt",
+                "timingStatus",
+                "accessRevision"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "status",
+          "evidenceIDs",
+          "coverageNote",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "podcasts.list_highlights",
+      "description": "Gespeicherte Highlights im erlaubten Scope lesen.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scopeID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "scopeID",
+          "limit"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "denied",
+              "unavailable"
+            ]
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "coverageNote": {
+            "type": "string"
+          },
+          "highlights": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "schemaVersion": {
+                  "const": 1
+                },
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "evidenceIDs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 1
+                },
+                "originalExcerpt": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "userNote": {
+                  "type": "string"
+                },
+                "generatedSummary": {
+                  "type": "string"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "minItems": 0
+                },
+                "revision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "player",
+                    "transcript",
+                    "watch",
+                    "intent"
+                  ]
+                },
+                "timingStatus": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "unverified",
+                    "none"
+                  ]
+                }
+              },
+              "required": [
+                "schemaVersion",
+                "id",
+                "evidenceIDs",
+                "originalExcerpt",
+                "userNote",
+                "generatedSummary",
+                "tags",
+                "revision",
+                "origin",
+                "timingStatus"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "status",
+          "evidenceIDs",
+          "coverageNote",
+          "highlights"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "podcasts.export_preview",
+      "description": "Redigierte Markdownvorschau erzeugen; keine Datei schreiben.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scopeID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "includeUserNotes": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "scopeID",
+          "includeUserNotes"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "denied",
+              "unavailable"
+            ]
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "coverageNote": {
+            "type": "string"
+          },
+          "markdown": {
+            "type": "string"
+          },
+          "redactions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "evidenceIDs",
+          "coverageNote",
+          "markdown",
+          "redactions"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "podcasts.prepare_focus",
+      "description": "Geprüften Hörplan vorschlagen; niemals Ton starten.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scopeID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "budgetMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "scopeID",
+          "evidenceIDs",
+          "budgetMs"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "denied",
+              "unavailable"
+            ]
+          },
+          "evidenceIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 0
+          },
+          "coverageNote": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "const": 1
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "scopeDigest": {
+                "type": "string",
+                "minLength": 1
+              },
+              "segments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "episodeID": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "mediaVersionID": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "transcriptRevisionID": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "evidenceIDs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    },
+                    "coreRange": {
+                      "type": "object",
+                      "properties": {
+                        "startMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "endMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "startMs",
+                        "endMs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "playbackRange": {
+                      "type": "object",
+                      "properties": {
+                        "startMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "endMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "startMs",
+                        "endMs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "reason": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "episodeID",
+                    "mediaVersionID",
+                    "transcriptRevisionID",
+                    "evidenceIDs",
+                    "coreRange",
+                    "playbackRange",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1
+              },
+              "activeListeningBudgetMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "playbackRate": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 4
+              },
+              "transitionMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "estimatedListeningMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "planHash": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "id",
+              "revision",
+              "scopeDigest",
+              "segments",
+              "activeListeningBudgetMs",
+              "playbackRate",
+              "transitionMs",
+              "estimatedListeningMs",
+              "planHash"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "status",
+          "evidenceIDs",
+          "coverageNote"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "podcasts.get_trail",
+      "description": "Gibt einen ausdruecklich freigegebenen Wissenspfad ohne versteckte Standpunktdaten zurueck.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scopeID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "trailID": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "scopeID",
+          "trailID"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "denied",
+              "unavailable"
+            ]
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "graph": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "const": 1
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "sessionID": {
+                "type": "string",
+                "minLength": 1
+              },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "question",
+                        "claim",
+                        "evidence",
+                        "note",
+                        "topic",
+                        "session"
+                      ]
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "source",
+                        "model",
+                        "system"
+                      ]
+                    },
+                    "curationState": {
+                      "type": "string",
+                      "enum": [
+                        "proposed",
+                        "curated",
+                        "discarded"
+                      ]
+                    },
+                    "evidenceIDs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 0
+                    },
+                    "sourceStatus": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "unavailable",
+                        "notApplicable"
+                      ]
+                    },
+                    "revision": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "kind",
+                    "text",
+                    "origin",
+                    "curationState",
+                    "evidenceIDs",
+                    "sourceStatus",
+                    "revision"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1
+              },
+              "edges": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "fromID": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "toID": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "relation": {
+                      "type": "string",
+                      "enum": [
+                        "asks",
+                        "supportedBy",
+                        "contradicts",
+                        "qualifies",
+                        "differentAssumptions",
+                        "deepens",
+                        "derivedFrom",
+                        "annotates",
+                        "about",
+                        "usedIn"
+                      ]
+                    },
+                    "origin": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "model",
+                        "system"
+                      ]
+                    },
+                    "reviewStatus": {
+                      "type": "string",
+                      "enum": [
+                        "proposed",
+                        "userReviewed",
+                        "systemVerified"
+                      ]
+                    },
+                    "evidenceIDs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 0
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "fromID",
+                    "toID",
+                    "relation",
+                    "origin",
+                    "reviewStatus",
+                    "evidenceIDs"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 0
+              },
+              "scopeEpisodeIDs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 0
+              },
+              "exportState": {
+                "type": "string",
+                "enum": [
+                  "localOnly",
+                  "preview",
+                  "pending",
+                  "exported",
+                  "failed"
+                ]
+              },
+              "includesPrivateNotes": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "id",
+              "revision",
+              "sessionID",
+              "nodes",
+              "edges",
+              "scopeEpisodeIDs",
+              "exportState",
+              "includesPrivateNotes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "status",
+          "limitations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "podcasts.list_open_questions",
+      "description": "Listet offene Fragen nur aus den explizit freigegebenen kuratierten Pfaden.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "scopeID": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "scopeID"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "partial",
+              "denied",
+              "unavailable"
+            ]
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "nodeID": {
+                  "type": "string"
+                },
+                "question": {
+                  "type": "string"
+                },
+                "trailID": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "nodeID",
+                "question",
+                "trailID"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "status",
+          "limitations",
+          "questions"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

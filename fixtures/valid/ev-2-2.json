@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "ev-2-2",
+  "episodeID": "episode-2",
+  "mediaVersionID": "media-2",
+  "transcriptRevisionID": "transcript-2",
+  "segmentIDs": [
+    "seg-2-2"
+  ],
+  "excerpt": "Dieser Vorteil gilt nicht fuer jeden Offline- oder Datenschutzbedarf.",
+  "range": {
+    "startMs": 50000,
+    "endMs": 66000
+  },
+  "timingStatus": "verified",
+  "accessRevision": 1
+}

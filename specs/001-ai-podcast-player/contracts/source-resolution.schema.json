@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/brainspeak/source-resolution.schema.json",
+  "title": "source-resolution",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "resolved",
+        "pending",
+        "failed"
+      ]
+    },
+    "inputKind": {
+      "type": "string",
+      "enum": [
+        "video",
+        "channel",
+        "handle",
+        "feed",
+        "file"
+      ]
+    },
+    "sourceID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "channelID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonicalFeedURL": {
+      "type": "string",
+      "minLength": 1
+    },
+    "videoID": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestampMs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "nativeAudio": {
+          "type": "boolean"
+        },
+        "visibleVideo": {
+          "type": "boolean"
+        },
+        "analyzeText": {
+          "type": "boolean"
+        },
+        "analyzeAudio": {
+          "type": "boolean"
+        },
+        "timedPlayback": {
+          "type": "boolean"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "nativeAudio",
+        "visibleVideo",
+        "analyzeText",
+        "analyzeAudio",
+        "timedPlayback",
+        "reasonCodes"
+      ],
+      "additionalProperties": false
+    },
+    "offeredActions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "singleEpisode",
+          "subscribe",
+          "backfill"
+        ]
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "status",
+    "inputKind",
+    "sourceID",
+    "capabilities",
+    "offeredActions"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,6 @@
+# Ergänzender Nutzertext — erhaltene Inhalte und Behauptungen
+Der Nutzer beschrieb AI-first Audio als Verstehen, Durchsuchen und Einbindung in Wissens-Workflows. Genannte Kernfunktionen: vorgenerierte oder Echtzeittranskripte; automatische Kapitel; Zusammenfassungen und Relevanz; einhändige Highlights und automatische Schlüsselmomente; Episodenchat; Smart Skip.
+
+Genannte Playergrundlagen: stabile Hintergrundwiedergabe, Systemcontrols, mehrere Audioformate, Offline, Fortschrittssync, Geschwindigkeit, Sleep Timer und Bibliothek. Genannte Architekturideen: local-first, wählbare lokale/Cloud-Transkription, Transkripte als SRT/VTT/TXT mit Sprecher-/Wortzeitdaten, Embeddingindex über eigene Inhalte, MCP/Agentenzugriff und reversible gecachte Pipeline.
+
+Im Nutzertext enthaltene, hier nicht als bestätigt übernommene Behauptungen: Snipd mit über einer Million vorverarbeiteten Episoden; Anycast mit Liveübersetzung in über zehn Sprachen; BookPlayer/YourPods hätten Kapitel-/AVFoundation-/Syncgrundlagen bereits gelöst; mehrere allgemeine AI-Musikplayer dienten als Beleg. Alle 15 übergebenen URLs sind in user-supplied-reference-links.json erhalten. Die Produktentscheidung und Quellenprüfung steht in references/competitive-input-assessment.md. Diese Archivnotiz ist keine unabhängige Bestätigung der genannten Zahlen oder Produktqualität.

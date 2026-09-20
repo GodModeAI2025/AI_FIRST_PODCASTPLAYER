@@ -1,0 +1,4056 @@
+{
+  "schemaVersion": 1,
+  "status": "implementation_not_started",
+  "tasks": [
+    {
+      "id": "T001",
+      "phase": "00 Grundlagen",
+      "title": "BrainSpeak-Checkout read-only inventarisieren: Lizenz, Targets, Persistence, KI, Audio und Tests erfassen. Keine existierenden Klassen erfinden.",
+      "path": "audit/brainspeak-baseline.md",
+      "dependsOn": [],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T002",
+      "phase": "00 Grundlagen",
+      "title": "Xcode-27-/Swift-6.4- und vier SDK-Probes auf Mac ausführen; Buildnummern in toolchain-lock ergänzen.",
+      "path": "config/toolchain-lock.json",
+      "dependsOn": [],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T003",
+      "phase": "00 Grundlagen",
+      "title": "PCC-Account/Entitlement und Gerätefähigkeiten getrennt prüfen; fehlende Freigabe als Capability-Gate erfassen.",
+      "path": "audit/pcc-eligibility.md",
+      "dependsOn": [],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T004",
+      "phase": "00 Grundlagen",
+      "title": "Vorhandene Module auf Zielarchitektur abbilden; wiederverwenden, migrieren oder isolieren mit begründetem ADR.",
+      "path": "audit/integration-map.md",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T005",
+      "phase": "00 Grundlagen",
+      "title": "Gemeinsame Domain-IDs, Revisionsmodell und TimeRange-Invarianten test-first anlegen.",
+      "path": "Packages/BrainSpeakDomain/Tests/DomainInvariantTests.swift",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T006",
+      "phase": "00 Grundlagen",
+      "title": "Lokale SwiftData-Schemata, ModelActor und transaktionale Outbox-Grundstruktur implementieren.",
+      "path": "Packages/BrainSpeakPersistence/Sources/LocalStore.swift",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T007",
+      "phase": "00 Grundlagen",
+      "title": "Test-Doubles für Apple-Modelle, Uhr, Medienresolver, Netzwerk und Player entwickeln, ohne echte API durch Mocktests als getestet auszugeben.",
+      "path": "Tests/Support/",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T008",
+      "phase": "00 Grundlagen",
+      "title": "CapabilityRegistry, Zugriffspolicies und ExecutionGate als deterministische Grundbausteine implementieren.",
+      "path": "Packages/BrainSpeakDomain/Sources/CapabilityRegistry.swift",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T009",
+      "phase": "00 Grundlagen",
+      "title": "Vier SwiftUI-App-Shells mit Observation, State-Makro und adaptiver Navigation an vorhandene Composition anbinden.",
+      "path": "Apps/",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T010",
+      "phase": "00 Grundlagen",
+      "title": "Testkonfiguration für Swift Testing, UI-/Geräteprüfungen, Privacy-Logs und Evaluations-Gate einrichten.",
+      "path": "Tests/TestPlans/",
+      "dependsOn": [
+        "T001",
+        "T002"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T011",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "Akzeptanztests für US2 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US2Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010"
+      ],
+      "story": "US2",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T012",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "RSS-Feeds, kanonische YouTube-Kanal-Atomfeeds und einzelne berechtigt verfügbare Medien aufnehmen; Quellentyp und Fähigkeiten separat darstellen.",
+      "path": "Packages/BrainSpeakSources/Sources/SourceResolver.swift",
+      "dependsOn": [
+        "T011",
+        "T006"
+      ],
+      "story": "US2",
+      "requirement": "FR-001",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T013",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "Abo, Autoanalyse, Autoqueue und dauerhaften Offline-Download unabhängig konfigurieren; Autoanalyse kann temporäre Downloads auslösen und erklärt dies.",
+      "path": "Packages/BrainSpeakSources/Sources/SubscriptionPolicy.swift",
+      "dependsOn": [
+        "T011",
+        "T006"
+      ],
+      "story": "US2",
+      "requirement": "FR-002",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T014",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "Einzelfolgenimport, Share-Import und OPML-Import/-Export ohne implizites Abo unterstützen; Duplikate anhand stabiler Quell-/Folgenidentitäten behandeln.",
+      "path": "Packages/BrainSpeakSources/Sources/ImportCoordinator.swift",
+      "dependsOn": [
+        "T011",
+        "T006"
+      ],
+      "story": "US2",
+      "requirement": "FR-003",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T015",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "RSS enclosure/GUID, Redirects, Feedwechsel, ETag/Last-Modified, Publisher-Kapitel und Transkriptquellen verarbeiten; signierte Medien-URLs nicht durch pauschales Query-Stripping beschädigen.",
+      "path": "Packages/BrainSpeakSources/Sources/FeedRepository.swift",
+      "dependsOn": [
+        "T011",
+        "T006"
+      ],
+      "story": "US2",
+      "requirement": "FR-004",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T016",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "YouTube nur als sichtbare offizielle Wiedergabe oder externes Öffnen anbieten; Vollanalyse nur mit gesondert autorisiertem Text/Audio; keine Audioextraktion aus YouTube-Streams.",
+      "path": "Packages/BrainSpeakSources/Sources/YouTubeSourceAdapter.swift",
+      "dependsOn": [
+        "T011",
+        "T006"
+      ],
+      "story": "US2",
+      "requirement": "FR-005",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T017",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "Bei Quellzugang, Sprache, Format, Account oder Rechten konkrete capability reasons anzeigen; öffentlich erreichbar ist nicht pauschal eine Rechtefreigabe.",
+      "path": "Packages/BrainSpeakSources/Sources/CapabilityResolver.swift",
+      "dependsOn": [
+        "T011",
+        "T006"
+      ],
+      "story": "US2",
+      "requirement": "FR-006",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T018",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "Archivnachladen begrenzen: zunächst gewählte aktuelle Folge, historische Zeiträume nur bewusst; Anzahl, Speicher und Netzwerkbedarf soweit bekannt anzeigen.",
+      "path": "Packages/BrainSpeakSources/Sources/ArchiveImportPolicy.swift",
+      "dependsOn": [
+        "T011",
+        "T006"
+      ],
+      "story": "US2",
+      "requirement": "FR-007",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T019",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "Private Feeds mit Keychain-referenzierten Geheimnissen behandeln; keine Rohcredentials in CloudKit-Fachdaten, KI-Kontext oder Export; neue Geräte können erneute Anmeldung benötigen.",
+      "path": "Packages/BrainSpeakSources/Sources/SecretReferenceStore.swift",
+      "dependsOn": [
+        "T011",
+        "T006"
+      ],
+      "story": "US2",
+      "requirement": "FR-008",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T020",
+      "phase": "01 US2 — Quellen aufnehmen",
+      "title": "US2 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US2.md",
+      "dependsOn": [
+        "T012",
+        "T013",
+        "T014",
+        "T015",
+        "T016",
+        "T017",
+        "T018",
+        "T019"
+      ],
+      "story": "US2",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T021",
+      "phase": "02 US3 — Originalaudio abspielen",
+      "title": "Akzeptanztests für US3 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US3Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010",
+        "T020"
+      ],
+      "story": "US3",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T022",
+      "phase": "02 US3 — Originalaudio abspielen",
+      "title": "Native Audio-Wiedergabe, Pause, Seek, Geschwindigkeit, Sleep Timer, Queue, Kapitel sowie Wiederaufnahme anbieten; Analyse darf Abspielen nicht blockieren.",
+      "path": "Packages/BrainSpeakPlayback/Sources/PlaybackCoordinator.swift",
+      "dependsOn": [
+        "T021",
+        "T006"
+      ],
+      "story": "US3",
+      "requirement": "FR-009",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T023",
+      "phase": "02 US3 — Originalaudio abspielen",
+      "title": "Herausgeberkapitel, in der Datei enthaltene Kapitel und KI-Kapitel mit Herkunft und Konfliktauflösung zeigen; bei Fassungszweifeln nicht blind Zeiten übernehmen.",
+      "path": "Packages/BrainSpeakPlayback/Sources/ChapterResolver.swift",
+      "dependsOn": [
+        "T021",
+        "T006"
+      ],
+      "story": "US3",
+      "requirement": "FR-010",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T024",
+      "phase": "02 US3 — Originalaudio abspielen",
+      "title": "Eine zentrale Wiedergabeinstanz pro Gerät/Prozess mit Now Playing, Remote Commands, Unterbrechungen, Bluetooth/AirPlay und Kopfhörertrennung integrieren, soweit Plattform unterstützt.",
+      "path": "Packages/BrainSpeakPlayback/Sources/NowPlayingAdapter.swift",
+      "dependsOn": [
+        "T021",
+        "T006"
+      ],
+      "story": "US3",
+      "requirement": "FR-011",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T025",
+      "phase": "02 US3 — Originalaudio abspielen",
+      "title": "Hörposition, tatsächlich gehörte Zeitintervalle, KI-Verarbeitung und gelesene Erkenntnisse getrennt speichern; Fokus-Sprünge markieren keine vollständige Folge als gehört.",
+      "path": "Packages/BrainSpeakPlayback/Sources/ListeningHistory.swift",
+      "dependsOn": [
+        "T021",
+        "T006"
+      ],
+      "story": "US3",
+      "requirement": "FR-012",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T026",
+      "phase": "02 US3 — Originalaudio abspielen",
+      "title": "Aus einer Quelle oder Chat-Fundstelle zur bisherigen Queue/Position zurückkehren; Focus Session überschreibt die normale Queue nicht.",
+      "path": "Packages/BrainSpeakPlayback/Sources/QueueSnapshotStore.swift",
+      "dependsOn": [
+        "T021",
+        "T006"
+      ],
+      "story": "US3",
+      "requirement": "FR-013",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T027",
+      "phase": "02 US3 — Originalaudio abspielen",
+      "title": "US3 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US3.md",
+      "dependsOn": [
+        "T022",
+        "T023",
+        "T024",
+        "T025",
+        "T026"
+      ],
+      "story": "US3",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T028",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "Akzeptanztests für US1 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US1Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010",
+        "T020"
+      ],
+      "story": "US1",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T029",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "Geeigneten Publisher-Text oder Audio-Dateitranskription verwenden; Titel/Shownotes allein niemals als analysierter Vollinhalt behandeln.",
+      "path": "Packages/BrainSpeakIngestion/Sources/ContentAcquisition.swift",
+      "dependsOn": [
+        "T028",
+        "T006"
+      ],
+      "story": "US1",
+      "requirement": "FR-014",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T030",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "Dateibasierte Apple-Sprachanalyse mit verwalteten Sprachassets, Streaming/Chunk-Verarbeitung, finalisierten zeitbezogenen Segmenten und persistenter Wiederaufnahme durchführen.",
+      "path": "Packages/BrainSpeakIngestion/Sources/SpeechAnalysisAdapter.swift",
+      "dependsOn": [
+        "T028",
+        "T006"
+      ],
+      "story": "US1",
+      "requirement": "FR-015",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T031",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "Medienfassung und Transkriptrevision unveränderlich identifizieren; echte Bytehashes nach vollständigem Download getrennt von schwachen Servermetadaten führen.",
+      "path": "Packages/BrainSpeakIngestion/Sources/MediaRevisionStore.swift",
+      "dependsOn": [
+        "T028",
+        "T006"
+      ],
+      "story": "US1",
+      "requirement": "FR-016",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T032",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "Analyseabdeckung als Vereinigung bearbeiteter Medienintervalle bzw. explizite Textabdeckung berechnen; Fehler, Werbefassungen und fehlende Abschnitte sichtbar halten.",
+      "path": "Packages/BrainSpeakIngestion/Sources/CoverageCalculator.swift",
+      "dependsOn": [
+        "T028",
+        "T006"
+      ],
+      "story": "US1",
+      "requirement": "FR-017",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T033",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "Claims, neutrale Zusammenfassung, persönliche Relevanz, offene Fragen und Evidence-IDs getrennt erzeugen; nur geprüfte strukturierte Ergebnisse persistieren.",
+      "path": "Packages/BrainSpeakIngestion/Sources/KnowledgeExtractor.swift",
+      "dependsOn": [
+        "T028",
+        "T006"
+      ],
+      "story": "US1",
+      "requirement": "FR-018",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T034",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "Transkript ohne Zeitbezug als nutzbares Textwissen zulassen, aber zeitgenaue Wiedergabe dafür deaktivieren; unbestätigte Sprecher nicht benennen.",
+      "path": "Packages/BrainSpeakIngestion/Sources/TranscriptCapability.swift",
+      "dependsOn": [
+        "T028",
+        "T006"
+      ],
+      "story": "US1",
+      "requirement": "FR-019",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T035",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "Verarbeitungsjobs priorisieren, pausieren, abbrechen, fortsetzen und nach Fehlern begrenzt wiederholen; höchstens definierte Parallelität pro Gerät und Arbeitsart.",
+      "path": "Packages/BrainSpeakIngestion/Sources/AnalysisJobCoordinator.swift",
+      "dependsOn": [
+        "T028",
+        "T006"
+      ],
+      "story": "US1",
+      "requirement": "FR-020",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T036",
+      "phase": "03 US1 — Datei zu Wissen",
+      "title": "US1 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US1.md",
+      "dependsOn": [
+        "T029",
+        "T030",
+        "T031",
+        "T032",
+        "T033",
+        "T034",
+        "T035"
+      ],
+      "story": "US1",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T037",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Akzeptanztests für US4 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US4Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010",
+        "T036"
+      ],
+      "story": "US4",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T038",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Chat-Scope explizit auf Folge, Auswahl, Sammlung oder alle analysierten Folgen setzen; Anzahl verfügbarer, ausgewählter und verwendeter Quellen unterscheiden.",
+      "path": "Packages/BrainSpeakIntelligence/Sources/ChatScope.swift",
+      "dependsOn": [
+        "T037",
+        "T006"
+      ],
+      "story": "US4",
+      "requirement": "FR-021",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T039",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Antworten nur aus erlaubten Evidence-IDs des gewählten Scopes erzeugen; Toolergebnisse nochmals gegen Scope, Löschstand, Revisionsstand und Zugriffsrechte prüfen.",
+      "path": "Packages/BrainSpeakIntelligence/Sources/EvidenceResolver.swift",
+      "dependsOn": [
+        "T037",
+        "T006"
+      ],
+      "story": "US4",
+      "requirement": "FR-022",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T040",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Aussagen, Ableitungen und eigene Notizen visuell und im Export unterscheiden; Vollständigkeit und Unsicherheit ohne unkalibrierte Prozent-Konfidenz darstellen.",
+      "path": "Packages/BrainSpeakIntelligence/Sources/AnswerPresentation.swift",
+      "dependsOn": [
+        "T037",
+        "T006"
+      ],
+      "story": "US4",
+      "requirement": "FR-023",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T041",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Explizit umfassende Fragen über einen Coverage-Lauf aller ausgewählten analysierten Dokumente abarbeiten; Top-k-Suche allein darf keine Vollständigkeit behaupten.",
+      "path": "Packages/BrainSpeakIntelligence/Sources/ExhaustiveQueryCoordinator.swift",
+      "dependsOn": [
+        "T037",
+        "T006"
+      ],
+      "story": "US4",
+      "requirement": "FR-024",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T042",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Auf keine Evidenz, widersprüchliche Quellen, unvollständige Analyse und Modellfehler mit unterscheidbaren Ergebniszuständen reagieren.",
+      "path": "Packages/BrainSpeakIntelligence/Sources/AnswerState.swift",
+      "dependsOn": [
+        "T037",
+        "T006"
+      ],
+      "story": "US4",
+      "requirement": "FR-025",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T043",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Nur Apple-Modelle benutzen; lokale und PCC-Verfügbarkeit, Nutzereinwilligung, Kontingent und Kontextgrenzen vor und während einer Anfrage berücksichtigen.",
+      "path": "Packages/BrainSpeakIntelligence/Sources/AppleModelRouter.swift",
+      "dependsOn": [
+        "T037",
+        "T006"
+      ],
+      "story": "US4",
+      "requirement": "FR-026",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T044",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Gesprächsverlauf versionieren und verdichten; konkrete Evidence-Verweise außerhalb der bloßen Chat-Historie speichern; Modellwechsel ändert den Scope nicht.",
+      "path": "Packages/BrainSpeakIntelligence/Sources/ConversationMemory.swift",
+      "dependsOn": [
+        "T037",
+        "T006"
+      ],
+      "story": "US4",
+      "requirement": "FR-027",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T045",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "Modell-/Prompt-/Indexversionen dokumentieren und Apple Evaluations plus deterministische Referenz-/Policy-Tests vor Freigabe ausführen; Ergebnisse nicht nur visuell beurteilen.",
+      "path": "Packages/BrainSpeakIntelligence/Sources/QualityEvaluationSuite.swift",
+      "dependsOn": [
+        "T037",
+        "T006"
+      ],
+      "story": "US4",
+      "requirement": "FR-065",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T046",
+      "phase": "04 US4 — Beleggebundener Chat",
+      "title": "US4 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US4.md",
+      "dependsOn": [
+        "T038",
+        "T039",
+        "T040",
+        "T041",
+        "T042",
+        "T043",
+        "T044",
+        "T045"
+      ],
+      "story": "US4",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T047",
+      "phase": "05 US7 — Kontrolliertes Interesse",
+      "title": "Akzeptanztests für US7 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US7Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010"
+      ],
+      "story": "US7",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T048",
+      "phase": "05 US7 — Kontrolliertes Interesse",
+      "title": "Bestätigte Interessen, automatisch vorgeschlagene Interessen, aktuelle Vorhaben und offene Fragen getrennt bearbeiten und anzeigen.",
+      "path": "Packages/BrainSpeakInterests/Sources/InterestProfile.swift",
+      "dependsOn": [
+        "T047",
+        "T006"
+      ],
+      "story": "US7",
+      "requirement": "FR-038",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T049",
+      "phase": "05 US7 — Kontrolliertes Interesse",
+      "title": "Personalisierung opt-in anbieten; explizites Feedback stärker als indirekte Signale werten; Nicht gehört nicht mit Nicht relevant gleichsetzen.",
+      "path": "Packages/BrainSpeakInterests/Sources/LearningConsent.swift",
+      "dependsOn": [
+        "T047",
+        "T006"
+      ],
+      "story": "US7",
+      "requirement": "FR-039",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T050",
+      "phase": "05 US7 — Kontrolliertes Interesse",
+      "title": "Warum empfohlen mit konkreter Interessen-/Fragezuordnung darstellen; Bereits bekannt, Mehr davon, Nicht relevant und Nicht aus dieser Quelle getrennt behandeln.",
+      "path": "Packages/BrainSpeakInterests/Sources/RecommendationExplanation.swift",
+      "dependsOn": [
+        "T047",
+        "T006"
+      ],
+      "story": "US7",
+      "requirement": "FR-040",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T051",
+      "phase": "05 US7 — Kontrolliertes Interesse",
+      "title": "Vorschläge zur Profiländerung prüfen lassen; keine sensiblen Persönlichkeits-, Gesundheits- oder politischen Präferenzprofile aus Inhalten ableiten.",
+      "path": "Packages/BrainSpeakInterests/Sources/ProfileChangeReview.swift",
+      "dependsOn": [
+        "T047",
+        "T006"
+      ],
+      "story": "US7",
+      "requirement": "FR-041",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T052",
+      "phase": "05 US7 — Kontrolliertes Interesse",
+      "title": "Neuigkeitswert ausschließlich relativ zu gespeichertem bzw. ausdrücklich bekanntem Wissen bezeichnen; neutrale chronologische Ansicht und relevante Gegenpositionen erhalten.",
+      "path": "Packages/BrainSpeakInterests/Sources/NoveltyResolver.swift",
+      "dependsOn": [
+        "T047",
+        "T006"
+      ],
+      "story": "US7",
+      "requirement": "FR-042",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T053",
+      "phase": "05 US7 — Kontrolliertes Interesse",
+      "title": "Profil, Verlauf und Lernsignale separat löschbar machen; Reset-Epoch/Tombstones verhindern unbemerkten Wiederaufbau durch verspätete Sync-Events.",
+      "path": "Packages/BrainSpeakInterests/Sources/ProfileResetPolicy.swift",
+      "dependsOn": [
+        "T047",
+        "T006"
+      ],
+      "story": "US7",
+      "requirement": "FR-043",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T054",
+      "phase": "05 US7 — Kontrolliertes Interesse",
+      "title": "US7 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US7.md",
+      "dependsOn": [
+        "T048",
+        "T049",
+        "T050",
+        "T051",
+        "T052",
+        "T053"
+      ],
+      "story": "US7",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T055",
+      "phase": "06 US5 — Chat zu Hörplan",
+      "title": "Akzeptanztests für US5 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US5Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010",
+        "T027",
+        "T046"
+      ],
+      "story": "US5",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T056",
+      "phase": "06 US5 — Chat zu Hörplan",
+      "title": "Aus explizitem Chat-Wiedergabewunsch ein PlaylistProposal aus bestehenden Evidence-IDs erzeugen; keine vom Modell erfundenen Originalzeiten oder Medien-URLs akzeptieren.",
+      "path": "Packages/BrainSpeakFocus/Sources/FocusProposal.swift",
+      "dependsOn": [
+        "T055",
+        "T006"
+      ],
+      "story": "US5",
+      "requirement": "FR-028",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T057",
+      "phase": "06 US5 — Chat zu Hörplan",
+      "title": "Evidence-IDs deterministisch zu Start/Ende und Kontextintervallen derselben Medienfassung auflösen; ungültige, unzeitgestempelte und veraltete Belege sperren.",
+      "path": "Packages/BrainSpeakFocus/Sources/PlaybackGrant.swift",
+      "dependsOn": [
+        "T055",
+        "T006"
+      ],
+      "story": "US5",
+      "requirement": "FR-029",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T058",
+      "phase": "06 US5 — Chat zu Hörplan",
+      "title": "Fokus-Vorschau mit Originalquelle, Zeitspanne, Relevanzgrund, Kontextzugabe, Reihenfolge, Medien-/Wandzeit und fehlenden Inhalten anzeigen.",
+      "path": "Packages/BrainSpeakFocus/Sources/ResolvedPlaybackPlan.swift",
+      "dependsOn": [
+        "T055",
+        "T006"
+      ],
+      "story": "US5",
+      "requirement": "FR-030",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T059",
+      "phase": "06 US5 — Chat zu Hörplan",
+      "title": "Vor Start einen kurzlebigen geräte-/sessionspezifischen PlaybackGrant prüfen; explizites Spiele ... kann den Start autorisieren, eine Wissensfrage allein nicht.",
+      "path": "Packages/BrainSpeakFocus/Sources/SegmentBoundaryController.swift",
+      "dependsOn": [
+        "T055",
+        "T006"
+      ],
+      "story": "US5",
+      "requirement": "FR-031",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T060",
+      "phase": "06 US5 — Chat zu Hörplan",
+      "title": "Segmentwiedergabe am geprüften Ende begrenzen und den nächsten Start nur nach erfolgreichem Seek/Load und gültigem Grant auslösen; Race Conditions idempotent behandeln.",
+      "path": "Packages/BrainSpeakFocus/Sources/ContextBoundaryResolver.swift",
+      "dependsOn": [
+        "T055",
+        "T006"
+      ],
+      "story": "US5",
+      "requirement": "FR-032",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T061",
+      "phase": "06 US5 — Chat zu Hörplan",
+      "title": "US5 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US5.md",
+      "dependsOn": [
+        "T056",
+        "T057",
+        "T058",
+        "T059",
+        "T060"
+      ],
+      "story": "US5",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T062",
+      "phase": "07 US6 — Persönlicher Fokus",
+      "title": "Akzeptanztests für US6 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US6Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010",
+        "T061",
+        "T054"
+      ],
+      "story": "US6",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T063",
+      "phase": "07 US6 — Persönlicher Fokus",
+      "title": "Relevante Segmente mit Nutzerbudget, Themenbezug, Neuigkeitswert, Quellenvielfalt und Kontextbedarf auswählen; überlappende Stellen zusammenführen und Wiederholungen vermeiden.",
+      "path": "Packages/BrainSpeakFocus/Sources/PersonalFocusPlanner.swift",
+      "dependsOn": [
+        "T062",
+        "T006"
+      ],
+      "story": "US6",
+      "requirement": "FR-033",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T064",
+      "phase": "07 US6 — Persönlicher Fokus",
+      "title": "Autofortsetzung nur innerhalb einer bewusst aktivierten Focus Session zulassen; neue Hintergrundempfehlungen, Boot, Sync oder Push dürfen niemals unaufgefordert Ton starten.",
+      "path": "Packages/BrainSpeakFocus/Sources/FocusAutoplayPolicy.swift",
+      "dependsOn": [
+        "T062",
+        "T006"
+      ],
+      "story": "US6",
+      "requirement": "FR-034",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T065",
+      "phase": "07 US6 — Persönlicher Fokus",
+      "title": "Explizite Grenze aktiver Hörzeit einschließlich Kontext, geplanter Übergangspausen und gewählter Geschwindigkeit berücksichtigen; Nutzerpause und Buffering zählen nicht; bei unzureichendem Budget weniger liefern statt Semantik abzuschneiden.",
+      "path": "Packages/BrainSpeakFocus/Sources/ListeningBudget.swift",
+      "dependsOn": [
+        "T062",
+        "T006"
+      ],
+      "story": "US6",
+      "requirement": "FR-035",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T066",
+      "phase": "07 US6 — Persönlicher Fokus",
+      "title": "Jederzeit ganze Folge, mehr Kontext, Skip, Stop, Zurück und Gründe anbieten; ein Quellenwechsel ist sichtbar und optional kurz haptisch, kein irreführender nahtloser Sprecherzusammenschnitt.",
+      "path": "Packages/BrainSpeakFocus/Sources/FocusSessionControls.swift",
+      "dependsOn": [
+        "T062",
+        "T006"
+      ],
+      "story": "US6",
+      "requirement": "FR-036",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T067",
+      "phase": "07 US6 — Persönlicher Fokus",
+      "title": "Fokuslisten als referenzielle Wiedergabepläne speichern, nicht neue urheberrechtlich unklare Audio-Mashups exportieren; lokale Watch-Kopien nur im erlaubten Medienumfang.",
+      "path": "Packages/BrainSpeakFocus/Sources/FocusPlanStore.swift",
+      "dependsOn": [
+        "T062",
+        "T006"
+      ],
+      "story": "US6",
+      "requirement": "FR-037",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T068",
+      "phase": "07 US6 — Persönlicher Fokus",
+      "title": "US6 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US6.md",
+      "dependsOn": [
+        "T063",
+        "T064",
+        "T065",
+        "T066",
+        "T067"
+      ],
+      "story": "US6",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T069",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Akzeptanztests für US10 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US10Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010"
+      ],
+      "story": "US10",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T070",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Jobs/Teilresultate vor Systemende atomar sichern und beim Neustart fortsetzen; keine endlose Retry-Schleife bei Rechte-/Modell-/Sprachfehlern.",
+      "path": "Packages/BrainSpeakPersistence/Sources/DurableJobStore.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-044",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T071",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Refresh, Hintergrunddownload, Audiowiedergabe und KI-Verarbeitung getrennt planen; iOS/iPadOS-Background-Gates und echte Ressourcenzustände beachten.",
+      "path": "Packages/BrainSpeakPersistence/Sources/BackgroundPolicy.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-045",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T072",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Optionalen privaten CloudKit-Sync für Bibliothek, Wissen, bestätigte Profile und Fokuslisten bereitstellen; lokaler Modus bleibt ohne iCloud nutzbar.",
+      "path": "Packages/BrainSpeakPersistence/Sources/CloudKitSyncAdapter.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-046",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T073",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Konflikte für Hörposition, Annotationen, Reihenfolge, Löschung und generierte Artefakte explizit behandeln; LWW allein und größte Hörsekunde sind kein universeller Konfliktlöser.",
+      "path": "Packages/BrainSpeakPersistence/Sources/MergePolicy.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-047",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T074",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Keinen permanenten Master benötigen; größere Analysen auf jedem geeigneten Vollclient erlauben; CloudKit nicht als exakt-einmal Jobbroker oder Instant-RPC darstellen.",
+      "path": "Packages/BrainSpeakPersistence/Sources/DistributedAnalysisRequests.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-048",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T075",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "App-Daten, Mediencache, Analysecache und Nutzer-Exporte getrennt verwalten; Medien löschen kann Wissen erhalten; Gesamtlöschung entfernt auch Index, Artefakte und synchronisierte Daten gemäß Scope.",
+      "path": "Packages/BrainSpeakPersistence/Sources/RetentionCoordinator.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-049",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T076",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Externe Texte und Metadaten als untrusted data behandeln; keine daraus stammenden Anweisungen für Tools, Netzwerk, Profiländerungen, Sync oder Exporte ausführen.",
+      "path": "Packages/BrainSpeakPersistence/Sources/UntrustedContentBoundary.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-062",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T077",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Logs lokal, datensparsam und mit Privacy-Redaktion erzeugen; keine Audio-/Transkript-/Promptinhalte in Telemetrie, kein Third-Party-Analytics-SDK.",
+      "path": "Packages/BrainSpeakPersistence/Sources/PrivacyLogger.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-063",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T078",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "Parser-, URL-, Redirect-, Dateigrößen-, MIME-, Archiv- und Dekodiergrenzen erzwingen; keine automatischen Zugriffe auf lokale Netze/Loopback aus fremden Feeds.",
+      "path": "Packages/BrainSpeakPersistence/Sources/InputValidation.swift",
+      "dependsOn": [
+        "T069",
+        "T006"
+      ],
+      "story": "US10",
+      "requirement": "FR-064",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T079",
+      "phase": "08 US10 — Zuverlässigkeit und Datenschutz",
+      "title": "US10 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US10.md",
+      "dependsOn": [
+        "T070",
+        "T071",
+        "T072",
+        "T073",
+        "T074",
+        "T075",
+        "T076",
+        "T077",
+        "T078"
+      ],
+      "story": "US10",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T080",
+      "phase": "09 US8 — Native Plattformen",
+      "title": "Akzeptanztests für US8 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US8Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010"
+      ],
+      "story": "US8",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T081",
+      "phase": "09 US8 — Native Plattformen",
+      "title": "iOS/iPadOS/watchOS/macOS als native 27er-Targets liefern; gemeinsame Domain und plattformspezifische Shells statt Catalyst oder skaliertem Telefonlayout.",
+      "path": "Apps/BrainSpeak/AppComposition.swift",
+      "dependsOn": [
+        "T080",
+        "T006"
+      ],
+      "story": "US8",
+      "requirement": "FR-050",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T082",
+      "phase": "09 US8 — Native Plattformen",
+      "title": "iPad mit adaptiver Mehrspaltenansicht, Inspector, Drag/Drop, Tastatur und fensterbreitenabhängiger Navigation ausstatten.",
+      "path": "Apps/BrainSpeak/IPadWorkspace.swift",
+      "dependsOn": [
+        "T080",
+        "T006"
+      ],
+      "story": "US8",
+      "requirement": "FR-051",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T083",
+      "phase": "09 US8 — Native Plattformen",
+      "title": "Mac mit Sidebar, Table/List, Inspector, Menübefehlen, mehreren Fenstern, Dateiimport/-export und einem prozessweiten Player ausstatten.",
+      "path": "Apps/BrainSpeak/MacWorkspace.swift",
+      "dependsOn": [
+        "T080",
+        "T006"
+      ],
+      "story": "US8",
+      "requirement": "FR-052",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T084",
+      "phase": "09 US8 — Native Plattformen",
+      "title": "App Intents für Folge/Fokus starten, Stelle merken, Frage vorbereiten und Wissen öffnen bereitstellen; stabile IDs, Intent-Policies und entitlements prüfen.",
+      "path": "Apps/BrainSpeak/BrainSpeakIntents.swift",
+      "dependsOn": [
+        "T080",
+        "T006"
+      ],
+      "story": "US8",
+      "requirement": "FR-056",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T085",
+      "phase": "09 US8 — Native Plattformen",
+      "title": "Dynamic Type, VoiceOver, Reduce Motion/Transparency, hohen Kontrast, Tastaturbedienung und barrierefreie Zeitcodes auf jeder Plattform prüfen.",
+      "path": "Apps/BrainSpeak/AccessibilityContract.swift",
+      "dependsOn": [
+        "T080",
+        "T006"
+      ],
+      "story": "US8",
+      "requirement": "FR-057",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T086",
+      "phase": "09 US8 — Native Plattformen",
+      "title": "BrainSpeak-Ist-Audit und Apple-SDK-Compile-Probes vor Integration abschließen; neue Framework-Symbole nicht aus unbestätigten Erinnerungen implementieren.",
+      "path": "Apps/BrainSpeak/SDKAndBaselineAudit.swift",
+      "dependsOn": [
+        "T080",
+        "T006"
+      ],
+      "story": "US8",
+      "requirement": "FR-066",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T087",
+      "phase": "09 US8 — Native Plattformen",
+      "title": "US8 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US8.md",
+      "dependsOn": [
+        "T081",
+        "T082",
+        "T083",
+        "T084",
+        "T085",
+        "T086"
+      ],
+      "story": "US8",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T088",
+      "phase": "10 US9 — Watch-Erlebnis",
+      "title": "Akzeptanztests für US9 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US9Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010",
+        "T068",
+        "T087"
+      ],
+      "story": "US9",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T089",
+      "phase": "10 US9 — Watch-Erlebnis",
+      "title": "Watch mit Tagesfokus, Segmentplayer, kurzen Erkenntnissen, Interesse-Feedback, Widget/Smart-Stack-Einstieg und gespeichertem Offline-Pack ausstatten.",
+      "path": "Apps/BrainSpeakWatch/WatchFocusView.swift",
+      "dependsOn": [
+        "T088",
+        "T006"
+      ],
+      "story": "US9",
+      "requirement": "FR-053",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T090",
+      "phase": "10 US9 — Watch-Erlebnis",
+      "title": "Kurze Watch-Fragen über freigegebenes PCC mit lokalem Evidence-Pack oder sichtbaren Companion-Auftrag unterstützen; keinen lokalen Vollbibliotheksindex oder dauerhafte Watch-Transkription voraussetzen.",
+      "path": "Apps/BrainSpeakWatch/WatchQuestionRouter.swift",
+      "dependsOn": [
+        "T088",
+        "T006"
+      ],
+      "story": "US9",
+      "requirement": "FR-054",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T091",
+      "phase": "10 US9 — Watch-Erlebnis",
+      "title": "WatchConnectivity-Handoff/Dateitransfer mit Zustand und Wiederaufnahme implementieren; unerreichbares iPhone und unvollständige Packs sind sichtbare Zustände.",
+      "path": "Apps/BrainSpeakWatch/WatchTransferCoordinator.swift",
+      "dependsOn": [
+        "T088",
+        "T006"
+      ],
+      "story": "US9",
+      "requirement": "FR-055",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T092",
+      "phase": "10 US9 — Watch-Erlebnis",
+      "title": "US9 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US9.md",
+      "dependsOn": [
+        "T089",
+        "T090",
+        "T091"
+      ],
+      "story": "US9",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T093",
+      "phase": "11 US11 — Wissen exportieren",
+      "title": "Akzeptanztests für US11 zuerst mit Fixtures/Doubles anlegen; rote Tests und fehlende Geräteprüfungen unterscheiden.",
+      "path": "Tests/Acceptance/US11Tests.swift",
+      "dependsOn": [
+        "T005",
+        "T007",
+        "T008",
+        "T010",
+        "T046"
+      ],
+      "story": "US11",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T094",
+      "phase": "11 US11 — Wissen exportieren",
+      "title": "Markdown für Folge, Claim, Chatantwort, Vergleich und Sammlung mit YAML-Metadaten, Analyseumfang, Quellen, Originalzeiten und eigenen Notizen erzeugen.",
+      "path": "Packages/BrainSpeakExport/Sources/MarkdownExporter.swift",
+      "dependsOn": [
+        "T093",
+        "T006"
+      ],
+      "story": "US11",
+      "requirement": "FR-058",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T095",
+      "phase": "11 US11 — Wissen exportieren",
+      "title": "Geheimnisse auch in URL-Pfaden entfernen; nur allowlist-basierte kanonische öffentliche Quellen ausgeben, andernfalls sichere interne Referenz mit lesbarer Quellenbezeichnung.",
+      "path": "Packages/BrainSpeakExport/Sources/PublicSourceLinkPolicy.swift",
+      "dependsOn": [
+        "T093",
+        "T006"
+      ],
+      "story": "US11",
+      "requirement": "FR-059",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T096",
+      "phase": "11 US11 — Wissen exportieren",
+      "title": "Exportvorschau, sicheren Dateinamen, stabile UTF-8-Kodierung, atomisches Schreiben, überschaubare Einzeldatei oder Asset-freies ZIP für Sammlungen bieten; Volltranskripte nicht standardmäßig exportieren.",
+      "path": "Packages/BrainSpeakExport/Sources/ExportTransaction.swift",
+      "dependsOn": [
+        "T093",
+        "T006"
+      ],
+      "story": "US11",
+      "requirement": "FR-060",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T097",
+      "phase": "11 US11 — Wissen exportieren",
+      "title": "Von der Watch einen nachvollziehbaren Export-/Save-Auftrag an Vollclients vermitteln; fertige Dateien erst nach Bestätigung der Erstellung anzeigen.",
+      "path": "Packages/BrainSpeakExport/Sources/WatchExportRequest.swift",
+      "dependsOn": [
+        "T093",
+        "T006"
+      ],
+      "story": "US11",
+      "requirement": "FR-061",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T098",
+      "phase": "11 US11 — Wissen exportieren",
+      "title": "US11 Ende-zu-Ende demonstrieren: Akzeptanzfälle ausführen, Fehlzustände nachweisen, Ergebnisse statt Erfolgserwartungen protokollieren.",
+      "path": "validation/device/US11.md",
+      "dependsOn": [
+        "T094",
+        "T095",
+        "T096",
+        "T097"
+      ],
+      "story": "US11",
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T099",
+      "phase": "12 Release-Gates",
+      "title": "Vier 27er-Targets im Release-Toolchainkanal bauen; Compiler-/SDK-Build und sämtliche Warnungen erfassen.",
+      "path": "validation/apple-builds.md",
+      "dependsOn": [
+        "T020",
+        "T027",
+        "T036",
+        "T046",
+        "T054",
+        "T061",
+        "T068",
+        "T079",
+        "T087",
+        "T092",
+        "T098",
+        "T112",
+        "T114",
+        "T116",
+        "T118",
+        "T120",
+        "T122",
+        "T124",
+        "T126",
+        "T128",
+        "T130",
+        "T132",
+        "T134",
+        "T136",
+        "T138",
+        "T140",
+        "T142",
+        "T144",
+        "T146",
+        "T148",
+        "T150",
+        "T152",
+        "T154",
+        "T156",
+        "T158",
+        "T160",
+        "T162",
+        "T164",
+        "T166",
+        "T168",
+        "T170",
+        "T172",
+        "T174",
+        "T176",
+        "T178",
+        "T180",
+        "T182",
+        "T184",
+        "T186",
+        "T188",
+        "T190",
+        "T192",
+        "T194",
+        "T196",
+        "T198",
+        "T200",
+        "T202",
+        "T204",
+        "T206",
+        "T208",
+        "T210",
+        "T212",
+        "T214",
+        "T216",
+        "T218",
+        "T220",
+        "T222",
+        "T224",
+        "T226",
+        "T228",
+        "T230",
+        "T232",
+        "T234",
+        "T236",
+        "T238",
+        "T240",
+        "T242",
+        "T244",
+        "T246",
+        "T248",
+        "T250",
+        "T252",
+        "T254",
+        "T256",
+        "T258",
+        "T260",
+        "T262",
+        "T264",
+        "T266"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T100",
+      "phase": "12 Release-Gates",
+      "title": "Lange reale, berechtigt nutzbare Audiofolge auf zwei Vollclients transkribieren; Timing/Abdeckung/Abbrüche messen.",
+      "path": "validation/long-audio.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T101",
+      "phase": "12 Release-Gates",
+      "title": "PCC-Evaluations auf berechtigtem Account und lokalen Apple-Modellen getrennt durchführen; Kontingent-/Offline-/Modellwechselpfade prüfen.",
+      "path": "validation/model-evaluations.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T102",
+      "phase": "12 Release-Gates",
+      "title": "Fokusgrenzen und veraltete Callback-Races an realen Audioausgängen und verschiedenen Wiedergaberaten messen.",
+      "path": "validation/playback-boundaries.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T103",
+      "phase": "12 Release-Gates",
+      "title": "CloudKit-Konflikte und Löschungen mit zwei Geräten, Offline-Rückkehr und reset epoch unter realem Container prüfen.",
+      "path": "validation/cloudkit.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T104",
+      "phase": "12 Release-Gates",
+      "title": "Watch-Offlinepack, PCC, iPhone-Nichterreichbarkeit, Audio-Routing und Handoff auf echter Watch validieren.",
+      "path": "validation/watch.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T105",
+      "phase": "12 Release-Gates",
+      "title": "Alle Hauptflows nach Accessibility-/Lokalisierungscheckliste auf iPhone, iPad, Mac und Watch prüfen.",
+      "path": "validation/accessibility.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T106",
+      "phase": "12 Release-Gates",
+      "title": "Memory-, Akku-, thermische und Background-Messungen einschließlich Nutzerabbruch/OS-Ende durchführen.",
+      "path": "validation/performance.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T107",
+      "phase": "12 Release-Gates",
+      "title": "GPL-Abgrenzung, Drittinhalte/YouTube-Fähigkeiten, PrivacyInfo und benötigte Nutzereinwilligungen final prüfen.",
+      "path": "validation/compliance.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T108",
+      "phase": "12 Release-Gates",
+      "title": "Markdown-/OPML-Dateien mit Sonderzeichen, privaten Quellen und teilweisem Wissen gegen Fixtures prüfen.",
+      "path": "validation/export.md",
+      "dependsOn": [
+        "T099"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T109",
+      "phase": "12 Release-Gates",
+      "title": "Spec–Plan–Tasks–Code–Tests-Konvergenz durchführen; jede FR mit Ergebnisdatei schließen oder explizit blockieren.",
+      "path": "validation/convergence.md",
+      "dependsOn": [
+        "T100",
+        "T101",
+        "T102",
+        "T103",
+        "T104",
+        "T105",
+        "T106",
+        "T107",
+        "T108"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T110",
+      "phase": "12 Release-Gates",
+      "title": "Releaseentscheidung als nachvollziehbares Protokoll mit geprüften Gates, bekannten Grenzen und keiner ungeprüften Erfolgsbehauptung erstellen.",
+      "path": "validation/release-decision.md",
+      "dependsOn": [
+        "T109"
+      ],
+      "story": null,
+      "requirement": null,
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T111",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-067 vorbereiten: Alle URL-Fixtures liefern ihre kanonische Art; ein fremder Host mit youtube.com im Pfad wird abgewiesen.",
+      "path": "Tests/Acceptance/US14_67Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-067",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T112",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Eine einzige YouTube-URL aus Video, youtu.be, Shorts, Live, Kanal-ID, Handle oder Share Sheet erkennen; Kanal-ID autoritativ auflösen, Zeitmarke für den Einzelimport erhalten.",
+      "path": "Packages/BrainSpeakSources/Sources/YouTubeURLResolver.swift",
+      "dependsOn": [
+        "T111",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-067",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T113",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-068 vorbereiten: Videolink öffnet Dreiwegeauswahl mit korrektem Kanal; Abbrechen erzeugt kein Abo und keinen Analysejob.",
+      "path": "Tests/Acceptance/US14_68Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-068",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T114",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Nach Auflösung eine Vorschau mit „Nur diese Folge“, „Kanal abonnieren“ und „Frühere Folgen analysieren“ anbieten; keine Aktion allein durch Einfügen ausführen.",
+      "path": "Packages/BrainSpeakSources/Sources/ResolvedSourceSheet.swift",
+      "dependsOn": [
+        "T113",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-068",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T115",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-069 vorbereiten: Handle und Videolink desselben Kanals ergeben denselben validierten Feed; widersprüchliche Feed-ID wird blockiert.",
+      "path": "Tests/Acceptance/US14_69Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-069",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T116",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Den Kanal-Atomfeed aus der verifizierten channelID automatisch ermitteln und prüfen; Nutzer müssen im Normalfall keine RSS-URL kennen oder manuell suchen.",
+      "path": "Packages/BrainSpeakSources/Sources/ChannelFeedDiscovery.swift",
+      "dependsOn": [
+        "T115",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-069",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T117",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-070 vorbereiten: Drei Katalogseiten mit überlappenden Einträgen werden vollständig dedupliziert; ein RSS-Fenster begrenzt nicht den historischen Import.",
+      "path": "Tests/Acceptance/US14_70Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-070",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T118",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Ältere YouTube-Folgen über den verfügbaren Kanal-Uploads-Katalog mit offizieller Pagination erschließen; Auswahl letzte N, Zeitraum, manuell oder gesamtes verfügbares Archiv, auch über den aktuellen Atomfeed hinaus.",
+      "path": "Packages/BrainSpeakSources/Sources/YouTubeArchiveEnumerator.swift",
+      "dependsOn": [
+        "T117",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-070",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T119",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-071 vorbereiten: Von 120 synthetischen Einträgen sind 75 analysierbar; Fortschritt zeigt beide Mengen und blockierte Gründe getrennt.",
+      "path": "Tests/Acceptance/US14_71Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-071",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T120",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Archivauffindbarkeit, Inhaltszugang und Analyseabdeckung getrennt zählen; gefundene Videos ohne autorisierte Text-/Audioquelle niemals als inhaltlich analysiert ausweisen.",
+      "path": "Packages/BrainSpeakSources/Sources/ArchiveCoverageLedger.swift",
+      "dependsOn": [
+        "T119",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-071",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T121",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-072 vorbereiten: Kill nach Seite zwei, Neustart und neue Folge: keine verlorenen/gedoppelten Einträge, interaktive Arbeit hat Vorrang.",
+      "path": "Tests/Acceptance/US14_72Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-072",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T122",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Historische Batchjobs pausieren, fortsetzen, abbrechen, priorisieren und selektiv wiederholen; Cursor und Seiten-Commit atomar sichern, aktuelle Folgen nicht durch das Archiv blockieren.",
+      "path": "Packages/BrainSpeakSources/Sources/BackfillCoordinator.swift",
+      "dependsOn": [
+        "T121",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-072",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T123",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-073 vorbereiten: Gekürzter Feed ohne Archivlink zeigt eingeschränkten Bestand; bestätigter Archiveintrag wird importiert, nicht blind geraten.",
+      "path": "Tests/Acceptance/US14_73Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-073",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T124",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Auch Podcast-RSS rückwirkend über alle tatsächlich verfügbaren Feed-/Publisher-Archivquellen erschließen; gekürzte Feeds als unvollständig kennzeichnen, keine nicht vorhandenen Archivendpunkte erfinden.",
+      "path": "Packages/BrainSpeakSources/Sources/RSSArchiveResolver.swift",
+      "dependsOn": [
+        "T123",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-073",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T125",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-074 vorbereiten: Watch-Aktion sichert laufende Originalstelle; nicht unterstützte Headset-Geste bleibt unerreichbar und Standard-Play/Pause unverändert.",
+      "path": "Tests/Acceptance/US12_74Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-074",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T126",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Eine relevante Stelle mit einer nativen Aktion aus Player, Transkript, Watch oder App Intent als Highlight sichern; Headset-Aktion nur bei tatsächlich öffentlicher unterstützter API und ausdrücklichem Mapping.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/HighlightCapture.swift",
+      "dependsOn": [
+        "T125",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-074",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T127",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-075 vorbereiten: Bearbeiten der eigenen Notiz verändert weder Originalauszug noch Timecode; Quelle löschen zeigt verwaisten Beleg statt Ersatz.",
+      "path": "Tests/Acceptance/US12_75Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-075",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T128",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Highlights als eigenständige versionierte Wissensobjekte mit Originalauszug, Evidence-IDs, eigener Notiz, separater KI-Kurzfassung, Tags und Herkunft verwalten.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/HighlightStore.swift",
+      "dependsOn": [
+        "T127",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-075",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T129",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-076 vorbereiten: Text-only-Fixture exportiert TXT, aber kein erfundenes SRT; SRT/VTT-Roundtrip bewahrt vorhandene Zeitbereiche.",
+      "path": "Tests/Acceptance/US12_76Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-076",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T130",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Finale Transkripte als SRT, WebVTT, TXT und strukturiertes JSON exportieren; Sprecher- und Wortzeitdaten nur mit vorhandenem belegtem Alignment, sonst explizit unbekannt.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/TranscriptExportService.swift",
+      "dependsOn": [
+        "T129",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-076",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T131",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-077 vorbereiten: Eine ungehörte analysierte Folge wird semantisch gefunden; Scopefilter schließen fremde Folgen aus, lexical-only bleibt erkennbar.",
+      "path": "Tests/Acceptance/US12_77Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-077",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T132",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Semantische und exakte Suche über den freigegebenen erschlossenen Bestand einschließlich ungehörter Folgen anbieten; indexiert, analysiert und gehört bleiben getrennte Zähler.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/LibrarySearchService.swift",
+      "dependsOn": [
+        "T131",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-077",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T133",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-078 vorbereiten: Nach Löschung/Indexneubau sind private Inhalte weder Spotlight noch intern über Cache abrufbar; eingeschränkte Quellen bleiben aus dem OS-Index.",
+      "path": "Tests/Acceptance/US12_78Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-078",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T134",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Suchindex als erneuerbares Derivat behandeln; Revisionen, Löschungen, Zugangsänderungen und Privatsphäreeinstellungen invalidieren Treffer und verhindern obsolete Evidence-IDs.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/SearchIndexLifecycle.swift",
+      "dependsOn": [
+        "T133",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-078",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T135",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-079 vorbereiten: Bei unsicherer Werbung kein Autosprung; Undo spielt übersprungenen Abschnitt; YouTube-Autoskip bleibt deaktiviert.",
+      "path": "Tests/Acceptance/US12_79Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-079",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T136",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Smart Skip für zulässiges Originalaudio nur ausdrücklich pro Quelle aktivieren; Werbung/Intro/Outro mit Herkunft und Unsicherheit markieren, Skip rückgängig machen und Originalzeitachse erhalten.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/SmartSkipPolicy.swift",
+      "dependsOn": [
+        "T135",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-079",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T137",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-080 vorbereiten: Nur Summary-Prompt ändern: ASR und Audio bleiben unverändert; gezielte Neuverarbeitung behält alte Belege und eigene Notizen.",
+      "path": "Tests/Acceptance/US12_80Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-080",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T138",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Erwerb, Transkription, Alignment, Kapitel, Zusammenfassung, Index und Relevanz separat wiederholbar und versioniert cachen; Änderung eines Prompts löst nicht automatisch neuen Audiodownload aus.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/PipelineArtifactGraph.swift",
+      "dependsOn": [
+        "T137",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-080",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T139",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-081 vorbereiten: Nicht nativ unterstützte Datei wird mit Ursache abgewiesen; keine automatische Installation oder Umwandlung durch Dritttools.",
+      "path": "Tests/Acceptance/US12_81Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-081",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T140",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Container/Codec-Kombinationen nativ pro Plattform prüfen; MP3/AAC/ALAC/FLAC/OGG als konkrete Capability-Testfälle statt pauschaler Formatgarantie behandeln; keine FFmpeg-/Drittcodec-Laufzeit hinzufügen.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/NativeMediaCapabilities.swift",
+      "dependsOn": [
+        "T139",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-081",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T141",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-082 vorbereiten: Nicht verfügbares Sprachpaar erzeugt unavailable; Übersetzung verändert keine Originalevidence oder gesprochenen Zeitcodes.",
+      "path": "Tests/Acceptance/US12_82Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US12",
+      "requirement": "FR-082",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T142",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Optionale native Übersetzung separat vom Original speichern und als Übersetzung markieren; Zeitbelege bleiben am Original, Sprachpaare und Modellassets werden geprüft.",
+      "path": "Packages/BrainSpeakKnowledge/Sources/NativeTranslationAdapter.swift",
+      "dependsOn": [
+        "T141",
+        "T086"
+      ],
+      "story": "US12",
+      "requirement": "FR-082",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T143",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-083 vorbereiten: Ohne Nutzerfreigabe keine Datenausgabe; aktivierter lokaler Client nutzt nur explizit geteilte Collections und zeigt Verbindung an.",
+      "path": "Tests/Acceptance/US13_83Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US13",
+      "requirement": "FR-083",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T144",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Auf macOS einen standardmäßig ausgeschalteten nativen Swift-MCP-Zugang anbieten; zunächst lokaler stdio-Helfer, keine automatisch öffentliche Netzwerkfreigabe oder iOS-Daemon-Fiktion.",
+      "path": "Apps/BrainSpeakMCP/LocalMCPBridge.swift",
+      "dependsOn": [
+        "T143",
+        "T086"
+      ],
+      "story": "US13",
+      "requirement": "FR-083",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T145",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-084 vorbereiten: Toolaufruf mit Pfadtraversal, fremder Evidence-ID oder unfreigegebenem Scope scheitert; prepare_focus startet keinen Ton.",
+      "path": "Tests/Acceptance/US13_84Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US13",
+      "requirement": "FR-084",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T146",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "MCP-Verträge für Bibliothekssuche, Evidence-Abruf, Highlightliste, Exportvorschau und Fokusplan-Vorbereitung definieren; keine freie SQL-, Datei-, Shell- oder URL-Ausführung und keine Tonwiedergabe durch Suchtools.",
+      "path": "Apps/BrainSpeakMCP/PodcastToolCatalog.swift",
+      "dependsOn": [
+        "T145",
+        "T086"
+      ],
+      "story": "US13",
+      "requirement": "FR-084",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T147",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-085 vorbereiten: Widerruf sperrt nächsten Abruf und Export; Warnung erklärt, dass ein externer Client Inhalte anders verarbeiten kann.",
+      "path": "Tests/Acceptance/US13_85Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US13",
+      "requirement": "FR-085",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T148",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "MCP-Datenweitergabe als eigene Einwilligung mit Client-/Scopebindung, Widerruf und Redaction behandeln; externe Agenten können eigene Modelle verwenden, ohne dadurch Modellanbieter der App zu werden.",
+      "path": "Apps/BrainSpeakMCP/AgentDisclosurePolicy.swift",
+      "dependsOn": [
+        "T147",
+        "T086"
+      ],
+      "story": "US13",
+      "requirement": "FR-085",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T149",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-086 vorbereiten: Interessenänderung erneuert Relevanz, nicht ASR; explizite Neu-ASR erzeugt neue Revision und lässt vorherige Notiz erhalten.",
+      "path": "Tests/Acceptance/US14_86Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-086",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T150",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Bereits bekannte alte Folgen nachträglich gezielt neu analysieren, etwa nach Änderung von Interessen, Modell oder Pipeline; Umfang und betroffene Stufen vorher anzeigen, menschliche Notizen nie überschreiben.",
+      "path": "Packages/BrainSpeakSources/Sources/ReanalysisPlanner.swift",
+      "dependsOn": [
+        "T149",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-086",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T151",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-087 vorbereiten: 403 quota, 404 und offline bleiben unterscheidbar; fehlgeschlagene Auflösung legt keinen erfundenen Kanal an.",
+      "path": "Tests/Acceptance/US14_87Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-087",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T152",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Offline-, API-Quota-, Zugangs-, gelöschte Video- und uneindeutige URL-Zustände mit Wiederholen oder kanonischem Link-Import behandeln; keinen Erfolg oder manuell zu suchenden RSS als normalen Ablauf vortäuschen.",
+      "path": "Packages/BrainSpeakSources/Sources/DiscoveryFailureState.swift",
+      "dependsOn": [
+        "T151",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-087",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T153",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-088 vorbereiten: Metadatenpriorität verbessert Reihenfolge, verändert nicht den angeforderten Gesamtumfang oder Vollständigkeitszähler.",
+      "path": "Tests/Acceptance/US14_88Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-088",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T154",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Archivjobs auf Wunsch nach Interessen priorisieren; eine nur aus Titel/Beschreibung geschätzte Priorität ausdrücklich als vorläufig kennzeichnen und keinen unbeachteten Rest als irrelevant verwerfen.",
+      "path": "Packages/BrainSpeakSources/Sources/ArchivePriorityPolicy.swift",
+      "dependsOn": [
+        "T153",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-088",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T155",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-089 vorbereiten: Handlewechsel plus nochmaliger Videoimport erhält ein Abo; Archivabbruch deaktiviert nicht neue Folgen und umgekehrt.",
+      "path": "Tests/Acceptance/US14_89Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-089",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T156",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abo anhand stabiler Kanal-/Quell-ID deduplizieren; Handlewechsel darf kein zweites Abo erzeugen, historische Analyse und Autoanalyse neuer Folgen bleiben unabhängig schaltbar.",
+      "path": "Packages/BrainSpeakSources/Sources/SubscriptionIdentity.swift",
+      "dependsOn": [
+        "T155",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-089",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T157",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Abnahme FR-090 vorbereiten: Unbekannte Größen werden unbekannt genannt; neue Katalogeinträge nach Snapshot werden nicht still dem genehmigten Batch hinzugefügt.",
+      "path": "Tests/Acceptance/US14_90Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US14",
+      "requirement": "FR-090",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T158",
+      "phase": "13 Ergänzungen aus Nutzerfeedback",
+      "title": "Vor Batchstart gewählten Umfang, verfügbare/gesperrte Inhalte, Daten-/Speicherbedarf soweit bekannt und Analysepolicy anzeigen; „alle“ bedeutet alle zugänglichen Einträge im bestätigten Snapshot, nicht private oder gelöschte Videos.",
+      "path": "Packages/BrainSpeakSources/Sources/ArchiveReviewSheet.swift",
+      "dependsOn": [
+        "T157",
+        "T086"
+      ],
+      "story": "US14",
+      "requirement": "FR-090",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T159",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-091 vorbereiten: Nur drei gespeicherte Local-first-Folgen erzeugen keinen bestätigten Nutzerstandpunkt; eine explizite Bestätigung erzeugt einen versionierten Standpunkt.",
+      "path": "Tests/Acceptance/US15_91Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-091",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T160",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Bestätigte Standpunkte, vermutete Interessen, Quellenpositionen und bloßes Hör-/Speicherverhalten getrennt halten; Hören oder Highlight allein darf niemals als Zustimmung gelten.",
+      "path": "Packages/BrainSpeakPerspective/Sources/StanceStore.swift",
+      "dependsOn": [
+        "T159",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-091",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T161",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-092 vorbereiten: Ohne Opt-in kein Profiling für Gegenpositionen und kein Mixerjob; aktivierte Vorbereitung startet keinen Ton.",
+      "path": "Tests/Acceptance/US15_92Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-092",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T162",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Den Widerspruchs-Mixer standardmäßig ausschalten; Nutzer wählt These oder Thema, zulässige Quellen, Zeitbudget und ob Vorschläge künftig vorbereitet werden dürfen.",
+      "path": "Packages/BrainSpeakPerspective/Sources/PerspectiveConsent.swift",
+      "dependsOn": [
+        "T161",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-092",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T163",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-093 vorbereiten: Gleiche Aussage mit anderem Beispiel wird nicht als Gegenbeweis markiert; echte Gegenposition bekommt eine prüfbare Relation und Belege.",
+      "path": "Tests/Acceptance/US15_93Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-093",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T164",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Gegenpositionen gegen eine konkrete These samt Bedingungen vergleichen; starker fairer Gegenstandpunkt statt Karikatur, bloße Themenähnlichkeit ist kein Widerspruch.",
+      "path": "Packages/BrainSpeakPerspective/Sources/CounterpointMatcher.swift",
+      "dependsOn": [
+        "T163",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-093",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T165",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-094 vorbereiten: Eine geschnittene Negation oder fehlende Einschränkung blockiert den Clip; keine synthetische Sprecherstimme ersetzt das Original.",
+      "path": "Tests/Acceptance/US15_94Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-094",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T166",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Jede Gegenposition mit vollständigem Kontext, Evidence-ID, Quelle, Datum und konkreter Medienfassung ausgeben; Audio bleibt Original, Einordnung bleibt getrennt.",
+      "path": "Packages/BrainSpeakPerspective/Sources/CounterpointEvidence.swift",
+      "dependsOn": [
+        "T165",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-094",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T167",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-095 vorbereiten: Dasselbe Gespräch in RSS und YouTube zählt einmal; die App erfindet keine Unabhängigkeit unbekannter Herausgeber.",
+      "path": "Tests/Acceptance/US15_95Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-095",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T168",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Verschiedene Perspektiven nach nachgewiesener Passung und Quellenvielfalt auswählen; Syndikation und inhaltliche Duplikate nicht als unabhängige Bestätigung zählen.",
+      "path": "Packages/BrainSpeakPerspective/Sources/PerspectiveDiversity.swift",
+      "dependsOn": [
+        "T167",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-095",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T169",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-096 vorbereiten: Cloudvorteile bei stabiler Verbindung widerlegen keinen Offline-Bedarf; Relation lautet andere Bedingung oder Einschränkung, nicht bewiesen falsch.",
+      "path": "Tests/Acceptance/US15_96Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-096",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T170",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Direkten Widerspruch, Einschränkung, andere Annahme und bloße Ergänzung unterscheiden; Interpretationen als vorgeschlagen kennzeichnen und korrigierbar machen.",
+      "path": "Packages/BrainSpeakPerspective/Sources/ArgumentRelationClassifier.swift",
+      "dependsOn": [
+        "T169",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-096",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T171",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-097 vorbereiten: Sechs Minuten enthalten Kontext und Übergänge; überlanges Material wird nicht sinnentstellend gekürzt, sondern weniger Inhalt oder Budgetwahl angeboten.",
+      "path": "Tests/Acceptance/US15_97Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-097",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T172",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Mixer als budgetgebundenen Original-Hörplan mit Vorschau, Quellenwechsel, Stop und Rückkehr aufbauen; gleicher PlaybackGrant wie anderer Fokusmodus.",
+      "path": "Packages/BrainSpeakPerspective/Sources/CounterpointPlanBuilder.swift",
+      "dependsOn": [
+        "T171",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-097",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T173",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-098 vorbereiten: Leerer Gegenpositionsindex erzeugt noEvidence, keine zufälligen kontroversen Clips und keinen leeren startbaren Plan.",
+      "path": "Tests/Acceptance/US15_98Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-098",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T174",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Ohne belastbare Gegenposition offen fehlende Evidenz zeigen; keine Quellen, Gegenargumente, Zeitcodes oder künstliche Ausgewogenheit erfinden.",
+      "path": "Packages/BrainSpeakPerspective/Sources/CounterpointAvailability.swift",
+      "dependsOn": [
+        "T173",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-098",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T175",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-099 vorbereiten: These ändern macht alten Plan stale; laufende Wiedergabe bleibt stoppbar und setzt nicht mit ungeprüften neuen Clips fort.",
+      "path": "Tests/Acceptance/US15_99Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-099",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T176",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Eigene These, Quelleninterpretation und Modus jederzeit ändern, pausieren oder widerrufen; Änderungen invalidieren noch nicht gestartete darauf basierende Pläne.",
+      "path": "Packages/BrainSpeakPerspective/Sources/StanceRevisionPolicy.swift",
+      "dependsOn": [
+        "T175",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-099",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T177",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-100 vorbereiten: Politischer Verlauf wird kein Überzeugungsprofil; ein ausdrücklicher Sachvergleich bleibt neutral und endet ohne Wahlempfehlung oder Gewinner.",
+      "path": "Tests/Acceptance/US15_100Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-100",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T178",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Politische Inhalte nicht zur Ableitung politischer Nutzerpräferenzen oder individualisierten Überzeugungsänderung nutzen; nur explizit gewünschte neutrale, quellenbasierte Gegenüberstellung ohne Empfehlung oder Ranking politischer Optionen.",
+      "path": "Packages/BrainSpeakPerspective/Sources/SensitiveTopicPolicy.swift",
+      "dependsOn": [
+        "T177",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-100",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T179",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-101 vorbereiten: Hilfreiches Gegenargument ändert einen bestätigten Standpunkt nicht; Analytics enthalten keine Überzeugungswechsel- oder Empörungsscores.",
+      "path": "Tests/Acceptance/US15_101Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-101",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T180",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Erfolg nicht an Meinungsänderung, Empörung oder Hörzeit optimieren; Nutzer kann Gegenposition als hilfreich, bereits bekannt, unpassend oder fehlerhaft markieren, ohne eigene These ändern zu müssen.",
+      "path": "Packages/BrainSpeakPerspective/Sources/PerspectiveFeedback.swift",
+      "dependsOn": [
+        "T179",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-101",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T181",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-102 vorbereiten: Reiner Podcast-Export enthält keine private These; MCP-Scope ohne persönliche Notizen liefert keine Standpunktdaten.",
+      "path": "Tests/Acceptance/US15_102Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US15",
+      "requirement": "FR-102",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T182",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Standpunkte und Gegenpositionsbeziehungen nicht ungefragt exportieren, an Agenten freigeben oder in Systemsuche veröffentlichen; gesonderte Scopeentscheidung für persönliche Inhalte.",
+      "path": "Packages/BrainSpeakPerspective/Sources/PerspectiveDisclosure.swift",
+      "dependsOn": [
+        "T181",
+        "T054",
+        "T061",
+        "T068"
+      ],
+      "story": "US15",
+      "requirement": "FR-102",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T183",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-103 vorbereiten: Zwei Sitzungen zur gleichen Frage bleiben identifizierbar; bloß abgespielte Sekunden erzeugen keine bestätigten Wissensknoten.",
+      "path": "Tests/Acceptance/US16_103Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-103",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T184",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Jede Hör-/Fokus-/Mixer-Session mit stabiler ID, Ausgangsfrage, tatsächlich verwendeten Belegen, Budget und Checkpoint verknüpfen; aus Verlauf wird nur nach Kuration ein Wissenspfad.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/KnowledgeSession.swift",
+      "dependsOn": [
+        "T183",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-103",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T185",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-104 vorbereiten: Ende einer Fokusliste zeigt genau eine Abschlusskarte; Pause oder Kopfhörertrennung beendet die Session nicht und zeigt keine Abschlusspflicht.",
+      "path": "Tests/Acceptance/US16_104Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-104",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T186",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Nach natürlichem Ende, Budgetende oder bewusstem Beenden eine kompakte Abschlussfrage mit Vertiefen, Parken und Verwerfen anbieten; Schließen ohne Entscheidung bleibt möglich.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/SessionClosingCard.swift",
+      "dependsOn": [
+        "T185",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-104",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T187",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-105 vorbereiten: Vier eindeutige zugängliche Quellen erlauben die Zahl vier; Duplikat oder gesperrter Inhalt reduziert den Zähler, Null zeigt keine erfundene Verfügbarkeit.",
+      "path": "Tests/Acceptance/US16_105Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-105",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T188",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "In der Abschlussfrage nur tatsächlich auffindbare und zugängliche Quellen zählen; Anzahl, Scope, Relevanz und Inhaltsstatus sind am Zeitpunkt des Angebots überprüfbar.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/FollowUpSourceCount.swift",
+      "dependsOn": [
+        "T187",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-105",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T189",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-106 vorbereiten: Tippen zeigt Folgefrage, Belege und neues Zeitbudget; erst ausdrücklicher Hörstart erzeugt einen neuen PlaybackGrant.",
+      "path": "Tests/Acceptance/US16_106Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-106",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T190",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Vertiefen erzeugt eine neue begrenzte Kindsession aus einer gewählten Folgefrage und geprüften Quellen; kein endloses Autoplay und kein automatischer Scope-/Kostenanstieg.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/DeepenCoordinator.swift",
+      "dependsOn": [
+        "T189",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-106",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T191",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-107 vorbereiten: Export enthält stabile IDs, Kanten, Fundstellen und offene Frage; reimportierter Graph bewahrt Knotenidentität und Quellenbezug.",
+      "path": "Tests/Acceptance/US16_107Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-107",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T192",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Parken sichert eine Wissenslandkarte aus Frage, Erkenntnissen, Originalbelegen, eigenen Notizen und offenen Fragen; Markdown, Graph-JSON und Mermaid sind portable Exportziele.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/TrailExportBuilder.swift",
+      "dependsOn": [
+        "T191",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-107",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T193",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-108 vorbereiten: Verwerfen entfernt nur den Vorschlag; ursprüngliches Highlight und Quelle bleiben erhalten, Undo stellt den Pfad samt Belegen wieder her.",
+      "path": "Tests/Acceptance/US16_108Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-108",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T194",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Verwerfen verwirft den vorgeschlagenen Wissenspfad, nicht Medien, Abos, existierende Notizen oder Highlights; Undo ist möglich, Desinteresse wird nicht automatisch gelernt.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/TrailDiscardPolicy.swift",
+      "dependsOn": [
+        "T193",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-108",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T195",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-109 vorbereiten: Jede Kante referenziert existierende Knoten mit Richtung und Bedeutung; ein Widerspruch kann modelliert werden, ohne als wahr entschieden zu sein.",
+      "path": "Tests/Acceptance/US16_109Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-109",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T196",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Wissensgraph mit typisierten Knoten und Kanten modellieren: Frage, Aussage, Beleg, Notiz, Thema und Session sowie stützt, widerspricht, qualifiziert, folgt aus und vertieft.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/KnowledgeGraphStore.swift",
+      "dependsOn": [
+        "T195",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-109",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T197",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-110 vorbereiten: Ein geparkter Gegenstandpunkt bleibt Quellenposition; keine Umwandlung in eigene Meinung oder unabhängig bestätigte Wahrheit.",
+      "path": "Tests/Acceptance/US16_110Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-110",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T198",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Generierte Graphbeziehungen als Vorschläge von bestätigten Kurationen trennen; Parken bestätigt Aufbewahrung, nicht Wahrheit oder Zustimmung zu allen Aussagen.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/GraphCurationPolicy.swift",
+      "dependsOn": [
+        "T197",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-110",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T199",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-111 vorbereiten: Neuer Prompt ersetzt nur abgeleitete Versionen; handgeschriebene Notiz und bestätigte Relation bleiben inklusive Änderungsprotokoll erhalten.",
+      "path": "Tests/Acceptance/US16_111Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-111",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T200",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Graphableitungen mit Prompt-/Modell-/Inputrevision speichern und selektiv neu berechnen; menschliche Notizen, manuelle Kanten und bewusste Entscheidungen nicht überschreiben.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/GraphRevisionStore.swift",
+      "dependsOn": [
+        "T199",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-111",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T201",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-112 vorbereiten: Nicht freigegebener Ordner wird nicht beschrieben; unterbrochener Export bleibt pending und meldet nicht fälschlich in Obsidian gespeichert.",
+      "path": "Tests/Acceptance/US16_112Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-112",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T202",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Export an ein Wissens-Tool über explizit gewählte Datei-/Ordnerfreigabe oder autorisierten Agent-Scope ausführen; Vorschau, Redaction, transaktionales Schreiben und Retrystatus vorsehen.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/ParkCommitCoordinator.swift",
+      "dependsOn": [
+        "T201",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-112",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T203",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-113 vorbereiten: Neustart nach Abbruch stellt Checkpoint wieder her; kein laufender Timer erzeugt Hintergrunddialog oder Sprachprompt.",
+      "path": "Tests/Acceptance/US16_113Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-113",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T204",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Unterbrechung, OS-Beendigung, Netzverlust, Sleep Timer und vorübergehende Pause als fortsetzbare Zustände behandeln; Abschlussangebot erst am passenden bewussten Ende nachholen.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/SessionBoundaryPolicy.swift",
+      "dependsOn": [
+        "T203",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-113",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T205",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-114 vorbereiten: Offline-Watch-Parken und Mac-Verwerfen werden nicht still last-write-wins zusammengeführt; einmal bestätigter Exportjob erzeugt keine doppelten Dateien.",
+      "path": "Tests/Acceptance/US16_114Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-114",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T206",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Parken und Verwerfen geräteübergreifend idempotent und revisionsgebunden synchronisieren; konkurrierende Entscheidungen erhalten beide Varianten oder sichtbaren Konflikt statt Datenverlust.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/TrailSyncPolicy.swift",
+      "dependsOn": [
+        "T205",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-114",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T207",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-115 vorbereiten: VoiceOver kann Frage, Beziehungen und Quellen navigieren; Watch kann Parken vormerken und aufs iPhone übergeben, nicht vorzeitigen Exporterfolg behaupten.",
+      "path": "Tests/Acceptance/US16_115Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-115",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T208",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Auf iPhone kompakte Abschlusskarte, iPad/Mac Karte plus Wissensansicht und Watch kurze Auswahl anbieten; Graph besitzt immer zugängliche Listen-/Baumalternative.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/BreadcrumbPlatformPresentation.swift",
+      "dependsOn": [
+        "T207",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-115",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T209",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-116 vorbereiten: Credits des Originalmediums bleiben unverändert; App-Abschluss ist klar getrennt und ohne gesonderten Wunsch stumm.",
+      "path": "Tests/Acceptance/US16_116Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-116",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T210",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abschluss und Übergänge standardmäßig visuell, optional mit nativer Systemstimme darstellen; nie Publisher-Credits verändern oder eine Sprecheridentität imitieren.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/SessionOutroPresentation.swift",
+      "dependsOn": [
+        "T209",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-116",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T211",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-117 vorbereiten: Schließen ohne Auswahl bleibt neutral; keine wiederholten Meldungen, Belohnungsverluste oder Hördaueroptimierung.",
+      "path": "Tests/Acceptance/US16_117Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-117",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T212",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Kuration an nützlichen beantworteten/offenen Fragen und nachvollziehbarer Wiederverwendung messen; überspringbare Abschlusskarte, abschaltbarer Modus und kein Streak-/Druckmechanismus.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/KnowledgeOutcomeMetrics.swift",
+      "dependsOn": [
+        "T211",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-117",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T213",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-118 vorbereiten: Geparkte Frage erzeugt keinen Timer und keine Pushmeldung; eigene Quellenbeobachtung respektiert Quellen- und Ressourcenpolicy.",
+      "path": "Tests/Acceptance/US16_118Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-118",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T214",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Offene geparkte Fragen nur innerhalb ausdrücklich aktivierter Quellenbeobachtung erneut anbieten; Parken allein aktiviert keine automatischen Benachrichtigungen, Downloads oder Dauersuchen.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/ParkedQuestionPolicy.swift",
+      "dependsOn": [
+        "T213",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-118",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T215",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-119 vorbereiten: Quellenlöschung entfernt nicht verwandte Notiz, markiert fehlenden Beleg und löscht privaten Cache; bereits extern kopierte Datei wird als außerhalb Kontrolle benannt.",
+      "path": "Tests/Acceptance/US16_119Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-119",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T216",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Beim Entfernen einer Quelle oder persönlicher Daten abhängige Graph-/Index-/Exportvorschläge markieren oder bereinigen; exportierte Dateien nur innerhalb bestehender Schreibfreigabe verändern und externe Kopien nicht als gelöscht behaupten.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/GraphDeletionPolicy.swift",
+      "dependsOn": [
+        "T215",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-119",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T217",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "Abnahme FR-120 vorbereiten: Prompt-Injection in Transkript oder Knotentitel führt weder Export noch Toolaufruf oder Abonnement aus; Code im Markdown bleibt Text.",
+      "path": "Tests/Acceptance/US16_120Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US16",
+      "requirement": "FR-120",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T218",
+      "phase": "14 Widerspruchs-Mixer und Breadcrumb-Trail",
+      "title": "KI-generierte Fragen und Graphlabels als nicht vertrauenswürdige Daten behandeln; sie dürfen keine URL-/Datei-/Tool-Aktion außerhalb des bestätigten Scopes auslösen.",
+      "path": "Packages/BrainSpeakKnowledgeTrail/Sources/GraphActionPolicy.swift",
+      "dependsOn": [
+        "T217",
+        "T061",
+        "T068",
+        "T079",
+        "T098"
+      ],
+      "story": "US16",
+      "requirement": "FR-120",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T219",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-121 vorbereiten: Zwei Themenfeeds und einen gemischten Feed anlegen; nach Neustart bleiben IDs, Themen und Ausgaben erhalten.",
+      "path": "Tests/Acceptance/US17_121Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-121",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T220",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Persistente persönliche Themen-Feeds mit eigenen Ausgaben, Titel, Shownotes, Cover und unveränderlichem Originalsegmentmanifest bereitstellen; getrennte und gemischte Themenlisten ermöglichen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/FeedStore.swift",
+      "dependsOn": [
+        "T219",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079"
+      ],
+      "story": "US17",
+      "requirement": "FR-121",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T221",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-122 vorbereiten: Konfiguriertes Profil ohne Lernfreigabe verwenden; mehrfaches Play fordert kein Profilinterview und ändert das Profil nicht.",
+      "path": "Tests/Acceptance/US17_122Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-122",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T222",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Bestätigte konfigurierte Interessen übernehmen und optional korrigierbar dazulernen; vor jedem Play keine erneute Interessenabfrage verlangen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/FeedProfilePolicy.swift",
+      "dependsOn": [
+        "T221",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US17",
+      "requirement": "FR-122",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T223",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-123 vorbereiten: Teilanalysierten Korpus wählen; Coverage und enthaltene Quellen stimmen; nicht erlaubte Quelle bleibt ausgeschlossen.",
+      "path": "Tests/Acceptance/US17_123Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-123",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T224",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Den Quellen-Scope je Feed festhalten; verfügbare, analysierte, passende und enthaltene Inhalte getrennt ausweisen; keine unangekündigte Websuche ausführen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/FeedScope.swift",
+      "dependsOn": [
+        "T223",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US17",
+      "requirement": "FR-123",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T225",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-124 vorbereiten: Zweimal denselben Kandidatenlauf ausführen: eine logische Ausgabe; Titelwechsel allein erzeugt keine neue Folge.",
+      "path": "Tests/Acceptance/US17_124Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-124",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T226",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Neue persönliche Folgen nur aus neuen passenden, ungehörten und abspielbaren Kernsegmenten veröffentlichen; wiederholten Refresh und Offline-Doppelentwürfe anhand stabiler Identität deduplizieren.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/PersonalEpisodePublisher.swift",
+      "dependsOn": [
+        "T225",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T238"
+      ],
+      "story": "US17",
+      "requirement": "FR-124",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T227",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-125 vorbereiten: Alte Originalquelle als neue persönliche Ausgabe bündeln; korrekte Daten und absatzbezogene Evidence-IDs prüfen.",
+      "path": "Tests/Acceptance/US17_125Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-125",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T228",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Titel und textuelle Shownotes nur aus dem finalen Segmentmanifest erzeugen; Originaldatum und persönliche Veröffentlichung unterscheiden; alte Inhalte als neu für dich statt neu veröffentlicht kennzeichnen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/EpisodeShownotesBuilder.swift",
+      "dependsOn": [
+        "T227",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US17",
+      "requirement": "FR-125",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T229",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-126 vorbereiten: Mehr Treffer als eine Ausgabeseite bereitstellen; kein Top-k-Verlust, Rest folgt sichtbar; Kurzfassung nennt nicht alles.",
+      "path": "Tests/Acceptance/US17_126Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-126",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T230",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Alles Ungehörte als umfassenden Modus von budgetierter Auswahl unterscheiden; bei Pagination, Limits oder unvollständiger Analyse Restbestand und Abdeckung sichtbar halten.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/UnheardBacklogPlanner.swift",
+      "dependsOn": [
+        "T229",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T238"
+      ],
+      "story": "US17",
+      "requirement": "FR-126",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T231",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-127 vorbereiten: Während Wiedergabe neue Segmente einspeisen; bestehendes Manifest bleibt byteidentisch, nächste Ausgabe ist separat.",
+      "path": "Tests/Acceptance/US17_127Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-127",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T232",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Publizierte oder gestartete persönliche Ausgaben nicht heimlich neu zusammensetzen; bewusste Restfassungen als neue Revision mit aktualisierten Shownotes und Grant behandeln.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/EpisodeSnapshotStore.swift",
+      "dependsOn": [
+        "T231",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US17",
+      "requirement": "FR-127",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T233",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-128 vorbereiten: Eine Folge mit drei passenden Abschnitten starten; nur diese werden abgespielt; Ganz hören bleibt erreichbar.",
+      "path": "Tests/Acceptance/US18_128Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US18",
+      "requirement": "FR-128",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T234",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Pro Originalfolge Ganz hören, Für mich relevante Stellen und einzelne Belegsprünge anbieten; passende Originalabschnitte innerhalb eines bestätigten Plans automatisch nacheinander spielen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/EpisodeFocusMode.swift",
+      "dependsOn": [
+        "T233",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US18",
+      "requirement": "FR-128",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T235",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-129 vorbereiten: Play autorisiert genau den Plan; Quellenwechsel läuft weiter; Hintergrundveröffentlichung erzeugt keinen Ton.",
+      "path": "Tests/Acceptance/US18_129Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US18",
+      "requirement": "FR-129",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T236",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Einmaliges Play oder expliziten Chat-Wiedergabewunsch als begrenzte Startfreigabe verwenden; keine erneute Bestätigung pro Segment und kein Tonstart durch Empfehlungen, Refresh oder Sync.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/PersonalEpisodePlaybackGate.swift",
+      "dependsOn": [
+        "T235",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US18",
+      "requirement": "FR-129",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T237",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-130 vorbereiten: Spielen 10–20 s, Springen auf 60 s und Spielen 60–65 s erzeugt genau diese zwei Intervalle, nicht 10–65 s.",
+      "path": "Tests/Acceptance/US19_130Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US19",
+      "requirement": "FR-130",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T238",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abgespielte Originalzeitintervalle pro MediaVersion global vereinigen; Seek, Download, Analyse, Lesen und Buffering niemals als gehörte Zeit erfassen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/ListeningLedger.swift",
+      "dependsOn": [
+        "T237",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US19",
+      "requirement": "FR-130",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T239",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-131 vorbereiten: Abschnitt im Themenfeed hören; derselbe Abschnitt gilt beim Original und zweiten Feed als abgespielt, übrige Folge nicht.",
+      "path": "Tests/Acceptance/US19_131Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US19",
+      "requirement": "FR-131",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T240",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Gemeinsamen Hörverlauf zwischen Originalfolgen, Chat-Fokus, Themenfeeds und Geräten anwenden; Fokuswiedergabe markiert nicht die komplette Originalfolge als gehört.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/CrossFeedConsumptionPolicy.swift",
+      "dependsOn": [
+        "T239",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T238"
+      ],
+      "story": "US19",
+      "requirement": "FR-131",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T241",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-132 vorbereiten: Teilgehörte Aussage mit Kontext prüfen; neue Restbelege erhalten gültige Grenzen, Kontext als Wiederholung markieren.",
+      "path": "Tests/Acceptance/US19_132Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US19",
+      "requirement": "FR-132",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T242",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Noch ungehörte Kernbereiche von nötiger Kontextwiederholung trennen; bereits geplante Dubletten und explizite Ausschlüsse gesondert führen; semantische Ähnlichkeit allein ist keine Dublette.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/UnheardSegmentResolver.swift",
+      "dependsOn": [
+        "T241",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T238"
+      ],
+      "story": "US19",
+      "requirement": "FR-132",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T243",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-133 vorbereiten: Teils gehörte Folge bleibt im Restfilter; fehlt im Nie-gestartet-Filter; manuell erledigt erzeugt keine Hörintervalle.",
+      "path": "Tests/Acceptance/US19_133Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US19",
+      "requirement": "FR-133",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T244",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Ungehörte Abschnitte auch aus angefangenen Folgen und Nur noch nicht gestartete Originalfolgen als zwei Filter anbieten; unbekannte Historie und manuell erledigte Inhalte separat kennzeichnen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/HistoryFilterPolicy.swift",
+      "dependsOn": [
+        "T243",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T238"
+      ],
+      "story": "US19",
+      "requirement": "FR-133",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T245",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-134 vorbereiten: Persönliche Position in Segment 2 auf Originalzeit abbilden; 1,5-fache Rate verändert Quellenzeitmapping nicht.",
+      "path": "Tests/Acceptance/US18_134Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US18",
+      "requirement": "FR-134",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T246",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Persönliche und originale Zeitachsen deterministisch aus dem Manifest abbilden; Resume, Kapitel, Fernsteuerung und Watch verwenden denselben bestätigten Plan.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/VirtualTimeline.swift",
+      "dependsOn": [
+        "T245",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T234"
+      ],
+      "story": "US18",
+      "requirement": "FR-134",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T247",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-135 vorbereiten: Kein TTS-Aufruf im Ausgabepfad; Sourcewechsel sichtbar, Originalclip und dessen geprüfte Grenzen unverändert.",
+      "path": "Tests/Acceptance/US18_135Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US18",
+      "requirement": "FR-135",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T248",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Audio in Originalstimmen ohne KI-Nachsprache oder gesprochene KI-Überleitungen wiedergeben; Quellenwechsel kenntlich machen, Kontext und Qualifikationen erhalten.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/OriginalAudioPolicy.swift",
+      "dependsOn": [
+        "T247",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US18",
+      "requirement": "FR-135",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T249",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-136 vorbereiten: Ausgabefrage darf nur Manifestbelege verwenden; unbekannter Sprecher wird nicht benannt; Sprung ins Original funktioniert.",
+      "path": "Tests/Acceptance/US18_136Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US18",
+      "requirement": "FR-136",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T250",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Kapitel, Quellen, belegte Sprechernamen, Originalzeitcodes, persönliche Zeit und Original-Weiterhören anbieten; Fragen zur persönlichen Ausgabe auf deren Originalbelege begrenzen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/PersonalEpisodeInspector.swift",
+      "dependsOn": [
+        "T249",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T234"
+      ],
+      "story": "US18",
+      "requirement": "FR-136",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T251",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-137 vorbereiten: Zwei Offlinegeräte mit gleichen Kandidaten und überlappenden Hörintervallen mergen ohne doppelte neue Segmente; Watch zeigt nur vollständig geladene Pakete offline-bereit.",
+      "path": "Tests/Acceptance/US19_137Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US19",
+      "requirement": "FR-137",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T252",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Feedkonfigurationen, Manifestrevisionen, Ledger-Events und Coverreferenzen optional über vorhandenen privaten Sync übertragen; Epochs, Deduplizierung und vollständige Watch-Packs prüfen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/SmartFeedSync.swift",
+      "dependsOn": [
+        "T251",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T238"
+      ],
+      "story": "US19",
+      "requirement": "FR-137",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T253",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-138 vorbereiten: Audiofassung austauschen bzw. Quelle löschen; betroffene Segmente sichtbar nicht verfügbar, kein Zeittransfer auf fremde Fassung.",
+      "path": "Tests/Acceptance/US17_138Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-138",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T254",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Quellenverlust, geänderte Medienfassung, Löschung und Profilreset in abhängigen persönlichen Folgen und Reservierungen berücksichtigen; veraltete Belege nicht abspielen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/PersonalEpisodeInvalidation.swift",
+      "dependsOn": [
+        "T253",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US17",
+      "requirement": "FR-138",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T255",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-139 vorbereiten: ImageCreator ist im neuen Featurecode abwesend; native Sheet-Integration prüfen; externe Provider nicht in erlaubten Stilen.",
+      "path": "Tests/Acceptance/US20_139Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US20",
+      "requirement": "FR-139",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T256",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Image-Playground-Cover ausschließlich über unterstützten nutzergeführten Systemdialog auf Vollclients anbieten; Apple-Stile begrenzen und externe Provider ausschließen; ImageCreator nicht verwenden.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/CoverArtworkCoordinator.swift",
+      "dependsOn": [
+        "T255",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US20",
+      "requirement": "FR-139",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T257",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-140 vorbereiten: Ohne Modell, offline und bei Cover-Abbruch erscheint ein eigenes natives Cover; Audioausgabe bleibt nutzbar.",
+      "path": "Tests/Acceptance/US20_140Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US20",
+      "requirement": "FR-140",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T258",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Sofort ein automatisches natives Titel-/Themen-Cover bereitstellen; optional bestätigtes Feedmotiv wiederverwenden; dies nicht als neue automatische Image-Playground-Generierung bezeichnen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/NativeCoverRenderer.swift",
+      "dependsOn": [
+        "T257",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US20",
+      "requirement": "FR-140",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T259",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-141 vorbereiten: Temporärdatei nach Kopie entfernen; gespeichertes Cover bleibt; abgebrochene Auswahl ersetzt kein bisheriges Asset.",
+      "path": "Tests/Acceptance/US20_141Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US20",
+      "requirement": "FR-141",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T260",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Bestätigtes Image-Playground-Ergebnis vor Ablauf temporärer Datei atomar speichern, prüfen und versionieren; Cover-Provenienz und Motivdatensparsamkeit beachten; Watch zeigt synchronisiertes Asset.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/CoverAssetStore.swift",
+      "dependsOn": [
+        "T259",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T256",
+        "T258"
+      ],
+      "story": "US20",
+      "requirement": "FR-141",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T261",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-142 vorbereiten: Nichts-Neues-Fall erzeugt keine leere Folge; Screenreader liest Thema, Quellenzahl und Coveraktion; Notification ohne Autorisierung bleibt aus.",
+      "path": "Tests/Acceptance/US17_142Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-142",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T262",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Keine neuen Segmente, unvollständige Analyse und nicht verfügbare Quellen als eigene Zustände zeigen; Veröffentlichung atomar vor optionaler Benachrichtigung committen; Accessibility und Datenschutz auf allen vier Plattformen berücksichtigen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/SmartFeedPresentation.swift",
+      "dependsOn": [
+        "T261",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US17",
+      "requirement": "FR-142",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T263",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-143 vorbereiten: Manifest und Markdown gegen aktuelle Revision prüfen; private URLs redigiert, Original-/persönliche Zeiten stimmen.",
+      "path": "Tests/Acceptance/US17_143Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-143",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T264",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Persönliche Folge und Feedkonfiguration als Markdown bzw. sicheres Manifest exportieren: Originalquellen, Zeitmapping, Shownotes, Analyseumfang und Coverherkunft; keine implizite öffentliche Audioveröffentlichung.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/PersonalEpisodeExporter.swift",
+      "dependsOn": [
+        "T263",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220"
+      ],
+      "story": "US17",
+      "requirement": "FR-143",
+      "status": "not_started",
+      "parallel": false
+    },
+    {
+      "id": "T265",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Abnahme FR-144 vorbereiten: Synthetische Themen iOS, Google/KI, EnBW und Datenschutz verwenden; vollständigen Ablauf einschließlich Re-Refresh, Queue-Ende und Cover-Abbruch testen.",
+      "path": "Tests/Acceptance/US17_144Tests.swift",
+      "dependsOn": [
+        "T010"
+      ],
+      "story": "US17",
+      "requirement": "FR-144",
+      "status": "not_started",
+      "parallel": true
+    },
+    {
+      "id": "T266",
+      "phase": "15 Smart Podcast List und persönliche Folgen",
+      "title": "Den gesamten Themenfeed-Ablauf von Konfiguration über ungehörte Originalsegmente, Publikation, Play, erneute Aktualisierung und Cover-Fallback mit plattformbezogenen Abnahmen belegen.",
+      "path": "Packages/BrainSpeakSmartFeeds/Sources/SmartFeedEndToEnd.swift",
+      "dependsOn": [
+        "T265",
+        "T006",
+        "T025",
+        "T043",
+        "T061",
+        "T068",
+        "T079",
+        "T220",
+        "T222",
+        "T224",
+        "T226",
+        "T228",
+        "T230",
+        "T232",
+        "T234",
+        "T236",
+        "T238",
+        "T240",
+        "T242",
+        "T244",
+        "T246",
+        "T248",
+        "T250",
+        "T252",
+        "T254",
+        "T256",
+        "T258",
+        "T260",
+        "T262",
+        "T264"
+      ],
+      "story": "US17",
+      "requirement": "FR-144",
+      "status": "not_started",
+      "parallel": false
+    }
+  ]
+}

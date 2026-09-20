@@ -1,0 +1,124 @@
+{
+  "stories": [
+    {
+      "id": "US1",
+      "title": "Eine ungehörte Folge verstehen",
+      "priority": "P1",
+      "independentTest": "Eine lokale synthetische Audiodatei plus Transkript reicht als unabhängige Testbasis."
+    },
+    {
+      "id": "US2",
+      "title": "Quellen abonnieren oder einzelne Inhalte aufnehmen",
+      "priority": "P1",
+      "independentTest": "RSS-/Atom-/OPML-Fixtures lassen sich ohne Serverabonnement einspielen."
+    },
+    {
+      "id": "US3",
+      "title": "Vollwertig hören und Kapitel nutzen",
+      "priority": "P1",
+      "independentTest": "Eine bekannte lokale Audiodatei mit Kapitel-Fixture ist unabhängig testbar."
+    },
+    {
+      "id": "US4",
+      "title": "Mit einer Folge oder vielen Folgen sprechen",
+      "priority": "P1",
+      "independentTest": "Ein lokaler, synthetischer Index mit zwei Folgen und bekannten Belegen genügt."
+    },
+    {
+      "id": "US5",
+      "title": "Aus einem Chat relevante Originalstellen hören",
+      "priority": "P1",
+      "independentTest": "Golden Evidence-IDs und ein MediaVersion-Fixture liefern reproduzierbare Zeitbereiche."
+    },
+    {
+      "id": "US6",
+      "title": "Eine interessenbasierte Fokus-Sitzung hören",
+      "priority": "P1",
+      "independentTest": "Deterministische Kandidaten und ein bestätigtes Profil erlauben Tests ohne Modell."
+    },
+    {
+      "id": "US7",
+      "title": "Interessen verstehen und korrigieren",
+      "priority": "P1",
+      "independentTest": "Ein leeres Profil plus explizites Feedback reicht für einen unabhängigen Test."
+    },
+    {
+      "id": "US8",
+      "title": "Nahtlos auf iPad und Mac arbeiten",
+      "priority": "P1",
+      "independentTest": "Preview-Fixtures testen alle Fenstervarianten unabhängig von PCC."
+    },
+    {
+      "id": "US9",
+      "title": "Auf der Watch Erkenntnisse und Fokusaudio nutzen",
+      "priority": "P1",
+      "independentTest": "Ein vorbereiteter Watch-Pack plus simulierte Erreichbarkeit reicht."
+    },
+    {
+      "id": "US10",
+      "title": "Über Geräte und Neustarts hinweg zuverlässig bleiben",
+      "priority": "P1",
+      "independentTest": "Zwei lokale Stores und Fake-CloudKit-Events testen Konflikte deterministisch."
+    },
+    {
+      "id": "US11",
+      "title": "Wissen als Markdown mitnehmen",
+      "priority": "P1",
+      "independentTest": "Ein Export-Fixture mit privater Feed-URL liefert einen unabhängigen Sicherheitstest."
+    },
+    {
+      "id": "US12",
+      "title": "Highlights, Suche und wiederverwendbare Transkripte",
+      "priority": "P1",
+      "independentTest": "Ein lokales Transcript-/Highlight-Fixture genügt; Translation bleibt optionale P2-Erweiterung."
+    },
+    {
+      "id": "US13",
+      "title": "Eigenes Podcastwissen kontrolliert für Agenten öffnen",
+      "priority": "P1",
+      "independentTest": "Fake-Client gegen isolierten Export-Snapshot ohne Modellzugang; keine echte Fremddatenübertragung nötig."
+    },
+    {
+      "id": "US14",
+      "title": "YouTube-Link einfügen, abonnieren und Historie erschließen",
+      "priority": "P1",
+      "independentTest": "Gespeicherte Video-/Kanal-/Feed-/Katalogantworten mit drei Seiten testen gesamten Import ohne Netzwerk."
+    },
+    {
+      "id": "US15",
+      "title": "Eigene Thesen mit belegten Gegenpositionen prüfen",
+      "priority": "P1",
+      "independentTest": "Bestätigte technische These, echte Gegenposition im synthetischen Korpus und vorgetäuschte Gegenposition bilden einen deterministischen Mixer-Test."
+    },
+    {
+      "id": "US16",
+      "title": "Jede Hörsession als kuratierten Wissenspfad abschließen",
+      "priority": "P1",
+      "independentTest": "Eine beendete Testsession mit vier auffindbaren Quellen erlaubt Vertiefen, Parken und Verwerfen ohne laufendes LLM oder Netzwerk."
+    },
+    {
+      "id": "US17",
+      "title": "Eigene Themen-Podcasts aus ungehörten Originalstellen abonnieren",
+      "priority": "P1",
+      "independentTest": "Deterministischer Themenkorpus, Feedkonfiguration und leere Ledger erzeugen eine Ausgabe; zweiter Lauf erzeugt keine Dublette."
+    },
+    {
+      "id": "US18",
+      "title": "In einer Folge oder persönlichen Ausgabe nur relevante Stellen hören",
+      "priority": "P1",
+      "independentTest": "Geprüftes Segmentmanifest und Fake-Player testen Reihenfolge, Grants und zweifache Zeitachse ohne Modell."
+    },
+    {
+      "id": "US19",
+      "title": "Ungehörtes über alle Wiedergabewege und Geräte erkennen",
+      "priority": "P1",
+      "independentTest": "Intervall-Fixtures testen Union, Seeklücken, Teilfolgen, Kontextwiederholung und Epoch-Reset."
+    },
+    {
+      "id": "US20",
+      "title": "Eigene Episodencover mit nativem Fallback und Image Playground gestalten",
+      "priority": "P1",
+      "independentTest": "CoverCoordinator mit Fakes simuliert Verfügbarkeit, Bestätigung, Abbruch und Assetpersistenz; reale Sheet-Tests bleiben Geräteabnahmen."
+    }
+  ]
+}

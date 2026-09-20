@@ -1,0 +1,16 @@
+stateDiagram-v2
+ [*] --> Discovered
+ Discovered --> MetadataOnly: no authorized content
+ Discovered --> Queued: authorized input
+ Queued --> Downloading
+ Downloading --> Transcribing
+ Transcribing --> Indexing
+ Indexing --> Ready
+ Downloading --> Waiting: network or system
+ Transcribing --> Waiting: assets, power or resources
+ Waiting --> Queued: permitted resume
+ Transcribing --> Partial: some committed evidence
+ Partial --> Queued: continue
+ Ready --> Stale: media revision changed
+ Stale --> Queued: reanalyze
+ Queued --> Cancelled: user

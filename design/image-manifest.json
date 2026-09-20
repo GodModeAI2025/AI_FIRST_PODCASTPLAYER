@@ -1,0 +1,128 @@
+{
+  "originalSize": [
+    1536,
+    1024
+  ],
+  "images": [
+    {
+      "id": "IMG-01",
+      "path": "design/images/screens/01-fuer-dich.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        0,
+        0,
+        307,
+        535
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-02",
+      "path": "design/images/screens/02-quelle-hinzufuegen.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        307,
+        0,
+        614,
+        535
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-03",
+      "path": "design/images/screens/03-verstehen.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        614,
+        0,
+        922,
+        535
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-04",
+      "path": "design/images/screens/04-kapitel.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        922,
+        0,
+        1229,
+        535
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-05",
+      "path": "design/images/screens/05-player.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        1229,
+        0,
+        1536,
+        535
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-06",
+      "path": "design/images/screens/06-chat-folge.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        0,
+        563,
+        307,
+        997
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-07",
+      "path": "design/images/screens/07-chat-auswahl.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        307,
+        563,
+        614,
+        997
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-08",
+      "path": "design/images/screens/08-fokus.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        614,
+        563,
+        922,
+        997
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-09",
+      "path": "design/images/screens/09-wissen-export.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        922,
+        563,
+        1229,
+        997
+      ],
+      "illustrativeOnly": true
+    },
+    {
+      "id": "IMG-10",
+      "path": "design/images/screens/10-interessen.png",
+      "original": "design/images/brainspeak-original-10-screens.png",
+      "cropPixels": [
+        1229,
+        563,
+        1536,
+        997
+      ],
+      "illustrativeOnly": true
+    }
+  ]
+}

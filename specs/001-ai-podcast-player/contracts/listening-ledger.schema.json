@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.example.invalid/brainspeak/listening-ledger.schema.json",
+  "title": "listening-ledger",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mediaVersionID": {
+            "type": "string",
+            "minLength": 1
+          },
+          "epoch": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "range": {
+            "type": "object",
+            "properties": {
+              "startMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "endMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "startMs",
+              "endMs"
+            ],
+            "additionalProperties": false
+          },
+          "eventKind": {
+            "type": "string",
+            "enum": [
+              "played",
+              "seek",
+              "paused",
+              "buffering",
+              "downloaded",
+              "analyzed",
+              "shownotesRead",
+              "markedDone"
+            ]
+          },
+          "playbackRoute": {
+            "type": "string",
+            "enum": [
+              "original",
+              "focus",
+              "smartFeed",
+              "watch"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "mediaVersionID",
+          "epoch",
+          "range",
+          "eventKind",
+          "playbackRoute"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "historyQuality": {
+      "type": "string",
+      "enum": [
+        "recordedSinceSetup",
+        "unknown"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "epoch",
+    "events",
+    "historyQuality"
+  ],
+  "additionalProperties": false
+}

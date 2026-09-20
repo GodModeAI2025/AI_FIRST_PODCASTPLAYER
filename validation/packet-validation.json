@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "scope": "specification_packet_only",
+  "requirements": 144,
+  "stories": 20,
+  "tasks": 266,
+  "acceptanceCases": 144,
+  "schemaFixtures": 41,
+  "images": 11,
+  "syntheticSources": 4,
+  "schemaEngine": "stdlib_supported_vocabulary_plus_jsonschema_Draft202012Validator",
+  "inventory": "passed",
+  "appleAppBuilt": false,
+  "productTestsExecuted": false,
+  "limitations": [
+    "No BrainSpeak source audit",
+    "No Xcode 27 compile or Apple device tests",
+    "No PCC entitlement/runtime verification",
+    "Synthetic source text, no real audio or model inference"
+  ]
+}

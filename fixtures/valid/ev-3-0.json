@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "ev-3-0",
+  "episodeID": "episode-3",
+  "mediaVersionID": "media-3",
+  "transcriptRevisionID": "transcript-3",
+  "segmentIDs": [
+    "seg-3-0"
+  ],
+  "excerpt": "Fuer Arbeiten ohne Netz braucht eine Anwendung einen verlaesslichen lokalen Pfad.",
+  "range": {
+    "startMs": 10000,
+    "endMs": 26000
+  },
+  "timingStatus": "verified",
+  "accessRevision": 1
+}

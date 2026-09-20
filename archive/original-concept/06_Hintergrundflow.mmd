@@ -1,0 +1,11 @@
+flowchart TD
+    A["Neue Folge oder manueller Analyseauftrag"] --> B["Dauerhaften Job anlegen"]
+    B --> C{"Quelle und Ressourcen verfügbar?"}
+    C -->|Nein| D["Wartegrund anzeigen; erledigte Schritte behalten"]
+    D --> C
+    C -->|Ja| E["Nächsten zulässigen Verarbeitungsschritt ausführen"]
+    E --> F["Ergebnis und Wiederaufnahmepunkt speichern"]
+    F --> G{"Alle Schritte beendet?"}
+    G -->|Nein| C
+    G -->|Ja| H["Fertige Vorschau veröffentlichen"]
+    E -->|Abbruch oder Systemende| D

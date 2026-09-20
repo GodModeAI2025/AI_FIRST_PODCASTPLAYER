@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "id": "ledger-demo",
+  "epoch": 1,
+  "events": [],
+  "historyQuality": "recordedSinceSetup"
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015">
+ <id>yt:channel:UCabcdefghijklmnopqrstuv</id><yt:channelId>UCabcdefghijklmnopqrstuv</yt:channelId>
+ <title>Synthetischer Testkanal — kein realer Kanal</title>
+ <entry><id>yt:video:AbCdEfGhI01</id><yt:videoId>AbCdEfGhI01</yt:videoId><yt:channelId>UCabcdefghijklmnopqrstuv</yt:channelId><title>Testfolge</title><published>2026-09-01T00:00:00Z</published></entry>
+</feed>

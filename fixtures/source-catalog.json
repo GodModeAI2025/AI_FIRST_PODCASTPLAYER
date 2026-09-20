@@ -1,0 +1,33 @@
+{
+  "synthetic": true,
+  "entries": [
+    {
+      "episodeID": "episode-1",
+      "sourceID": "source-1",
+      "originalRecordingID": "recording-1",
+      "available": true,
+      "title": "Lokaler Betrieb — Testfolge"
+    },
+    {
+      "episodeID": "episode-2",
+      "sourceID": "source-2",
+      "originalRecordingID": "recording-2",
+      "available": true,
+      "title": "Verwaltete Dienste — Testfolge"
+    },
+    {
+      "episodeID": "episode-3",
+      "sourceID": "source-3",
+      "originalRecordingID": "recording-3",
+      "available": true,
+      "title": "Offline-Anforderungen — Testfolge"
+    },
+    {
+      "episodeID": "episode-4",
+      "sourceID": "source-4",
+      "originalRecordingID": "recording-4",
+      "available": true,
+      "title": "Hybride Systeme — Testfolge"
+    }
+  ]
+}
