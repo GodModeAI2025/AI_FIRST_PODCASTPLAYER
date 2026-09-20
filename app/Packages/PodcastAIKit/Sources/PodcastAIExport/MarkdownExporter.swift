@@ -214,7 +214,4 @@ public struct MarkdownExporter: Sendable {
         }
         return result
     }
-        }
-        return result
-    }
 }

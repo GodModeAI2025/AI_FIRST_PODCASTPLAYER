@@ -30,8 +30,21 @@ app/verification/run_all.sh
 | `selection_reference.py` | 180 004 | Modellantworten: erfundene Verweise werden verworfen, nicht korrigiert |
 | `export_reference.py` | 120 016 | Kein Token im Export, fremder Text zerlegt die Struktur nicht |
 | `sourceresolver_reference.py` | 20 | Linkklassifikation gegen `fixtures/youtube/url-cases.json` aus dem Spec-Kit |
+| `relevance_reference.py` | 80 005 | Nur bestätigte Interessen wirken; deterministische Rangfolge |
+| `passage_reference.py` | 100 003 | Passagen schneiden an Sprechpausen, nie mitten im Satz |
+| `redirectguard_reference.py` | 28 | Weiterleitungen ins eigene Netz werden abgelehnt |
 
 Das belegt die **Logik**, nicht die Swift-Syntax.
+
+Dazu läuft `swift_consistency.py` über alle Swift-Dateien und prüft, was
+ohne Compiler tatsächlich schiefgeht: unausgeglichene Klammern, nicht
+geschlossene `#if`-Blöcke, doppelt deklarierte Typen und Verweise auf Typen,
+die es nirgends gibt. Sie hat beim Schreiben zwei echte Klammerfehler
+gefunden.
+
+Die Invarianten stehen zusätzlich als Swift-Testing-Tests unter
+`Packages/PodcastAIKit/Tests/` — damit sie auf einem Mac gegen den echten
+Code laufen und nicht nur gegen eine Portierung davon.
 
 ## Bauen
 

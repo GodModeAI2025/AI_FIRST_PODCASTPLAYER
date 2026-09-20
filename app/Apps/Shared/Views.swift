@@ -104,6 +104,15 @@ struct SmartFeedListView: View {
             }
         }
         .navigationTitle("Meine Feeds")
+        .navigationDestination(for: SmartFeedID.self) { feedID in
+            if let latest = model.editions[feedID]?.first {
+                PersonalEpisodeView(episode: latest)
+            } else {
+                // Kein leerer Bildschirm: der Zustand "noch keine Ausgabe"
+                // ist ein eigener Zustand mit einer Handlung daran.
+                SmartFeedEmptyView(feedID: feedID)
+            }
+        }
         .toolbar {
             Button { showingNewFeed = true } label: {
                 Label("Neu", systemImage: "plus")
@@ -241,6 +250,9 @@ struct LibraryView: View {
             }
         }
         .navigationTitle("Mediathek")
+        .navigationDestination(for: SourceID.self) { sourceID in
+            SourceDetailView(sourceID: sourceID)
+        }
         .toolbar {
             Button { showingAdd = true } label: {
                 Label("Quelle hinzufügen", systemImage: "plus")
@@ -527,5 +539,82 @@ struct FocusPlayerView: View {
         }
         .padding()
         .navigationTitle("Wiedergabe")
+    }
+}
+
+
+/// Ein Themenfeed ohne Ausgabe. „Noch nichts da“ ist ein Zustand mit einer
+/// Handlung daran, kein leerer Bildschirm.
+struct SmartFeedEmptyView: View {
+
+    let feedID: SmartFeedID
+    @Environment(AppModel.self) private var model
+    @State private var message: String?
+
+    var body: some View {
+        ContentUnavailableView {
+            Label("Noch keine Ausgabe", systemImage: "waveform.circle")
+        } description: {
+            Text(message ?? "Sobald genug ungehörtes Material zu deinen Themen vorliegt, "
+                 + "entsteht daraus eine Ausgabe.")
+        } actions: {
+            Button("Jetzt zusammenstellen") {
+                Task { message = await model.buildEdition(feedID: feedID) }
+            }
+        }
+        .navigationTitle(model.smartFeeds.first { $0.id == feedID }?.title ?? "Themen-Update")
+    }
+}
+
+struct SourceDetailView: View {
+
+    let sourceID: SourceID
+    @Environment(AppModel.self) private var model
+
+    private var source: Source? { model.sources.first { $0.id == sourceID } }
+
+    var body: some View {
+        List {
+            if let source {
+                Section("Quelle") {
+                    LabeledContent("Titel", value: source.title)
+                    if let author = source.author {
+                        LabeledContent("Herausgeber", value: author)
+                    }
+                    LabeledContent("Historie", value: source.backfillPolicy.label)
+                }
+                Section {
+                    // Fähigkeiten einzeln und ehrlich: ein Kanal ohne
+                    // Audiozugang soll nicht aussehen wie einer mit.
+                    CapabilityRow(title: "Audio abrufbar",
+                                  isAvailable: source.capabilities.audioDownload)
+                    CapabilityRow(title: "Transkript vom Anbieter",
+                                  isAvailable: source.capabilities.publisherTranscript)
+                    CapabilityRow(title: "Gesamtes Archiv",
+                                  isAvailable: source.capabilities.historicalCatalog)
+                } header: {
+                    Text("Was mit dieser Quelle geht")
+                } footer: {
+                    if let reason = source.capabilities.limitationReason {
+                        Text(reason)
+                    }
+                }
+            }
+        }
+        .navigationTitle(source?.title ?? "Quelle")
+    }
+}
+
+struct CapabilityRow: View {
+
+    let title: String
+    let isAvailable: Bool
+
+    var body: some View {
+        HStack {
+            Image(systemName: isAvailable ? "checkmark.circle.fill" : "minus.circle")
+                .foregroundStyle(isAvailable ? .green : .secondary)
+            Text(title)
+        }
     }
 }
