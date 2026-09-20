@@ -237,7 +237,9 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
         self.publicationState = publicationState; self.consumptionState = consumptionState
         self.segments = segments; self.shownotes = shownotes
         self.coverAssetID = coverAssetID; self.coverage = coverage
-        self.manifestHash = StableDigest.hex(ofOrdered: segments.map {
+        // Das Manifest belegt, aus welchen Stellen eine Ausgabe besteht.
+        // Auch hier entscheidet die Prüfsumme, nicht nur benennt sie.
+        self.manifestHash = SecureDigest.hex(ofOrdered: segments.map {
             "\($0.mediaVersionID.rawValue):\($0.coreRange.start.milliseconds)-\($0.coreRange.end.milliseconds)"
         })
     }

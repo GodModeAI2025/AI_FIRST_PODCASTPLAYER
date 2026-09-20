@@ -449,9 +449,24 @@ public final class AppModel {
         )
     }
 
+    /// Baut einen Planungskontext, der Folgen und Quellen kennt.
+    ///
+    /// Ohne die Folgen liefe der Planer auf Platzhaltertiteln („Folge“,
+    /// „Quelle“) und könnte eine überholte Medienfassung nicht erkennen.
+    func planningContext(for evidence: [Evidence]) async -> SnapshotPlanningContext {
+        let episodes = (try? await store.episodes(
+            ids: Array(Set(evidence.map(\.episodeID))))) ?? []
+        return SnapshotPlanningContext(
+            evidence: evidence, episodes: episodes, sources: sources)
+    }
+
     /// Macht aus einer Antwort eine Hörsession.
     public func playAnswer(_ answer: ChatAnswer) {
-        let context = SnapshotPlanningContext(evidence: answer.citations)
+        Task { await playAnswerAsync(answer) }
+    }
+
+    private func playAnswerAsync(_ answer: ChatAnswer) async {
+        let context = await planningContext(for: answer.citations)
         let plan = FocusPlanner(context: context).plan(
             from: answer.playbackProposal(),
             route: .chatFocus,
@@ -530,7 +545,7 @@ public final class AppModel {
     public func playCounterpoints(_ candidates: [CounterpointCandidate], thesis: String) {
         Task {
             guard let all = try? await store.evidence(ids: candidates.map(\.evidenceID)) else { return }
-            let context = SnapshotPlanningContext(evidence: Array(all.values))
+            let context = await planningContext(for: Array(all.values))
             let plan = FocusPlanner(context: context).plan(
                 from: PlaylistProposal(
                     evidenceIDs: candidates.map(\.evidenceID),
@@ -560,7 +575,7 @@ public final class AppModel {
     public func deepen(_ closure: SessionClosure) {
         Task {
             guard let all = try? await store.evidence(ids: closure.supportingEvidenceIDs) else { return }
-            let context = SnapshotPlanningContext(evidence: Array(all.values))
+            let context = await planningContext(for: Array(all.values))
             let plan = FocusPlanner(context: context).plan(
                 from: PlaylistProposal(
                     evidenceIDs: closure.supportingEvidenceIDs,
@@ -591,7 +606,7 @@ public final class AppModel {
                 lastError = "Diese Stelle ist nicht mehr verfügbar."
                 return
             }
-            let context = SnapshotPlanningContext(evidence: [evidence])
+            let context = await planningContext(for: [evidence])
             let plan = FocusPlanner(context: context).plan(
                 from: PlaylistProposal(evidenceIDs: [item.id],
                                        requestSummary: item.episodeTitle),

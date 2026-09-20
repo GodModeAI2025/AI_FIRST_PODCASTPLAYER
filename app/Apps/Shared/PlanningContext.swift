@@ -63,11 +63,21 @@ struct SnapshotPlanningContext: FocusPlanningContext {
 
     func transcript(for id: MediaVersionID) -> Transcript? { transcriptsByMedia[id] }
 
-    /// In diesem Zusammenhang ist die Fassung des Belegs die maßgebliche:
-    /// die Belege stammen aus genau dem Schnappschuss, mit dem gearbeitet
-    /// wird. Eine Prüfung gegen eine neuere Fassung findet statt, wenn der
-    /// Kontext aus dem Store kommt.
-    func currentMediaVersionID(for episodeID: EpisodeID) -> MediaVersionID? { nil }
+    /// Die derzeit maßgebliche Fassung der Folge.
+    ///
+    /// Bisher stand hier fest `nil`, mit dem Hinweis, die Prüfung finde
+    /// statt, „wenn der Kontext aus dem Store kommt“. Es gab keinen zweiten
+    /// Kontext: die Prüfung auf eine überholte Fassung in `FocusPlanner`
+    /// konnte damit nie zuschlagen. Ein Beleg mit Timecodes aus einer alten
+    /// Fassung wäre an der neuen abgespielt worden — an der falschen Stelle,
+    /// mit dem richtigen Zitat daneben.
+    ///
+    /// `nil` bleibt die Antwort, wenn die Folge nicht mitgegeben wurde. Das
+    /// ist ehrlich: unbekannt heißt nicht „in Ordnung“, aber es heißt auch
+    /// nicht „überholt“ — und der Planer darf aus Unwissen nichts ablehnen.
+    func currentMediaVersionID(for episodeID: EpisodeID) -> MediaVersionID? {
+        episodesByID[episodeID]?.currentMediaVersionID
+    }
 
     func isPlayable(_ mediaVersionID: MediaVersionID) -> Bool {
         locator.playbackURL(for: mediaVersionID) != nil

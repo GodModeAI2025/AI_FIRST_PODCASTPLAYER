@@ -9,6 +9,9 @@
 //
 
 import Foundation
+#if canImport(CryptoKit)
+import CryptoKit
+#endif
 
 /// Stabile, typisierte Kennung. Der Phantomparameter verhindert, dass eine
 /// `EpisodeID` dort eingesetzt wird, wo eine `MediaVersionID` erwartet wird.
@@ -68,7 +71,9 @@ public typealias KnowledgeNodeID = TypedID<KnowledgeNodeSubject>
 
 /// Deterministischer Hash ohne CryptoKit, damit die Domäne plattformfrei bleibt.
 ///
-/// Zweck ist **Identität und Deduplizierung**, nicht Sicherheit: gleicher
+/// Zweck ist **Identität und Deduplizierung**, nicht Sicherheit — und das
+/// ist wörtlich zu nehmen: wo eine Prüfsumme über eine Entscheidung
+/// befindet, steht ``SecureDigest``. Gleicher
 /// Eingabetext ergibt auf jedem Gerät und in jedem Prozesslauf dieselbe Kennung.
 /// Für Integrität von Mediendateien wird stattdessen SHA-256 aus CryptoKit
 /// verwendet (siehe `PodcastAIMedia`).
@@ -106,5 +111,46 @@ public enum StableDigest {
     /// der Identität ist.
     public static func hex(ofOrdered parts: [String]) -> String {
         hex(of: parts.joined(separator: "\u{1F}"))
+    }
+}
+
+/// Eine Prüfsumme, an der eine **Entscheidung** hängt.
+///
+/// Der Unterschied zu ``StableDigest`` ist nicht kosmetisch. Dort steht im
+/// eigenen Kommentar „nicht Sicherheit“ — und genau dieser Digest sicherte
+/// bis eben den ``PlaybackGrant`` an seinen Plan. Die Freigabe sagt: dieser
+/// Plan, dieses Gerät, jetzt. Prüft sie gegen FNV-1a, dann genügt ein
+/// zweiter Plan mit derselben Prüfsumme, damit eine Freigabe für Plan A
+/// Plan B abspielt. FNV-1a ist nicht kollisionsresistent; es ist nicht
+/// dafür gebaut und war nie dafür gedacht.
+///
+/// Die Pläne stammen aus einem Sprachmodell, also aus nicht
+/// vertrauenswürdiger Quelle. Wo eine Prüfsumme über „darf abgespielt
+/// werden“ entscheidet, steht deshalb SHA-256.
+public enum SecureDigest {
+
+    /// SHA-256, hexadezimal. 64 Zeichen.
+    public static func hex(of string: String) -> String {
+        #if canImport(CryptoKit)
+        return SHA256.hash(data: Data(string.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        #else
+        // Ohne CryptoKit gibt es hier keine tragfähige Prüfsumme. Lieber
+        // eine, die sichtbar nicht benutzbar ist, als eine, die aussieht
+        // wie eine und keine ist.
+        return "kein-sha256-verfuegbar"
+        #endif
+    }
+
+    /// Reihenfolgeabhängig — bei einem Hörplan ist die Abfolge Teil dessen,
+    /// was freigegeben wurde.
+    public static func hex(ofOrdered parts: [String]) -> String {
+        hex(of: parts.joined(separator: "\u{1F}"))
+    }
+
+    /// Reihenfolgeunabhängig, für Manifeste.
+    public static func hex(ofUnordered parts: [String]) -> String {
+        hex(of: parts.sorted().joined(separator: "\u{1F}"))
     }
 }

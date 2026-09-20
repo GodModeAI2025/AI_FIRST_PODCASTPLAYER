@@ -274,6 +274,22 @@ public actor LibraryStore {
         return try modelContext.fetch(descriptor).map(\.snapshot)
     }
 
+    /// Folgen zu einer Menge von Kennungen.
+    ///
+    /// Der Planungskontext braucht sie aus zwei Gründen: für den echten
+    /// Folgentitel statt eines Platzhalters, und für
+    /// `currentMediaVersionID` — ohne die kann er nicht erkennen, dass ein
+    /// Beleg auf eine überholte Fassung zeigt.
+    public func episodes(ids: [EpisodeID]) throws -> [Episode] {
+        let identifiers = Set(ids.map(\.rawValue))
+        guard !identifiers.isEmpty else { return [] }
+        return try modelContext.fetch(
+            FetchDescriptor<StoredEpisode>(
+                predicate: #Predicate { identifiers.contains($0.identifier) }
+            )
+        ).map(\.snapshot)
+    }
+
     /// Folgen- und Quellentitel zu einer Menge von Folgen, in einem Zug.
     ///
     /// Die Oberfläche braucht zu jedem Beleg beide Titel. Sie je Beleg

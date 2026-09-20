@@ -141,7 +141,9 @@ public struct ValidatedPlaybackPlan: Hashable, Codable, Sendable, Identifiable {
         self.requestSummary = requestSummary
         self.route = route
         self.createdAt = createdAt
-        self.planHash = StableDigest.hex(ofOrdered: segments.map {
+        // `SecureDigest`, nicht `StableDigest`: an dieser Prüfsumme hängt,
+        // ob eine Freigabe noch gilt. Siehe die Begründung dort.
+        self.planHash = SecureDigest.hex(ofOrdered: segments.map {
             "\($0.mediaVersionID.rawValue):\($0.range.start.milliseconds)-\($0.range.end.milliseconds)"
         })
     }
