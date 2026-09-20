@@ -143,6 +143,21 @@ könnte bedeuten, dass die Watch nie mitgezogen wurde.
 vorausgesetzten 27er-Symbole real existieren.
 *Frühwarnsignal:* Der erste 27er-Build scheitert an Symbolen, für die es keine 26er-Entsprechung gibt.
 
+### R13 — Die bestehende Diktier-App und ihre Nutzer werden vergessen · hoch × hoch
+
+BrainSpeak ist kein Prototyp. Es gibt einen App-Store-Freigabe-Check, TestFlight-Verteilung, eine
+`AppStoreExportOptions.plist`, echte Nutzerdaten in `iCloud.com.brainspeak.app` — und eine **bereits durchgeführte
+Migration** des Datenmodells („real on-disk migration from the prior model, 2 MB byte-exact backfill/restore“,
+`docs/AUDIO_SYNC.md`). Der Plan behandelt BrainSpeak bisher ausschließlich als Codebasis, nie als laufendes Produkt.
+
+Das kollidiert direkt mit D8: eine Migration von der SwiftData-CloudKit-Spiegelung auf CKSyncEngine betrifft nicht
+abstrakte Records, sondern die Aufnahmen bestehender Nutzer. Und es kollidiert mit D7: ein Sprung auf 27.0 sperrt
+diese Nutzer aus, solange sie auf 26 sind.
+
+*Gegenmaßnahme:* D9 entscheiden, **vor** D7 und D8 — denn D9 bestimmt deren Antwort. Solange unklar ist, ob die
+Diktier-App weiterlebt, sind beide Migrationsfragen nicht sauber entscheidbar.
+*Frühwarnsignal:* Ein Migrationsplan, der nur von „Records“ spricht und keine Nutzerzahl nennt.
+
 ---
 
 ## 2. Entscheidungen, die jetzt fallen müssen
@@ -155,8 +170,9 @@ vorausgesetzten 27er-Symbole real existieren.
 | **D4** | **Smart Podcast List vorziehen** (Abweichung A1) | Ändert die Reihenfolge von 48 Aufgaben | Ja. Abhängigkeitstechnisch sauber, und es validiert das Konzept früher |
 | **D5** | **YouTube-Tiefe**: nur Metadaten plus sichtbarer offizieller Player, oder mehr? | Bestimmt, ob YouTube-Inhalte in Wissen und Fokus einfließen können | Zuerst Metadaten plus sichtbaren Player, mit klar sichtbarer Zählung „gefunden vs. analysierbar“. Rechtliche Prüfung vor M9a |
 | **D6** | **Die drei Konzeptlücken**: FR-145–147 aufnehmen oder per ADR ausschließen | Zwei davon (Onscreen-Kontext, Kadenz) sind später teuer | FR-146 und FR-147 aufnehmen, FR-145 bewusst zurückstellen und im Konzepttext als „nicht in 1.0“ benennen |
-| **D7** | **Plattformversionen**: 27.0 überall wie gefordert, oder zunächst auf 26.0 bleiben? Dazu: ist `.watchOS(.v11)` ein Fehler? | Bestimmt Mindesthardware, Bestandsnutzer und welche APIs überhaupt zur Verfügung stehen | 27.0 nur, wenn GATE-SDK zeigt, dass die vorausgesetzten Symbole wirklich 27er-exklusiv sind. Sonst auf 26.0 starten und den Sprung als eigenen Meilenstein planen — mit ADR, weil es Constitution III berührt |
-| **D8** | **Syncarchitektur**: SwiftData-Auto-Spiegelung behalten oder auf CKSyncEngine migrieren? | Constitution IX und ADR-0003 verbieten beides nebeneinander; die Auto-Spiegelung erzwingt optionale Felder ohne Unique-Constraints | Migrieren, wie das Paket es vorsieht — aber den Migrationspfad für bestehende iCloud-Aufnahmen im selben Beschluss festlegen und als GATE-MIGRATE prüfen. Ohne Migrationsplan die Entscheidung **nicht** treffen |
+| **D7** | **Plattformversionen**: 27.0 überall wie gefordert, oder zunächst auf 26.0 bleiben? Dazu: ist `.watchOS(.v11)` ein Fehler? | Bestimmt Mindesthardware, Bestandsnutzer und welche APIs überhaupt zur Verfügung stehen · **hängt an D9** | 27.0 nur, wenn GATE-SDK zeigt, dass die vorausgesetzten Symbole wirklich 27er-exklusiv sind. Sonst auf 26.0 starten und den Sprung als eigenen Meilenstein planen — mit ADR, weil es Constitution III berührt |
+| **D9** | **Produktzukunft der Diktier-App**: wird BrainSpeak zum Wissensplayer umgebaut, oder entstehen **zwei Produkte** auf gemeinsamem `BrainSpeakKit`? | Bestimmt die Antwort auf D7 und D8; es gibt Bestandsnutzer mit Daten in iCloud und eine laufende TestFlight-Verteilung | **Zwei Produkte auf gemeinsamem Kit.** Der Wissensplayer bekommt eigene Bundle-ID und eigenen CloudKit-Container; `BrainSpeakKit` wird um Zeitbezug und Claims erweitert und von beiden genutzt. Damit entfällt die riskanteste Migration (D8 betrifft dann nur neue Records) und D7 kann der Player allein auf 27.0 gehen, ohne Bestandsnutzer der Diktier-App auszusperren |
+| **D8** | **Syncarchitektur**: SwiftData-Auto-Spiegelung behalten oder auf CKSyncEngine migrieren? | Constitution IX und ADR-0003 verbieten beides nebeneinander; die Auto-Spiegelung erzwingt optionale Felder ohne Unique-Constraints · **hängt an D9** | Migrieren, wie das Paket es vorsieht — aber den Migrationspfad für bestehende iCloud-Aufnahmen im selben Beschluss festlegen und als GATE-MIGRATE prüfen. Ohne Migrationsplan die Entscheidung **nicht** treffen |
 
 ---
 

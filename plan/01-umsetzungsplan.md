@@ -371,10 +371,11 @@ Die Task-IDs des Pakets sind stabil und werden **nicht** umnummeriert. Abweichen
 | A3 | **US11 Export (T093–T098) direkt nach US4** möglich | Braucht extern nur T046. Zieht das Markdown-Sicherheitsmodell (SafeSourceLink, Tokenausschluss) früh ins Licht. |
 | A4 | **US14 YouTube nicht in M1** | T111–T158 hängt an T086. Erst die Rechte-/Identitätsmechanik am unstrittigen RSS-Fall, dann der Sonderfall mit eigener Rechtslage. |
 
-| A5 | **Zeitbezug des Transkripts als allererste Aufgabe in M3**, vor Segmenten, Claims und Evidence | Aus dem Audit: die vorhandene Engine verwirft Medienzeiten. Jedes Artefakt, das vorher entsteht, müsste neu erzeugt werden. |
+| A5 | **Herkunftsbindung vor Claims in M3**: T030 (Sprachanalyse), T031 (unveränderliche Medienfassung/Transkriptrevision) und T032 (Analyseabdeckung) **müssen vor T033 (Claims)** laufen | Der Abhängigkeitsgraph des Pakets erzwingt das heute **nicht**: T033 hängt nur an `T028, T006`, ebenso T030, T031 und T032. Claims können damit formal erzeugt werden, bevor Medienidentität, Zeitbezug und Abdeckung feststehen. Zusammen mit dem Audit-Befund (Engine verwirft Medienzeiten, Ausgabetyp ist ein Markdown-String) ist das der wahrscheinlichste Weg, in M3 eine unbrauchbare Artefaktcharge zu erzeugen. |
 
 Wird A1 oder A2 verworfen, bleibt der Plan gültig — die Meilensteine M8a und M10 tauschen dann die Position.
-A5 ist nicht verhandelbar: es ist keine Priorisierung, sondern eine Reihenfolgebedingung.
+A5 ist nicht verhandelbar: es ist keine Priorisierung, sondern eine Reihenfolgebedingung. Sie gehört als echte
+`dependsOn`-Ergänzung in `tasks.json` (T033 → T030, T031, T032), nicht nur als Absprache.
 
 ---
 
@@ -386,19 +387,29 @@ Transcription, Audio und Intelligence relevant, dazu das Persistenz- und Watch-G
 tragfähige Substanz**, mit Anpassungsbedarf. Die Diktier-, Hotkey-, Insertion-, Keyboard- und Modus-Oberflächen
 (`Sources/Hotkeys`, `Sources/Insertion`, `Sources/Keyboard`, `Sources/Settings`) sind für dieses Produkt nicht nutzbar.
 
-| Meilenstein | Aufgaben | davon Abnahmevorbereitung | Anteil |
-|---|---|---|---|
-| M0 Grundlagen | 10 | 0 | 4 % |
-| M1–M7 Rückgrat | 69 | 28 | 26 % |
-| M8a Smart Podcast List | 48 | 17 | 18 % |
-| M8b Plattformen + M8c Export | 19 | 7 | 7 % |
-| M9a YouTube/Highlights/MCP | 48 | 16 | 18 % |
-| M9b Mixer + Breadcrumb | 60 | 21 | 23 % |
-| M10 Release-Gates | 12 | 0 | 5 % |
-| **Summe** | **266** | **89** | |
+| Meilenstein | Aufgaben | davon Abnahmevorbereitung | Abnahmeanteil | Anteil am Gesamtumfang |
+|---|---|---|---|---|
+| M0 Grundlagen | 10 | 0 | 0 % | 3,8 % |
+| M1–M7 Rückgrat | 69 | **8** | **12 %** | 25,9 % |
+| M8a Smart Podcast List | 48 | 24 | 50 % | 18,0 % |
+| M8b Plattformen + M8c Export | 19 | 3 | 16 % | 7,1 % |
+| M9a YouTube/Highlights/MCP | 48 | 24 | 50 % | 18,0 % |
+| M9b Mixer + Breadcrumb | 60 | 30 | 50 % | 22,6 % |
+| M10 Release-Gates | 12 | 0 | 0 % | 4,5 % |
+| **Summe** | **266** | **89** | 33 % | 100 % |
 
-Ein Drittel aller Aufgaben (89 von 266) ist Abnahmevorbereitung **vor** der Implementierung. Das ist Absicht und
-sollte nicht als Puffer missverstanden werden.
+Insgesamt ist ein Drittel aller Aufgaben Abnahmevorbereitung **vor** der Implementierung — aber **die Verteilung ist
+sehr ungleich**, und das ist der eigentlich planungsrelevante Befund:
+
+> Die später ergänzten Blöcke (M8a, M9a, M9b) sind konsequent test-first geschnitten: auf jede Implementierungs-
+> aufgabe kommt genau eine Abnahmevorbereitung. **Das Rückgrat M1–M7 hat dagegen nur 8 Abnahmeaufgaben auf
+> 69 Schritte** — im Wesentlichen eine Ende-zu-Ende-Demonstration je Nutzerablauf, keine anforderungsgenaue
+> Abnahme pro FR.
+
+Genau dort liegen aber Versprechen V1 und V2 und die riskantesten Gates (GATE-TIME, GATE-PLAY, GATE-SYNC).
+**Empfehlung:** Für M2, M3 und M6 Abnahmefälle auf FR-Ebene nachziehen, wie es M8a bereits vormacht. Das sind
+geschätzt 15–20 zusätzliche Aufgaben und der billigste verfügbare Risikoabbau — ohne sie sichert das Rückgrat
+deutlich schwächer ab als die Erweiterungen darauf.
 
 **Was der Audit am Aufwand verschiebt:**
 

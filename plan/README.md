@@ -50,6 +50,16 @@ Ran 95 tests ... OK
 Anforderungsänderungen (etwa die vorgeschlagenen FR-145–147) gehören nicht in diesen Ordner, sondern über das
 Änderungsverfahren der Constitution in `specs/` — mit neu erzeugtem Manifest.
 
+## Prüfprotokoll
+
+| Datum | Prüfung | Ergebnis |
+|---|---|---|
+| 2026-09-20 | Meilenstein-Zuschnitt gegen `tasks.json` nachgerechnet | Aufgabenzahlen bestätigt (Summe 266) |
+| 2026-09-20 | **Abnahmeverteilung je Meilenstein neu berechnet** | **Fehler gefunden und korrigiert** — Rückgrat M1–M7 hat 8 statt der ursprünglich angegebenen 28 Abnahmeaufgaben; Empfehlung zum Nachziehen in [01 §8](01-umsetzungsplan.md) |
+| 2026-09-20 | Abhängigkeiten von T028–T036 geprüft | **Lücke gefunden** — T033 (Claims) hängt nicht an T030/T031/T032; A5 in [01 §7](01-umsetzungsplan.md) präzisiert |
+| 2026-09-20 | Bestandsprodukt und Nutzer geprüft (`docs/APP_STORE_READINESS.md`, `docs/AUDIO_SYNC.md`) | **Lücke gefunden** — neue Entscheidung D9 in [03](03-risiken-und-entscheidungen.md), neues Risiko R13 |
+| 2026-09-20 | Querverweise und Zahlen in allen Plandokumenten | keine toten Links, keine veralteten Formulierungen |
+
 ## Stand und Ehrlichkeit
 
 Nichts in diesem Repository ist gebaute App. Das Spec-Kit-Paket validiert als Dokumentpaket
