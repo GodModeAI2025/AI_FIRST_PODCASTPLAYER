@@ -169,21 +169,21 @@ struct MacSettingsView: View {
 
     var body: some View {
         TabView {
+            // Dieselben Abschnitte wie auf iOS. Zwei Fassungen desselben
+            // Schalters driften — und gedriftet wäre er genau dort, wo es
+            // um Einwilligung geht.
             Form {
-                LabeledContent("Auf diesem Gerät") {
-                    Text(statusText(model.modelStatus.onDevice))
-                }
-                LabeledContent("Private Cloud Compute") {
-                    Text(statusText(model.modelStatus.privateCloudCompute))
-                }
-                Text("PodcastAI nutzt ausschließlich Apple-Modelle. Ist eine Stufe nicht "
-                     + "verfügbar, fehlt die Funktion — es wird kein anderer Anbieter "
-                     + "eingesetzt.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                IntelligenceSettingsSection()
             }
             .formStyle(.grouped)
             .tabItem { Label("Intelligenz", systemImage: "sparkles") }
+            .frame(width: 420)
+
+            Form {
+                LearningSettingsSection()
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("Lernen", systemImage: "target") }
             .frame(width: 420)
 
             Form {
@@ -195,11 +195,5 @@ struct MacSettingsView: View {
         }
         .frame(minHeight: 220)
     }
-
-    private func statusText(_ availability: ModelAvailability) -> String {
-        switch availability {
-        case .available: "Verfügbar"
-        case .unavailable(let reason): reason.message
-        }
-    }
 }
+

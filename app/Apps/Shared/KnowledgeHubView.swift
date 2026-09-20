@@ -74,6 +74,23 @@ struct KnowledgeHubView: View {
                 Text("Bestimmt, welche Stellen dir als relevant angezeigt werden. "
                      + "Jederzeit einsehbar und korrigierbar.")
             }
+
+            #if os(iOS)
+            // Auf dem Mac liegen die Einstellungen im Programmmenü. Auf iOS
+            // gab es sie gar nicht — Modellstatus, Lernschalter und der
+            // Spotlight-Schalter waren nur auf einem der beiden Geräte
+            // erreichbar.
+            Section {
+                NavigationLink(value: HubDestination.settings) {
+                    HubRow(
+                        title: "Einstellungen",
+                        detail: "Intelligenz, Lernen, Systemsuche",
+                        symbol: "gearshape",
+                        tint: .gray
+                    )
+                }
+            }
+            #endif
         }
         .navigationTitle("Wissen")
         .navigationDestination(for: HubDestination.self) { destination in
@@ -82,12 +99,18 @@ struct KnowledgeHubView: View {
             case .trails: TrailListView()
             case .counterpoint: CounterpointView()
             case .interests: InterestsView()
+            #if os(iOS)
+            case .settings: SettingsView()
+            #endif
             }
         }
     }
 
     enum HubDestination: Hashable {
         case highlights, trails, counterpoint, interests
+        #if os(iOS)
+        case settings
+        #endif
     }
 }
 

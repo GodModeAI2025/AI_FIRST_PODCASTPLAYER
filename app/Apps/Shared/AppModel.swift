@@ -658,6 +658,29 @@ public final class AppModel {
         for interest in fresh { profile.add(interest) }
     }
 
+    /// Schaltet das Ableiten von Interessen ein oder aus.
+    ///
+    /// Ausschalten entfernt die bestehenden Vorschläge gleich mit. Sie
+    /// stehen zu lassen wäre der unangenehmere Zustand: ein Abschnitt
+    /// „Vorschläge von PodcastAI“ unter einem Schalter, der sagt, dass
+    /// nichts vorgeschlagen wird.
+    public func setLearningEnabled(_ enabled: Bool) {
+        profile.learningEnabled = enabled
+        if !enabled {
+            for interest in profile.suggested { profile.remove(interest.id) }
+        }
+    }
+
+    /// Verwirft alle Vorschläge und vergisst die Ablehnungen.
+    ///
+    /// Zwei Dinge in einem, und das ist Absicht: wer zurücksetzt, will nicht
+    /// dieselbe Liste ohne die abgelehnten Einträge, sondern einen neuen
+    /// Anlauf.
+    public func resetSuggestions() {
+        for interest in profile.suggested { profile.remove(interest.id) }
+        rejectedSuggestions = []
+    }
+
     /// Übernimmt einen Vorschlag. Ab hier wirkt er.
     public func confirmSuggestion(_ id: InterestID) {
         profile.confirm(id)
