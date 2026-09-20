@@ -99,6 +99,56 @@ public final class AppModel {
         }
     }
 
+    // MARK: - Folgen erschliessen
+
+    public private(set) var episodes: [SourceID: [Episode]] = [:]
+    /// Welche Folge gerade in welcher Stufe steckt. Die Oberfläche zeigt
+    /// damit an, wo die Arbeit steht — statt einer Anzeige ohne Aussage.
+    public private(set) var stages: [EpisodeID: ProcessingStage] = [:]
+    public private(set) var stageDetails: [EpisodeID: String] = [:]
+
+    public func loadEpisodes(for sourceID: SourceID) async {
+        do {
+            episodes[sourceID] = try await store.episodes(forSource: sourceID)
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    /// Erschliesst eine Folge: laden, transkribieren, Belege bilden.
+    ///
+    /// Ausdrücklich eine Nutzeraktion. Abonnieren allein lädt und analysiert
+    /// nichts — das kostet Daten, Akku und Zeit, und die Entscheidung
+    /// darüber gehört dem Nutzer.
+    public func analyze(_ episode: Episode, audioURL: URL, locale: Locale = .current) async {
+        stages[episode.id] = .discovered
+        activity = "„\(episode.title)“ wird erschlossen …"
+        defer { activity = nil }
+
+        let pipeline = ContentPipeline(
+            store: store,
+            mediaDirectory: LocalMediaLocator.mediaDirectory,
+            onProgress: { [weak self] progress in
+                Task { @MainActor in
+                    self?.stages[progress.episodeID] = progress.stage
+                    if let detail = progress.detail {
+                        self?.stageDetails[progress.episodeID] = detail
+                    }
+                }
+            }
+        )
+        do {
+            _ = try await pipeline.process(
+                episode: episode, audioURL: audioURL,
+                sourceID: episode.sourceID, locale: locale
+            )
+        } catch {
+            stages[episode.id] = .failed
+            stageDetails[episode.id] = error.localizedDescription
+            lastError = error.localizedDescription
+        }
+    }
+
     // MARK: - Interessen
 
     public func addInterest(_ label: String, kind: InterestKind) async {
@@ -302,6 +352,37 @@ public final class AppModel {
             return
         }
         play(plan, from: .chat)
+    }
+
+    /// Baut den Markdown-Export über alle gemerkten Stellen.
+    public func exportKnowledge() -> String {
+        guard !highlights.isEmpty else { return "" }
+        let exporter = MarkdownExporter()
+        return highlights.map { highlight in
+            let claim = Claim(
+                id: ClaimID(stable: highlight.id.rawValue),
+                statement: highlight.note ?? "Gemerkte Stelle",
+                evidenceIDs: [highlight.evidenceID],
+                provenance: highlight.note == nil ? .original : .user
+            )
+            return exporter.export(ExportableInsight(
+                title: highlight.note ?? "Gemerkte Stelle",
+                claim: claim, evidence: [],
+                userNote: highlight.note,
+                sourceTitles: [:], episodeTitles: [:]
+            ))
+        }
+        .joined(separator: "\n\n")
+    }
+
+    /// Prüft alle automatischen Themenfeeds auf neues Material.
+    ///
+    /// Veröffentlicht höchstens eine Ausgabe je Feed und Lauf: fünf auf
+    /// einmal wären keine Neuigkeit mehr, sondern eine Flut.
+    public func processPendingEditions() async {
+        for feed in smartFeeds where feed.publicationPolicy.isAutomatic {
+            _ = await buildEdition(feedID: feed.id)
+        }
     }
 
     public func clearError() { lastError = nil }

@@ -17,7 +17,7 @@ SWIFT = sorted(ROOT.rglob("*.swift"))
 # In Swift eingebaute oder aus Apple-Frameworks stammende Namen.
 KNOWN = {
     # Standardbibliothek
-    "String","Int","Int64","Int32","UInt8","UInt64","Double","Bool","Date","UUID","URL","Data",
+    "String","Int","Int64","Int32","UInt8","UInt32","UInt64","UInt","Int16","Double","Bool","Date","UUID","URL","Data",
     "Array","Set","Dictionary","Result","Error","Void","Any","AnyObject","Optional","Character",
     "Task","TimeInterval","IndexSet","Range","ClosedRange","Comparable","Hashable","Equatable",
     "Codable","Encodable","Decodable","Sendable","Identifiable","CustomStringConvertible",
@@ -51,7 +51,9 @@ KNOWN = {
     "IntentDescription","IntentResult","ProvidesDialog","AppIntent","AppEntity","EntityQuery",
     "AppShortcut","AppShortcutsProvider","Dependency","Parameter","MainActor","NSWorkspace",
     "SecTaskCreateFromSelf","Never","PackageDescription","Package","NavigationLink",
-    "CDATABlock","Test","Suite","Issue","Testing",
+    "CDATABlock","Test","Suite","Issue","Testing","ShareLink","ImageRenderer",
+    "BGTaskScheduler","BGAppRefreshTask","BGProcessingTask","BGAppRefreshTaskRequest",
+    "BGProcessingTaskRequest","UIImage","NSImage","CGSize","LinearGradient","Gradient",
 }
 
 declared, extended, referenced, problems = {}, {}, {}, []

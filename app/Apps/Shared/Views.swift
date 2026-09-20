@@ -251,7 +251,7 @@ struct LibraryView: View {
         }
         .navigationTitle("Mediathek")
         .navigationDestination(for: SourceID.self) { sourceID in
-            SourceDetailView(sourceID: sourceID)
+            EpisodeListView(sourceID: sourceID)
         }
         .toolbar {
             Button { showingAdd = true } label: {

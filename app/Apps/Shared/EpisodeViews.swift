@@ -1,0 +1,194 @@
+//
+//  EpisodeViews.swift
+//  PodcastAI
+//
+//  Folgenliste und Erschliessung.
+//
+//  Der wichtigste Punkt an dieser Oberfläche: **Abonnieren erschliesst
+//  nichts.** Eine Folge wird erst analysiert, wenn der Nutzer es sagt —
+//  das kostet Daten, Akku und Zeit, und die Entscheidung gehört ihm.
+//  Deshalb steht an jeder Folge sichtbar, in welchem Zustand sie ist.
+//
+
+import SwiftUI
+import PodcastAIKit
+
+struct EpisodeListView: View {
+
+    let sourceID: SourceID
+    @Environment(AppModel.self) private var model
+
+    private var source: Source? { model.sources.first { $0.id == sourceID } }
+    private var episodes: [Episode] { model.episodes[sourceID] ?? [] }
+
+    var body: some View {
+        List {
+            if !(source?.capabilities.supportsTimedKnowledge ?? true),
+               let reason = source?.capabilities.limitationReason {
+                Section {
+                    Label(reason, systemImage: "exclamationmark.triangle")
+                        .font(.callout)
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            Section {
+                ForEach(episodes) { episode in
+                    EpisodeRow(episode: episode)
+                }
+            } header: {
+                // Gefunden und erschlossen sind getrennte Zahlen. Sie zu
+                // vermischen würde behaupten, alles sei durchsuchbar.
+                let analyzed = episodes.filter { model.stages[$0.id] == .evidenceExtracted }.count
+                Text("\(episodes.count) gefunden · \(analyzed) erschlossen")
+            }
+        }
+        .navigationTitle(source?.title ?? "Folgen")
+        .task { await model.loadEpisodes(for: sourceID) }
+        .overlay {
+            if episodes.isEmpty {
+                ContentUnavailableView(
+                    "Keine Folgen",
+                    systemImage: "list.bullet",
+                    description: Text("In diesem Feed wurden keine Folgen gefunden.")
+                )
+            }
+        }
+    }
+}
+
+struct EpisodeRow: View {
+
+    let episode: Episode
+    @Environment(AppModel.self) private var model
+
+    private var stage: ProcessingStage? { model.stages[episode.id] }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(episode.title).font(.headline)
+
+            HStack(spacing: 8) {
+                if let published = episode.publishedAt {
+                    Text(published, style: .date)
+                }
+                if let duration = episode.declaredDuration {
+                    Text(duration.shortDescription)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            if let stage {
+                Label(
+                    model.stageDetails[episode.id].map { "\(stage.label) · \($0)" } ?? stage.label,
+                    systemImage: stage == .failed ? "exclamationmark.triangle" : "circle.dotted"
+                )
+                .font(.caption2)
+                .foregroundStyle(stage == .failed ? .orange : .secondary)
+            }
+
+            if stage == nil || stage == .failed {
+                Button {
+                    // Ohne abrufbares Audio gibt es nichts zu erschliessen —
+                    // dann sagt die App das, statt es zu versuchen.
+                    guard let url = episode.webPageURL else { return }
+                    Task { await model.analyze(episode, audioURL: url) }
+                } label: {
+                    Label(stage == .failed ? "Erneut versuchen" : "Erschliessen",
+                          systemImage: "waveform.badge.magnifyingglass")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .padding(.top, 2)
+            }
+        }
+        .padding(.vertical, 3)
+    }
+}
+
+// MARK: - Wissen
+
+/// Gemerkte Stellen und ihr Weg nach draussen.
+struct KnowledgeView: View {
+
+    @Environment(AppModel.self) private var model
+    @State private var exported: String?
+
+    var body: some View {
+        List {
+            if model.highlights.isEmpty {
+                ContentUnavailableView {
+                    Label("Noch nichts gemerkt", systemImage: "bookmark")
+                } description: {
+                    Text("Während des Hörens kannst du eine Stelle merken — mit Quelle, "
+                         + "Timecode und Originaltext.")
+                }
+            }
+            ForEach(model.highlights) { highlight in
+                VStack(alignment: .leading, spacing: 4) {
+                    if let note = highlight.note {
+                        Text(note).font(.body)
+                    }
+                    Text("gemerkt \(highlight.capturedVia.label)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Wissen")
+        .toolbar {
+            if !model.highlights.isEmpty {
+                Button {
+                    exported = model.exportKnowledge()
+                } label: {
+                    Label("Als Markdown exportieren", systemImage: "square.and.arrow.up")
+                }
+            }
+        }
+        .sheet(item: Binding(
+            get: { exported.map(ExportPreview.init) },
+            set: { exported = $0?.text }
+        )) { preview in
+            ExportPreviewSheet(text: preview.text)
+        }
+    }
+}
+
+struct ExportPreview: Identifiable {
+    let text: String
+    var id: String { text }
+    init(_ text: String) { self.text = text }
+}
+
+/// Der Export wird gezeigt, bevor er das Gerät verlässt.
+///
+/// Nicht aus Höflichkeit: ein Export kann Originalzitate und eigene Notizen
+/// enthalten, und wer ihn weitergibt, sollte vorher gesehen haben, was darin
+/// steht.
+struct ExportPreviewSheet: View {
+
+    let text: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Text(text)
+                    .font(.system(.footnote, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+            }
+            .navigationTitle("Export")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    ShareLink(item: text) { Label("Teilen", systemImage: "square.and.arrow.up") }
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fertig") { dismiss() }
+                }
+            }
+        }
+    }
+}
