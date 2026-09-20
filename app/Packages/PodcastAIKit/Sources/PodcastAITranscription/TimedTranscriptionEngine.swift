@@ -132,7 +132,11 @@ public actor TimedTranscriptionEngine {
             throw TranscriptionError.noCompatibleAudioFormat
         }
 
-        let (inputSequence, continuation) = AsyncStream<AnalyzerInput>.makeStream()
+        // Begrenzte Warteschlange statt der unbegrenzten Voreinstellung.
+        // Der Leser ist schneller als die Erkennung; unbegrenzt gepuffert
+        // sammelt sich eine Stunde Audio als PCM im Speicher an.
+        let (inputSequence, continuation) = AsyncStream<AnalyzerInput>.makeStream(
+            bufferingPolicy: .bufferingOldest(Self.inputBufferCount))
         self.inputContinuation = continuation
         try await analyzer.start(inputSequence: inputSequence)
 
@@ -144,7 +148,7 @@ public actor TimedTranscriptionEngine {
                 var framesFed: AVAudioFramePosition = 0
                 for try await buffer in AudioFileReader.stream(from: url, startingAt: offset) {
                     let converted = try converter.convert(buffer, to: analyzerFormat)
-                    continuation.yield(AnalyzerInput(buffer: converted))
+                    await Self.feed(AnalyzerInput(buffer: converted), into: continuation)
                     framesFed += AVAudioFramePosition(buffer.frameLength)
                     await self?.recordFedPosition(
                         frames: framesFed, sampleRate: buffer.format.sampleRate, offset: offset
@@ -174,6 +178,44 @@ public actor TimedTranscriptionEngine {
                 }
                 feeding.cancel()
                 await self?.markStopped()
+            }
+        }
+    }
+
+    /// Wie viele Blöcke höchstens auf die Erkennung warten dürfen.
+    /// 64 Blöcke zu 4096 Frames sind bei 16 kHz gut 16 Sekunden Vorlauf und
+    /// wenige Megabyte — genug, damit die Erkennung nie auf die Platte
+    /// warten muss, und wenig genug, dass die Länge der Folge keine Rolle
+    /// spielt.
+    static let inputBufferCount = 64
+
+    /// Speist einen Block ein und **wartet**, wenn die Warteschlange voll ist.
+    ///
+    /// `AsyncStream` kennt keinen Gegendruck: es kann puffern oder
+    /// verwerfen, nicht bremsen. Unbegrenzt puffern heißt, dass der Leser
+    /// der Erkennung davonläuft und der Speicher mit ihm. Verwerfen hieße
+    /// stumm fehlendes Transkript — ein Loch, das niemand bemerkt, weil an
+    /// der Stelle einfach kein Satz steht. Also: begrenzt puffern und bei
+    /// Rückstau kurz warten, bis wieder Platz ist.
+    ///
+    /// `.bufferingOldest` ist dafür die richtige Wahl: bei vollem Puffer
+    /// wird der *neue* Block abgewiesen und zurückgegeben, statt einen
+    /// bereits angenommenen zu verdrängen. Damit geht kein Block verloren.
+    static func feed(
+        _ input: AnalyzerInput, into continuation: AsyncStream<AnalyzerInput>.Continuation
+    ) async {
+        var pending = input
+        while !Task.isCancelled {
+            switch continuation.yield(pending) {
+            case .enqueued:
+                return
+            case .dropped(let rejected):
+                pending = rejected
+                try? await Task.sleep(for: .milliseconds(20))
+            case .terminated:
+                return
+            @unknown default:
+                return
             }
         }
     }

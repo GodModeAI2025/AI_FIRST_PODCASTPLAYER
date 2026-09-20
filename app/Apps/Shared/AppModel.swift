@@ -91,6 +91,65 @@ public final class AppModel {
         } catch {
             lastError = error.localizedDescription
         }
+        await refreshRelevantToday()
+    }
+
+    /// Stellt „Für dich“ zusammen.
+    ///
+    /// Diese Methode fehlte. `relevantToday` war deklariert, wurde gelesen
+    /// und nie geschrieben — die Ansicht zeigte deshalb immer „Nichts
+    /// Neues“, ganz gleich wie viel analysiert war. Der Bewerter, der
+    /// Hörzustand und die Belege waren alle da; verbunden war nichts.
+    ///
+    /// Drei Regeln, die hier zusammenkommen:
+    ///
+    /// - Nur **bestätigte** Interessen führen zu Vorschlägen. Das setzt
+    ///   `RelevanceScorer` durch; hier wird es nicht umgangen.
+    /// - Was gehört ist, bleibt gehört: Belege, deren Stelle der Hörzustand
+    ///   bereits abdeckt, fallen heraus. Sonst böte die App dieselbe Stelle
+    ///   jeden Tag erneut an.
+    /// - Ohne Timecode kein Vorschlag. Ein Beleg, den man nicht nachhören
+    ///   kann, gehört nicht auf eine Liste, deren Versprechen das Nachhören ist.
+    public func refreshRelevantToday() async {
+        do {
+            let evidence = try await store.evidenceForAnalyzedEpisodes()
+            let matches = RelevanceScorer().score(evidence: evidence, profile: profile)
+            guard !matches.isEmpty else {
+                relevantToday = []
+                return
+            }
+
+            let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let titles = try await store.titles(
+                forEpisodes: Array(Set(evidence.map(\.episodeID))))
+
+            var seen: Set<EvidenceID> = []
+            var items: [RelevantItem] = []
+            // Der beste Treffer je Beleg gewinnt: ein Beleg, der zu drei
+            // Themen passt, erscheint einmal, nicht dreimal.
+            for match in matches.sorted(by: { $0.score > $1.score }) {
+                guard !seen.contains(match.evidenceID) else { continue }
+                guard let item = byID[match.evidenceID], let range = item.range else { continue }
+                // `unheardPortion` statt eines nackten Abdeckungsvergleichs:
+                // es berücksichtigt auch ausdrücklich Übersprungenes und
+                // verwirft Reststücke, die zu kurz für Inhalt sind.
+                guard !ledger.unheardPortion(of: range, in: item.mediaVersionID).isEmpty
+                else { continue }
+                seen.insert(match.evidenceID)
+                let title = titles[item.episodeID]
+                items.append(RelevantItem(
+                    id: item.id,
+                    sourceTitle: title?.source ?? "Unbekannte Quelle",
+                    episodeTitle: title?.episode ?? "Unbekannte Folge",
+                    range: range,
+                    excerpt: item.quotedText,
+                    relevance: match.personalRelevance()
+                ))
+            }
+            relevantToday = items
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     // MARK: - Quellen
@@ -124,6 +183,7 @@ public final class AppModel {
         } catch {
             lastError = error.localizedDescription
         }
+        await refreshRelevantToday()
     }
 
     // MARK: - Folgen erschliessen
@@ -243,12 +303,21 @@ public final class AppModel {
 
     // MARK: - Themenfeeds
 
-    public func createSmartFeed(title: String, topicIDs: [InterestID], minutes: Int) {
+    /// Legt einen Themenfeed an und gibt seine Kennung zurück.
+    ///
+    /// Die Rückgabe ist der Grund, warum der Aufrufer gleich danach eine
+    /// erste Ausgabe bauen kann — ein Feed, der direkt nach dem Anlegen leer
+    /// ist, sieht aus wie ein Fehler.
+    @discardableResult
+    public func createSmartFeed(
+        title: String, topicIDs: [InterestID], minutes: Int
+    ) -> SmartFeedID {
         let feed = SmartPodcastFeed(
             title: title, topicIDs: topicIDs,
             editionMode: .budgeted(MediaDuration(minutes: minutes))
         )
         smartFeeds.append(feed)
+        return feed.id
     }
 
     /// Stellt eine neue Ausgabe zusammen. Startet ausdrücklich keinen Ton.

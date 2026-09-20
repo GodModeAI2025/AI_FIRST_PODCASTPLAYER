@@ -273,5 +273,33 @@ public actor LibraryStore {
         descriptor.fetchLimit = limit
         return try modelContext.fetch(descriptor).map(\.snapshot)
     }
+
+    /// Folgen- und Quellentitel zu einer Menge von Folgen, in einem Zug.
+    ///
+    /// Die Oberfläche braucht zu jedem Beleg beide Titel. Sie je Beleg
+    /// einzeln zu holen wären bei 500 Belegen 500 Abfragen; hier ist es eine.
+    public func titles(forEpisodes episodeIDs: [EpisodeID]) throws -> [EpisodeID: EpisodeTitles] {
+        let identifiers = Set(episodeIDs.map(\.rawValue))
+        guard !identifiers.isEmpty else { return [:] }
+        let stored = try modelContext.fetch(
+            FetchDescriptor<StoredEpisode>(
+                predicate: #Predicate { identifiers.contains($0.identifier) }
+            )
+        )
+        var result: [EpisodeID: EpisodeTitles] = [:]
+        for episode in stored {
+            result[EpisodeID(rawValue: episode.identifier)] = EpisodeTitles(
+                episode: episode.title,
+                source: episode.source?.title ?? "Unbekannte Quelle"
+            )
+        }
+        return result
+    }
+
+    /// Zwei Titel, die immer zusammen gebraucht werden.
+    public struct EpisodeTitles: Sendable {
+        public let episode: String
+        public let source: String
+    }
 }
 #endif

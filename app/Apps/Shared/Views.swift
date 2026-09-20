@@ -495,10 +495,18 @@ struct NewSmartFeedSheet: View {
                                 Text(interest.label).foregroundStyle(.primary)
                                 Spacer()
                                 if selected.contains(interest.id) {
-                                    Image(systemName: "checkmark").foregroundStyle(.tint)
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.tint)
+                                        .accessibilityHidden(true)
                                 }
                             }
                         }
+                        // Das Häkchen ist für VoiceOver kein Zustand. Ohne
+                        // diesen Zusatz klingen ausgewählte und nicht
+                        // ausgewählte Themen identisch.
+                        .accessibilityAddTraits(
+                            selected.contains(interest.id) ? [.isButton, .isSelected] : .isButton
+                        )
                     }
                 }
                 Section {
@@ -511,8 +519,23 @@ struct NewSmartFeedSheet: View {
             .navigationTitle("Themen-Update")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Anlegen") { dismiss() }
-                        .disabled(title.isEmpty || selected.isEmpty)
+                    // Der Knopf legte bisher nichts an, er schloss nur das
+                    // Blatt. Das Themen-Update — das sichtbarste Merkmal des
+                    // Konzepts — war damit nicht erreichbar.
+                    Button("Anlegen") {
+                        let feedID = model.createSmartFeed(
+                            title: title,
+                            topicIDs: model.profile.topics
+                                .map(\.id)
+                                .filter(selected.contains),
+                            minutes: minutes
+                        )
+                        dismiss()
+                        // Gleich eine erste Ausgabe bauen: ein leerer Feed
+                        // direkt nach dem Anlegen sieht aus wie ein Fehler.
+                        Task { await model.buildEdition(feedID: feedID) }
+                    }
+                    .disabled(title.isEmpty || selected.isEmpty)
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Abbrechen") { dismiss() }

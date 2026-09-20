@@ -58,6 +58,7 @@ KNOWN = {
     "BGProcessingTaskRequest","UIImage","NSImage","CGSize","LinearGradient","Gradient",
     "Announcement","AccessibilityNotification","URLSessionDownloadDelegate",
     "AppDependencyManager","NSLock","NSLog","AVAudioSession",
+    "AsyncIteratorProtocol","AVAudioTime",
 }
 
 declared, extended, referenced, problems = {}, {}, {}, []
