@@ -55,7 +55,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
     @State private var selection: Tab = .forYou
 
-    enum Tab: Hashable { case forYou, feeds, chat, library, knowledge, interests }
+    enum Tab: Hashable { case forYou, feeds, chat, library, knowledge, interests, perspective }
 
     var body: some View {
         TabView(selection: $selection) {
@@ -76,6 +76,9 @@ struct RootView: View {
             }
             Tab("Interessen", systemImage: "target", value: Tab.interests) {
                 NavigationStack { InterestsView() }
+            }
+            Tab("Prüfen", systemImage: "arrow.left.arrow.right", value: Tab.perspective) {
+                NavigationStack { CounterpointView() }
             }
         }
         .safeAreaInset(edge: .bottom) { MiniPlayerBar() }

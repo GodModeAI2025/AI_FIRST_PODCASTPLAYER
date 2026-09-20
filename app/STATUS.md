@@ -20,27 +20,29 @@ Was belegt ist, steht unter [Verifikation](#verifikation).
 | 8 | Hörzustand auf Segmentebene | ✅ | `ListeningLedger`, `IntervalSet` |
 | 9 | Chat als zweite Bedienoberfläche | ✅ | `ChatScope`, `ChatView` |
 | 10 | Chat steuert den Player | ✅ | `ChatAnswer.playbackProposal()` |
-| 11 | Widerspruchs-Mixer | ◐ Modell da, **keine Oberfläche** | `Counterpoint.swift` |
+| 11 | Widerspruchs-Mixer | ✅ | `Counterpoint.swift`, `CounterpointView` |
 | 12 | Highlights und Wissen | ✅ | `Highlight`, `KnowledgeView` |
-| 13 | Breadcrumb Trail | ◐ Modell da, **keine Oberfläche** | `KnowledgeTrail.swift` |
+| 13 | Breadcrumb Trail | ✅ | `KnowledgeTrail.swift`, `SessionClosureSheet`, `TrailListView` |
 | 14 | Markdown-Export | ✅ | `MarkdownExporter`, `ExportPreviewSheet` |
 | 15 | Agent-first: App Intents | ✅ | `Intents.swift` |
-| 16 | Systemweite Auffindbarkeit (Spotlight) | ✗ **nicht gebaut** | — |
-| 17 | macOS-MCP-Zugang | ✗ **nicht gebaut** | — |
+| 16 | Systemweite Auffindbarkeit (Spotlight) | ✅ opt-in, standardmässig aus | `SpotlightIndex` |
+| 17 | macOS-MCP-Zugang | ✅ nur lesend, standardmässig aus | `MCPAccess` (macOS-Target) |
 | 18 | Native App, iOS + macOS | ✅ | `project.yml`, zwei Targets |
 | 19 | Privacy-first, nur Apple-Modelle | ✅ | `AppleModelRouter` |
 | 20 | Der durchgehende Flow | ✅ | begehbar: Quelle → erschliessen → Ausgabe → hören → merken → exportieren |
 
-**Bewusst offen:** Kapitel 16 wurde im Plan als FR-145 vorgeschlagen und
-zugleich empfohlen, es **nicht** in 1.0 aufzunehmen — der Systemindex hat
-andere Datenschutzkonsequenzen als der app-interne und braucht eine eigene
-Einwilligung. Kapitel 17 (MCP) ist ein macOS-Zusatz und hängt nicht am Kern.
+**Alle zwanzig Kapitel sind umgesetzt.** Zwei davon mit ausdrücklicher
+Zurückhaltung, weil sie Inhalte aus der App heraustragen:
 
-**Ohne Oberfläche:** Widerspruchs-Mixer und Breadcrumb-Trail sind im
-Datenmodell vollständig, inklusive der heiklen Regeln (eine These wird nur
-durch ausdrückliche Bestätigung zum Standpunkt; Verwerfen verwirft nur den
-Vorschlag). Es fehlen die Ansichten. Das entspricht der Empfehlung D3 aus
-dem Plan, diese 60 Aufgaben nicht ins erste Release zu ziehen.
+* **Systemsuche (16)** ist standardmässig aus und hat eine eigene
+  Einwilligung — der Systemindex hat andere Folgen als der app-interne.
+  Beim Ausschalten werden vorhandene Einträge entfernt, nicht nur keine
+  neuen ergänzt.
+* **MCP (17)** ist standardmässig aus, läuft nur lokal über stdio und kennt
+  ausschliesslich lesende Werkzeuge. Schreiben, Löschen, Interessen ändern
+  und Wiedergabe starten existieren dort nicht als Methode. Jede Abfrage
+  landet in einem Protokoll, das der Nutzer einsehen kann — ein Zugang ohne
+  Protokoll ist kein kontrollierter Zugang.
 
 ## Verifikation
 

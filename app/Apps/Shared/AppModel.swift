@@ -385,6 +385,91 @@ public final class AppModel {
         }
     }
 
+    // MARK: - Gegenpositionen und Wissenspfade
+
+    public internal(set) var trails: [KnowledgeTrail] = []
+
+    /// Sucht belegte Positionen zu einer These.
+    ///
+    /// Die Zuordnung ist zunächst eine Vermutung aus Stichworten und wird
+    /// auch so gekennzeichnet. Ein Modell kann sie bestätigen; ohne Modell
+    /// bleibt sie sichtbar ungeprüft.
+    public func findCounterpoints(for thesis: String) async -> [CounterpointCandidate] {
+        guard let evidence = try? await store.evidenceForAnalyzedEpisodes(), !evidence.isEmpty else {
+            return []
+        }
+        let asQuestion = Interest(label: thesis, kind: .openQuestion)
+        let matches = RelevanceScorer(threshold: 0.15, maximumPerInterest: 20)
+            .score(evidence: evidence, profile: InterestProfile(interests: [asQuestion]))
+
+        let byID = Dictionary(uniqueKeysWithValues: evidence.map { ($0.id, $0) })
+        return matches.compactMap { match in
+            guard let item = byID[match.evidenceID] else { return nil }
+            return CounterpointCandidate(
+                evidenceID: item.id,
+                // Ohne Modellprüfung wird keine Richtung behauptet: die
+                // Stelle gehört zum Thema, mehr ist damit nicht gesagt.
+                relation: .differentPremise,
+                isModelConfirmed: false,
+                sourceTitle: sources.first { $0.id == item.sourceID }?.title ?? "Quelle",
+                excerpt: item.quotedText
+            )
+        }
+    }
+
+    public func playCounterpoints(_ candidates: [CounterpointCandidate], thesis: String) {
+        Task {
+            guard let all = try? await store.evidence(ids: candidates.map(\.evidenceID)) else { return }
+            let context = SnapshotPlanningContext(evidence: Array(all.values))
+            let plan = FocusPlanner(context: context).plan(
+                from: PlaylistProposal(
+                    evidenceIDs: candidates.map(\.evidenceID),
+                    requestSummary: "Gegenpositionen zu: \(thesis)"
+                ),
+                route: .counterpoint,
+                options: FocusPlannerOptions(skipAlreadyHeard: false, ledger: ledger)
+            )
+            guard !plan.isEmpty else {
+                lastError = "Zu dieser These lässt sich nichts abspielen."
+                return
+            }
+            play(plan, from: .tap)
+        }
+    }
+
+    /// Parken: sichert Frage, Belege und Notizen. Ohne Zustimmung zu irgendetwas.
+    public func park(_ closure: SessionClosure) {
+        trails.insert(KnowledgeTrail(
+            question: closure.question,
+            evidenceIDs: closure.supportingEvidenceIDs,
+            highlightIDs: highlights.map(\.id)
+        ), at: 0)
+    }
+
+    /// Vertiefen: erzeugt eine neue, begrenzte Hörsession zur Anschlussfrage.
+    public func deepen(_ closure: SessionClosure) {
+        Task {
+            guard let all = try? await store.evidence(ids: closure.supportingEvidenceIDs) else { return }
+            let context = SnapshotPlanningContext(evidence: Array(all.values))
+            let plan = FocusPlanner(context: context).plan(
+                from: PlaylistProposal(
+                    evidenceIDs: closure.supportingEvidenceIDs,
+                    requestSummary: closure.question
+                ),
+                route: .interestFocus,
+                options: FocusPlannerOptions(
+                    // Begrenztes Budget: Vertiefen ist kein endloser Loop.
+                    budget: closure.suggestedBudget, ledger: ledger
+                )
+            )
+            guard !plan.isEmpty else {
+                lastError = "Dazu ist nichts weiter erschlossen."
+                return
+            }
+            play(plan, from: .tap)
+        }
+    }
+
     public func clearError() { lastError = nil }
 
     static func currentDeviceID() -> String {

@@ -51,7 +51,8 @@ KNOWN = {
     "IntentDescription","IntentResult","ProvidesDialog","AppIntent","AppEntity","EntityQuery",
     "AppShortcut","AppShortcutsProvider","Dependency","Parameter","MainActor","NSWorkspace",
     "SecTaskCreateFromSelf","Never","PackageDescription","Package","NavigationLink",
-    "CDATABlock","Test","Suite","Issue","Testing","ShareLink","ImageRenderer",
+    "CDATABlock","Test","Suite","Issue","Testing","ShareLink","ImageRenderer","CoreSpotlight","CSSearchableItem",
+    "CSSearchableItemAttributeSet","CSSearchableIndex","Toggle",
     "BGTaskScheduler","BGAppRefreshTask","BGProcessingTask","BGAppRefreshTaskRequest",
     "BGProcessingTaskRequest","UIImage","NSImage","CGSize","LinearGradient","Gradient",
 }

@@ -55,7 +55,7 @@ struct MacRootView: View {
     @State private var section: Section? = .forYou
 
     enum Section: Hashable, CaseIterable, Identifiable {
-        case forYou, feeds, chat, library, knowledge, interests, player
+        case forYou, feeds, chat, library, knowledge, interests, perspective, trails, player
         var id: Self { self }
 
         var label: String {
@@ -66,6 +66,8 @@ struct MacRootView: View {
             case .library: "Mediathek"
             case .knowledge: "Wissen"
             case .interests: "Interessen"
+            case .perspective: "Gegenpositionen"
+            case .trails: "Wissenslandkarten"
             case .player: "Wiedergabe"
             }
         }
@@ -78,6 +80,8 @@ struct MacRootView: View {
             case .library: "books.vertical"
             case .knowledge: "brain"
             case .interests: "target"
+            case .perspective: "arrow.left.arrow.right"
+            case .trails: "map"
             case .player: "play.circle"
             }
         }
@@ -98,6 +102,8 @@ struct MacRootView: View {
                 case .library: LibraryView()
                 case .knowledge: KnowledgeView()
                 case .interests: InterestsView()
+                case .perspective: CounterpointView()
+                case .trails: TrailListView()
                 case .player, .none: FocusPlayerView()
                 }
             }
@@ -142,6 +148,13 @@ struct MacSettingsView: View {
             }
             .formStyle(.grouped)
             .tabItem { Label("Intelligenz", systemImage: "sparkles") }
+            .frame(width: 420)
+
+            Form {
+                SpotlightSettingsSection()
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("Datenschutz", systemImage: "hand.raised") }
             .frame(width: 420)
         }
         .frame(minHeight: 220)
