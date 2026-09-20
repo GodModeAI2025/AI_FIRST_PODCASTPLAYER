@@ -1,0 +1,337 @@
+//
+//  Models.swift
+//  PodcastAIPersistence
+//
+//  SwiftData-Modelle. Sie spiegeln die Domänentypen, sind aber bewusst
+//  getrennt von ihnen:
+//
+//  - Domänentypen sind `Sendable` Wertetypen und wandern frei zwischen
+//    Actors. SwiftData-Modelle dürfen das nicht — ein `@Model` gehört seinem
+//    `ModelContext` und darf keine Actor-Grenze überqueren.
+//  - Die Domäne soll ohne Datenbank testbar bleiben. Genau das hat die
+//    Verifikation der Kernlogik überhaupt erst möglich gemacht.
+//
+//  Umgerechnet wird an genau einer Stelle: in den `snapshot`-Eigenschaften
+//  und den `apply`-Methoden weiter unten.
+//
+
+#if canImport(SwiftData)
+import Foundation
+import SwiftData
+import PodcastAICore
+
+@Model
+public final class StoredSource {
+    #Index<StoredSource>([\.identifier])
+    @Attribute(.unique) public var identifier: String = ""
+    public var kindRaw: String = SourceKind.podcastRSS.rawValue
+    public var title: String = ""
+    public var author: String?
+    public var feedURLString: String?
+    public var websiteURLString: String?
+    public var artworkURLString: String?
+    public var isSubscribed: Bool = true
+    public var addedAt: Date = Date()
+    public var revisionValue: Int = 0
+
+    // Fähigkeiten als einzelne Spalten statt als verschachteltes Objekt:
+    // sie werden gefiltert und angezeigt, nicht nur gelesen.
+    public var canDownloadAudio: Bool = false
+    public var hasPublisherTranscript: Bool = false
+    public var embeddedPlayerOnly: Bool = false
+    public var hasHistoricalCatalog: Bool = false
+    public var limitationReason: String?
+
+    @Relationship(deleteRule: .cascade, inverse: \StoredEpisode.source)
+    public var episodes: [StoredEpisode] = []
+
+    public init(identifier: String, kind: SourceKind, title: String) {
+        self.identifier = identifier
+        self.kindRaw = kind.rawValue
+        self.title = title
+    }
+
+    public var snapshot: Source {
+        Source(
+            id: SourceID(rawValue: identifier),
+            kind: SourceKind(rawValue: kindRaw) ?? .podcastRSS,
+            title: title, author: author,
+            feedURL: feedURLString.flatMap(URL.init(string:)),
+            websiteURL: websiteURLString.flatMap(URL.init(string:)),
+            artworkURL: artworkURLString.flatMap(URL.init(string:)),
+            capabilities: SourceCapabilities(
+                metadata: true, audioDownload: canDownloadAudio,
+                publisherTranscript: hasPublisherTranscript,
+                embeddedPlayerOnly: embeddedPlayerOnly,
+                historicalCatalog: hasHistoricalCatalog,
+                limitationReason: limitationReason
+            ),
+            isSubscribed: isSubscribed,
+            addedAt: addedAt,
+            revision: Revision(revisionValue)
+        )
+    }
+}
+
+@Model
+public final class StoredEpisode {
+    #Index<StoredEpisode>([\.identifier], [\.publishedAt])
+    @Attribute(.unique) public var identifier: String = ""
+    public var title: String = ""
+    public var summary: String?
+    public var publishedAt: Date?
+    public var declaredDurationMs: Int = 0
+    public var webPageURLString: String?
+    public var artworkURLString: String?
+    public var currentMediaVersionIdentifier: String?
+    public var revisionValue: Int = 0
+
+    public var source: StoredSource?
+
+    @Relationship(deleteRule: .cascade, inverse: \StoredMediaVersion.episode)
+    public var mediaVersions: [StoredMediaVersion] = []
+
+    public init(identifier: String, title: String) {
+        self.identifier = identifier
+        self.title = title
+    }
+
+    public var snapshot: Episode {
+        Episode(
+            id: EpisodeID(rawValue: identifier),
+            sourceID: SourceID(rawValue: source?.identifier ?? ""),
+            title: title, summary: summary, publishedAt: publishedAt,
+            declaredDuration: declaredDurationMs > 0
+                ? MediaDuration(milliseconds: Int64(declaredDurationMs)) : nil,
+            artworkURL: artworkURLString.flatMap(URL.init(string:)),
+            webPageURL: webPageURLString.flatMap(URL.init(string:)),
+            currentMediaVersionID: currentMediaVersionIdentifier.map(MediaVersionID.init(rawValue:)),
+            revision: Revision(revisionValue)
+        )
+    }
+}
+
+@Model
+public final class StoredMediaVersion {
+    @Attribute(.unique) public var identifier: String = ""
+    public var remoteURLString: String?
+    public var localRelativePath: String?
+    public var byteCount: Int = 0
+    /// SHA-256 der vollständigen Datei. Solange leer, ist die Identität
+    /// vorläufig und Analyseergebnisse sind nicht endgültig.
+    public var contentHash: String?
+    public var durationMs: Int = 0
+    public var mimeType: String?
+    public var acquiredAt: Date = Date()
+    public var supportsExactSeeking: Bool = true
+
+    public var episode: StoredEpisode?
+
+    @Relationship(deleteRule: .cascade, inverse: \StoredTranscript.mediaVersion)
+    public var transcripts: [StoredTranscript] = []
+
+    public init(identifier: String) { self.identifier = identifier }
+
+    public var snapshot: MediaVersion {
+        MediaVersion(
+            id: MediaVersionID(rawValue: identifier),
+            episodeID: EpisodeID(rawValue: episode?.identifier ?? ""),
+            remoteURL: remoteURLString.flatMap(URL.init(string:)),
+            localRelativePath: localRelativePath,
+            byteCount: byteCount > 0 ? Int64(byteCount) : nil,
+            contentHash: contentHash,
+            duration: durationMs > 0 ? MediaDuration(milliseconds: Int64(durationMs)) : nil,
+            mimeType: mimeType, acquiredAt: acquiredAt,
+            supportsExactSeeking: supportsExactSeeking
+        )
+    }
+}
+
+@Model
+public final class StoredTranscript {
+    @Attribute(.unique) public var identifier: String = ""
+    public var revisionValue: Int = 0
+    public var originRaw: String = TranscriptOrigin.speechAnalysis.rawValue
+    public var locale: String = "de_DE"
+    public var createdAt: Date = Date()
+    /// Analysierte Bereiche als Millisekundenpaare. Flach gespeichert, damit
+    /// SwiftData sie ohne eigenen Objekttyp mitführen kann.
+    public var analyzedRangesFlat: [Int] = []
+    public var untimedText: String?
+
+    public var mediaVersion: StoredMediaVersion?
+
+    @Relationship(deleteRule: .cascade, inverse: \StoredSegment.transcript)
+    public var segments: [StoredSegment] = []
+
+    public init(identifier: String) { self.identifier = identifier }
+
+    public var snapshot: Transcript {
+        Transcript(
+            id: TranscriptID(rawValue: identifier),
+            mediaVersionID: MediaVersionID(rawValue: mediaVersion?.identifier ?? ""),
+            revision: Revision(revisionValue),
+            origin: TranscriptOrigin(rawValue: originRaw) ?? .speechAnalysis,
+            locale: locale,
+            segments: segments.map(\.snapshot),
+            untimedText: untimedText,
+            analyzedRanges: IntervalSet(Self.ranges(from: analyzedRangesFlat)),
+            createdAt: createdAt
+        )
+    }
+
+    static func ranges(from flat: [Int]) -> [MediaTimeRange] {
+        stride(from: 0, to: flat.count - 1, by: 2).map { index in
+            MediaTimeRange(start: MediaTime(milliseconds: Int64(flat[index])),
+                           end: MediaTime(milliseconds: Int64(flat[index + 1])))
+        }
+    }
+
+    static func flat(from set: IntervalSet) -> [Int] {
+        set.ranges.flatMap { [Int($0.start.milliseconds), Int($0.end.milliseconds)] }
+    }
+}
+
+@Model
+public final class StoredSegment {
+    #Index<StoredSegment>([\.startMs])
+    @Attribute(.unique) public var identifier: String = ""
+    public var startMs: Int = 0
+    public var endMs: Int = 0
+    public var text: String = ""
+    public var speakerLabel: String?
+
+    public var transcript: StoredTranscript?
+
+    public init(identifier: String, startMs: Int, endMs: Int, text: String) {
+        self.identifier = identifier
+        self.startMs = startMs; self.endMs = endMs; self.text = text
+    }
+
+    public var snapshot: TranscriptSegment {
+        TranscriptSegment(
+            id: SegmentID(rawValue: identifier),
+            range: MediaTimeRange(start: MediaTime(milliseconds: Int64(startMs)),
+                                  end: MediaTime(milliseconds: Int64(endMs))),
+            text: text, speakerLabel: speakerLabel
+        )
+    }
+}
+
+/// Der gemeinsame Hörzustand je Medienfassung.
+///
+/// Bewusst **ein** Datensatz je Fassung mit den vereinigten Intervallen,
+/// nicht eine Ereignisliste. Die Vereinigung ist die Wahrheit; einzelne
+/// Ereignisse aufzubewahren würde den Datensatz unbegrenzt wachsen lassen
+/// und beim Zusammenführen zweier Geräte nichts hinzufügen — die Operation
+/// ist idempotent.
+@Model
+public final class StoredListeningState {
+    @Attribute(.unique) public var mediaVersionIdentifier: String = ""
+    public var heardFlat: [Int] = []
+    public var skippedFlat: [Int] = []
+    public var historyQualityRaw: String = HistoryQuality.exact.rawValue
+    public var resumePositionMs: Int = 0
+    public var lastEventAt: Date?
+
+    public init(mediaVersionIdentifier: String) {
+        self.mediaVersionIdentifier = mediaVersionIdentifier
+    }
+
+    public var snapshot: MediaListeningState {
+        var state = MediaListeningState(
+            mediaVersionID: MediaVersionID(rawValue: mediaVersionIdentifier),
+            quality: HistoryQuality(rawValue: historyQualityRaw) ?? .exact
+        )
+        for range in StoredTranscript.ranges(from: heardFlat) {
+            state.apply(LedgerEvent(mediaVersionID: state.mediaVersionID, range: range,
+                                    kind: .played, via: .originalEpisode, deviceID: "local"))
+        }
+        for range in StoredTranscript.ranges(from: skippedFlat) {
+            state.apply(LedgerEvent(mediaVersionID: state.mediaVersionID, range: range,
+                                    kind: .skipped, via: .originalEpisode, deviceID: "local"))
+        }
+        if resumePositionMs > 0 {
+            state.resumePosition = MediaTime(milliseconds: Int64(resumePositionMs))
+        }
+        return state
+    }
+
+    public func apply(_ state: MediaListeningState) {
+        heardFlat = StoredTranscript.flat(from: state.heard)
+        skippedFlat = StoredTranscript.flat(from: state.skipped)
+        resumePositionMs = Int(state.resumePosition?.milliseconds ?? 0)
+        lastEventAt = Date()
+    }
+}
+
+@Model
+public final class StoredInterest {
+    @Attribute(.unique) public var identifier: String = ""
+    public var label: String = ""
+    public var kindRaw: String = InterestKind.topic.rawValue
+    public var originRaw: String = InterestOrigin.confirmedByUser.rawValue
+    public var keywords: [String] = []
+    public var expiresAt: Date?
+    public var createdAt: Date = Date()
+
+    public init(identifier: String, label: String) {
+        self.identifier = identifier; self.label = label
+    }
+
+    public var snapshot: Interest {
+        Interest(
+            id: InterestID(rawValue: identifier), label: label,
+            kind: InterestKind(rawValue: kindRaw) ?? .topic,
+            origin: InterestOrigin(rawValue: originRaw) ?? .confirmedByUser,
+            keywords: keywords, expiresAt: expiresAt, createdAt: createdAt
+        )
+    }
+}
+
+@Model
+public final class StoredEvidence {
+    @Attribute(.unique) public var identifier: String = ""
+    public var mediaVersionIdentifier: String = ""
+    public var episodeIdentifier: String = ""
+    public var sourceIdentifier: String = ""
+    public var transcriptIdentifier: String = ""
+    public var transcriptRevisionValue: Int = 0
+    public var startMs: Int = 0
+    public var endMs: Int = 0
+    public var hasTiming: Bool = true
+    public var quotedText: String = ""
+    public var attributedSpeaker: String?
+
+    public init(identifier: String) { self.identifier = identifier }
+
+    public var snapshot: Evidence {
+        Evidence(
+            id: EvidenceID(rawValue: identifier),
+            mediaVersionID: MediaVersionID(rawValue: mediaVersionIdentifier),
+            episodeID: EpisodeID(rawValue: episodeIdentifier),
+            sourceID: SourceID(rawValue: sourceIdentifier),
+            transcriptID: TranscriptID(rawValue: transcriptIdentifier),
+            transcriptRevision: Revision(transcriptRevisionValue),
+            range: hasTiming
+                ? MediaTimeRange(start: MediaTime(milliseconds: Int64(startMs)),
+                                 end: MediaTime(milliseconds: Int64(endMs)))
+                : nil,
+            quotedText: quotedText,
+            attributedSpeaker: attributedSpeaker
+        )
+    }
+}
+
+@Model
+public final class StoredHighlight {
+    @Attribute(.unique) public var identifier: String = ""
+    public var evidenceIdentifier: String = ""
+    public var note: String?
+    public var createdAt: Date = Date()
+
+    public init(identifier: String, evidenceIdentifier: String) {
+        self.identifier = identifier; self.evidenceIdentifier = evidenceIdentifier
+    }
+}
+#endif

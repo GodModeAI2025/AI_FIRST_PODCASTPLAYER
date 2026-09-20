@@ -1,0 +1,98 @@
+# project.yml — XcodeGen-Definition für PodcastAI
+#
+#   brew install xcodegen
+#   cd app && xcodegen generate && open PodcastAI.xcodeproj
+#
+# Zielplattformen sind iOS und macOS. iPadOS läuft über das iOS-Target mit
+# TARGETED_DEVICE_FAMILY "1,2"; watchOS ist bewusst nicht enthalten.
+#
+# Der Mac bekommt ein eigenes natives Target statt Catalyst: die Mediathek,
+# die Wissensansicht und der Export sind auf dem Mac andere Oberflächen,
+# keine breitere Telefonansicht.
+
+name: PodcastAI
+
+options:
+  bundleIdPrefix: com.podcastai
+  deploymentTarget:
+    iOS: "26.0"
+    macOS: "26.0"
+  createIntermediateGroups: true
+  defaultConfig: Release
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+
+packages:
+  PodcastAIKit:
+    path: Packages/PodcastAIKit
+
+targets:
+
+  PodcastAI:
+    type: application
+    platform: iOS
+    sources:
+      - path: Apps/PodcastAI
+      - path: Apps/Shared
+    dependencies:
+      - package: PodcastAIKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.podcastai.app
+        PRODUCT_NAME: PodcastAI
+        INFOPLIST_FILE: Apps/PodcastAI/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_ENTITLEMENTS: Apps/PodcastAI/PodcastAI.entitlements
+
+  PodcastAIMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: Apps/PodcastAIMac
+      - path: Apps/Shared
+    dependencies:
+      - package: PodcastAIKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.podcastai.mac
+        PRODUCT_NAME: PodcastAI
+        INFOPLIST_FILE: Apps/PodcastAIMac/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIMac/PodcastAIMac.entitlements
+
+  PodcastAIKitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Packages/PodcastAIKit/Tests
+    dependencies:
+      - package: PodcastAIKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.podcastai.kit.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  PodcastAI:
+    build:
+      targets: { PodcastAI: all }
+    run: { config: Debug }
+    archive: { config: Release }
+
+  PodcastAIMac:
+    build:
+      targets: { PodcastAIMac: all, PodcastAIKitTests: [test] }
+    run: { config: Debug }
+    test:
+      config: Debug
+      targets: [PodcastAIKitTests]
+    archive: { config: Release }

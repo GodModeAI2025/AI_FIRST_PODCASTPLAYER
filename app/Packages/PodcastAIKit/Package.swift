@@ -26,6 +26,9 @@ let package = Package(
         // Apple Intelligence: Router, Profile, evidenzgebundene Extraktion.
         .target(name: "PodcastAIIntelligence", dependencies: ["PodcastAICore"]),
 
+        // Persistenz: SwiftData-Modelle und ModelActor.
+        .target(name: "PodcastAIPersistence", dependencies: ["PodcastAICore"]),
+
         // Wissen: Claims, Index, Retrieval, Hörhistorie.
         .target(name: "PodcastAIKnowledge", dependencies: ["PodcastAICore", "PodcastAIIntelligence"]),
 
@@ -42,7 +45,7 @@ let package = Package(
         .target(name: "PodcastAIKit", dependencies: [
             "PodcastAICore", "PodcastAISources", "PodcastAIMedia", "PodcastAITranscription",
             "PodcastAIIntelligence", "PodcastAIKnowledge", "PodcastAIPlayback",
-            "PodcastAISmartFeeds", "PodcastAIExport",
+            "PodcastAISmartFeeds", "PodcastAIExport", "PodcastAIPersistence",
         ]),
 
         .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit"]),
