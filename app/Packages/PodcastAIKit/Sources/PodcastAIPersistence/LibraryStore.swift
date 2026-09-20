@@ -102,6 +102,8 @@ public actor LibraryStore {
             stored.publishedAt = episode.publishedAt
             stored.declaredDurationMs = Int(episode.declaredDuration?.milliseconds ?? 0)
             stored.webPageURLString = episode.webPageURL?.absoluteString
+            stored.audioURLString = episode.audioURL?.absoluteString
+            stored.timedTranscriptURLString = episode.timedTranscriptURL?.absoluteString
             stored.artworkURLString = episode.artworkURL?.absoluteString
             stored.source = source
 

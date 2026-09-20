@@ -82,6 +82,8 @@ public final class StoredEpisode {
     public var publishedAt: Date?
     public var declaredDurationMs: Int = 0
     public var webPageURLString: String?
+    public var audioURLString: String?
+    public var timedTranscriptURLString: String?
     public var artworkURLString: String?
     public var currentMediaVersionIdentifier: String?
     public var revisionValue: Int = 0
@@ -105,6 +107,8 @@ public final class StoredEpisode {
                 ? MediaDuration(milliseconds: Int64(declaredDurationMs)) : nil,
             artworkURL: artworkURLString.flatMap(URL.init(string:)),
             webPageURL: webPageURLString.flatMap(URL.init(string:)),
+            audioURL: audioURLString.flatMap(URL.init(string:)),
+            timedTranscriptURL: timedTranscriptURLString.flatMap(URL.init(string:)),
             currentMediaVersionID: currentMediaVersionIdentifier.map(MediaVersionID.init(rawValue:)),
             revision: Revision(revisionValue)
         )

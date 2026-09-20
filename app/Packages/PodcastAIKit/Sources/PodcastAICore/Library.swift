@@ -135,6 +135,15 @@ public struct Episode: Hashable, Codable, Sendable, Identifiable {
     public var declaredDuration: MediaDuration?
     public var artworkURL: URL?
     public var webPageURL: URL?
+    /// Die Audiodatei aus dem Feed.
+    ///
+    /// Getrennt von `webPageURL`: die Webseite einer Folge ist HTML und
+    /// keine Audiospur. Beides zu verwechseln hiesse, der Analyse eine
+    /// Seite zu füttern und sich über das Ergebnis zu wundern.
+    public var audioURL: URL?
+    /// Vom Anbieter bereitgestellte Transkripte mit Zeitmarken.
+    /// Der kürzeste Weg zu Timecodes ohne eigene Analyse.
+    public var timedTranscriptURL: URL?
     /// Vom Anbieter vergebene Kapitel, sofern vorhanden.
     public var publisherChapters: [Chapter]
     /// Die aktuell maßgebliche Medienfassung.
@@ -144,16 +153,26 @@ public struct Episode: Hashable, Codable, Sendable, Identifiable {
     public init(
         id: EpisodeID, sourceID: SourceID, title: String, summary: String? = nil,
         publishedAt: Date? = nil, declaredDuration: MediaDuration? = nil,
-        artworkURL: URL? = nil, webPageURL: URL? = nil,
+        artworkURL: URL? = nil, webPageURL: URL? = nil, audioURL: URL? = nil,
+        timedTranscriptURL: URL? = nil,
         publisherChapters: [Chapter] = [], currentMediaVersionID: MediaVersionID? = nil,
         revision: Revision = .initial
     ) {
         self.id = id; self.sourceID = sourceID; self.title = title; self.summary = summary
         self.publishedAt = publishedAt; self.declaredDuration = declaredDuration
         self.artworkURL = artworkURL; self.webPageURL = webPageURL
+        self.audioURL = audioURL; self.timedTranscriptURL = timedTranscriptURL
         self.publisherChapters = publisherChapters
         self.currentMediaVersionID = currentMediaVersionID; self.revision = revision
     }
+
+    /// Kann diese Folge überhaupt erschlossen werden?
+    ///
+    /// Ohne Audio und ohne getaktetes Anbietertranskript gibt es keinen Weg
+    /// zu Timecodes — und ohne Timecodes keine Belege, keine Fokuswiedergabe
+    /// und keine persönliche Ausgabe. Die App sagt das, statt es zu
+    /// versuchen und zu scheitern.
+    public var canBeAnalyzed: Bool { audioURL != nil || timedTranscriptURL != nil }
 }
 
 public struct Chapter: Hashable, Codable, Sendable {

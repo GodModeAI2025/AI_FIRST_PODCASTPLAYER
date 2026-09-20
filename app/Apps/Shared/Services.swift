@@ -120,7 +120,11 @@ public actor FeedRefresher {
             publishedAt: item.publishedAt,
             declaredDuration: item.duration.map { MediaDuration(seconds: Double($0)) },
             artworkURL: item.artworkURL,
-            webPageURL: item.webPageURL
+            webPageURL: item.webPageURL,
+            audioURL: item.audioURL,
+            // Nur getaktete Transkripte: ungetakteter Text liefert Wissen,
+            // aber keine Timecodes.
+            timedTranscriptURL: item.transcripts.first(where: \.isTimed)?.url
         )
     }
 

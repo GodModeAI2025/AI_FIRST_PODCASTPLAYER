@@ -88,12 +88,9 @@ struct EpisodeRow: View {
                 .foregroundStyle(stage == .failed ? .orange : .secondary)
             }
 
-            if stage == nil || stage == .failed {
+            if let audioURL = episode.audioURL, stage == nil || stage == .failed {
                 Button {
-                    // Ohne abrufbares Audio gibt es nichts zu erschliessen —
-                    // dann sagt die App das, statt es zu versuchen.
-                    guard let url = episode.webPageURL else { return }
-                    Task { await model.analyze(episode, audioURL: url) }
+                    Task { await model.analyze(episode, audioURL: audioURL) }
                 } label: {
                     Label(stage == .failed ? "Erneut versuchen" : "Erschliessen",
                           systemImage: "waveform.badge.magnifyingglass")
@@ -101,6 +98,13 @@ struct EpisodeRow: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .padding(.top, 2)
+            } else if !episode.canBeAnalyzed {
+                // Ehrlich statt stiller Fehlschlag: ohne Audio und ohne
+                // getaktetes Transkript gibt es keinen Weg zu Timecodes.
+                Label("Kein Audiozugang — daraus entstehen keine Timecodes",
+                      systemImage: "speaker.slash")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 3)
