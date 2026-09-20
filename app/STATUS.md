@@ -40,7 +40,7 @@ Stand: 62 Swift-Dateien, 13 299 Zeilen (mit Tests).
 | 14 | Markdown-Export | ✅ | Belege, Folgen- und Quellentitel werden geholt; eine Stelle ohne Beleg erscheint gar nicht statt halb |
 | 15 | Agent-first: App Intents | ✅ | `AppDependencyManager.shared.add(dependency:)` im Start; Audiositzung und BGTasks ebenso |
 | 16 | Systemweite Auffindbarkeit (Spotlight) | ✅ | Index wird bei jeder Änderung und beim Einschalten gefüttert; der Schalter steht auf beiden Plattformen |
-| 17 | macOS-MCP-Zugang | ◐ | **Kein Server.** Keine stdio-Schleife, kein JSON-RPC. Nur die Werkzeugklasse |
+| 17 | macOS-MCP-Zugang | ✅ | JSON-RPC über stdio, fünf lesende Werkzeuge, Freigabe mit Scope und Ablauf, Protokoll sichtbar |
 | 18 | Native App, iOS + macOS | ✅ | Zwei Targets, dieselben Einstellungsabschnitte auf beiden — auf dem Mac im Programmmenü, auf iOS unter „Wissen“ |
 | 19 | Privacy-first, nur Apple-Modelle | ◐ | Routing läuft (drei Aufrufstellen). Die PCC-Stufe ist als „nicht berechtigt“ hart verdrahtet, also wird nie dorthin geroutet — das klärt erst ein Gerät |
 | 20 | Der durchgehende Flow | ✅ | Begehbar: Quelle → Erschliessen → Für dich → Themen-Update → Hören → Merken → Abschluss → Export. Ungeprüft bis zum Gerätelauf |
@@ -91,7 +91,7 @@ Dazu fünf Befunde, die kein Kapitel betreffen, sondern die Tragfähigkeit:
    `consumedGrants`, `sessionToken`, `forwardPlaybackEndTime`, jetzt mit
    SHA-256 statt FNV-1a. Regel 3 („automatisch vorbereiten, bewusst
    abspielen“) wird eingehalten, nicht nur behauptet.
-4. **Die Domänenschicht ist geprüft** — 17 Referenzmodelle, davon zehn
+4. **Die Domänenschicht ist geprüft** — 18 Referenzmodelle, davon zehn
    Brute-Force-Vergleiche gegen unabhängige Modelle.
 5. **Der PCC-Status ist als „nicht berechtigt“ hart verdrahtet** und als
    Vorgabe statt Messung ausgewiesen.
@@ -114,10 +114,15 @@ Messung, sondern eine Vorgabe, und sie ist im Code als solche ausgewiesen.
 Bis ein berechtigtes Gerät vorliegt, läuft alles auf dem Gerätemodell oder
 gar nicht.
 
-**Zwei Lücken bleiben substanziell:**
+**Was substanziell offen bleibt:**
 
-* Kapitel 17 (MCP): eine Werkzeugklasse ohne Server ist kein Zugang.
-* Kapitel 19: Die PCC-Stufe ist Vorgabe, keine Messung.
+* Kapitel 19: Die PCC-Stufe ist als „nicht berechtigt“ hart verdrahtet.
+  Das ist eine Vorgabe, keine Messung, und im Code als solche ausgewiesen.
+  Bis ein berechtigtes Gerät vorliegt, läuft alles auf dem Gerätemodell
+  oder gar nicht.
+* **Der Gerätelauf selbst.** Alle zwanzig Kapitel sind verdrahtet; keines
+  ist je auf einem Gerät gelaufen. Das ist die eine Aussage, die dieses
+  Dokument nicht treffen kann.
 
 ## Grenzen der Verifikation
 

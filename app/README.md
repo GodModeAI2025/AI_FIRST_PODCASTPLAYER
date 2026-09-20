@@ -53,6 +53,7 @@ app/verification/run_all.sh
 | `networkdestination_reference.py` | 101 | Jede Schreibweise von localhost fällt durch, gegen `ipaddress`/`inet_aton` abgeglichen |
 | `digestpolicy_reference.py` | 28 | Jede entscheidungstragende Prüfsumme auf SHA-256 — geprüft am Quelltext |
 | `sourceresolver_reference.py` | 20 | Linkklassifikation gegen `fixtures/youtube/url-cases.json` aus dem Spec-Kit |
+| `mcpserver_reference.py` | 49 | JSON-RPC-Fehlercodes, Form der `id`, kein Werkzeug ohne Freigabe, Obergrenze |
 | `feeddiscovery_reference.py` | 28 | Feed-Verweis in 13 Seitenformen; Verweise ins eigene Netz werden nicht vorgeschlagen |
 
 Das belegt die **Logik**, nicht die Swift-Syntax. Kein Referenzmodell

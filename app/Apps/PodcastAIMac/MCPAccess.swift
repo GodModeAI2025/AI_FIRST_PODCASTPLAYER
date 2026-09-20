@@ -160,6 +160,52 @@ public final class MCPAccess {
         return EvidenceSummary(item)
     }
 
+    /// Gemerkte Stellen.
+    ///
+    /// Eigene Freigabe, nicht in `allowedSourceIDs` enthalten: eine gemerkte
+    /// Stelle trägt die Notiz des Nutzers und ist damit privater als ein
+    /// Transkriptausschnitt. Wer Quellen freigibt, gibt nicht Notizen frei.
+    public func listHighlights(limit: Int = 50) async -> [HighlightSummary] {
+        guard let grant, grant.permits(.listHighlights), grant.includesHighlights else {
+            return []
+        }
+        guard let all = try? await store.highlights() else { return [] }
+
+        let evidenceByID = (try? await store.evidence(ids: all.map(\.evidenceID))) ?? [:]
+        let results = all.prefix(limit).compactMap { highlight -> HighlightSummary? in
+            // Ohne Beleg keine Ausgabe: eine Notiz ohne die Stelle, auf die
+            // sie sich bezieht, ist für einen Agenten wertlos und für den
+            // Nutzer eine Preisgabe ohne Gegenwert.
+            guard let evidence = evidenceByID[highlight.evidenceID],
+                  grant.allowedSourceIDs.contains(evidence.sourceID) else { return nil }
+            return HighlightSummary(
+                id: highlight.id.rawValue,
+                note: highlight.note,
+                capturedAt: highlight.capturedAt,
+                evidence: EvidenceSummary(evidence))
+        }
+        log(.listHighlights, query: nil, count: results.count)
+        return Array(results)
+    }
+
+    /// Geparkte Wissenslandkarten.
+    ///
+    /// Nur Frage und Notiz, keine Belegkennungen: welche Stellen dahinter
+    /// stehen, kann der Agent über `searchEvidence` im freigegebenen Bereich
+    /// erfragen — über diesen Weg soll er den Scope nicht umgehen.
+    public func listTrails(limit: Int = 50) async -> [TrailSummary] {
+        guard let grant, grant.permits(.listTrails), grant.includesHighlights else {
+            return []
+        }
+        guard let all = try? await store.trails() else { return [] }
+        let results = all.prefix(limit).map {
+            TrailSummary(id: $0.id.rawValue, question: $0.question,
+                         note: $0.userNote, parkedAt: $0.parkedAt)
+        }
+        log(.listTrails, query: nil, count: results.count)
+        return Array(results)
+    }
+
     private func log(_ tool: MCPTool, query: String?, count: Int) {
         auditLog.insert(
             AuditEntry(tool: tool, query: query, resultCount: count, at: Date()),
@@ -190,4 +236,20 @@ public struct EvidenceSummary: Codable, Sendable {
         self.endSeconds = evidence.range?.end.seconds
         self.speaker = evidence.attributedSpeaker
     }
+}
+
+/// Eine gemerkte Stelle, wie ein Agent sie sieht.
+public struct HighlightSummary: Codable, Sendable {
+    public let id: String
+    public let note: String?
+    public let capturedAt: Date
+    public let evidence: EvidenceSummary
+}
+
+/// Eine geparkte Frage, wie ein Agent sie sieht.
+public struct TrailSummary: Codable, Sendable {
+    public let id: String
+    public let question: String
+    public let note: String?
+    public let parkedAt: Date
 }

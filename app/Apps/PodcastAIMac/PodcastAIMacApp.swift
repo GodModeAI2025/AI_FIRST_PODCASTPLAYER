@@ -192,6 +192,12 @@ struct MacSettingsView: View {
             .formStyle(.grouped)
             .tabItem { Label("Datenschutz", systemImage: "hand.raised") }
             .frame(width: 420)
+
+            // Der Agentenzugang hatte keinen Schalter — und damit keine
+            // Möglichkeit, ihn einzuschalten oder nachzulesen.
+            MCPSettingsView()
+                .tabItem { Label("Agenten", systemImage: "terminal") }
+                .frame(width: 480)
         }
         .frame(minHeight: 220)
     }

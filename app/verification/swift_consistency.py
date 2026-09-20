@@ -59,8 +59,45 @@ KNOWN = {
     "Announcement","AccessibilityNotification","URLSessionDownloadDelegate",
     "AppDependencyManager","NSLock","NSLog","AVAudioSession",
     "AsyncIteratorProtocol","AVAudioTime","JSONEncoder","JSONDecoder",
-    "ViewModifier","Content","Substring","UTF8","NSRegularExpression","NSRange",
+    "ViewModifier","Content","Substring","UTF8","NSRegularExpression","NSRange","JSONSerialization","FileHandle",
 }
+
+def lift_interpolations(text):
+    """Holt `\(…)` aus Zeichenketten heraus, statt sie mitzuloeschen.
+
+    Der Grund ist ein Fehlalarm, den die naive Regel erzeugt:
+    `"… \(n == 1 ? "Stunde" : "Stunden")"` enthaelt Anfuehrungszeichen
+    *innerhalb* einer Zeichenkette. Die einzeilige Regel schneidet an der
+    falschen Stelle, und uebrig bleibt deutscher Text, den die
+    Typpruefung fuer einen Bezeichner haelt.
+
+    Herausgeholt statt geloescht, weil in einer Interpolation echter Code
+    steht -- er soll weiter als Verweis zaehlen und seine Klammern sollen
+    weiter mitgezaehlt werden.
+    """
+    out, index, length = [], 0, len(text)
+    while index < length:
+        if text[index] == "\\" and index + 1 < length and text[index + 1] == "(":
+            depth, cursor = 0, index + 1
+            while cursor < length:
+                if text[cursor] == "(":
+                    depth += 1
+                elif text[cursor] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                cursor += 1
+            if cursor >= length:
+                out.append(text[index:])
+                break
+            # Die Zeichenkette schliessen, den Code danebenstellen, wieder oeffnen.
+            out.append('" ' + text[index + 2:cursor] + ' "')
+            index = cursor + 1
+            continue
+        out.append(text[index])
+        index += 1
+    return "".join(out)
+
 
 def enclosing_condition(text, offset):
     """Die Bedingung des `#if`, in dem eine Stelle steht -- oder None.
@@ -108,7 +145,8 @@ for path in SWIFT:
 
     # Klammern ausgleichen. Reihenfolge wichtig: mehrzeilige Strings zuerst,
     # sonst zerlegt die einzeilige Regel sie und laesst Klammern zurueck.
-    stripped = re.sub(r'"""(?:.|\n)*?"""', '""', text)
+    stripped = lift_interpolations(text)
+    stripped = re.sub(r'"""(?:.|\n)*?"""', '""', stripped)
     # Rohe Zeichenketten zuerst: in `#"..."#` bedeutet `\` nichts, und die
     # Regel darunter wuerde sie deshalb an der falschen Stelle abschneiden.
     # Regulaere Ausdruecke stehen in Swift genau so da -- voller Klammern,
@@ -156,7 +194,7 @@ for name, entries in declared.items():
 # Verweise auf unbekannte Typen.
 unknown = {}
 # Generische Parameter und geschachtelte Typen, die die Heuristik nicht sieht.
-NESTED = {"Subject", "Self", "Element", "UnavailableReason", "Continuation",
+NESTED = {"Subject", "Self", "Element", "UnavailableReason", "Continuation", "Value",
           "Availability", "Error", "Failure", "Success", "Output", "Result"}
 
 for name, paths in referenced.items():
