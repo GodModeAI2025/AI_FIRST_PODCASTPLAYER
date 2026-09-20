@@ -188,6 +188,25 @@ public actor ContentPipeline {
             detail: transcript.coverage(mediaDuration: download.duration).label
         ))
 
+        // Erst Fassung und Transkript, dann die Belege. Die Reihenfolge ist
+        // kein Zufall: ein Beleg verweist auf Fassung und Transkriptrevision,
+        // und ein Verweis auf etwas, das noch nicht da ist, wäre genau die
+        // Art von halber Herkunft, die diese Kette verhindern soll.
+        try await store.save(
+            transcript: transcript,
+            media: MediaVersion(
+                id: mediaVersionID,
+                episodeID: episode.id,
+                remoteURL: audioURL,
+                localRelativePath: download.localRelativePath,
+                byteCount: download.byteCount,
+                contentHash: download.contentHash,
+                duration: download.duration,
+                mimeType: download.mimeType
+            ),
+            forEpisode: episode.id
+        )
+
         let evidence = assembler.evidence(
             from: transcript, episodeID: episode.id, sourceID: sourceID,
             ranges: PassageBuilder.passages(from: transcript)

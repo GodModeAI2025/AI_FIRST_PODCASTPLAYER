@@ -157,6 +157,9 @@ public struct RelevanceScorer: Sendable {
 
     /// Alle Suchbegriffe eines Interesses: Beschriftung, Stichworte und die
     /// Einzelwörter daraus.
+    // `internal`, nicht `private`: `InterestSuggester` muss dieselbe
+    // Zerlegung benutzen. Zwei Begriffslisten, die auseinanderlaufen,
+    // hiessen: ein Vorschlag zu einem Thema, das schon im Profil steht.
     static func terms(for interest: Interest) -> [String] {
         var result = Set<String>()
         for raw in [interest.label] + interest.keywords {

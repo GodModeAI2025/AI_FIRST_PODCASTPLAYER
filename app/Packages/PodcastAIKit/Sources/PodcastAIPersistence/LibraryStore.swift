@@ -229,6 +229,98 @@ public actor LibraryStore {
 
     // MARK: - Belege
 
+    /// Sichert Medienfassung und Transkript einer erschlossenen Folge.
+    ///
+    /// Beides wurde bisher nie geschrieben: `StoredMediaVersion`,
+    /// `StoredTranscript` und `StoredSegment` standen im Schema und blieben
+    /// leer. Nur die Belege überlebten — und damit ging jedes Mal verloren,
+    /// was **zwischen** den Belegen steht. Eine Passage neu zu lesen hiesse
+    /// dann, die Datei noch einmal durch die Spracherkennung zu schicken.
+    ///
+    /// Die Medienfassung wird an die Folge gehängt. Ohne diese Verbindung
+    /// kann der Planer nicht erkennen, dass ein Beleg auf eine überholte
+    /// Fassung zeigt: `Episode.currentMediaVersionID` bliebe leer.
+    public func save(
+        transcript: Transcript, media: MediaVersion, forEpisode episodeID: EpisodeID
+    ) throws {
+        let mediaKey = media.id.rawValue
+        let stored = try modelContext.fetch(
+            FetchDescriptor<StoredMediaVersion>(
+                predicate: #Predicate { $0.identifier == mediaKey }
+            )
+        ).first ?? {
+            let fresh = StoredMediaVersion(identifier: mediaKey)
+            modelContext.insert(fresh)
+            return fresh
+        }()
+
+        stored.remoteURLString = media.remoteURL?.absoluteString
+        stored.localRelativePath = media.localRelativePath
+        stored.byteCount = Int(media.byteCount ?? 0)
+        stored.contentHash = media.contentHash
+        stored.durationMs = Int(media.duration?.milliseconds ?? 0)
+        stored.mimeType = media.mimeType
+        stored.supportsExactSeeking = media.supportsExactSeeking
+
+        let episodeKey = episodeID.rawValue
+        let episode = try modelContext.fetch(
+            FetchDescriptor<StoredEpisode>(
+                predicate: #Predicate { $0.identifier == episodeKey }
+            )
+        ).first
+        stored.episode = episode
+        // Die aktuelle Fassung der Folge ist die zuletzt erschlossene.
+        episode?.currentMediaVersionIdentifier = mediaKey
+
+        let transcriptKey = transcript.id.rawValue
+        let existing = try modelContext.fetch(
+            FetchDescriptor<StoredTranscript>(
+                predicate: #Predicate { $0.identifier == transcriptKey }
+            )
+        ).first
+        // Ein Transkript ist wie ein Beleg unveränderlich: eine Neuanalyse
+        // erzeugt eine neue Revision und damit eine neue Kennung. Dasselbe
+        // noch einmal zu schreiben hiesse, Segmente zu verdoppeln.
+        if let existing {
+            existing.mediaVersion = stored
+            try modelContext.save()
+            return
+        }
+
+        let row = StoredTranscript(identifier: transcriptKey)
+        row.revisionValue = transcript.revision.value
+        row.originRaw = transcript.origin.rawValue
+        row.locale = transcript.locale
+        row.createdAt = transcript.createdAt
+        row.analyzedRangesFlat = StoredTranscript.flat(from: transcript.analyzedRanges)
+        row.untimedText = transcript.untimedText
+        row.mediaVersion = stored
+        modelContext.insert(row)
+
+        for segment in transcript.segments {
+            let piece = StoredSegment(
+                identifier: segment.id.rawValue,
+                startMs: Int(segment.range.start.milliseconds),
+                endMs: Int(segment.range.end.milliseconds),
+                text: segment.text)
+            piece.speakerLabel = segment.speakerLabel
+            piece.transcript = row
+            modelContext.insert(piece)
+        }
+        try modelContext.save()
+    }
+
+    /// Das Transkript einer Medienfassung, mit Segmenten.
+    public func transcript(forMedia mediaVersionID: MediaVersionID) throws -> Transcript? {
+        let key = mediaVersionID.rawValue
+        var descriptor = FetchDescriptor<StoredTranscript>(
+            predicate: #Predicate { $0.mediaVersion?.identifier == key }
+        )
+        descriptor.sortBy = [SortDescriptor(\.revisionValue, order: .reverse)]
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first?.snapshot
+    }
+
     public func store(evidence: [Evidence]) throws {
         for item in evidence {
             let identifier = item.id.rawValue

@@ -170,6 +170,7 @@ public final class AppModel {
                 ))
             }
             relevantToday = items
+            refreshSuggestions(from: evidence)
         } catch {
             lastError = error.localizedDescription
         }
@@ -630,6 +631,57 @@ public final class AppModel {
             return
         }
         play(plan, from: .chat)
+    }
+
+    /// Leitet vermutete Interessen aus dem tatsächlich Gehörten ab.
+    ///
+    /// `profile.suggested` war immer leer: die Oberfläche hatte einen
+    /// Abschnitt dafür, erzeugt hat die Vorschläge nie jemand. Damit war die
+    /// Hälfte des Kapitels „Interessenmodell“ eine leere Überschrift.
+    ///
+    /// Nur aus Gehörtem, nicht aus allem Abonnierten — sonst schlägt die App
+    /// vor, was der Nutzer nie angehört hat. Und nie automatisch wirksam:
+    /// `RelevanceScorer` lässt weiterhin nur bestätigte Interessen wirken.
+    func refreshSuggestions(from evidence: [Evidence]) {
+        guard profile.learningEnabled else { return }
+        let heard = evidence.filter { item in
+            guard let range = item.range else { return false }
+            return ledger.heard(in: item.mediaVersionID).covers(range, threshold: 0.6)
+        }
+        guard !heard.isEmpty else { return }
+
+        let rejected = rejectedSuggestions
+        let fresh = InterestSuggester()
+            .suggestions(fromHeard: heard, existing: profile)
+            .filter { !rejected.contains($0.id.rawValue) }
+        guard !fresh.isEmpty else { return }
+        for interest in fresh { profile.add(interest) }
+    }
+
+    /// Übernimmt einen Vorschlag. Ab hier wirkt er.
+    public func confirmSuggestion(_ id: InterestID) {
+        profile.confirm(id)
+        Task {
+            if let interest = profile.interests.first(where: { $0.id == id }) {
+                await persist { try await $0.upsert(interest: interest) }
+            }
+            await refreshRelevantToday()
+        }
+    }
+
+    /// Lehnt einen Vorschlag ab. Er kommt nicht wieder: die Kennung ist
+    /// stabil aus dem Begriff gebildet, und abgelehnte Begriffe bleiben
+    /// gemerkt.
+    public func rejectSuggestion(_ id: InterestID) {
+        rejectedSuggestions.insert(id.rawValue)
+        profile.remove(id)
+    }
+
+    /// Abgelehnte Vorschläge, damit derselbe Begriff nicht jede Woche
+    /// erneut auftaucht.
+    private var rejectedSuggestions: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: "com.podcastai.rejectedSuggestions") ?? []) }
+        set { UserDefaults.standard.set(Array(newValue).sorted(), forKey: "com.podcastai.rejectedSuggestions") }
     }
 
     /// Das Cover einer Ausgabe.

@@ -424,8 +424,15 @@ struct InterestsView: View {
                         HStack {
                             InterestRow(interest: interest)
                             Spacer()
-                            Button("Übernehmen") { }
+                            // Beide Knöpfe taten nichts. „Übernehmen“ war
+                            // ein leerer Block, „Ablehnen“ gab es nicht —
+                            // ein Vorschlag, den man nicht loswird, ist
+                            // keine Transparenz, sondern eine Zumutung.
+                            Button("Übernehmen") { model.confirmSuggestion(interest.id) }
                                 .buttonStyle(.bordered)
+                            Button("Ablehnen") { model.rejectSuggestion(interest.id) }
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 } header: {
