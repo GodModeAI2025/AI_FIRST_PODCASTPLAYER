@@ -44,8 +44,8 @@ app/verification/run_all.sh
 | `focusplanner_reference.py` | 120 004 | Budget hält, keine Überlappung, keine Fundstelle verschwindet |
 | `passage_reference.py` | 100 003 | Passagen schneiden an Sprechpausen, nie mitten im Satz |
 | `assembler_reference.py` | 80 006 | Wiederaufnahme nach Abbruch ohne Dubletten und ohne Textverlust |
-| `relevance_reference.py` | 80 005 | Nur bestätigte Interessen wirken; deterministische Rangfolge |
-| `publisher_reference.py` | 74 391 | Persönliche Ausgaben ohne Wiederholung; zweiter Refresh erzeugt keine zweite Ausgabe |
+| `relevance_reference.py` | 100 005 | Nur bestätigte Interessen wirken; Rangfolge auch bei vertauschter Eingabereihenfolge gleich |
+| `publisher_reference.py` | 74 470 | Persönliche Ausgaben ohne Wiederholung; Budget und Zeitachse bei sechs Wiedergaberaten |
 | `backpressure_reference.py` | 258 | Begrenzter Puffer ohne Verlust — mit Gegenbeweis: ohne Wiederholung gingen 174 von 200 Blöcken verloren |
 | `transferlimit_reference.py` | 148 | Größengrenze hält, auch wenn der Server über die Länge lügt |
 | `mediatime_reference.py` | 137 | Zeitrechnung sättigt statt abzustürzen; Randwerte erschöpfend |

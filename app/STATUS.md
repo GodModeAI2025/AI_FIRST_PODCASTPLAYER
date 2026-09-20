@@ -127,20 +127,26 @@ wert:
 
 Was sie bauartbedingt nicht sehen:
 
-* **Swift-spezifische Reihenfolgen.** `RelevanceScorer` nutzt
-  `byInterest.values.flatMap` — Swifts `Dictionary` ist pro Prozess zufällig
-  sortiert, Pythons `dict` einfügungsstabil. Das Modell behauptet
-  Determinismus, den Swift nicht hat.
-* **Rundung.** Swifts `.rounded()` rundet von der Null weg, Pythons
-  `round()` zur geraden Zahl. Im `mediatime_reference.py` ist das
-  ausdrücklich nachgebildet; anderswo nicht.
-* **Wiedergaberaten ≠ 1.** `publisher_reference.py` ruft `apply_budget` nur
-  mit `rate=1.0`.
 * **Alles zwischen den portierten Funktionen.** Der Veröffentlichungsrhythmus
   (`PublicationPolicy`, `.belowThreshold`, `existingBatchKeys`) ist im Modell
   nicht abgebildet.
+* **Die Portierung selbst.** Jedes Modell setzt voraus, dass es dieselbe
+  Rechnung macht wie der Swift-Code. Ohne Compiler lässt sich das nicht
+  nachweisen, nur sorgfältig machen.
 * **SwiftData zur Laufzeit.** Die neuen Modelle, die Migration bestehender
   Speicher und jedes `#Predicate` sind ungeprüft — das kann nur ein Gerät.
+* **Jeder Aufruf gegen ein Apple-Framework.** `SpeechAnalyzer`,
+  `AVQueuePlayer`, `BGTaskScheduler`, `CSSearchableIndex`, App Intents: die
+  Modelle prüfen die Logik davor und danach, nie den Aufruf selbst.
+
+Drei Einschränkungen der vorigen Fassung sind erledigt statt nur benannt:
+die Reihenfolge in `RelevanceScorer` (sortierte Schlüssel statt
+`Dictionary.values`, mit einer dritten Rangstufe — belegt durch einen
+Durchlauf mit vertauschter Eingabereihenfolge), die Rundung
+(`swift_rounded` bildet jetzt überall Swifts Verhalten nach) und die
+Wiedergaberaten (`publisher_reference.py` prüft sechs Raten: Hörzeit hält
+das Budget, die Zeitachse bleibt Medienzeit, und ein Sprung landet an der
+richtigen Originalstelle).
 
 `swift_consistency.py` ist eine Regex-Heuristik mit handgepflegter
 Namensliste. „0 unaufgelöste Bezeichner“ sagt etwas über die Pflege der

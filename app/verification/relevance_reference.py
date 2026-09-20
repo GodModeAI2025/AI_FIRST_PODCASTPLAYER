@@ -72,11 +72,26 @@ def score(evidence, interests, now=0):
             by_interest.setdefault(interest["id"], []).append(
                 {"ev": ev["id"], "interest": interest["id"], "score": v, "terms": matched})
 
+    # Ueber die *sortierten Schluessel*, nicht ueber by_interest.values():
+    # Swifts Dictionary ist je Prozessstart anders sortiert, Pythons dict
+    # einfuegungsstabil. Das Modell darf diesen Unterschied nicht
+    # wegdefinieren -- es bildet deshalb nach, was die Swift-Fassung tut.
     out = []
-    for matches in by_interest.values():
-        ranked = sorted(matches, key=lambda m: (-m["score"], m["ev"]))
+    for key in sorted(by_interest):
+        ranked = sorted(by_interest[key], key=ranking)
         out.extend(ranked[:MAX_PER_INTEREST])
-    return sorted(out, key=lambda m: (-m["score"], m["ev"]))
+    return sorted(out, key=ranking)
+
+
+def ranking(m):
+    """Portierung von RelevanceScorer.ranking.
+
+    Drei Stufen, nicht zwei: bei gleichem Wert *und* gleichem Beleg
+    entscheidet das Interesse. Ohne diese dritte Stufe haengt die
+    Reihenfolge zweier gleichwertiger Treffer an der Laufzeit, weil
+    `sorted` in Swift nicht stabil ist.
+    """
+    return (-m["score"], m["ev"], m["interest"])
 
 
 def main():
@@ -106,8 +121,16 @@ def main():
         assert {m["interest"] for m in result} <= allowed, "unbestaetigtes Interesse gewirkt"
         checks += 1
 
-        # 2. Deterministisch.
+        # 2. Deterministisch -- und zwar auch dann, wenn die Interessen in
+        #    anderer Reihenfolge ankommen. Das ist der eigentliche Punkt:
+        #    in Swift bestimmt die Dictionary-Reihenfolge, welche Treffer
+        #    zuerst betrachtet werden, und die ist je Prozessstart anders.
         assert result == score(evidence, interests), "nicht deterministisch"
+        checks += 1
+        shuffled = list(interests)
+        rng.shuffle(shuffled)
+        assert result == score(evidence, shuffled), \
+            "Reihenfolge der Interessen aendert das Ergebnis"
         checks += 1
 
         # 3. Schwelle haelt, Wert bleibt in [0,1].

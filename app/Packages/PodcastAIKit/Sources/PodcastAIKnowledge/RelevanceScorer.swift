@@ -126,20 +126,31 @@ public struct RelevanceScorer: Sendable {
 
         // Je Interesse begrenzen, damit ein breit formuliertes Thema nicht
         // alle anderen verdrängt.
-        return byInterest.values.flatMap { matches in
-            matches
-                .sorted { lhs, rhs in
-                    lhs.score != rhs.score
-                        ? lhs.score > rhs.score
-                        : lhs.evidenceID.rawValue < rhs.evidenceID.rawValue
-                }
-                .prefix(maximumPerInterest)
+        //
+        // Über die Schlüssel in sortierter Reihenfolge, nicht über
+        // `byInterest.values`: Swifts `Dictionary` ist je Prozessstart
+        // anders sortiert. Zwei Starts lieferten sonst verschiedene Listen
+        // — und damit bei gleichem Wert eine andere Begründung unter
+        // derselben Stelle.
+        let limited = byInterest.keys.sorted { $0.rawValue < $1.rawValue }
+            .flatMap { key in
+                (byInterest[key] ?? []).sorted(by: Self.ranking).prefix(maximumPerInterest)
+            }
+        return limited.sorted(by: Self.ranking)
+    }
+
+    /// Die eine Rangfolge, an drei Stellen benutzt.
+    ///
+    /// Drei Stufen, nicht zwei: bei gleichem Wert **und** gleichem Beleg
+    /// entscheidet das Interesse. Ohne diese dritte Stufe hängt die
+    /// Reihenfolge zweier gleichwertiger Treffer an der Laufzeit, weil
+    /// `sorted` in Swift nicht stabil ist.
+    static func ranking(_ lhs: RelevanceMatch, _ rhs: RelevanceMatch) -> Bool {
+        if lhs.score != rhs.score { return lhs.score > rhs.score }
+        if lhs.evidenceID.rawValue != rhs.evidenceID.rawValue {
+            return lhs.evidenceID.rawValue < rhs.evidenceID.rawValue
         }
-        .sorted { lhs, rhs in
-            lhs.score != rhs.score
-                ? lhs.score > rhs.score
-                : lhs.evidenceID.rawValue < rhs.evidenceID.rawValue
-        }
+        return lhs.interestID.rawValue < rhs.interestID.rawValue
     }
 
     // MARK: - Begriffe

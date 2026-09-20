@@ -8,6 +8,7 @@ Geprueft werden die Zusagen, die ein Hoerplan gegenueber dem Nutzer macht:
   - Die Reihenfolge ist deterministisch, unabhaengig von Dictionary-Iteration.
   - Bereits Gehoertes taucht nicht auf.
 """
+import math
 import random
 from intervalset_reference import normalize, subtracting, intersection
 
@@ -17,12 +18,21 @@ PADDING = 8_000           # contextPadding
 TRANSITION = 600
 
 
+def swift_rounded(x):
+    """Swifts `Double.rounded()` rundet von der Null weg, Pythons `round()`
+    zur geraden Zahl. Der Unterschied faellt genau auf .5 -- bei
+    Millisekunden aus einer Division durch eine Wiedergaberate ist das kein
+    Randfall, sondern regelmaessig.
+    """
+    return math.floor(x + 0.5) if x >= 0 else math.ceil(x - 0.5)
+
+
 def listening(ms, rate):
-    return round(ms / rate)
+    return swift_rounded(ms / rate)
 
 
 def media_from_listening(ms, rate):
-    return round(ms * rate)
+    return swift_rounded(ms * rate)
 
 
 def resolve(cands, heard_by_media, skip_heard):

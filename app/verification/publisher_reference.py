@@ -9,6 +9,7 @@ Geprueft werden die Zusagen der Smart Podcast List:
   - Das Budget wird nie ueberschritten.
   - Kontextvorlauf zaehlt nicht als neuer Inhalt.
 """
+import math
 import random
 from intervalset_reference import subtracting, intersection, union, stable_hex
 
@@ -17,6 +18,15 @@ MIN_SEG = 25_000
 MAX_SEG = 600_000
 TRANSITION = 800
 SEP = "\x1f"
+
+
+def swift_rounded(x):
+    """Swifts `Double.rounded()` rundet von der Null weg, Pythons `round()`
+    zur geraden Zahl. Der Unterschied faellt genau auf .5 -- bei
+    Millisekunden aus einer Division durch eine Wiedergaberate ist das kein
+    Randfall, sondern regelmaessig.
+    """
+    return math.floor(x + 0.5) if x >= 0 else math.ceil(x - 0.5)
 
 
 def resolve_unheard(cands, heard, filter_mode="unheardSegments"):
@@ -58,7 +68,7 @@ def apply_budget(ranked, budget, rate=1.0):
         return ranked, 0
     sel, used, left = [], 0, 0
     for u in ranked:
-        lst = round((u["playback"][1] - u["playback"][0]) / rate)
+        lst = swift_rounded((u["playback"][1] - u["playback"][0]) / rate)
         trans = 0 if not sel else TRANSITION
         if used + trans + lst <= budget:
             used += trans + lst
@@ -217,9 +227,60 @@ def main():
 
     # Zweiter identischer Lauf -> gleicher batchKey -> keine zweite Ausgabe.
     assert batch_key(resolve_unheard(cands, {})) == batch_key(u)
-
     checks += 3
-    print(f"Publisher-Referenz: {checks} Pruefungen bestanden (15000 Zufallsfaelle).")
+
+    # --- Wiedergaberaten ungleich 1 ---
+    #
+    # Bisher lief dieses Modell nur mit rate=1.0, und die offene Frage war,
+    # ob Budget und virtuelle Zeitachse bei erhoehter Geschwindigkeit
+    # auseinanderlaufen. Sie tun es -- und das ist richtig so, aber es muss
+    # geprueft und nicht gehofft sein:
+    #
+    #   Das Budget ist eine Aussage ueber **Hoerzeit**: "20 Minuten je
+    #   Ausgabe" heisst, dass der Nutzer 20 Minuten damit verbringt.
+    #   Die virtuelle Zeitachse ist **Medienzeit**: sie muss auf die
+    #   Originalstellen zeigen, sonst landet ein Sprung an der falschen
+    #   Stelle. Bei 1,5-facher Geschwindigkeit passen in 20 Minuten Hoerzeit
+    #   30 Minuten Medienzeit.
+    #
+    # Geprueft wird deshalb beides getrennt: die Hoerzeit haelt das Budget
+    # ein, und die Zeitachse bleibt Medienzeit.
+    for rate in (0.75, 1.0, 1.25, 1.5, 2.0, 3.0):
+        budget = 1_200_000
+        sel_r, _ = apply_budget(rank(u), budget, rate=rate)
+        segs_r = build_segments(sel_r)
+
+        # 1. Die Hoerzeit haelt das Budget ein.
+        listening = sum(swift_rounded((s["playback"][1] - s["playback"][0]) / rate)
+                        for s in segs_r)
+        listening += max(0, len(segs_r) - 1) * TRANSITION
+        assert listening <= budget, (rate, listening)
+        checks += 1
+
+        # 2. Die virtuelle Zeitachse ist Medienzeit, ungeteilt.
+        for seg in segs_r:
+            span = seg["virtual"][1] - seg["virtual"][0]
+            assert span == seg["playback"][1] - seg["playback"][0], (rate, span)
+        checks += 1
+
+        # 3. Ein Sprung in der Ausgabe landet an der richtigen Originalstelle
+        #    -- unabhaengig von der Geschwindigkeit. Das ist die Eigenschaft,
+        #    an der die ganze Belegkette haengt.
+        for seg in segs_r:
+            for offset in (0, 1, (seg["virtual"][1] - seg["virtual"][0]) // 2):
+                position = original_position(segs_r, seg["virtual"][0] + offset)
+                assert position == (seg["c"]["media"], seg["playback"][0] + offset), \
+                    (rate, position)
+                checks += 1
+
+        # 4. Mehr Geschwindigkeit heisst nie weniger Inhalt.
+        if rate > 1.0:
+            base, _ = apply_budget(rank(u), budget, rate=1.0)
+            assert len(sel_r) >= len(base), (rate, len(sel_r), len(base))
+            checks += 1
+
+    print(f"Publisher-Referenz: {checks} Pruefungen bestanden "
+          f"(15000 Zufallsfaelle; Budget und Zeitachse bei sechs Wiedergaberaten).")
 
 
 if __name__ == "__main__":
