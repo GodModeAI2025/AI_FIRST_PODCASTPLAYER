@@ -61,12 +61,15 @@ public struct RelevanceMatch: Sendable, Hashable {
     }
 
     public func personalRelevance() -> PersonalRelevance {
-        PersonalRelevance(
-            reason: switch kind {
-                case .topic: .confirmedInterest
-                case .activeProject: .activeProject
-                case .openQuestion: .openQuestion
-            },
+        // `switch` ist als Ausdruck nur in Zuweisung, `return` oder
+        // Variableninitialisierung erlaubt — nicht als Argument.
+        let reason: PersonalRelevance.Reason = switch kind {
+        case .topic: .confirmedInterest
+        case .activeProject: .activeProject
+        case .openQuestion: .openQuestion
+        }
+        return PersonalRelevance(
+            reason: reason,
             interestID: interestID,
             interestLabel: interestLabel,
             explanation: explanation()

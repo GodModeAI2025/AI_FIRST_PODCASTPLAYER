@@ -62,28 +62,31 @@ struct RootView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var selection: Tab = .forYou
+    @State private var selection: Area = .forYou
 
-    enum Tab: Hashable {
+    /// Nicht `Tab` genannt: das verdeckte `SwiftUI.Tab` im eigenen
+    /// Gültigkeitsbereich, und die Aufrufe darunter hätten versucht, das
+    /// Enum als Funktion zu benutzen.
+    enum Area: Hashable {
         case forYou, feeds, ask, library, knowledge
     }
 
     var body: some View {
         TabView(selection: $selection) {
-            Tab("Für dich", systemImage: "sparkles", value: Tab.forYou) {
+            Tab("Für dich", systemImage: "sparkles", value: Area.forYou) {
                 NavigationStack { ForYouView() }
             }
-            Tab("Meine Feeds", systemImage: "waveform.circle", value: Tab.feeds) {
+            Tab("Meine Feeds", systemImage: "waveform.circle", value: Area.feeds) {
                 NavigationStack { SmartFeedListView() }
             }
             // Eigener Such-Tab: die Rolle, die er seit WWDC25 hat.
-            Tab("Fragen", systemImage: "magnifyingglass", value: Tab.ask, role: .search) {
+            Tab("Fragen", systemImage: "magnifyingglass", value: Area.ask, role: .search) {
                 NavigationStack { ChatView() }
             }
-            Tab("Mediathek", systemImage: "books.vertical", value: Tab.library) {
+            Tab("Mediathek", systemImage: "books.vertical", value: Area.library) {
                 NavigationStack { LibraryView() }
             }
-            Tab("Wissen", systemImage: "brain", value: Tab.knowledge) {
+            Tab("Wissen", systemImage: "brain", value: Area.knowledge) {
                 NavigationStack { KnowledgeHubView() }
             }
         }

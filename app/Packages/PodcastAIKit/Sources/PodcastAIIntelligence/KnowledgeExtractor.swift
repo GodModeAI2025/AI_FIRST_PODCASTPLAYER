@@ -178,7 +178,9 @@ public struct KnowledgeExtractor: Sendable {
             claims.append(Claim(
                 id: ClaimID(stable: "\(evidenceID.rawValue)|\(cleaned)"),
                 statement: cleaned,
-                openQuestion: questions.count == claims.count ? questions[safe: claims.count] : nil,
+                // Ohne Bedingung: bei Gleichheit war claims.count genau der
+                // erste ungültige Index, der Zweig lieferte also immer nil.
+                openQuestion: questions[safe: claims.count],
                 evidenceIDs: [evidenceID],
                 provenance: .derived
             ))

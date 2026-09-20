@@ -128,20 +128,35 @@ public extension View {
 /// nicht reagiert, lässt einen zweifeln, ob man getroffen hat.
 public struct PressableButtonStyle: ButtonStyle {
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     public init() {}
 
     public func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(
-                Design.Motion.respectingReduceMotion(
-                    Design.Motion.snappy, reduceMotion: reduceMotion
-                ),
-                value: configuration.isPressed
-            )
+        // Der Rumpf liegt in einer eigenen View, nicht direkt hier.
+        //
+        // `ButtonStyle` ist kein `View` und kein `DynamicProperty`-Container:
+        // ein `@Environment` darin wird nie befüllt und bleibt stumm beim
+        // Standardwert. Ausgerechnet „Bewegung reduzieren“ wäre damit für
+        // jeden Knopf der App wirkungslos gewesen — die eine Zusage, die
+        // dieser Stil überhaupt macht.
+        PressableBody(configuration: configuration)
+    }
+
+    private struct PressableBody: View {
+
+        let configuration: Configuration
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+                .opacity(configuration.isPressed ? 0.7 : 1)
+                .animation(
+                    Design.Motion.respectingReduceMotion(
+                        Design.Motion.snappy, reduceMotion: reduceMotion
+                    ),
+                    value: configuration.isPressed
+                )
+        }
     }
 }
 

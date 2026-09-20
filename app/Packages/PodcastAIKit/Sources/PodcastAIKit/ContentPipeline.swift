@@ -15,6 +15,19 @@
 //
 
 import Foundation
+import PodcastAICore
+import PodcastAIMedia
+import PodcastAIIntelligence
+import PodcastAIKnowledge
+import PodcastAISmartFeeds
+
+#if canImport(SwiftData)
+import PodcastAIPersistence
+#endif
+
+#if canImport(Speech)
+import PodcastAITranscription
+#endif
 
 /// Welche Stufe eine Folge erreicht hat.
 ///

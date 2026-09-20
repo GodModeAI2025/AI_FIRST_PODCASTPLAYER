@@ -90,9 +90,17 @@ public actor LibraryStore {
         var inserted = 0
         for episode in episodes {
             let episodeIdentifier = episode.id.rawValue
+            // An die Quelle gebunden. Ohne diese Bedingung konnte eine
+            // Kennungskollision dazu führen, dass ein fremder Feed eine
+            // bestehende Folge übernimmt — samt Audioadresse. Aus „ein Feed
+            // lügt“ wäre „eine vertraute Quelle sagt etwas, das sie nie
+            // gesagt hat“ geworden.
             let existing = try modelContext.fetch(
                 FetchDescriptor<StoredEpisode>(
-                    predicate: #Predicate { $0.identifier == episodeIdentifier }
+                    predicate: #Predicate {
+                        $0.identifier == episodeIdentifier
+                            && $0.source?.identifier == identifier
+                    }
                 )
             ).first
 
@@ -117,7 +125,10 @@ public actor LibraryStore {
     }
 
     public func episodes(forSource sourceID: SourceID, limit: Int = 200) throws -> [Episode] {
-        let identifier = sourceID.rawValue
+        // Als Optional deklariert: `#Predicate` vergleicht `String?` gegen
+        // `String` nicht — die implizite Promotion, die normaler Swift-Code
+        // macht, gibt es in der Makroexpansion nicht.
+        let identifier: String? = sourceID.rawValue
         var descriptor = FetchDescriptor<StoredEpisode>(
             predicate: #Predicate { $0.source?.identifier == identifier },
             sortBy: [SortDescriptor(\.publishedAt, order: .reverse)]

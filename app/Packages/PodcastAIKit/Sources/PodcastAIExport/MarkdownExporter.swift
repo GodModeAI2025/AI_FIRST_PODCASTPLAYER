@@ -37,7 +37,33 @@ public struct SafeSourceLink: Sendable, Equatable {
               url.user == nil, url.password == nil,
               url.query == nil, url.fragment == nil,
               let host = url.host, !host.isEmpty else { return nil }
+
+        // Der Kommentar oben warnte vor Token **im Pfad** — geprüft wurde er
+        // trotzdem nie. Premium-Feeds legen den Token genau dort ab.
+        guard !Self.pathLooksLikeToken(url.path) else { return nil }
+
+        // Klammern im Pfad würden die Markdown-Linkklammer schliessen und
+        // alles danach zu aktiver Struktur machen.
+        guard !url.path.contains(where: { "()<>[]".contains($0) }) else { return nil }
+
         self.url = url
+    }
+
+    /// Erkennt Pfadsegmente, die wie ein Zugangstoken aussehen.
+    ///
+    /// Heuristik, bewusst streng: ein langes Segment ohne Vokal aus dem
+    /// Hex-/Base64-Alphabet ist kein Folgentitel. Im Zweifel kein Link —
+    /// der Export nennt dann Titel, Anbieter und Originalzeit.
+    static func pathLooksLikeToken(_ path: String) -> Bool {
+        for segment in path.split(separator: "/") where segment.count >= 16 {
+            let alphabet = segment.allSatisfy {
+                $0.isHexDigit || $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_"
+            }
+            let vowels = segment.lowercased().filter { "aeiou".contains($0) }.count
+            // Ein echter Slug hat Vokale; ein Hex-Token praktisch keine.
+            if alphabet, Double(vowels) / Double(segment.count) < 0.12 { return true }
+        }
+        return false
     }
 }
 
@@ -147,7 +173,9 @@ public struct MarkdownExporter: Sendable {
         if scope.includeExternalLinks,
            let link = SafeSourceLink(publicURL: insight.publicURLs[evidence.id]) {
             lines.append("")
-            lines.append("[Originalquelle](\(link.url.absoluteString))")
+            // Autolink-Form statt Klammern: damit kann kein Zeichen der
+            // Adresse die Linkstruktur verlassen.
+            lines.append("<\(link.url.absoluteString)>")
         }
 
         if scope.includeQuotes {

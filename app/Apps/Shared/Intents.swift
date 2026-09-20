@@ -28,7 +28,7 @@ struct SmartFeedEntity: AppEntity, Identifiable {
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
         TypeDisplayRepresentation(name: "Themen-Update")
     }
-    static var defaultQuery = SmartFeedQuery()
+    static let defaultQuery = SmartFeedQuery()
 
     var id: String
     var title: String
@@ -71,13 +71,13 @@ struct SmartFeedQuery: EntityQuery {
 /// „Spiel mein AI Update.“
 struct PlaySmartFeedIntent: AppIntent {
 
-    static var title: LocalizedStringResource = "Themen-Update abspielen"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Themen-Update abspielen"
+    static let description = IntentDescription(
         "Spielt die neueste Ausgabe eines Themen-Updates ab — die Originalstellen "
         + "aus deinen Quellen, die du noch nicht gehört hast."
     )
     /// Die App kommt nach vorn: Wiedergabe ist etwas, das man sehen soll.
-    static var openAppWhenRun = true
+    static let openAppWhenRun = true
 
     @Parameter(title: "Themen-Update")
     var feed: SmartFeedEntity
@@ -118,14 +118,14 @@ struct PlaySmartFeedIntent: AppIntent {
 /// „Erstelle mir ein 20-Minuten-Datenschutz-Update.“
 struct BuildEditionIntent: AppIntent {
 
-    static var title: LocalizedStringResource = "Themen-Update erstellen"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Themen-Update erstellen"
+    static let description = IntentDescription(
         "Stellt aus deinen ungehörten Originalstellen eine neue Ausgabe zusammen. "
         + "Startet keine Wiedergabe."
     )
     /// Ausdrücklich nicht: die App nach vorn holen. Zusammenstellen ist
     /// Vorbereitung, und Vorbereitung darf im Hintergrund passieren.
-    static var openAppWhenRun = false
+    static let openAppWhenRun = false
 
     @Parameter(title: "Themen-Update")
     var feed: SmartFeedEntity
@@ -150,11 +150,11 @@ struct BuildEditionIntent: AppIntent {
 /// „Merke diese Aussage.“ — bezogen auf das, was gerade läuft.
 struct RememberCurrentPassageIntent: AppIntent {
 
-    static var title: LocalizedStringResource = "Diese Stelle merken"
-    static var description = IntentDescription(
+    static let title: LocalizedStringResource = "Diese Stelle merken"
+    static let description = IntentDescription(
         "Merkt sich die Stelle, die gerade läuft, mit Quelle, Timecode und Originaltext."
     )
-    static var openAppWhenRun = false
+    static let openAppWhenRun = false
 
     @Parameter(title: "Notiz", default: nil)
     var note: String?
@@ -176,8 +176,8 @@ struct RememberCurrentPassageIntent: AppIntent {
 /// Stoppt die Wiedergabe.
 struct StopPlaybackIntent: AppIntent {
 
-    static var title: LocalizedStringResource = "Wiedergabe stoppen"
-    static var openAppWhenRun = false
+    static let title: LocalizedStringResource = "Wiedergabe stoppen"
+    static let openAppWhenRun = false
 
     @Dependency private var model: AppModel
 

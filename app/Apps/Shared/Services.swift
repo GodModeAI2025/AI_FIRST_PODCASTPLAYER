@@ -35,13 +35,15 @@ public actor FeedRefresher {
 
     public init(store: LibraryStore) {
         self.store = store
-        let configuration = URLSessionConfiguration.default
-        configuration.requestCachePolicy = .reloadRevalidatingCacheData
-        configuration.timeoutIntervalForRequest = 30
-        // Kein beliebiger Klartextzugriff: ein Feed darf die App nicht in
-        // eine unverschlüsselte Verbindung ziehen.
-        configuration.waitsForConnectivity = true
-        self.session = URLSession(configuration: configuration)
+        // `SafeHTTP` bringt Adressprüfung, Weiterleitungsprüfung und das
+        // Abschalten von Cookies und gespeicherten Zugangsdaten mit. Vorher
+        // hatte diese Session gar keinen Delegaten — Weiterleitungen eines
+        // fremden Feeds liefen ungeprüft durch.
+        self.session = SafeHTTP.makeSession { configuration in
+            configuration.requestCachePolicy = .reloadRevalidatingCacheData
+            configuration.timeoutIntervalForRequest = 30
+            configuration.waitsForConnectivity = true
+        }
     }
 
     public func addSource(from input: String) async throws -> AddedSource {
@@ -128,29 +130,24 @@ public actor FeedRefresher {
         )
     }
 
+    /// Holt einen Feed — mit Adressprüfung vor der Anfrage und einer
+    /// Obergrenze, die *während* des Lesens greift.
+    ///
+    /// Vorher stand hier `session.data(for:)`: ein Server, der endlos
+    /// sendet, hätte den Speicher gefüllt, bis das System die App beendet.
     private func fetch(_ url: URL) async throws -> Data {
-        var request = URLRequest(url: url)
-        request.setValue("PodcastAI", forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else { return data }
-        guard (200..<300).contains(http.statusCode) else {
-            throw FeedRefreshError.httpStatus(http.statusCode)
-        }
-        return data
+        try await SafeHTTP.load(url, using: session, limit: SafeHTTP.textLimit)
     }
 }
 
 public enum FeedRefreshError: Error, LocalizedError {
     case needsDiscovery
-    case httpStatus(Int)
 
     public var errorDescription: String? {
         switch self {
         case .needsDiscovery:
             "Zu diesem Link muss erst der Feed ermittelt werden. Das ist noch nicht eingebaut — "
             + "füge bis dahin die Feed-Adresse direkt ein."
-        case .httpStatus(let code):
-            "Die Quelle hat mit Status \(code) geantwortet."
         }
     }
 }

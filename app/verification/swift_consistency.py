@@ -56,6 +56,7 @@ KNOWN = {
     "Animation","Material","ButtonStyle","Configuration","CGFloat","Capsule",
     "BGTaskScheduler","BGAppRefreshTask","BGProcessingTask","BGAppRefreshTaskRequest",
     "BGProcessingTaskRequest","UIImage","NSImage","CGSize","LinearGradient","Gradient",
+    "Announcement","AccessibilityNotification","URLSessionDownloadDelegate",
 }
 
 declared, extended, referenced, problems = {}, {}, {}, []
