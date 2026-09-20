@@ -267,8 +267,11 @@ public actor ContentPipeline {
             let title = titles[item.episodeID]
             return SegmentCandidate(
                 evidence: item, episodeID: item.episodeID, sourceID: item.sourceID,
-                sourceTitle: title?.source ?? "Quelle",
-                episodeTitle: title?.episode ?? "Folge",
+                // „Unbekannte Quelle“ statt „Quelle“: falls es doch einmal
+                // erscheint, soll es als fehlende Angabe lesbar sein und
+                // nicht als Titel.
+                sourceTitle: title?.source ?? "Unbekannte Quelle",
+                episodeTitle: title?.episode ?? "Unbekannte Folge",
                 originalPublishedAt: title?.published,
                 transcriptRevision: item.transcriptRevision,
                 topicIDs: [match.interestID],

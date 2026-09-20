@@ -448,8 +448,18 @@ public final class AppModel {
             let pipeline = ContentPipeline(
                 store: store, mediaDirectory: LocalMediaLocator.mediaDirectory
             )
+            // Titel mitgeben, statt sie in der Ausgabe durch „Quelle“ und
+            // „Folge“ zu ersetzen. Eine Ausgabe, die ihre eigenen
+            // Bestandteile nicht benennen kann, ist kein Podcast — und die
+            // Shownotes sind die Stelle, an der das auffällt.
+            let known = try await store.evidenceForAnalyzedEpisodes()
+            let titles = try await store.titles(
+                forEpisodes: Array(Set(known.map(\.episodeID))))
             let candidates = try await pipeline.candidates(
-                for: feed, profile: profile, availability: modelStatus
+                for: feed, profile: profile, availability: modelStatus,
+                titles: titles.mapValues {
+                    (source: $0.source, episode: $0.episode, published: $0.publishedAt)
+                }
             )
             let existing = Set((editions[feedID] ?? []).map(\.batchKey))
             let outcome = PersonalEpisodePublisher().makeEdition(
@@ -800,7 +810,8 @@ public final class AppModel {
                 evidenceID: item.id,
                 relation: assigned ?? .differentPremise,
                 isModelConfirmed: assigned != nil,
-                sourceTitle: sources.first { $0.id == item.sourceID }?.title ?? "Quelle",
+                sourceTitle: sources.first { $0.id == item.sourceID }?.title
+                    ?? "Unbekannte Quelle",
                 excerpt: item.quotedText
             )
         }

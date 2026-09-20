@@ -53,12 +53,12 @@ struct SnapshotPlanningContext: FocusPlanningContext {
 
     func episode(for id: EpisodeID) -> Episode? {
         episodesByID[id] ?? evidenceByID.values.first { $0.episodeID == id }.map {
-            Episode(id: id, sourceID: $0.sourceID, title: "Folge")
+            Episode(id: id, sourceID: $0.sourceID, title: "Unbekannte Folge")
         }
     }
 
     func source(for id: SourceID) -> Source? {
-        sourcesByID[id] ?? Source(id: id, kind: .podcastRSS, title: "Quelle")
+        sourcesByID[id] ?? Source(id: id, kind: .podcastRSS, title: "Unbekannte Quelle")
     }
 
     func transcript(for id: MediaVersionID) -> Transcript? { transcriptsByMedia[id] }

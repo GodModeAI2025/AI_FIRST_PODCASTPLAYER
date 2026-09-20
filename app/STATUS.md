@@ -30,7 +30,7 @@ Stand: 62 Swift-Dateien, 13 299 Zeilen (mit Tests).
 | 4 | Relevante Stellen + „Warum für dich?“ | ✅ | `refreshRelevantToday` verbindet Bewerter, Belege und Hörzustand. Läuft beim Laden und nach jedem Refresh |
 | 5 | Smart Podcast List | ✅ | „Anlegen“ ruft `createSmartFeed` und baut gleich eine erste Ausgabe |
 | 6 | Dauerhafte Feeds, Veröffentlichungsrhythmus | ✅ | Feeds und Ausgaben überleben den Neustart; `processPendingEditions` findet jetzt Feeds vor |
-| 7 | Titel, Shownotes, Kapitel, Cover | ◐ | Cover wird gerendert und gezeigt. Shownotes tragen weiterhin „Quelle“/„Folge“, wo der Planungskontext keine Folge kennt |
+| 7 | Titel, Shownotes, Kapitel, Cover | ✅ | Cover berechnet und gezeigt; Shownotes tragen echte Quellen-, Folgentitel und das Datum der Originalfolge |
 | 8 | Hörzustand auf Segmentebene | ✅ | `PlaybackObserver` verdrahtet; der Ledger wird beim Hören geschrieben |
 | 9 | Chat als zweite Bedienoberfläche | ✅ | Stichwortvorauswahl, dann `extractClaims`. Die Antwort besteht aus Aussagen mit Beleg, nicht aus freiem Text |
 | 10 | Chat steuert den Player | ✅ | |
@@ -97,6 +97,17 @@ Dazu fünf Befunde, die kein Kapitel betreffen, sondern die Tragfähigkeit:
    Vorgabe statt Messung ausgewiesen.
 
 ## Die eigentliche Lage
+
+**19 von 20 Kapiteln sind gebaut und angeschlossen.** Das 20. — „Privacy-first,
+nur Apple-Modelle“ — ist es auch, mit einer Einschränkung, die kein Code
+aufheben kann: die PCC-Stufe steht auf „nicht berechtigt“, weil keine
+Berechtigung vorliegt.
+
+Und darunter steht der Satz, den dieses Dokument nicht wegschreiben kann:
+**nichts davon ist je gelaufen.** Kein Compiler, kein Gerät, kein Xcode.
+Was hier „angeschlossen“ heisst, heisst: es gibt einen Aufrufer, einen Weg
+durch die Oberfläche, und die Logik dahinter ist gegen ein unabhängiges
+Modell geprüft. Es heisst nicht, dass es funktioniert.
 
 Der geprüfte Domänenkern ist angeschlossen, und der Hauptweg ist begehbar.
 Was bleibt, ist von anderer Art als die Befunde oben.

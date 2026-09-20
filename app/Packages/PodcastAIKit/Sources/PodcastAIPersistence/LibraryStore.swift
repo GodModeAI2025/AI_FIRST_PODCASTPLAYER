@@ -401,16 +401,21 @@ public actor LibraryStore {
         for episode in stored {
             result[EpisodeID(rawValue: episode.identifier)] = EpisodeTitles(
                 episode: episode.title,
-                source: episode.source?.title ?? "Unbekannte Quelle"
+                source: episode.source?.title ?? "Unbekannte Quelle",
+                publishedAt: episode.publishedAt
             )
         }
         return result
     }
 
-    /// Zwei Titel, die immer zusammen gebraucht werden.
+    /// Was eine Ausgabe über ihre Bestandteile schreiben muss.
+    ///
+    /// Das Erscheinungsdatum gehört dazu: in den Shownotes steht, wann die
+    /// **Originalfolge** erschienen ist, nicht wann die Ausgabe entstand.
     public struct EpisodeTitles: Sendable {
         public let episode: String
         public let source: String
+        public let publishedAt: Date?
     }
 
     // MARK: - Was der Nutzer selbst anlegt
