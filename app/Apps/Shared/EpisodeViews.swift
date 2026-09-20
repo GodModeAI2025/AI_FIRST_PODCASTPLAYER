@@ -179,7 +179,7 @@ struct KnowledgeView: View {
         .toolbar {
             if !model.highlights.isEmpty {
                 Button {
-                    exported = model.exportKnowledge()
+                    Task { exported = await model.exportKnowledge() }
                 } label: {
                     Label("Als Markdown exportieren", systemImage: "square.and.arrow.up")
                 }

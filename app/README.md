@@ -13,8 +13,23 @@ kompiliert**: es gibt keinen Swift-Compiler (`download.swift.org` ist per
 Netzwerkpolicy gesperrt, GitHub-Releases liegen ausserhalb des
 Session-Scopes). Ein Xcode-Build auf einem Mac steht aus.
 
-Was stattdessen belegt ist: die Kernalgorithmen sind Zeile für Zeile nach
-Python portiert und gegen Brute-Force-Modelle geprüft.
+Was stattdessen belegt ist, in zwei getrennten Stufen — die Unterscheidung
+ist wichtig, weil sie verschieden viel wert sind:
+
+**Portierte Kernlogik.** Die Algorithmen sind nach Python übertragen und
+gegen Brute-Force-Modelle geprüft, die dieselbe Frage unabhängig und
+absichtlich dumm beantworten (Intervalle als Millisekunden-Mengen,
+Auswahl durch Aufzählen aller Möglichkeiten). Wo die Portierung vom
+Swift-Code abweicht, belegt sie nichts — das ist die Grenze dieser Stufe
+und sie lässt sich ohne Compiler nicht schließen.
+
+**Modellierte Eigenschaften.** Einige Modelle bilden nicht Zeile für Zeile
+ab, sondern prüfen eine Eigenschaft, die der Code haben muss: dass eine
+Größengrenze auch dann hält, wenn der Server über die Länge lügt; dass bei
+Rückstau kein Block verloren geht; dass keine Prüfsumme, an der eine
+Entscheidung hängt, auf FNV-1a steht. Zwei davon prüfen zusätzlich den
+Swift-Quelltext direkt und schlagen an, wenn eine künftige Änderung die
+Regel bricht.
 
 ```bash
 app/verification/run_all.sh
@@ -23,18 +38,23 @@ app/verification/run_all.sh
 | Referenzmodell | Prüfungen | Was es belegt |
 |---|---|---|
 | `intervalset_reference.py` | 210 003 | Intervall-Algebra gegen ein Millisekunden-Mengenmodell; Normalform, Idempotenz |
-| `ledger_reference.py` | 140 005 | Gehört bleibt gehört, feedübergreifend; Zusammenführen kommutativ und idempotent |
-| `focusplanner_reference.py` | 120 004 | Budget hält, keine Überlappung, keine Fundstelle verschwindet |
-| `publisher_reference.py` | 74 391 | Persönliche Ausgaben ohne Wiederholung; zweiter Refresh erzeugt keine zweite Ausgabe |
-| `assembler_reference.py` | 80 006 | Wiederaufnahme nach Abbruch ohne Dubletten und ohne Textverlust |
 | `selection_reference.py` | 180 004 | Modellantworten: erfundene Verweise werden verworfen, nicht korrigiert |
+| `ledger_reference.py` | 140 005 | Gehört bleibt gehört, feedübergreifend; Zusammenführen kommutativ und idempotent |
 | `export_reference.py` | 120 016 | Kein Token im Export, fremder Text zerlegt die Struktur nicht |
-| `sourceresolver_reference.py` | 20 | Linkklassifikation gegen `fixtures/youtube/url-cases.json` aus dem Spec-Kit |
-| `relevance_reference.py` | 80 005 | Nur bestätigte Interessen wirken; deterministische Rangfolge |
+| `focusplanner_reference.py` | 120 004 | Budget hält, keine Überlappung, keine Fundstelle verschwindet |
 | `passage_reference.py` | 100 003 | Passagen schneiden an Sprechpausen, nie mitten im Satz |
-| `redirectguard_reference.py` | 28 | Weiterleitungen ins eigene Netz werden abgelehnt |
+| `assembler_reference.py` | 80 006 | Wiederaufnahme nach Abbruch ohne Dubletten und ohne Textverlust |
+| `relevance_reference.py` | 80 005 | Nur bestätigte Interessen wirken; deterministische Rangfolge |
+| `publisher_reference.py` | 74 391 | Persönliche Ausgaben ohne Wiederholung; zweiter Refresh erzeugt keine zweite Ausgabe |
+| `backpressure_reference.py` | 258 | Begrenzter Puffer ohne Verlust — mit Gegenbeweis: ohne Wiederholung gingen 174 von 200 Blöcken verloren |
+| `transferlimit_reference.py` | 148 | Größengrenze hält, auch wenn der Server über die Länge lügt |
+| `mediatime_reference.py` | 137 | Zeitrechnung sättigt statt abzustürzen; Randwerte erschöpfend |
+| `networkdestination_reference.py` | 101 | Jede Schreibweise von localhost fällt durch, gegen `ipaddress`/`inet_aton` abgeglichen |
+| `digestpolicy_reference.py` | 28 | Jede entscheidungstragende Prüfsumme auf SHA-256 — geprüft am Quelltext |
+| `sourceresolver_reference.py` | 20 | Linkklassifikation gegen `fixtures/youtube/url-cases.json` aus dem Spec-Kit |
 
-Das belegt die **Logik**, nicht die Swift-Syntax.
+Das belegt die **Logik**, nicht die Swift-Syntax. Kein Referenzmodell
+ersetzt einen Compiler, und keines ersetzt einen Lauf auf einem Gerät.
 
 Dazu läuft `swift_consistency.py` über alle Swift-Dateien und prüft, was
 ohne Compiler tatsächlich schiefgeht: unausgeglichene Klammern, nicht

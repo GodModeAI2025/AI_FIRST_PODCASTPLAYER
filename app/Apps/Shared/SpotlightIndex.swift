@@ -105,13 +105,18 @@ public final class SpotlightIndex {
 /// Der Einwilligungsschalter, mit der Erklärung daneben.
 struct SpotlightSettingsSection: View {
 
-    @State private var index = SpotlightIndex()
+    @Environment(AppModel.self) private var model
     @State private var isEnabled = false
 
     var body: some View {
         Section {
             Toggle("In der Systemsuche auffindbar", isOn: $isEnabled)
-                .onChange(of: isEnabled) { _, newValue in index.isEnabled = newValue }
+                .onChange(of: isEnabled) { _, newValue in
+                    model.spotlight.isEnabled = newValue
+                    // Einschalten heisst: die vorhandenen Stellen jetzt
+                    // melden, nicht erst bei der nächsten Änderung.
+                    if newValue { model.reindexSpotlight() }
+                }
         } header: {
             Text("Systemsuche")
         } footer: {
@@ -120,6 +125,6 @@ struct SpotlightSettingsSection: View {
                  + "PodcastAI stellt Relevanz bereit — ob das System daraus einen Vorschlag "
                  + "macht, entscheidet das System.")
         }
-        .task { isEnabled = index.isEnabled }
+        .task { isEnabled = model.spotlight.isEnabled }
     }
 }

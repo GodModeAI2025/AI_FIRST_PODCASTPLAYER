@@ -45,6 +45,9 @@ public final class AppModel {
     public let store: LibraryStore
     public let policy: PlaybackPolicy
     public let player: PlaybackCoordinator
+    /// Eine Instanz für die ganze App. Der Einwilligungsschalter und der
+    /// Indexlauf müssen denselben Zustand sehen.
+    public let spotlight = SpotlightIndex()
 
     private let refresher: FeedRefresher
     private let deviceID: String
@@ -397,6 +400,21 @@ public final class AppModel {
     private func persistHighlights() {
         let list = highlights
         Task { await persist { try await $0.save(highlights: list) } }
+        reindexSpotlight()
+    }
+
+    /// Meldet die gemerkten Stellen an den Systemindex.
+    ///
+    /// `SpotlightIndex.index(highlights:evidence:)` hatte keine einzige
+    /// Aufrufstelle. Ohne diesen Aufruf findet die Systemsuche nichts, was
+    /// in dieser App gemerkt wurde — der Schalter in den Einstellungen war
+    /// ein Schalter ohne Wirkung. Der Index selbst prüft die Einwilligung.
+    public func reindexSpotlight() {
+        let list = highlights
+        Task {
+            let evidence = (try? await store.evidence(ids: list.map(\.evidenceID))) ?? [:]
+            await spotlight.index(highlights: list, evidence: evidence)
+        }
     }
 
     private func persistTrails() {
@@ -575,11 +593,39 @@ public final class AppModel {
         play(plan, from: .chat)
     }
 
+    /// Das Cover einer Ausgabe.
+    ///
+    /// Eine reine Funktion aus Ausgabe und Feedtitel — deshalb berechnet
+    /// statt gespeichert. `NativeCoverRenderer` hatte bis hierher keine
+    /// einzige Aufrufstelle.
+    public func cover(for episode: PersonalEpisode) -> CoverAsset? {
+        guard let feed = smartFeeds.first(where: { $0.id == episode.feedID }) else { return nil }
+        return NativeCoverRenderer().makeCover(for: episode, feedTitle: feed.title)
+    }
+
     /// Baut den Markdown-Export über alle gemerkten Stellen.
-    public func exportKnowledge() -> String {
+    ///
+    /// Bisher übergab diese Methode `evidence: []` und leere Titelkarten —
+    /// der Export hatte eine Überschrift „Quellen“ und nichts darunter.
+    /// Genau das, wogegen die ganze Belegkette gebaut ist: ein Zitat ohne
+    /// Herkunft. Die Belege werden jetzt geholt, und wenn einer fehlt,
+    /// erscheint die Stelle nicht mit halber Herkunft, sondern gar nicht.
+    public func exportKnowledge() async -> String {
         guard !highlights.isEmpty else { return "" }
+
+        let found = (try? await store.evidence(
+            ids: highlights.map(\.evidenceID))) ?? [:]
+        let episodes = (try? await store.episodes(
+            ids: Array(Set(found.values.map(\.episodeID))))) ?? []
+
+        let episodeTitles = Dictionary(
+            episodes.map { ($0.id, $0.title) }, uniquingKeysWith: { first, _ in first })
+        let sourceTitles = Dictionary(
+            sources.map { ($0.id, $0.title) }, uniquingKeysWith: { first, _ in first })
+
         let exporter = MarkdownExporter()
-        return highlights.map { highlight in
+        return highlights.compactMap { highlight -> String? in
+            guard let evidence = found[highlight.evidenceID] else { return nil }
             let claim = Claim(
                 id: ClaimID(stable: highlight.id.rawValue),
                 statement: highlight.note ?? "Gemerkte Stelle",
@@ -588,9 +634,9 @@ public final class AppModel {
             )
             return exporter.export(ExportableInsight(
                 title: highlight.note ?? "Gemerkte Stelle",
-                claim: claim, evidence: [],
+                claim: claim, evidence: [evidence],
                 userNote: highlight.note,
-                sourceTitles: [:], episodeTitles: [:]
+                sourceTitles: sourceTitles, episodeTitles: episodeTitles
             ))
         }
         .joined(separator: "\n\n")

@@ -147,14 +147,23 @@ struct SmartFeedRow: View {
     let editions: [PersonalEpisode]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-            Text(feed.title).font(.headline)
+        HStack(spacing: Design.Spacing.control) {
+            // Ein Themenfeed sieht aus wie ein Podcast — das ist Kapitel 7,
+            // und es hing bis hierher an einem Renderer ohne Aufrufer.
             if let latest = editions.first {
-                Text("\(latest.title) · \(latest.totalMediaDuration.shortDescription)")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                Text(feed.editionMode.label)
-                    .font(.caption).foregroundStyle(.secondary)
+                CoverView(
+                    cover: NativeCoverRenderer().makeCover(for: latest, feedTitle: feed.title),
+                    size: 56)
+            }
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                Text(feed.title).font(.headline)
+                if let latest = editions.first {
+                    Text("\(latest.title) · \(latest.totalMediaDuration.shortDescription)")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text(feed.editionMode.label)
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -171,6 +180,9 @@ struct PersonalEpisodeView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: Design.Spacing.control) {
+                    if let cover = model.cover(for: episode) {
+                        CoverView(cover: cover, size: 120)
+                    }
                     Text(episode.title)
                         .font(.title2.weight(.bold))
                     if let subtitle = episode.subtitle {
@@ -550,6 +562,8 @@ struct NewSmartFeedSheet: View {
 struct FocusPlayerView: View {
 
     @Environment(AppModel.self) private var model
+    @State private var showingNote = false
+    @State private var note = ""
 
     var body: some View {
         VStack(spacing: Design.Spacing.standard) {
@@ -601,6 +615,17 @@ struct FocusPlayerView: View {
                     .accessibilityLabel("Wiedergabe beenden")
                 }
                 .buttonStyle(.pressable)
+
+                // „Merken“ gab es bisher nur als Kurzbefehl — in der App
+                // selbst führte kein Weg dorthin. Das Kapitel „Highlights
+                // und Wissen“ beginnt aber hier, beim Hören.
+                Button {
+                    showingNote = true
+                } label: {
+                    Label("Diese Stelle merken", systemImage: "bookmark")
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.player.currentOriginalPosition() == nil)
             } else {
                 ContentUnavailableView(
                     "Nichts wird abgespielt",
@@ -611,6 +636,44 @@ struct FocusPlayerView: View {
         }
         .padding()
         .navigationTitle("Wiedergabe")
+        .sheet(isPresented: $showingNote) {
+            NavigationStack {
+                Form {
+                    Section {
+                        TextField("Notiz (optional)", text: $note, axis: .vertical)
+                            .lineLimit(3...6)
+                    } footer: {
+                        Text("Gemerkt wird die Stelle, die gerade gelaufen ist — "
+                             + "mit Quelle, Timecode und Originaltext. Deine Notiz bleibt "
+                             + "davon getrennt und wird nie überschrieben.")
+                    }
+                }
+                .navigationTitle("Stelle merken")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Merken") { remember() }
+                    }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Abbrechen") { showingNote = false; note = "" }
+                    }
+                }
+            }
+        }
+    }
+
+    private func remember() {
+        guard let (mediaVersionID, position) = model.player.currentOriginalPosition() else {
+            showingNote = false
+            return
+        }
+        let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        showingNote = false
+        note = ""
+        Task {
+            await model.rememberPassage(
+                at: position, in: mediaVersionID,
+                note: text.isEmpty ? nil : text, via: .player)
+        }
     }
 }
 
