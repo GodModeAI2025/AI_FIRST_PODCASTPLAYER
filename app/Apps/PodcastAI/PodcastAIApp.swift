@@ -25,17 +25,28 @@ struct PodcastAIApp: App {
     @State private var model: AppModel
     @State private var startupError: String?
 
+    /// Muss gehalten werden: `BGTaskScheduler` behält zwar die Startblöcke,
+    /// aber die Planung der nächsten Ausführung läuft über dieses Objekt.
+    private let background: BackgroundWork
+
     init() {
+        let model: AppModel
+        var failure: String?
         do {
             let container = try LibraryStore.makeContainer()
-            _model = State(initialValue: AppModel(store: LibraryStore(modelContainer: container)))
+            model = AppModel(store: LibraryStore.make(container: container))
         } catch {
             // Der Speicher wird nicht stillschweigend durch einen flüchtigen
             // ersetzt: das sähe aus, als seien die Daten weg.
             let container = try! LibraryStore.makeContainer(inMemory: true)
-            _model = State(initialValue: AppModel(store: LibraryStore(modelContainer: container)))
-            _startupError = State(initialValue: error.localizedDescription)
+            model = AppModel(store: LibraryStore.make(container: container))
+            failure = error.localizedDescription
         }
+        _model = State(initialValue: model)
+        _startupError = State(initialValue: failure)
+        // Hier und nicht in `.task`: Intent-Abhängigkeit, Audiositzung und
+        // BGTask-Registrierung müssen stehen, bevor der Start fertig ist.
+        self.background = AppBootstrap.start(with: model)
     }
 
     var body: some Scene {
@@ -44,8 +55,6 @@ struct PodcastAIApp: App {
                 .environment(model)
                 .task {
                     await model.load()
-                    let background = BackgroundWork(model: model)
-                    background.register()
                     background.scheduleRefresh()
                 }
                 .alert("Der Speicher konnte nicht geöffnet werden",
@@ -99,7 +108,7 @@ struct RootView: View {
         .animation(
             Design.Motion.respectingReduceMotion(Design.Motion.snappy,
                                                  reduceMotion: reduceMotion),
-            value: model.player.activePlan?.id
+            value: model.playerPlan?.id
         )
         .overlay(alignment: .top) { ActivityBanner() }
     }
@@ -114,7 +123,7 @@ struct MiniPlayerAccessory: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        if let plan = model.player.activePlan, !plan.isEmpty {
+        if let plan = model.playerPlan, !plan.isEmpty {
             HStack(spacing: Design.Spacing.control) {
                 Image(systemName: "waveform")
                     .font(.body)
@@ -136,7 +145,7 @@ struct MiniPlayerAccessory: View {
                 Spacer(minLength: Design.Spacing.small)
 
                 Button {
-                    isPlaying ? model.player.pause() : model.player.resume()
+                    isPlaying ? model.pausePlayback() : model.resumePlayback()
                 } label: {
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                         .font(.body)
@@ -146,7 +155,7 @@ struct MiniPlayerAccessory: View {
                 .accessibilityLabel(isPlaying ? "Pausieren" : "Fortsetzen")
 
                 Button {
-                    model.player.stop()
+                    model.stopPlayback()
                 } label: {
                     Image(systemName: "xmark")
                         .font(.footnote.weight(.semibold))
@@ -159,10 +168,7 @@ struct MiniPlayerAccessory: View {
         }
     }
 
-    private var isPlaying: Bool {
-        if case .playing = model.player.state { return true }
-        return false
-    }
+    private var isPlaying: Bool { model.isPlaying }
 
     private func subtitle(for plan: ValidatedPlaybackPlan) -> String {
         let stellen = plan.segments.count == 1 ? "1 Stelle" : "\(plan.segments.count) Stellen"

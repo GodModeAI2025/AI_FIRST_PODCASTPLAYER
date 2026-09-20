@@ -183,7 +183,7 @@ struct StopPlaybackIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        model.player.stop()
+        model.stopPlayback()
         model.policy.endFocusSession()
         return .result()
     }

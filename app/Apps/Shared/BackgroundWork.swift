@@ -36,20 +36,37 @@ public final class BackgroundWork {
 
     #if canImport(BackgroundTasks) && os(iOS)
 
-    /// Muss beim Start registriert werden, bevor die App fertig geladen ist.
+    /// Muss beim Start registriert werden, bevor die App fertig geladen ist —
+    /// `AppBootstrap.start(with:)` ruft das aus `init` des App-Typs.
+    ///
+    /// `using: .main` ist kein Geschmack: mit `nil` läuft der Startblock auf
+    /// einer Hintergrundwarteschlange, und die `BGTask`-Instanz müsste eine
+    /// Actor-Grenze überqueren. Sie ist nicht `Sendable`; Swift 6 lehnt das
+    /// ab. Auf dem Hauptthread ist `assumeIsolated` keine Behauptung,
+    /// sondern eine Feststellung.
     public func register() {
         BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: Self.refreshIdentifier, using: nil
+            forTaskWithIdentifier: Self.refreshIdentifier, using: .main
         ) { task in
-            guard let refresh = task as? BGAppRefreshTask else { task.setTaskCompleted(success: false); return }
-            Task { @MainActor in await self.handleRefresh(refresh) }
+            MainActor.assumeIsolated {
+                guard let refresh = task as? BGAppRefreshTask else {
+                    task.setTaskCompleted(success: false)
+                    return
+                }
+                self.handleRefresh(refresh)
+            }
         }
 
         BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: Self.analysisIdentifier, using: nil
+            forTaskWithIdentifier: Self.analysisIdentifier, using: .main
         ) { task in
-            guard let processing = task as? BGProcessingTask else { task.setTaskCompleted(success: false); return }
-            Task { @MainActor in await self.handleAnalysis(processing) }
+            MainActor.assumeIsolated {
+                guard let processing = task as? BGProcessingTask else {
+                    task.setTaskCompleted(success: false)
+                    return
+                }
+                self.handleAnalysis(processing)
+            }
         }
     }
 
@@ -72,24 +89,28 @@ public final class BackgroundWork {
         try? BGTaskScheduler.shared.submit(request)
     }
 
-    private func handleRefresh(_ task: BGAppRefreshTask) async {
+    private func handleRefresh(_ task: BGAppRefreshTask) {
         // Immer zuerst die nächste Ausführung anfragen, bevor gearbeitet
         // wird: bricht die Arbeit ab, ist die Kette sonst unterbrochen.
         scheduleRefresh()
 
-        let work = Task { await model.refreshAll() }
+        let work = Task { @MainActor in await model.refreshAll() }
         task.expirationHandler = { work.cancel() }
-        await work.value
-        task.setTaskCompleted(success: !work.isCancelled)
+        Task { @MainActor in
+            _ = await work.result
+            task.setTaskCompleted(success: !work.isCancelled)
+        }
     }
 
-    private func handleAnalysis(_ task: BGProcessingTask) async {
+    private func handleAnalysis(_ task: BGProcessingTask) {
         scheduleAnalysis()
 
-        let work = Task { await model.processPendingEditions() }
+        let work = Task { @MainActor in await model.processPendingEditions() }
         task.expirationHandler = { work.cancel() }
-        await work.value
-        task.setTaskCompleted(success: !work.isCancelled)
+        Task { @MainActor in
+            _ = await work.result
+            task.setTaskCompleted(success: !work.isCancelled)
+        }
     }
 
     #else

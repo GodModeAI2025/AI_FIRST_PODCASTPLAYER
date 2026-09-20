@@ -35,6 +35,11 @@ public final class AppModel {
     public private(set) var activity: String?
     public private(set) var lastError: String?
 
+    /// Offen, wenn der Nutzer eine Quelle hinzufügen will. Steht hier und
+    /// nicht in einer Ansicht, weil auf dem Mac das Menü es öffnet und das
+    /// Fenster es zeigt — zwei verschiedene Stellen.
+    public var isAddingSource = false
+
     // MARK: - Dienste
 
     public let store: LibraryStore
@@ -64,6 +69,16 @@ public final class AppModel {
     public private(set) var playerState: PlaybackState = .idle
     /// Position innerhalb des laufenden Abschnitts, für die Fortschrittsanzeige.
     public private(set) var playerPosition: MediaTime = .zero
+    /// Der laufende Plan, gespiegelt. Ansichten lesen ihn hier, nicht am
+    /// Koordinator — sonst zeigen sie beim Start nichts und beim Ende noch
+    /// immer den alten Plan.
+    public private(set) var playerPlan: ValidatedPlaybackPlan?
+    /// Der Abschnitt, bei dem die Wiedergabe gerade steht.
+    public var playingSegmentIndex: Int? {
+        if case .playing(let index) = playerState { return index }
+        return nil
+    }
+    public var isPlaying: Bool { playingSegmentIndex != nil }
 
     // MARK: - Laden
 
@@ -193,12 +208,26 @@ public final class AppModel {
         }
         do {
             try player.start(plan: plan, grant: grant, deviceID: deviceID)
+            playerPlan = plan
         } catch {
             lastError = error.localizedDescription
         }
     }
 
     public enum PlayTrigger { case tap, chat, intent }
+
+    // Die Oberfläche steuert den Ton ausschließlich über diese vier Wege.
+    // `PlaybackCoordinator` ist nicht beobachtbar; ein direkter Aufruf aus
+    // einer Ansicht änderte den Zustand, ohne dass die Ansicht davon erfährt.
+    public func pausePlayback() { player.pause() }
+    public func resumePlayback() { player.resume() }
+    public func skipSegment() { player.skipSegment() }
+
+    public func stopPlayback() {
+        player.stop()
+        playerPlan = nil
+        playerPosition = .zero
+    }
 
     /// Nimmt Gehörtes in den gemeinsamen Hörzustand auf.
     public func recordHeard(_ range: MediaTimeRange, in mediaVersionID: MediaVersionID, via route: PlaybackRoute) async {
@@ -531,7 +560,16 @@ extension AppModel: PlaybackObserver {
 
     public func playbackStateChanged(_ state: PlaybackState) {
         playerState = state
-        if case .failed(let reason) = state { lastError = reason }
+        switch state {
+        case .failed(let reason):
+            lastError = reason
+            playerPlan = nil
+        case .finished, .idle:
+            playerPlan = nil
+            playerPosition = .zero
+        default:
+            break
+        }
     }
 
     public func playbackProgressed(segmentIndex: Int, position: MediaTime) {

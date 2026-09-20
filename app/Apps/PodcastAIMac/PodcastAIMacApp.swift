@@ -18,7 +18,12 @@ struct PodcastAIMacApp: App {
     init() {
         let container = (try? LibraryStore.makeContainer())
             ?? (try! LibraryStore.makeContainer(inMemory: true))
-        _model = State(initialValue: AppModel(store: LibraryStore(modelContainer: container)))
+        let model = AppModel(store: LibraryStore.make(container: container))
+        _model = State(initialValue: model)
+        // Auf dem Mac gibt es keinen BGTaskScheduler, aber die
+        // Intent-Abhängigkeit muss auch hier stehen: Kurzbefehle laufen auf
+        // beiden Plattformen.
+        AppBootstrap.start(with: model)
     }
 
     var body: some Scene {
@@ -27,10 +32,19 @@ struct PodcastAIMacApp: App {
                 .environment(model)
                 .task { await model.load() }
                 .frame(minWidth: 900, minHeight: 560)
+                .sheet(isPresented: Binding(
+                    get: { model.isAddingSource },
+                    set: { model.isAddingSource = $0 }
+                )) {
+                    AddSourceSheet()
+                        .environment(model)
+                }
         }
         .commands {
             CommandGroup(after: .newItem) {
-                Button("Quelle hinzufügen …") { }
+                // War ein leerer Block: ein Menüpunkt, der nichts tut, ist
+                // schlechter als keiner.
+                Button("Quelle hinzufügen …") { model.isAddingSource = true }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 Button("Alle Feeds aktualisieren") {
                     Task { await model.refreshAll() }
@@ -38,7 +52,7 @@ struct PodcastAIMacApp: App {
                 .keyboardShortcut("r", modifiers: .command)
             }
             CommandGroup(after: .toolbar) {
-                Button("Wiedergabe stoppen") { model.player.stop() }
+                Button("Wiedergabe stoppen") { model.stopPlayback() }
                     .keyboardShortcut(".", modifiers: .command)
             }
         }

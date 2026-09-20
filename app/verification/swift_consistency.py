@@ -57,6 +57,7 @@ KNOWN = {
     "BGTaskScheduler","BGAppRefreshTask","BGProcessingTask","BGAppRefreshTaskRequest",
     "BGProcessingTaskRequest","UIImage","NSImage","CGSize","LinearGradient","Gradient",
     "Announcement","AccessibilityNotification","URLSessionDownloadDelegate",
+    "AppDependencyManager","NSLock","NSLog","AVAudioSession",
 }
 
 declared, extended, referenced, problems = {}, {}, {}, []

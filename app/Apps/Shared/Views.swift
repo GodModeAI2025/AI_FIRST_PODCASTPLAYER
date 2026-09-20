@@ -530,8 +530,10 @@ struct FocusPlayerView: View {
 
     var body: some View {
         VStack(spacing: Design.Spacing.standard) {
-            if let plan = model.player.activePlan,
-               case .playing(let index) = model.player.state,
+            // Gespiegelter Zustand, nicht der Koordinator: `PlaybackCoordinator`
+            // ist nicht beobachtbar, eine Ansicht darauf bliebe stehen.
+            if let plan = model.playerPlan,
+               let index = model.playingSegmentIndex,
                index < plan.segments.count {
                 let segment = plan.segments[index]
 
@@ -553,14 +555,14 @@ struct FocusPlayerView: View {
                     .font(.caption2).foregroundStyle(.secondary)
 
                 HStack(spacing: Design.Spacing.large) {
-                    Button { model.player.pause() } label: {
+                    Button { model.pausePlayback() } label: {
                         Image(systemName: "pause.fill")
                             .font(.title)
                             .tappableArea()
                     }
                     .accessibilityLabel("Pausieren")
 
-                    Button { model.player.skipSegment() } label: {
+                    Button { model.skipSegment() } label: {
                         Image(systemName: "forward.end.fill")
                             .font(.title)
                             .tappableArea()
@@ -568,7 +570,7 @@ struct FocusPlayerView: View {
                     .accessibilityLabel("Diese Stelle überspringen")
                     .accessibilityHint("Der übersprungene Teil zählt nicht als gehört")
 
-                    Button { model.player.stop() } label: {
+                    Button { model.stopPlayback() } label: {
                         Image(systemName: "stop.fill")
                             .font(.title)
                             .tappableArea()

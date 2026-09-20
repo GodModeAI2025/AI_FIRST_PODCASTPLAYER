@@ -18,6 +18,18 @@ import PodcastAICore
 @ModelActor
 public actor LibraryStore {
 
+    /// Der öffentliche Weg, den Store zu bauen.
+    ///
+    /// `@ModelActor` erzeugt `init(modelContainer:)` mit modulinterner
+    /// Sichtbarkeit. Der Typ ist `public`, sein Initialisierer nicht — aus
+    /// einem App-Target heraus lässt er sich damit nicht bauen, und das
+    /// fällt erst beim Übersetzen des App-Targets auf, nicht beim Paket.
+    /// Diese Fabrik steht im selben Modul und darf den erzeugten
+    /// Initialisierer deshalb aufrufen.
+    public static func make(container: ModelContainer) -> LibraryStore {
+        LibraryStore(modelContainer: container)
+    }
+
     public static let schema = Schema([
         StoredSource.self, StoredEpisode.self, StoredMediaVersion.self,
         StoredTranscript.self, StoredSegment.self, StoredListeningState.self,

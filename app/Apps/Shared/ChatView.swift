@@ -127,7 +127,7 @@ struct ScopeBar: View {
             switch self {
             case .allAnalyzed: .allAnalyzed
             case .currentEpisode:
-                if let plan = model.player.activePlan, let first = plan.segments.first {
+                if let plan = model.playerPlan, let first = plan.segments.first {
                     .episode(first.episodeID)
                 } else {
                     .allAnalyzed

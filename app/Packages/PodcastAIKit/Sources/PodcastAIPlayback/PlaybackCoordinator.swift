@@ -68,13 +68,12 @@ public final class PlaybackCoordinator {
     public private(set) var state: PlaybackState = .idle
     public private(set) var activePlan: ValidatedPlaybackPlan?
 
-    private let player = AVQueuePlayer()
+    private let player: AVQueuePlayer
     private let locator: any MediaLocating
     private weak var observer: (any PlaybackObserver)?
 
     private var segmentIndex = 0
-    private var timeObserver: Any?
-    private var endObserver: (any NSObjectProtocol)?
+    private let observers: PlayerObservers
 
     /// Kennzeichnet die laufende Sitzung. Jeder Start erhöht sie; jeder
     /// Callback prüft sie. Damit können verspätete Ereignisse einer
@@ -97,9 +96,12 @@ public final class PlaybackCoordinator {
     }
 
     public init(locator: any MediaLocating, observer: (any PlaybackObserver)? = nil) {
+        let player = AVQueuePlayer()
+        player.actionAtItemEnd = .pause
+        self.player = player
+        self.observers = PlayerObservers(player: player)
         self.locator = locator
         self.observer = observer
-        player.actionAtItemEnd = .pause
     }
 
     /// Nachträglich setzen, weil der Beobachter den Koordinator meist selbst
@@ -200,7 +202,7 @@ public final class PlaybackCoordinator {
     }
 
     private func installEndObserver(for item: AVPlayerItem, token: Int) {
-        endObserver = NotificationCenter.default.addObserver(
+        let registration = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
@@ -208,13 +210,14 @@ public final class PlaybackCoordinator {
                 self.completeCurrentSegment(token: token, reachedEnd: true)
             }
         }
+        observers.replaceEnd(registration)
     }
 
     private func installTimeObserver(for segment: PlanSegment, token: Int) {
         // Nur für Anzeige und als zweite Sicherung. Die Grenze selbst hängt
         // nicht an diesem Intervall.
         let interval = CMTime(value: 1, timescale: 4)
-        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) {
+        let handle = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) {
             [weak self] time in
             Task { @MainActor in
                 guard let self, token == self.sessionToken else { return }
@@ -228,6 +231,7 @@ public final class PlaybackCoordinator {
                 }
             }
         }
+        observers.replaceTime(handle)
     }
 
     private func completeCurrentSegment(token: Int, reachedEnd: Bool) {
@@ -333,10 +337,7 @@ public final class PlaybackCoordinator {
     }
 
     private func teardownObservers() {
-        if let timeObserver { player.removeTimeObserver(timeObserver) }
-        timeObserver = nil
-        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
-        endObserver = nil
+        observers.removeAll()
     }
 
     private func setState(_ new: PlaybackState) {
@@ -344,9 +345,56 @@ public final class PlaybackCoordinator {
         observer?.playbackStateChanged(new)
     }
 
-    deinit {
-        if let timeObserver { player.removeTimeObserver(timeObserver) }
-        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+}
+
+/// Hält die Beobachter-Token außerhalb der Actor-Isolation.
+///
+/// Der vorige `deinit` griff auf `timeObserver`, `endObserver` und `player`
+/// zu — Eigenschaften einer `@MainActor`-Klasse. In Swift 6 ist `deinit`
+/// nicht isoliert, und das ist kein Formfehler, sondern die Stelle, an der
+/// der Build stehen bleibt.
+///
+/// Abmelden muss trotzdem jemand: ein periodischer Beobachter hält den
+/// Spieler am Leben, und eine nicht abgemeldete Benachrichtigung feuert in
+/// ein totes Objekt. Deshalb liegen die Token hier, in einem Objekt ohne
+/// Isolation — sein `deinit` darf aufräumen.
+///
+/// Der reguläre Weg bleibt `teardownObservers()` beim Wechsel eines
+/// Segments; dieser `deinit` ist die Sicherung für den Fall, dass der
+/// Koordinator ohne Aufräumen verschwindet.
+private final class PlayerObservers: @unchecked Sendable {
+
+    private let player: AVQueuePlayer
+    /// `@unchecked` ist hier keine Behauptung ins Blaue: die Token werden vom
+    /// Hauptthread gesetzt und können im `deinit` von einem beliebigen Thread
+    /// gelesen werden, und genau dieser Zugriff läuft über das Schloss.
+    private let lock = NSLock()
+    private var time: Any?
+    private var end: (any NSObjectProtocol)?
+
+    init(player: AVQueuePlayer) { self.player = player }
+
+    func replaceTime(_ token: Any?) {
+        lock.lock()
+        let previous = time
+        time = token
+        lock.unlock()
+        if let previous { player.removeTimeObserver(previous) }
     }
+
+    func replaceEnd(_ token: (any NSObjectProtocol)?) {
+        lock.lock()
+        let previous = end
+        end = token
+        lock.unlock()
+        if let previous { NotificationCenter.default.removeObserver(previous) }
+    }
+
+    func removeAll() {
+        replaceTime(nil)
+        replaceEnd(nil)
+    }
+
+    deinit { removeAll() }
 }
 #endif
