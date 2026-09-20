@@ -63,7 +63,7 @@ public struct Stance: Sendable, Identifiable, Codable, Hashable {
 }
 
 /// Wie sich eine Quellenposition zu einer These verhält.
-public enum CounterpointRelation: String, Sendable, Codable {
+public enum CounterpointRelation: String, Sendable, Codable, CaseIterable {
     /// Widerspricht der These direkt.
     case contradicts
     /// Stützt sie.

@@ -32,9 +32,9 @@ Stand: 62 Swift-Dateien, 13 299 Zeilen (mit Tests).
 | 6 | Dauerhafte Feeds, Veröffentlichungsrhythmus | ✅ | Feeds und Ausgaben überleben den Neustart; `processPendingEditions` findet jetzt Feeds vor |
 | 7 | Titel, Shownotes, Kapitel, Cover | ◐ | Cover wird gerendert und gezeigt. Shownotes tragen weiterhin „Quelle“/„Folge“, wo der Planungskontext keine Folge kennt |
 | 8 | Hörzustand auf Segmentebene | ✅ | `PlaybackObserver` verdrahtet; der Ledger wird beim Hören geschrieben |
-| 9 | Chat als zweite Bedienoberfläche | ◐ | Stichwortabgleich, **kein Modellaufruf**. `AppleModelRouter` hat null Aufrufstellen |
+| 9 | Chat als zweite Bedienoberfläche | ✅ | Stichwortvorauswahl, dann `extractClaims`. Die Antwort besteht aus Aussagen mit Beleg, nicht aus freiem Text |
 | 10 | Chat steuert den Player | ✅ | |
-| 11 | Widerspruchs-Mixer | ◐ | Zuordnung immer `.differentPremise` ohne Modellprüfung — also nie eine belegte Gegenposition |
+| 11 | Widerspruchs-Mixer | ✅ | `classify` ordnet in vorgegebene Bezeichnungen ein; ohne Modell bleibt es sichtbar bei der Vermutung |
 | 12 | Highlights und Wissen | ✅ | „Diese Stelle merken“ im Player, Speicherung, Export mit echten Belegen |
 | 13 | Breadcrumb Trail | ✅ | Abschlusskarte nach bewusstem Ende, ab zwei Minuten, einmal je Sitzung |
 | 14 | Markdown-Export | ✅ | Belege, Folgen- und Quellentitel werden geholt; eine Stelle ohne Beleg erscheint gar nicht statt halb |
@@ -42,8 +42,8 @@ Stand: 62 Swift-Dateien, 13 299 Zeilen (mit Tests).
 | 16 | Systemweite Auffindbarkeit (Spotlight) | ◐ | Index wird jetzt bei jeder Änderung und beim Einschalten gefüttert. Der Schalter steht weiterhin nur auf macOS |
 | 17 | macOS-MCP-Zugang | ◐ | **Kein Server.** Keine stdio-Schleife, kein JSON-RPC. Nur die Werkzeugklasse |
 | 18 | Native App, iOS + macOS | ◐ | Zwei Targets. iOS hat keinen Einstellungsbereich |
-| 19 | Privacy-first, nur Apple-Modelle | ◐ | Die Regeln stehen im Code, aber es wird nie ein Modell aufgerufen — also auch nie geroutet |
-| 20 | Der durchgehende Flow | ◐ | Begehbar: Quelle → Erschliessen → Für dich → Themen-Update → Hören → Merken → Abschluss → Export. Ohne Modellaufruf bleibt der Chatteil Stichwortabgleich |
+| 19 | Privacy-first, nur Apple-Modelle | ◐ | Routing läuft (drei Aufrufstellen). Die PCC-Stufe ist als „nicht berechtigt“ hart verdrahtet, also wird nie dorthin geroutet — das klärt erst ein Gerät |
+| 20 | Der durchgehende Flow | ✅ | Begehbar: Quelle → Erschliessen → Für dich → Themen-Update → Hören → Merken → Abschluss → Export. Ungeprüft bis zum Gerätelauf |
 
 ## Was in diesem Durchgang verdrahtet wurde
 
@@ -98,20 +98,28 @@ Dazu fünf Befunde, die kein Kapitel betreffen, sondern die Tragfähigkeit:
 
 ## Die eigentliche Lage
 
-Der geprüfte Domänenkern ist jetzt weitgehend angeschlossen. Was bleibt,
-ist von anderer Art als die Befunde oben: **es fehlt Substanz, nicht
-Verdrahtung.**
+Der geprüfte Domänenkern ist angeschlossen, und der Hauptweg ist begehbar.
+Was bleibt, ist von anderer Art als die Befunde oben.
 
-Vier Kapitel (9, 11, 19 und der Chatteil von 20) hängen an derselben
-Leerstelle: `AppleModelRouter` wird nie aufgerufen. Der Chat gleicht
-Stichworte ab, der Widerspruchs-Mixer setzt jede Beziehung auf
-`.differentPremise`, und die Routing-Regeln zwischen Gerätemodell und
-Private Cloud Compute laufen nie. Das ist keine vergessene Zeile — es ist
-die Arbeit, die ein Gerät mit Apple Intelligence und einen Mac-Build
-braucht.
+**Drei Modellaufrufe stehen jetzt** — `selectRelevant` (Kandidatenauswahl),
+`extractClaims` (Chatantwort) und `classify` (Widerspruchs-Mixer). Alle drei
+geben **Nummern oder vorgegebene Bezeichnungen** zurück, nie freien Text,
+den man anschliessend einer Quelle zuordnen müsste. Was das Modell ausserhalb
+der Vorgabe antwortet, wird verworfen und nicht auf das Nächstähnliche
+umgebogen. Ob sie auf einem Gerät funktionieren, ist offen: hier ist nie ein
+Modell gelaufen.
 
-Kapitel 17 (MCP) fehlt ganz: eine Werkzeugklasse ohne Server ist kein
-Zugang.
+**Die PCC-Stufe ist weiterhin hart auf „nicht berechtigt“.** Das ist keine
+Messung, sondern eine Vorgabe, und sie ist im Code als solche ausgewiesen.
+Bis ein berechtigtes Gerät vorliegt, läuft alles auf dem Gerätemodell oder
+gar nicht.
+
+**Vier Lücken bleiben substanziell:**
+
+* Kapitel 17 (MCP): eine Werkzeugklasse ohne Server ist kein Zugang.
+* Kapitel 1: YouTube-Video, Playlist und Feed-Suche auf einer Webseite.
+* Kapitel 2: Transkripte werden nicht gespeichert, nur die Belege daraus.
+* Kapitel 3: Es erzeugt niemand einen Interessenvorschlag.
 
 ## Grenzen der Verifikation
 

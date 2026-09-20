@@ -537,8 +537,6 @@ public final class AppModel {
         // Vorauswahl über die Stichworte der Frage, damit das Modell eine
         // überschaubare Kandidatenliste bekommt.
         let asInterest = Interest(label: question, kind: .openQuestion)
-        var probe = InterestProfile(interests: [asInterest], learningEnabled: false)
-        _ = probe
         let matches = RelevanceScorer(threshold: 0.15, maximumPerInterest: 12)
             .score(evidence: evidence, profile: InterestProfile(interests: [asInterest]))
 
@@ -553,9 +551,18 @@ public final class AppModel {
             )
         }
 
-        let text = citations.count == 1
-            ? "Dazu gibt es eine belegte Stelle."
-            : "Dazu gibt es \(citations.count) belegte Stellen."
+        // **Hier wird das Modell tatsächlich gefragt.**
+        //
+        // Bis hierher endete die Antwort bei einer Zählung („Dazu gibt es
+        // vier belegte Stellen“). Der Kommentar oben sprach vom Modell, das
+        // Modell kam nie vor.
+        //
+        // `extractClaims` gibt Aussagen zurück, die **jeweils die Kennung
+        // des Belegs tragen**, aus dem sie stammen — eine Aussage ohne
+        // Beleg fällt schon dort heraus (`isWellFormed`). Damit gibt es
+        // keinen Weg, dass Modelltext ohne Herkunft in die Antwort gerät:
+        // die Antwort besteht aus Aussagen, nicht aus freiem Text.
+        let text = await answerText(from: citations, fallbackCount: citations.count)
 
         return ChatAnswer(
             question: question, scope: scope, text: text,
@@ -572,6 +579,38 @@ public final class AppModel {
             ids: Array(Set(evidence.map(\.episodeID))))) ?? []
         return SnapshotPlanningContext(
             evidence: evidence, episodes: episodes, sources: sources)
+    }
+
+    /// Formuliert die Antwort — mit Modell, wenn eines verfügbar ist.
+    ///
+    /// Ohne Modell wird nicht so getan, als gäbe es eines: dann steht dort
+    /// die Zählung und der Grund. Eine erfundene Zusammenfassung wäre genau
+    /// das, wogegen die ganze Belegkette gebaut ist.
+    private func answerText(from citations: [Evidence], fallbackCount: Int) async -> String {
+        let counted = fallbackCount == 1
+            ? "Dazu gibt es eine belegte Stelle."
+            : "Dazu gibt es \(fallbackCount) belegte Stellen."
+
+        do {
+            let claims = try await KnowledgeExtractor()
+                .extractClaims(from: citations, availability: modelStatus)
+            guard !claims.isEmpty else { return counted }
+
+            // Jede Zeile ist eine Aussage mit Beleg. Die offene Frage wird
+            // als solche ausgewiesen, nicht als Erkenntnis verkauft.
+            var lines = claims.prefix(5).map { "• \($0.statement)" }
+            if let question = claims.compactMap(\.openQuestion).first {
+                lines.append("\nOffen dabei: \(question)")
+            }
+            return lines.joined(separator: "\n")
+        } catch let error as ExtractorError {
+            // Warum es keine Formulierung gibt, steht in der Antwort — nicht
+            // im Log. Der Nutzer soll den Unterschied sehen zwischen „nichts
+            // gefunden“ und „kein Modell verfügbar“.
+            return counted + "\n\n" + (error.errorDescription ?? "Kein Modell verfügbar.")
+        } catch {
+            return counted
+        }
     }
 
     /// Macht aus einer Antwort eine Hörsession.
@@ -670,14 +709,22 @@ public final class AppModel {
             .score(evidence: evidence, profile: InterestProfile(interests: [asQuestion]))
 
         let byID = Dictionary(uniqueKeysWithValues: evidence.map { ($0.id, $0) })
-        return matches.compactMap { match in
-            guard let item = byID[match.evidenceID] else { return nil }
+        let shortlist = matches.compactMap { byID[$0.evidenceID] }
+
+        // Das Modell ordnet ein — in vorgegebene Bezeichnungen, und was es
+        // sonst zurückgibt, wird verworfen. Ohne Modell bleibt es bei der
+        // Vermutung, und `isModelConfirmed: false` sagt das in der
+        // Oberfläche auch: die Stelle gehört zum Thema, mehr nicht.
+        let labels = CounterpointRelation.allCases.map(\.rawValue)
+        let classified = (try? await KnowledgeExtractor().classify(
+            shortlist, against: thesis, labels: labels, availability: modelStatus)) ?? [:]
+
+        return shortlist.map { item in
+            let assigned = classified[item.id].flatMap(CounterpointRelation.init(rawValue:))
             return CounterpointCandidate(
                 evidenceID: item.id,
-                // Ohne Modellprüfung wird keine Richtung behauptet: die
-                // Stelle gehört zum Thema, mehr ist damit nicht gesagt.
-                relation: .differentPremise,
-                isModelConfirmed: false,
+                relation: assigned ?? .differentPremise,
+                isModelConfirmed: assigned != nil,
                 sourceTitle: sources.first { $0.id == item.sourceID }?.title ?? "Quelle",
                 excerpt: item.quotedText
             )

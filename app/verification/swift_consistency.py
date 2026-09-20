@@ -62,6 +62,37 @@ KNOWN = {
     "ViewModifier","Content",
 }
 
+def enclosing_condition(text, offset):
+    """Die Bedingung des `#if`, in dem eine Stelle steht -- oder None.
+
+    Bewusst einfach: nur die aeusserste offene Bedingung, kein `#elseif`.
+    Mehr braucht dieser Code nicht, und mehr waere schwerer zu glauben.
+    """
+    stack = []
+    for line in text[:offset].splitlines():
+        head = line.strip()
+        if head.startswith("#if"):
+            stack.append(head[3:].strip())
+        elif head.startswith("#endif") and stack:
+            stack.pop()
+        elif head.startswith("#else") and stack:
+            stack[-1] = "!(" + stack[-1] + ")"
+    return stack[0] if stack else None
+
+
+def mutually_exclusive(entries):
+    """Schliessen sich die Bedingungen paarweise aus?
+
+    Erkannt wird genau der Fall, der hier vorkommt: `X` gegen `!X`.
+    Alles andere gilt als nicht ausschliessend -- im Zweifel melden.
+    """
+    conditions = [condition for _, condition in entries]
+    if len(conditions) != 2 or any(c is None for c in conditions):
+        return False
+    first, second = (c.replace(" ", "") for c in conditions)
+    return first == "!" + second or second == "!" + first
+
+
 declared, extended, referenced, problems = {}, {}, {}, []
 imported = set()
 
@@ -92,8 +123,12 @@ for path in SWIFT:
     if ifs != endifs:
         problems.append(f"{rel}: {ifs} #if, aber {endifs} #endif")
 
-    for name in DECL.findall(text):
-        declared.setdefault(name, []).append(str(rel))
+    # Deklarationen mit der Bedingung, unter der sie ueberhaupt existieren.
+    # Zwei Typen gleichen Namens unter `#if X` und `#if !X` sind kein
+    # Doppel, sondern zwei Haelften desselben Typs.
+    for match in DECL.finditer(text):
+        condition = enclosing_condition(text, match.start())
+        declared.setdefault(match.group(1), []).append((str(rel), condition))
     for name in EXT.findall(text):
         extended.setdefault(name, []).append(str(rel))
 
@@ -106,10 +141,11 @@ for path in SWIFT:
         referenced.setdefault(name, set()).add(str(rel))
 
 # Doppelte Deklarationen im selben Modul.
-for name, paths in declared.items():
+for name, entries in declared.items():
+    paths = [path for path, _ in entries]
     modules = {p.split("/")[3] if p.startswith("Packages/") and len(p.split("/")) > 3 else p.split("/")[1]
                for p in paths}
-    if len(paths) > 1 and len(modules) == 1:
+    if len(entries) > 1 and len(modules) == 1 and not mutually_exclusive(entries):
         problems.append(f"Typ '{name}' mehrfach deklariert: {', '.join(paths)}")
 
 # Verweise auf unbekannte Typen.
