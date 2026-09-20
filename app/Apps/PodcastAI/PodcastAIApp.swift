@@ -63,6 +63,7 @@ struct PodcastAIApp: App {
                 } message: {
                     Text(startupError ?? "")
                 }
+                .appFeedback()
         }
     }
 }

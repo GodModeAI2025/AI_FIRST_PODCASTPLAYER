@@ -59,6 +59,7 @@ KNOWN = {
     "Announcement","AccessibilityNotification","URLSessionDownloadDelegate",
     "AppDependencyManager","NSLock","NSLog","AVAudioSession",
     "AsyncIteratorProtocol","AVAudioTime","JSONEncoder","JSONDecoder",
+    "ViewModifier","Content",
 }
 
 declared, extended, referenced, problems = {}, {}, {}, []

@@ -73,6 +73,20 @@ public final class AppModel {
     /// Koordinator — sonst zeigen sie beim Start nichts und beim Ende noch
     /// immer den alten Plan.
     public private(set) var playerPlan: ValidatedPlaybackPlan?
+    /// Die Abschlusskarte, sofern eine ansteht.
+    ///
+    /// `SessionClosureSheet` und `SessionBoundaryPolicy` waren beide
+    /// geschrieben und beide unerreichbar: nichts baute je einen
+    /// `SessionClosure`. Das Kapitel „Breadcrumb Trail“ gab es damit im
+    /// Quelltext, aber nicht in der App.
+    public internal(set) var pendingClosure: SessionClosure?
+
+    private let boundaryPolicy = SessionBoundaryPolicy()
+    /// Wie viel in dieser Sitzung tatsächlich erklungen ist.
+    private var sessionListened: MediaDuration = .zero
+    /// Einmal je Sitzung. Eine wiederkehrende Frage ist eine Belästigung.
+    private var closureOfferedThisSession = false
+
     /// Der Abschnitt, bei dem die Wiedergabe gerade steht.
     public var playingSegmentIndex: Int? {
         if case .playing(let index) = playerState { return index }
@@ -275,6 +289,8 @@ public final class AppModel {
         do {
             try player.start(plan: plan, grant: grant, deviceID: deviceID)
             playerPlan = plan
+            sessionListened = .zero
+            closureOfferedThisSession = false
         } catch {
             lastError = error.localizedDescription
         }
@@ -290,10 +306,46 @@ public final class AppModel {
     public func skipSegment() { player.skipSegment() }
 
     public func stopPlayback() {
+        let plan = playerPlan
         player.stop()
         playerPlan = nil
         playerPosition = .zero
+        // `player.stop()` meldet selbst `.finished`, und der Beobachter
+        // bietet die Abschlusskarte dann schon an. Der Aufruf hier ist die
+        // Sicherung für den Fall, dass er das einmal nicht tut —
+        // `closureOfferedThisSession` macht den zweiten Aufruf wirkungslos.
+        offerClosure(ending: .userStopped, for: plan)
     }
+
+    /// Bietet die Abschlusskarte an — oder eben nicht.
+    ///
+    /// Die Entscheidung trifft `SessionBoundaryPolicy`: nur bei einem
+    /// bewussten Ende, erst ab einer Mindesthördauer, und einmal. Wer nach
+    /// zwanzig Sekunden stoppt, hat nichts abgeschlossen.
+    func offerClosure(ending: SessionEnding, for plan: ValidatedPlaybackPlan?) {
+        guard let plan, !plan.isEmpty else { return }
+        guard boundaryPolicy.shouldOfferClosure(
+            ending: ending,
+            listened: sessionListened,
+            alreadyOfferedForSession: closureOfferedThisSession
+        ) else { return }
+
+        closureOfferedThisSession = true
+
+        // Weiterführend ist, was zu denselben Interessen erschlossen ist und
+        // in dieser Sitzung nicht vorkam. Eine echte Zahl, keine Andeutung:
+        // „drei weitere Quellen“ muss drei Quellen bedeuten.
+        let heardEvidence = Set(plan.segments.map(\.evidenceID))
+        let followUps = relevantToday.filter { !heardEvidence.contains($0.id) }
+
+        pendingClosure = SessionClosure(
+            question: plan.requestSummary,
+            supportingEvidenceIDs: Array(heardEvidence),
+            availableFollowUpCount: followUps.count
+        )
+    }
+
+    public func dismissClosure() { pendingClosure = nil }
 
     /// Nimmt Gehörtes in den gemeinsamen Hörzustand auf.
     public func recordHeard(_ range: MediaTimeRange, in mediaVersionID: MediaVersionID, via route: PlaybackRoute) async {
@@ -608,6 +660,7 @@ public final class AppModel {
 
     /// Parken: sichert Frage, Belege und Notizen. Ohne Zustimmung zu irgendetwas.
     public func park(_ closure: SessionClosure) {
+        pendingClosure = nil
         trails.insert(KnowledgeTrail(
             question: closure.question,
             evidenceIDs: closure.supportingEvidenceIDs,
@@ -693,7 +746,11 @@ extension AppModel: PlaybackObserver {
         case .failed(let reason):
             lastError = reason
             playerPlan = nil
-        case .finished, .idle:
+        case .finished:
+            offerClosure(ending: .completedPlan, for: playerPlan)
+            playerPlan = nil
+            playerPosition = .zero
+        case .idle:
             playerPlan = nil
             playerPosition = .zero
         default:
@@ -715,6 +772,7 @@ extension AppModel: PlaybackObserver {
         segmentIndex: Int, heard: MediaTimeRange, mediaVersionID: MediaVersionID
     ) {
         let route = player.activePlan?.route ?? .originalEpisode
+        sessionListened = sessionListened + heard.duration
         Task { await recordHeard(heard, in: mediaVersionID, via: route) }
     }
 

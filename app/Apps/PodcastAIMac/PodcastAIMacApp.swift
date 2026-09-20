@@ -39,6 +39,7 @@ struct PodcastAIMacApp: App {
                     AddSourceSheet()
                         .environment(model)
                 }
+                .appFeedback()
         }
         .commands {
             CommandGroup(after: .newItem) {

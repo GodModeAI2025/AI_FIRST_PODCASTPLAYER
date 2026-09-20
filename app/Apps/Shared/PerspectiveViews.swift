@@ -259,3 +259,39 @@ struct TrailListView: View {
         .navigationTitle("Wissenslandkarten")
     }
 }
+
+/// Zeigt, was schiefgegangen ist, und schliesst die Hörsession ab.
+///
+/// Zwei Befunde in einem: `lastError` wurde an fünfzehn Stellen gesetzt und
+/// an keiner gelesen — jeder Fehler verschwand still. Und
+/// `SessionClosureSheet` war geschrieben, aber nirgends eingehängt.
+struct AppFeedbackModifier: ViewModifier {
+
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Das hat nicht geklappt", isPresented: Binding(
+                get: { model.lastError != nil },
+                set: { if !$0 { model.clearError() } }
+            )) {
+                Button("OK") { model.clearError() }
+            } message: {
+                Text(model.lastError ?? "")
+            }
+            .sheet(isPresented: Binding(
+                get: { model.pendingClosure != nil },
+                set: { if !$0 { model.dismissClosure() } }
+            )) {
+                if let closure = model.pendingClosure {
+                    SessionClosureSheet(closure: closure)
+                        .environment(model)
+                }
+            }
+    }
+}
+
+extension View {
+    /// Fehlermeldung und Abschlusskarte, an einer Stelle je Plattform.
+    func appFeedback() -> some View { modifier(AppFeedbackModifier()) }
+}
