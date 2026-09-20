@@ -31,14 +31,22 @@ V1 und V2 sind der kritische Pfad. V3 baut vollständig auf ihnen auf. V4 ist di
 * **Der BrainSpeak-Checkout liegt seit dem 2026-09-20 vor und wurde auditiert** → [04-brainspeak-audit.md](04-brainspeak-audit.md).
   Das Ergebnis ändert die Ausgangslage erheblich:
 
-  > **BrainSpeak ist eine On-Device-Diktier- und Aufnahme-App, kein Podcast-Player.** 11 145 Zeilen Swift, vier
-  > Plattform-Targets, MIT-Lizenz — aber **null Zeilen Podcast-Domäne**: kein RSS, kein XMLParser, kein OPML,
-  > kein Episode-, Feed- oder MediaVersion-Modell.
+  > **BrainSpeak ist kein Podcast-Player — aber auch kein bloßes Diktiergerät.** Es nimmt Audio auf,
+  > transkribiert on-device und zieht daraus **persona-gefilterte Fakten**. 11 145 Zeilen Swift, vier
+  > Plattform-Targets, MIT-Lizenz.
 
-  Der Wiederverwendungswert ist trotzdem real, liegt aber eine Ebene tiefer als das Paket annimmt: die Sprach-,
-  KI-, Persistenz- und Mehrplattformschicht ist vorhanden und gut gebaut. Der Satz aus `plan.md` — „BrainSpeak um
-  einen quellenfähigen Medien-/Wissenskern erweitern“ — liest sich nach dem Audit als: **einen Podcast-Player neu
-  bauen und dabei BrainSpeaks STT-, Foundation-Models-, Persistenz- und Watch-Schicht übernehmen.**
+  Der Befund ist zweigeteilt:
+
+  | Konzepthälfte | Stand |
+  |---|---|
+  | **Verstehen** (Konzept §2 + §3) | **Pipeline vorhanden und lauffähig** — Audio → Transkript → chunkweise Analyse → persona-gefilterte Fakten, idempotent und wiederaufnehmbar, mit Prompt-Injection-Härtung |
+  | **Quellen, Mediathek, Zeitachse, Wiedergabe** (Konzept §1, §4–§8) | **Neubau** — null Zeilen Podcast-Domäne: kein RSS, kein XMLParser, kein OPML, kein Episode-/Feed-/MediaVersion-Modell |
+
+  Der Satz aus `plan.md` — „BrainSpeak um einen quellenfähigen Medien-/Wissenskern erweitern“ — ist damit **halb
+  richtig**: der Wissenskern ist im Ansatz da, der *quellenfähige* Teil fehlt. Und an dieser Naht liegt die Arbeit:
+  die vorhandene Extraktion liefert **Markdown-Prosa ohne Herkunft**. Die Aufgabe in M3/M4 heißt deshalb nicht
+  „Extraktion bauen“, sondern **„Herkunftsbindung nachrüsten“** — Ausgabetyp von `String` auf Claims mit
+  `EvidenceID` und Zeitbereich.
 
 * Zwei Nachweise bleiben offen und bestimmen den Rest — sie sind Meilenstein M0:
   * die **Xcode-27-/Swift-6.4-Toolchain** mit vier echten 27er-SDKs (BrainSpeak steht heute auf Xcode 26 / Swift 6.2),
@@ -158,16 +166,24 @@ Ungetakteter Text liefert Wissen, aber **deaktiviert** zeitgenaue Wiedergabe (FR
 
 *Hebel:* `TranscriptionEngine.swift` (223 Z.), `AudioFileReader.swift` und `BufferConverter.swift` sind vorhanden und
 passen. `AudioFileReader.audioStreamFromFile` liest eine Datei bereits lazy in 4096-Frame-Blöcken in die Engine und
-erfüllt damit wörtlich, was `plan.md` §2 fordert. Das spart echte Wochen.
+erfüllt damit wörtlich, was `plan.md` §2 fordert. Dazu kommt die komplette Extraktionsstufe — `FactCaptureMode`
+(persona-gefilterte Relevanz), `MeetingTranscriptMode` (strukturierte Aussagen), `TextChunker`
+(Kontextfensterverwaltung) und `RecordingAnalysis` (idempotente, wiederaufnehmbare Artefakte). Das spart echte Wochen
+und deckt Konzept §2 und §3 im Kern bereits ab → [04 §2a](04-brainspeak-audit.md).
 
 *Falle:* **Das Transkript trägt heute keine Medienzeit.** `SpeechTranscriber` wird mit `attributeOptions: []`
 erzeugt, und `TranscriptionResult` kennt nur `text`, `isFinal` und eine Wanduhrzeit zur Latenzmessung. Für eine
 Diktier-App ist das richtig; für BrainSpeak-als-Wissensplayer ist es disqualifizierend — die Versprechen V1 und V2
 stehen beide auf mediengenauen Zeitbereichen.
 
+Derselbe Bruch zieht sich durch die Extraktion: `FactCaptureOutput.markdownBullets` ist ein `String`. Die Fakten
+sind da — aber nicht anhörbar und nicht belegbar.
+
 > **Erste Aufgabe in M3, vor allem anderen:** Zeitattribute anfordern, `CMTimeRange` durch `TranscriptionResult`
-> durchreichen, Checkpoint um Sampleposition, Asset-ID, Locale, Analysekonfiguration und Textrevision ergänzen.
-> Das sind Tage. Wird es später bemerkt, ist jedes darauf aufbauende Artefakt wertlos.
+> durchreichen, Checkpoint um Sampleposition, Asset-ID, Locale, Analysekonfiguration und Textrevision ergänzen,
+> und die `@Generable`-Ausgabetypen von Markdown-Strings auf Claims mit `EvidenceID` umstellen.
+> Vorsicht bei `Utterance.t`: dieser Wert ist Wanduhrzeit seit Sessionstart, nicht Medienposition — für Dateien,
+> die schneller als Echtzeit eingelesen werden, liefert er plausible, aber falsche Zeitcodes.
 > Details: [04-brainspeak-audit.md §3](04-brainspeak-audit.md).
 
 **Exit:** GATE-BG (Hintergrundanalyse-Realität), `validation/device/US1.md`, plus **T100 vorgezogen**: eine lange
@@ -179,12 +195,16 @@ AppleModelRouter (ausschließlich SystemLanguageModel und PCC), RetrievalService
 ChatScopeSnapshot, EvidenceSweep für Vollständigkeitsfragen mit eigenem CoverageLedger.
 Das Modell wählt **IDs**, Swift löst Zeiten, Rechte, Scope und Fassung auf.
 
-**Aus dem Audit:** `FoundationModelsClient.swift` liefert die halbe Miete — Availability-Behandlung und eine
-**frische Session pro Anfrage**, was Kontextleckage zwischen Inhalten verhindert und genau der Eigenschaft
-entspricht, die der `ChatScopeSnapshot` braucht. `ModeEngine` plus `Modes/` zeigen bereits das Muster
-„Profil besitzt eigene Instruktion und typisierte `@Generable`-Ausgabe“ — die Vorlage für `extract`, `answer`,
-`recommend` und `proposePlayback`. **Neu sind:** PCC (kein Adapter, kein Entitlement im Checkout), Tools pro Profil,
-Evidence-ID-Auswahl, Retrieval und der gesamte Index.
+**Aus dem Audit:** Hier ist der Bestand größer als gedacht. `FoundationModelsClient.swift` bringt
+Availability-Behandlung und eine **frische Session pro Anfrage** — genau die Eigenschaft, die der
+`ChatScopeSnapshot` braucht. `ModeEngine` plus `Modes/` setzen das Muster „Profil besitzt eigene Instruktion und
+typisierte `@Generable`-Ausgabe“ bereits um: die Vorlage für `extract`, `answer`, `recommend` und
+`proposePlayback`. `FactCaptureMode` zeigt zusätzlich, wie ein Nutzerprofil als **read-only Kontext** eingebunden
+wird, ohne zur Instruktion zu werden — die Härtung, die `AGENTS.md` Regel 4 fordert.
+
+**Neu sind:** PCC (kein Adapter, kein Entitlement im Checkout), Tools pro Profil, Evidence-ID-Auswahl, Retrieval
+und der gesamte Index. Und: das Interessenmodell muss von einer Textdatei (`identity.md`, 4 000 Zeichen) auf die
+vier getrennten Kategorien aus FR-038 wachsen — bestätigt, vorgeschlagen, Vorhaben, offene Fragen.
 
 **Exit:** GATE-PCC zur Laufzeit, `validation/device/US4.md`, **T101 vorgezogen**: Apple Evaluations lokal und auf PCC
 getrennt, inklusive Kontingent-, Offline- und Modellwechselpfad.

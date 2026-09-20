@@ -14,10 +14,14 @@ Nachweise und mit welchen offenen Entscheidungen*.
 
 ## Nach dem Ist-Audit: die wichtigste Erkenntnis zuerst
 
-> **BrainSpeak ist eine On-Device-Diktier-App, kein Podcast-Player.** 11 145 Zeilen Swift, vier Plattform-Targets,
-> MIT-Lizenz — aber null Zeilen Podcast-Domäne. Wiederverwendbar ist die Sprach-, KI-, Persistenz- und
-> Watch-Schicht; die Produktdomäne darüber ist vollständig Neubau. Und: das vorhandene Transkript trägt **keine
-> Medienzeit** — der Punkt, an dem das ganze Produkt hängt.
+> **BrainSpeak ist kein Podcast-Player — aber auch kein bloßes Diktiergerät.** Es nimmt Audio auf, transkribiert
+> on-device und zieht daraus **persona-gefilterte Fakten**, idempotent und wiederaufnehmbar.
+> Die **Verstehens-Hälfte** des Konzepts (§2, §3) ist damit im Kern vorhanden; **Quellen, Mediathek, Zeitachse und
+> segmentgenaue Wiedergabe** (§1, §4–§8) sind Neubau — null Zeilen Podcast-Domäne.
+>
+> Die Naht dazwischen ist die eigentliche Arbeit: die vorhandene Extraktion liefert **Markdown-Prosa ohne
+> Herkunft**, und das Transkript trägt **keine Medienzeit**. M3/M4 heißt deshalb „Herkunftsbindung nachrüsten“,
+> nicht „Extraktion bauen“.
 > Details und Konsequenzen: [04-brainspeak-audit.md](04-brainspeak-audit.md).
 
 ## Der Plan in fünf Sätzen

@@ -96,30 +96,40 @@ Liste, weil eine einzige Abkürzung unter Termindruck genügt, um es zu realisie
 *Gegenmaßnahme:* Punkt 3 der Definition of Done — Rechte-, Scope- und Freigabeentscheidungen liegen in Swift-Policy,
 nie in einem Prompt. Deterministische Policy-Tests vor den Adaptern.
 
-### R10 — Das Produkt ist ein anderes, als das Paket annimmt · hoch × real eingetreten
+### R10 — Die Erwartung kippt in eine der beiden falschen Richtungen · hoch × mittel
 
-Das Paket beschreibt durchgehend eine **Erweiterung**: „BrainSpeak um einen quellenfähigen Medien-/Wissenskern
-erweitern“, „vorhandene geeignete Bausteine werden angepasst, nicht verdeckt durch eine Neuentwicklung ersetzt“.
-Der Audit zeigt: BrainSpeak ist eine Diktier-App mit **null Zeilen Podcast-Domäne**. Quellen, Wiedergabe mit exakten
-Grenzen, Wissen, Index, Chat, Fokus, Export, App Intents, Spotlight und Hintergrundverarbeitung sind sämtlich Neubau.
+Das Paket beschreibt durchgehend eine **Erweiterung**. Der Audit zeigt einen zweigeteilten Befund, und **beide**
+Verkürzungen davon sind gefährlich:
 
-Das Risiko ist nicht technisch, sondern in der Erwartungshaltung: Wer „wir bauen auf BrainSpeak auf“ als
-„das meiste steht schon“ liest, plant mit einem Bruchteil des tatsächlichen Aufwands.
+* *„Es ist ja nur eine Diktier-App, wir fangen bei null an.“* — Falsch. Die Verstehens-Pipeline existiert:
+  persona-gefilterte Relevanzextraktion, strukturierte `@Generable`-Ausgaben, Kontextfensterverwaltung,
+  Injection-Härtung, idempotente und wiederaufnehmbare Artefakte ([04 §2a](04-brainspeak-audit.md)). Wer das neu
+  baut, wirft Wochen weg und verliert Eigenschaften, die im Bestand bereits richtig gelöst sind.
+* *„Wir bauen auf BrainSpeak auf, das meiste steht schon.“* — Ebenfalls falsch. Quellen, Mediathek, segmentgenaue
+  Wiedergabe, Index, Chat, Fokus, Export, App Intents, Spotlight und Hintergrundverarbeitung sind sämtlich Neubau.
 
 *Gegenmaßnahme:* Die Formulierung in Constitution II und `plan.md` schärfen — Wiederverwendung betrifft die
-**Sprach-, KI-, Persistenz- und Plattformschicht**, nicht die Produktdomäne. Die ausgefüllte Integrationskarte
-([04 §5](04-brainspeak-audit.md)) benennt je Zuständigkeit erweitern / ersetzen / neu.
-*Frühwarnsignal:* Eine Schätzung, die M1 als „Anpassung“ führt.
+**Sprach-, KI-, Verstehens-, Persistenz- und Plattformschicht**, nicht die Produktdomäne. Die ausgefüllte
+Integrationskarte ([04 §5](04-brainspeak-audit.md)) benennt je Zuständigkeit erweitern / ersetzen / neu und ist die
+verbindliche Referenz gegen beide Verkürzungen.
+*Frühwarnsignal:* Eine Schätzung, die M1 als „Anpassung“ führt — oder ein Ticket „Faktenextraktion implementieren“.
 
-### R11 — Transkript ohne Medienzeit wird zu spät bemerkt · sehr hoch × mittel
+### R11 — Fehlende Herkunftsbindung wird zu spät bemerkt · sehr hoch × mittel
 
-`SpeechTranscriber` wird mit `attributeOptions: []` erzeugt; `TranscriptionResult` trägt nur Text, ein
-`isFinal`-Flag und eine Wanduhrzeit. Versprechen V1 und V2 stehen beide auf mediengenauen Zeitbereichen pro Segment.
-Entsteht in M3 auch nur eine Charge Segmente, Claims und Evidence ohne Medienzeit, ist jedes darauf aufbauende
+Zwei zusammenhängende Befunde. `SpeechTranscriber` wird mit `attributeOptions: []` erzeugt, `TranscriptionResult`
+trägt nur Text, ein `isFinal`-Flag und eine Wanduhrzeit. Und die Extraktion endet in
+`markdownBullets: String` — Prosa ohne `EvidenceID` und ohne Zeitbereich. Versprechen V1 und V2 stehen beide darauf.
+Entsteht in M3 auch nur eine Charge Segmente, Claims und Evidence ohne Herkunft, ist jedes darauf aufbauende
 Artefakt wertlos und muss neu erzeugt werden — inklusive der Analysekosten.
 
-*Gegenmaßnahme:* Abweichung A5 — Zeitbezug ist die **erste** Aufgabe in M3, vor Segmenten und Claims. Neues
-GATE-TIME. Der Eingriff selbst ist klein: Zeitattribute anfordern und `CMTimeRange` durchreichen.
+**Besonders tückisch:** `Utterance.t` existiert und *sieht aus wie* eine Zeitangabe, ist aber Wanduhrzeit seit
+Sessionstart. Wird eine Datei schneller als Echtzeit eingelesen, liefert dieser Wert plausible, aber falsche
+Zeitcodes. Ein falscher Timecode ist schlimmer als ein fehlender: er fällt erst beim Hören auf.
+
+*Gegenmaßnahme:* Abweichung A5 — Herkunftsbindung ist die **erste** Aufgabe in M3, vor Segmenten und Claims. Neues
+GATE-TIME, das ausdrücklich gegen eine Datei prüft, die schneller als Echtzeit analysiert wurde. Der Eingriff selbst
+ist überschaubar: Zeitattribute anfordern, `CMTimeRange` durchreichen, `@Generable`-Ausgabetypen von String auf
+Claims mit `EvidenceID` umstellen.
 *Frühwarnsignal:* In M3 entstehen Claims, bevor `validation/transcript-timing.md` existiert.
 
 ### R12 — Versionssprung 26 → 27 wird als Buildeinstellung behandelt · hoch × mittel
