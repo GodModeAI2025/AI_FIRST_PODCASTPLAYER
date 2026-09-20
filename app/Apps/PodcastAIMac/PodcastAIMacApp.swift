@@ -55,13 +55,14 @@ struct MacRootView: View {
     @State private var section: Section? = .forYou
 
     enum Section: Hashable, CaseIterable, Identifiable {
-        case forYou, feeds, library, interests, player
+        case forYou, feeds, chat, library, interests, player
         var id: Self { self }
 
         var label: String {
             switch self {
             case .forYou: "Für dich"
             case .feeds: "Meine Feeds"
+            case .chat: "Fragen"
             case .library: "Mediathek"
             case .interests: "Interessen"
             case .player: "Wiedergabe"
@@ -72,6 +73,7 @@ struct MacRootView: View {
             switch self {
             case .forYou: "sparkles"
             case .feeds: "waveform.circle"
+            case .chat: "text.bubble"
             case .library: "books.vertical"
             case .interests: "target"
             case .player: "play.circle"
@@ -90,6 +92,7 @@ struct MacRootView: View {
                 switch section {
                 case .forYou: ForYouView()
                 case .feeds: SmartFeedListView()
+                case .chat: ChatView()
                 case .library: LibraryView()
                 case .interests: InterestsView()
                 case .player, .none: FocusPlayerView()

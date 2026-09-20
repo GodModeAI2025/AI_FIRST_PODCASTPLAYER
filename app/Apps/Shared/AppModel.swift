@@ -20,8 +20,8 @@ public final class AppModel {
 
     public private(set) var sources: [Source] = []
     public private(set) var relevantToday: [RelevantItem] = []
-    public private(set) var smartFeeds: [SmartPodcastFeed] = []
-    public private(set) var editions: [SmartFeedID: [PersonalEpisode]] = [:]
+    public internal(set) var smartFeeds: [SmartPodcastFeed] = []
+    public internal(set) var editions: [SmartFeedID: [PersonalEpisode]] = [:]
     public private(set) var profile = InterestProfile()
     public private(set) var ledger = ListeningLedger()
     public private(set) var modelStatus = ModelStatus(
@@ -31,6 +31,7 @@ public final class AppModel {
 
     /// Was gerade passiert. Eine Zeile, die der Nutzer lesen kann — keine
     /// unendliche Fortschrittsanzeige ohne Aussage.
+    public internal(set) var highlights: [Highlight] = []
     public private(set) var activity: String?
     public private(set) var lastError: String?
 
@@ -147,6 +148,160 @@ public final class AppModel {
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    // MARK: - Themenfeeds
+
+    public func createSmartFeed(title: String, topicIDs: [InterestID], minutes: Int) {
+        let feed = SmartPodcastFeed(
+            title: title, topicIDs: topicIDs,
+            editionMode: .budgeted(MediaDuration(minutes: minutes))
+        )
+        smartFeeds.append(feed)
+    }
+
+    /// Stellt eine neue Ausgabe zusammen. Startet ausdrücklich keinen Ton.
+    @discardableResult
+    public func buildEdition(feedID: SmartFeedID, budget: MediaDuration? = nil) async -> String {
+        guard var feed = smartFeeds.first(where: { $0.id == feedID }) else {
+            return "Diesen Themenfeed gibt es nicht."
+        }
+        if let budget { feed.editionMode = .budgeted(budget) }
+
+        activity = "Ausgabe wird zusammengestellt …"
+        defer { activity = nil }
+
+        do {
+            let pipeline = ContentPipeline(
+                store: store, mediaDirectory: LocalMediaLocator.mediaDirectory
+            )
+            let candidates = try await pipeline.candidates(
+                for: feed, profile: profile, availability: modelStatus
+            )
+            let existing = Set((editions[feedID] ?? []).map(\.batchKey))
+            let outcome = PersonalEpisodePublisher().makeEdition(
+                feed: feed, candidates: candidates, ledger: ledger,
+                existingBatchKeys: existing
+            )
+
+            switch outcome {
+            case .published(let episode):
+                editions[feedID, default: []].insert(episode, at: 0)
+                return "\(episode.title): \(episode.segments.count) Stellen aus "
+                    + "\(episode.distinctSourceCount) Quellen."
+            case .noNewMaterial(let count):
+                return count == 0
+                    ? "Zu diesen Themen ist noch nichts erschlossen."
+                    : "Nichts Neues — alle passenden Stellen hast du schon gehört."
+            case .belowThreshold(let available, let required):
+                return "Erst \(available.shortDescription) neues Material, "
+                    + "nötig sind \(required.shortDescription)."
+            case .alreadyPublished:
+                return "Diese Ausgabe gibt es bereits."
+            }
+        } catch {
+            lastError = error.localizedDescription
+            return "Die Ausgabe konnte nicht erstellt werden."
+        }
+    }
+
+    // MARK: - Wissen
+
+    /// Merkt sich die gerade laufende Stelle.
+    ///
+    /// Der Bereich entsteht rückwärts ab der aktuellen Position: wer
+    /// „merken“ drückt, hat das Interessante gerade gehört.
+    @discardableResult
+    public func rememberPassage(
+        at position: MediaTime, in mediaVersionID: MediaVersionID,
+        note: String?, via route: Highlight.CaptureRoute
+    ) async -> String {
+        let capture = HighlightCapture()
+        let range = capture.range(around: position, limit: nil)
+        let highlight = Highlight(
+            evidenceID: Evidence.stableID(
+                mediaVersionID: mediaVersionID, transcriptRevision: .initial, range: range
+            ),
+            note: note, capturedVia: route
+        )
+        highlights.insert(highlight, at: 0)
+        return "Gemerkt: \(range.start.timecode)–\(range.end.timecode)"
+    }
+
+    // MARK: - Chat
+
+    /// Beantwortet eine Frage im gewählten Bereich.
+    ///
+    /// Der Schnappschuss wird **vor** der Antwort gebildet und danach nicht
+    /// mehr angefasst: läuft parallel ein Refresh, ändert das nichts an der
+    /// laufenden Antwort. Sonst könnte eine Antwort Belege zitieren, die
+    /// beim Lesen schon andere sind.
+    public func ask(_ question: String, scope: ChatScope) async -> ChatAnswer {
+        activity = "Antwort wird gesucht …"
+        defer { activity = nil }
+
+        let evidence = (try? await store.evidenceForAnalyzedEpisodes()) ?? []
+        let snapshot = ChatScopeSnapshot(
+            scope: scope,
+            evidence: evidence,
+            coverage: evidence.isEmpty ? .none : .partial(fraction: 0.5, analyzed: IntervalSet())
+        )
+        let caveat = CoverageAdvisor.caveat(
+            for: snapshot,
+            questionSuggestsExhaustive: CoverageAdvisor.suggestsExhaustive(question)
+        )
+
+        guard !evidence.isEmpty else {
+            return ChatAnswer(
+                question: question, scope: scope,
+                text: "Dazu ist noch nichts erschlossen. Nimm eine Quelle auf und lass "
+                    + "eine Folge analysieren — danach kann ich mit Belegen antworten.",
+                citations: [], coverageCaveat: caveat
+            )
+        }
+
+        // Vorauswahl über die Stichworte der Frage, damit das Modell eine
+        // überschaubare Kandidatenliste bekommt.
+        let asInterest = Interest(label: question, kind: .openQuestion)
+        var probe = InterestProfile(interests: [asInterest], learningEnabled: false)
+        _ = probe
+        let matches = RelevanceScorer(threshold: 0.15, maximumPerInterest: 12)
+            .score(evidence: evidence, profile: InterestProfile(interests: [asInterest]))
+
+        let byID = Dictionary(uniqueKeysWithValues: evidence.map { ($0.id, $0) })
+        let citations = matches.compactMap { byID[$0.evidenceID] }
+
+        guard !citations.isEmpty else {
+            return ChatAnswer(
+                question: question, scope: scope,
+                text: "Dazu finde ich im gewählten Bereich keine belegte Stelle.",
+                citations: [], coverageCaveat: caveat
+            )
+        }
+
+        let text = citations.count == 1
+            ? "Dazu gibt es eine belegte Stelle."
+            : "Dazu gibt es \(citations.count) belegte Stellen."
+
+        return ChatAnswer(
+            question: question, scope: scope, text: text,
+            citations: citations, coverageCaveat: caveat
+        )
+    }
+
+    /// Macht aus einer Antwort eine Hörsession.
+    public func playAnswer(_ answer: ChatAnswer) {
+        let context = SnapshotPlanningContext(evidence: answer.citations)
+        let plan = FocusPlanner(context: context).plan(
+            from: answer.playbackProposal(),
+            route: .chatFocus,
+            options: FocusPlannerOptions(skipAlreadyHeard: false, ledger: ledger)
+        )
+        guard !plan.isEmpty else {
+            lastError = "Zu dieser Antwort lässt sich nichts abspielen."
+            return
+        }
+        play(plan, from: .chat)
     }
 
     public func clearError() { lastError = nil }

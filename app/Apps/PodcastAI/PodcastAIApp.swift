@@ -50,7 +50,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
     @State private var selection: Tab = .forYou
 
-    enum Tab: Hashable { case forYou, feeds, library, knowledge }
+    enum Tab: Hashable { case forYou, feeds, chat, library, knowledge }
 
     var body: some View {
         TabView(selection: $selection) {
@@ -59,6 +59,9 @@ struct RootView: View {
             }
             Tab("Meine Feeds", systemImage: "waveform.circle", value: Tab.feeds) {
                 NavigationStack { SmartFeedListView() }
+            }
+            Tab("Fragen", systemImage: "text.bubble", value: Tab.chat) {
+                NavigationStack { ChatView() }
             }
             Tab("Mediathek", systemImage: "books.vertical", value: Tab.library) {
                 NavigationStack { LibraryView() }
