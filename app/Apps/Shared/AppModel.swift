@@ -98,6 +98,20 @@ public final class AppModel {
     /// Wie die Datenbank abgeglichen wird, für die Einstellungen.
     public var syncDescription = "Nur auf diesem Gerät"
 
+    // MARK: - Löschen während laufender Arbeit (genutzt in AppModel+Knowledge.swift)
+
+    /// Zählt Löschvorgänge. Eine Arbeit merkt sich beim Start den Stand und
+    /// erkennt daran, ob ihre Folge gelöscht wurde, während sie lief. Eine
+    /// Arbeit, die erst nach dem Löschen beginnt (etwa nach erneutem
+    /// Abonnieren), ist davon nicht betroffen.
+    @ObservationIgnored var removalCount = 0
+    /// Gelöschte Folge und Stand des Zählers bei ihrer Löschung.
+    @ObservationIgnored var removalTickets: [EpisodeID: Int] = [:]
+    /// Die laufende Erschliessung einer einzelnen Folge. Löschen bricht nur
+    /// sie ab, die übrige Warteschlange läuft weiter.
+    @ObservationIgnored var pipelineRun: Task<Void, Error>?
+    @ObservationIgnored var pipelineEpisodeID: EpisodeID?
+
     // MARK: - Dienste
 
     public let store: LibraryStore
@@ -203,6 +217,9 @@ public final class AppModel {
         } catch {
             lastError = UserFacingError.describe(error)
         }
+        // Auf einem anderen Gerät Gelöschtes auch hier entfernen: Audiodateien,
+        // „Als Nächstes“, Warteschlange und gemerkte Stellen.
+        await forgetEpisodesRemovedElsewhere()
         await refreshRelevantToday()
     }
 
@@ -420,6 +437,16 @@ public final class AppModel {
     /// vorübergehend war und ein zweiter Versuch lohnt.
     private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
         guard let audioURL = episode.audioURL else { return false }
+        // Stand der Löschungen beim Start. Wird die Folge währenddessen
+        // gelöscht, darf nichts von ihr zurückkommen.
+        let ticket = removalCount
+        // Inzwischen gelöscht, hier oder auf einem anderen Gerät: überspringen.
+        let live = try? await store.episodes(ids: [episode.id])
+        if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
+            stages[episode.id] = nil
+            stageDetails[episode.id] = nil
+            return false
+        }
         // Die Folge wird in ihrer eigenen Sprache transkribiert, nicht in der
         // des Geräts. Ohne Angabe im Feed bleibt es bei der Gerätesprache.
         let feedLanguage = sources.first(where: { $0.id == episode.sourceID })?.language
@@ -438,26 +465,47 @@ public final class AppModel {
             mediaDirectory: LocalMediaLocator.mediaDirectory,
             onProgress: { [weak self] progress in
                 Task { @MainActor in
-                    self?.stages[progress.episodeID] = progress.stage
+                    // Eine gelöschte Folge taucht nicht wieder unter „Erschliessen“ auf.
+                    guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }
+                    self.stages[progress.episodeID] = progress.stage
                     if let detail = progress.detail {
-                        self?.stageDetails[progress.episodeID] = detail
+                        self.stageDetails[progress.episodeID] = detail
                     }
                     background.update(progress.stage)
                 }
             }
         )
-        do {
+        // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
+        let run = Task {
             _ = try await pipeline.process(
                 episode: episode, audioURL: audioURL,
                 sourceID: episode.sourceID, locale: locale
             )
+        }
+        pipelineRun = run
+        pipelineEpisodeID = episode.id
+        defer {
+            pipelineRun = nil
+            pipelineEpisodeID = nil
+        }
+        do {
+            try await run.value
+            if wasRemoved(episode.id, since: ticket) {
+                await purgeLateWrites(of: episode)
+                return false
+            }
             analyzedEpisodes.insert(episode.id)
             automaticallyQueued.remove(episode.id)
             await refreshRelevantToday()
             // Fakten gleich mit ermitteln, solange die Folge frisch ist.
-            await prepareFacts(for: episode)
+            await prepareFacts(for: episode, removalTicket: ticket)
             return false
         } catch {
+            // Abgebrochen, weil gelöscht: kein zweiter Versuch, nur aufräumen.
+            if wasRemoved(episode.id, since: ticket) {
+                await purgeLateWrites(of: episode)
+                return false
+            }
             if UserFacingError.isTransient(error) {
                 stages[episode.id] = nil
                 return true

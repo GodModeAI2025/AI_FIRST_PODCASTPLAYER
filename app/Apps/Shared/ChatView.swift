@@ -15,15 +15,28 @@ import PodcastAIKit
 struct ChatView: View {
 
     @Environment(AppModel.self) private var model
-    @State private var scope: ChatScope
     @State private var question = ""
     @State private var isAsking = false
+    /// Im eigenständigen Chat: gilt die Frage der Folge, die gerade läuft?
+    @State private var followsPlayer = false
     /// Innerhalb einer Folge ist der Bereich fest.
-    private let fixedScope: Bool
+    private let pinnedScope: ChatScope?
+    private var fixedScope: Bool { pinnedScope != nil }
 
+    /// Mit `fixed` gilt `scope` fest. Ohne beginnt der Chat bei allem
+    /// Erschlossenen, und der Nutzer kann zur laufenden Folge wechseln.
     init(scope: ChatScope = .allAnalyzed, fixed: Bool = false) {
-        _scope = State(initialValue: scope)
-        fixedScope = fixed
+        pinnedScope = fixed ? scope : nil
+    }
+
+    /// Der Bereich, für den gerade gefragt wird. Folgt der Chat der
+    /// laufenden Folge, ist es immer die, die gerade spielt. Spielt nichts,
+    /// gilt alles Erschlossene. So zeigen Auswahl, Antworten und Frage
+    /// stets auf dieselbe Folge.
+    private var scope: ChatScope {
+        if let pinnedScope { return pinnedScope }
+        guard followsPlayer, let playing = model.episodePlayer.episode else { return .allAnalyzed }
+        return .episode(playing.id)
     }
 
     private var answers: [ChatAnswer] {
@@ -33,7 +46,7 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: Design.Spacing.none) {
             if !fixedScope {
-                ScopeBar(scope: $scope)
+                ScopeBar(followsPlayer: $followsPlayer)
                 Divider()
             }
 
@@ -57,6 +70,11 @@ struct ChatView: View {
             askField
         }
         .modifier(ChatTitle(show: !fixedScope))
+        .onChange(of: model.episodePlayer.episode?.id) { _, playing in
+            // Endet die Wiedergabe, bleibt der Chat bei allem Erschlossenen
+            // und springt nicht mit der nächsten Folge von selbst zurück.
+            if playing == nil { followsPlayer = false }
+        }
     }
 
     /// Das Eingabefeld schwebt als Bedienelement über dem Inhalt.
@@ -113,15 +131,17 @@ private struct ChatTitle: ViewModifier {
 /// Der Bereich steht oben und ist jederzeit änderbar.
 struct ScopeBar: View {
 
-    @Binding var scope: ChatScope
+    @Binding var followsPlayer: Bool
     @Environment(AppModel.self) private var model
 
     var body: some View {
         HStack {
             Image(systemName: "scope").foregroundStyle(.secondary)
+            // Die Auswahl zeigt „Laufende Folge“ nur, solange eine läuft.
+            // Sonst gäbe es keinen passenden Eintrag, und das Menü stünde leer.
             Picker("Bereich", selection: Binding(
-                get: { ScopeChoice(scope) },
-                set: { scope = $0.scope(model) }
+                get: { followsPlayer && currentTitle != nil ? ScopeChoice.currentEpisode : .allAnalyzed },
+                set: { followsPlayer = $0 == .currentEpisode }
             )) {
                 Text("Alle erschlossenen Inhalte").tag(ScopeChoice.allAnalyzed)
                 if let title = currentTitle {
@@ -148,24 +168,6 @@ struct ScopeBar: View {
 
     enum ScopeChoice: Hashable {
         case allAnalyzed, currentEpisode
-
-        init(_ scope: ChatScope) {
-            if case .allAnalyzed = scope { self = .allAnalyzed } else { self = .currentEpisode }
-        }
-
-        @MainActor func scope(_ model: AppModel) -> ChatScope {
-            switch self {
-            case .allAnalyzed: .allAnalyzed
-            case .currentEpisode:
-                if let episode = model.episodePlayer.episode {
-                    .episode(episode.id)
-                } else if let plan = model.playerPlan, let first = plan.segments.first {
-                    .episode(first.episodeID)
-                } else {
-                    .allAnalyzed
-                }
-            }
-        }
     }
 }
 
