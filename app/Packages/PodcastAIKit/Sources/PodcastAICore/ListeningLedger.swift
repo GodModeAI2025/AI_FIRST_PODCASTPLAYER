@@ -104,6 +104,30 @@ public struct MediaListeningState: Hashable, Codable, Sendable {
         self.lastEventAt = nil
     }
 
+    /// Stellt einen gespeicherten Zustand wieder her, ohne Ereignisse
+    /// nachzuspielen.
+    ///
+    /// Nachgespielte Ereignisse trügen den Zeitpunkt des Ladens und den Weg
+    /// der ganzen Folge. Damit sähe jedes spätere echte Ereignis älter aus
+    /// als der Zustand, und die Fortsetzungsstelle bliebe stehen. Ausserdem
+    /// würde Gehörtes aus dem Chat-Fokus zur Fortsetzungsstelle.
+    public init(
+        mediaVersionID: MediaVersionID,
+        heard: IntervalSet,
+        skipped: IntervalSet,
+        quality: HistoryQuality = .exact,
+        lastEventAt: Date?,
+        resumePosition: MediaTime?
+    ) {
+        self.mediaVersionID = mediaVersionID
+        self.heard = heard
+        // Gehört gewinnt, wie in `apply(_:)`.
+        self.skipped = skipped.subtracting(heard)
+        self.quality = quality
+        self.lastEventAt = lastEventAt
+        self.resumePosition = resumePosition
+    }
+
     public mutating func apply(_ event: LedgerEvent) {
         guard event.mediaVersionID == mediaVersionID, !event.range.isEmpty else { return }
         switch event.kind {
@@ -135,6 +159,47 @@ public struct MediaListeningState: Hashable, Codable, Sendable {
     }
 
     public var totalHeard: MediaDuration { heard.totalDuration }
+
+    /// Vereinigt zwei Hörstände derselben Fassung, etwa von zwei Geräten.
+    ///
+    /// Gehörtes und Übersprungenes werden vereinigt, nie ersetzt. Die
+    /// Fortsetzungsstelle kommt von dem Stand mit dem jüngsten Ereignis.
+    /// Bei gleichem Zeitpunkt gilt die spätere Stelle, damit das Ergebnis
+    /// nicht von der Reihenfolge abhängt.
+    public func merged(with other: MediaListeningState) -> MediaListeningState {
+        guard other.mediaVersionID == mediaVersionID else { return self }
+        let heard = heard.union(other.heard)
+        let mine = lastEventAt ?? .distantPast
+        let theirs = other.lastEventAt ?? .distantPast
+        let resume: MediaTime?
+        switch (resumePosition, other.resumePosition) {
+        case (nil, nil): resume = nil
+        case (let own?, nil): resume = own
+        case (nil, let foreign?): resume = foreign
+        case (let own?, let foreign?):
+            if theirs > mine {
+                resume = foreign
+            } else if mine > theirs {
+                resume = own
+            } else {
+                resume = max(own, foreign)
+            }
+        }
+        let latest: Date? = switch (lastEventAt, other.lastEventAt) {
+        case (nil, nil): nil
+        case (let date?, nil), (nil, let date?): date
+        case (let a?, let b?): max(a, b)
+        }
+        return MediaListeningState(
+            mediaVersionID: mediaVersionID,
+            heard: heard,
+            skipped: skipped.union(other.skipped),
+            // Stammt ein Teil aus älteren Daten, ist das Ganze nur so genau wie dieser Teil.
+            quality: quality == .unknown || other.quality == .unknown ? .unknown : .exact,
+            lastEventAt: latest,
+            resumePosition: resume
+        )
+    }
 }
 
 /// Der gemeinsame Hörzustand über alle Medienfassungen.
@@ -190,19 +255,10 @@ public struct ListeningLedger: Codable, Sendable {
     public func merged(with other: ListeningLedger) -> ListeningLedger {
         var result = self
         for (id, otherState) in other.states {
-            var state = result.states[id] ?? MediaListeningState(mediaVersionID: id)
-            // Gehört gewinnt immer: Vereinigung, nie Ersetzung.
-            for range in otherState.heard.ranges {
-                state.apply(LedgerEvent(mediaVersionID: id, range: range, kind: .played,
-                                        at: otherState.lastEventAt ?? Date(),
-                                        via: .originalEpisode, deviceID: "merge"))
-            }
-            for range in otherState.skipped.ranges {
-                state.apply(LedgerEvent(mediaVersionID: id, range: range, kind: .skipped,
-                                        at: otherState.lastEventAt ?? Date(),
-                                        via: .originalEpisode, deviceID: "merge"))
-            }
-            result.states[id] = state
+            // Gehört gewinnt immer: Vereinigung, nie Ersetzung. Zusammengeführt
+            // wird Zustand mit Zustand. Nachgespielte Ereignisse würden die
+            // Enden der gehörten Bereiche zur Fortsetzungsstelle machen.
+            result.states[id] = result.states[id].map { $0.merged(with: otherState) } ?? otherState
         }
         return result
     }

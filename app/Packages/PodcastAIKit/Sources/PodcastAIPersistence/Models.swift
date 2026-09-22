@@ -45,7 +45,13 @@ public final class StoredSource {
     public var hasHistoricalCatalog: Bool = false
     public var limitationReason: String?
 
-    @Relationship(deleteRule: .cascade, inverse: \StoredEpisode.source)
+    /// `.nullify` statt `.cascade`: Löscht ein anderes Gerät beim Bereinigen
+    /// von Doppelten diese Zeile, bevor hier die umgehängten Folgen angekommen
+    /// sind, verlieren die Folgen nur ihre Quelle und nicht ihre Daten. Beim
+    /// Abbestellen löscht ``LibraryStore/removeSource(_:)`` die Folgen selbst.
+    /// Die Löschregel gehört nicht zum Versions-Hash des Modells, der Wechsel
+    /// braucht also keine Migration und ändert das CloudKit-Schema nicht.
+    @Relationship(deleteRule: .nullify, inverse: \StoredEpisode.source)
     public var episodes: [StoredEpisode]? = []
 
     public init(identifier: String, kind: SourceKind, title: String) {
@@ -101,7 +107,10 @@ public final class StoredEpisode {
 
     public var source: StoredSource?
 
-    @Relationship(deleteRule: .cascade, inverse: \StoredMediaVersion.episode)
+    /// `.nullify` aus demselben Grund wie bei ``StoredSource/episodes``.
+    /// Eine Fassung ohne Folge bleibt über ihre Kennung auffindbar und wird
+    /// beim nächsten Bereinigen wieder angehängt.
+    @Relationship(deleteRule: .nullify, inverse: \StoredMediaVersion.episode)
     public var mediaVersions: [StoredMediaVersion]? = []
 
     public init(identifier: String, title: String) {
@@ -145,7 +154,9 @@ public final class StoredMediaVersion {
 
     public var episode: StoredEpisode?
 
-    @Relationship(deleteRule: .cascade, inverse: \StoredTranscript.mediaVersion)
+    /// `.nullify` aus demselben Grund wie bei ``StoredSource/episodes``.
+    /// Beim Löschen einer Folge entfernt der Store die Transkripte selbst.
+    @Relationship(deleteRule: .nullify, inverse: \StoredTranscript.mediaVersion)
     public var transcripts: [StoredTranscript]? = []
 
     public init(identifier: String) { self.identifier = identifier }
@@ -191,11 +202,20 @@ public final class StoredTranscript {
             revision: Revision(revisionValue),
             origin: TranscriptOrigin(rawValue: originRaw) ?? .speechAnalysis,
             locale: locale,
-            segments: (segments ?? []).sorted { $0.startMs < $1.startMs }.map(\.snapshot),
+            segments: Self.uniqueSegments(segments ?? []).map(\.snapshot),
             untimedText: untimedText,
             analyzedRanges: IntervalSet(Self.ranges(from: analyzedRangesFlat)),
             createdAt: createdAt
         )
+    }
+
+    /// Segmente nach Zeit, jede Kennung einmal. Doppelte bleiben stehen,
+    /// wenn sich beim Bereinigen keine Kopie eindeutig vorziehen liess.
+    static func uniqueSegments(_ segments: [StoredSegment]) -> [StoredSegment] {
+        var seen: Set<String> = []
+        return segments
+            .sorted { ($0.startMs, $0.endMs, $0.identifier) < ($1.startMs, $1.endMs, $1.identifier) }
+            .filter { seen.insert($0.identifier).inserted }
     }
 
     static func ranges(from flat: [Int]) -> [MediaTimeRange] {
@@ -243,6 +263,12 @@ public final class StoredSegment {
 /// Ereignisse aufzubewahren würde den Datensatz unbegrenzt wachsen lassen
 /// und beim Zusammenführen zweier Geräte nichts hinzufügen — die Operation
 /// ist idempotent.
+///
+/// Haben zwei Geräte vor dem Abgleich je eine Zeile für dieselbe Fassung
+/// angelegt, bleiben beide stehen. ``LibraryStore/ledger()`` vereinigt sie
+/// beim Lesen. Gelöscht wird keine davon: Ohne ein unveränderliches Merkmal
+/// könnte jedes Gerät die Zeile des anderen löschen, und nach dem nächsten
+/// Abgleich wären beide weg.
 @Model
 public final class StoredListeningState {
     public var mediaVersionIdentifier: String = ""
@@ -256,30 +282,34 @@ public final class StoredListeningState {
         self.mediaVersionIdentifier = mediaVersionIdentifier
     }
 
+    /// Der gespeicherte Zustand, so wie er geschrieben wurde.
+    ///
+    /// Früher wurden die Bereiche hier als neue Ereignisse nachgespielt, mit
+    /// dem Zeitpunkt des Ladens und dem Weg der ganzen Folge. Das hatte zwei
+    /// Folgen: Jedes spätere echte Ereignis galt als älter, die
+    /// Fortsetzungsstelle blieb nach dem ersten Abschnitt stehen. Und ohne
+    /// gespeicherte Stelle wurde das Ende eines Chat-Fokus zur Stelle, an der
+    /// die ganze Folge weitergehen sollte.
     public var snapshot: MediaListeningState {
-        var state = MediaListeningState(
+        MediaListeningState(
             mediaVersionID: MediaVersionID(rawValue: mediaVersionIdentifier),
-            quality: HistoryQuality(rawValue: historyQualityRaw) ?? .exact
+            heard: IntervalSet(StoredTranscript.ranges(from: heardFlat)),
+            skipped: IntervalSet(StoredTranscript.ranges(from: skippedFlat)),
+            quality: HistoryQuality(rawValue: historyQualityRaw) ?? .exact,
+            lastEventAt: lastEventAt,
+            resumePosition: resumePositionMs > 0
+                ? MediaTime(milliseconds: Int64(resumePositionMs)) : nil
         )
-        for range in StoredTranscript.ranges(from: heardFlat) {
-            state.apply(LedgerEvent(mediaVersionID: state.mediaVersionID, range: range,
-                                    kind: .played, via: .originalEpisode, deviceID: "local"))
-        }
-        for range in StoredTranscript.ranges(from: skippedFlat) {
-            state.apply(LedgerEvent(mediaVersionID: state.mediaVersionID, range: range,
-                                    kind: .skipped, via: .originalEpisode, deviceID: "local"))
-        }
-        if resumePositionMs > 0 {
-            state.resumePosition = MediaTime(milliseconds: Int64(resumePositionMs))
-        }
-        return state
     }
 
     public func apply(_ state: MediaListeningState) {
         heardFlat = StoredTranscript.flat(from: state.heard)
         skippedFlat = StoredTranscript.flat(from: state.skipped)
+        historyQualityRaw = state.quality.rawValue
         resumePositionMs = Int(state.resumePosition?.milliseconds ?? 0)
-        lastEventAt = Date()
+        // Der Zeitpunkt des letzten Ereignisses, nicht der des Schreibens.
+        // Sonst wäre das nächste Ereignis scheinbar älter als der Zustand.
+        lastEventAt = state.lastEventAt
     }
 }
 

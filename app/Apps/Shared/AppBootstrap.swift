@@ -81,8 +81,11 @@ public enum AppBootstrap {
                 : "Nicht bei iCloud angemeldet, die Daten bleiben auf diesem Gerät"
             return (container, description, nil)
         }
-        if let container = try? LibraryStore.openPersistentContainer(sync: false) {
-            return (container, "Aus, die Daten bleiben auf diesem Gerät", nil)
+        // Erst hier, nachdem auch der Abgleich gescheitert ist, darf ein
+        // unpassender alter Speicher beiseitegelegt werden. Dann sagt die
+        // App es auch.
+        if let opened = try? LibraryStore.openLocalContainer() {
+            return (opened.container, "Aus, die Daten bleiben auf diesem Gerät", opened.recoveryNote)
         }
         let container = try! LibraryStore.makeContainer(inMemory: true)
         return (container, "Aus", "Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher.")

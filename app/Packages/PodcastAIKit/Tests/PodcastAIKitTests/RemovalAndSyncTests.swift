@@ -102,11 +102,16 @@ struct RemovalAndSyncTests {
             id: EvidenceID(stable: "e1"), mediaVersionID: mediaID, episodeID: episodeID, sourceID: sourceID,
             transcriptID: TranscriptID(stable: "t1"), transcriptRevision: .initial, range: range,
             quotedText: "Hallo Welt"))
-        #expect(try await store.evidence(forEpisode: episodeID).count == 2)
+        #expect(try await store.rowCountForTesting(StoredEvidence.self) == 2)
+        // Schon vor dem Bereinigen erscheint jede Kennung nur einmal.
+        #expect(try await store.evidence(forEpisode: episodeID).count == 1)
         // Darf nicht abstürzen, obwohl die Kennung doppelt vorkommt.
         #expect(try await store.evidence(ids: [EvidenceID(stable: "e1")]).count == 1)
         try await store.removeDuplicates()
+        #expect(try await store.rowCountForTesting(StoredEvidence.self) == 1)
         #expect(try await store.evidence(forEpisode: episodeID).count == 1)
+        // Behalten wird die vollständigere Zeile, nicht die zuerst gelesene.
+        #expect(try await store.evidence(forEpisode: episodeID).first?.transcriptID == TranscriptID(stable: "t1"))
     }
 }
 

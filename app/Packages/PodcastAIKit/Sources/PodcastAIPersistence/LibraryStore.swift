@@ -80,93 +80,437 @@ public actor LibraryStore {
     /// Datensatz nach dem Abgleich zweier Geräte doppelt vorliegen. Das
     /// bereinigt ``removeDuplicates()``.
     public static func makeContainer(inMemory: Bool = false, sync: Bool = false) throws -> ModelContainer {
-        let configuration = ModelConfiguration(
+        let configuration = persistentConfiguration(inMemory: inMemory, sync: sync)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    private static func persistentConfiguration(inMemory: Bool = false, sync: Bool) -> ModelConfiguration {
+        ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: inMemory,
             cloudKitDatabase: (sync && !inMemory) ? .automatic : .none
         )
+    }
+
+    /// Ein Container an einer festen Adresse. Für Tests, die eine Datei
+    /// brauchen, ohne den echten Speicher der App anzufassen.
+    static func makeContainer(at url: URL, sync: Bool = false) throws -> ModelContainer {
+        let configuration = ModelConfiguration(
+            schema: schema, url: url, cloudKitDatabase: sync ? .automatic : .none)
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
-    /// Öffnet den gespeicherten Container. Lässt sich ein Speicher aus einer
-    /// älteren Testversion nicht mehr öffnen, wird er beiseitegelegt und neu
-    /// angelegt, statt die App ohne Speicher starten zu lassen.
+    /// Öffnet den gespeicherten Container. Die Datei wird dabei nie verändert
+    /// oder verschoben, auch wenn das Öffnen scheitert.
     public static func openPersistentContainer(sync: Bool) throws -> ModelContainer {
+        try makeContainer(sync: sync)
+    }
+
+    /// Der geöffnete lokale Speicher und, falls nötig, ein Hinweis für den Nutzer.
+    public struct LocalContainer {
+        public let container: ModelContainer
+        /// Gesetzt, wenn der alte Speicher beiseitegelegt werden musste.
+        public let recoveryNote: String?
+    }
+
+    /// Öffnet den Speicher ohne Abgleich. Der letzte Weg, nachdem
+    /// ``openPersistentContainer(sync:)`` mit Abgleich gescheitert ist.
+    ///
+    /// Beiseitegelegt wird der alte Speicher nur, wenn auch dieses Öffnen
+    /// scheitert und der Fehler zeigt, dass die Datei zu diesem Modell nicht
+    /// passt und sich nicht umwandeln lässt. Bei jedem anderen Fehler, etwa
+    /// fehlenden Rechten, einer gesperrten Datei oder einem Problem mit
+    /// CloudKit, bleibt die Datei, wo sie ist, und der Fehler geht an den
+    /// Aufrufer. Eine leere Mediathek wäre dort schlimmer als ein Hinweis.
+    public static func openLocalContainer() throws -> LocalContainer {
+        let url = persistentConfiguration(sync: false).url
+        return try openLocalContainer(at: url) { try makeContainer(sync: false) }
+    }
+
+    static func openLocalContainer(
+        at url: URL, open: () throws -> ModelContainer
+    ) throws -> LocalContainer {
         do {
-            return try makeContainer(sync: sync)
+            return LocalContainer(container: try open(), recoveryNote: nil)
         } catch {
-            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            let stamp = Int(Date().timeIntervalSince1970)
-            for name in ["default.store", "default.store-shm", "default.store-wal"] {
-                let url = base.appendingPathComponent(name)
-                guard FileManager.default.fileExists(atPath: url.path) else { continue }
-                try? FileManager.default.moveItem(
-                    at: url, to: base.appendingPathComponent("\(name).alt-\(stamp)"))
-            }
-            return try makeContainer(sync: sync)
+            guard isIncompatibleStore(error, at: url) else { throw error }
+            let backup = try moveStoreAside(at: url)
+            let container = try open()
+            return LocalContainer(
+                container: container,
+                recoveryNote: "Die gespeicherte Mediathek passt nicht zu dieser Version der App "
+                    + "und liess sich nicht übernehmen. Die alte Datei liegt unverändert als "
+                    + "\(backup.lastPathComponent) im App-Ordner. Die App beginnt mit einem leeren Speicher.")
         }
     }
 
-    /// Entfernt doppelte Datensätze, die beim Abgleich zweier Geräte
-    /// entstehen können. Behalten wird jeweils der erste.
+    /// Fehlercodes von Core Data, die sagen: Datei und Modell passen nicht
+    /// zusammen, und eine Umwandlung ist gescheitert. Werte aus
+    /// `CoreDataErrors.h`. Bewusst nicht dabei sind 134020 (auch fehlende
+    /// Rechte), 134080 (Öffnen allgemein) und 134180 (SQLite allgemein).
+    static let incompatibleStoreCodes: Set<Int> = [
+        134100, 134110, 134111, 134120, 134130, 134140,
+        134150, 134160, 134170, 134190, 134505, 134506,
+    ]
+
+    /// Ist der Fehler einer, bei dem die Datei zu diesem Modell nicht passt?
+    ///
+    /// SwiftData meldet eine gescheiterte Umwandlung oft nur als allgemeines
+    /// `loadIssueModelContainer`. Dann entscheiden die Metadaten der Datei:
+    /// Lassen sie sich lesen und passen nicht zum Modell, ist die Datei aus
+    /// einer anderen Version. Lassen sie sich nicht lesen, wird nichts
+    /// verschoben, denn das kann auch eine gesperrte Datei sein.
+    static func isIncompatibleStore(_ error: any Error, at url: URL?) -> Bool {
+        if isIncompatibleStoreError(error) { return true }
+        guard let url, FileManager.default.fileExists(atPath: url.path),
+              let metadata = try? NSPersistentStoreCoordinator.metadataForPersistentStore(
+                ofType: NSSQLiteStoreType, at: url, options: nil),
+              let model = NSManagedObjectModel.makeManagedObjectModel(for: modelTypes)
+        else { return false }
+        return !model.isConfiguration(withName: nil, compatibleWithStoreMetadata: metadata)
+    }
+
+    static func isIncompatibleStoreError(_ error: any Error) -> Bool {
+        switch error {
+        case SwiftDataError.backwardMigration, SwiftDataError.unknownSchema:
+            return true
+        default:
+            break
+        }
+        if #available(iOS 27, macOS 27, *), case SwiftDataError.unknownDataStoreSchema = error {
+            return true
+        }
+        return containsIncompatibleCode(error as NSError, depth: 0)
+    }
+
+    private static func containsIncompatibleCode(_ error: NSError, depth: Int) -> Bool {
+        if error.domain == NSCocoaErrorDomain, incompatibleStoreCodes.contains(error.code) { return true }
+        guard depth < 8 else { return false }
+        var underlying: [NSError] = []
+        if let single = error.userInfo[NSUnderlyingErrorKey] as? NSError { underlying.append(single) }
+        if let many = error.userInfo[NSMultipleUnderlyingErrorsKey] as? [NSError] { underlying += many }
+        if let detailed = error.userInfo[NSDetailedErrorsKey] as? [NSError] { underlying += detailed }
+        return underlying.contains { containsIncompatibleCode($0, depth: depth + 1) }
+    }
+
+    /// Legt die Speicherdatei samt Begleitdateien unter neuem Namen daneben.
+    /// Gibt die Adresse der beiseitegelegten Hauptdatei zurück.
+    static func moveStoreAside(at url: URL) throws -> URL {
+        let manager = FileManager.default
+        let stamp = Int(Date().timeIntervalSince1970)
+        let folder = url.deletingLastPathComponent()
+        let name = url.lastPathComponent
+        let support = "." + url.deletingPathExtension().lastPathComponent + "_SUPPORT"
+        for part in [name, name + "-shm", name + "-wal", support] {
+            let source = folder.appendingPathComponent(part)
+            guard manager.fileExists(atPath: source.path) else { continue }
+            try manager.moveItem(at: source, to: folder.appendingPathComponent("\(part).alt-\(stamp)"))
+        }
+        return folder.appendingPathComponent("\(name).alt-\(stamp)")
+    }
+
+    /// Bereinigt doppelte Datensätze, die beim Abgleich zweier Geräte
+    /// entstehen können.
+    ///
+    /// Erst zusammenführen, dann löschen: Die Kinder einer Kopie (Folgen,
+    /// Fassungen, Transkripte, Segmente) wandern zur behaltenen Zeile, leere
+    /// Felder werden aus der Kopie ergänzt. Gelöscht wird erst die leere Kopie.
+    ///
+    /// Welche Zeile bleibt, entscheiden Felder, die mit der Zeile abgeglichen
+    /// werden und sich nicht mehr ändern, etwa `addedAt` oder `acquiredAt`.
+    /// Die Reihenfolge der lokalen Abfrage wäre auf jedem Gerät eine andere:
+    /// Jedes behielte seine eigene Zeile und löschte die des anderen, und
+    /// nach dem nächsten Abgleich wären beide weg. Lässt sich keine Zeile
+    /// eindeutig vorziehen, bleiben alle stehen. Die Lesefunktionen zeigen
+    /// jede Kennung trotzdem nur einmal.
+    ///
+    /// Ist eine Kopie einer Folge gelöscht, gilt die ganze Folge als
+    /// gelöscht: Was eine lebende Kopie inzwischen angesammelt hat, wird
+    /// entfernt wie bei ``removeEpisode(_:)``. Wer dabei auch die
+    /// Audiodateien löschen will, nimmt ``removeDuplicatesWithReport()``.
+    ///
+    /// Hörzustände werden nicht gelöscht, sondern beim Lesen vereinigt, siehe
+    /// ``ledger()``.
     public func removeDuplicates() throws {
-        func dedupe<T: PersistentModel>(_ type: T.Type, key: (T) -> String) throws {
-            var seen: Set<String> = []
-            for row in try modelContext.fetch(FetchDescriptor<T>()) {
-                let value = key(row)
-                if value.isEmpty { continue }
-                if seen.contains(value) { modelContext.delete(row) } else { seen.insert(value) }
+        _ = try removeDuplicatesWithReport()
+    }
+
+    /// Wie ``removeDuplicates()``. Der Bericht nennt die Fassungen, deren
+    /// Audiodateien der Aufrufer löschen kann, weil eine Kopie der Folge
+    /// gelöscht war.
+    public func removeDuplicatesWithReport() throws -> RemovalReport {
+        var report = RemovalReport()
+        // Nach jedem Schritt speichern: Eine Abfrage sieht gelöschte Zeilen
+        // sonst noch, und der nächste Schritt muss die umgehängten Kinder sehen.
+        try mergeDuplicateSources()
+        try modelContext.save()
+        try settleEpisodeDuplicates(into: &report)
+        try modelContext.save()
+        try mergeDuplicateMediaVersions()
+        try modelContext.save()
+        try reattachOrphanedMediaVersions()
+        try mergeDuplicateTranscripts()
+        try modelContext.save()
+
+        // Segmente gehören zu ihrem Transkript. Die Kennung allein reicht
+        // nicht, denn sie enthält weder Revision noch Sprache.
+        try removeLeafDuplicates(StoredSegment.self,
+            key: { $0.identifier + "|" + ($0.transcript?.identifier ?? "") },
+            order: [RowOrder.ascending { $0.text },
+                    RowOrder.ascending { $0.speakerLabel ?? "" }])
+        try removeLeafDuplicates(StoredInterest.self, key: \.identifier,
+            order: [RowOrder.ascending { $0.createdAt }])
+        try removeLeafDuplicates(StoredEvidence.self, key: \.identifier,
+            order: [RowOrder.descending { $0.hasTiming ? 1 : 0 },
+                    RowOrder.descending { $0.transcriptIdentifier.isEmpty ? 0 : 1 },
+                    RowOrder.ascending { $0.transcriptIdentifier },
+                    RowOrder.ascending { $0.quotedText },
+                    RowOrder.ascending { $0.attributedSpeaker ?? "" }])
+        try removeLeafDuplicates(StoredHighlight.self, key: \.identifier,
+            order: [RowOrder.ascending { $0.createdAt },
+                    RowOrder.ascending { $0.evidenceIdentifier }])
+        try removeLeafDuplicates(StoredSmartFeed.self, key: \.identifier,
+            order: [RowOrder.ascending { $0.createdAt }])
+        try removeLeafDuplicates(StoredPersonalEpisode.self, key: \.identifier,
+            order: [RowOrder.ascending { $0.feedIdentifier }])
+        try removeLeafDuplicates(StoredKnowledgeTrail.self, key: \.identifier,
+            order: [RowOrder.ascending { $0.parkedAt }])
+        try removeLeafDuplicates(StoredFact.self, key: \.identifier,
+            order: [RowOrder.ascending { $0.createdAt },
+                    RowOrder.ascending { $0.statement }])
+        try modelContext.save()
+        return report
+    }
+
+    /// Gruppiert Zeilen nach Schlüssel und ordnet jede Gruppe. Zurück kommen
+    /// nur Gruppen, in denen die erste Zeile eindeutig vor der zweiten steht.
+    private func duplicateGroups<T: PersistentModel>(
+        _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step]
+    ) throws -> [(keep: T, drop: [T])] {
+        var groups: [String: [T]] = [:]
+        for row in try modelContext.fetch(FetchDescriptor<T>()) {
+            let value = key(row)
+            guard !value.isEmpty else { continue }
+            groups[value, default: []].append(row)
+        }
+        let ordering = RowOrder<T>(order)
+        var result: [(keep: T, drop: [T])] = []
+        for value in groups.keys.sorted() {
+            guard let rows = groups[value], rows.count > 1 else { continue }
+            let sorted = rows.sorted { ordering.compare($0, $1) == .orderedAscending }
+            // Gleichstand an der Spitze: Kein Gerät könnte sicher sagen,
+            // welche Zeile bleibt. Dann bleibt jede.
+            guard ordering.compare(sorted[0], sorted[1]) == .orderedAscending else { continue }
+            result.append((sorted[0], Array(sorted.dropFirst())))
+        }
+        return result
+    }
+
+    /// Für Typen ohne Kinder: Die Kopien tragen dieselben Daten wie die
+    /// behaltene Zeile und können gehen.
+    private func removeLeafDuplicates<T: PersistentModel>(
+        _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step]
+    ) throws {
+        for group in try duplicateGroups(type, key: key, order: order) {
+            for row in group.drop { modelContext.delete(row) }
+        }
+    }
+
+    private func mergeDuplicateSources() throws {
+        let groups = try duplicateGroups(StoredSource.self, key: \.identifier, order: [
+            RowOrder.ascending { $0.addedAt },
+            RowOrder.ascending { $0.feedURLString ?? "" },
+        ])
+        guard !groups.isEmpty else { return }
+        for (keep, drop) in groups {
+            for copy in drop {
+                for episode in Array(copy.episodes ?? []) { episode.source = keep }
+                keep.author = keep.author ?? copy.author
+                keep.feedURLString = keep.feedURLString ?? copy.feedURLString
+                keep.websiteURLString = keep.websiteURLString ?? copy.websiteURLString
+                keep.artworkURLString = keep.artworkURLString ?? copy.artworkURLString
+                keep.languageCode = keep.languageCode ?? copy.languageCode
+                keep.limitationReason = keep.limitationReason ?? copy.limitationReason
+                keep.revisionValue = max(keep.revisionValue, copy.revisionValue)
             }
         }
-        try dedupe(StoredSource.self) { $0.identifier }
-        try dedupe(StoredEpisode.self) { $0.identifier }
-        try dedupe(StoredMediaVersion.self) { $0.identifier }
-        try dedupe(StoredTranscript.self) { $0.identifier }
-        try dedupe(StoredSegment.self) { $0.identifier }
-        try dedupe(StoredListeningState.self) { $0.mediaVersionIdentifier }
-        try dedupe(StoredInterest.self) { $0.identifier }
-        try dedupe(StoredEvidence.self) { $0.identifier }
-        try dedupe(StoredHighlight.self) { $0.identifier }
-        try dedupe(StoredSmartFeed.self) { $0.identifier }
-        try dedupe(StoredPersonalEpisode.self) { $0.identifier }
-        try dedupe(StoredKnowledgeTrail.self) { $0.identifier }
-        try dedupe(StoredFact.self) { $0.identifier }
+        // Erst die umgehängten Kinder sichern, dann die leeren Kopien löschen.
         try modelContext.save()
+        for (_, drop) in groups { for copy in drop { modelContext.delete(copy) } }
+    }
+
+    /// Folgen: gelöschte Kopien setzen sich durch, lebende werden zusammengeführt.
+    private func settleEpisodeDuplicates(into report: inout RemovalReport) throws {
+        var groups: [String: [StoredEpisode]] = [:]
+        for row in try modelContext.fetch(FetchDescriptor<StoredEpisode>()) where !row.identifier.isEmpty {
+            groups[row.identifier + "|" + (row.source?.identifier ?? ""), default: []].append(row)
+        }
+
+        // Gelöscht bleibt gelöscht. Trägt eine Kopie das Merkzeichen, gilt es
+        // für alle, und was an einer lebenden Kopie hängt, geht mit.
+        var purged: Set<String> = []
+        for value in groups.keys.sorted() {
+            guard let rows = groups[value], rows.contains(where: { $0.removedAt != nil }) else { continue }
+            let hasLeftovers = rows.contains {
+                $0.removedAt == nil || !($0.mediaVersions ?? []).isEmpty
+                    || $0.currentMediaVersionIdentifier != nil
+            }
+            let identifier = rows[0].identifier
+            if hasLeftovers, purged.insert(identifier).inserted {
+                try purgeEpisode(identifier, keepTombstone: true, into: &report)
+            }
+        }
+
+        // Lebende Kopien. Vorn steht die Kopie, an der die älteste Fassung
+        // hängt. Das sieht jedes Gerät gleich, sobald die Fassungen
+        // abgeglichen sind.
+        let ordering = RowOrder<StoredEpisode>([
+            RowOrder.ascending { ($0.mediaVersions ?? []).map(\.acquiredAt).min() ?? .distantFuture },
+            RowOrder.descending { $0.currentMediaVersionIdentifier == nil ? 0 : 1 },
+            RowOrder.ascending { $0.currentMediaVersionIdentifier ?? "" },
+            RowOrder.ascending { $0.publishedAt ?? .distantPast },
+            RowOrder.ascending { $0.audioURLString ?? "" },
+        ])
+        var merged: [(keep: StoredEpisode, drop: [StoredEpisode])] = []
+        for value in groups.keys.sorted() {
+            guard let rows = groups[value], rows.count > 1,
+                  !purged.contains(rows[0].identifier),
+                  !rows.contains(where: { $0.removedAt != nil }) else { continue }
+            let sorted = rows.sorted { ordering.compare($0, $1) == .orderedAscending }
+            guard ordering.compare(sorted[0], sorted[1]) == .orderedAscending else { continue }
+            let keep = sorted[0]
+            let drop = Array(sorted.dropFirst())
+            for copy in drop {
+                for media in Array(copy.mediaVersions ?? []) { media.episode = keep }
+                keep.currentMediaVersionIdentifier = keep.currentMediaVersionIdentifier
+                    ?? copy.currentMediaVersionIdentifier
+                keep.summary = keep.summary ?? copy.summary
+                keep.publishedAt = keep.publishedAt ?? copy.publishedAt
+                if keep.declaredDurationMs == 0 { keep.declaredDurationMs = copy.declaredDurationMs }
+                keep.webPageURLString = keep.webPageURLString ?? copy.webPageURLString
+                keep.audioURLString = keep.audioURLString ?? copy.audioURLString
+                keep.timedTranscriptURLString = keep.timedTranscriptURLString ?? copy.timedTranscriptURLString
+                keep.artworkURLString = keep.artworkURLString ?? copy.artworkURLString
+                keep.chaptersData = keep.chaptersData ?? copy.chaptersData
+                keep.chaptersURLString = keep.chaptersURLString ?? copy.chaptersURLString
+                keep.shownotesHTML = keep.shownotesHTML ?? copy.shownotesHTML
+                keep.revisionValue = max(keep.revisionValue, copy.revisionValue)
+            }
+            merged.append((keep, drop))
+        }
+        guard !merged.isEmpty else { return }
+        try modelContext.save()
+        for (_, drop) in merged { for copy in drop { modelContext.delete(copy) } }
+    }
+
+    private func mergeDuplicateMediaVersions() throws {
+        let groups = try duplicateGroups(StoredMediaVersion.self, key: \.identifier, order: [
+            RowOrder.ascending { $0.acquiredAt },
+            RowOrder.ascending { $0.remoteURLString ?? "" },
+        ])
+        guard !groups.isEmpty else { return }
+        for (keep, drop) in groups {
+            for copy in drop {
+                for transcript in Array(copy.transcripts ?? []) { transcript.mediaVersion = keep }
+                keep.episode = keep.episode ?? copy.episode
+                keep.remoteURLString = keep.remoteURLString ?? copy.remoteURLString
+                keep.localRelativePath = keep.localRelativePath ?? copy.localRelativePath
+                keep.contentHash = keep.contentHash ?? copy.contentHash
+                keep.mimeType = keep.mimeType ?? copy.mimeType
+                if keep.byteCount == 0 { keep.byteCount = copy.byteCount }
+                if keep.durationMs == 0 { keep.durationMs = copy.durationMs }
+            }
+        }
+        try modelContext.save()
+        for (_, drop) in groups { for copy in drop { modelContext.delete(copy) } }
+    }
+
+    /// Hängt Fassungen ohne Folge wieder an. Das passiert, wenn ein anderes
+    /// Gerät eine doppelte Folge gelöscht hat, bevor die umgehängten Fassungen
+    /// hier angekommen sind.
+    private func reattachOrphanedMediaVersions() throws {
+        let orphans = try modelContext.fetch(FetchDescriptor<StoredMediaVersion>(
+            predicate: #Predicate { $0.episode == nil }))
+        guard !orphans.isEmpty else { return }
+        var byMediaKey: [String: StoredEpisode] = [:]
+        let live = try modelContext.fetch(FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.removedAt == nil },
+            sortBy: [SortDescriptor(\.identifier)]))
+        for episode in live {
+            if let current = episode.currentMediaVersionIdentifier, byMediaKey[current] == nil {
+                byMediaKey[current] = episode
+            }
+            if let audio = episode.audioURLString {
+                let key = MediaVersionID(stable: audio).rawValue
+                if byMediaKey[key] == nil { byMediaKey[key] = episode }
+            }
+        }
+        for media in orphans {
+            if let episode = byMediaKey[media.identifier] { media.episode = episode }
+        }
+        try modelContext.save()
+    }
+
+    private func mergeDuplicateTranscripts() throws {
+        let groups = try duplicateGroups(StoredTranscript.self, key: \.identifier, order: [
+            RowOrder.ascending { $0.createdAt },
+            RowOrder.descending { $0.revisionValue },
+        ])
+        guard !groups.isEmpty else { return }
+        for (keep, drop) in groups {
+            var present = Set((keep.segments ?? []).map(\.identifier))
+            for copy in drop {
+                // Nur Segmente, die der behaltenen Zeile fehlen. Die übrigen
+                // sind Kopien von Segmenten, die sie schon hat.
+                for segment in Array(copy.segments ?? []) where present.insert(segment.identifier).inserted {
+                    segment.transcript = keep
+                }
+                keep.mediaVersion = keep.mediaVersion ?? copy.mediaVersion
+                keep.untimedText = keep.untimedText ?? copy.untimedText
+                keep.analyzedRangesFlat = StoredTranscript.flat(from: IntervalSet(
+                    StoredTranscript.ranges(from: keep.analyzedRangesFlat)
+                        + StoredTranscript.ranges(from: copy.analyzedRangesFlat)))
+            }
+        }
+        try modelContext.save()
+        for (_, drop) in groups { for copy in drop { modelContext.delete(copy) } }
     }
 
     // MARK: - Quellen
 
     public func upsert(source: Source) throws {
         let identifier = source.id.rawValue
-        let existing = try modelContext.fetch(
+        var rows = try modelContext.fetch(
             FetchDescriptor<StoredSource>(predicate: #Predicate { $0.identifier == identifier })
-        ).first
-
-        let stored = existing ?? StoredSource(
-            identifier: identifier, kind: source.kind, title: source.title
         )
-        stored.title = source.title
-        stored.author = source.author
-        stored.feedURLString = source.feedURL?.absoluteString
-        stored.websiteURLString = source.websiteURL?.absoluteString
-        stored.artworkURLString = source.artworkURL?.absoluteString
-        stored.languageCode = source.language
-        stored.isSubscribed = source.isSubscribed
-        stored.canDownloadAudio = source.capabilities.audioDownload
-        stored.hasPublisherTranscript = source.capabilities.publisherTranscript
-        stored.embeddedPlayerOnly = source.capabilities.embeddedPlayerOnly
-        stored.hasHistoricalCatalog = source.capabilities.historicalCatalog
-        stored.limitationReason = source.capabilities.limitationReason
-        stored.revisionValue = source.revision.value
-
-        if existing == nil { modelContext.insert(stored) }
+        if rows.isEmpty {
+            let fresh = StoredSource(identifier: identifier, kind: source.kind, title: source.title)
+            modelContext.insert(fresh)
+            rows = [fresh]
+        }
+        // Alle Kopien gleich halten, solange das Bereinigen keine vorziehen kann.
+        for stored in rows {
+            stored.title = source.title
+            stored.author = source.author
+            stored.feedURLString = source.feedURL?.absoluteString
+            stored.websiteURLString = source.websiteURL?.absoluteString
+            stored.artworkURLString = source.artworkURL?.absoluteString
+            stored.languageCode = source.language
+            stored.isSubscribed = source.isSubscribed
+            stored.canDownloadAudio = source.capabilities.audioDownload
+            stored.hasPublisherTranscript = source.capabilities.publisherTranscript
+            stored.embeddedPlayerOnly = source.capabilities.embeddedPlayerOnly
+            stored.hasHistoricalCatalog = source.capabilities.historicalCatalog
+            stored.limitationReason = source.capabilities.limitationReason
+            stored.revisionValue = source.revision.value
+        }
         try modelContext.save()
     }
 
     public func sources() throws -> [Source] {
         try modelContext.fetch(
-            FetchDescriptor<StoredSource>(sortBy: [SortDescriptor(\.title)])
-        ).map(\.snapshot)
+            FetchDescriptor<StoredSource>(sortBy: [SortDescriptor(\.title), SortDescriptor(\.addedAt)])
+        ).uniqued(by: \.identifier).map(\.snapshot)
     }
 
     // MARK: - Folgen
@@ -178,8 +522,11 @@ public actor LibraryStore {
     /// sonst wächst die Mediathek bei jedem Refresh.
     public func upsert(episodes: [Episode], forSource sourceID: SourceID) throws -> Int {
         let identifier = sourceID.rawValue
+        // Bei doppelten Quellzeilen dieselbe wie beim Bereinigen: die älteste.
         guard let source = try modelContext.fetch(
-            FetchDescriptor<StoredSource>(predicate: #Predicate { $0.identifier == identifier })
+            FetchDescriptor<StoredSource>(
+                predicate: #Predicate { $0.identifier == identifier },
+                sortBy: [SortDescriptor(\.addedAt)])
         ).first else { return 0 }
 
         var inserted = 0
@@ -197,28 +544,34 @@ public actor LibraryStore {
                             && $0.source?.identifier == identifier
                     }
                 )
-            ).first
-            // Gelöscht bleibt gelöscht, auch wenn der Feed die Folge weiter führt.
-            if existing?.removedAt != nil { continue }
+            )
+            // Gelöscht bleibt gelöscht, auch wenn der Feed die Folge weiter
+            // führt. Das gilt, sobald irgendeine Kopie das Merkzeichen trägt,
+            // nicht nur die, die die Abfrage zufällig zuerst liefert.
+            if existing.contains(where: { $0.removedAt != nil }) { continue }
 
-            let stored = existing ?? StoredEpisode(identifier: episodeIdentifier, title: episode.title)
-            stored.title = episode.title
-            stored.summary = episode.summary
-            stored.publishedAt = episode.publishedAt
-            stored.declaredDurationMs = Int(episode.declaredDuration?.milliseconds ?? 0)
-            stored.webPageURLString = episode.webPageURL?.absoluteString
-            stored.audioURLString = episode.audioURL?.absoluteString
-            stored.timedTranscriptURLString = episode.timedTranscriptURL?.absoluteString
-            stored.artworkURLString = episode.artworkURL?.absoluteString
-            stored.chaptersData = episode.publisherChapters.isEmpty
-                ? nil : try? JSONEncoder().encode(episode.publisherChapters)
-            stored.chaptersURLString = episode.chaptersURL?.absoluteString
-            stored.shownotesHTML = episode.shownotesHTML
-            stored.source = source
-
-            if existing == nil {
-                modelContext.insert(stored)
+            var rows = existing
+            if rows.isEmpty {
+                let fresh = StoredEpisode(identifier: episodeIdentifier, title: episode.title)
+                fresh.source = source
+                modelContext.insert(fresh)
+                rows = [fresh]
                 inserted += 1
+            }
+            // Alle Kopien gleich halten, solange das Bereinigen keine vorziehen kann.
+            for stored in rows {
+                stored.title = episode.title
+                stored.summary = episode.summary
+                stored.publishedAt = episode.publishedAt
+                stored.declaredDurationMs = Int(episode.declaredDuration?.milliseconds ?? 0)
+                stored.webPageURLString = episode.webPageURL?.absoluteString
+                stored.audioURLString = episode.audioURL?.absoluteString
+                stored.timedTranscriptURLString = episode.timedTranscriptURL?.absoluteString
+                stored.artworkURLString = episode.artworkURL?.absoluteString
+                stored.chaptersData = episode.publisherChapters.isEmpty
+                    ? nil : try? JSONEncoder().encode(episode.publisherChapters)
+                stored.chaptersURLString = episode.chaptersURL?.absoluteString
+                stored.shownotesHTML = episode.shownotesHTML
             }
         }
         try modelContext.save()
@@ -230,12 +583,24 @@ public actor LibraryStore {
         // `String` nicht — die implizite Promotion, die normaler Swift-Code
         // macht, gibt es in der Makroexpansion nicht.
         let identifier: String? = sourceID.rawValue
+
+        // Kennungen, die irgendwo als gelöscht markiert sind. Eine lebende
+        // Kopie derselben Folge, etwa vom anderen Gerät, darf sie nicht
+        // zurückbringen.
+        var removedDescriptor = FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.source?.identifier == identifier && $0.removedAt != nil })
+        removedDescriptor.propertiesToFetch = [\.identifier]
+        let removed = Set(try modelContext.fetch(removedDescriptor).map(\.identifier))
+
         var descriptor = FetchDescriptor<StoredEpisode>(
             predicate: #Predicate { $0.source?.identifier == identifier && $0.removedAt == nil },
-            sortBy: [SortDescriptor(\.publishedAt, order: .reverse)]
+            sortBy: [SortDescriptor(\.publishedAt, order: .reverse), SortDescriptor(\.identifier)]
         )
-        descriptor.fetchLimit = limit
-        return try modelContext.fetch(descriptor).map(\.snapshot)
+        descriptor.fetchLimit = limit + removed.count
+        let rows = try modelContext.fetch(descriptor)
+            .filter { !removed.contains($0.identifier) }
+            .uniqued(by: \.identifier, preferring: { $0.currentMediaVersionIdentifier != nil })
+        return rows.prefix(limit).map(\.snapshot)
     }
 
     // MARK: - Hörzustand
@@ -249,6 +614,8 @@ public actor LibraryStore {
     public func record(_ events: [LedgerEvent]) throws {
         for event in events {
             let identifier = event.mediaVersionID.rawValue
+            // Gibt es nach einem Abgleich mehrere Zeilen, genügt eine davon:
+            // ``ledger()`` vereinigt beim Lesen alle.
             let existing = try modelContext.fetch(
                 FetchDescriptor<StoredListeningState>(
                     predicate: #Predicate { $0.mediaVersionIdentifier == identifier }
@@ -268,12 +635,17 @@ public actor LibraryStore {
     ///
     /// `ListeningLedger` ist ein Wertetyp und verlässt den Actor gefahrlos —
     /// genau dafür ist die Trennung von Modell und Domäne da.
+    ///
+    /// Mehrere Zeilen für dieselbe Fassung, etwa von zwei Geräten vor dem
+    /// Abgleich, werden vereinigt. Bisher gewann die zuletzt gelesene, und
+    /// was das andere Gerät gehört hatte, galt wieder als ungehört.
     public func ledger() throws -> ListeningLedger {
         let states = try modelContext.fetch(FetchDescriptor<StoredListeningState>())
         var result: [MediaVersionID: MediaListeningState] = [:]
-        for stored in states {
+        for stored in states where !stored.mediaVersionIdentifier.isEmpty {
             let snapshot = stored.snapshot
-            result[snapshot.mediaVersionID] = snapshot
+            result[snapshot.mediaVersionID] = result[snapshot.mediaVersionID]
+                .map { $0.merged(with: snapshot) } ?? snapshot
         }
         return ListeningLedger(states: result)
     }
@@ -283,23 +655,27 @@ public actor LibraryStore {
     public func interestProfile(learningEnabled: Bool) throws -> InterestProfile {
         let interests = try modelContext.fetch(
             FetchDescriptor<StoredInterest>(sortBy: [SortDescriptor(\.createdAt)])
-        ).map(\.snapshot)
+        ).uniqued(by: \.identifier).map(\.snapshot)
         return InterestProfile(interests: interests, learningEnabled: learningEnabled)
     }
 
     public func upsert(interest: Interest) throws {
         let identifier = interest.id.rawValue
-        let existing = try modelContext.fetch(
+        var rows = try modelContext.fetch(
             FetchDescriptor<StoredInterest>(predicate: #Predicate { $0.identifier == identifier })
-        ).first
-
-        let stored = existing ?? StoredInterest(identifier: identifier, label: interest.label)
-        stored.label = interest.label
-        stored.kindRaw = interest.kind.rawValue
-        stored.originRaw = interest.origin.rawValue
-        stored.keywords = interest.keywords
-        stored.expiresAt = interest.expiresAt
-        if existing == nil { modelContext.insert(stored) }
+        )
+        if rows.isEmpty {
+            let fresh = StoredInterest(identifier: identifier, label: interest.label)
+            modelContext.insert(fresh)
+            rows = [fresh]
+        }
+        for stored in rows {
+            stored.label = interest.label
+            stored.kindRaw = interest.kind.rawValue
+            stored.originRaw = interest.origin.rawValue
+            stored.keywords = interest.keywords
+            stored.expiresAt = interest.expiresAt
+        }
         try modelContext.save()
     }
 
@@ -349,11 +725,14 @@ public actor LibraryStore {
         stored.supportsExactSeeking = media.supportsExactSeeking
 
         let episodeKey = episodeID.rawValue
-        let episode = try modelContext.fetch(
+        let candidates = try modelContext.fetch(
             FetchDescriptor<StoredEpisode>(
                 predicate: #Predicate { $0.identifier == episodeKey }
             )
-        ).first
+        )
+        // Lieber eine lebende Kopie. Hängt die Fassung doch an einer
+        // gelöschten, räumt das nächste Bereinigen sie wieder ab.
+        let episode = candidates.first { $0.removedAt == nil } ?? candidates.first
         stored.episode = episode
         // Die aktuelle Fassung der Folge ist die zuletzt erschlossene.
         episode?.currentMediaVersionIdentifier = mediaKey
@@ -454,7 +833,7 @@ public actor LibraryStore {
             predicate: #Predicate { $0.episodeIdentifier == identifier },
             sortBy: [SortDescriptor(\.startMs)]
         )
-        return try modelContext.fetch(descriptor).map(\.snapshot)
+        return try modelContext.fetch(descriptor).uniqued(by: \.identifier).map(\.snapshot)
     }
 
     /// Die Folgen, zu denen es schon Belege mit Zeitmarken gibt.
@@ -493,12 +872,17 @@ public actor LibraryStore {
         let key = sourceID.rawValue
         let sources = try modelContext.fetch(
             FetchDescriptor<StoredSource>(predicate: #Predicate { $0.identifier == key }))
+        // Jede Folge einmal, auch wenn sie nach einem Abgleich doppelt vorliegt.
+        var episodeKeys: [String] = []
         for source in sources {
-            for episode in source.episodes ?? [] {
-                try purgeEpisode(episode.identifier, keepTombstone: false, into: &report)
+            for episode in source.episodes ?? [] where !episodeKeys.contains(episode.identifier) {
+                episodeKeys.append(episode.identifier)
             }
-            modelContext.delete(source)
         }
+        for episodeKey in episodeKeys {
+            try purgeEpisode(episodeKey, keepTombstone: false, into: &report)
+        }
+        for source in sources { modelContext.delete(source) }
         try modelContext.save()
         return report
     }
@@ -506,25 +890,25 @@ public actor LibraryStore {
     private func purgeEpisode(_ key: String, keepTombstone: Bool, into report: inout RemovalReport) throws {
         let episodes = try modelContext.fetch(
             FetchDescriptor<StoredEpisode>(predicate: #Predicate { $0.identifier == key }))
+        // Ein vorhandenes Löschdatum bleibt, und alle Kopien tragen dasselbe.
+        let removedAt = episodes.compactMap(\.removedAt).min() ?? Date()
         var mediaKeys: Set<String> = []
         for episode in episodes {
-            for media in episode.mediaVersions ?? [] {
-                mediaKeys.insert(media.identifier)
-                modelContext.delete(media)   // Transkripte und Segmente hängen daran
-            }
+            // Die Fassungen selbst werden weiter unten über ihre Kennung
+            // gelöscht. Die Beziehung löscht nicht mehr mit, siehe `Models.swift`.
+            for media in episode.mediaVersions ?? [] { mediaKeys.insert(media.identifier) }
             if let current = episode.currentMediaVersionIdentifier { mediaKeys.insert(current) }
             if let audio = episode.audioURLString {
                 mediaKeys.insert(MediaVersionID(stable: audio).rawValue)
             }
             if keepTombstone {
-                episode.removedAt = Date()
+                episode.removedAt = removedAt
                 episode.currentMediaVersionIdentifier = nil
-                episode.mediaVersions = []
             } else {
                 modelContext.delete(episode)
             }
-            report.episodeIDs.append(EpisodeID(rawValue: key))
         }
+        if !episodes.isEmpty { report.episodeIDs.append(EpisodeID(rawValue: key)) }
 
         let evidence = try modelContext.fetch(
             FetchDescriptor<StoredEvidence>(predicate: #Predicate { $0.episodeIdentifier == key }))
@@ -606,16 +990,106 @@ public actor LibraryStore {
         try modelContext.save()
     }
 
+    /// Nur für Tests: eine zweite Zeile derselben Quelle, wie sie der Abgleich
+    /// von einem anderen Gerät bringt.
+    func insertSourceCopyForTesting(_ source: Source, addedAt: Date) throws {
+        let row = StoredSource(identifier: source.id.rawValue, kind: source.kind, title: source.title)
+        row.feedURLString = source.feedURL?.absoluteString
+        row.addedAt = addedAt
+        modelContext.insert(row)
+        try modelContext.save()
+    }
+
+    /// Nur für Tests: eine Zeile einer Folge ohne Prüfung auf Doppelte, auf
+    /// Wunsch mit Fassung, Transkript und Segmenten, so wie sie das andere
+    /// Gerät angelegt hat. `underSourceAddedAt` wählt die Quellzeile.
+    func insertEpisodeCopyForTesting(
+        _ episode: Episode,
+        underSourceAddedAt sourceAddedAt: Date? = nil,
+        media: MediaVersion? = nil,
+        acquiredAt: Date? = nil,
+        transcript: Transcript? = nil,
+        removedAt: Date? = nil
+    ) throws {
+        let key = episode.sourceID.rawValue
+        let sources = try modelContext.fetch(FetchDescriptor<StoredSource>(
+            predicate: #Predicate { $0.identifier == key }))
+        let row = StoredEpisode(identifier: episode.id.rawValue, title: episode.title)
+        row.audioURLString = episode.audioURL?.absoluteString
+        row.publishedAt = episode.publishedAt
+        row.removedAt = removedAt
+        row.source = sources.first { $0.addedAt == sourceAddedAt } ?? sources.first
+        modelContext.insert(row)
+        if let media {
+            let storedMedia = StoredMediaVersion(identifier: media.id.rawValue)
+            storedMedia.remoteURLString = media.remoteURL?.absoluteString
+            if let acquiredAt { storedMedia.acquiredAt = acquiredAt }
+            storedMedia.episode = row
+            modelContext.insert(storedMedia)
+            row.currentMediaVersionIdentifier = media.id.rawValue
+            if let transcript {
+                let storedTranscript = StoredTranscript(identifier: transcript.id.rawValue)
+                storedTranscript.revisionValue = transcript.revision.value
+                storedTranscript.createdAt = transcript.createdAt
+                storedTranscript.analyzedRangesFlat = StoredTranscript.flat(from: transcript.analyzedRanges)
+                storedTranscript.mediaVersion = storedMedia
+                modelContext.insert(storedTranscript)
+                for segment in transcript.segments {
+                    let piece = StoredSegment(
+                        identifier: segment.id.rawValue,
+                        startMs: Int(segment.range.start.milliseconds),
+                        endMs: Int(segment.range.end.milliseconds),
+                        text: segment.text)
+                    piece.transcript = storedTranscript
+                    modelContext.insert(piece)
+                }
+            }
+        }
+        try modelContext.save()
+    }
+
+    /// Nur für Tests: eine weitere Zeile Hörzustand für dieselbe Fassung.
+    func insertListeningStateCopyForTesting(_ state: MediaListeningState) throws {
+        let row = StoredListeningState(mediaVersionIdentifier: state.mediaVersionID.rawValue)
+        row.apply(state)
+        modelContext.insert(row)
+        try modelContext.save()
+    }
+
+    /// Nur für Tests: wie viele Zeilen eines Typs gespeichert sind.
+    func rowCountForTesting<T: PersistentModel>(_ type: T.Type) throws -> Int {
+        try modelContext.fetchCount(FetchDescriptor<T>())
+    }
+
     // MARK: - Transkript und Fakten je Folge
 
-    /// Das jüngste Transkript einer Folge, über alle ihre Fassungen.
+    /// Das Transkript einer Folge.
+    ///
+    /// Zuerst das der aktuellen Fassung, denn auf sie beziehen sich Belege
+    /// und Fakten. Fehlt es, das jüngste über alle Fassungen. Bisher kam das
+    /// erste in der Reihenfolge der Kennungen, und die ist ein Hashwert: Nach
+    /// einem Wechsel der Audioadresse konnte das Transkript der alten Fassung
+    /// erscheinen.
     public func transcript(forEpisode episodeID: EpisodeID) throws -> Transcript? {
-        for id in try mediaVersionIDs(forEpisode: episodeID) {
-            if let transcript = try transcript(forMedia: id), !transcript.segments.isEmpty {
+        let key = episodeID.rawValue
+        let rows = try modelContext.fetch(FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.identifier == key }))
+        for current in Set(rows.compactMap(\.currentMediaVersionIdentifier)).sorted() {
+            if let transcript = try transcript(forMedia: MediaVersionID(rawValue: current)),
+               !transcript.segments.isEmpty {
                 return transcript
             }
         }
-        return nil
+        var newest: Transcript?
+        for id in try mediaVersionIDs(forEpisode: episodeID) {
+            guard let transcript = try transcript(forMedia: id), !transcript.segments.isEmpty else { continue }
+            if let best = newest,
+               (best.createdAt, best.revision.value) >= (transcript.createdAt, transcript.revision.value) {
+                continue
+            }
+            newest = transcript
+        }
+        return newest
     }
 
     public func save(facts: [EpisodeFact], forEpisode episodeID: EpisodeID) throws {
@@ -643,14 +1117,14 @@ public actor LibraryStore {
         let key = episodeID.rawValue
         return try modelContext.fetch(FetchDescriptor<StoredFact>(
             predicate: #Predicate { $0.episodeIdentifier == key },
-            sortBy: [SortDescriptor(\.startMs)])).map(\.snapshot)
+            sortBy: [SortDescriptor(\.startMs)])).uniqued(by: \.identifier).map(\.snapshot)
     }
 
     /// Alle Fakten, etwa für den Chat über alle Folgen.
     public func allFacts(limit: Int = 2_000) throws -> [EpisodeFact] {
         var descriptor = FetchDescriptor<StoredFact>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
         descriptor.fetchLimit = limit
-        return try modelContext.fetch(descriptor).map(\.snapshot)
+        return try modelContext.fetch(descriptor).uniqued(by: \.identifier).map(\.snapshot)
     }
 
     /// Belege aller Quellen, die für einen Themenfeed infrage kommen.
@@ -659,7 +1133,7 @@ public actor LibraryStore {
             predicate: #Predicate { $0.hasTiming == true }
         )
         descriptor.fetchLimit = limit
-        return try modelContext.fetch(descriptor).map(\.snapshot)
+        return try modelContext.fetch(descriptor).uniqued(by: \.identifier).map(\.snapshot)
     }
 
     /// Folgen zu einer Menge von Kennungen.
@@ -675,7 +1149,8 @@ public actor LibraryStore {
             FetchDescriptor<StoredEpisode>(
                 predicate: #Predicate { identifiers.contains($0.identifier) }
             )
-        ).map(\.snapshot)
+        ).uniqued(by: \.identifier, preferring: { $0.currentMediaVersionIdentifier != nil })
+        .map(\.snapshot)
     }
 
     /// Folgen- und Quellentitel zu einer Menge von Folgen, in einem Zug.
@@ -736,12 +1211,14 @@ public actor LibraryStore {
 
     public func save(smartFeeds: [SmartPodcastFeed]) throws {
         let keep = Set(smartFeeds.map(\.id.rawValue))
-        var existing: [String: StoredSmartFeed] = [:]
+        var existing: [String: [StoredSmartFeed]] = [:]
         // Ein Durchlauf: behalten oder löschen. Ein zweiter `fetch` nach
         // dem Löschen sähe die gelöschten Zeilen noch.
         for row in try modelContext.fetch(FetchDescriptor<StoredSmartFeed>()) {
             if keep.contains(row.identifier) {
-                existing[row.identifier] = row
+                // Alle Kopien, nicht nur die letzte: Doppelte, die das
+                // Bereinigen stehen lässt, sollen gleich bleiben.
+                existing[row.identifier, default: []].append(row)
             } else {
                 // Was der Nutzer gelöscht hat, verschwindet auch hier.
                 modelContext.delete(row)
@@ -750,9 +1227,11 @@ public actor LibraryStore {
 
         for feed in smartFeeds {
             let payload = try Self.encoder.encode(feed)
-            if let row = existing[feed.id.rawValue] {
-                row.title = feed.title
-                row.payload = payload
+            if let rows = existing[feed.id.rawValue] {
+                for row in rows {
+                    row.title = feed.title
+                    row.payload = payload
+                }
             } else {
                 modelContext.insert(StoredSmartFeed(
                     identifier: feed.id.rawValue, title: feed.title, payload: payload))
@@ -764,7 +1243,7 @@ public actor LibraryStore {
     public func smartFeeds() throws -> [SmartPodcastFeed] {
         var descriptor = FetchDescriptor<StoredSmartFeed>()
         descriptor.sortBy = [SortDescriptor(\.createdAt)]
-        return try modelContext.fetch(descriptor).compactMap {
+        return try modelContext.fetch(descriptor).uniqued(by: \.identifier).compactMap {
             // Ein einzelner unlesbarer Eintrag darf nicht die ganze Liste
             // verschlucken — etwa nach einer Formatänderung.
             try? Self.decoder.decode(SmartPodcastFeed.self, from: $0.payload)
@@ -779,19 +1258,21 @@ public actor LibraryStore {
                 predicate: #Predicate { $0.feedIdentifier == feedKey }
             )
         )
-        var existing: [String: StoredPersonalEpisode] = [:]
+        var existing: [String: [StoredPersonalEpisode]] = [:]
         for row in stored {
             if keep.contains(row.identifier) {
-                existing[row.identifier] = row
+                existing[row.identifier, default: []].append(row)
             } else {
                 modelContext.delete(row)
             }
         }
         for episode in editions {
             let payload = try Self.encoder.encode(episode)
-            if let row = existing[episode.id.rawValue] {
-                row.publishedAt = episode.publishedAt
-                row.payload = payload
+            if let rows = existing[episode.id.rawValue] {
+                for row in rows {
+                    row.publishedAt = episode.publishedAt
+                    row.payload = payload
+                }
             } else {
                 modelContext.insert(StoredPersonalEpisode(
                     identifier: episode.id.rawValue,
@@ -808,7 +1289,7 @@ public actor LibraryStore {
         var descriptor = FetchDescriptor<StoredPersonalEpisode>()
         descriptor.sortBy = [SortDescriptor(\.publishedAt, order: .reverse)]
         var result: [SmartFeedID: [PersonalEpisode]] = [:]
-        for row in try modelContext.fetch(descriptor) {
+        for row in try modelContext.fetch(descriptor).uniqued(by: \.identifier) {
             guard let episode = try? Self.decoder.decode(
                 PersonalEpisode.self, from: row.payload) else { continue }
             result[SmartFeedID(rawValue: row.feedIdentifier), default: []].append(episode)
@@ -819,19 +1300,21 @@ public actor LibraryStore {
     public func save(trails: [KnowledgeTrail]) throws {
         let keep = Set(trails.map(\.id.rawValue))
         let stored = try modelContext.fetch(FetchDescriptor<StoredKnowledgeTrail>())
-        var existing: [String: StoredKnowledgeTrail] = [:]
+        var existing: [String: [StoredKnowledgeTrail]] = [:]
         for row in stored {
             if keep.contains(row.identifier) {
-                existing[row.identifier] = row
+                existing[row.identifier, default: []].append(row)
             } else {
                 modelContext.delete(row)
             }
         }
         for trail in trails {
             let payload = try Self.encoder.encode(trail)
-            if let row = existing[trail.id.rawValue] {
-                row.question = trail.question
-                row.payload = payload
+            if let rows = existing[trail.id.rawValue] {
+                for row in rows {
+                    row.question = trail.question
+                    row.payload = payload
+                }
             } else {
                 modelContext.insert(StoredKnowledgeTrail(
                     identifier: trail.id.rawValue, question: trail.question,
@@ -844,7 +1327,7 @@ public actor LibraryStore {
     public func trails() throws -> [KnowledgeTrail] {
         var descriptor = FetchDescriptor<StoredKnowledgeTrail>()
         descriptor.sortBy = [SortDescriptor(\.parkedAt, order: .reverse)]
-        return try modelContext.fetch(descriptor).compactMap {
+        return try modelContext.fetch(descriptor).uniqued(by: \.identifier).compactMap {
             try? Self.decoder.decode(KnowledgeTrail.self, from: $0.payload)
         }
     }
@@ -852,19 +1335,21 @@ public actor LibraryStore {
     public func save(highlights: [Highlight]) throws {
         let keep = Set(highlights.map(\.id.rawValue))
         let stored = try modelContext.fetch(FetchDescriptor<StoredHighlight>())
-        var existing: [String: StoredHighlight] = [:]
+        var existing: [String: [StoredHighlight]] = [:]
         for row in stored {
             if keep.contains(row.identifier) {
-                existing[row.identifier] = row
+                existing[row.identifier, default: []].append(row)
             } else {
                 modelContext.delete(row)
             }
         }
         for highlight in highlights {
             let payload = try Self.encoder.encode(highlight)
-            if let row = existing[highlight.id.rawValue] {
-                row.note = highlight.note
-                row.payload = payload
+            if let rows = existing[highlight.id.rawValue] {
+                for row in rows {
+                    row.note = highlight.note
+                    row.payload = payload
+                }
             } else {
                 let row = StoredHighlight(
                     identifier: highlight.id.rawValue,
@@ -881,10 +1366,67 @@ public actor LibraryStore {
     public func highlights() throws -> [Highlight] {
         var descriptor = FetchDescriptor<StoredHighlight>()
         descriptor.sortBy = [SortDescriptor(\.createdAt, order: .reverse)]
-        return try modelContext.fetch(descriptor).compactMap { row in
+        return try modelContext.fetch(descriptor).uniqued(by: \.identifier).compactMap { row in
             guard let payload = row.payload else { return nil }
             return try? Self.decoder.decode(Highlight.self, from: payload)
         }
+    }
+}
+
+/// Reihenfolge, nach der das Bereinigen die Zeile wählt, die bleibt.
+///
+/// Gebaut nur aus Feldern, die mit der Zeile abgeglichen werden. Dann ordnet
+/// jedes Gerät dieselben Zeilen gleich und behält dieselbe.
+struct RowOrder<Row> {
+    typealias Step = (Row, Row) -> ComparisonResult
+
+    let steps: [Step]
+
+    init(_ steps: [Step]) { self.steps = steps }
+
+    func compare(_ lhs: Row, _ rhs: Row) -> ComparisonResult {
+        for step in steps {
+            let result = step(lhs, rhs)
+            if result != .orderedSame { return result }
+        }
+        return .orderedSame
+    }
+
+    static func ascending<Value: Comparable>(_ value: @escaping (Row) -> Value) -> Step {
+        { lhs, rhs in
+            let a = value(lhs), b = value(rhs)
+            if a < b { return .orderedAscending }
+            if b < a { return .orderedDescending }
+            return .orderedSame
+        }
+    }
+
+    static func descending<Value: Comparable>(_ value: @escaping (Row) -> Value) -> Step {
+        let forward = ascending(value)
+        return { lhs, rhs in forward(rhs, lhs) }
+    }
+}
+
+extension Array {
+    /// Jede Kennung einmal, in der bisherigen Reihenfolge. Liegt eine
+    /// Kennung mehrfach vor, gewinnt die erste Zeile, die `preferring`
+    /// erfüllt, sonst die erste überhaupt.
+    func uniqued(
+        by key: (Element) -> String,
+        preferring better: (Element) -> Bool = { _ in false }
+    ) -> [Element] {
+        var position: [String: Int] = [:]
+        var result: [Element] = []
+        for element in self {
+            let value = key(element)
+            if let index = position[value] {
+                if !better(result[index]) && better(element) { result[index] = element }
+            } else {
+                position[value] = result.count
+                result.append(element)
+            }
+        }
+        return result
     }
 }
 #endif
