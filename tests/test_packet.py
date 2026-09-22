@@ -30,7 +30,7 @@ class PacketInvariantTests(unittest.TestCase):
     def test_01_packet_is_consistent(self):
         r = validate_packet(ROOT, verify_manifest=False)
         self.assertEqual((r["requirements"],r["stories"],r["tasks"]), (144,20,266))
-        self.assertFalse(r["appleAppBuilt"])
+        self.assertEqual(r["scope"], "specification_packet_only")
     def test_02_boolean_is_not_integer(self):
         self.assertBad(validate_schema, True, {"type":"integer"})
     def test_03_const_false_is_not_zero(self):

@@ -1,5 +1,5 @@
 # Direktauftrag an den Coding-Agenten
-Du arbeitest am bestehenden BrainSpeak-Checkout. Dieses Spec-Kit-Paket ist die verbindliche Grundlage für einen AI-first Wissensplayer auf iOS/iPadOS/watchOS/macOS 27. Lies START_HERE, AGENTS, Constitution und alle Featureartefakte einschließlich youtube-discovery-backfill, knowledge-workflow, mcp-agent-access und focus-playback.
+Du arbeitest am bestehenden BrainSpeak-Checkout. Dieses Spec-Kit-Paket ist die verbindliche Grundlage für einen AI-first Wissensplayer auf iOS/iPadOS/watchOS/macOS 27. Lies specs/konzept/SPEZIFIKATIONSPAKET.md, AGENTS, Constitution und alle Featureartefakte einschließlich youtube-discovery-backfill, knowledge-workflow, mcp-agent-access und focus-playback.
 
 Arbeite lokal. Kein Push, keine Releases, keine Account-/CloudKit-/PCC-Provisionierung. Ersetze BrainSpeak nicht durch ein Greenfield-Projekt oder einen YourPods-Fork. Prüfe zuerst echten Code und installierte Xcode-27-SDKs. Dokumentiere tatsächliche Integrationspfade und Quellversionen. Fehlende APIs/Accounts als blockiert benennen, niemals erfinden. Keine Drittanbieter-LLMs/ASR/Runtime einführen.
 

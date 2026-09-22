@@ -348,5 +348,5 @@ def validate_packet(root: Path, *, verify_manifest: bool = True) -> dict[str, An
         integrity = "passed"
     return {"status":"passed", "scope":"specification_packet_only", **stats, **counts,
             "schemaEngine":"stdlib_supported_vocabulary_plus_jsonschema_Draft202012Validator" if Draft202012Validator else "stdlib_supported_vocabulary_only",
-            "inventory":integrity, "appleAppBuilt":False, "productTestsExecuted":False,
-            "limitations":["No BrainSpeak source audit", "No Xcode 27 compile or Apple device tests", "No PCC entitlement/runtime verification", "Synthetic source text, no real audio or model inference"]}
+            "inventory":integrity,
+            "note":"Prueft nur Spezifikation und Beispieldaten. Die App selbst wird mit Xcode gebaut und getestet, siehe app/README.md."}
