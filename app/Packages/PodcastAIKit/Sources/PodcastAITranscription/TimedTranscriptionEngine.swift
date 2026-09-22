@@ -77,6 +77,7 @@ public struct TranscriptionCheckpoint: Codable, Sendable, Equatable {
 public enum TranscriptionError: Error, LocalizedError {
     case alreadyRunning
     case localeNotSupported(String)
+    case speechUnavailableOnDevice
     case modelUnavailable(String)
     case noCompatibleAudioFormat
     case fileUnreadable(String)
@@ -85,6 +86,8 @@ public enum TranscriptionError: Error, LocalizedError {
         switch self {
         case .alreadyRunning: "Es läuft bereits eine Analyse."
         case .localeNotSupported(let locale): "Für \(locale) ist kein Sprachmodell verfügbar."
+        case .speechUnavailableOnDevice:
+            "Auf diesem Gerät gibt es keine Spracherkennung. Im Simulator ist das normal; auf einem iPhone, iPad oder Mac mit aktueller Software funktioniert es."
         case .modelUnavailable(let reason): "Das Sprachmodell ist nicht bereit: \(reason)"
         case .noCompatibleAudioFormat: "Kein kompatibles Audioformat gefunden."
         case .fileUnreadable(let path): "Die Datei konnte nicht gelesen werden: \(path)"
@@ -112,14 +115,22 @@ public actor TimedTranscriptionEngine {
     public func transcribeFile(
         at url: URL,
         mediaVersionID: MediaVersionID,
-        locale: Locale,
+        locale requestedLocale: Locale,
         startingAt offset: MediaTime = .zero
     ) async throws -> AsyncThrowingStream<TimedTranscriptionResult, Error> {
 
         guard !isRunning else { throw TranscriptionError.alreadyRunning }
         isRunning = true
 
-        try await ensureModel(for: locale)
+        let locale: Locale
+        do {
+            locale = try await ensureModel(for: requestedLocale)
+        } catch {
+            // Sonst bliebe die Engine gesperrt und jeder weitere Versuch
+            // meldete „läuft bereits“.
+            isRunning = false
+            throw error
+        }
 
         let transcriber = makeTranscriber(locale: locale)
         let analyzer = SpeechAnalyzer(modules: [transcriber])
@@ -156,8 +167,13 @@ public actor TimedTranscriptionEngine {
                     )
                 }
                 continuation.finish()
+                // Eingabe ist zu Ende: jetzt abschliessen. Erst danach endet
+                // `transcriber.results`. Stünde dieser Aufruf hinter der
+                // Ergebnisschleife, warteten beide aufeinander.
+                try await analyzer.finalizeAndFinishThroughEndOfInput()
             } catch {
                 continuation.finish()
+                await analyzer.cancelAndFinishNow()
             }
         }
 
@@ -172,7 +188,6 @@ public actor TimedTranscriptionEngine {
                             isFinal: result.isFinal
                         ))
                     }
-                    try await analyzer.finalizeAndFinishThroughEndOfInput()
                     outer.finish()
                 } catch {
                     outer.finish(throwing: error)
@@ -295,15 +310,40 @@ public actor TimedTranscriptionEngine {
 
     // MARK: - Sprachmodelle
 
-    private func ensureModel(for locale: Locale) async throws {
-        let supported = await SpeechTranscriber.supportedLocales
-        let identifier = locale.identifier(.bcp47)
-        guard supported.contains(where: { $0.identifier(.bcp47) == identifier }) else {
-            throw TranscriptionError.localeNotSupported(identifier)
+    /// Bestimmt das tatsächlich nutzbare Sprachmodell und lädt es bei Bedarf.
+    ///
+    /// Feeds geben oft nur die Sprache an („en“), das Modell braucht eine
+    /// Region. Gesucht wird in dieser Reihenfolge: genau die Angabe, die
+    /// Sprache mit der Region des Geräts, eine übliche Standardregion,
+    /// zuletzt was das System als gleichwertig ansieht.
+    private func ensureModel(for requested: Locale) async throws -> Locale {
+        guard SpeechTranscriber.isAvailable else {
+            throw TranscriptionError.speechUnavailableOnDevice
         }
+        let supported = await SpeechTranscriber.supportedLocales
+        guard !supported.isEmpty else { throw TranscriptionError.speechUnavailableOnDevice }
+
+        let byID = Dictionary(supported.map { ($0.identifier(.bcp47), $0) },
+                              uniquingKeysWith: { first, _ in first })
+        let language = requested.language.languageCode?.identifier ?? requested.identifier
+        var candidates = [requested.identifier(.bcp47)]
+        if let region = Locale.current.region?.identifier {
+            candidates.append("\(language)-\(region)")
+        }
+        if let preferred = Self.defaultRegion[language] {
+            candidates.append("\(language)-\(preferred)")
+        }
+        var resolved = candidates.lazy.compactMap { byID[$0] }.first
+        if resolved == nil {
+            resolved = await SpeechTranscriber.supportedLocale(equivalentTo: requested)
+        }
+        guard let locale = resolved else {
+            throw TranscriptionError.localeNotSupported(requested.identifier(.bcp47))
+        }
+        let identifier = locale.identifier(.bcp47)
 
         let installed = await SpeechTranscriber.installedLocales
-        guard !installed.contains(where: { $0.identifier(.bcp47) == identifier }) else { return }
+        guard !installed.contains(where: { $0.identifier(.bcp47) == identifier }) else { return locale }
 
         // Modell herunterladen. Rund 300 MB je Sprache — das ist eine
         // Nutzerentscheidung und wird in der Oberfläche angekündigt, nicht
@@ -312,6 +352,14 @@ public actor TimedTranscriptionEngine {
         if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
             try await request.downloadAndInstall()
         }
+        return locale
     }
+
+    /// Region, wenn der Feed nur die Sprache nennt und die Geräteregion
+    /// nicht passt.
+    static let defaultRegion: [String: String] = [
+        "en": "US", "de": "DE", "fr": "FR", "es": "ES", "it": "IT",
+        "pt": "BR", "ja": "JP", "ko": "KR", "zh": "CN",
+    ]
 }
 #endif

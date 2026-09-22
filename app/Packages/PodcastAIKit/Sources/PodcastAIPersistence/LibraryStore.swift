@@ -71,6 +71,7 @@ public actor LibraryStore {
         stored.feedURLString = source.feedURL?.absoluteString
         stored.websiteURLString = source.websiteURL?.absoluteString
         stored.artworkURLString = source.artworkURL?.absoluteString
+        stored.languageCode = source.language
         stored.isSubscribed = source.isSubscribed
         stored.canDownloadAudio = source.capabilities.audioDownload
         stored.hasPublisherTranscript = source.capabilities.publisherTranscript

@@ -79,6 +79,9 @@ public struct Source: Hashable, Codable, Sendable, Identifiable {
     public var websiteURL: URL?
     public var artworkURL: URL?
     public var capabilities: SourceCapabilities
+    /// Sprache laut Feed (`<language>`, etwa „en“ oder „de-DE“). Bestimmt
+    /// das Sprachmodell der Transkription statt der Gerätesprache.
+    public var language: String?
 
     /// Abonniert heißt: neue Folgen werden erfasst. Es heißt **nicht**, dass
     /// alles heruntergeladen oder analysiert wird.
@@ -91,13 +94,14 @@ public struct Source: Hashable, Codable, Sendable, Identifiable {
     public init(
         id: SourceID, kind: SourceKind, title: String, author: String? = nil,
         feedURL: URL? = nil, websiteURL: URL? = nil, artworkURL: URL? = nil,
-        capabilities: SourceCapabilities = .fullPodcast,
+        capabilities: SourceCapabilities = .fullPodcast, language: String? = nil,
         isSubscribed: Bool = true, backfillPolicy: BackfillPolicy = .newEpisodesOnly,
         addedAt: Date = Date(), revision: Revision = .initial
     ) {
         self.id = id; self.kind = kind; self.title = title; self.author = author
         self.feedURL = feedURL; self.websiteURL = websiteURL; self.artworkURL = artworkURL
-        self.capabilities = capabilities; self.isSubscribed = isSubscribed
+        self.capabilities = capabilities; self.language = language
+        self.isSubscribed = isSubscribed
         self.backfillPolicy = backfillPolicy; self.addedAt = addedAt; self.revision = revision
     }
 }

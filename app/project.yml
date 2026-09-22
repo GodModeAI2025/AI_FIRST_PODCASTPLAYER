@@ -13,7 +13,7 @@
 name: PodcastAI
 
 options:
-  bundleIdPrefix: com.podcastai
+  bundleIdPrefix: com.godmodeai.podcastai
   deploymentTarget:
     iOS: "26.0"
     macOS: "26.0"
@@ -27,6 +27,9 @@ settings:
     MARKETING_VERSION: "0.1"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: SP73Z8JWXM
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
 
@@ -46,7 +49,7 @@ targets:
       - package: PodcastAIKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.podcastai.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile
         PRODUCT_NAME: PodcastAI
         INFOPLIST_FILE: Apps/PodcastAI/Info.plist
         GENERATE_INFOPLIST_FILE: NO
@@ -63,7 +66,7 @@ targets:
       - package: PodcastAIKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.podcastai.mac
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac
         PRODUCT_NAME: PodcastAI
         INFOPLIST_FILE: Apps/PodcastAIMac/Info.plist
         GENERATE_INFOPLIST_FILE: NO
@@ -78,7 +81,7 @@ targets:
       - target: PodcastAI
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.podcastai.app.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile.uitests
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: PodcastAI
 
@@ -91,7 +94,7 @@ targets:
       - package: PodcastAIKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.podcastai.kit.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.kit.tests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:

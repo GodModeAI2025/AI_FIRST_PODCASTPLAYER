@@ -231,7 +231,11 @@ public final class AppModel {
     /// Ausdrücklich eine Nutzeraktion. Abonnieren allein lädt und analysiert
     /// nichts — das kostet Daten, Akku und Zeit, und die Entscheidung
     /// darüber gehört dem Nutzer.
-    public func analyze(_ episode: Episode, audioURL: URL, locale: Locale = .current) async {
+    public func analyze(_ episode: Episode, audioURL: URL, locale explicitLocale: Locale? = nil) async {
+        // Die Folge wird in ihrer eigenen Sprache transkribiert, nicht in der
+        // des Geräts. Ohne Angabe im Feed bleibt es bei der Gerätesprache.
+        let feedLanguage = sources.first(where: { $0.id == episode.sourceID })?.language
+        let locale = explicitLocale ?? feedLanguage.map { Locale(identifier: $0) } ?? .current
         stages[episode.id] = .discovered
         activity = "„\(episode.title)“ wird erschlossen …"
         defer { activity = nil }

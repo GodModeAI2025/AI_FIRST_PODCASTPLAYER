@@ -97,6 +97,13 @@ public enum AudioFileReader {
                 let file = try openIfNeeded()
                 let format = file.processingFormat
 
+                // Am Ende gar nicht erst lesen: bei MP3 wirft `read` dort
+                // eofErr, statt null Frames zu liefern.
+                if file.framePosition >= file.length {
+                    finished = true
+                    return nil
+                }
+
                 guard let buffer = AVAudioPCMBuffer(
                     pcmFormat: format, frameCapacity: frameCount
                 ) else {
@@ -105,6 +112,11 @@ public enum AudioFileReader {
                 }
                 do {
                     try file.read(into: buffer, frameCount: frameCount)
+                } catch let error as NSError where error.domain == NSOSStatusErrorDomain && error.code == -39 {
+                    // eofErr: die angegebene Länge war etwas zu groß. Das
+                    // ist das Ende der Datei, kein Fehler.
+                    finished = true
+                    return buffer.frameLength > 0 ? buffer : nil
                 } catch {
                     finished = true
                     throw error

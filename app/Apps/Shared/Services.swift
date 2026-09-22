@@ -92,7 +92,7 @@ public actor FeedRefresher {
             title: parsed.title.isEmpty ? feedURL.host ?? "Unbenannte Quelle" : parsed.title,
             author: parsed.author, feedURL: feedURL,
             websiteURL: parsed.websiteURL, artworkURL: parsed.artworkURL,
-            capabilities: capabilities
+            capabilities: capabilities, language: parsed.language
         )
         try await store.upsert(source: source)
 

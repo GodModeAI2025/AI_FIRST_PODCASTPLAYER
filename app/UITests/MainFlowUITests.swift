@@ -49,4 +49,42 @@ final class MainFlowUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
     }
+
+    /// Download, Transkription und Belegextraktion einer echten Folge.
+    /// Läuft mehrere Minuten; nur mit RUN_ANALYSIS=1 in der Umgebung.
+    func testAnalyzeEpisode() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["TEST_RUNNER_RUN_ANALYSIS"] == "1"
+                          || ProcessInfo.processInfo.environment["RUN_ANALYSIS"] == "1")
+        let app = XCUIApplication()
+        app.launch()
+        app.tabBars.buttons["Mediathek"].tap()
+        let row = app.staticTexts["Planet Money"].firstMatch
+        if !row.waitForExistence(timeout: 5) {
+            app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+            let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
+            field.tap()
+            field.typeText("https://feeds.npr.org/510289/podcast.xml")
+            app.buttons["Hinzufügen"].tap()
+            XCTAssertTrue(row.waitForExistence(timeout: 30))
+        }
+        row.tap()
+        let analyze = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Erschliessen'")).firstMatch
+        XCTAssertTrue(analyze.waitForExistence(timeout: 15), "Kein Erschliessen-Knopf")
+        analyze.tap()
+
+        let done = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '· 1 erschlossen'")).firstMatch
+        let failed = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'fehlgeschlagen'")).firstMatch
+        let alert = app.alerts.firstMatch
+        let deadline = Date().addingTimeInterval(900)
+        while Date() < deadline {
+            if done.exists || failed.exists || alert.exists { break }
+            sleep(5)
+        }
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.lifetime = .keepAlways
+        add(shot)
+        if alert.exists { XCTFail("Fehlermeldung: \(alert.debugDescription)") }
+        XCTAssertFalse(failed.exists, "Erschliessen fehlgeschlagen: \(failed.label)")
+        XCTAssertTrue(done.exists, "Nicht in 15 Minuten erschlossen")
+    }
 }

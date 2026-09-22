@@ -32,6 +32,7 @@ public final class StoredSource {
     public var feedURLString: String?
     public var websiteURLString: String?
     public var artworkURLString: String?
+    public var languageCode: String?
     public var isSubscribed: Bool = true
     public var addedAt: Date = Date()
     public var revisionValue: Int = 0
@@ -68,6 +69,7 @@ public final class StoredSource {
                 historicalCatalog: hasHistoricalCatalog,
                 limitationReason: limitationReason
             ),
+            language: languageCode,
             isSubscribed: isSubscribed,
             addedAt: addedAt,
             revision: Revision(revisionValue)
