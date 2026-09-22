@@ -12,6 +12,7 @@ Stand 22. September 2026, Version 0.1.
 | Feed hinzufügen, Folgen anzeigen | UI-Test mit echtem Feed |
 | Folge laden, transkribieren, Belege mit Zeitmarken | Ende-zu-Ende-Test auf dem Mac mit echter englischer Folge |
 | Kernlogik: Intervalle, Hörplan, Relevanz, Export, Freigaben | 36 Swift-Tests im Paket |
+| Upload nach App Store Connect | Build 0.1 (1) für iOS und macOS hochgeladen, interne TestFlight-Gruppe „Intern“ je App |
 
 ## Noch auf einem Gerät zu prüfen
 

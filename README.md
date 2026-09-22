@@ -31,7 +31,7 @@ Für die Transkription braucht das Gerät die Apple-Spracherkennung. Im iOS-Simu
 
 ## Testen über TestFlight
 
-Interne Builds für iOS und macOS laufen über TestFlight im Team Mobile Box. Bundle-IDs: `com.godmodeai.podcastai.mobile` und `com.godmodeai.podcastai.mac`. Einen neuen Build hochladen:
+Interne Builds für iOS und macOS laufen über TestFlight im Team Mobile Box. In App Store Connect heißen die Apps „PodcastAI“ und „PodcastAI Mac“, die Testgruppe heißt „Intern“ und verteilt neue Builds automatisch. Bundle-IDs: `com.godmodeai.podcastai.mobile` und `com.godmodeai.podcastai.mac`. Einen neuen Build hochladen:
 
 ```bash
 app/scripts/upload-testflight.sh
