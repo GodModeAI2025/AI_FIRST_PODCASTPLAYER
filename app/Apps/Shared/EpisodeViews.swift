@@ -19,6 +19,7 @@ struct EpisodeListView: View {
 
     let sourceID: SourceID
     @Environment(AppModel.self) private var model
+    @State private var pendingDelete: Episode?
 
     private var source: Source? { model.sources.first { $0.id == sourceID } }
     private var episodes: [Episode] { model.episodes[sourceID] ?? [] }
@@ -76,6 +77,9 @@ struct EpisodeListView: View {
                             Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
                         }
                         .tint(.indigo)
+                        Button(role: .destructive) { pendingDelete = episode } label: {
+                            Label("Löschen", systemImage: "trash")
+                        }
                         if episode.audioURL != nil, model.stages[episode.id] == nil || model.stages[episode.id] == .failed {
                             Button { model.enqueueAnalysis(episode) } label: {
                                 Label("Erschliessen", systemImage: "waveform.badge.magnifyingglass")
@@ -93,6 +97,13 @@ struct EpisodeListView: View {
                                 Label("Erschliessen", systemImage: "waveform.badge.magnifyingglass")
                             }
                         }
+                        Divider()
+                        Button { Task { await model.removeAudio(for: episode) } } label: {
+                            Label("Audio entfernen, Daten behalten", systemImage: "arrow.down.circle.dotted")
+                        }
+                        Button(role: .destructive) { pendingDelete = episode } label: {
+                            Label("Folge löschen", systemImage: "trash")
+                        }
                     }
                 }
             } header: {
@@ -103,6 +114,15 @@ struct EpisodeListView: View {
             }
         }
         .navigationTitle(source?.title ?? "Folgen")
+        .confirmationDialog("Folge löschen?", isPresented: Binding(
+            get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
+        ), titleVisibility: .visible, presenting: pendingDelete) { episode in
+            Button("Folge und alle Daten löschen", role: .destructive) {
+                Task { await model.removeEpisode(episode) }
+            }
+        } message: { _ in
+            Text("Transkript, Fakten, Belege, gemerkte Stellen und der Hörstand dieser Folge werden gelöscht.")
+        }
         .task { await model.loadEpisodes(for: sourceID) }
         .overlay {
             if episodes.isEmpty {

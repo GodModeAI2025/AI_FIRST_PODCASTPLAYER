@@ -12,6 +12,7 @@
 
 #if canImport(SwiftData)
 import Foundation
+import CoreData
 import SwiftData
 import PodcastAICore
 import PodcastAIKnowledge
@@ -32,27 +33,105 @@ public actor LibraryStore {
         LibraryStore(modelContainer: container)
     }
 
-    public static let schema = Schema([
+    public static let modelTypes: [any PersistentModel.Type] = [
         StoredSource.self, StoredEpisode.self, StoredMediaVersion.self,
         StoredTranscript.self, StoredSegment.self, StoredListeningState.self,
         StoredInterest.self, StoredEvidence.self, StoredHighlight.self,
         StoredSmartFeed.self, StoredPersonalEpisode.self, StoredKnowledgeTrail.self,
-    ])
+        StoredFact.self,
+    ]
+
+    public static let schema = Schema(modelTypes)
+
+    /// Legt das CloudKit-Schema für alle Modelle in der Entwicklungsumgebung
+    /// an. Nur für Entwickler: danach wird es in der CloudKit-Konsole nach
+    /// „Production“ übertragen, damit TestFlight- und App-Store-Builds
+    /// abgleichen können.
+    public static func initializeCloudKitSchema(containerIdentifier: String) throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("schema-\(UUID().uuidString).store")
+        let description = NSPersistentStoreDescription(url: url)
+        description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(
+            containerIdentifier: containerIdentifier)
+        description.shouldAddStoreAsynchronously = false
+        guard let model = NSManagedObjectModel.makeManagedObjectModel(for: modelTypes) else {
+            throw CocoaError(.featureUnsupported)
+        }
+        let container = NSPersistentCloudKitContainer(name: "PodcastAI", managedObjectModel: model)
+        container.persistentStoreDescriptions = [description]
+        var loadError: Error?
+        container.loadPersistentStores { _, error in loadError = error }
+        if let loadError { throw loadError }
+        try container.initializeCloudKitSchema()
+        for store in container.persistentStoreCoordinator.persistentStores {
+            try? container.persistentStoreCoordinator.remove(store)
+        }
+    }
 
     /// Baut den Container.
     ///
-    /// CloudKit ist hier **ausgeschaltet**. Der Plan sieht CKSyncEngine als
-    /// einzigen Sync-Writer vor; SwiftDatas automatische Spiegelung parallel
-    /// dazu wäre genau die Doppelung, die Constitution IX untersagt. Sie
-    /// würde außerdem erzwingen, dass jedes Feld optional ist und keine
-    /// Unique-Constraints existieren — beides brauchen wir hier.
-    public static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
+    /// Mit `sync` spiegelt SwiftData die Datenbank in die private
+    /// iCloud-Datenbank des Nutzers. Welcher Container das ist, steht in den
+    /// Entitlements der App. Fehlt dort iCloud, bleibt der Speicher lokal.
+    /// Audiodateien liegen ausserhalb der Datenbank und synchronisieren sich
+    /// nicht; jedes Gerät lädt den Ton selbst, Transkripte, Belege, Fakten,
+    /// Hörzustand und alles Selbstangelegte kommen über iCloud.
+    ///
+    /// Weil CloudKit keine eindeutigen Schlüssel kennt, kann derselbe
+    /// Datensatz nach dem Abgleich zweier Geräte doppelt vorliegen. Das
+    /// bereinigt ``removeDuplicates()``.
+    public static func makeContainer(inMemory: Bool = false, sync: Bool = false) throws -> ModelContainer {
         let configuration = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: inMemory,
-            cloudKitDatabase: .none
+            cloudKitDatabase: (sync && !inMemory) ? .automatic : .none
         )
         return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    /// Öffnet den gespeicherten Container. Lässt sich ein Speicher aus einer
+    /// älteren Testversion nicht mehr öffnen, wird er beiseitegelegt und neu
+    /// angelegt, statt die App ohne Speicher starten zu lassen.
+    public static func openPersistentContainer(sync: Bool) throws -> ModelContainer {
+        do {
+            return try makeContainer(sync: sync)
+        } catch {
+            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            let stamp = Int(Date().timeIntervalSince1970)
+            for name in ["default.store", "default.store-shm", "default.store-wal"] {
+                let url = base.appendingPathComponent(name)
+                guard FileManager.default.fileExists(atPath: url.path) else { continue }
+                try? FileManager.default.moveItem(
+                    at: url, to: base.appendingPathComponent("\(name).alt-\(stamp)"))
+            }
+            return try makeContainer(sync: sync)
+        }
+    }
+
+    /// Entfernt doppelte Datensätze, die beim Abgleich zweier Geräte
+    /// entstehen können. Behalten wird jeweils der erste.
+    public func removeDuplicates() throws {
+        func dedupe<T: PersistentModel>(_ type: T.Type, key: (T) -> String) throws {
+            var seen: Set<String> = []
+            for row in try modelContext.fetch(FetchDescriptor<T>()) {
+                let value = key(row)
+                if value.isEmpty { continue }
+                if seen.contains(value) { modelContext.delete(row) } else { seen.insert(value) }
+            }
+        }
+        try dedupe(StoredSource.self) { $0.identifier }
+        try dedupe(StoredEpisode.self) { $0.identifier }
+        try dedupe(StoredMediaVersion.self) { $0.identifier }
+        try dedupe(StoredTranscript.self) { $0.identifier }
+        try dedupe(StoredSegment.self) { $0.identifier }
+        try dedupe(StoredListeningState.self) { $0.mediaVersionIdentifier }
+        try dedupe(StoredInterest.self) { $0.identifier }
+        try dedupe(StoredEvidence.self) { $0.identifier }
+        try dedupe(StoredHighlight.self) { $0.identifier }
+        try dedupe(StoredSmartFeed.self) { $0.identifier }
+        try dedupe(StoredPersonalEpisode.self) { $0.identifier }
+        try dedupe(StoredKnowledgeTrail.self) { $0.identifier }
+        try dedupe(StoredFact.self) { $0.identifier }
+        try modelContext.save()
     }
 
     // MARK: - Quellen
@@ -119,6 +198,8 @@ public actor LibraryStore {
                     }
                 )
             ).first
+            // Gelöscht bleibt gelöscht, auch wenn der Feed die Folge weiter führt.
+            if existing?.removedAt != nil { continue }
 
             let stored = existing ?? StoredEpisode(identifier: episodeIdentifier, title: episode.title)
             stored.title = episode.title
@@ -150,7 +231,7 @@ public actor LibraryStore {
         // macht, gibt es in der Makroexpansion nicht.
         let identifier: String? = sourceID.rawValue
         var descriptor = FetchDescriptor<StoredEpisode>(
-            predicate: #Predicate { $0.source?.identifier == identifier },
+            predicate: #Predicate { $0.source?.identifier == identifier && $0.removedAt == nil },
             sortBy: [SortDescriptor(\.publishedAt, order: .reverse)]
         )
         descriptor.fetchLimit = limit
@@ -362,7 +443,8 @@ public actor LibraryStore {
                 predicate: #Predicate { identifiers.contains($0.identifier) }
             )
         )
-        return Dictionary(uniqueKeysWithValues: stored.map { ($0.snapshot.id, $0.snapshot) })
+        // Nach einem Abgleich zweier Geräte kann ein Beleg doppelt vorliegen.
+        return Dictionary(stored.map { ($0.snapshot.id, $0.snapshot) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Die Belege einer Folge, nach Zeit sortiert.
@@ -383,6 +465,192 @@ public actor LibraryStore {
         descriptor.propertiesToFetch = [\.episodeIdentifier]
         let stored = try modelContext.fetch(descriptor)
         return Set(stored.map { EpisodeID(rawValue: $0.episodeIdentifier) })
+    }
+
+    // MARK: - Entfernen
+
+    /// Was beim Entfernen gelöscht wurde. Die Audiodateien selbst liegen
+    /// ausserhalb der Datenbank; der Aufrufer löscht sie anhand dieser Liste.
+    public struct RemovalReport: Sendable, Equatable {
+        public var mediaVersionIDs: [MediaVersionID] = []
+        public var evidenceIDs: [EvidenceID] = []
+        public var episodeIDs: [EpisodeID] = []
+    }
+
+    /// Löscht eine Folge mit allem, was aus ihr entstanden ist: Transkript,
+    /// Belege, Fakten, Hörzustand und gemerkte Stellen. Die Zeile der Folge
+    /// bleibt als Merkzeichen, damit der Feed sie nicht wieder anlegt.
+    public func removeEpisode(_ episodeID: EpisodeID) throws -> RemovalReport {
+        var report = RemovalReport()
+        try purgeEpisode(episodeID.rawValue, keepTombstone: true, into: &report)
+        try modelContext.save()
+        return report
+    }
+
+    /// Bestellt eine Quelle ab und löscht alle ihre Folgen samt Daten.
+    public func removeSource(_ sourceID: SourceID) throws -> RemovalReport {
+        var report = RemovalReport()
+        let key = sourceID.rawValue
+        let sources = try modelContext.fetch(
+            FetchDescriptor<StoredSource>(predicate: #Predicate { $0.identifier == key }))
+        for source in sources {
+            for episode in source.episodes ?? [] {
+                try purgeEpisode(episode.identifier, keepTombstone: false, into: &report)
+            }
+            modelContext.delete(source)
+        }
+        try modelContext.save()
+        return report
+    }
+
+    private func purgeEpisode(_ key: String, keepTombstone: Bool, into report: inout RemovalReport) throws {
+        let episodes = try modelContext.fetch(
+            FetchDescriptor<StoredEpisode>(predicate: #Predicate { $0.identifier == key }))
+        var mediaKeys: Set<String> = []
+        for episode in episodes {
+            for media in episode.mediaVersions ?? [] {
+                mediaKeys.insert(media.identifier)
+                modelContext.delete(media)   // Transkripte und Segmente hängen daran
+            }
+            if let current = episode.currentMediaVersionIdentifier { mediaKeys.insert(current) }
+            if let audio = episode.audioURLString {
+                mediaKeys.insert(MediaVersionID(stable: audio).rawValue)
+            }
+            if keepTombstone {
+                episode.removedAt = Date()
+                episode.currentMediaVersionIdentifier = nil
+                episode.mediaVersions = []
+            } else {
+                modelContext.delete(episode)
+            }
+            report.episodeIDs.append(EpisodeID(rawValue: key))
+        }
+
+        let evidence = try modelContext.fetch(
+            FetchDescriptor<StoredEvidence>(predicate: #Predicate { $0.episodeIdentifier == key }))
+        let evidenceKeys = Set(evidence.map(\.identifier))
+        for row in evidence {
+            mediaKeys.insert(row.mediaVersionIdentifier)
+            modelContext.delete(row)
+        }
+        report.evidenceIDs += evidenceKeys.map(EvidenceID.init(rawValue:))
+
+        for fact in try modelContext.fetch(
+            FetchDescriptor<StoredFact>(predicate: #Predicate { $0.episodeIdentifier == key })) {
+            modelContext.delete(fact)
+        }
+        if !evidenceKeys.isEmpty {
+            for highlight in try modelContext.fetch(FetchDescriptor<StoredHighlight>())
+            where evidenceKeys.contains(highlight.evidenceIdentifier) {
+                modelContext.delete(highlight)
+            }
+        }
+        for mediaKey in mediaKeys where !mediaKey.isEmpty {
+            for state in try modelContext.fetch(FetchDescriptor<StoredListeningState>(
+                predicate: #Predicate { $0.mediaVersionIdentifier == mediaKey })) {
+                modelContext.delete(state)
+            }
+            for transcript in try modelContext.fetch(FetchDescriptor<StoredTranscript>(
+                predicate: #Predicate { $0.mediaVersion?.identifier == mediaKey })) {
+                modelContext.delete(transcript)
+            }
+            for media in try modelContext.fetch(FetchDescriptor<StoredMediaVersion>(
+                predicate: #Predicate { $0.identifier == mediaKey })) {
+                modelContext.delete(media)
+            }
+        }
+        report.mediaVersionIDs += mediaKeys.filter { !$0.isEmpty }.sorted().map(MediaVersionID.init(rawValue:))
+    }
+
+    /// Merkt, dass die Audiodatei einer Fassung gelöscht wurde. Transkript,
+    /// Belege, Fakten und Hörzustand bleiben.
+    public func markAudioRemoved(_ mediaVersionIDs: [MediaVersionID]) throws {
+        for id in mediaVersionIDs {
+            let key = id.rawValue
+            for media in try modelContext.fetch(FetchDescriptor<StoredMediaVersion>(
+                predicate: #Predicate { $0.identifier == key })) {
+                media.localRelativePath = nil
+            }
+        }
+        try modelContext.save()
+    }
+
+    /// Die Medienfassungen einer Folge.
+    public func mediaVersionIDs(forEpisode episodeID: EpisodeID) throws -> [MediaVersionID] {
+        let key = episodeID.rawValue
+        var keys: Set<String> = []
+        for episode in try modelContext.fetch(FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.identifier == key })) {
+            for media in episode.mediaVersions ?? [] { keys.insert(media.identifier) }
+            if let current = episode.currentMediaVersionIdentifier { keys.insert(current) }
+            if let audio = episode.audioURLString { keys.insert(MediaVersionID(stable: audio).rawValue) }
+        }
+        for row in try modelContext.fetch(FetchDescriptor<StoredEvidence>(
+            predicate: #Predicate { $0.episodeIdentifier == key })) {
+            keys.insert(row.mediaVersionIdentifier)
+        }
+        return keys.filter { !$0.isEmpty }.sorted().map(MediaVersionID.init(rawValue:))
+    }
+
+    /// Nur für Tests: legt einen Beleg ohne Prüfung auf Doppelte an, so wie
+    /// es der iCloud-Abgleich zweier Geräte tun kann.
+    func insertDuplicateEvidenceForTesting(_ item: Evidence) throws {
+        let stored = StoredEvidence(identifier: item.id.rawValue)
+        stored.mediaVersionIdentifier = item.mediaVersionID.rawValue
+        stored.episodeIdentifier = item.episodeID.rawValue
+        stored.sourceIdentifier = item.sourceID.rawValue
+        stored.startMs = Int(item.range?.start.milliseconds ?? 0)
+        stored.endMs = Int(item.range?.end.milliseconds ?? 0)
+        stored.quotedText = item.quotedText
+        modelContext.insert(stored)
+        try modelContext.save()
+    }
+
+    // MARK: - Transkript und Fakten je Folge
+
+    /// Das jüngste Transkript einer Folge, über alle ihre Fassungen.
+    public func transcript(forEpisode episodeID: EpisodeID) throws -> Transcript? {
+        for id in try mediaVersionIDs(forEpisode: episodeID) {
+            if let transcript = try transcript(forMedia: id), !transcript.segments.isEmpty {
+                return transcript
+            }
+        }
+        return nil
+    }
+
+    public func save(facts: [EpisodeFact], forEpisode episodeID: EpisodeID) throws {
+        let key = episodeID.rawValue
+        for row in try modelContext.fetch(FetchDescriptor<StoredFact>(
+            predicate: #Predicate { $0.episodeIdentifier == key })) {
+            modelContext.delete(row)
+        }
+        for fact in facts {
+            let row = StoredFact(identifier: fact.id)
+            row.episodeIdentifier = fact.episodeID.rawValue
+            row.sourceIdentifier = fact.sourceID.rawValue
+            row.evidenceIdentifier = fact.evidenceID.rawValue
+            row.mediaVersionIdentifier = fact.mediaVersionID.rawValue
+            row.statement = fact.statement
+            row.startMs = Int(fact.range.start.milliseconds)
+            row.endMs = Int(fact.range.end.milliseconds)
+            row.modelTier = fact.modelTier
+            modelContext.insert(row)
+        }
+        try modelContext.save()
+    }
+
+    public func facts(forEpisode episodeID: EpisodeID) throws -> [EpisodeFact] {
+        let key = episodeID.rawValue
+        return try modelContext.fetch(FetchDescriptor<StoredFact>(
+            predicate: #Predicate { $0.episodeIdentifier == key },
+            sortBy: [SortDescriptor(\.startMs)])).map(\.snapshot)
+    }
+
+    /// Alle Fakten, etwa für den Chat über alle Folgen.
+    public func allFacts(limit: Int = 2_000) throws -> [EpisodeFact] {
+        var descriptor = FetchDescriptor<StoredFact>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        descriptor.fetchLimit = limit
+        return try modelContext.fetch(descriptor).map(\.snapshot)
     }
 
     /// Belege aller Quellen, die für einen Themenfeed infrage kommen.

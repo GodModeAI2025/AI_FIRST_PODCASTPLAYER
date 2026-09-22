@@ -23,6 +23,7 @@
 //
 
 import Foundation
+import SwiftData
 import PodcastAIKit
 
 #if canImport(AppIntents)
@@ -48,6 +49,43 @@ public enum AppBootstrap {
         let background = BackgroundWork(model: model)
         background.register()
         return background
+    }
+
+    /// Öffnet die Datenbank, wenn möglich mit iCloud-Abgleich.
+    ///
+    /// UI-Tests starten mit `-uitest-fresh` und einem leeren Speicher im
+    /// Arbeitsspeicher, damit Quellen aus einem früheren Test nicht mitzählen.
+    /// Klappt der Abgleich nicht, bleibt der Speicher lokal; klappt auch das
+    /// nicht, läuft die App mit einem flüchtigen Speicher und sagt es.
+    public static func openStore() -> (container: ModelContainer, description: String, failure: String?) {
+        #if DEBUG
+        // Entwicklerschalter: CloudKit-Schema anlegen und beenden.
+        if ProcessInfo.processInfo.arguments.contains("-initialize-cloudkit-schema") {
+            do {
+                try LibraryStore.initializeCloudKitSchema(containerIdentifier: "iCloud.com.godmodeai.podcastai")
+                print("CLOUDKIT-SCHEMA: angelegt")
+                exit(0)
+            } catch {
+                print("CLOUDKIT-SCHEMA: Fehler \(error)")
+                exit(1)
+            }
+        }
+        #endif
+        if ProcessInfo.processInfo.arguments.contains("-uitest-fresh") {
+            return (try! LibraryStore.makeContainer(inMemory: true), "Test, nur im Arbeitsspeicher", nil)
+        }
+        let signedIn = FileManager.default.ubiquityIdentityToken != nil
+        if let container = try? LibraryStore.openPersistentContainer(sync: true) {
+            let description = signedIn
+                ? "Aktiv, über deine private iCloud-Datenbank"
+                : "Nicht bei iCloud angemeldet, die Daten bleiben auf diesem Gerät"
+            return (container, description, nil)
+        }
+        if let container = try? LibraryStore.openPersistentContainer(sync: false) {
+            return (container, "Aus, die Daten bleiben auf diesem Gerät", nil)
+        }
+        let container = try! LibraryStore.makeContainer(inMemory: true)
+        return (container, "Aus", "Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher.")
     }
 
     private static func registerIntentDependencies(_ model: AppModel) {

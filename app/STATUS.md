@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 22. September 2026, Version 0.5.
+Stand 22. September 2026, Version 0.6.
 
 ## Geprüft
 
@@ -15,14 +15,19 @@ Stand 22. September 2026, Version 0.5.
 | Geladene Folge abspielen, Zeit läuft | UI-Test mit der MP3 aus dem Feedback, erst laden, dann abspielen |
 | Themen-Update anlegen mit eingetipptem Thema | UI-Test, „Anlegen“ bleibt nicht gesperrt |
 | Folge laden, transkribieren, Belege mit Zeitmarken | Ende-zu-Ende-Test auf dem Mac mit echter englischer Folge |
-| Kernlogik: Intervalle, Hörplan, Relevanz, Export, Freigaben | 44 Swift-Tests im Paket |
+| Folge mit Reitern, Fragen an eine Folge, Export, Folge löschen, Einstellungen | UI-Tests im Simulator |
+| Löschregeln: Audio entfernen behält Daten, Folge löschen entfernt alles und bleibt gelöscht, Quelle abbestellen, Doppelte aus dem Abgleich | Swift-Tests mit Speicher im Arbeitsspeicher |
+| CloudKit-Schema für alle 13 Datentypen | in der Entwicklungsumgebung des Containers angelegt |
+| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben | 52 Swift-Tests im Paket |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
 
 ## Noch auf einem Gerät zu prüfen
 
 | Bereich | Warum offen |
 |---|---|
-| Relevanzauswahl, Chat, Gegenpositionen | Brauchen Apple Intelligence, das es im Simulator nicht gibt |
+| Relevanzauswahl, Chat, Fakten, Gegenpositionen | Brauchen Apple Intelligence, das es im Simulator nicht gibt |
+| Abgleich zwischen iPhone, iPad und Mac | Braucht zwei Geräte mit derselben Apple-ID und das Schema in der Produktionsumgebung |
+| Private Cloud Compute | Braucht die von Apple zugewiesene Berechtigung |
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |
 | Wiedergabe im Hintergrund, AirPlay, CarPlay | Nur auf Hardware sinnvoll |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
@@ -31,8 +36,9 @@ Stand 22. September 2026, Version 0.5.
 
 ## Bewusst nicht enthalten
 
-- Private Cloud Compute. Dem Entwicklerkonto fehlt die Berechtigung, deshalb läuft alles auf dem Gerätemodell.
 - Audio und Untertitel fremder YouTube-Videos.
+- Pausen kürzen und Lautstärke angleichen. Beides bräuchte eine eigene Audio-Verarbeitung statt AVPlayer.
+- CarPlay. Dafür vergibt Apple eine eigene Berechtigung.
 - Apple Watch App.
 
 ## In diesem Stand behobene Fehler

@@ -91,6 +91,13 @@ struct KnowledgeHubView: View {
                 }
             }
             #endif
+
+            Section {
+                NavigationLink(value: HubDestination.help) {
+                    HubRow(title: "So funktioniert's", detail: "Einsteiger bis Experten",
+                           symbol: "questionmark.circle", tint: .teal)
+                }
+            }
         }
         .navigationTitle("Wissen")
         .navigationDestination(for: HubDestination.self) { destination in
@@ -99,6 +106,7 @@ struct KnowledgeHubView: View {
             case .trails: TrailListView()
             case .counterpoint: CounterpointView()
             case .interests: InterestsView()
+            case .help: HelpView()
             #if os(iOS)
             case .settings: SettingsView()
             #endif
@@ -107,7 +115,7 @@ struct KnowledgeHubView: View {
     }
 
     enum HubDestination: Hashable {
-        case highlights, trails, counterpoint, interests
+        case highlights, trails, counterpoint, interests, help
         #if os(iOS)
         case settings
         #endif

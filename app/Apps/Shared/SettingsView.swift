@@ -26,15 +26,20 @@ struct IntelligenceSettingsSection: View {
             LabeledContent("Auf diesem Gerät") {
                 Text(ModelAvailabilityText.describe(model.modelStatus.onDevice))
             }
+            Toggle("Private Cloud Compute nutzen", isOn: Binding(
+                get: { model.allowPrivateCloudCompute },
+                set: { model.allowPrivateCloudCompute = $0 }
+            ))
             LabeledContent("Private Cloud Compute") {
                 Text(ModelAvailabilityText.describe(model.modelStatus.privateCloudCompute))
             }
         } header: {
             Text("Intelligenz")
         } footer: {
-            Text("PodcastAI nutzt ausschließlich Apple-Modelle. Ist eine Stufe nicht "
-                 + "verfügbar, fehlt die Funktion — es wird kein anderer Anbieter "
-                 + "eingesetzt.")
+            Text("PodcastAI nutzt ausschliesslich Apple Intelligence. Antworten und Fakten entstehen "
+                 + "auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud "
+                 + "Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt "
+                 + "eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.")
         }
     }
 }
@@ -61,6 +66,54 @@ struct AutomaticAnalysisSection: View {
                  + "transkribiert sie mit Zeitmarken. Erst dadurch finden „Für dich“, die Suche und die "
                  + "Themen-Updates etwas. Das kostet Daten und Akku; ausgeschaltet erschliesst die App nur, "
                  + "was du selbst anforderst.")
+        }
+    }
+}
+
+/// Belegter Speicher und das Entfernen von Audiodateien.
+struct StorageSettingsSection: View {
+
+    @Environment(AppModel.self) private var model
+    @State private var bytes: Int64 = 0
+    @State private var confirm = false
+
+    var body: some View {
+        Section {
+            LabeledContent("Audiodateien auf diesem Gerät") {
+                Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
+            }
+            Button("Alle Audiodateien entfernen", role: .destructive) { confirm = true }
+                .disabled(bytes == 0)
+        } header: {
+            Text("Speicher")
+        } footer: {
+            Text("Audio entfernen löscht nur den Ton. Transkripte, Fakten, gemerkte Stellen und der "
+                 + "Hörstand bleiben, abgespielt wird dann aus dem Netz. Eine einzelne Folge löschst du "
+                 + "in der Folge selbst; dann verschwinden auch ihre Daten.")
+        }
+        .task(id: model.mediaStorageChanged) { bytes = LocalMediaLocator.storedBytes() }
+        .confirmationDialog("Alle Audiodateien entfernen?", isPresented: $confirm, titleVisibility: .visible) {
+            Button("Audio entfernen, Daten behalten", role: .destructive) {
+                Task { await model.removeAllAudio() }
+            }
+        }
+    }
+}
+
+/// Ob und wie die Daten zwischen den Geräten abgeglichen werden.
+struct SyncSettingsSection: View {
+
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Section {
+            LabeledContent("iCloud") { Text(model.syncDescription) }
+        } header: {
+            Text("Synchronisation")
+        } footer: {
+            Text("Abos, Transkripte, Fakten, Hörstand, Interessen, Themen-Updates und gemerkte Stellen "
+                 + "gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. "
+                 + "Audiodateien lädt jedes Gerät selbst.")
         }
     }
 }
@@ -108,6 +161,8 @@ struct SettingsView: View {
         Form {
             IntelligenceSettingsSection()
             AutomaticAnalysisSection()
+            SyncSettingsSection()
+            StorageSettingsSection()
             LearningSettingsSection()
             SpotlightSettingsSection()
         }

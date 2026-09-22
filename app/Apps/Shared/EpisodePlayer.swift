@@ -32,6 +32,21 @@ public final class EpisodePlayer {
     public private(set) var isBuffering = false
     /// Was schiefging, in einem Satz für die Anzeige.
     public private(set) var playbackError: String?
+
+    /// Schlaf-Timer: nach einer Zeit, am Ende des Kapitels oder der Folge.
+    public enum SleepTimer: Equatable, Sendable {
+        case minutes(Int), endOfChapter, endOfEpisode
+        public var label: String {
+            switch self {
+            case .minutes(let value): "\(value) Minuten"
+            case .endOfChapter: "Ende des Kapitels"
+            case .endOfEpisode: "Ende der Folge"
+            }
+        }
+    }
+    public private(set) var sleepTimer: SleepTimer?
+    public private(set) var sleepDeadline: Date?
+    @ObservationIgnored private var sleepChapterEnd: Double?
     public var rate: Float = 1.0 {
         didSet { if isPlaying { player.rate = rate } }
     }
@@ -203,6 +218,33 @@ public final class EpisodePlayer {
 
     public func togglePlayPause() { isPlaying ? pause() : resume() }
 
+    public func setSleepTimer(_ timer: SleepTimer?) {
+        sleepTimer = timer
+        sleepDeadline = nil
+        sleepChapterEnd = nil
+        switch timer {
+        case .minutes(let value):
+            sleepDeadline = Date().addingTimeInterval(TimeInterval(value * 60))
+        case .endOfChapter:
+            sleepChapterEnd = chapters.first { $0.start.seconds > currentTime + 1 }?.start.seconds ?? duration
+        case .endOfEpisode, nil:
+            break
+        }
+    }
+
+    private func checkSleepTimer() {
+        guard isPlaying, let timer = sleepTimer else { return }
+        let due: Bool = switch timer {
+        case .minutes: sleepDeadline.map { Date() >= $0 } ?? false
+        case .endOfChapter: sleepChapterEnd.map { currentTime >= $0 - 0.5 } ?? false
+        case .endOfEpisode: false
+        }
+        if due {
+            pause()
+            setSleepTimer(nil)
+        }
+    }
+
     public func seek(to seconds: Double) {
         flushHeard()
         // Vor `readyToPlay` verpufft ein Sprung. Dann wird er gemerkt.
@@ -265,6 +307,7 @@ public final class EpisodePlayer {
     private func tick(_ seconds: Double) {
         guard seconds.isFinite, !seekInFlight else { return }
         currentTime = seconds
+        checkSleepTimer()
         if isPlaying, let start = heardStart, seconds - start >= 10 {
             flushHeard()
             savePosition()
@@ -291,6 +334,13 @@ public final class EpisodePlayer {
         if let episode {
             positions[episode.id.rawValue] = 0
             UserDefaults.standard.set(positions, forKey: positionsKey)
+        }
+        if sleepTimer == .endOfEpisode {
+            // Schlafen statt die nächste Folge zu starten.
+            setSleepTimer(nil)
+            isPlaying = false
+            updateNowPlaying()
+            return
         }
         isPlaying = false
         if let episode { onFinished?(episode) }

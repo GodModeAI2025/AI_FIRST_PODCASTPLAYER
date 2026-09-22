@@ -339,6 +339,7 @@ struct LibraryView: View {
 
     @Environment(AppModel.self) private var model
     @State private var showingAdd = false
+    @State private var pendingRemoval: Source?
 
     var body: some View {
         List {
@@ -363,10 +364,29 @@ struct LibraryView: View {
                     NavigationLink(value: source.id) {
                         SourceRow(source: source)
                     }
+                    .swipeActions {
+                        Button(role: .destructive) { pendingRemoval = source } label: {
+                            Label("Abbestellen", systemImage: "minus.circle")
+                        }
+                    }
+                    .contextMenu {
+                        Button(role: .destructive) { pendingRemoval = source } label: {
+                            Label("Abbestellen und Daten löschen", systemImage: "minus.circle")
+                        }
+                    }
                 }
             }
         }
         .navigationTitle("Mediathek")
+        .confirmationDialog("Abbestellen?", isPresented: Binding(
+            get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }
+        ), titleVisibility: .visible, presenting: pendingRemoval) { source in
+            Button("\(source.title) abbestellen", role: .destructive) {
+                Task { await model.removeSource(source.id) }
+            }
+        } message: { _ in
+            Text("Alle Folgen dieser Quelle werden mit Transkripten, Fakten und Hörstand gelöscht.")
+        }
         .navigationDestination(for: SourceID.self) { sourceID in
             EpisodeListView(sourceID: sourceID)
         }

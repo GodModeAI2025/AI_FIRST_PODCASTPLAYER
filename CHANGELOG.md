@@ -1,5 +1,16 @@
 # Änderungsverlauf
 
+## App 0.6 · 2026-09-22
+- Abgleich über iCloud: Abos, Folgen, Transkripte, Belege, Fakten, Hörstand mit Fortsetzungsstelle, Interessen, Themen-Updates und gemerkte Stellen gleichen sich zwischen iPhone, iPad und Mac ab. Audiodateien lädt jedes Gerät selbst. Ein Speicher aus einer früheren Testversion wird beim ersten Start beiseitegelegt und neu angelegt.
+- Löschen: „Audio entfernen“ löscht nur den Ton, Transkript, Fakten und Hörstand bleiben, gespielt wird dann aus dem Netz. „Folge löschen“ entfernt die Folge mit allem, was aus ihr entstanden ist, und der Feed legt sie nicht wieder an. Quellen lassen sich abbestellen.
+- Folgen haben Reiter: Überblick, Kapitel, Transkript mit Suche und Sprung an jede Stelle, Fakten mit Zeitmarke, Fragen an genau diese Folge.
+- Fragen: Antworten sind jetzt Fliesstext mit nummerierten Belegen, die an die Stelle springen. Die Suche nutzt Stichworte und die semantische Nähe aus Apples NaturalLanguage. Auch Fragen über die Mediathek selbst („Welche Folgen habe ich noch nicht gehört?“) finden eine Antwort. Vorschlagsfragen helfen beim Einstieg.
+- Private Cloud Compute: Antworten und Vergleiche laufen auf Apples Servermodell mit grösserem Kontext, sobald die Berechtigung vorliegt. Sonst und bei fehlendem Netz antwortet das Gerätemodell. Abschaltbar in den Einstellungen.
+- Export: jede Folge mit Shownotes, Kapiteln, Fakten und Transkript als Markdown, jede Antwort mit ihren Belegen.
+- Player: Schlaf-Timer (Minuten, Kapitelende, Folgenende), AirPlay-Auswahl. Die Warteschlange bleibt über einen Neustart erhalten.
+- Einstieg: Willkommensblatt beim ersten Start mit zwei Beispiel-Podcasts, Hilfeseite „So funktioniert's“ für Einsteiger, Fortgeschrittene und Experten.
+- Einstellungen: Private Cloud Compute, Speicher mit „Alle Audiodateien entfernen“, Stand der Synchronisation.
+
 ## App 0.5 · 2026-09-22
 Aus dem Feedback zu 0.4:
 - Die App bereitet die jüngsten Folgen jeder Quelle von selbst vor: laden, transkribieren mit Zeitmarken, Belege bilden. Vorher passierte das nur auf ausdrückliche Anforderung, und „Für dich“, die Suche und die Themen-Updates blieben deshalb leer. Abschaltbar in den Einstellungen unter „Vorbereiten“.
@@ -41,19 +52,3 @@ Aus dem ersten TestFlight-Feedback:
 - App-Icon, Privacy-Manifest und Signierung für TestFlight im Team Mobile Box.
 - UI-Test für den Hauptweg und Ende-zu-Ende-Test für die Transkription.
 - Behobene Fehler stehen in [app/STATUS.md](app/STATUS.md).
-
-## Spezifikation 1.3 · 2026-09-20
-- Smart Podcast List mit persistenten Themenfeeds, neuen persönlichen Folgen und unveränderlichen Originalsegment-Manifests ergänzt.
-- Episodenfokus, globale Intervallhistorie, Alles-Ungehörte-/Budgetmodus und doppelte Zeitachsen verbunden.
-- Eigene Titel, belegte Shownotes, nativer automatischer Cover-Fallback und Image-Playground-Systemdialog spezifiziert; ImageCreator ab 27 ausdrücklich ausgeschlossen.
-- FR-121–144, US17–20, T219–266, Datenverträge, synthetische Beispiele, Traceability, Testregeln, Plattformzustände und Agentenauftrag ergänzt.
-- Originalbilder und bisherige Spezifikation erhalten. Keine gebaute App und keine neu gerenderten Screens behauptet.
-
-## Spezifikation 1.2 · 2026-09-19
-Widerspruchs-Mixer und Breadcrumb-Trail durchgaengig aufgenommen; korrigierbare bestaetigte Thesen, faire Gegenpositionen, Sessiongrenzen, Quellenzaehlung, Wissensgraph und portabler Parkexport. Spezifikation jetzt 120 FR, 16 US, 218 Tasks. Releasebuild-/Konvergenzabhaengigkeiten nach allen Nutzerergaenzungen ausgerichtet. Quellen 1–4 im Testkorpus synthetisch, miteinander konsistent.
-
-## Spezifikation 1.1 · 2026-09-19
-YouTube-URL → Kanal → Feed automatisch; Abo/Einzelimport und rueckwirkende Kataloganalyse; Highlights, semantische Suche, Transkriptexport, reversible Pipeline, Smart Skip und macOS-MCP.
-
-## Spezifikation 1.0 · 2026-09-19
-Native 27er-Vorgabe, BrainSpeak-first, Timecode-Fokus, quellengebundener Chat, vier Plattformen, Originalscreens und urspruengliches Konzept archiviert.

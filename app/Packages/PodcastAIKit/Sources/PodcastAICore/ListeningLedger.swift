@@ -115,6 +115,12 @@ public struct MediaListeningState: Hashable, Codable, Sendable {
             // Bereits Gehörtes bleibt gehört — Überspringen macht das nicht rückgängig.
             skipped = skipped.union(IntervalSet(event.range).subtracting(heard))
         }
+        // Die Fortsetzungsstelle folgt dem jüngsten Hören der ganzen Folge.
+        // Sie reist mit dem Hörzustand über iCloud auf die anderen Geräte.
+        if event.kind == .played, event.via == .originalEpisode,
+           lastEventAt == nil || event.at >= lastEventAt! {
+            resumePosition = event.range.end
+        }
         if lastEventAt == nil || event.at > lastEventAt! { lastEventAt = event.at }
     }
 

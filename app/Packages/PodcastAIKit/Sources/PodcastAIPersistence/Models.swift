@@ -25,7 +25,7 @@ import PodcastAISmartFeeds
 @Model
 public final class StoredSource {
     #Index<StoredSource>([\.identifier])
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var kindRaw: String = SourceKind.podcastRSS.rawValue
     public var title: String = ""
     public var author: String?
@@ -46,7 +46,7 @@ public final class StoredSource {
     public var limitationReason: String?
 
     @Relationship(deleteRule: .cascade, inverse: \StoredEpisode.source)
-    public var episodes: [StoredEpisode] = []
+    public var episodes: [StoredEpisode]? = []
 
     public init(identifier: String, kind: SourceKind, title: String) {
         self.identifier = identifier
@@ -80,7 +80,7 @@ public final class StoredSource {
 @Model
 public final class StoredEpisode {
     #Index<StoredEpisode>([\.identifier], [\.publishedAt])
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var title: String = ""
     public var summary: String?
     public var publishedAt: Date?
@@ -94,11 +94,15 @@ public final class StoredEpisode {
     public var chaptersData: Data?
     public var chaptersURLString: String?
     public var shownotesHTML: String?
+    /// Gesetzt, wenn jemand die Folge gelöscht hat. Die Zeile bleibt als
+    /// Merkzeichen stehen, damit der nächste Abgleich mit dem Feed sie nicht
+    /// wieder anlegt. Alles, was aus ihr entstanden ist, ist dann gelöscht.
+    public var removedAt: Date?
 
     public var source: StoredSource?
 
     @Relationship(deleteRule: .cascade, inverse: \StoredMediaVersion.episode)
-    public var mediaVersions: [StoredMediaVersion] = []
+    public var mediaVersions: [StoredMediaVersion]? = []
 
     public init(identifier: String, title: String) {
         self.identifier = identifier
@@ -127,7 +131,7 @@ public final class StoredEpisode {
 
 @Model
 public final class StoredMediaVersion {
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var remoteURLString: String?
     public var localRelativePath: String?
     public var byteCount: Int = 0
@@ -142,7 +146,7 @@ public final class StoredMediaVersion {
     public var episode: StoredEpisode?
 
     @Relationship(deleteRule: .cascade, inverse: \StoredTranscript.mediaVersion)
-    public var transcripts: [StoredTranscript] = []
+    public var transcripts: [StoredTranscript]? = []
 
     public init(identifier: String) { self.identifier = identifier }
 
@@ -163,7 +167,7 @@ public final class StoredMediaVersion {
 
 @Model
 public final class StoredTranscript {
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var revisionValue: Int = 0
     public var originRaw: String = TranscriptOrigin.speechAnalysis.rawValue
     public var locale: String = "de_DE"
@@ -176,7 +180,7 @@ public final class StoredTranscript {
     public var mediaVersion: StoredMediaVersion?
 
     @Relationship(deleteRule: .cascade, inverse: \StoredSegment.transcript)
-    public var segments: [StoredSegment] = []
+    public var segments: [StoredSegment]? = []
 
     public init(identifier: String) { self.identifier = identifier }
 
@@ -187,7 +191,7 @@ public final class StoredTranscript {
             revision: Revision(revisionValue),
             origin: TranscriptOrigin(rawValue: originRaw) ?? .speechAnalysis,
             locale: locale,
-            segments: segments.map(\.snapshot),
+            segments: (segments ?? []).sorted { $0.startMs < $1.startMs }.map(\.snapshot),
             untimedText: untimedText,
             analyzedRanges: IntervalSet(Self.ranges(from: analyzedRangesFlat)),
             createdAt: createdAt
@@ -209,7 +213,7 @@ public final class StoredTranscript {
 @Model
 public final class StoredSegment {
     #Index<StoredSegment>([\.startMs])
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var startMs: Int = 0
     public var endMs: Int = 0
     public var text: String = ""
@@ -241,7 +245,7 @@ public final class StoredSegment {
 /// ist idempotent.
 @Model
 public final class StoredListeningState {
-    @Attribute(.unique) public var mediaVersionIdentifier: String = ""
+    public var mediaVersionIdentifier: String = ""
     public var heardFlat: [Int] = []
     public var skippedFlat: [Int] = []
     public var historyQualityRaw: String = HistoryQuality.exact.rawValue
@@ -281,7 +285,7 @@ public final class StoredListeningState {
 
 @Model
 public final class StoredInterest {
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var label: String = ""
     public var kindRaw: String = InterestKind.topic.rawValue
     public var originRaw: String = InterestOrigin.confirmedByUser.rawValue
@@ -305,7 +309,7 @@ public final class StoredInterest {
 
 @Model
 public final class StoredEvidence {
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var mediaVersionIdentifier: String = ""
     public var episodeIdentifier: String = ""
     public var sourceIdentifier: String = ""
@@ -339,13 +343,13 @@ public final class StoredEvidence {
 
 @Model
 public final class StoredHighlight {
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var evidenceIdentifier: String = ""
     public var note: String?
     public var createdAt: Date = Date()
     /// Der vollständige Wert als JSON. Siehe die Begründung bei
     /// ``StoredSmartFeed``.
-    public var payload: Data?
+    @Attribute(.externalStorage) public var payload: Data?
 
     public init(identifier: String, evidenceIdentifier: String) {
         self.identifier = identifier; self.evidenceIdentifier = evidenceIdentifier
@@ -376,11 +380,11 @@ public final class StoredHighlight {
 @Model
 public final class StoredSmartFeed {
     #Index<StoredSmartFeed>([\.identifier], [\.createdAt])
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     /// Zum Sortieren und Anzeigen, ohne das JSON zu lesen.
     public var title: String = ""
     public var createdAt: Date = Date()
-    public var payload: Data = Data()
+    @Attribute(.externalStorage) public var payload: Data = Data()
 
     public init(identifier: String, title: String, payload: Data) {
         self.identifier = identifier
@@ -392,11 +396,11 @@ public final class StoredSmartFeed {
 @Model
 public final class StoredPersonalEpisode {
     #Index<StoredPersonalEpisode>([\.identifier], [\.feedIdentifier], [\.publishedAt])
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     /// Die Spalte, nach der wirklich gefragt wird: „alle Ausgaben dieses Feeds“.
     public var feedIdentifier: String = ""
     public var publishedAt: Date = Date()
-    public var payload: Data = Data()
+    @Attribute(.externalStorage) public var payload: Data = Data()
 
     public init(identifier: String, feedIdentifier: String, publishedAt: Date, payload: Data) {
         self.identifier = identifier
@@ -409,16 +413,54 @@ public final class StoredPersonalEpisode {
 @Model
 public final class StoredKnowledgeTrail {
     #Index<StoredKnowledgeTrail>([\.identifier], [\.parkedAt])
-    @Attribute(.unique) public var identifier: String = ""
+    public var identifier: String = ""
     public var question: String = ""
     public var parkedAt: Date = Date()
-    public var payload: Data = Data()
+    @Attribute(.externalStorage) public var payload: Data = Data()
 
     public init(identifier: String, question: String, parkedAt: Date, payload: Data) {
         self.identifier = identifier
         self.question = question
         self.parkedAt = parkedAt
         self.payload = payload
+    }
+}
+// MARK: - Fakten je Folge
+
+/// Eine überprüfbare Aussage aus einer Folge, mit Beleg und Zeitmarke.
+///
+/// Fakten entstehen aus den Belegen einer erschlossenen Folge. Sie werden
+/// gespeichert, damit Chat, Export und die Folgenansicht sie nicht jedes
+/// Mal neu vom Modell erfragen müssen, und sie synchronisieren sich mit.
+@Model
+public final class StoredFact {
+    #Index<StoredFact>([\.identifier], [\.episodeIdentifier])
+    public var identifier: String = ""
+    public var episodeIdentifier: String = ""
+    public var sourceIdentifier: String = ""
+    public var evidenceIdentifier: String = ""
+    public var mediaVersionIdentifier: String = ""
+    public var statement: String = ""
+    public var startMs: Int = 0
+    public var endMs: Int = 0
+    public var createdAt: Date = Date()
+    /// Welches Modell die Aussage formuliert hat, zur Nachvollziehbarkeit.
+    public var modelTier: String = ""
+
+    public init(identifier: String) { self.identifier = identifier }
+
+    public var snapshot: EpisodeFact {
+        EpisodeFact(
+            id: identifier,
+            episodeID: EpisodeID(rawValue: episodeIdentifier),
+            sourceID: SourceID(rawValue: sourceIdentifier),
+            evidenceID: EvidenceID(rawValue: evidenceIdentifier),
+            mediaVersionID: MediaVersionID(rawValue: mediaVersionIdentifier),
+            statement: statement,
+            range: MediaTimeRange(start: MediaTime(milliseconds: Int64(startMs)),
+                                  end: MediaTime(milliseconds: Int64(endMs))),
+            modelTier: modelTier
+        )
     }
 }
 #endif

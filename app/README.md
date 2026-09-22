@@ -22,24 +22,33 @@ Signiert wird automatisch mit dem Team Mobile Box (`SP73Z8JWXM`).
 
 ## Tests
 
-Die Logik liegt im Swift-Paket und hat eigene Tests:
+Die Logik im Swift-Paket hat eigene Tests, darunter die Löschregeln und die Suche für den Chat:
 
 ```bash
 cd app/Packages/PodcastAIKit
 swift test
 ```
 
-Ein Ende-zu-Ende-Test lädt eine echte Folge aus dem Netz, transkribiert sie und prüft die Belege mit Zeitmarken. Er braucht Netz und die Spracherkennung des Mac und dauert rund eine halbe Minute:
+Ein Ende-zu-Ende-Test lädt eine echte Folge, transkribiert sie und prüft die Belege mit Zeitmarken. Er braucht Netz und die Spracherkennung des Mac:
 
 ```bash
 PODCASTAI_LIVE=1 swift test --filter LiveAnalysisTests
 ```
 
-Die Oberfläche testen UI-Tests im Simulator: alle Tabs, Feed hinzufügen, Folge öffnen und abspielen, Warteschlange und die Fälle aus dem TestFlight-Feedback.
+Die Oberfläche testen UI-Tests im Simulator: Feeds aus dem TestFlight-Feedback abonnieren, Folge mit ihren Reitern öffnen, abspielen, Fragen an eine Folge, Export, Löschen, Einstellungen.
 
 ```bash
 xcodebuild -project PodcastAI.xcodeproj -scheme PodcastAI \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
+```
+
+## iCloud
+
+Beide Apps nutzen den CloudKit-Container `iCloud.com.godmodeai.podcastai`. Nach Änderungen am Datenmodell das Schema neu anlegen und in der CloudKit-Konsole nach Production übertragen:
+
+```bash
+# signierter Debug-Build des Mac-Schemas, dann:
+PodcastAI.app/Contents/MacOS/PodcastAI -initialize-cloudkit-schema
 ```
 
 ## TestFlight
@@ -58,12 +67,12 @@ Packages/PodcastAIKit/Sources/
   PodcastAISources       RSS und Atom, Linkauflösung, YouTube, Feed-Erkennung
   PodcastAIMedia         Download, Audio lesen und wandeln
   PodcastAITranscription SpeechAnalyzer mit Medienzeit
-  PodcastAIIntelligence  Apple-Modelle, belegsichere Auswahl
-  PodcastAIKnowledge     Aussagen, Relevanz, Gegenpositionen, Wissenspfade
+  PodcastAIIntelligence  Apple Intelligence, Gerät und Private Cloud Compute
+  PodcastAIKnowledge     Relevanz, Suche für den Chat, Gegenpositionen
   PodcastAIPlayback      Hörplan, Freigaben, Player
   PodcastAISmartFeeds    Persönliche Themenfeeds, Shownotes, Cover
-  PodcastAIExport        Markdown mit sicheren Quellenlinks
-  PodcastAIPersistence   SwiftData
+  PodcastAIExport        Markdown für Folgen, Antworten und Notizen
+  PodcastAIPersistence   SwiftData mit iCloud-Abgleich
 
 Apps/
   Shared/                AppModel, Dienste, gemeinsame Ansichten
@@ -71,7 +80,6 @@ Apps/
   PodcastAIMac/          macOS: Seitenleiste, Menübefehle, MCP-Server
 
 UITests/                 UI-Tests für iOS
-verification/            Python-Referenzmodelle für die Kernalgorithmen
 ```
 
 ## Regeln im Code

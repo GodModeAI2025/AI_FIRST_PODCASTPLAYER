@@ -1,9 +1,0 @@
-// Template for the real Xcode project after baseline audit. Not an app project.
-SWIFT_VERSION = 6.0
-SWIFT_STRICT_CONCURRENCY = complete
-IPHONEOS_DEPLOYMENT_TARGET = 27.0
-WATCHOS_DEPLOYMENT_TARGET = 27.0
-MACOSX_DEPLOYMENT_TARGET = 27.0
-// Explicit isolation boundaries: do not set blanket MainActor for domain packages.
-// Swift compiler 6.4 comes from the selected Xcode 27 toolchain, not SWIFT_VERSION.
-// SDKROOT, supported platforms, signing and bundle IDs belong to each real target.

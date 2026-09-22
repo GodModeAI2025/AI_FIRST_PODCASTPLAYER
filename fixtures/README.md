@@ -1,4 +1,0 @@
-# Synthetische Testdaten
-Alle strukturierten Daten wurden für dieses Paket erfunden und sind entsprechend deklariert. Kein realer Podcast, kein fremdes Audio und keine verifizierten Aussagen realer Personen. Die IDs imitieren Formate, nicht existierende Medien. URLs auf example.invalid sind absichtlich nicht abrufbar; YouTube-IDs sind ebenfalls nur Teststrings und dürfen von Tests nicht online abgefragt werden.
-
-Vorhanden: konsistente Medien-/Transkript-/Evidence-/Chat-/Hörplan-/Grant-Fixtures, Archivpagination mit 120 eindeutigen Einträgen trotz Überschneidung, URLfälle, RSS/Atom, Highlight, Sync, Watch, Analysejob, MCP-Freigabe, Markdown/SRT/VTT/TXT und Evaluationsvorgaben. Kein Audiosample wurde generiert; Audio-/ASR-/Device-Qualität muss mit separat autorisierten Aufnahmen geprüft werden.

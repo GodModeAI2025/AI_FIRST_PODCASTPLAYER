@@ -1,4 +1,0 @@
-# Gesprächsanforderungen · 2026-09-20
-Redaktionelle Zusammenfassung, nicht als wörtliches Transkript bezeichnet.
-
-Der Nutzer möchte pro Folge relevante Stellen und über mehrere Folgen noch ungehörte relevante Originalausschnitte automatisch nacheinander hören. Ein neuer Bereich soll dies wie einen eigenen persönlichen Podcast-/Audiofeed darstellen: neue Folgen, wenn neue passende ungehörte Segmente vorliegen. Jede Ausgabe bekommt ein Cover und eine textuelle inhaltliche Beschreibung als Shownotes. Interessen kommen aus Konfiguration und optionalem Lernen; Beispiele: iOS, Google/KI, EnBW und Datenschutz. Produktname für die Funktion: Smart Podcast List. Cover sollen mit Apples Image Playground gestaltet werden. Die dokumentierte API-Einschränkung für automatische Erzeugung ab Version 27 wird in der Spezifikation berücksichtigt.

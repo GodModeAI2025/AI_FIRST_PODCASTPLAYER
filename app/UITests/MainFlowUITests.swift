@@ -17,6 +17,7 @@ final class MainFlowUITests: XCTestCase {
 
     func testAllTabsOpen() {
         let app = XCUIApplication()
+        app.launchArguments = ["-skip-onboarding"]
         app.launch()
         for tab in ["Meine Feeds", "Mediathek", "Wissen", "Für dich"] {
             app.tabBars.buttons[tab].tap()
@@ -28,6 +29,7 @@ final class MainFlowUITests: XCTestCase {
 
     func testAddFeedShowsSourceAndEpisodes() {
         let app = XCUIApplication()
+        app.launchArguments = ["-skip-onboarding"]
         app.launch()
         app.tabBars.buttons["Mediathek"].tap()
 
@@ -56,6 +58,7 @@ final class MainFlowUITests: XCTestCase {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["TEST_RUNNER_RUN_ANALYSIS"] == "1"
                           || ProcessInfo.processInfo.environment["RUN_ANALYSIS"] == "1")
         let app = XCUIApplication()
+        app.launchArguments = ["-skip-onboarding"]
         app.launch()
         app.tabBars.buttons["Mediathek"].tap()
         let row = app.staticTexts["Planet Money"].firstMatch

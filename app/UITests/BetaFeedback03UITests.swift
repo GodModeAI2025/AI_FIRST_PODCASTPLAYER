@@ -32,7 +32,7 @@ final class BetaFeedback03UITests: XCTestCase {
     /// „Feed abonnieren geht nicht“: feeds.transistor.fm/ai-to-the-dna.
     /// Danach eine Folge öffnen, abspielen und den Player sehen.
     func testTransistorFeedEpisodeDetailAndPlayback() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["-skip-onboarding"]; app.launch()
         let row = app.staticTexts["AI to the DNA"].firstMatch
         app.tabBars.buttons["Mediathek"].tap()
         if !row.waitForExistence(timeout: 3) {
@@ -48,9 +48,15 @@ final class BetaFeedback03UITests: XCTestCase {
 
         let play = app.buttons["episode.play"]
         XCTAssertTrue(play.waitForExistence(timeout: 10), "Kein Abspielen-Knopf in der Folge")
-        XCTAssertTrue(app.staticTexts["Kapitel"].firstMatch.waitForExistence(timeout: 10), "Keine Kapitel")
         attach(app, "folge")
         play.tap()
+        // Kapitel stehen im eigenen Reiter, geladen aus der Kapiteldatei des Feeds.
+        let sections = app.segmentedControls["episode.sections"]
+        sections.buttons["Kapitel"].tap()
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Intro'")).firstMatch
+                        .waitForExistence(timeout: 40), "Keine Kapitel")
+        attach(app, "kapitel")
+        sections.buttons["Überblick"].tap()
         let shownotes = app.staticTexts["Shownotes"].firstMatch
         for _ in 0..<40 where !shownotes.exists { app.swipeUp(velocity: .fast) }
         XCTAssertTrue(shownotes.exists, "Keine Shownotes")
@@ -67,7 +73,7 @@ final class BetaFeedback03UITests: XCTestCase {
 
     /// „Es braucht einen zentralen Platz für Wartelisten“.
     func testQueueIsReachableFromLibrary() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["-skip-onboarding"]; app.launch()
         app.tabBars.buttons["Mediathek"].tap()
         let queue = app.staticTexts["Warteschlange"].firstMatch
         if !queue.waitForExistence(timeout: 3) {
@@ -82,7 +88,7 @@ final class BetaFeedback03UITests: XCTestCase {
 
     /// Aus 0.1 offen geblieben: „Die Unterscheidung muss erklärt werden“.
     func testInterestKindsAreExplained() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["-skip-onboarding"]; app.launch()
         app.tabBars.buttons["Wissen"].tap()
         let interests = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Interessen'")).firstMatch
         XCTAssertTrue(interests.waitForExistence(timeout: 5))

@@ -16,9 +16,9 @@ struct PodcastAIMacApp: App {
     @State private var model: AppModel
 
     init() {
-        let container = (try? LibraryStore.makeContainer())
-            ?? (try! LibraryStore.makeContainer(inMemory: true))
-        let model = AppModel(store: LibraryStore.make(container: container))
+        let opened = AppBootstrap.openStore()
+        let model = AppModel(store: LibraryStore.make(container: opened.container))
+        model.syncDescription = opened.description
         _model = State(initialValue: model)
         // Auf dem Mac gibt es keinen BGTaskScheduler, aber die
         // Intent-Abhängigkeit muss auch hier stehen: Kurzbefehle laufen auf
@@ -30,7 +30,10 @@ struct PodcastAIMacApp: App {
         WindowGroup {
             MacRootView()
                 .environment(model)
-                .task { await model.load() }
+                .task {
+                    await model.load()
+                    model.observeRemoteChanges()
+                }
                 .frame(minWidth: 900, minHeight: 560)
                 .sheet(isPresented: Binding(
                     get: { model.isAddingSource },
@@ -75,9 +78,10 @@ struct MacRootView: View {
 
     @Environment(AppModel.self) private var model
     @State private var section: Section? = .forYou
+    @State private var showingOnboarding = OnboardingView.shouldShow
 
     enum Section: Hashable, CaseIterable, Identifiable {
-        case forYou, feeds, chat, library, queue, knowledge, interests, perspective, trails, player
+        case forYou, feeds, chat, library, queue, knowledge, interests, perspective, trails, player, help
         var id: Self { self }
 
         var label: String {
@@ -92,6 +96,7 @@ struct MacRootView: View {
             case .perspective: "Gegenpositionen"
             case .trails: "Wissenslandkarten"
             case .player: "Wiedergabe"
+            case .help: "So funktioniert's"
             }
         }
 
@@ -107,6 +112,7 @@ struct MacRootView: View {
             case .perspective: "arrow.left.arrow.right"
             case .trails: "map"
             case .player: "play.circle"
+            case .help: "questionmark.circle"
             }
         }
     }
@@ -128,7 +134,7 @@ struct MacRootView: View {
                     }
                 }
                 SwiftUI.Section("Profil") {
-                    ForEach([Section.interests]) { item in
+                    ForEach([Section.interests, .help]) { item in
                         Label(item.label, systemImage: item.symbol).tag(item)
                     }
                 }
@@ -143,6 +149,7 @@ struct MacRootView: View {
                 case .chat: ChatView()
                 case .library: LibraryView()
                 case .queue: QueueView()
+                case .help: HelpView()
                 case .knowledge: KnowledgeView()
                 case .interests: InterestsView()
                 case .perspective: CounterpointView()
@@ -159,6 +166,9 @@ struct MacRootView: View {
             }
         }
         .autoRefresh()
+        .sheet(isPresented: $showingOnboarding) {
+            OnboardingView().environment(model).frame(minWidth: 480, minHeight: 620)
+        }
         .toolbar {
             ToolbarItem {
                 Button { Task { await model.refreshAll() } } label: {
@@ -197,6 +207,14 @@ struct MacSettingsView: View {
             }
             .formStyle(.grouped)
             .tabItem { Label("Intelligenz", systemImage: "sparkles") }
+            .frame(width: 420)
+
+            Form {
+                SyncSettingsSection()
+                StorageSettingsSection()
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("Daten", systemImage: "icloud") }
             .frame(width: 420)
 
             Form {

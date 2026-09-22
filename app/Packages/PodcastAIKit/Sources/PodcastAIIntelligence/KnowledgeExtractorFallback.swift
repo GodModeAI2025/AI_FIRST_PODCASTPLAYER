@@ -70,5 +70,23 @@ public struct KnowledgeExtractor: Sendable {
     ) async throws -> [EvidenceID: String] {
         throw ExtractorError.modelUnavailable(Self.reason)
     }
+
+    public func answer(
+        question: String, from evidence: [Evidence], libraryContext: String = "",
+        availability: ModelStatus
+    ) async throws -> ComposedAnswer {
+        throw ExtractorError.modelUnavailable(Self.reason)
+    }
+
+    public static func currentStatus(allowPrivateCloud: Bool) -> ModelStatus {
+        ModelStatus(onDevice: .unavailable(reason), privateCloudCompute: .unavailable(reason))
+    }
+}
+
+public struct ComposedAnswer: Sendable, Equatable {
+    public let text: String
+    public let claims: [Claim]
+    public let citations: [Int: EvidenceID]
+    public let tier: ModelTier
 }
 #endif

@@ -18,13 +18,13 @@ public final class AppModel {
 
     // MARK: - Zustand für die Oberfläche
 
-    public private(set) var sources: [Source] = []
-    public private(set) var relevantToday: [RelevantItem] = []
+    public internal(set) var sources: [Source] = []
+    public internal(set) var relevantToday: [RelevantItem] = []
     public internal(set) var smartFeeds: [SmartPodcastFeed] = []
     public internal(set) var editions: [SmartFeedID: [PersonalEpisode]] = [:]
-    public private(set) var profile = InterestProfile()
-    public private(set) var ledger = ListeningLedger()
-    public private(set) var modelStatus = ModelStatus(
+    public internal(set) var profile = InterestProfile()
+    public internal(set) var ledger = ListeningLedger()
+    public internal(set) var modelStatus = ModelStatus(
         onDevice: .unavailable(.modelNotReady),
         privateCloudCompute: .unavailable(.userConsentMissing)
     )
@@ -32,8 +32,8 @@ public final class AppModel {
     /// Was gerade passiert. Eine Zeile, die der Nutzer lesen kann — keine
     /// unendliche Fortschrittsanzeige ohne Aussage.
     public internal(set) var highlights: [Highlight] = []
-    public private(set) var activity: String?
-    public private(set) var lastError: String?
+    public internal(set) var activity: String?
+    public internal(set) var lastError: String?
 
     /// Offen, wenn der Nutzer eine Quelle hinzufügen will. Steht hier und
     /// nicht in einer Ansicht, weil auf dem Mac das Menü es öffnet und das
@@ -45,13 +45,15 @@ public final class AppModel {
     /// Spielt ganze Folgen mit Kapiteln.
     public let episodePlayer = EpisodePlayer()
     /// Was als Nächstes gehört wird. Am Ende einer Folge startet die nächste.
-    public private(set) var upNext: [Episode] = []
+    public internal(set) var upNext: [Episode] = [] {
+        didSet { UserDefaults.standard.set(upNext.map(\.id.rawValue), forKey: "upNextEpisodeIDs") }
+    }
     /// Was als Nächstes erschlossen wird. Die Spracherkennung verträgt nur
     /// eine Analyse zur Zeit, deshalb läuft alles über diese Warteschlange.
-    public private(set) var analysisQueue: [Episode] = []
-    public private(set) var analyzing: Episode?
+    public internal(set) var analysisQueue: [Episode] = []
+    public internal(set) var analyzing: Episode?
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
-    public private(set) var lastRefresh: Date?
+    public internal(set) var lastRefresh: Date?
 
     /// Neue Folgen von selbst erschliessen, damit Wissen, „Für dich“ und
     /// die Themen-Updates gefüllt sind, bevor man danach sucht. Abschaltbar,
@@ -65,13 +67,36 @@ public final class AppModel {
     /// Wie viele Folgen je Quelle die App von sich aus vorbereitet.
     public static let automaticAnalysisPerSource = 3
     static let automaticAnalysisKey = "automaticAnalysis"
-    @ObservationIgnored private var analyzedEpisodes: Set<EpisodeID> = []
+    @ObservationIgnored var analyzedEpisodes: Set<EpisodeID> = []
     /// Von der App selbst eingereihte Folgen. Ihre Fehler unterbrechen
     /// niemanden: wer nicht darum gebeten hat, will dafür keinen Dialog.
     @ObservationIgnored private var automaticallyQueued: Set<EpisodeID> = []
     /// Kann dieses Gerät gar nicht transkribieren, hört die App von selbst
     /// auf, es zu versuchen, statt Folge um Folge zu laden.
-    public private(set) var preparationUnavailable: String?
+    public internal(set) var preparationUnavailable: String?
+
+    /// Apples Server-Modell auf Private Cloud Compute für Antworten und
+    /// Vergleiche nutzen, wenn das Gerät und die App es dürfen. Die Daten
+    /// verlassen dabei das Gerät, werden aber nicht gespeichert.
+    public var allowPrivateCloudCompute: Bool {
+        didSet {
+            UserDefaults.standard.set(allowPrivateCloudCompute, forKey: Self.privateCloudKey)
+            Task { await refreshModelStatus() }
+        }
+    }
+    static let privateCloudKey = "allowPrivateCloudCompute"
+
+    /// Fakten je Folge, wie sie die Folgenansicht, der Chat und der Export zeigen.
+    public internal(set) var facts: [EpisodeID: [EpisodeFact]] = [:]
+    public internal(set) var factsInProgress: Set<EpisodeID> = []
+    /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
+    /// danach die Grösse neu.
+    public internal(set) var mediaStorageChanged = 0
+    /// Bisherige Antworten, neueste zuerst. Bleiben beim Wechsel zwischen
+    /// Ansichten erhalten.
+    public var chatAnswers: [ChatAnswer] = []
+    /// Wie die Datenbank abgeglichen wird, für die Einstellungen.
+    public var syncDescription = "Nur auf diesem Gerät"
 
     // MARK: - Dienste
 
@@ -90,6 +115,7 @@ public final class AppModel {
         // Voreingestellt an: ohne vorbereitete Folgen bleibt „Für dich“ leer,
         // und die App wirkt, als könne sie nichts.
         self.automaticAnalysis = UserDefaults.standard.object(forKey: Self.automaticAnalysisKey) as? Bool ?? true
+        self.allowPrivateCloudCompute = UserDefaults.standard.object(forKey: Self.privateCloudKey) as? Bool ?? true
         self.deviceID = deviceID
         self.policy = PlaybackPolicy(deviceID: deviceID)
         let locator = LocalMediaLocator()
@@ -111,13 +137,13 @@ public final class AppModel {
     ///
     /// `PlaybackCoordinator.state` ist keine beobachtbare Eigenschaft — eine
     /// SwiftUI-Ansicht, die sie liest, aktualisiert sich nicht. Deshalb hier.
-    public private(set) var playerState: PlaybackState = .idle
+    public internal(set) var playerState: PlaybackState = .idle
     /// Position innerhalb des laufenden Abschnitts, für die Fortschrittsanzeige.
-    public private(set) var playerPosition: MediaTime = .zero
+    public internal(set) var playerPosition: MediaTime = .zero
     /// Der laufende Plan, gespiegelt. Ansichten lesen ihn hier, nicht am
     /// Koordinator — sonst zeigen sie beim Start nichts und beim Ende noch
     /// immer den alten Plan.
-    public private(set) var playerPlan: ValidatedPlaybackPlan?
+    public internal(set) var playerPlan: ValidatedPlaybackPlan?
     /// Die Abschlusskarte, sofern eine ansteht.
     ///
     /// `SessionClosureSheet` und `SessionBoundaryPolicy` waren beide
@@ -142,6 +168,8 @@ public final class AppModel {
     // MARK: - Laden
 
     public func load() async {
+        // Nach einem iCloud-Abgleich können Datensätze doppelt vorliegen.
+        try? await store.removeDuplicates()
         do {
             sources = try await store.sources()
             profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
@@ -152,10 +180,23 @@ public final class AppModel {
             editions = try await store.editions()
             highlights = try await store.highlights()
             trails = try await store.trails()
-            modelStatus = await ModelStatusProbe.current()
+            modelStatus = ModelStatusProbe.current(allowPrivateCloud: allowPrivateCloudCompute)
             // Was schon erschlossen ist, steht in der Datenbank. Ohne diesen
             // Abgleich sah nach jedem Start alles unbearbeitet aus.
             analyzedEpisodes = try await store.analyzedEpisodeIDs()
+            if upNext.isEmpty, let saved = UserDefaults.standard.stringArray(forKey: "upNextEpisodeIDs"),
+               !saved.isEmpty {
+                let found = try await store.episodes(ids: saved.map(EpisodeID.init(rawValue:)))
+                let byID = Dictionary(found.map { ($0.id.rawValue, $0) }, uniquingKeysWith: { a, _ in a })
+                upNext = saved.compactMap { byID[$0] }
+            }
+            // Alle Folgen im Speicher halten: Chat, Warteschlange und das
+            // Vorbereiten brauchen sie, nicht nur die gerade geöffnete Liste.
+            for source in sources {
+                let list = try await store.episodes(forSource: source.id)
+                episodes[source.id] = list
+                RemoteMediaRegistry.shared.register(list)
+            }
             for id in analyzedEpisodes where stages[id] == nil {
                 stages[id] = .evidenceExtracted
             }
@@ -277,15 +318,16 @@ public final class AppModel {
 
     // MARK: - Folgen erschliessen
 
-    public private(set) var episodes: [SourceID: [Episode]] = [:]
+    public internal(set) var episodes: [SourceID: [Episode]] = [:]
     /// Welche Folge gerade in welcher Stufe steckt. Die Oberfläche zeigt
     /// damit an, wo die Arbeit steht — statt einer Anzeige ohne Aussage.
-    public private(set) var stages: [EpisodeID: ProcessingStage] = [:]
-    public private(set) var stageDetails: [EpisodeID: String] = [:]
+    public internal(set) var stages: [EpisodeID: ProcessingStage] = [:]
+    public internal(set) var stageDetails: [EpisodeID: String] = [:]
 
     public func loadEpisodes(for sourceID: SourceID) async {
         do {
             episodes[sourceID] = try await store.episodes(forSource: sourceID)
+            RemoteMediaRegistry.shared.register(episodes[sourceID] ?? [])
             await prepareNewEpisodes(in: sourceID)
         } catch {
             lastError = UserFacingError.describe(error)
@@ -412,6 +454,8 @@ public final class AppModel {
             analyzedEpisodes.insert(episode.id)
             automaticallyQueued.remove(episode.id)
             await refreshRelevantToday()
+            // Fakten gleich mit ermitteln, solange die Folge frisch ist.
+            await prepareFacts(for: episode)
             return false
         } catch {
             if UserFacingError.isTransient(error) {
@@ -703,66 +747,6 @@ public final class AppModel {
     /// mehr angefasst: läuft parallel ein Refresh, ändert das nichts an der
     /// laufenden Antwort. Sonst könnte eine Antwort Belege zitieren, die
     /// beim Lesen schon andere sind.
-    public func ask(_ question: String, scope: ChatScope) async -> ChatAnswer {
-        activity = "Antwort wird gesucht …"
-        defer { activity = nil }
-
-        let evidence = (try? await store.evidenceForAnalyzedEpisodes()) ?? []
-        let snapshot = ChatScopeSnapshot(
-            scope: scope,
-            evidence: evidence,
-            coverage: evidence.isEmpty ? .none : .partial(fraction: 0.5, analyzed: IntervalSet())
-        )
-        let caveat = CoverageAdvisor.caveat(
-            for: snapshot,
-            questionSuggestsExhaustive: CoverageAdvisor.suggestsExhaustive(question)
-        )
-
-        guard !evidence.isEmpty else {
-            return ChatAnswer(
-                question: question, scope: scope,
-                text: "Dazu ist noch nichts erschlossen. Nimm eine Quelle auf und lass "
-                    + "eine Folge analysieren — danach kann ich mit Belegen antworten.",
-                citations: [], coverageCaveat: caveat
-            )
-        }
-
-        // Vorauswahl über die Stichworte der Frage, damit das Modell eine
-        // überschaubare Kandidatenliste bekommt.
-        let asInterest = Interest(label: question, kind: .openQuestion)
-        let matches = RelevanceScorer(threshold: 0.15, maximumPerInterest: 12)
-            .score(evidence: evidence, profile: InterestProfile(interests: [asInterest]))
-
-        let byID = Dictionary(uniqueKeysWithValues: evidence.map { ($0.id, $0) })
-        let citations = matches.compactMap { byID[$0.evidenceID] }
-
-        guard !citations.isEmpty else {
-            return ChatAnswer(
-                question: question, scope: scope,
-                text: "Dazu finde ich im gewählten Bereich keine belegte Stelle.",
-                citations: [], coverageCaveat: caveat
-            )
-        }
-
-        // **Hier wird das Modell tatsächlich gefragt.**
-        //
-        // Bis hierher endete die Antwort bei einer Zählung („Dazu gibt es
-        // vier belegte Stellen“). Der Kommentar oben sprach vom Modell, das
-        // Modell kam nie vor.
-        //
-        // `extractClaims` gibt Aussagen zurück, die **jeweils die Kennung
-        // des Belegs tragen**, aus dem sie stammen — eine Aussage ohne
-        // Beleg fällt schon dort heraus (`isWellFormed`). Damit gibt es
-        // keinen Weg, dass Modelltext ohne Herkunft in die Antwort gerät:
-        // die Antwort besteht aus Aussagen, nicht aus freiem Text.
-        let text = await answerText(from: citations, fallbackCount: citations.count)
-
-        return ChatAnswer(
-            question: question, scope: scope, text: text,
-            citations: citations, coverageCaveat: caveat
-        )
-    }
-
     /// Baut einen Planungskontext, der Folgen und Quellen kennt.
     ///
     /// Ohne die Folgen liefe der Planer auf Platzhaltertiteln („Folge“,
@@ -772,38 +756,6 @@ public final class AppModel {
             ids: Array(Set(evidence.map(\.episodeID))))) ?? []
         return SnapshotPlanningContext(
             evidence: evidence, episodes: episodes, sources: sources)
-    }
-
-    /// Formuliert die Antwort — mit Modell, wenn eines verfügbar ist.
-    ///
-    /// Ohne Modell wird nicht so getan, als gäbe es eines: dann steht dort
-    /// die Zählung und der Grund. Eine erfundene Zusammenfassung wäre genau
-    /// das, wogegen die ganze Belegkette gebaut ist.
-    private func answerText(from citations: [Evidence], fallbackCount: Int) async -> String {
-        let counted = fallbackCount == 1
-            ? "Dazu gibt es eine belegte Stelle."
-            : "Dazu gibt es \(fallbackCount) belegte Stellen."
-
-        do {
-            let claims = try await KnowledgeExtractor()
-                .extractClaims(from: citations, availability: modelStatus)
-            guard !claims.isEmpty else { return counted }
-
-            // Jede Zeile ist eine Aussage mit Beleg. Die offene Frage wird
-            // als solche ausgewiesen, nicht als Erkenntnis verkauft.
-            var lines = claims.prefix(5).map { "• \($0.statement)" }
-            if let question = claims.compactMap(\.openQuestion).first {
-                lines.append("\nOffen dabei: \(question)")
-            }
-            return lines.joined(separator: "\n")
-        } catch let error as ExtractorError {
-            // Warum es keine Formulierung gibt, steht in der Antwort — nicht
-            // im Log. Der Nutzer soll den Unterschied sehen zwischen „nichts
-            // gefunden“ und „kein Modell verfügbar“.
-            return counted + "\n\n" + (error.errorDescription ?? "Kein Modell verfügbar.")
-        } catch {
-            return counted
-        }
     }
 
     /// Macht aus einer Antwort eine Hörsession.
@@ -1110,7 +1062,7 @@ public final class AppModel {
     public func playEpisode(_ episode: Episode, at seconds: Double? = nil) {
         if playerPlan != nil { stopPlayback() }
         let start = seconds ?? resumePosition(for: episode)
-        let local = episode.streamMediaVersionID.flatMap { LocalMediaLocator().playbackURL(for: $0) }
+        let local = episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) }
         episodePlayer.play(episode, at: start, localFile: local)
         upNext.removeAll { $0.id == episode.id }
         Task { await loadChapters(for: episode) }
@@ -1138,6 +1090,12 @@ public final class AppModel {
     /// Folge hier noch nie gespielt, hilft der Hörzustand weiter, sofern er
     /// am Anfang ansetzt.
     public func resumePosition(for episode: Episode) -> Double {
+        // Zuerst der Hörzustand: er kommt über iCloud auch von den anderen Geräten.
+        if let id = episode.streamMediaVersionID, let resume = ledger.state(for: id).resumePosition {
+            let seconds = resume.seconds
+            let total = episode.declaredDuration?.seconds ?? 0
+            return total > 0 && seconds > total - 15 ? 0 : seconds
+        }
         if let saved = episodePlayer.savedPosition(for: episode.id) { return saved }
         guard let id = episode.streamMediaVersionID else { return 0 }
         let heard = ledger.heard(in: id)
@@ -1187,7 +1145,7 @@ public final class AppModel {
         if episodePlayer.episode?.id == episode.id { episodePlayer.setChapters(chapters) }
     }
 
-    public private(set) var chapterCache: [EpisodeID: [Chapter]] = [:]
+    public internal(set) var chapterCache: [EpisodeID: [Chapter]] = [:]
 
     public func evidence(forEpisode episodeID: EpisodeID) async -> [Evidence] {
         (try? await store.evidence(forEpisode: episodeID)) ?? []

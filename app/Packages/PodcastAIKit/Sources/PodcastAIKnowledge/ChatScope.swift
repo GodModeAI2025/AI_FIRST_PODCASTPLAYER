@@ -73,14 +73,20 @@ public struct ChatAnswer: Sendable, Identifiable {
     /// Wenn der Scope keine Vollständigkeitsaussage trägt, steht hier, warum.
     public let coverageCaveat: String?
     public let answeredAt: Date
+    /// Wo die Antwort formuliert wurde, etwa „Private Cloud Compute“.
+    public let modelLabel: String?
+    /// Verweisnummern im Text wie [3] → Beleg.
+    public let citationNumbers: [Int: EvidenceID]
 
     public init(
         id: UUID = UUID(), question: String, scope: ChatScope, text: String,
-        citations: [Evidence], coverageCaveat: String? = nil, answeredAt: Date = Date()
+        citations: [Evidence], coverageCaveat: String? = nil, answeredAt: Date = Date(),
+        modelLabel: String? = nil, citationNumbers: [Int: EvidenceID] = [:]
     ) {
         self.id = id; self.question = question; self.scope = scope; self.text = text
         self.citations = citations; self.coverageCaveat = coverageCaveat
-        self.answeredAt = answeredAt
+        self.answeredAt = answeredAt; self.modelLabel = modelLabel
+        self.citationNumbers = citationNumbers
     }
 
     /// Die belegten Stellen, die abgespielt werden können.

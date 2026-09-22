@@ -32,19 +32,10 @@ struct PodcastAIApp: App {
     init() {
         let model: AppModel
         var failure: String?
-        do {
-            // UI-Tests starten mit leerem Speicher, damit Quellen aus einem
-            // früheren Test nicht mitzählen.
-            let fresh = ProcessInfo.processInfo.arguments.contains("-uitest-fresh")
-            let container = try LibraryStore.makeContainer(inMemory: fresh)
-            model = AppModel(store: LibraryStore.make(container: container))
-        } catch {
-            // Der Speicher wird nicht stillschweigend durch einen flüchtigen
-            // ersetzt: das sähe aus, als seien die Daten weg.
-            let container = try! LibraryStore.makeContainer(inMemory: true)
-            model = AppModel(store: LibraryStore.make(container: container))
-            failure = error.localizedDescription
-        }
+        let opened = AppBootstrap.openStore()
+        model = AppModel(store: LibraryStore.make(container: opened.container))
+        model.syncDescription = opened.description
+        failure = opened.failure
         _model = State(initialValue: model)
         _startupError = State(initialValue: failure)
         // Hier und nicht in `.task`: Intent-Abhängigkeit, Audiositzung und
@@ -58,6 +49,7 @@ struct PodcastAIApp: App {
                 .environment(model)
                 .task {
                     await model.load()
+                    model.observeRemoteChanges()
                     background.scheduleRefresh()
                 }
                 .alert("Der Speicher konnte nicht geöffnet werden",
@@ -79,6 +71,7 @@ struct RootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: Area = .forYou
     @State private var showingQueue = false
+    @State private var showingOnboarding = OnboardingView.shouldShow
 
     /// Nicht `Tab` genannt: das verdeckte `SwiftUI.Tab` im eigenen
     /// Gültigkeitsbereich, und die Aufrufe darunter hätten versucht, das
@@ -135,6 +128,9 @@ struct RootView: View {
             .environment(model)
         }
         .autoRefresh()
+        .sheet(isPresented: $showingOnboarding) {
+            OnboardingView().environment(model)
+        }
     }
 }
 

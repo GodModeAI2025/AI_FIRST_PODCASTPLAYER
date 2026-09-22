@@ -350,10 +350,45 @@ public struct LocalMediaLocator: MediaLocating {
 
     public init() {}
 
+    /// Die geladene Datei, sonst die Adresse beim Anbieter. So lassen sich
+    /// Stellen auch nach „Audio entfernen“ weiter anhören, dann gestreamt.
     public func playbackURL(for mediaVersionID: MediaVersionID) -> URL? {
-        let base = Self.mediaDirectory
-        let candidate = base.appendingPathComponent(mediaVersionID.rawValue)
+        localFile(for: mediaVersionID) ?? RemoteMediaRegistry.shared.url(for: mediaVersionID)
+    }
+
+    public func localFile(for mediaVersionID: MediaVersionID) -> URL? {
+        let candidate = Self.mediaDirectory.appendingPathComponent(mediaVersionID.rawValue)
         return FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
+    }
+
+    /// Belegter Speicher aller geladenen Audiodateien in Byte.
+    public static func storedBytes() -> Int64 {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: mediaDirectory, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey])) ?? []
+        return files.reduce(0) { total, url in
+            let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+            guard values?.isRegularFile == true else { return total }
+            return total + Int64(values?.fileSize ?? 0)
+        }
+    }
+
+    /// Löscht die Audiodateien der genannten Fassungen.
+    public static func removeFiles(for ids: [MediaVersionID]) {
+        for id in ids {
+            try? FileManager.default.removeItem(at: mediaDirectory.appendingPathComponent(id.rawValue))
+        }
+    }
+
+    /// Löscht alle geladenen Audiodateien und gibt ihre Fassungen zurück.
+    public static func removeAllFiles() -> [MediaVersionID] {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: mediaDirectory, includingPropertiesForKeys: [.isRegularFileKey])) ?? []
+        var removed: [MediaVersionID] = []
+        for url in files where (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
+            try? FileManager.default.removeItem(at: url)
+            removed.append(MediaVersionID(rawValue: url.lastPathComponent))
+        }
+        return removed
     }
 
     public static var mediaDirectory: URL {
@@ -365,44 +400,35 @@ public struct LocalMediaLocator: MediaLocating {
     }
 }
 
+/// Merkt sich, unter welcher Adresse eine Fassung beim Anbieter liegt.
+/// Die Fassungskennung ist ein Hash der Adresse und lässt sich nicht
+/// zurückrechnen; deshalb trägt die App beim Laden der Folgen hier ein.
+public final class RemoteMediaRegistry: @unchecked Sendable {
+    public static let shared = RemoteMediaRegistry()
+    private let lock = NSLock()
+    private var urls: [MediaVersionID: URL] = [:]
+
+    public func register(_ episodes: [Episode]) {
+        lock.lock(); defer { lock.unlock() }
+        for episode in episodes {
+            guard let audio = episode.audioURL else { continue }
+            urls[MediaVersionID(stable: audio.absoluteString)] = audio
+            if let current = episode.currentMediaVersionID { urls[current] = audio }
+        }
+    }
+
+    public func url(for id: MediaVersionID) -> URL? {
+        lock.lock(); defer { lock.unlock() }
+        return urls[id]
+    }
+}
+
 // MARK: - Modellzustand
 
 public enum ModelStatusProbe {
 
-    /// Fragt den tatsächlichen Zustand ab.
-    ///
-    /// PCC wird hier bewusst als nicht verfügbar gemeldet, solange kein
-    /// Entitlement für dieses Entwicklerkonto vorliegt. Das ist ein offener
-    /// Nachweis aus dem Plan (GATE-PCC) und keine Stelle, an der man
-    /// optimistisch raten sollte.
-    public static func current() async -> ModelStatus {
-        #if canImport(FoundationModels)
-        let onDevice: ModelAvailability = await checkOnDevice()
-        #else
-        let onDevice: ModelAvailability = .unavailable(.deviceNotEligible)
-        #endif
-        return ModelStatus(
-            onDevice: onDevice,
-            privateCloudCompute: .unavailable(.entitlementMissing)
-        )
+    /// Der tatsächliche Zustand von Gerätemodell und Private Cloud Compute.
+    public static func current(allowPrivateCloud: Bool) -> ModelStatus {
+        KnowledgeExtractor.currentStatus(allowPrivateCloud: allowPrivateCloud)
     }
-
-    #if canImport(FoundationModels)
-    private static func checkOnDevice() async -> ModelAvailability {
-        let model = SystemLanguageModel.default
-        switch model.availability {
-        case .available:
-            return .available
-        case .unavailable(let reason):
-            return switch reason {
-            case .deviceNotEligible: .unavailable(.deviceNotEligible)
-            case .appleIntelligenceNotEnabled: .unavailable(.appleIntelligenceDisabled)
-            case .modelNotReady: .unavailable(.modelNotReady)
-            @unknown default: .unavailable(.unknown("unbekannter Grund"))
-            }
-        @unknown default:
-            return .unavailable(.unknown("unbekannter Zustand"))
-        }
-    }
-    #endif
 }
