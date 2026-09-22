@@ -123,7 +123,7 @@ struct ScopeBar: View {
             }
         }
 
-        func scope(_ model: AppModel) -> ChatScope {
+        @MainActor func scope(_ model: AppModel) -> ChatScope {
             switch self {
             case .allAnalyzed: .allAnalyzed
             case .currentEpisode:

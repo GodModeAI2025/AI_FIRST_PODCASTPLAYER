@@ -40,6 +40,8 @@ struct PodcastAIMacApp: App {
                         .environment(model)
                 }
                 .appFeedback()
+                // Zuletzt, damit auch appFeedback das Modell sieht.
+                .environment(model)
         }
         .commands {
             CommandGroup(after: .newItem) {

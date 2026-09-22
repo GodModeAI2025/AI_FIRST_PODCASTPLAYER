@@ -62,12 +62,16 @@ public final class SpotlightIndex {
             let attributes = CSSearchableItemAttributeSet(contentType: .text)
             attributes.title = highlight.note ?? "Gemerkte Stelle"
             // Der Originaltext, gekürzt. Der Systemindex ist kein Archiv.
-            attributes.contentDescription = String(item.quotedText.prefix(300))
-            attributes.contentCreationDate = highlight.capturedAt
+            // Die Zeitmarke steht vorn, weil das Attributset keine Start-
+            // und Endzeit für Textelemente kennt.
+            let quote = String(item.quotedText.prefix(300))
             if let range = item.range {
-                attributes.startTime = NSNumber(value: range.start.seconds)
-                attributes.endTime = NSNumber(value: range.end.seconds)
+                attributes.contentDescription = "\(range.start.timecode)–\(range.end.timecode) · \(quote)"
+                attributes.duration = NSNumber(value: range.end.seconds - range.start.seconds)
+            } else {
+                attributes.contentDescription = quote
             }
+            attributes.contentCreationDate = highlight.capturedAt
             return CSSearchableItem(
                 uniqueIdentifier: highlight.id.rawValue,
                 domainIdentifier: Self.domain,

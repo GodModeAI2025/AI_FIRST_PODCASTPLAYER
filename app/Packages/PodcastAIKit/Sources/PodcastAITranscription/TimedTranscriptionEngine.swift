@@ -25,6 +25,7 @@ import Foundation
 import AVFoundation
 import Speech
 import PodcastAICore
+import PodcastAIMedia
 
 /// Ein finalisiertes Analyseergebnis mit Bezug auf die Medienzeit.
 public struct TimedTranscriptionResult: Sendable, Equatable {

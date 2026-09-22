@@ -33,13 +33,15 @@ public enum FeedDateParser {
         return formatter
     }
 
-    private static let iso8601WithFractional: ISO8601DateFormatter = {
+    // ISO8601DateFormatter ist laut Apple threadsicher, aber nicht als
+    // Sendable markiert. Die Instanzen werden nach dem Aufbau nur gelesen.
+    nonisolated(unsafe) private static let iso8601WithFractional: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
 
-    private static let iso8601: ISO8601DateFormatter = {
+    nonisolated(unsafe) private static let iso8601: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter

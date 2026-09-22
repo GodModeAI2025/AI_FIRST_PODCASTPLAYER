@@ -83,7 +83,7 @@ public struct PlanSegment: Hashable, Codable, Sendable, Identifiable {
 /// Warum eine vorgeschlagene Fundstelle nicht in den Plan gelangt ist.
 /// Wird dem Nutzer angezeigt — ein stillschweigend gekürzter Plan wäre eine
 /// falsche Vollständigkeitsaussage.
-public enum PlanExclusion: Hashable, Codable, Sendable {
+public enum PlanExclusion: Error, Hashable, Codable, Sendable {
     case unknownEvidence(EvidenceID)
     case outOfScope(EvidenceID)
     case noTimingAvailable(EvidenceID)

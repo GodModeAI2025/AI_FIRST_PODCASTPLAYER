@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
@@ -39,7 +39,7 @@ let package = Package(
         .target(name: "PodcastAIKnowledge", dependencies: ["PodcastAICore", "PodcastAIIntelligence"]),
 
         // Wiedergabe: FocusPlanner, PlaybackPolicy, PlaybackCoordinator.
-        .target(name: "PodcastAIPlayback", dependencies: ["PodcastAICore", "PodcastAIKnowledge"]),
+        .target(name: "PodcastAIPlayback", dependencies: ["PodcastAICore", "PodcastAIKnowledge", "PodcastAIMedia"]),
 
         // Persönliche Themenfeeds.
         .target(name: "PodcastAISmartFeeds", dependencies: ["PodcastAICore", "PodcastAIKnowledge", "PodcastAIPlayback"]),
@@ -54,6 +54,6 @@ let package = Package(
             "PodcastAISmartFeeds", "PodcastAIExport", "PodcastAIPersistence",
         ]),
 
-        .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit"]),
+        .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit", "PodcastAIExport"]),
     ]
 )

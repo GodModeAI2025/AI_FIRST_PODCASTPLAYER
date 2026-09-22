@@ -8,6 +8,7 @@
 import Testing
 import Foundation
 @testable import PodcastAIKit
+@testable import PodcastAIExport
 
 // MARK: - Fokusplanung
 

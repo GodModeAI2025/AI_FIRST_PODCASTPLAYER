@@ -69,6 +69,19 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIMac/PodcastAIMac.entitlements
 
+  PodcastAIUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: PodcastAI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.podcastai.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: PodcastAI
+
   PodcastAIKitTests:
     type: bundle.unit-test
     platform: macOS
@@ -84,8 +97,11 @@ targets:
 schemes:
   PodcastAI:
     build:
-      targets: { PodcastAI: all }
+      targets: { PodcastAI: all, PodcastAIUITests: [test] }
     run: { config: Debug }
+    test:
+      config: Debug
+      targets: [PodcastAIUITests]
     archive: { config: Release }
 
   PodcastAIMac:

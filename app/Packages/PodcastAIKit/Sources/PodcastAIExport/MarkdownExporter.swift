@@ -209,8 +209,13 @@ public struct MarkdownExporter: Sendable {
 
     /// Für mehrzeiligen Text: Umbrüche bleiben, Sonderzeichen werden entschärft.
     static func escapeBlock(_ text: String) -> String {
-        text.components(separatedBy: .newlines)
-            .map { escapeSpecials($0) }
+        // Nur echte Zeilenenden trennen. `.newlines` enthielte auch
+        // vertikalen Tabulator und Formfeed, die sonst als Umbruch im
+        // Export landen statt als Leerzeichen.
+        text.replacingOccurrences(of: "\r\n", with: "\n")
+            .split(omittingEmptySubsequences: false,
+                   whereSeparator: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" })
+            .map { escapeSpecials(String($0)) }
             .joined(separator: "\n")
     }
 

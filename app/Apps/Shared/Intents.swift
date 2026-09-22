@@ -73,8 +73,7 @@ struct PlaySmartFeedIntent: AppIntent {
 
     static let title: LocalizedStringResource = "Themen-Update abspielen"
     static let description = IntentDescription(
-        "Spielt die neueste Ausgabe eines Themen-Updates ab — die Originalstellen "
-        + "aus deinen Quellen, die du noch nicht gehört hast."
+        "Spielt die neueste Ausgabe eines Themen-Updates ab — die Originalstellen aus deinen Quellen, die du noch nicht gehört hast."
     )
     /// Die App kommt nach vorn: Wiedergabe ist etwas, das man sehen soll.
     static let openAppWhenRun = true
@@ -110,8 +109,7 @@ struct PlaySmartFeedIntent: AppIntent {
         // Über dieselbe Policy wie ein Fingertipp — kein Sonderweg.
         model.play(plan, from: .intent)
 
-        return .result(dialog: "\(edition.title): \(edition.segments.count) Stellen aus "
-                       + "\(edition.distinctSourceCount) Quellen.")
+        return .result(dialog: "\(edition.title): \(edition.segments.count) Stellen aus \(edition.distinctSourceCount) Quellen.")
     }
 }
 
@@ -120,8 +118,7 @@ struct BuildEditionIntent: AppIntent {
 
     static let title: LocalizedStringResource = "Themen-Update erstellen"
     static let description = IntentDescription(
-        "Stellt aus deinen ungehörten Originalstellen eine neue Ausgabe zusammen. "
-        + "Startet keine Wiedergabe."
+        "Stellt aus deinen ungehörten Originalstellen eine neue Ausgabe zusammen. Startet keine Wiedergabe."
     )
     /// Ausdrücklich nicht: die App nach vorn holen. Zusammenstellen ist
     /// Vorbereitung, und Vorbereitung darf im Hintergrund passieren.

@@ -32,7 +32,7 @@ public enum ModelTier: String, Sendable, CaseIterable {
 
 /// Warum eine Stufe nicht zur Verfügung steht. Wird dem Nutzer wörtlich
 /// angezeigt — „nicht verfügbar“ ohne Grund ist keine Antwort.
-public enum ModelUnavailability: Sendable, Equatable {
+public enum ModelUnavailability: Error, Sendable, Equatable {
     case deviceNotEligible
     case appleIntelligenceDisabled
     case modelNotReady

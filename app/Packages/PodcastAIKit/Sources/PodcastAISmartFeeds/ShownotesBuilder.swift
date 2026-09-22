@@ -51,7 +51,7 @@ public struct ShownotesBuilder: Sendable {
     public func markdown(for episode: PersonalEpisode) -> String {
         var lines: [String] = []
         lines.append("## \(episode.title)")
-        if let subtitle = episode.subtitle { lines.append("", subtitle) }
+        if let subtitle = episode.subtitle { lines.append(contentsOf: ["", subtitle]) }
 
         lines.append("")
         lines.append(episode.coverage.label)

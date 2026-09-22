@@ -742,10 +742,17 @@ public final class AppModel {
         let episodes = (try? await store.episodes(
             ids: Array(Set(found.values.map(\.episodeID))))) ?? []
 
-        let episodeTitles = Dictionary(
+        let titleByEpisode = Dictionary(
             episodes.map { ($0.id, $0.title) }, uniquingKeysWith: { first, _ in first })
-        let sourceTitles = Dictionary(
+        let titleBySource = Dictionary(
             sources.map { ($0.id, $0.title) }, uniquingKeysWith: { first, _ in first })
+        // Der Exporter schlägt Titel je Beleg nach, nicht je Quelle.
+        var episodeTitles: [EvidenceID: String] = [:]
+        var sourceTitles: [EvidenceID: String] = [:]
+        for evidence in found.values {
+            episodeTitles[evidence.id] = titleByEpisode[evidence.episodeID]
+            sourceTitles[evidence.id] = titleBySource[evidence.sourceID]
+        }
 
         let exporter = MarkdownExporter()
         return highlights.compactMap { highlight -> String? in
@@ -966,7 +973,7 @@ extension AppModel: PlaybackObserver {
         ).post()
     }
 
-    static func currentDeviceID() -> String {
+    public static func currentDeviceID() -> String {
         // Stabil je Installation, ohne Gerätekennung zu erheben.
         let key = "com.podcastai.deviceID"
         if let existing = UserDefaults.standard.string(forKey: key) { return existing }

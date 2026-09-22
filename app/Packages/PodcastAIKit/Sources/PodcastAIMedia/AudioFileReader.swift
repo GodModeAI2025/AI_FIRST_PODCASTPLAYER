@@ -16,6 +16,7 @@
 #if canImport(AVFoundation)
 import Foundation
 import AVFoundation
+import PodcastAICore
 
 public enum AudioFileReader {
 
@@ -129,7 +130,7 @@ public enum AudioFileReader {
                     let frame = AVAudioFramePosition(
                         (Double(offset.milliseconds) / 1000) * opened.processingFormat.sampleRate
                     )
-                    opened.framePosition = min(max(0, frame), opened.length)
+                    opened.framePosition = Swift.min(Swift.max(0, frame), opened.length)
                 }
                 file = opened
                 return opened

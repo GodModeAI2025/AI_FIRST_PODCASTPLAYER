@@ -124,7 +124,7 @@ public final class MCPServer {
                 return encode(failure: .invalidParams,
                               message: "`query` fehlt oder ist leer.", id: id)
             }
-            let limit = clampedLimit(arguments["limit"])
+            let limit = Self.clampedLimit(arguments["limit"])
             return encode(content: await access.searchEvidence(query, limit: limit), id: id)
 
         case .getEvidence:
@@ -142,11 +142,11 @@ public final class MCPServer {
             return encode(content: summary, id: id)
 
         case .listHighlights:
-            return encode(content: await access.listHighlights(limit: clampedLimit(arguments["limit"])),
+            return encode(content: await access.listHighlights(limit: Self.clampedLimit(arguments["limit"])),
                           id: id)
 
         case .listTrails:
-            return encode(content: await access.listTrails(limit: clampedLimit(arguments["limit"])),
+            return encode(content: await access.listTrails(limit: Self.clampedLimit(arguments["limit"])),
                           id: id)
         }
     }

@@ -64,6 +64,8 @@ struct PodcastAIApp: App {
                     Text(startupError ?? "")
                 }
                 .appFeedback()
+                // Zuletzt, damit auch appFeedback und die Alerts das Modell sehen.
+                .environment(model)
         }
     }
 }
@@ -104,7 +106,7 @@ struct RootView: View {
         // Er sitzt damit auf derselben Ebene wie die Navigation, statt eine
         // zweite Leiste darüber zu stapeln — und das System kümmert sich um
         // das Material, statt dass die App Glas auf Glas legt.
-        .tabViewBottomAccessory { MiniPlayerAccessory() }
+        .miniPlayerAccessory(isVisible: !(model.playerPlan?.isEmpty ?? true))
         .tabBarMinimizeBehavior(.onScrollDown)
         .animation(
             Design.Motion.respectingReduceMotion(Design.Motion.snappy,
@@ -112,6 +114,28 @@ struct RootView: View {
             value: model.playerPlan?.id
         )
         .overlay(alignment: .top) { ActivityBanner() }
+    }
+}
+
+/// Blendet die Zubehörleiste nur ein, wenn etwas läuft. Ohne `isEnabled`
+/// (vor iOS 26.1) bliebe eine leere Glasleiste über der Tab Bar stehen.
+private struct MiniPlayerAccessoryModifier: ViewModifier {
+    let isVisible: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: isVisible) { MiniPlayerAccessory() }
+        } else if isVisible {
+            content.tabViewBottomAccessory { MiniPlayerAccessory() }
+        } else {
+            content
+        }
+    }
+}
+
+private extension View {
+    func miniPlayerAccessory(isVisible: Bool) -> some View {
+        modifier(MiniPlayerAccessoryModifier(isVisible: isVisible))
     }
 }
 
