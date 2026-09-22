@@ -696,8 +696,9 @@ struct EpisodePlayerView: View {
     }
 
     private var sleepLabel: String {
-        if let deadline = player.sleepDeadline {
-            let minutes = max(1, Int(deadline.timeIntervalSinceNow / 60 + 0.5))
+        // Die Restzeit steht auch in der Pause still, genau wie der Timer.
+        if case .minutes = player.sleepTimer, let remaining = player.sleepRemaining {
+            let minutes = max(1, Int(remaining / 60 + 0.5))
             return "\(minutes) Min"
         }
         return player.sleepTimer?.label ?? "Schlaf-Timer"
