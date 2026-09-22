@@ -228,8 +228,24 @@ public struct LocalMediaLocator: MediaLocating {
     public static var mediaDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        let directory = base.appendingPathComponent("PodcastAI/Media", isDirectory: true)
+        var directory = base.appendingPathComponent("PodcastAI/Media", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        // **Nicht ins Backup.** Ohne diese Zeile wandert jede
+        // heruntergeladene Folge ins iCloud-Backup des Nutzers — bei bis zu
+        // 2 GB je Datei. Apples Data Storage Guidelines verlangen
+        // ausdrücklich, dass nachladbare Inhalte ausgenommen werden; es ist
+        // ein bekannter Ablehnungsgrund im App Review.
+        //
+        // Gesetzt wird das Merkmal am **Ordner**: es vererbt sich auf alles
+        // darin, auch auf Dateien, die es noch nicht gibt. Es je Datei zu
+        // setzen hiesse, es irgendwann bei einer zu vergessen.
+        if (try? directory.resourceValues(forKeys: [.isExcludedFromBackupKey]))?
+            .isExcludedFromBackup != true {
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? directory.setResourceValues(values)
+        }
         return directory
     }
 }

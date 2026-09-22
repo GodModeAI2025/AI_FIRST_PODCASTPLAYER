@@ -117,6 +117,25 @@ public final class AppModel {
         await refreshRelevantToday()
     }
 
+    /// Lässt eine Meldung stehen und räumt sie danach weg.
+    ///
+    /// Mit Marke, nicht blind: läuft inzwischen ein anderer Vorgang und hat
+    /// eine neue Meldung gesetzt, darf dieser Aufruf sie nicht löschen. Das
+    /// war Befund 7 — eine einzige Zeichenkette für die ganze App, und wer
+    /// zuerst fertig wird, räumt dem anderen die Anzeige ab.
+    func clearActivity(after delay: Duration) {
+        activityToken &+= 1
+        let mine = activityToken
+        Task {
+            try? await Task.sleep(for: delay)
+            guard activityToken == mine else { return }
+            activity = nil
+        }
+    }
+
+    /// Zählt hoch, sobald jemand die Meldung ändert.
+    private var activityToken = 0
+
     /// Stellt „Für dich“ zusammen.
     ///
     /// Diese Methode fehlte. `relevantToday` war deklariert, wurde gelesen
@@ -185,27 +204,33 @@ public final class AppModel {
     /// verarbeitet wird, entscheidet der Nutzer danach.
     public func addSource(from input: String) async {
         activity = "Link wird geprüft …"
-        defer { activity = nil }
+        // Kein `defer { activity = nil }`: es liefe beim Verlassen der
+        // Funktion und damit **nach** der Erfolgsmeldung. Die wurde gesetzt
+        // und sofort wieder gelöscht — der Nutzer sah den Spinner und
+        // danach nichts. Jeder Ausgang setzt die Meldung jetzt selbst.
         do {
             let added = try await refresher.addSource(from: input)
             sources = try await store.sources()
             activity = "„\(added.title)“ aufgenommen · \(added.episodeCount) Folgen gefunden"
+            clearActivity(after: .seconds(4))
         } catch {
             lastError = error.localizedDescription
+            activity = nil
         }
     }
 
     public func refreshAll() async {
         activity = "Feeds werden aktualisiert …"
-        defer { activity = nil }
         do {
             let result = try await refresher.refreshAll()
             sources = try await store.sources()
             activity = result.newEpisodes > 0
                 ? "\(result.newEpisodes) neue Folgen"
                 : "Keine neuen Folgen"
+            clearActivity(after: .seconds(4))
         } catch {
             lastError = error.localizedDescription
+            activity = nil
         }
         await refreshRelevantToday()
     }
