@@ -98,8 +98,13 @@ struct EpisodeListView: View {
                             }
                         }
                         Divider()
-                        Button { Task { await model.removeAudio(for: episode) } } label: {
-                            Label("Audio entfernen, Daten behalten", systemImage: "arrow.down.circle.dotted")
+                        // Nur bei geladener Datei. Ohne Datei gäbe es nichts
+                        // zu entfernen, und eine gestreamte Folge würde
+                        // trotzdem angehalten.
+                        if hasLocalAudio(episode) {
+                            Button { Task { await model.removeAudio(for: episode) } } label: {
+                                Label("Audio entfernen, Daten behalten", systemImage: "arrow.down.circle.dotted")
+                            }
                         }
                         Button(role: .destructive) { pendingDelete = episode } label: {
                             Label("Folge löschen", systemImage: "trash")
@@ -133,6 +138,14 @@ struct EpisodeListView: View {
                 )
             }
         }
+    }
+
+    /// Liegt die Audiodatei auf dem Gerät? Liest Speicherzähler und Stufe
+    /// mit, damit das Kontextmenü nach Laden oder Entfernen neu prüft.
+    private func hasLocalAudio(_ episode: Episode) -> Bool {
+        _ = model.mediaStorageChanged
+        _ = model.stages[episode.id]
+        return episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) } != nil
     }
 }
 

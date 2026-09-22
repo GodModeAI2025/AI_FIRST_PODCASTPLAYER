@@ -72,7 +72,11 @@ struct EpisodeDetailView: View {
             case .chapters: chapterList
             case .transcript: TranscriptSection(episode: episode)
             case .facts: factList
-            case .ask: ChatView(scope: .episode(episode.id), fixed: true)
+            case .ask:
+                VStack(spacing: 0) {
+                    askScopeHeader
+                    ChatView(scope: .episode(episode.id), fixed: true)
+                }
             }
         }
         .navigationTitle(episode.title)
@@ -84,7 +88,10 @@ struct EpisodeDetailView: View {
             passages = await model.evidence(forEpisode: episode.id)
             await model.loadFacts(for: episode.id)
         }
-        .task(id: model.mediaStorageChanged) {
+        // Neu prüfen, wenn Audio entfernt wurde und wenn sich die Stufe
+        // ändert: die Erschliessung lädt die Datei, ohne `mediaStorageChanged`
+        // zu erhöhen.
+        .task(id: LocalAudioCheck(storage: model.mediaStorageChanged, stage: model.stages[episode.id])) {
             hasLocalAudio = episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) } != nil
         }
         .task { await model.loadChapters(for: episode) }
@@ -102,6 +109,26 @@ struct EpisodeDetailView: View {
             Text("Transkript, Fakten, Belege, gemerkte Stellen und der Hörstand dieser Folge werden auf "
                  + "allen Geräten gelöscht. Der Feed legt die Folge nicht wieder an.")
         }
+    }
+
+    private struct LocalAudioCheck: Equatable {
+        let storage: Int
+        let stage: ProcessingStage?
+    }
+
+    /// Im Reiter „Fragen“ ist der Bereich fest und die Bereichsauswahl
+    /// fehlt. Diese Zeile sagt, an welche Folge die Fragen gehen.
+    private var askScopeHeader: some View {
+        Label(episode.title, systemImage: "scope")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Design.Spacing.standard)
+            .padding(.bottom, Design.Spacing.small)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Fragen an diese Folge: \(episode.title)")
+            .accessibilityIdentifier("episode.ask.scope")
     }
 
     // MARK: Menü
@@ -425,7 +452,9 @@ struct TranscriptSection: View {
                 withAnimation { proxy.scrollTo(start, anchor: .center) }
             }
         }
-        .task {
+        // Mit der Stufe als Schlüssel: endet die Erschliessung, während der
+        // Reiter offen ist, erscheint das Transkript ohne Umweg.
+        .task(id: model.stages[episode.id]) {
             if let transcript = await model.transcript(for: episode) {
                 paragraphs = EpisodeDossierExporter.paragraphs(transcript.segments, seconds: 30)
             }

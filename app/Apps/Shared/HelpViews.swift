@@ -85,6 +85,9 @@ struct OnboardingView: View {
                 }
             }
         }
+        // Auch Wegwischen zählt als gesehen. Sonst käme die Einführung bei
+        // jedem Start wieder.
+        .onDisappear { UserDefaults.standard.set(true, forKey: Self.seenKey) }
     }
 
     private func step(_ number: Int, _ title: String, _ text: String, symbol: String) -> some View {
