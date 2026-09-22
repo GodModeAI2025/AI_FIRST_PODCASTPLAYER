@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 22. September 2026, Version 0.1.
+Stand 22. September 2026, Version 0.2.
 
 ## Geprüft
 
@@ -10,6 +10,7 @@ Stand 22. September 2026, Version 0.1.
 | Start ohne Absturz | iPhone-Simulator und Mac |
 | Alle fünf Tabs öffnen | UI-Test im Simulator |
 | Feed hinzufügen, Folgen anzeigen | UI-Test mit echtem Feed |
+| MP3-Link, Podigee-Adresse ohne Feed, YouTube-Kanal mit Audio-Podcast, Thema im Themen-Update | UI-Tests mit den Links aus dem TestFlight-Feedback |
 | Folge laden, transkribieren, Belege mit Zeitmarken | Ende-zu-Ende-Test auf dem Mac mit echter englischer Folge |
 | Kernlogik: Intervalle, Hörplan, Relevanz, Export, Freigaben | 36 Swift-Tests im Paket |
 | Upload nach App Store Connect | Build 0.1 (1) für iOS und macOS hochgeladen, interne TestFlight-Gruppe „Intern“ je App |

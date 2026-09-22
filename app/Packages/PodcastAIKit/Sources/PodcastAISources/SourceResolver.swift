@@ -31,6 +31,8 @@ public enum ResolvedLink: Sendable, Equatable {
     case webPageNeedingDiscovery(URL)
     /// Eine lokale Datei.
     case localFile(URL)
+    /// Eine einzelne Audiodatei im Netz, etwa der Download-Link einer Folge.
+    case audioFile(URL)
 
     public var requiresNetworkDiscovery: Bool {
         switch self {
@@ -81,6 +83,7 @@ public struct SourceResolver: Sendable {
         }
 
         if let youTube = try Self.resolveYouTube(url) { return youTube }
+        if Self.looksLikeAudioURL(url) { return .audioFile(url) }
         if Self.looksLikeFeedURL(url) { return .podcastFeed(url) }
         return .webPageNeedingDiscovery(url)
     }
@@ -238,6 +241,15 @@ public struct SourceResolver: Sendable {
 
     /// Reine Formheuristik. Ein Treffer heißt „wahrscheinlich ein Feed“,
     /// kein Treffer heißt nur, dass erst abgerufen werden muss.
+    /// Endet der Pfad auf eine Audio-Endung, ist es eine Folge, kein Feed.
+    /// Die Abfrage nach dem Fragezeichen zählt nicht: Hoster hängen dort
+    /// gern Zähler an (`?source=webplayer-download`).
+    static let audioExtensions: Set<String> = ["mp3", "m4a", "aac", "wav", "ogg", "oga", "opus", "flac", "mp4"]
+
+    public static func looksLikeAudioURL(_ url: URL) -> Bool {
+        audioExtensions.contains(url.pathExtension.lowercased())
+    }
+
     private static func looksLikeFeedURL(_ url: URL) -> Bool {
         let path = url.path.lowercased()
         let suffixes = [".xml", ".rss", ".atom"]

@@ -32,6 +32,30 @@ struct EpisodeListView: View {
                 }
             }
 
+            // Zum YouTube-Kanal gibt es oft denselben Inhalt als Audio-Podcast.
+            // Dessen Folgen lassen sich laden und transkribieren.
+            if let counterparts = model.podcastCounterparts[sourceID], !counterparts.isEmpty {
+                Section {
+                    ForEach(counterparts) { podcast in
+                        Button {
+                            Task { await model.addSource(from: podcast.feedURL.absoluteString) }
+                        } label: {
+                            VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                                Label("\(podcast.title) abonnieren", systemImage: "plus.circle")
+                                Text(podcast.author)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Als Audio-Podcast verfügbar")
+                } footer: {
+                    Text("Der Audio-Podcast liefert die Tonspur, die PodcastAI transkribieren darf. "
+                         + "Das Audio der YouTube-Videos selbst lädt die App nicht.")
+                }
+            }
+
             Section {
                 ForEach(episodes) { episode in
                     EpisodeRow(episode: episode)

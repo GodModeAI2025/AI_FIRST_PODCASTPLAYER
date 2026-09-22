@@ -43,7 +43,7 @@ public enum FeedDiscovery {
             // `channel_id`. Eine öffentliche Playlist hat sie immer.
             return URL(string:
                 "https://www.youtube.com/feeds/videos.xml?playlist_id=\(playlistID)")
-        case .youTubeVideo, .webPageNeedingDiscovery, .localFile:
+        case .youTubeVideo, .webPageNeedingDiscovery, .localFile, .audioFile:
             return nil
         }
     }
@@ -59,7 +59,7 @@ public enum FeedDiscovery {
         // Kanal — und der wird abonniert, nicht das einzelne Video. Das
         // steht auch so in der Oberfläche.
         case .youTubeVideo(_, let watchURL, _): watchURL
-        case .podcastFeed, .youTubeChannel, .youTubePlaylist, .localFile: nil
+        case .podcastFeed, .youTubeChannel, .youTubePlaylist, .localFile, .audioFile: nil
         }
     }
 

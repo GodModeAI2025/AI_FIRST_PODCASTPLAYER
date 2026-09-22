@@ -23,7 +23,10 @@ struct ForYouView: View {
                     Label("Noch keine Interessen", systemImage: "sparkles")
                 } description: {
                     Text("PodcastAI zeigt dir erst dann relevante Stellen, wenn es weiß, "
-                         + "wonach du suchst. Themen legst du unter „Interessen“ an.")
+                         + "wonach du suchst.")
+                } actions: {
+                    NavigationLink("Interessen anlegen") { InterestsView() }
+                        .buttonStyle(.borderedProminent)
                 }
             } else if model.relevantToday.isEmpty {
                 ContentUnavailableView {
@@ -497,6 +500,7 @@ struct NewSmartFeedSheet: View {
     @State private var title = ""
     @State private var selected: Set<InterestID> = []
     @State private var minutes = 20
+    @State private var newTopic = ""
 
     var body: some View {
         NavigationStack {
@@ -504,7 +508,7 @@ struct NewSmartFeedSheet: View {
                 Section("Name") {
                     TextField("z. B. Mein KI Update", text: $title)
                 }
-                Section("Themen") {
+                Section {
                     ForEach(model.profile.topics) { interest in
                         Button {
                             if selected.contains(interest.id) { selected.remove(interest.id) }
@@ -526,6 +530,21 @@ struct NewSmartFeedSheet: View {
                         .accessibilityAddTraits(
                             selected.contains(interest.id) ? [.isButton, .isSelected] : .isButton
                         )
+                    }
+                    // Themen direkt hier anlegen. Vorher war die Liste leer,
+                    // solange unter „Wissen › Interessen“ nichts stand, und
+                    // „Anlegen“ blieb ohne Hinweis gesperrt.
+                    HStack {
+                        TextField("Neues Thema, z. B. KI-Modelle", text: $newTopic)
+                            .onSubmit(addTopic)
+                        Button("Hinzufügen", action: addTopic)
+                            .disabled(newTopic.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                } header: {
+                    Text("Themen")
+                } footer: {
+                    if model.profile.topics.isEmpty {
+                        Text("Lege mindestens ein Thema an. Es wird auch unter „Wissen › Interessen“ gespeichert.")
                     }
                 }
                 Section {
@@ -560,6 +579,15 @@ struct NewSmartFeedSheet: View {
                     Button("Abbrechen") { dismiss() }
                 }
             }
+        }
+    }
+
+    private func addTopic() {
+        let label = newTopic.trimmingCharacters(in: .whitespaces)
+        guard !label.isEmpty else { return }
+        newTopic = ""
+        Task {
+            if let id = await model.addInterest(label, kind: .topic) { selected.insert(id) }
         }
     }
 }

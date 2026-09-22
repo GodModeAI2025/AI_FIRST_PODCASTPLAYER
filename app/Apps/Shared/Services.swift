@@ -49,35 +49,44 @@ public actor FeedRefresher {
     public func addSource(from input: String) async throws -> AddedSource {
         let link = try resolver.resolve(input)
 
-        let feedURL: URL
+        // Eine einzelne Audiodatei ist kein Feed. Sie landet als Folge in
+        // der Quelle „Einzelne Folgen“ und kann direkt erschlossen werden.
+        if case .audioFile(let audioURL) = link {
+            return try await addSingleEpisode(audioURL)
+        }
+
+        let linkFeedURL: URL
         let kind: SourceKind
         var capabilities: SourceCapabilities
 
         switch link {
         case .podcastFeed(let url):
-            feedURL = url; kind = .podcastRSS; capabilities = .fullPodcast
+            linkFeedURL = url; kind = .podcastRSS; capabilities = .fullPodcast
         case .youTubeChannel(_, let url):
             // Metadaten ja, Audiozugang nein — und das wird auch so angezeigt.
-            feedURL = url; kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
+            linkFeedURL = url; kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
         case .youTubePlaylist:
             // Regelhaft, ohne Anfrage.
             guard let url = FeedDiscovery.directFeedURL(for: link) else {
                 throw FeedRefreshError.needsDiscovery
             }
-            feedURL = url; kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
+            linkFeedURL = url; kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
         case .youTubeVideo:
-            feedURL = try await discoverYouTubeChannelFeed(for: link)
+            linkFeedURL = try await discoverYouTubeChannelFeed(for: link)
             kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
         case .webPageNeedingDiscovery:
-            feedURL = try await discoverFeedOnPage(for: link)
+            linkFeedURL = try await discoverFeedOnPage(for: link)
             kind = .podcastRSS; capabilities = .fullPodcast
         case .localFile(let url):
-            feedURL = url; kind = .localFile
+            linkFeedURL = url; kind = .localFile
             capabilities = SourceCapabilities(metadata: true, audioDownload: true)
+        case .audioFile:
+            // Oben bereits behandelt.
+            throw FeedRefreshError.needsDiscovery
         }
 
-        let data = try await fetch(feedURL)
-        let parsed = try parser.parse(data)
+        let (resolvedFeedURL, parsed) = try await fetchFeed(linkFeedURL, allowDiscovery: kind == .podcastRSS)
+        let feedURL = resolvedFeedURL
 
         // Stabile Kennung aus der Feed-Adresse: dieselbe Quelle zweimal
         // hinzuzufügen erzeugt keine zweite Quelle.
@@ -100,6 +109,57 @@ public actor FeedRefresher {
         _ = try await store.upsert(episodes: episodes, forSource: sourceID)
 
         return AddedSource(title: source.title, episodeCount: episodes.count)
+    }
+
+    /// Holt und liest einen Feed. Liefert die Adresse statt eines Feeds eine
+    /// Webseite oder einen Fehler, sucht die Methode auf dieser Seite und auf
+    /// der Startseite des Hosts nach dem verlinkten Feed. Podigee etwa
+    /// antwortet auf `/rssfeed` mit einer 404-Seite, verlinkt den echten Feed
+    /// `/feed/mp3` aber im Kopf der Startseite.
+    private func fetchFeed(_ url: URL, allowDiscovery: Bool) async throws -> (URL, ParsedFeed) {
+        var firstError: Error?
+        do {
+            let parsed = try parser.parse(try await fetch(url))
+            return (url, parsed)
+        } catch {
+            firstError = error
+        }
+        guard allowDiscovery else { throw firstError! }
+
+        var pages = [url]
+        if let host = url.host, let root = URL(string: "\(url.scheme ?? "https")://\(host)/"), root != url {
+            pages.append(root)
+        }
+        for page in pages {
+            guard let data = try? await SafeHTTP.load(page, using: session, limit: Self.pageLimit) else { continue }
+            let html = String(decoding: data, as: UTF8.self)
+            for candidate in FeedDiscovery.feedLinks(inHTML: html, base: page) where candidate != url {
+                if let parsed = try? parser.parse(try await fetch(candidate)) {
+                    return (candidate, parsed)
+                }
+            }
+        }
+        throw FeedRefreshError.notAFeed(url.host ?? url.absoluteString)
+    }
+
+    /// Legt eine einzelne Audiodatei als Folge an.
+    private func addSingleEpisode(_ audioURL: URL) async throws -> AddedSource {
+        let sourceID = SourceID(stable: "single-episodes")
+        let existing = try await store.sources().first { $0.id == sourceID }
+        if existing == nil {
+            try await store.upsert(source: Source(
+                id: sourceID, kind: .singleEpisodeLink, title: "Einzelne Folgen",
+                capabilities: SourceCapabilities(metadata: true, audioDownload: true)
+            ))
+        }
+        let name = audioURL.deletingPathExtension().lastPathComponent
+        let title = "\(audioURL.host ?? "Audio") · \(name.count > 24 ? String(name.prefix(24)) + "…" : name)"
+        let episode = Episode(
+            id: EpisodeID(stable: "\(sourceID.rawValue)|\(audioURL.absoluteString)"),
+            sourceID: sourceID, title: title, publishedAt: Date(), audioURL: audioURL
+        )
+        _ = try await store.upsert(episodes: [episode], forSource: sourceID)
+        return AddedSource(title: "Einzelne Folgen", episodeCount: 1)
     }
 
     public func refreshAll() async throws -> RefreshResult {
@@ -197,6 +257,7 @@ public enum FeedRefreshError: Error, LocalizedError {
     case needsDiscovery
     case noFeedOnPage(String)
     case noChannelForVideo
+    case notAFeed(String)
 
     public var errorDescription: String? {
         switch self {
@@ -206,9 +267,66 @@ public enum FeedRefreshError: Error, LocalizedError {
         case .noFeedOnPage(let host):
             "\(host) bietet keinen Feed an. Manche Seiten verlinken ihn nur auf "
             + "einer Unterseite — dann hilft die Adresse des Feeds selbst."
+        case .notAFeed(let host):
+            "Unter dieser Adresse liegt kein Feed, und \(host) verlinkt auch keinen. "
+            + "Prüfe die Adresse oder füge den Link der Podcast-Seite ein."
         case .noChannelForVideo:
             "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert "
             + "Kanäle, keine einzelnen Videos."
+        }
+    }
+}
+
+// MARK: - Audio-Podcast zu einem YouTube-Kanal
+
+/// Ein Podcast aus dem Apple-Podcast-Verzeichnis, der zu einem YouTube-Kanal
+/// passt. Viele Kanäle veröffentlichen dieselben Inhalte zusätzlich als
+/// Audio-Podcast. Dessen Feed liefert echtes Audio, das PodcastAI
+/// transkribieren darf. Das Audio der YouTube-Videos selbst lädt die App
+/// nicht, das untersagen die Nutzungsbedingungen von YouTube.
+public struct PodcastCounterpart: Sendable, Hashable, Identifiable {
+    public let title: String
+    public let author: String
+    public let feedURL: URL
+    public var id: URL { feedURL }
+}
+
+public enum PodcastDirectory {
+
+    /// Sucht Podcasts, deren Autor oder Titel den Kanalnamen enthält.
+    public static func counterparts(forChannel name: String) async -> [PodcastCounterpart] {
+        let term = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard term.count >= 3,
+              var components = URLComponents(string: "https://itunes.apple.com/search") else { return [] }
+        components.queryItems = [
+            URLQueryItem(name: "media", value: "podcast"),
+            URLQueryItem(name: "entity", value: "podcast"),
+            URLQueryItem(name: "limit", value: "10"),
+            URLQueryItem(name: "country", value: Locale.current.region?.identifier ?? "DE"),
+            URLQueryItem(name: "term", value: term),
+        ]
+        guard let url = components.url else { return [] }
+        let session = SafeHTTP.makeSession { $0.timeoutIntervalForRequest = 15 }
+        defer { session.finishTasksAndInvalidate() }
+        guard let data = try? await SafeHTTP.load(url, using: session, limit: 2 * 1024 * 1024),
+              let response = try? JSONDecoder().decode(SearchResponse.self, from: data) else { return [] }
+
+        let needle = term.lowercased()
+        return response.results.compactMap { result in
+            guard let feed = result.feedUrl.flatMap(URL.init(string:)) else { return nil }
+            let author = result.artistName ?? ""
+            let title = result.collectionName ?? ""
+            let matches = author.lowercased().contains(needle) || title.lowercased().contains(needle)
+            return matches ? PodcastCounterpart(title: title, author: author, feedURL: feed) : nil
+        }
+    }
+
+    private struct SearchResponse: Decodable {
+        let results: [Result]
+        struct Result: Decodable {
+            let collectionName: String?
+            let artistName: String?
+            let feedUrl: String?
         }
     }
 }

@@ -39,6 +39,8 @@ public final class AppModel {
     /// nicht in einer Ansicht, weil auf dem Mac das Menü es öffnet und das
     /// Fenster es zeigt — zwei verschiedene Stellen.
     public var isAddingSource = false
+    /// Audio-Podcasts, die zu einem YouTube-Kanal passen, je Quelle.
+    public var podcastCounterparts: [SourceID: [PodcastCounterpart]] = [:]
 
     // MARK: - Dienste
 
@@ -190,9 +192,22 @@ public final class AppModel {
             let added = try await refresher.addSource(from: input)
             sources = try await store.sources()
             activity = "„\(added.title)“ aufgenommen · \(added.episodeCount) Folgen gefunden"
+            for source in sources where source.kind == .youTubeChannel && podcastCounterparts[source.id] == nil {
+                await findPodcastCounterparts(for: source)
+            }
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// Sucht zu einem YouTube-Kanal den Audio-Podcast desselben Anbieters.
+    public func findPodcastCounterparts(for source: Source) async {
+        guard source.kind == .youTubeChannel else { return }
+        let name = source.author?.isEmpty == false ? source.author! : source.title
+        let found = await PodcastDirectory.counterparts(forChannel: name)
+        // Bereits abonnierte Feeds nicht noch einmal anbieten.
+        let subscribed = Set(sources.compactMap(\.feedURL))
+        podcastCounterparts[source.id] = found.filter { !subscribed.contains($0.feedURL) }
     }
 
     public func refreshAll() async {
@@ -223,6 +238,10 @@ public final class AppModel {
             episodes[sourceID] = try await store.episodes(forSource: sourceID)
         } catch {
             lastError = error.localizedDescription
+        }
+        if let source = sources.first(where: { $0.id == sourceID }),
+           source.kind == .youTubeChannel, podcastCounterparts[sourceID] == nil {
+            await findPodcastCounterparts(for: source)
         }
     }
 
@@ -266,13 +285,16 @@ public final class AppModel {
 
     // MARK: - Interessen
 
-    public func addInterest(_ label: String, kind: InterestKind) async {
+    @discardableResult
+    public func addInterest(_ label: String, kind: InterestKind) async -> InterestID? {
         let interest = Interest(label: label, kind: kind, origin: .confirmedByUser)
         do {
             try await store.upsert(interest: interest)
             profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+            return interest.id
         } catch {
             lastError = error.localizedDescription
+            return nil
         }
     }
 
