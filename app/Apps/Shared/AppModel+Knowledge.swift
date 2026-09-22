@@ -127,7 +127,7 @@ extension AppModel {
             if text.isEmpty { text = "Dazu steht in den erschlossenen Folgen nichts Belegtes." }
             return ChatAnswer(
                 question: question, scope: scope, text: text, citations: cited,
-                coverageCaveat: caveat, modelLabel: composed.tier.label,
+                coverageCaveat: caveat, modelLabel: composed.tier?.label,
                 citationNumbers: composed.citations)
         } catch {
             // Ohne Modell wird nichts erfunden. Dann zeigt die Antwort die

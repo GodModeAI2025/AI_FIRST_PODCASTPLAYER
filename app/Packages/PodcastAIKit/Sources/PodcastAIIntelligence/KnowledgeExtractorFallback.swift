@@ -12,26 +12,13 @@
 //  Grund. Das ist auch das ehrlichere Verhalten: „kein Modell verfügbar“
 //  ist eine Antwort, die bis in die Oberfläche durchgereicht werden kann.
 //
+//  `ExtractorConfiguration` und `ComposedAnswer` stehen in
+//  EvidenceSelection.swift und gelten für beide Fassungen.
+//
 
 #if !canImport(FoundationModels)
 import Foundation
 import PodcastAICore
-
-public struct ExtractorConfiguration: Sendable {
-    public var candidateBuilder: CandidateListBuilder
-    public var validator: EvidenceSelectionValidator
-    public var outputLanguage: String
-
-    public init(
-        candidateBuilder: CandidateListBuilder = CandidateListBuilder(),
-        validator: EvidenceSelectionValidator = EvidenceSelectionValidator(),
-        outputLanguage: String = "Deutsch"
-    ) {
-        self.candidateBuilder = candidateBuilder
-        self.validator = validator
-        self.outputLanguage = outputLanguage
-    }
-}
 
 public enum ExtractorError: Error, LocalizedError {
     case modelUnavailable(ModelUnavailability)
@@ -81,12 +68,5 @@ public struct KnowledgeExtractor: Sendable {
     public static func currentStatus(allowPrivateCloud: Bool) -> ModelStatus {
         ModelStatus(onDevice: .unavailable(reason), privateCloudCompute: .unavailable(reason))
     }
-}
-
-public struct ComposedAnswer: Sendable, Equatable {
-    public let text: String
-    public let claims: [Claim]
-    public let citations: [Int: EvidenceID]
-    public let tier: ModelTier
 }
 #endif
