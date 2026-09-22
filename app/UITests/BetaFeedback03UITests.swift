@@ -1,0 +1,95 @@
+//
+//  BetaFeedback03UITests.swift
+//  PodcastAIUITests
+//
+//  Die Rückmeldungen aus TestFlight 0.2, nachgestellt mit den Links aus dem
+//  Feedback.
+//
+
+import XCTest
+
+final class BetaFeedback03UITests: XCTestCase {
+
+    override func setUp() { continueAfterFailure = false }
+
+    private func addSource(_ app: XCUIApplication, _ link: String) {
+        app.tabBars.buttons["Mediathek"].tap()
+        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText(link)
+        app.buttons["Hinzufügen"].tap()
+    }
+
+    private func attach(_ app: XCUIApplication, _ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    /// „Feed abonnieren geht nicht“: feeds.transistor.fm/ai-to-the-dna.
+    /// Danach eine Folge öffnen, abspielen und den Player sehen.
+    func testTransistorFeedEpisodeDetailAndPlayback() {
+        let app = XCUIApplication(); app.launch()
+        let row = app.staticTexts["AI to the DNA"].firstMatch
+        app.tabBars.buttons["Mediathek"].tap()
+        if !row.waitForExistence(timeout: 3) {
+            addSource(app, "https://feeds.transistor.fm/ai-to-the-dna")
+        }
+        XCTAssertTrue(row.waitForExistence(timeout: 30), "Transistor-Feed wurde nicht abonniert")
+        XCTAssertFalse(app.alerts.firstMatch.exists)
+        row.tap()
+
+        let firstEpisode = app.cells.element(boundBy: 1)
+        XCTAssertTrue(firstEpisode.waitForExistence(timeout: 15))
+        firstEpisode.tap()
+
+        let play = app.buttons["episode.play"]
+        XCTAssertTrue(play.waitForExistence(timeout: 10), "Kein Abspielen-Knopf in der Folge")
+        XCTAssertTrue(app.staticTexts["Kapitel"].firstMatch.waitForExistence(timeout: 10), "Keine Kapitel")
+        attach(app, "folge")
+        play.tap()
+        let shownotes = app.staticTexts["Shownotes"].firstMatch
+        for _ in 0..<12 where !shownotes.exists { app.swipeUp() }
+        XCTAssertTrue(shownotes.exists, "Keine Shownotes")
+        attach(app, "shownotes")
+
+        let miniBar = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Player öffnen'")).firstMatch
+        XCTAssertTrue(miniBar.waitForExistence(timeout: 10), "Kein Mini-Player für die Folge")
+        miniBar.tap()
+        XCTAssertTrue(app.navigationBars["Jetzt läuft"].waitForExistence(timeout: 5))
+        attach(app, "player")
+        app.buttons["Pause"].firstMatch.tap()
+        app.buttons["Fertig"].firstMatch.tap()
+    }
+
+    /// „Es braucht einen zentralen Platz für Wartelisten“.
+    func testQueueIsReachableFromLibrary() {
+        let app = XCUIApplication(); app.launch()
+        app.tabBars.buttons["Mediathek"].tap()
+        let queue = app.staticTexts["Warteschlange"].firstMatch
+        if !queue.waitForExistence(timeout: 3) {
+            addSource(app, "https://feeds.transistor.fm/ai-to-the-dna")
+        }
+        XCTAssertTrue(queue.waitForExistence(timeout: 30))
+        queue.tap()
+        XCTAssertTrue(app.staticTexts["Als Nächstes hören"].firstMatch.waitForExistence(timeout: 5)
+                      || app.staticTexts["ALS NÄCHSTES HÖREN"].firstMatch.exists)
+        attach(app, "warteschlange")
+    }
+
+    /// Aus 0.1 offen geblieben: „Die Unterscheidung muss erklärt werden“.
+    func testInterestKindsAreExplained() {
+        let app = XCUIApplication(); app.launch()
+        app.tabBars.buttons["Wissen"].tap()
+        let interests = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Interessen'")).firstMatch
+        XCTAssertTrue(interests.waitForExistence(timeout: 5))
+        interests.tap()
+        let explanation = app.staticTexts["interest.kind.explanation"]
+        XCTAssertTrue(explanation.waitForExistence(timeout: 5))
+        XCTAssertTrue(explanation.label.contains("dauerhaft"))
+        attach(app, "interessen")
+    }
+}

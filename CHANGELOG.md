@@ -1,5 +1,16 @@
 # Änderungsverlauf
 
+## App 0.3 · 2026-09-22
+Aus dem zweiten TestFlight-Feedback:
+- Feeds von Transistor wie `feeds.transistor.fm/ai-to-the-dna` lassen sich abonnieren. Die App hielt sie für Webseiten, weil sie mit einer Stylesheet-Anweisung beginnen.
+- Ganze Folgen hören: jede Folge hat eine eigene Ansicht mit Cover, Shownotes, Kapiteln und den erschlossenen Stellen. Kapitel kommen aus dem Feed (Podlove) oder aus der Kapiteldatei nach Podcasting 2.0. Der Player kann springen, Kapitel wechseln und die Geschwindigkeit ändern, auch vom Sperrbildschirm aus.
+- Aus „Für dich“ springt ein Tippen in die ganze Folge an genau diese Stelle. Gedrückt halten spielt nur die Stelle. Folge, Kapitel und Stellen zeigen, was schon gehört ist.
+- Neue Warteschlange in der Mediathek und auf dem Mac in der Seitenleiste: was läuft, was als Nächstes gehört wird, was gerade und demnächst erschlossen wird. Die Aktivitätsanzeige oben öffnet sie.
+- Erschlossen wird immer eine Folge nach der anderen. Das behebt „Maximum number of recognizers“, das bei mehreren gleichzeitig gestarteten Folgen kam. Auf dem iPhone läuft die Arbeit im Hintergrund weiter, mit Fortschrittsanzeige des Systems.
+- Fehlermeldungen sagen, was passiert ist und was man tun kann, statt technische Codes zu zeigen.
+- Feeds aktualisieren sich beim Start, bei der Rückkehr in die App und alle 30 Minuten. Ziehen zum Aktualisieren gibt es weiterhin.
+- Bei den Interessen steht, wofür Thema, aktuelles Vorhaben und offene Frage jeweils gedacht sind.
+
 ## App 0.2 · 2026-09-22
 Aus dem ersten TestFlight-Feedback:
 - Direkte Audio-Links, etwa MP3-Downloads von Podigee, werden als Einzelfolge angelegt und lassen sich erschliessen. Vorher suchte die App darin nach einem Feed und brach an der 12-MB-Grenze ab.

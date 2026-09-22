@@ -33,7 +33,10 @@ struct PodcastAIApp: App {
         let model: AppModel
         var failure: String?
         do {
-            let container = try LibraryStore.makeContainer()
+            // UI-Tests starten mit leerem Speicher, damit Quellen aus einem
+            // früheren Test nicht mitzählen.
+            let fresh = ProcessInfo.processInfo.arguments.contains("-uitest-fresh")
+            let container = try LibraryStore.makeContainer(inMemory: fresh)
             model = AppModel(store: LibraryStore.make(container: container))
         } catch {
             // Der Speicher wird nicht stillschweigend durch einen flüchtigen
@@ -75,6 +78,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selection: Area = .forYou
+    @State private var showingQueue = false
 
     /// Nicht `Tab` genannt: das verdeckte `SwiftUI.Tab` im eigenen
     /// Gültigkeitsbereich, und die Aufrufe darunter hätten versucht, das
@@ -106,14 +110,31 @@ struct RootView: View {
         // Er sitzt damit auf derselben Ebene wie die Navigation, statt eine
         // zweite Leiste darüber zu stapeln — und das System kümmert sich um
         // das Material, statt dass die App Glas auf Glas legt.
-        .miniPlayerAccessory(isVisible: !(model.playerPlan?.isEmpty ?? true))
+        .miniPlayerAccessory(isVisible: !(model.playerPlan?.isEmpty ?? true)
+                             || model.episodePlayer.episode != nil)
         .tabBarMinimizeBehavior(.onScrollDown)
         .animation(
             Design.Motion.respectingReduceMotion(Design.Motion.snappy,
                                                  reduceMotion: reduceMotion),
             value: model.playerPlan?.id
         )
-        .overlay(alignment: .top) { ActivityBanner() }
+        .overlay(alignment: .top) {
+            Button { showingQueue = true } label: { ActivityBanner() }
+                .buttonStyle(.plain)
+                .accessibilityHint("Öffnet die Warteschlange")
+        }
+        .sheet(isPresented: $showingQueue) {
+            NavigationStack {
+                QueueView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Fertig") { showingQueue = false }
+                        }
+                    }
+            }
+            .environment(model)
+        }
+        .autoRefresh()
     }
 }
 
@@ -149,6 +170,14 @@ struct MiniPlayerAccessory: View {
 
     var body: some View {
         if let plan = model.playerPlan, !plan.isEmpty {
+            focusBar(plan)
+        } else {
+            EpisodeMiniBar()
+        }
+    }
+
+    private func focusBar(_ plan: ValidatedPlaybackPlan) -> some View {
+        Group {
             HStack(spacing: Design.Spacing.control) {
                 Image(systemName: "waveform")
                     .font(.body)

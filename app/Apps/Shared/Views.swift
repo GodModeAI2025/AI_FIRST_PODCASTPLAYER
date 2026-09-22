@@ -42,6 +42,11 @@ struct ForYouView: View {
         }
         .navigationTitle("Für dich")
         .refreshable { await model.refreshAll() }
+        .toolbar {
+            NavigationLink { QueueView() } label: {
+                Label("Warteschlange", systemImage: "list.bullet")
+            }
+        }
     }
 }
 
@@ -51,6 +56,29 @@ struct RelevantItemRow: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        Button {
+            model.playRelevantItemInEpisode(item)
+        } label: {
+            content.contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Spielt die Folge ab dieser Stelle")
+        .contextMenu {
+            Button { model.playRelevantItemInEpisode(item) } label: {
+                Label("In der Folge ab hier hören", systemImage: "play.fill")
+            }
+            Button { model.playRelevantItem(item) } label: {
+                Label("Nur diese Stelle hören", systemImage: "scope")
+            }
+        }
+    }
+
+    private var partlyHeard: Bool {
+        guard let id = item.mediaVersionID else { return false }
+        return model.ledger.heard(in: id).coverage(of: item.range) > 0.05
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.small) {
             // Hierarchie über Gewicht und Farbe, nicht über Schriftwechsel:
             // Quelle zurückgenommen, Folge als Überschrift, Zitat als Text.
@@ -62,6 +90,10 @@ struct RelevantItemRow: View {
                 // Der Timecode steht sichtbar dabei. Er ist kein technisches
                 // Detail, sondern das Versprechen: das hier kannst du nachhören.
                 TimecodeLabel(item.range, emphasis: .medium)
+                Spacer(minLength: 0)
+                Image(systemName: partlyHeard ? "circle.lefthalf.filled" : "play.circle")
+                    .foregroundStyle(.tint)
+                    .accessibilityLabel(partlyHeard ? "teilweise gehört" : "noch nicht gehört")
             }
 
             Text(item.episodeTitle)
@@ -293,9 +325,27 @@ struct LibraryView: View {
 
     var body: some View {
         List {
-            ForEach(model.sources) { source in
-                NavigationLink(value: source.id) {
-                    SourceRow(source: source)
+            if !model.sources.isEmpty {
+                Section {
+                    NavigationLink { QueueView() } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Warteschlange")
+                                Text(queueSummary)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "list.bullet")
+                        }
+                    }
+                }
+            }
+            Section {
+                ForEach(model.sources) { source in
+                    NavigationLink(value: source.id) {
+                        SourceRow(source: source)
+                    }
                 }
             }
         }
@@ -321,6 +371,18 @@ struct LibraryView: View {
                 }
             }
         }
+    }
+}
+
+extension LibraryView {
+    var queueSummary: String {
+        let listen = model.upNext.count
+        let analyze = model.analysisQueue.count + (model.analyzing == nil ? 0 : 1)
+        if listen == 0 && analyze == 0 { return "Nichts vorgemerkt" }
+        var parts: [String] = []
+        if listen > 0 { parts.append(listen == 1 ? "1 Folge zum Hören" : "\(listen) Folgen zum Hören") }
+        if analyze > 0 { parts.append(analyze == 1 ? "1 wird erschlossen" : "\(analyze) werden erschlossen") }
+        return parts.joined(separator: " · ")
     }
 }
 
@@ -445,12 +507,16 @@ struct InterestsView: View {
                 }
             }
 
-            Section("Hinzufügen") {
+            Section {
                 Picker("Art", selection: $newKind) {
                     Text("Thema").tag(InterestKind.topic)
                     Text("Aktuelles Vorhaben").tag(InterestKind.activeProject)
                     Text("Offene Frage").tag(InterestKind.openQuestion)
                 }
+                Text(kindExplanation)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("interest.kind.explanation")
                 TextField(placeholder, text: $newLabel)
                 Button("Hinzufügen") {
                     let label = newLabel.trimmingCharacters(in: .whitespaces)
@@ -458,9 +524,22 @@ struct InterestsView: View {
                     Task { await model.addInterest(label, kind: newKind); newLabel = "" }
                 }
                 .disabled(newLabel.trimmingCharacters(in: .whitespaces).isEmpty)
+            } header: {
+                Text("Hinzufügen")
             }
         }
         .navigationTitle("Interessen")
+    }
+
+    private var kindExplanation: String {
+        switch newKind {
+        case .topic:
+            "Ein Gebiet, das dich dauerhaft interessiert. Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates."
+        case .activeProject:
+            "Etwas, woran du gerade arbeitest. Passende Stellen werden höher eingestuft, solange das Vorhaben aktuell ist. Die Begründung lautet dann „Passt zu deinem Vorhaben“."
+        case .openQuestion:
+            "Eine konkrete Frage, auf die du eine Antwort suchst. Die App markiert Stellen, die sie berühren könnten, und nimmt die Frage beim Erschliessen mit."
+        }
     }
 
     private var placeholder: String {

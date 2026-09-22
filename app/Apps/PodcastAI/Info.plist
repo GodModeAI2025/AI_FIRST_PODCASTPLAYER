@@ -26,6 +26,7 @@
     <array>
         <string>com.podcastai.refresh</string>
         <string>com.podcastai.analysis</string>
+        <string>com.godmodeai.podcastai.mobile.analysis.*</string>
     </array>
 
     <key>UISupportedInterfaceOrientations</key>

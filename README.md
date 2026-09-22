@@ -7,8 +7,10 @@ Ein normaler Player beantwortet die Frage „Was möchte ich hören?“. Podcast
 ## Was die App kann
 
 - **Quellen hinzufügen.** Podcast-Feed, einzelne Folge, YouTube-Kanal oder eine Webseite, auf der ein Feed verlinkt ist.
+- **Folgen hören.** Ganze Folgen mit Cover, Kapiteln und Shownotes. Die App merkt sich, was du gehört hast, und zeigt es an Folge, Kapitel und Stelle.
+- **Warteschlange.** Was als Nächstes gehört und was als Nächstes erschlossen wird, an einem Ort. Erschlossen wird eine Folge nach der anderen, auf dem iPhone auch im Hintergrund.
 - **Folgen erschliessen.** Die App lädt eine Folge, transkribiert sie auf dem Gerät mit Zeitmarken und schneidet sie in Passagen an Sprechpausen. Die Sprache kommt aus dem Feed, nicht aus der Gerätesprache.
-- **Für dich.** Du legst Interessen fest. Die App sucht in erschlossenen Folgen die passenden Stellen und erklärt, warum sie passen.
+- **Für dich.** Du legst Interessen fest. Die App sucht in erschlossenen Folgen die passenden Stellen und erklärt, warum sie passen. Ein Tippen springt in der ganzen Folge an die Stelle.
 - **Themen-Updates.** Aus ungehörten Stellen mehrerer Quellen entsteht eine persönliche Folge mit Kapiteln, Shownotes und Cover.
 - **Fragen.** Ein Chat über deine erschlossenen Folgen. Jede Antwort besteht aus belegten Aussagen mit Sprung zur Originalstelle.
 - **Gegenpositionen.** Zu einer These zeigt die App faire, belegte Gegenstimmen aus deinen Quellen.

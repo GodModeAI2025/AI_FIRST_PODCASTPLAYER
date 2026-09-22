@@ -150,6 +150,10 @@ public struct Episode: Hashable, Codable, Sendable, Identifiable {
     public var timedTranscriptURL: URL?
     /// Vom Anbieter vergebene Kapitel, sofern vorhanden.
     public var publisherChapters: [Chapter]
+    /// Kapitel als eigene Datei (Podcasting 2.0). Wird bei Bedarf geladen.
+    public var chaptersURL: URL?
+    /// Ausführliche Shownotes als HTML, sofern der Feed sie mitliefert.
+    public var shownotesHTML: String?
     /// Die aktuell maßgebliche Medienfassung.
     public var currentMediaVersionID: MediaVersionID?
     public var revision: Revision
@@ -159,9 +163,11 @@ public struct Episode: Hashable, Codable, Sendable, Identifiable {
         publishedAt: Date? = nil, declaredDuration: MediaDuration? = nil,
         artworkURL: URL? = nil, webPageURL: URL? = nil, audioURL: URL? = nil,
         timedTranscriptURL: URL? = nil,
-        publisherChapters: [Chapter] = [], currentMediaVersionID: MediaVersionID? = nil,
+        publisherChapters: [Chapter] = [], chaptersURL: URL? = nil, shownotesHTML: String? = nil,
+        currentMediaVersionID: MediaVersionID? = nil,
         revision: Revision = .initial
     ) {
+        self.chaptersURL = chaptersURL; self.shownotesHTML = shownotesHTML
         self.id = id; self.sourceID = sourceID; self.title = title; self.summary = summary
         self.publishedAt = publishedAt; self.declaredDuration = declaredDuration
         self.artworkURL = artworkURL; self.webPageURL = webPageURL
@@ -177,6 +183,13 @@ public struct Episode: Hashable, Codable, Sendable, Identifiable {
     /// und keine persönliche Ausgabe. Die App sagt das, statt es zu
     /// versuchen und zu scheitern.
     public var canBeAnalyzed: Bool { audioURL != nil || timedTranscriptURL != nil }
+
+    /// Die Kennung der Medienfassung, die aus der Audioadresse folgt. Dieselbe
+    /// Regel benutzt die Erschliessung, deshalb passen Hörzustand und Belege
+    /// auch dann zusammen, wenn die Folge gestreamt statt geladen wurde.
+    public var streamMediaVersionID: MediaVersionID? {
+        currentMediaVersionID ?? audioURL.map { MediaVersionID(stable: $0.absoluteString) }
+    }
 }
 
 public struct Chapter: Hashable, Codable, Sendable {

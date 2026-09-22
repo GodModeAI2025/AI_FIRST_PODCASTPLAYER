@@ -55,8 +55,13 @@ struct PodcastAIMacApp: App {
                 .keyboardShortcut("r", modifiers: .command)
             }
             CommandGroup(after: .toolbar) {
-                Button("Wiedergabe stoppen") { model.stopPlayback() }
-                    .keyboardShortcut(".", modifiers: .command)
+                Button("Wiedergabe stoppen") {
+                    model.stopPlayback()
+                    model.episodePlayer.stop()
+                }
+                .keyboardShortcut(".", modifiers: .command)
+                Button("Abspielen/Pause") { model.episodePlayer.togglePlayPause() }
+                    .disabled(model.episodePlayer.episode == nil)
             }
         }
 
@@ -72,7 +77,7 @@ struct MacRootView: View {
     @State private var section: Section? = .forYou
 
     enum Section: Hashable, CaseIterable, Identifiable {
-        case forYou, feeds, chat, library, knowledge, interests, perspective, trails, player
+        case forYou, feeds, chat, library, queue, knowledge, interests, perspective, trails, player
         var id: Self { self }
 
         var label: String {
@@ -81,6 +86,7 @@ struct MacRootView: View {
             case .feeds: "Meine Feeds"
             case .chat: "Suchen und fragen"
             case .library: "Mediathek"
+            case .queue: "Warteschlange"
             case .knowledge: "Wissen"
             case .interests: "Interessen"
             case .perspective: "Gegenpositionen"
@@ -95,6 +101,7 @@ struct MacRootView: View {
             case .feeds: "waveform.circle"
             case .chat: "text.bubble"
             case .library: "books.vertical"
+            case .queue: "list.bullet"
             case .knowledge: "brain"
             case .interests: "target"
             case .perspective: "arrow.left.arrow.right"
@@ -111,7 +118,7 @@ struct MacRootView: View {
                 // Profil. Eine Seitenleiste verträgt mehr Einträge als eine
                 // Tab Bar, aber nicht beliebig viele ohne Ordnung.
                 SwiftUI.Section("Hören") {
-                    ForEach([Section.forYou, .feeds, .library, .player]) { item in
+                    ForEach([Section.forYou, .feeds, .library, .queue, .player]) { item in
                         Label(item.label, systemImage: item.symbol).tag(item)
                     }
                 }
@@ -135,6 +142,7 @@ struct MacRootView: View {
                 case .feeds: SmartFeedListView()
                 case .chat: ChatView()
                 case .library: LibraryView()
+                case .queue: QueueView()
                 case .knowledge: KnowledgeView()
                 case .interests: InterestsView()
                 case .perspective: CounterpointView()
@@ -142,7 +150,15 @@ struct MacRootView: View {
                 case .player, .none: FocusPlayerView()
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                if model.episodePlayer.episode != nil {
+                    EpisodeMiniBar()
+                        .padding(.vertical, Design.Spacing.small)
+                        .background(.bar)
+                }
+            }
         }
+        .autoRefresh()
         .toolbar {
             ToolbarItem {
                 Button { Task { await model.refreshAll() } } label: {
@@ -155,7 +171,8 @@ struct MacRootView: View {
         }
         .overlay(alignment: .bottom) {
             if let activity = model.activity {
-                Text(activity)
+                Button { section = .queue } label: { Text(activity) }
+                    .buttonStyle(.plain)
                     .font(.caption)
                     .padding(.horizontal, Design.Spacing.control).padding(.vertical, Design.Spacing.small)
                     .background(.thinMaterial, in: Capsule())

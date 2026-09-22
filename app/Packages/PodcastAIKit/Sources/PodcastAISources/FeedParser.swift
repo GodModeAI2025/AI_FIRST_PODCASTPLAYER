@@ -15,6 +15,7 @@
 //
 
 import Foundation
+import PodcastAICore
 
 public struct ParsedFeed: Sendable, Equatable {
     public var title: String
@@ -58,6 +59,12 @@ public struct ParsedItem: Sendable, Equatable {
     public var transcripts: [ParsedTranscriptRef]
     /// YouTube-Video-Kennung, sofern es sich um einen YouTube-Eintrag handelt.
     public var youTubeVideoID: String?
+    /// Kapitel direkt im Feed (Podlove Simple Chapters).
+    public var chapters: [Chapter] = []
+    /// Kapitel als eigene JSON-Datei (`podcast:chapters`).
+    public var chaptersURL: URL?
+    /// Ausführliche Shownotes als HTML (`content:encoded`).
+    public var shownotesHTML: String?
 
     public init(
         guid: String? = nil, title: String = "", summary: String? = nil,
@@ -177,6 +184,8 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
         static let podcast20 = "https://podcastindex.org/namespace/1.0"
         static let atom = "http://www.w3.org/2005/Atom"
         static let yt = "http://www.youtube.com/xml/schemas/2015"
+        static let psc = "http://podlove.org/simple-chapters"
+        static let content = "http://purl.org/rss/1.0/modules/content/"
     }
 
     func finish() -> ParsedFeed {
@@ -236,6 +245,15 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
             if let url = Self.url(attributeDict["href"]) {
                 if isInsideItem { currentItem?.artworkURL = url } else { feed.artworkURL = url }
             }
+
+        case (NS.psc, "chapter"):
+            if let start = attributeDict["start"].flatMap(Self.chapterTime),
+               let title = attributeDict["title"], !title.isEmpty {
+                currentItem?.chapters.append(Chapter(start: start, title: title, provenance: .original))
+            }
+
+        case (NS.podcast20, "chapters"):
+            if let url = Self.url(attributeDict["url"]) { currentItem?.chaptersURL = url }
 
         case (NS.podcast20, "transcript"):
             if let url = Self.url(attributeDict["url"]), let type = attributeDict["type"] {
@@ -321,6 +339,9 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
             if isInsideItem, currentItem?.guid == nil { currentItem?.guid = value }
             if namespaceURI == NS.yt { currentItem?.youTubeVideoID = value }
 
+        case (NS.content, "encoded"):
+            if isInsideItem, !value.isEmpty { currentItem?.shownotesHTML = value }
+
         case (_, "description"), (NS.atom, "summary"), (NS.itunes, "summary"), (NS.media, "description"):
             if isInsideItem {
                 if currentItem?.summary?.isEmpty ?? true { currentItem?.summary = value }
@@ -358,6 +379,18 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
 
     /// Nur `http` und `https`. Ein Feed darf keine `file:`- oder
     /// `javascript:`-Verweise in die App tragen.
+    /// Podlove-Zeitangaben: `01:02:03.500`, `02:03` oder Sekunden.
+    static func chapterTime(_ raw: String) -> MediaTime? {
+        let parts = raw.trimmingCharacters(in: .whitespaces).split(separator: ":").map(String.init)
+        guard !parts.isEmpty, parts.count <= 3 else { return nil }
+        var seconds = 0.0
+        for part in parts {
+            guard let value = Double(part) else { return nil }
+            seconds = seconds * 60 + value
+        }
+        return MediaTime(milliseconds: Int64((seconds * 1000).rounded()))
+    }
+
     private static func url(_ string: String?) -> URL? {
         guard let string = string?.trimmingCharacters(in: .whitespacesAndNewlines),
               !string.isEmpty, let url = URL(string: string),

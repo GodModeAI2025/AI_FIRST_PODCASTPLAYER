@@ -42,6 +42,17 @@ public final class AppModel {
     /// Audio-Podcasts, die zu einem YouTube-Kanal passen, je Quelle.
     public var podcastCounterparts: [SourceID: [PodcastCounterpart]] = [:]
 
+    /// Spielt ganze Folgen mit Kapiteln.
+    public let episodePlayer = EpisodePlayer()
+    /// Was als Nächstes gehört wird. Am Ende einer Folge startet die nächste.
+    public private(set) var upNext: [Episode] = []
+    /// Was als Nächstes erschlossen wird. Die Spracherkennung verträgt nur
+    /// eine Analyse zur Zeit, deshalb läuft alles über diese Warteschlange.
+    public private(set) var analysisQueue: [Episode] = []
+    public private(set) var analyzing: Episode?
+    @ObservationIgnored private var analysisTask: Task<Void, Never>?
+    public private(set) var lastRefresh: Date?
+
     // MARK: - Dienste
 
     public let store: LibraryStore
@@ -65,6 +76,12 @@ public final class AppModel {
         // fortschreibt. Ohne sie läuft die Wiedergabe, und nichts davon
         // kommt je im Ledger an.
         self.player.setObserver(self)
+        episodePlayer.onHeard = { [weak self] range, mediaID in
+            Task { await self?.recordHeard(range, in: mediaID, via: .originalEpisode) }
+        }
+        episodePlayer.onFinished = { [weak self] episode in
+            self?.playNextInQueue(after: episode)
+        }
     }
 
     /// Der Zustand des Players, gespiegelt für die Oberfläche.
@@ -114,7 +131,7 @@ public final class AppModel {
             trails = try await store.trails()
             modelStatus = await ModelStatusProbe.current()
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
         await refreshRelevantToday()
     }
@@ -168,13 +185,15 @@ public final class AppModel {
                     episodeTitle: title?.episode ?? "Unbekannte Folge",
                     range: range,
                     excerpt: item.quotedText,
-                    relevance: match.personalRelevance()
+                    relevance: match.personalRelevance(),
+                    episodeID: item.episodeID,
+                    mediaVersionID: item.mediaVersionID
                 ))
             }
             relevantToday = items
             refreshSuggestions(from: evidence)
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
     }
 
@@ -196,7 +215,7 @@ public final class AppModel {
                 await findPodcastCounterparts(for: source)
             }
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
     }
 
@@ -213,6 +232,7 @@ public final class AppModel {
     public func refreshAll() async {
         activity = "Feeds werden aktualisiert …"
         defer { activity = nil }
+        lastRefresh = Date()
         do {
             let result = try await refresher.refreshAll()
             sources = try await store.sources()
@@ -220,7 +240,7 @@ public final class AppModel {
                 ? "\(result.newEpisodes) neue Folgen"
                 : "Keine neuen Folgen"
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
         await refreshRelevantToday()
     }
@@ -237,7 +257,7 @@ public final class AppModel {
         do {
             episodes[sourceID] = try await store.episodes(forSource: sourceID)
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
         if let source = sources.first(where: { $0.id == sourceID }),
            source.kind == .youTubeChannel, podcastCounterparts[sourceID] == nil {
@@ -251,13 +271,69 @@ public final class AppModel {
     /// nichts — das kostet Daten, Akku und Zeit, und die Entscheidung
     /// darüber gehört dem Nutzer.
     public func analyze(_ episode: Episode, audioURL: URL, locale explicitLocale: Locale? = nil) async {
+        enqueueAnalysis(episode)
+    }
+
+    /// Stellt eine Folge in die Warteschlange der Erschliessung.
+    public func enqueueAnalysis(_ episode: Episode) {
+        guard episode.audioURL != nil,
+              analyzing?.id != episode.id,
+              !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
+        analysisQueue.append(episode)
+        stages[episode.id] = nil
+        stageDetails[episode.id] = "wartet"
+        startAnalysisWorker()
+    }
+
+    public func removeFromAnalysisQueue(_ episodeID: EpisodeID) {
+        analysisQueue.removeAll { $0.id == episodeID }
+        stageDetails[episodeID] = nil
+    }
+
+    public func moveAnalysisQueue(from offsets: IndexSet, to destination: Int) {
+        analysisQueue.move(fromOffsets: offsets, toOffset: destination)
+    }
+
+    private func startAnalysisWorker() {
+        guard analysisTask == nil else { return }
+        analysisTask = Task { [weak self] in
+            guard let self else { return }
+            let background = BackgroundContinuation.begin(title: self.analysisQueue.first?.title ?? "")
+            var retried: Set<EpisodeID> = []
+            while let next = self.analysisQueue.first {
+                self.analysisQueue.removeFirst()
+                background.setSubtitle(next.title)
+                let transientFailure = await self.runAnalysis(next, background: background)
+                if transientFailure, !retried.contains(next.id) {
+                    retried.insert(next.id)
+                    self.analysisQueue.append(next)
+                    self.stageDetails[next.id] = "wartet auf zweiten Versuch"
+                    try? await Task.sleep(for: .seconds(3))
+                }
+            }
+            background.end()
+            self.analysisTask = nil
+            self.analyzing = nil
+            self.activity = nil
+        }
+    }
+
+    /// Erschliesst eine Folge. Gibt `true` zurück, wenn der Fehler
+    /// vorübergehend war und ein zweiter Versuch lohnt.
+    private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
+        guard let audioURL = episode.audioURL else { return false }
         // Die Folge wird in ihrer eigenen Sprache transkribiert, nicht in der
         // des Geräts. Ohne Angabe im Feed bleibt es bei der Gerätesprache.
         let feedLanguage = sources.first(where: { $0.id == episode.sourceID })?.language
-        let locale = explicitLocale ?? feedLanguage.map { Locale(identifier: $0) } ?? .current
+        let locale = feedLanguage.map { Locale(identifier: $0) } ?? .current
+        analyzing = episode
         stages[episode.id] = .discovered
-        activity = "„\(episode.title)“ wird erschlossen …"
-        defer { activity = nil }
+        stageDetails[episode.id] = nil
+        background.update(.discovered)
+        let remaining = analysisQueue.count
+        activity = remaining > 0
+            ? "„\(episode.title)“ wird erschlossen, danach noch \(remaining) …"
+            : "„\(episode.title)“ wird erschlossen …"
 
         let pipeline = ContentPipeline(
             store: store,
@@ -268,6 +344,7 @@ public final class AppModel {
                     if let detail = progress.detail {
                         self?.stageDetails[progress.episodeID] = detail
                     }
+                    background.update(progress.stage)
                 }
             }
         )
@@ -276,10 +353,18 @@ public final class AppModel {
                 episode: episode, audioURL: audioURL,
                 sourceID: episode.sourceID, locale: locale
             )
+            await refreshRelevantToday()
+            return false
         } catch {
+            if UserFacingError.isTransient(error) {
+                stages[episode.id] = nil
+                return true
+            }
             stages[episode.id] = .failed
-            stageDetails[episode.id] = error.localizedDescription
-            lastError = error.localizedDescription
+            let message = UserFacingError.describe(error)
+            stageDetails[episode.id] = message
+            lastError = "„\(episode.title)“: \(message)"
+            return false
         }
     }
 
@@ -293,7 +378,7 @@ public final class AppModel {
             profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
             return interest.id
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
             return nil
         }
     }
@@ -303,7 +388,7 @@ public final class AppModel {
             try await store.removeInterest(id)
             profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
     }
 
@@ -311,6 +396,7 @@ public final class AppModel {
 
     /// Startet einen Hörplan. Der einzige Weg von der Oberfläche zum Ton.
     public func play(_ plan: ValidatedPlaybackPlan, from trigger: PlayTrigger) {
+        episodePlayer.pause()
         let grant: PlaybackGrant = switch trigger {
         case .tap: policy.grantForUserTap(on: plan)
         case .chat: policy.grantForConfirmedChatPlayback(on: plan)
@@ -322,7 +408,7 @@ public final class AppModel {
             sessionListened = .zero
             closureOfferedThisSession = false
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
     }
 
@@ -385,7 +471,7 @@ public final class AppModel {
             try await store.record([event])
             ledger.apply(event)
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
     }
 
@@ -510,7 +596,7 @@ public final class AppModel {
                 return "Diese Ausgabe gibt es bereits."
             }
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
             return "Die Ausgabe konnte nicht erstellt werden."
         }
     }
@@ -941,11 +1027,109 @@ public final class AppModel {
             try await store.upsert(interest: interest)
             profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
         } catch {
-            lastError = error.localizedDescription
+            lastError = UserFacingError.describe(error)
         }
     }
 
     public func clearError() { lastError = nil }
+
+    // MARK: - Ganze Folgen
+
+    /// Spielt eine ganze Folge ab einer Stelle. Liegt sie schon geladen vor,
+    /// kommt der Ton aus der Datei, sonst aus dem Stream.
+    public func playEpisode(_ episode: Episode, at seconds: Double? = nil) {
+        if playerPlan != nil { stopPlayback() }
+        let start = seconds ?? resumePosition(for: episode)
+        let local = episode.streamMediaVersionID.flatMap { LocalMediaLocator().playbackURL(for: $0) }
+        episodePlayer.play(episode, at: start, localFile: local)
+        upNext.removeAll { $0.id == episode.id }
+        Task { await loadChapters(for: episode) }
+    }
+
+    /// Springt aus „Für dich“ an die Stelle in der ganzen Folge.
+    public func playRelevantItemInEpisode(_ item: RelevantItem) {
+        Task {
+            let episodeID: EpisodeID?
+            if let known = item.episodeID {
+                episodeID = known
+            } else {
+                episodeID = (try? await store.evidence(ids: [item.id]))?[item.id]?.episodeID
+            }
+            guard let episodeID,
+                  let episode = (try? await store.episodes(ids: [episodeID]))?.first else {
+                playRelevantItem(item)
+                return
+            }
+            playEpisode(episode, at: item.range.start.seconds)
+        }
+    }
+
+    /// Wo eine Folge weitergeht: nach dem letzten zusammenhängend Gehörten.
+    public func resumePosition(for episode: Episode) -> Double {
+        guard let id = episode.streamMediaVersionID else { return 0 }
+        let heard = ledger.heard(in: id)
+        guard let firstGapEnd = heard.ranges.first, firstGapEnd.start.milliseconds < 5_000 else { return 0 }
+        return firstGapEnd.end.seconds
+    }
+
+    /// Anteil der Folge, der schon gehört ist, zwischen 0 und 1.
+    public func heardFraction(for episode: Episode) -> Double {
+        guard let id = episode.streamMediaVersionID,
+              let total = episode.declaredDuration?.seconds, total > 0 else { return 0 }
+        return min(1, ledger.heard(in: id).totalDuration.seconds / total)
+    }
+
+    /// Ist diese Stelle schon gehört?
+    public func hasHeard(_ range: MediaTimeRange, in mediaVersionID: MediaVersionID) -> Bool {
+        ledger.heard(in: mediaVersionID).covers(range, threshold: 0.8)
+    }
+
+    public func addToUpNext(_ episode: Episode) {
+        guard !upNext.contains(where: { $0.id == episode.id }) else { return }
+        upNext.append(episode)
+    }
+
+    public func removeFromUpNext(_ episodeID: EpisodeID) {
+        upNext.removeAll { $0.id == episodeID }
+    }
+
+    public func moveUpNext(from offsets: IndexSet, to destination: Int) {
+        upNext.move(fromOffsets: offsets, toOffset: destination)
+    }
+
+    private func playNextInQueue(after episode: Episode) {
+        guard let next = upNext.first else { return }
+        playEpisode(next, at: 0)
+    }
+
+    /// Kapitel aus einer eigenen Datei nachladen, wenn der Feed nur darauf verweist.
+    public func loadChapters(for episode: Episode) async {
+        if !episode.publisherChapters.isEmpty {
+            episodePlayer.setChapters(episode.publisherChapters)
+            return
+        }
+        guard let url = episode.chaptersURL,
+              let chapters = await refresher.loadChapters(from: url), !chapters.isEmpty else { return }
+        chapterCache[episode.id] = chapters
+        if episodePlayer.episode?.id == episode.id { episodePlayer.setChapters(chapters) }
+    }
+
+    public private(set) var chapterCache: [EpisodeID: [Chapter]] = [:]
+
+    public func evidence(forEpisode episodeID: EpisodeID) async -> [Evidence] {
+        (try? await store.evidence(forEpisode: episodeID)) ?? []
+    }
+
+    // MARK: - Automatisch aktualisieren
+
+    /// Aktualisiert die Feeds, wenn der letzte Lauf länger als eine
+    /// Viertelstunde her ist. Läuft beim Start, beim Wechsel in den
+    /// Vordergrund und alle 30 Minuten, solange die App offen ist.
+    public func refreshIfStale(olderThan interval: TimeInterval = 15 * 60) async {
+        if let lastRefresh, Date().timeIntervalSince(lastRefresh) < interval { return }
+        guard !sources.isEmpty else { return }
+        await refreshAll()
+    }
 }
 
 // MARK: - Hörzustand aus der Wiedergabe
@@ -1017,10 +1201,14 @@ public struct RelevantItem: Identifiable, Sendable {
     public let range: MediaTimeRange
     public let excerpt: String
     public let relevance: PersonalRelevance?
+    public let episodeID: EpisodeID?
+    public let mediaVersionID: MediaVersionID?
 
     public init(id: EvidenceID, sourceTitle: String, episodeTitle: String,
-                range: MediaTimeRange, excerpt: String, relevance: PersonalRelevance?) {
+                range: MediaTimeRange, excerpt: String, relevance: PersonalRelevance?,
+                episodeID: EpisodeID? = nil, mediaVersionID: MediaVersionID? = nil) {
         self.id = id; self.sourceTitle = sourceTitle; self.episodeTitle = episodeTitle
         self.range = range; self.excerpt = excerpt; self.relevance = relevance
+        self.episodeID = episodeID; self.mediaVersionID = mediaVersionID
     }
 }

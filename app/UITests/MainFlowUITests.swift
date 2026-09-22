@@ -68,11 +68,15 @@ final class MainFlowUITests: XCTestCase {
             XCTAssertTrue(row.waitForExistence(timeout: 30))
         }
         row.tap()
+        // Die Folge öffnen: Erschliessen sitzt in der Folgenansicht.
+        let firstEpisode = app.cells.element(boundBy: 1)
+        XCTAssertTrue(firstEpisode.waitForExistence(timeout: 15))
+        firstEpisode.tap()
         let analyze = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Erschliessen'")).firstMatch
         XCTAssertTrue(analyze.waitForExistence(timeout: 15), "Kein Erschliessen-Knopf")
         analyze.tap()
 
-        let done = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '· 1 erschlossen'")).firstMatch
+        let done = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'erschlossen'")).firstMatch
         let failed = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'fehlgeschlagen'")).firstMatch
         let alert = app.alerts.firstMatch
         let deadline = Date().addingTimeInterval(900)

@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 22. September 2026, Version 0.2.
+Stand 22. September 2026, Version 0.3.
 
 ## Geprüft
 
@@ -11,9 +11,10 @@ Stand 22. September 2026, Version 0.2.
 | Alle fünf Tabs öffnen | UI-Test im Simulator |
 | Feed hinzufügen, Folgen anzeigen | UI-Test mit echtem Feed |
 | MP3-Link, Podigee-Adresse ohne Feed, YouTube-Kanal mit Audio-Podcast, Thema im Themen-Update | UI-Tests mit den Links aus dem TestFlight-Feedback |
+| Transistor-Feed abonnieren, Folge mit Kapiteln und Shownotes öffnen, abspielen, Player, Warteschlange, Erklärung der Interessenarten | UI-Tests mit den Links aus dem Feedback zu 0.2 |
 | Folge laden, transkribieren, Belege mit Zeitmarken | Ende-zu-Ende-Test auf dem Mac mit echter englischer Folge |
-| Kernlogik: Intervalle, Hörplan, Relevanz, Export, Freigaben | 36 Swift-Tests im Paket |
-| Upload nach App Store Connect | Build 0.1 (1) für iOS und macOS hochgeladen, interne TestFlight-Gruppe „Intern“ je App |
+| Kernlogik: Intervalle, Hörplan, Relevanz, Export, Freigaben | 42 Swift-Tests im Paket |
+| Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
 
 ## Noch auf einem Gerät zu prüfen
 
@@ -23,6 +24,7 @@ Stand 22. September 2026, Version 0.2.
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |
 | Wiedergabe im Hintergrund, AirPlay, CarPlay | Nur auf Hardware sinnvoll |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
+| Erschliessen im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |
 
 ## Bewusst nicht enthalten
@@ -40,3 +42,5 @@ Stand 22. September 2026, Version 0.2.
 - Der Markdown-Export schlug Quellen- und Folgentitel mit dem falschen Schlüssel nach und hätte überall „Unbekannte Quelle“ gezeigt.
 - Tabulator und Seitenvorschub im Transkript wurden im Export zu Zeilenumbrüchen.
 - Über der Tab-Leiste stand eine leere Mini-Player-Leiste, auch wenn nichts lief.
+- Mehrere gleichzeitig gestartete Erschliessungen scheiterten an der Grenze der Spracherkennung. Sie laufen jetzt nacheinander.
+- Feeds, die mit einer Stylesheet-Anweisung beginnen, wurden als Webseite behandelt.

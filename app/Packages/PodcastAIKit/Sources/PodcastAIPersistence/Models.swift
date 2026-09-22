@@ -91,6 +91,9 @@ public final class StoredEpisode {
     public var artworkURLString: String?
     public var currentMediaVersionIdentifier: String?
     public var revisionValue: Int = 0
+    public var chaptersData: Data?
+    public var chaptersURLString: String?
+    public var shownotesHTML: String?
 
     public var source: StoredSource?
 
@@ -113,6 +116,9 @@ public final class StoredEpisode {
             webPageURL: webPageURLString.flatMap(URL.init(string:)),
             audioURL: audioURLString.flatMap(URL.init(string:)),
             timedTranscriptURL: timedTranscriptURLString.flatMap(URL.init(string:)),
+            publisherChapters: chaptersData.flatMap { try? JSONDecoder().decode([Chapter].self, from: $0) } ?? [],
+            chaptersURL: chaptersURLString.flatMap(URL.init(string:)),
+            shownotesHTML: shownotesHTML,
             currentMediaVersionID: currentMediaVersionIdentifier.map(MediaVersionID.init(rawValue:)),
             revision: Revision(revisionValue)
         )

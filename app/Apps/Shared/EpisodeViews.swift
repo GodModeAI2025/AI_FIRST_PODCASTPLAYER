@@ -58,7 +58,40 @@ struct EpisodeListView: View {
 
             Section {
                 ForEach(episodes) { episode in
-                    EpisodeRow(episode: episode)
+                    NavigationLink {
+                        EpisodeDetailView(episode: episode)
+                    } label: {
+                        EpisodeRow(episode: episode)
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button { model.playEpisode(episode) } label: {
+                            Label("Abspielen", systemImage: "play.fill")
+                        }
+                        .tint(.accentColor)
+                    }
+                    .swipeActions(edge: .trailing) {
+                        Button { model.addToUpNext(episode) } label: {
+                            Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
+                        }
+                        .tint(.indigo)
+                        if episode.audioURL != nil, model.stages[episode.id] == nil || model.stages[episode.id] == .failed {
+                            Button { model.enqueueAnalysis(episode) } label: {
+                                Label("Erschliessen", systemImage: "waveform.badge.magnifyingglass")
+                            }
+                            .tint(.teal)
+                        }
+                    }
+                    .contextMenu {
+                        Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
+                        Button { model.addToUpNext(episode) } label: {
+                            Label("Als Nächstes hören", systemImage: "text.line.first.and.arrowtriangle.forward")
+                        }
+                        if episode.audioURL != nil {
+                            Button { model.enqueueAnalysis(episode) } label: {
+                                Label("Erschliessen", systemImage: "waveform.badge.magnifyingglass")
+                            }
+                        }
+                    }
                 }
             } header: {
                 // Gefunden und erschlossen sind getrennte Zahlen. Sie zu
@@ -119,20 +152,22 @@ struct EpisodeRow: View {
                 .foregroundStyle(stage == .failed ? .orange : .secondary)
             }
 
-            if let audioURL = episode.audioURL, stage == nil || stage == .failed {
-                Button {
-                    Task { await model.analyze(episode, audioURL: audioURL) }
-                } label: {
-                    Label(stage == .failed ? "Erneut versuchen" : "Erschliessen",
-                          systemImage: "waveform.badge.magnifyingglass")
-                        .frame(minHeight: Design.minimumTapTarget)
-                }
-                .buttonStyle(.pressable)
-                .buttonBorderShape(.capsule)
-                .padding(.top, Design.Spacing.micro)
-                .accessibilityHint("Lädt die Folge und wertet sie aus. "
-                                   + "Das kann einige Minuten dauern.")
-            } else if !episode.canBeAnalyzed {
+            HeardProgress(fraction: model.heardFraction(for: episode))
+
+            if stage == nil, let waiting = model.stageDetails[episode.id] {
+                Label(waiting, systemImage: "clock")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if model.episodePlayer.episode?.id == episode.id {
+                Label(model.episodePlayer.isPlaying ? "läuft gerade" : "pausiert",
+                      systemImage: "speaker.wave.2")
+                    .font(.caption)
+                    .foregroundStyle(.tint)
+            }
+
+            if !episode.canBeAnalyzed {
                 // Ehrlich statt stiller Fehlschlag: ohne Audio und ohne
                 // getaktetes Transkript gibt es keinen Weg zu Timecodes.
                 Label("Kein Audiozugang — daraus entstehen keine Timecodes",

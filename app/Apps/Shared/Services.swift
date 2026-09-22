@@ -196,8 +196,17 @@ public actor FeedRefresher {
             audioURL: item.audioURL,
             // Nur getaktete Transkripte: ungetakteter Text liefert Wissen,
             // aber keine Timecodes.
-            timedTranscriptURL: item.transcripts.first(where: \.isTimed)?.url
+            timedTranscriptURL: item.transcripts.first(where: \.isTimed)?.url,
+            publisherChapters: item.chapters,
+            chaptersURL: item.chaptersURL,
+            shownotesHTML: item.shownotesHTML
         )
+    }
+
+    /// Lädt Kapitel aus einer Podcasting-2.0-Kapiteldatei.
+    public func loadChapters(from url: URL) async -> [Chapter]? {
+        guard let data = try? await SafeHTTP.load(url, using: session, limit: 2 * 1024 * 1024) else { return nil }
+        return try? ChapterFile.parse(data)
     }
 
     /// Sucht den Feed auf einer gewöhnlichen Webseite.
@@ -212,6 +221,10 @@ public actor FeedRefresher {
             throw FeedRefreshError.needsDiscovery
         }
         let data = try await SafeHTTP.load(page, using: session, limit: Self.pageLimit)
+        // Viele Feed-Adressen sehen nicht nach Feed aus, etwa
+        // `feeds.transistor.fm/ai-to-the-dna`. Ist der Inhalt selbst ein
+        // Feed, ist die Suche hier schon zu Ende.
+        if (try? parser.parse(data)) != nil { return page }
         let html = String(decoding: data, as: UTF8.self)
 
         guard let feedURL = FeedDiscovery.feedLinks(inHTML: html, base: page).first else {

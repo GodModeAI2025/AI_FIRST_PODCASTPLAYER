@@ -31,3 +31,62 @@ struct BetaFeedbackTests {
         #expect(links.first?.absoluteString == "https://think-ai.podigee.io/feed/mp3")
     }
 }
+
+@Suite("Beta-Feedback 0.2")
+struct BetaFeedback02Tests {
+    @Test("Ein Feed im Aufbau von Transistor wird als Feed erkannt")
+    func transistorStyleFeed() throws {
+        // Nachgebaut: Stylesheet-Anweisung vor dem rss-Element, Atom-Selbstlink,
+        // Podcasting-2.0-Kapitel. Transistor liefert Feeds so aus, und die App
+        // hielt die Adresse deshalb für eine Webseite.
+        let xml = #"""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <?xml-stylesheet href="/stylesheet.xsl" type="text/xsl"?>
+        <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:podcast="https://podcastindex.org/namespace/1.0">
+          <channel>
+            <atom:link rel="self" type="application/rss+xml" href="https://feeds.example.com/show"/>
+            <title>Beispiel</title>
+            <language>de</language>
+            <item>
+              <title>Folge 1</title>
+              <guid isPermaLink="false">abc</guid>
+              <enclosure url="https://media.example.com/1.mp3" length="1000" type="audio/mpeg"/>
+              <podcast:chapters url="https://share.example.com/1/chapters.json" type="application/json+chapters"/>
+            </item>
+            <item>
+              <title>Folge 2</title>
+              <enclosure url="https://media.example.com/2.mp3" length="1000" type="audio/mpeg"/>
+            </item>
+          </channel>
+        </rss>
+        """#
+        let feed = try FeedParser().parse(Data(xml.utf8))
+        #expect(feed.items.count == 2)
+        #expect(feed.items.first?.chaptersURL?.absoluteString == "https://share.example.com/1/chapters.json")
+    }
+}
+
+@Suite("Kapitel und Shownotes")
+struct ChapterTests {
+    @Test("Podlove-Kapitel und content:encoded werden gelesen")
+    func podloveChapters() throws {
+        let xml = #"""
+        <rss version="2.0" xmlns:psc="http://podlove.org/simple-chapters" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>T</title>
+        <item><title>Folge</title><enclosure url="https://example.com/a.mp3" type="audio/mpeg" length="1"/>
+        <psc:chapters version="1.2"><psc:chapter start="00:00:00" title="Intro"/><psc:chapter start="00:02:47.500" title="Anthropic"/></psc:chapters>
+        <content:encoded><![CDATA[<p>Shownotes <a href="https://example.com">Link</a></p>]]></content:encoded>
+        </item></channel></rss>
+        """#
+        let item = try #require(FeedParser().parse(Data(xml.utf8)).items.first)
+        #expect(item.chapters.map(\.title) == ["Intro", "Anthropic"])
+        #expect(item.chapters.last?.start == MediaTime(milliseconds: 167_500))
+        #expect(item.shownotesHTML?.contains("Shownotes") == true)
+    }
+
+    @Test("JSON-Kapitel aus Podcasting 2.0")
+    func jsonChapters() throws {
+        let json = #"{"version":"1.2.0","chapters":[{"startTime":34.5,"title":"B"},{"startTime":0,"title":"A"},{"startTime":60,"title":"C","toc":false}]}"#
+        let chapters = try ChapterFile.parse(Data(json.utf8))
+        #expect(chapters.map(\.title) == ["A", "B"])
+    }
+}

@@ -30,7 +30,7 @@ final class BetaFeedbackUITests: XCTestCase {
     }
 
     func testPodigeeFeedURLWithoutFeedIsDiscovered() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
         addSource(app, "https://think-ai.podigee.io/rssfeed")
         let row = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Think'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 30), "Podigee-Feed nicht gefunden")
@@ -39,18 +39,21 @@ final class BetaFeedbackUITests: XCTestCase {
     }
 
     func testDirectMP3BecomesSingleEpisode() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
         addSource(app, "https://audio.podigee-cdn.net/2598733-m-21b7bc55dcb4707563cae78e503f9c5e.mp3?source=webplayer-download")
         let row = app.staticTexts["Einzelne Folgen"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 20), "MP3 nicht als Einzelfolge angelegt")
         XCTAssertFalse(app.alerts.firstMatch.exists)
         row.tap()
+        let episode = app.cells.element(boundBy: 1)
+        XCTAssertTrue(episode.waitForExistence(timeout: 10))
+        episode.tap()
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Erschliessen'")).firstMatch.waitForExistence(timeout: 10))
         attach(app, "mp3")
     }
 
     func testYouTubeChannelOffersAudioPodcast() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
         addSource(app, "https://www.youtube.com/channel/UCDx6L69jmKBJbNu5GnkCilg")
         let row = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Magnussen'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 30))
@@ -62,7 +65,7 @@ final class BetaFeedbackUITests: XCTestCase {
     }
 
     func testTopicCanBeCreatedInsideTopicUpdate() {
-        let app = XCUIApplication(); app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
         app.tabBars.buttons["Meine Feeds"].tap()
         app.navigationBars.buttons["Neu"].firstMatch.tap()
         let name = app.textFields["z. B. Mein KI Update"]

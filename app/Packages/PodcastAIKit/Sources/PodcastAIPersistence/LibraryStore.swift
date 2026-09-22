@@ -129,6 +129,10 @@ public actor LibraryStore {
             stored.audioURLString = episode.audioURL?.absoluteString
             stored.timedTranscriptURLString = episode.timedTranscriptURL?.absoluteString
             stored.artworkURLString = episode.artworkURL?.absoluteString
+            stored.chaptersData = episode.publisherChapters.isEmpty
+                ? nil : try? JSONEncoder().encode(episode.publisherChapters)
+            stored.chaptersURLString = episode.chaptersURL?.absoluteString
+            stored.shownotesHTML = episode.shownotesHTML
             stored.source = source
 
             if existing == nil {
@@ -359,6 +363,16 @@ public actor LibraryStore {
             )
         )
         return Dictionary(uniqueKeysWithValues: stored.map { ($0.snapshot.id, $0.snapshot) })
+    }
+
+    /// Die Belege einer Folge, nach Zeit sortiert.
+    public func evidence(forEpisode episodeID: EpisodeID) throws -> [Evidence] {
+        let identifier = episodeID.rawValue
+        let descriptor = FetchDescriptor<StoredEvidence>(
+            predicate: #Predicate { $0.episodeIdentifier == identifier },
+            sortBy: [SortDescriptor(\.startMs)]
+        )
+        return try modelContext.fetch(descriptor).map(\.snapshot)
     }
 
     /// Belege aller Quellen, die für einen Themenfeed infrage kommen.

@@ -35,7 +35,7 @@ Ein Ende-zu-Ende-Test lädt eine echte Folge aus dem Netz, transkribiert sie und
 PODCASTAI_LIVE=1 swift test --filter LiveAnalysisTests
 ```
 
-Die Oberfläche testet ein UI-Test im Simulator: alle Tabs öffnen, einen Feed hinzufügen, Folgen anzeigen.
+Die Oberfläche testen UI-Tests im Simulator: alle Tabs, Feed hinzufügen, Folge öffnen und abspielen, Warteschlange und die Fälle aus dem TestFlight-Feedback.
 
 ```bash
 xcodebuild -project PodcastAI.xcodeproj -scheme PodcastAI \
