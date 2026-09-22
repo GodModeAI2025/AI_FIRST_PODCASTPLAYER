@@ -52,7 +52,7 @@ final class BetaFeedback03UITests: XCTestCase {
         attach(app, "folge")
         play.tap()
         let shownotes = app.staticTexts["Shownotes"].firstMatch
-        for _ in 0..<12 where !shownotes.exists { app.swipeUp() }
+        for _ in 0..<40 where !shownotes.exists { app.swipeUp(velocity: .fast) }
         XCTAssertTrue(shownotes.exists, "Keine Shownotes")
         attach(app, "shownotes")
 
@@ -106,12 +106,11 @@ final class BetaFeedback03UITests: XCTestCase {
         XCTAssertTrue(episode.waitForExistence(timeout: 10))
         episode.tap()
 
-        // Erschliessen lädt die Datei. Im Simulator scheitert danach die
-        // Transkription, die Datei bleibt aber liegen. Genau dieser Zustand
-        // machte die Wiedergabe stumm.
+        // Die App bereitet neue Folgen von selbst vor und lädt die Datei
+        // dabei. Im Simulator scheitert danach die Transkription, die Datei
+        // bleibt aber liegen. Genau dieser Zustand machte die Wiedergabe stumm.
         let analyze = app.buttons["Erschliessen"].firstMatch
-        XCTAssertTrue(analyze.waitForExistence(timeout: 10))
-        analyze.tap()
+        if analyze.waitForExistence(timeout: 5) { analyze.tap() }
         let loaded = app.staticTexts.matching(NSPredicate(
             format: "label BEGINSWITH 'fehlgeschlagen' OR label BEGINSWITH 'transkribiert' OR label BEGINSWITH 'erschlossen' OR label BEGINSWITH 'geladen'")).firstMatch
         XCTAssertTrue(loaded.waitForExistence(timeout: 300), "Folge wurde nicht geladen")

@@ -52,8 +52,16 @@ public final class EpisodePlayer {
     @ObservationIgnored private var seekGeneration = 0
     @ObservationIgnored private var seekInFlight = false
     @ObservationIgnored private var usingLocalFile = false
+    /// Gewünschte Startstelle, solange die Folge noch nicht bereit ist.
+    /// Ein Sprung vor `readyToPlay` verpufft, und die Folge lief dann
+    /// irgendwo statt an der gewünschten Stelle.
+    @ObservationIgnored private var pendingStart: Double?
+    @ObservationIgnored private var resumeWhenReady = false
+    @ObservationIgnored private let positionsKey = "episodePlaybackPositions"
+    @ObservationIgnored private var positions: [String: Double]
 
     public init() {
+        positions = (UserDefaults.standard.dictionary(forKey: "episodePlaybackPositions") as? [String: Double]) ?? [:]
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main
         ) { [weak self] time in
@@ -76,15 +84,38 @@ public final class EpisodePlayer {
             playbackError = "Zu dieser Folge gibt es keine Audiodatei."
             return
         }
-        flushHeard()
-        if self.episode?.id != episode.id {
-            self.episode = episode
-            chapters = episode.publisherChapters
-            duration = episode.declaredDuration?.seconds ?? 0
-            load(url, isLocal: localFile != nil)
+        if self.episode?.id == episode.id {
+            seek(to: seconds)
+            resume()
+            return
         }
-        seek(to: seconds)
-        resume()
+        // Erst die alte Folge sauber abschließen. Sonst landet die zuletzt
+        // gehörte Zeit der alten Folge auf der neuen.
+        flushHeard()
+        savePosition()
+        heardStart = nil
+        isPlaying = false
+        self.episode = episode
+        chapters = episode.publisherChapters
+        duration = episode.declaredDuration?.seconds ?? 0
+        currentTime = seconds
+        pendingStart = seconds
+        resumeWhenReady = true
+        load(url, isLocal: localFile != nil)
+        updateNowPlaying()
+    }
+
+    /// Die zuletzt gehörte Stelle einer Folge, sofern sie gemerkt wurde.
+    public func savedPosition(for episodeID: EpisodeID) -> Double? {
+        positions[episodeID.rawValue]
+    }
+
+    private func savePosition() {
+        guard let episode, currentTime > 5 else { return }
+        // Fast zu Ende heisst: beim nächsten Mal wieder von vorn.
+        let value = duration > 0 && currentTime > duration - 15 ? 0 : currentTime
+        positions[episode.id.rawValue] = value
+        UserDefaults.standard.set(positions, forKey: positionsKey)
     }
 
     private func load(_ url: URL, isLocal: Bool) {
@@ -112,18 +143,30 @@ public final class EpisodePlayer {
     }
 
     private func itemStatusChanged(_ status: AVPlayerItem.Status, message: String?, item: AVPlayerItem) {
-        guard item === player.currentItem, status == .failed else { return }
+        guard item === player.currentItem else { return }
+        if status == .readyToPlay {
+            if let start = pendingStart {
+                pendingStart = nil
+                seek(to: start)
+            }
+            if resumeWhenReady {
+                resumeWhenReady = false
+                resume()
+            }
+            return
+        }
+        guard status == .failed else { return }
         // Die geladene Datei ließ sich nicht öffnen: dann eben der Stream.
         if usingLocalFile, let stream = episode?.audioURL {
-            let position = currentTime
-            let wasPlaying = isPlaying
+            pendingStart = currentTime
+            resumeWhenReady = isPlaying || resumeWhenReady
             load(stream, isLocal: false)
-            seek(to: position)
-            if wasPlaying { resume() }
             return
         }
         isPlaying = false
         isBuffering = false
+        resumeWhenReady = false
+        pendingStart = nil
         playbackError = "Die Folge lässt sich nicht abspielen. "
             + (message.map { "Grund: \($0)" } ?? "Der Server liefert kein abspielbares Audio.")
         updateNowPlaying()
@@ -151,6 +194,8 @@ public final class EpisodePlayer {
 
     public func pause() {
         flushHeard()
+        savePosition()
+        resumeWhenReady = false
         player.pause()
         isPlaying = false
         updateNowPlaying()
@@ -160,6 +205,15 @@ public final class EpisodePlayer {
 
     public func seek(to seconds: Double) {
         flushHeard()
+        // Vor `readyToPlay` verpufft ein Sprung. Dann wird er gemerkt.
+        if player.currentItem?.status != .readyToPlay {
+            let target = max(0, seconds)
+            pendingStart = target
+            currentTime = target
+            if isPlaying { heardStart = target }
+            updateNowPlaying()
+            return
+        }
         let target = max(0, duration > 0 ? min(seconds, duration - 1) : seconds)
         seekGeneration += 1
         let generation = seekGeneration
@@ -191,6 +245,7 @@ public final class EpisodePlayer {
 
     public func stop() {
         flushHeard()
+        savePosition()
         player.pause()
         player.replaceCurrentItem(with: nil)
         isPlaying = false
@@ -210,7 +265,10 @@ public final class EpisodePlayer {
     private func tick(_ seconds: Double) {
         guard seconds.isFinite, !seekInFlight else { return }
         currentTime = seconds
-        if isPlaying, let start = heardStart, seconds - start >= 10 { flushHeard() }
+        if isPlaying, let start = heardStart, seconds - start >= 10 {
+            flushHeard()
+            savePosition()
+        }
     }
 
     private func flushHeard() {
@@ -230,6 +288,10 @@ public final class EpisodePlayer {
 
     private func finished() {
         flushHeard()
+        if let episode {
+            positions[episode.id.rawValue] = 0
+            UserDefaults.standard.set(positions, forKey: positionsKey)
+        }
         isPlaying = false
         if let episode { onFinished?(episode) }
     }

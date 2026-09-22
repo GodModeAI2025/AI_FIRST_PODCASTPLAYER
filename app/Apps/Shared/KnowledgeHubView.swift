@@ -84,7 +84,7 @@ struct KnowledgeHubView: View {
                 NavigationLink(value: HubDestination.settings) {
                     HubRow(
                         title: "Einstellungen",
-                        detail: "Intelligenz, Lernen, Systemsuche",
+                        detail: "Vorbereiten, Intelligenz, Lernen, Systemsuche",
                         symbol: "gearshape",
                         tint: .gray
                     )

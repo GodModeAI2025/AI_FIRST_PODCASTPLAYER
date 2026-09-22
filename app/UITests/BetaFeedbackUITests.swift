@@ -48,7 +48,9 @@ final class BetaFeedbackUITests: XCTestCase {
         let episode = app.cells.element(boundBy: 1)
         XCTAssertTrue(episode.waitForExistence(timeout: 10))
         episode.tap()
-        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS 'Erschliessen'")).firstMatch.waitForExistence(timeout: 10))
+        // Die Folge ist spielbar. Erschlossen wird sie von selbst, deshalb
+        // steht der Knopf dafür nicht mehr zwingend in der Ansicht.
+        XCTAssertTrue(app.buttons["episode.play"].waitForExistence(timeout: 10))
         attach(app, "mp3")
     }
 
@@ -73,7 +75,8 @@ final class BetaFeedbackUITests: XCTestCase {
         name.tap(); name.typeText("Neue KI Modelle")
         let topic = app.textFields["Neues Thema, z. B. KI-Modelle"]
         topic.tap(); topic.typeText("KI-Modelle")
-        app.buttons.matching(NSPredicate(format: "label == 'Hinzufügen'")).firstMatch.tap()
+        // Feedback zu 0.4: „Anlegen geht nicht“. Ein eingetipptes Thema
+        // zählt jetzt mit, auch ohne vorher auf Hinzufügen zu tippen.
         let create = app.navigationBars.buttons["Anlegen"]
         let deadline = Date().addingTimeInterval(10)
         while !create.isEnabled && Date() < deadline { sleep(1) }

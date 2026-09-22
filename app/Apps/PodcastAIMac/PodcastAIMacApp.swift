@@ -193,6 +193,7 @@ struct MacSettingsView: View {
             // um Einwilligung geht.
             Form {
                 IntelligenceSettingsSection()
+                AutomaticAnalysisSection()
             }
             .formStyle(.grouped)
             .tabItem { Label("Intelligenz", systemImage: "sparkles") }

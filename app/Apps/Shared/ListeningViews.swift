@@ -112,15 +112,19 @@ struct EpisodeDetailView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: Design.Spacing.control) {
-            EpisodeArtwork(url: episode.artworkURL ?? sourceArtwork, size: 96)
+        VStack(alignment: .leading, spacing: Design.Spacing.control) {
+            EpisodeArtwork(url: episode.artworkURL ?? sourceArtwork, size: 160)
+                .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
+                .frame(maxWidth: .infinity, alignment: .center)
             VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                Text(episode.title)
-                    .font(.headline)
-                    .lineLimit(4)
                 if let source = model.sources.first(where: { $0.id == episode.sourceID }) {
-                    Text(source.title).font(.subheadline).foregroundStyle(.secondary)
+                    Text(source.title.uppercased())
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.tint)
                 }
+                Text(episode.title)
+                    .font(.title3.weight(.semibold))
+                    .lineLimit(4)
                 HStack(spacing: Design.Spacing.small) {
                     if let published = episode.publishedAt { Text(published, style: .date) }
                     if let duration = episode.declaredDuration { Text(duration.shortDescription) }
@@ -130,7 +134,7 @@ struct EpisodeDetailView: View {
                 HeardProgress(fraction: model.heardFraction(for: episode))
             }
         }
-        .padding(.vertical, Design.Spacing.micro)
+        .padding(.vertical, Design.Spacing.small)
     }
 
     private var sourceArtwork: URL? {
@@ -145,7 +149,7 @@ struct EpisodeDetailView: View {
                 Label(playLabel, systemImage: isCurrent && player.isPlaying ? "pause.fill" : "play.fill")
                     .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
             .accessibilityIdentifier("episode.play")
 
             Button {
@@ -155,7 +159,7 @@ struct EpisodeDetailView: View {
                     .labelStyle(.iconOnly)
                     .frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.glass)
             .disabled(model.upNext.contains { $0.id == episode.id } || isCurrent)
             .accessibilityLabel("Als Nächstes hören")
 
@@ -168,7 +172,7 @@ struct EpisodeDetailView: View {
                         .labelStyle(.iconOnly)
                         .frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .disabled(model.stageDetails[episode.id] == "wartet")
                 .accessibilityLabel(stage == .failed ? "Erneut versuchen" : "Erschliessen")
             }
@@ -270,8 +274,9 @@ struct EpisodePlayerView: View {
             if let episode = player.episode {
                 ScrollView {
                     VStack(spacing: Design.Spacing.control) {
-                        EpisodeArtwork(url: episode.artworkURL ?? artwork(for: episode), size: 240)
-                            .padding(.top, Design.Spacing.control)
+                        EpisodeArtwork(url: episode.artworkURL ?? artwork(for: episode), size: 260)
+                            .shadow(color: .black.opacity(0.22), radius: 22, y: 12)
+                            .padding(.top, Design.Spacing.section)
                         VStack(spacing: Design.Spacing.micro) {
                             Text(episode.title)
                                 .font(.headline)
@@ -371,9 +376,12 @@ struct EpisodePlayerView: View {
             }
             .accessibilityLabel("15 Sekunden zurück")
             Button { player.togglePlayPause() } label: {
-                Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 56))
+                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title)
+                    .frame(width: 64, height: 64)
             }
+            .buttonStyle(.glassProminent)
+            .buttonBorderShape(.circle)
             .accessibilityLabel(player.isPlaying ? "Pause" : "Abspielen")
             Button { player.skip(by: 30) } label: {
                 Image(systemName: "goforward.30").font(.title2).tappableArea()
@@ -386,6 +394,7 @@ struct EpisodePlayerView: View {
             .disabled(player.chapters.isEmpty)
         }
         .buttonStyle(.pressable)
+        .padding(.vertical, Design.Spacing.small)
     }
 
     private var rateMenu: some View {
@@ -399,7 +408,11 @@ struct EpisodePlayerView: View {
             Label("\(Double(player.rate).formatted(.number.precision(.fractionLength(1))))×",
                   systemImage: "speedometer")
                 .font(.footnote)
+                .padding(.horizontal, Design.Spacing.control)
+                .padding(.vertical, Design.Spacing.small)
         }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.capsule)
         .accessibilityLabel("Geschwindigkeit")
     }
 
@@ -407,19 +420,24 @@ struct EpisodePlayerView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Kapitel").font(.headline).padding(.vertical, Design.Spacing.small)
             ForEach(Array(player.chapters.enumerated()), id: \.offset) { _, chapter in
+                let isCurrent = player.currentChapter?.start == chapter.start
                 Button { player.seek(to: chapter.start.seconds) } label: {
                     HStack(alignment: .firstTextBaseline) {
                         TimecodeLabel(chapter.start).frame(minWidth: 56, alignment: .leading)
                         Text(chapter.title)
-                            .fontWeight(player.currentChapter?.start == chapter.start ? .semibold : .regular)
+                            .fontWeight(isCurrent ? .semibold : .regular)
+                            .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                             .multilineTextAlignment(.leading)
                         Spacer()
                     }
-                    .padding(.vertical, Design.Spacing.small)
+                    .padding(.vertical, Design.Spacing.control)
+                    .padding(.horizontal, Design.Spacing.control)
+                    .background(isCurrent ? AnyShapeStyle(.tint.opacity(0.12)) : AnyShapeStyle(.clear),
+                                in: .rect(cornerRadius: Design.Radius.control))
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                Divider()
+                if !isCurrent { Divider() }
             }
         }
     }
@@ -548,8 +566,12 @@ struct QueueView: View {
             } header: {
                 Text("Erschliessen")
             } footer: {
-                Text("Es läuft immer eine Folge zur Zeit. Auf dem iPhone geht die Arbeit im Hintergrund weiter, "
+                if let unavailable = model.preparationUnavailable {
+                    Text("Automatisch vorbereitet wird gerade nichts. \(unavailable)")
+                } else {
+                    Text("Es läuft immer eine Folge zur Zeit. Auf dem iPhone geht die Arbeit im Hintergrund weiter, "
                      + "solange die Fortschrittsanzeige des Systems zu sehen ist.")
+                }
             }
         }
         .navigationTitle("Warteschlange")

@@ -1,5 +1,15 @@
 # Änderungsverlauf
 
+## App 0.5 · 2026-09-22
+Aus dem Feedback zu 0.4:
+- Die App bereitet die jüngsten Folgen jeder Quelle von selbst vor: laden, transkribieren mit Zeitmarken, Belege bilden. Vorher passierte das nur auf ausdrückliche Anforderung, und „Für dich“, die Suche und die Themen-Updates blieben deshalb leer. Abschaltbar in den Einstellungen unter „Vorbereiten“.
+- Erschlossene Folgen werden nach einem Neustart wiedererkannt. Bisher sah nach jedem Start alles unbearbeitet aus.
+- „Anlegen“ beim Themen-Update ist nicht mehr grundlos gesperrt. Themen sind vorausgewählt, ein eingetipptes Thema zählt mit, und ohne Namen entsteht einer aus den Themen.
+- Abspielen beginnt dort, wo man aufgehört hat. Die Stelle wird je Folge gemerkt, und der Sprung wartet, bis die Folge bereit ist. Vorher startete die Wiedergabe irgendwo.
+- Beim Wechsel auf eine andere Folge wird keine Hörzeit mehr auf die neue Folge gebucht.
+- Fehler beim automatischen Vorbereiten unterbrechen niemanden mehr. Kann ein Gerät gar nicht transkribieren, hört die App von selbst auf, Folgen dafür zu laden, und sagt das in der Warteschlange.
+- Neue Oberfläche: grosse Cover, Glas-Bedienelemente im Player und in der Folge, Karten in „Für dich“, Cover in Mediathek und Folgenliste, hervorgehobenes laufendes Kapitel.
+
 ## App 0.4 · 2026-09-22
 Aus dem Feedback zu 0.3:
 - Kein Ton bei erschlossenen Folgen behoben. Geladene Folgen liegen ohne Dateiendung auf dem Gerät, und AVFoundation konnte sie deshalb nicht öffnen. Der Player zeigte trotzdem „läuft“. Die App erkennt das Format jetzt am Dateianfang. Das betraf auch das Abspielen einzelner Stellen aus „Für dich“.

@@ -53,6 +53,26 @@ public final class AppModel {
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
     public private(set) var lastRefresh: Date?
 
+    /// Neue Folgen von selbst erschliessen, damit Wissen, „Für dich“ und
+    /// die Themen-Updates gefüllt sind, bevor man danach sucht. Abschaltbar,
+    /// weil es Daten, Akku und Zeit kostet.
+    public var automaticAnalysis: Bool {
+        didSet {
+            UserDefaults.standard.set(automaticAnalysis, forKey: Self.automaticAnalysisKey)
+            if automaticAnalysis { Task { await prepareNewEpisodes() } }
+        }
+    }
+    /// Wie viele Folgen je Quelle die App von sich aus vorbereitet.
+    public static let automaticAnalysisPerSource = 3
+    static let automaticAnalysisKey = "automaticAnalysis"
+    @ObservationIgnored private var analyzedEpisodes: Set<EpisodeID> = []
+    /// Von der App selbst eingereihte Folgen. Ihre Fehler unterbrechen
+    /// niemanden: wer nicht darum gebeten hat, will dafür keinen Dialog.
+    @ObservationIgnored private var automaticallyQueued: Set<EpisodeID> = []
+    /// Kann dieses Gerät gar nicht transkribieren, hört die App von selbst
+    /// auf, es zu versuchen, statt Folge um Folge zu laden.
+    public private(set) var preparationUnavailable: String?
+
     // MARK: - Dienste
 
     public let store: LibraryStore
@@ -67,6 +87,9 @@ public final class AppModel {
 
     public init(store: LibraryStore, deviceID: String = AppModel.currentDeviceID()) {
         self.store = store
+        // Voreingestellt an: ohne vorbereitete Folgen bleibt „Für dich“ leer,
+        // und die App wirkt, als könne sie nichts.
+        self.automaticAnalysis = UserDefaults.standard.object(forKey: Self.automaticAnalysisKey) as? Bool ?? true
         self.deviceID = deviceID
         self.policy = PlaybackPolicy(deviceID: deviceID)
         let locator = LocalMediaLocator()
@@ -130,6 +153,12 @@ public final class AppModel {
             highlights = try await store.highlights()
             trails = try await store.trails()
             modelStatus = await ModelStatusProbe.current()
+            // Was schon erschlossen ist, steht in der Datenbank. Ohne diesen
+            // Abgleich sah nach jedem Start alles unbearbeitet aus.
+            analyzedEpisodes = try await store.analyzedEpisodeIDs()
+            for id in analyzedEpisodes where stages[id] == nil {
+                stages[id] = .evidenceExtracted
+            }
         } catch {
             lastError = UserFacingError.describe(error)
         }
@@ -233,6 +262,7 @@ public final class AppModel {
         activity = "Feeds werden aktualisiert …"
         defer { activity = nil }
         lastRefresh = Date()
+        defer { Task { await prepareNewEpisodes() } }
         do {
             let result = try await refresher.refreshAll()
             sources = try await store.sources()
@@ -256,6 +286,7 @@ public final class AppModel {
     public func loadEpisodes(for sourceID: SourceID) async {
         do {
             episodes[sourceID] = try await store.episodes(forSource: sourceID)
+            await prepareNewEpisodes(in: sourceID)
         } catch {
             lastError = UserFacingError.describe(error)
         }
@@ -265,17 +296,42 @@ public final class AppModel {
         }
     }
 
-    /// Erschliesst eine Folge: laden, transkribieren, Belege bilden.
+    /// Bereitet neue Folgen von selbst vor.
     ///
-    /// Ausdrücklich eine Nutzeraktion. Abonnieren allein lädt und analysiert
-    /// nichts — das kostet Daten, Akku und Zeit, und die Entscheidung
-    /// darüber gehört dem Nutzer.
+    /// Die App transkribiert die jüngsten Folgen jeder Quelle mit Zeitmarken,
+    /// damit „Für dich“, die Suche und die Themen-Updates etwas zu arbeiten
+    /// haben, sobald man sie öffnet. Ältere Folgen bleiben liegen, bis
+    /// jemand sie anfordert.
+    public func prepareNewEpisodes(in sourceID: SourceID? = nil) async {
+        guard automaticAnalysis, preparationUnavailable == nil else { return }
+        let ids = sourceID.map { [$0] } ?? sources.map(\.id)
+        for id in ids {
+            let list = episodes[id] ?? []
+            let candidates = list
+                .filter { $0.audioURL != nil && $0.canBeAnalyzed }
+                .filter { !analyzedEpisodes.contains($0.id) }
+                .filter { stages[$0.id] == nil }
+                .prefix(Self.automaticAnalysisPerSource)
+            for episode in candidates { enqueueAnalysis(episode, automatic: true) }
+        }
+    }
+
+    /// Erschliesst eine Folge: laden, transkribieren, Belege bilden.
     public func analyze(_ episode: Episode, audioURL: URL, locale explicitLocale: Locale? = nil) async {
         enqueueAnalysis(episode)
     }
 
     /// Stellt eine Folge in die Warteschlange der Erschliessung.
-    public func enqueueAnalysis(_ episode: Episode) {
+    public func enqueueAnalysis(_ episode: Episode, automatic: Bool = false) {
+        if automatic {
+            guard preparationUnavailable == nil else { return }
+            automaticallyQueued.insert(episode.id)
+        } else {
+            automaticallyQueued.remove(episode.id)
+            // Von Hand angefordert heisst: auch auf einem Gerät ohne
+            // Spracherkennung darf man es erneut versuchen.
+            preparationUnavailable = nil
+        }
         guard episode.audioURL != nil,
               analyzing?.id != episode.id,
               !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
@@ -353,6 +409,8 @@ public final class AppModel {
                 episode: episode, audioURL: audioURL,
                 sourceID: episode.sourceID, locale: locale
             )
+            analyzedEpisodes.insert(episode.id)
+            automaticallyQueued.remove(episode.id)
             await refreshRelevantToday()
             return false
         } catch {
@@ -363,7 +421,19 @@ public final class AppModel {
             stages[episode.id] = .failed
             let message = UserFacingError.describe(error)
             stageDetails[episode.id] = message
-            lastError = "„\(episode.title)“: \(message)"
+            let wasAutomatic = automaticallyQueued.remove(episode.id) != nil
+            // Kann das Gerät überhaupt nicht transkribieren, hat es keinen
+            // Sinn, die nächsten Folgen trotzdem zu laden.
+            if case TranscriptionError.speechUnavailableOnDevice = error {
+                preparationUnavailable = message
+                for waiting in analysisQueue where automaticallyQueued.contains(waiting.id) {
+                    stageDetails[waiting.id] = nil
+                }
+                analysisQueue.removeAll { automaticallyQueued.contains($0.id) }
+                automaticallyQueued.removeAll()
+            }
+            // Nur selbst angeforderte Arbeit meldet sich mit einem Dialog.
+            if !wasAutomatic { lastError = "„\(episode.title)“: \(message)" }
             return false
         }
     }
@@ -1064,12 +1134,15 @@ public final class AppModel {
         }
     }
 
-    /// Wo eine Folge weitergeht: nach dem letzten zusammenhängend Gehörten.
+    /// Wo eine Folge weitergeht: an der zuletzt gehörten Stelle. Wurde die
+    /// Folge hier noch nie gespielt, hilft der Hörzustand weiter, sofern er
+    /// am Anfang ansetzt.
     public func resumePosition(for episode: Episode) -> Double {
+        if let saved = episodePlayer.savedPosition(for: episode.id) { return saved }
         guard let id = episode.streamMediaVersionID else { return 0 }
         let heard = ledger.heard(in: id)
-        guard let firstGapEnd = heard.ranges.first, firstGapEnd.start.milliseconds < 5_000 else { return 0 }
-        return firstGapEnd.end.seconds
+        guard let first = heard.ranges.first, first.start.milliseconds < 5_000 else { return 0 }
+        return first.end.seconds
     }
 
     /// Anteil der Folge, der schon gehört ist, zwischen 0 und 1.

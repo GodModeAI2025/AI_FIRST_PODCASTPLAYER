@@ -375,6 +375,16 @@ public actor LibraryStore {
         return try modelContext.fetch(descriptor).map(\.snapshot)
     }
 
+    /// Die Folgen, zu denen es schon Belege mit Zeitmarken gibt.
+    public func analyzedEpisodeIDs() throws -> Set<EpisodeID> {
+        var descriptor = FetchDescriptor<StoredEvidence>(
+            predicate: #Predicate { $0.hasTiming == true }
+        )
+        descriptor.propertiesToFetch = [\.episodeIdentifier]
+        let stored = try modelContext.fetch(descriptor)
+        return Set(stored.map { EpisodeID(rawValue: $0.episodeIdentifier) })
+    }
+
     /// Belege aller Quellen, die für einen Themenfeed infrage kommen.
     public func evidenceForAnalyzedEpisodes(limit: Int = 500) throws -> [Evidence] {
         var descriptor = FetchDescriptor<StoredEvidence>(

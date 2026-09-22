@@ -37,9 +37,16 @@ struct ForYouView: View {
             } else {
                 ForEach(model.relevantToday) { item in
                     RelevantItemRow(item: item)
+                        .listRowInsets(EdgeInsets(top: Design.Spacing.small,
+                                                  leading: Design.Spacing.standard,
+                                                  bottom: Design.Spacing.small,
+                                                  trailing: Design.Spacing.standard))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                 }
             }
         }
+        .listStyle(.plain)
         .navigationTitle("Für dich")
         .refreshable { await model.refreshAll() }
         .toolbar {
@@ -79,13 +86,20 @@ struct RelevantItemRow: View {
     }
 
     private var content: some View {
+        card
+            .padding(Design.Spacing.standard)
+            .background(.background.secondary, in: .rect(cornerRadius: Design.Radius.card, style: .continuous))
+    }
+
+    private var card: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.small) {
             // Hierarchie über Gewicht und Farbe, nicht über Schriftwechsel:
             // Quelle zurückgenommen, Folge als Überschrift, Zitat als Text.
             HStack(spacing: Design.Spacing.micro) {
                 Text(item.sourceTitle)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tint)
+                    .lineLimit(1)
                 Text("·").foregroundStyle(.tertiary)
                 // Der Timecode steht sichtbar dabei. Er ist kein technisches
                 // Detail, sondern das Versprechen: das hier kannst du nachhören.
@@ -115,6 +129,9 @@ struct RelevantItemRow: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.tint)
+                .padding(.horizontal, Design.Spacing.small)
+                .padding(.vertical, Design.Spacing.micro)
+                .background(.tint.opacity(0.12), in: .capsule)
                 .padding(.top, Design.Spacing.micro)
             }
         }
@@ -391,10 +408,12 @@ struct SourceRow: View {
     let source: Source
 
     var body: some View {
+        HStack(spacing: Design.Spacing.control) {
+        EpisodeArtwork(url: source.artworkURL, size: 52)
         VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-            Text(source.title).font(.headline)
+            Text(source.title).font(.headline).lineLimit(2)
             if let author = source.author {
-                Text(author).font(.caption).foregroundStyle(.secondary)
+                Text(author).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
             // Grenzen werden angezeigt, nicht versteckt. Ein Kanal ohne
             // Audiozugang soll nicht so aussehen wie einer mit.
@@ -404,6 +423,7 @@ struct SourceRow: View {
                     .font(.caption2)
                     .foregroundStyle(.orange)
             }
+        }
         }
     }
 }
@@ -624,6 +644,8 @@ struct NewSmartFeedSheet: View {
                 } footer: {
                     if model.profile.topics.isEmpty {
                         Text("Lege mindestens ein Thema an. Es wird auch unter „Wissen › Interessen“ gespeichert.")
+                    } else {
+                        Text("Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen.")
                     }
                 }
                 Section {
@@ -634,31 +656,53 @@ struct NewSmartFeedSheet: View {
                 }
             }
             .navigationTitle("Themen-Update")
+            .onAppear {
+                // Alle Themen sind vorausgewählt. Wer nichts abwählt, bekommt
+                // ein Update über alles, was ihn interessiert.
+                if selected.isEmpty { selected = Set(model.profile.topics.map(\.id)) }
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     // Der Knopf legte bisher nichts an, er schloss nur das
                     // Blatt. Das Themen-Update — das sichtbarste Merkmal des
                     // Konzepts — war damit nicht erreichbar.
                     Button("Anlegen") {
-                        let feedID = model.createSmartFeed(
-                            title: title,
-                            topicIDs: model.profile.topics
-                                .map(\.id)
-                                .filter(selected.contains),
-                            minutes: minutes
-                        )
-                        dismiss()
-                        // Gleich eine erste Ausgabe bauen: ein leerer Feed
-                        // direkt nach dem Anlegen sieht aus wie ein Fehler.
-                        Task { await model.buildEdition(feedID: feedID) }
+                        Task { await create() }
                     }
-                    .disabled(title.isEmpty || selected.isEmpty)
+                    // Gesperrt nur, wenn es wirklich nichts anzulegen gibt.
+                    // Vorher blieb der Knopf grau, solange kein Thema
+                    // angehakt war, ohne dass man das sehen konnte.
+                    .disabled(!canCreate)
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Abbrechen") { dismiss() }
                 }
             }
         }
+    }
+
+    private var pendingTopic: String { newTopic.trimmingCharacters(in: .whitespaces) }
+
+    private var canCreate: Bool {
+        !selected.isEmpty || !pendingTopic.isEmpty
+    }
+
+    private func create() async {
+        var topicIDs = model.profile.topics.map(\.id).filter(selected.contains)
+        if !pendingTopic.isEmpty, let id = await model.addInterest(pendingTopic, kind: .topic) {
+            topicIDs.append(id)
+            newTopic = ""
+        }
+        guard !topicIDs.isEmpty else { return }
+        let labels = model.profile.topics.filter { topicIDs.contains($0.id) }.map(\.label)
+        let name = title.trimmingCharacters(in: .whitespaces).isEmpty
+            ? (labels.isEmpty ? "Mein Update" : labels.prefix(2).joined(separator: " und "))
+            : title
+        let feedID = model.createSmartFeed(title: name, topicIDs: topicIDs, minutes: minutes)
+        dismiss()
+        // Gleich eine erste Ausgabe bauen: ein leerer Feed direkt nach dem
+        // Anlegen sieht aus wie ein Fehler.
+        await model.buildEdition(feedID: feedID)
     }
 
     private func addTopic() {

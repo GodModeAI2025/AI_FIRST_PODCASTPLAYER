@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 22. September 2026, Version 0.4.
+Stand 22. September 2026, Version 0.5.
 
 ## Geprüft
 
@@ -13,6 +13,7 @@ Stand 22. September 2026, Version 0.4.
 | MP3-Link, Podigee-Adresse ohne Feed, YouTube-Kanal mit Audio-Podcast, Thema im Themen-Update | UI-Tests mit den Links aus dem TestFlight-Feedback |
 | Transistor-Feed abonnieren, Folge mit Kapiteln und Shownotes öffnen, abspielen, Player, Warteschlange, Erklärung der Interessenarten | UI-Tests mit den Links aus dem Feedback zu 0.2 |
 | Geladene Folge abspielen, Zeit läuft | UI-Test mit der MP3 aus dem Feedback, erst laden, dann abspielen |
+| Themen-Update anlegen mit eingetipptem Thema | UI-Test, „Anlegen“ bleibt nicht gesperrt |
 | Folge laden, transkribieren, Belege mit Zeitmarken | Ende-zu-Ende-Test auf dem Mac mit echter englischer Folge |
 | Kernlogik: Intervalle, Hörplan, Relevanz, Export, Freigaben | 44 Swift-Tests im Paket |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
@@ -46,3 +47,5 @@ Stand 22. September 2026, Version 0.4.
 - Mehrere gleichzeitig gestartete Erschliessungen scheiterten an der Grenze der Spracherkennung. Sie laufen jetzt nacheinander.
 - Feeds, die mit einer Stylesheet-Anweisung beginnen, wurden als Webseite behandelt.
 - Geladene Folgen blieben stumm, weil die Datei keine Endung hat und AVFoundation das Format nicht erkannte.
+- Die Wiedergabe begann an einer zufälligen Stelle, weil der Sprung vor dem Bereitsein der Folge verpuffte.
+- Erschlossene Folgen galten nach einem Neustart wieder als unbearbeitet.

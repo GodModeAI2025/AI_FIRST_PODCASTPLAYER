@@ -44,6 +44,27 @@ struct IntelligenceSettingsSection: View {
 /// Er gehört zu den Einstellungen und nicht in die Interessenliste: dort
 /// wäre er eine Option neben Themen, hier ist er eine Entscheidung über die
 /// App.
+struct AutomaticAnalysisSection: View {
+
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Section {
+            Toggle("Neue Folgen vorbereiten", isOn: Binding(
+                get: { model.automaticAnalysis },
+                set: { model.automaticAnalysis = $0 }
+            ))
+        } header: {
+            Text("Vorbereiten")
+        } footer: {
+            Text("Die App lädt die \(AppModel.automaticAnalysisPerSource) jüngsten Folgen je Quelle und "
+                 + "transkribiert sie mit Zeitmarken. Erst dadurch finden „Für dich“, die Suche und die "
+                 + "Themen-Updates etwas. Das kostet Daten und Akku; ausgeschaltet erschliesst die App nur, "
+                 + "was du selbst anforderst.")
+        }
+    }
+}
+
 struct LearningSettingsSection: View {
 
     @Environment(AppModel.self) private var model
@@ -86,6 +107,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             IntelligenceSettingsSection()
+            AutomaticAnalysisSection()
             LearningSettingsSection()
             SpotlightSettingsSection()
         }

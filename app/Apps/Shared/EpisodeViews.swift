@@ -4,10 +4,12 @@
 //
 //  Folgenliste und Erschliessung.
 //
-//  Der wichtigste Punkt an dieser Oberfläche: **Abonnieren erschliesst
-//  nichts.** Eine Folge wird erst analysiert, wenn der Nutzer es sagt —
-//  das kostet Daten, Akku und Zeit, und die Entscheidung gehört ihm.
-//  Deshalb steht an jeder Folge sichtbar, in welchem Zustand sie ist.
+//  Die App bereitet die jüngsten Folgen einer Quelle von selbst vor: laden,
+//  transkribieren, Belege mit Zeitmarken. Ohne das bleibt „Für dich“ leer,
+//  und die Suche findet nichts. Ältere Folgen wartet sie ab, bis jemand sie
+//  anfordert, und in den Einstellungen lässt sich das Vorbereiten ganz
+//  abschalten. An jeder Folge steht deshalb sichtbar, in welchem Zustand
+//  sie ist.
 //
 
 import SwiftUI
@@ -122,6 +124,10 @@ struct EpisodeRow: View {
     private var stage: ProcessingStage? { model.stages[episode.id] }
 
     var body: some View {
+        HStack(alignment: .top, spacing: Design.Spacing.control) {
+            EpisodeArtwork(url: episode.artworkURL
+                           ?? model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                           size: 56)
         VStack(alignment: .leading, spacing: Design.Spacing.small) {
             Text(episode.title)
                 .font(.headline)
@@ -175,6 +181,7 @@ struct EpisodeRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+        }
         }
         .padding(.vertical, Design.Spacing.micro)
         .accessibilityElement(children: .combine)
