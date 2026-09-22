@@ -158,10 +158,28 @@ struct MacRootView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if model.episodePlayer.episode != nil {
-                    EpisodeMiniBar()
-                        .padding(.vertical, Design.Spacing.small)
-                        .background(.bar)
+                VStack(spacing: 0) {
+                    // Über dem Mini-Player statt als Overlay darauf, sonst
+                    // liegt die Zeile auf „Player öffnen“.
+                    if let activity = model.activity {
+                        Button { section = .queue } label: {
+                            Text(activity)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        .buttonStyle(.plain)
+                        .font(.caption)
+                        .padding(.horizontal, Design.Spacing.control).padding(.vertical, Design.Spacing.small)
+                        .background(.thinMaterial, in: Capsule())
+                        .padding(.horizontal, Design.Spacing.standard)
+                        .padding(.bottom, Design.Spacing.small)
+                        .accessibilityHint("Öffnet die Warteschlange")
+                    }
+                    if model.episodePlayer.episode != nil {
+                        EpisodeMiniBar()
+                            .padding(.vertical, Design.Spacing.small)
+                            .background(.bar)
+                    }
                 }
             }
         }
@@ -177,16 +195,6 @@ struct MacRootView: View {
                 }
                 .buttonStyle(.pressable)
                 .accessibilityLabel("Alle Feeds aktualisieren")
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if let activity = model.activity {
-                Button { section = .queue } label: { Text(activity) }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .padding(.horizontal, Design.Spacing.control).padding(.vertical, Design.Spacing.small)
-                    .background(.thinMaterial, in: Capsule())
-                    .padding(.bottom, Design.Spacing.control)
             }
         }
     }

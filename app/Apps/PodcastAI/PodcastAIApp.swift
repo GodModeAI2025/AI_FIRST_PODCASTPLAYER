@@ -84,19 +84,24 @@ struct RootView: View {
         TabView(selection: $selection) {
             Tab("Für dich", systemImage: "sparkles", value: Area.forYou) {
                 NavigationStack { ForYouView() }
+                    .activityBanner { showingQueue = true }
             }
             Tab("Meine Feeds", systemImage: "waveform.circle", value: Area.feeds) {
                 NavigationStack { SmartFeedListView() }
+                    .activityBanner { showingQueue = true }
             }
             // Eigener Such-Tab: die Rolle, die er seit WWDC25 hat.
             Tab("Fragen", systemImage: "magnifyingglass", value: Area.ask, role: .search) {
                 NavigationStack { ChatView() }
+                    .activityBanner { showingQueue = true }
             }
             Tab("Mediathek", systemImage: "books.vertical", value: Area.library) {
                 NavigationStack { LibraryView() }
+                    .activityBanner { showingQueue = true }
             }
             Tab("Wissen", systemImage: "brain", value: Area.knowledge) {
                 NavigationStack { KnowledgeHubView() }
+                    .activityBanner { showingQueue = true }
             }
         }
         // Der Mini-Player als Zubehör der Tab Bar statt als eigene Leiste.
@@ -111,11 +116,6 @@ struct RootView: View {
                                                  reduceMotion: reduceMotion),
             value: model.playerPlan?.id
         )
-        .overlay(alignment: .top) {
-            Button { showingQueue = true } label: { ActivityBanner() }
-                .buttonStyle(.plain)
-                .accessibilityHint("Öffnet die Warteschlange")
-        }
         .sheet(isPresented: $showingQueue) {
             NavigationStack {
                 QueueView()
@@ -153,6 +153,48 @@ private struct MiniPlayerAccessoryModifier: ViewModifier {
 private extension View {
     func miniPlayerAccessory(isVisible: Bool) -> some View {
         modifier(MiniPlayerAccessoryModifier(isVisible: isVisible))
+    }
+
+    func activityBanner(openQueue: @escaping () -> Void) -> some View {
+        modifier(ActivityBannerInset(openQueue: openQueue))
+    }
+}
+
+/// Stellt die Aktivitätszeile über die Navigation eines Tabs, nicht als
+/// Overlay darauf. Das Overlay lag beim Erschliessen auf Zurück, „Mehr“
+/// und den Reitern einer Folge, und jeder Tipp dort öffnete die
+/// Warteschlange.
+///
+/// Ein `safeAreaInset` reicht nicht: weder am TabView noch am
+/// NavigationStack rückt die Navigationsleiste nach unten, die Zeile lag
+/// dann wieder auf ihr. Im VStack beginnt der NavigationStack erst unter
+/// der Zeile. Ohne Aktivität bleibt nur der NavigationStack übrig.
+///
+/// Auf dem iPad schwebt die Tab Bar oben und läge auf der Zeile. Bei
+/// regulärer Breite steht sie deshalb unten.
+private struct ActivityBannerInset: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    let openQueue: () -> Void
+
+    func body(content: Content) -> some View {
+        let atBottom = sizeClass == .regular
+        VStack(spacing: 0) {
+            if !atBottom { banner }
+            content
+            if atBottom { banner }
+        }
+    }
+
+    @ViewBuilder private var banner: some View {
+        if model.activity != nil {
+            Button(action: openQueue) { ActivityBanner() }
+                .buttonStyle(.plain)
+                .padding(.horizontal, Design.Spacing.standard)
+                .padding(.bottom, Design.Spacing.small)
+                .accessibilityHint("Öffnet die Warteschlange")
+                .accessibilityIdentifier("activity.banner")
+        }
     }
 }
 
@@ -239,8 +281,13 @@ struct ActivityBanner: View {
 
     var body: some View {
         if let activity = model.activity {
+            // Eine Zeile. Lange Folgentitel werden in der Mitte gekürzt, damit
+            // Anfang und „danach noch …“ lesbar bleiben. VoiceOver liest den
+            // ganzen Text.
             Text(activity)
                 .font(.footnote)
+                .lineLimit(1)
+                .truncationMode(.middle)
                 .padding(.horizontal, Design.Spacing.control)
                 .padding(.vertical, Design.Spacing.small)
                 .glassEffect(.regular, in: .capsule)

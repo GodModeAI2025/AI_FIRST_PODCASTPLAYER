@@ -18,7 +18,9 @@ final class GoalFeaturesUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh"]
         app.launch()
-        app.tabBars.buttons["Mediathek"].tap()
+        // Auf dem iPad liegen die Tabs oben und erscheinen nicht unter `tabBars`.
+        let library = app.tabBars.buttons["Mediathek"]
+        (library.exists ? library : app.buttons["Mediathek"].firstMatch).tap()
         app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
         let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
@@ -45,11 +47,21 @@ final class GoalFeaturesUITests: XCTestCase {
 
         let sections = app.segmentedControls["episode.sections"]
         XCTAssertTrue(sections.waitForExistence(timeout: 10))
+        let bar = episodeNavigationBar(app)
+        XCTAssertTrue(bar.waitForExistence(timeout: 5))
+        let title = bar.identifier
+        XCTAssertFalse(title.isEmpty, "Die Folge hat keinen Titel in der Navigationsleiste")
         for name in ["Kapitel", "Transkript", "Fakten"] {
             sections.buttons[name].tap()
             attach(app, "reiter-\(name)")
         }
         sections.buttons["Fragen"].tap()
+        attach(app, "reiter-Fragen")
+        // Der Bereich ist fest. Die Folge muss trotzdem erkennbar bleiben.
+        let scope = app.descendants(matching: .any)["episode.ask.scope"]
+        XCTAssertTrue(scope.waitForExistence(timeout: 5), "Im Reiter Fragen fehlt die Folge")
+        XCTAssertTrue(scope.label.contains(title), "Die Kopfzeile nennt eine andere Folge")
+        XCTAssertTrue(bar.staticTexts[title].exists, "Titel fehlt in der Navigationsleiste")
         let suggestion = app.buttons["Worum geht es in dieser Folge?"]
         XCTAssertTrue(suggestion.waitForExistence(timeout: 5), "Keine Vorschlagsfragen")
         suggestion.tap()
@@ -57,6 +69,86 @@ final class GoalFeaturesUITests: XCTestCase {
         let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'erschlossen'")).firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 20), "Keine Antwort im Folgen-Chat")
         attach(app, "folgen-chat")
+
+        // Zurück muss zur Liste führen, auch während Folgen vorbereitet
+        // werden. Früher lag die Aktivitätszeile auf dem Zurück-Knopf.
+        bar.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(sections.waitForNonExistence(timeout: 5), "Zurück hat die Folge nicht verlassen")
+        XCTAssertFalse(app.navigationBars["Warteschlange"].exists, "Zurück hat die Warteschlange geöffnet")
+        XCTAssertTrue(app.navigationBars["AI to the DNA"].waitForExistence(timeout: 5))
+    }
+
+    /// Die Aktivitätszeile liegt über der Navigation, nicht auf ihr, und
+    /// öffnet weiterhin die Warteschlange.
+    @MainActor
+    func testActivityBannerLeavesNavigationFree() throws {
+        let app = launchWithFeed()
+        let episode = app.cells.element(boundBy: 1)
+        XCTAssertTrue(episode.waitForExistence(timeout: 15))
+        episode.tap()
+        XCTAssertTrue(app.segmentedControls["episode.sections"].waitForExistence(timeout: 10))
+
+        // Alle Rahmen aus einer Momentaufnahme. Im Simulator scheitert die
+        // Transkription nach wenigen Sekunden, dann verschwindet die Zeile
+        // und alles rückt nach oben. Deshalb in kurzen Abständen schauen
+        // statt mit `waitForExistence`, das erst nach einer Sekunde prüft.
+        let banner = app.buttons["activity.banner"].firstMatch
+        var tree = try app.snapshot()
+        var found = find(tree) { $0.identifier == "activity.banner" }
+        let deadline = Date().addingTimeInterval(20)
+        while found == nil && Date() < deadline {
+            usleep(250_000)
+            tree = try app.snapshot()
+            found = find(tree) { $0.identifier == "activity.banner" }
+        }
+        guard let line = found else {
+            throw XCTSkip("Keine Vorbereitung aktiv, die Aktivitätszeile erscheint nicht")
+        }
+        attach(app, "aktivitaet")
+        let bar = find(tree) { node in
+            node.elementType == .navigationBar && find(node, { $0.identifier == "episode.menu" }) != nil
+        }
+        let back = bar.flatMap { find($0, { $0.elementType == .button }) }
+        let menu = find(tree) { $0.identifier == "episode.menu" }
+        let sections = find(tree) { $0.identifier == "episode.sections" }
+        let tabs = find(tree) { $0.elementType == .tabBar }
+        for (name, element) in [("Zurück", back), ("Mehr", menu), ("die Reiter", sections)] {
+            let frame = try XCTUnwrap(element, "\(name) fehlt").frame
+            XCTAssertFalse(line.frame.intersects(frame), "Die Aktivitätszeile verdeckt \(name)")
+        }
+        if let tabs {
+            XCTAssertFalse(line.frame.intersects(tabs.frame), "Die Aktivitätszeile verdeckt die Tabs")
+        }
+
+        // Tipp auf die Stelle aus der Momentaufnahme. Ein Tipp auf das
+        // Element schlägt fehl, wenn die Zeile gerade verschwindet. Die
+        // Mitte trifft dann nur den Titel, keinen Knopf.
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: line.frame.midX, dy: line.frame.midY))
+            .tap()
+        let queue = app.navigationBars["Warteschlange"]
+        if !queue.waitForExistence(timeout: 5) {
+            if !banner.exists { throw XCTSkip("Die Vorbereitung endete während des Tipps") }
+            XCTFail("Die Aktivitätszeile öffnet die Warteschlange nicht")
+            return
+        }
+        app.buttons["Fertig"].firstMatch.tap()
+    }
+
+    /// Tiefensuche in einer Momentaufnahme, der erste Treffer gewinnt.
+    @MainActor
+    private func find(_ node: XCUIElementSnapshot,
+                      _ matches: (XCUIElementSnapshot) -> Bool) -> XCUIElementSnapshot? {
+        if matches(node) { return node }
+        for child in node.children {
+            if let hit = find(child, matches) { return hit }
+        }
+        return nil
+    }
+
+    /// Die Leiste der geöffneten Folge. Andere Tabs haben eigene Leisten.
+    private func episodeNavigationBar(_ app: XCUIApplication) -> XCUIElement {
+        app.navigationBars.containing(.button, identifier: "episode.menu").firstMatch
     }
 
     func testEpisodeExportAndDelete() {
@@ -79,7 +171,13 @@ final class GoalFeaturesUITests: XCTestCase {
         let confirm = app.buttons["Folge und alle Daten löschen"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
-        // Zurück in der Liste, die Folge ist weg.
+        // Die Folgenansicht schliesst sich, zurück in der Liste des Feeds.
+        XCTAssertTrue(app.segmentedControls["episode.sections"].waitForNonExistence(timeout: 10),
+                      "Die gelöschte Folge ist noch geöffnet")
+        XCTAssertFalse(menu.exists, "Das Menü der gelöschten Folge ist noch da")
+        XCTAssertTrue(app.navigationBars["AI to the DNA"].waitForExistence(timeout: 5),
+                      "Nach dem Löschen steht nicht die Folgenliste da")
+        // Die Folge ist weg.
         let prefix = String(title.prefix(40))
         let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", prefix)).firstMatch
         let deadline = Date().addingTimeInterval(10)
