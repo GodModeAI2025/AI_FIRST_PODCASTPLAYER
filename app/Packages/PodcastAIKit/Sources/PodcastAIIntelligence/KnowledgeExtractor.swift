@@ -95,12 +95,20 @@ public struct ClassificationOutput {
 
 public enum ExtractorError: Error, LocalizedError {
     case modelUnavailable(ModelUnavailability)
+    /// Gescheitert, aus einem Grund, der sich ändern kann: Last, Kontingent,
+    /// Zeitüberschreitung, ein unlesbares Ergebnis. Ein zweiter Versuch kann
+    /// gelingen.
     case generationFailed(String)
+    /// Das Modell hat diese Eingabe abgelehnt oder sie passt nicht in sein
+    /// Fenster: Schutzregeln, Ablehnung, zu viel Text, nicht unterstützte
+    /// Sprache. Mit derselben Eingabe scheitert jeder weitere Versuch genauso.
+    case generationRejected(String)
 
     public var errorDescription: String? {
         switch self {
         case .modelUnavailable(let reason): reason.message
         case .generationFailed(let detail): "Die Auswertung ist fehlgeschlagen: \(detail)"
+        case .generationRejected(let detail): "Das Modell hat diesen Text nicht ausgewertet: \(detail)"
         }
     }
 }
@@ -459,12 +467,46 @@ public struct KnowledgeExtractor: Sendable {
             return (try await session.respond(to: prompt(.onDevice), generating: type).content, .onDevice)
         } catch {
             if error is CancellationError || Task.isCancelled { throw error }
+            var detail = error.localizedDescription
             if let privateCloudFailure {
-                throw ExtractorError.generationFailed(
-                    "Private Cloud Compute: \(privateCloudFailure) Auf dem Gerät: \(error.localizedDescription)")
+                detail = "Private Cloud Compute: \(privateCloudFailure) Auf dem Gerät: \(detail)"
             }
-            throw ExtractorError.generationFailed(error.localizedDescription)
+            if Self.isRejection(error) { throw ExtractorError.generationRejected(detail) }
+            throw ExtractorError.generationFailed(detail)
         }
+    }
+
+    /// Scheitert jeder weitere Versuch mit derselben Eingabe genauso?
+    ///
+    /// Ja bei Schutzregeln, Ablehnung, zu langem Kontext, nicht unterstützter
+    /// Sprache, Vorgabe oder Fähigkeit. Nein bei Last, Kontingent,
+    /// Zeitüberschreitung, fehlenden Modelldateien und unlesbarem Ergebnis,
+    /// und bei allem, was unbekannt ist. Ab OS 27 kommen die Fehler als
+    /// `LanguageModelError`, unter OS 26 als `GenerationError`.
+    static func isRejection(_ error: any Error) -> Bool {
+        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *), let error = error as? LanguageModelError {
+            switch error {
+            case .contextSizeExceeded, .guardrailViolation, .refusal, .unsupportedCapability,
+                 .unsupportedTranscriptContent, .unsupportedGenerationGuide, .unsupportedLanguageOrLocale:
+                return true
+            case .rateLimited, .timeout:
+                return false
+            @unknown default:
+                return false
+            }
+        }
+        if let error = error as? LanguageModelSession.GenerationError {
+            switch error {
+            case .exceededContextWindowSize, .guardrailViolation, .refusal, .unsupportedGuide,
+                 .unsupportedLanguageOrLocale:
+                return true
+            case .assetsUnavailable, .decodingFailure, .rateLimited, .concurrentRequests:
+                return false
+            @unknown default:
+                return false
+            }
+        }
+        return false
     }
 
     private static func privateCloudSession(instructions: String) -> LanguageModelSession? {
