@@ -28,6 +28,10 @@ public final class EpisodePlayer {
     public private(set) var currentTime: Double = 0
     public private(set) var duration: Double = 0
     public private(set) var chapters: [Chapter] = []
+    /// Der Player wartet auf Daten, etwa beim Start eines Streams.
+    public private(set) var isBuffering = false
+    /// Was schiefging, in einem Satz für die Anzeige.
+    public private(set) var playbackError: String?
     public var rate: Float = 1.0 {
         didSet { if isPlaying { player.rate = rate } }
     }
@@ -41,6 +45,13 @@ public final class EpisodePlayer {
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var heardStart: Double?
+    @ObservationIgnored private var statusObservation: NSKeyValueObservation?
+    @ObservationIgnored private var controlObservation: NSKeyValueObservation?
+    /// Solange ein Sprung läuft, meldet der Zeitbeobachter noch die alte
+    /// Stelle. Ohne diese Sperre springt die Anzeige hin und her.
+    @ObservationIgnored private var seekGeneration = 0
+    @ObservationIgnored private var seekInFlight = false
+    @ObservationIgnored private var usingLocalFile = false
 
     public init() {
         timeObserver = player.addPeriodicTimeObserver(
@@ -49,6 +60,10 @@ public final class EpisodePlayer {
             MainActor.assumeIsolated { self?.tick(time.seconds) }
         }
         configureRemoteCommands()
+        controlObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
+            let status = player.timeControlStatus
+            Task { @MainActor in self?.controlStatusChanged(status) }
+        }
     }
 
     public var currentChapter: Chapter? {
@@ -57,29 +72,65 @@ public final class EpisodePlayer {
 
     /// Startet eine Folge an einer Stelle. `localFile` hat Vorrang vor dem Stream.
     public func play(_ episode: Episode, at seconds: Double = 0, localFile: URL? = nil) {
-        guard let url = localFile ?? episode.audioURL else { return }
+        guard let url = localFile ?? episode.audioURL else {
+            playbackError = "Zu dieser Folge gibt es keine Audiodatei."
+            return
+        }
         flushHeard()
         if self.episode?.id != episode.id {
             self.episode = episode
             chapters = episode.publisherChapters
             duration = episode.declaredDuration?.seconds ?? 0
-            let item = AVPlayerItem(url: url)
-            player.replaceCurrentItem(with: item)
-            if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
-            endObserver = NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated { self?.finished() }
-            }
-            Task { [weak self] in
-                if let loaded = try? await item.asset.load(.duration), loaded.seconds.isFinite, loaded.seconds > 0 {
-                    self?.duration = loaded.seconds
-                    self?.updateNowPlaying()
-                }
-            }
+            load(url, isLocal: localFile != nil)
         }
         seek(to: seconds)
         resume()
+    }
+
+    private func load(_ url: URL, isLocal: Bool) {
+        playbackError = nil
+        usingLocalFile = isLocal
+        let item = AVPlayerItem(asset: PlayableAsset.make(url: url))
+        player.replaceCurrentItem(with: item)
+        if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+        endObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.finished() }
+        }
+        statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            let status = item.status
+            let message = item.error?.localizedDescription
+            Task { @MainActor in self?.itemStatusChanged(status, message: message, item: item) }
+        }
+        Task { [weak self] in
+            if let loaded = try? await item.asset.load(.duration), loaded.seconds.isFinite, loaded.seconds > 0 {
+                self?.duration = loaded.seconds
+                self?.updateNowPlaying()
+            }
+        }
+    }
+
+    private func itemStatusChanged(_ status: AVPlayerItem.Status, message: String?, item: AVPlayerItem) {
+        guard item === player.currentItem, status == .failed else { return }
+        // Die geladene Datei ließ sich nicht öffnen: dann eben der Stream.
+        if usingLocalFile, let stream = episode?.audioURL {
+            let position = currentTime
+            let wasPlaying = isPlaying
+            load(stream, isLocal: false)
+            seek(to: position)
+            if wasPlaying { resume() }
+            return
+        }
+        isPlaying = false
+        isBuffering = false
+        playbackError = "Die Folge lässt sich nicht abspielen. "
+            + (message.map { "Grund: \($0)" } ?? "Der Server liefert kein abspielbares Audio.")
+        updateNowPlaying()
+    }
+
+    private func controlStatusChanged(_ status: AVPlayer.TimeControlStatus) {
+        isBuffering = status == .waitingToPlayAtSpecifiedRate
     }
 
     public func setChapters(_ chapters: [Chapter]) {
@@ -110,8 +161,16 @@ public final class EpisodePlayer {
     public func seek(to seconds: Double) {
         flushHeard()
         let target = max(0, duration > 0 ? min(seconds, duration - 1) : seconds)
+        seekGeneration += 1
+        let generation = seekGeneration
+        seekInFlight = true
         player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
-                    toleranceBefore: .zero, toleranceAfter: .zero)
+                    toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.seekGeneration == generation else { return }
+                self.seekInFlight = false
+            }
+        }
         currentTime = target
         if isPlaying { heardStart = target }
         updateNowPlaying()
@@ -135,6 +194,9 @@ public final class EpisodePlayer {
         player.pause()
         player.replaceCurrentItem(with: nil)
         isPlaying = false
+        isBuffering = false
+        playbackError = nil
+        statusObservation = nil
         episode = nil
         chapters = []
         currentTime = 0
@@ -146,7 +208,7 @@ public final class EpisodePlayer {
     // MARK: - Hörzustand
 
     private func tick(_ seconds: Double) {
-        guard seconds.isFinite else { return }
+        guard seconds.isFinite, !seekInFlight else { return }
         currentTime = seconds
         if isPlaying, let start = heardStart, seconds - start >= 10 { flushHeard() }
     }

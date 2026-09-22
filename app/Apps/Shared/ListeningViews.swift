@@ -283,6 +283,20 @@ struct EpisodePlayerView: View {
                                     .multilineTextAlignment(.center)
                             }
                         }
+                        if let error = player.playbackError {
+                            Label(error, systemImage: "exclamationmark.triangle")
+                                .font(.callout)
+                                .foregroundStyle(.orange)
+                                .multilineTextAlignment(.leading)
+                                .accessibilityIdentifier("player.error")
+                        } else if player.isBuffering {
+                            HStack(spacing: Design.Spacing.small) {
+                                ProgressView()
+                                Text("Audio wird geladen …")
+                            }
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        }
                         scrubber
                         transport
                         rateMenu
@@ -435,8 +449,9 @@ struct EpisodeMiniBar: View {
                             Text(episode.title)
                                 .font(.subheadline.weight(.medium))
                                 .lineLimit(1)
-                            Text(player.currentChapter?.title
-                                 ?? EpisodePlayerView.format(player.currentTime))
+                            Text(player.playbackError != nil ? "Nicht abspielbar"
+                                 : player.isBuffering ? "lädt …"
+                                 : player.currentChapter?.title ?? EpisodePlayerView.format(player.currentTime))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)

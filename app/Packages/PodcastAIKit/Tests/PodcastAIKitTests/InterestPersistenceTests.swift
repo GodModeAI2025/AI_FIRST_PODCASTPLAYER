@@ -90,3 +90,24 @@ struct ChapterTests {
         #expect(chapters.map(\.title) == ["A", "B"])
     }
 }
+
+@Suite("Beta-Feedback 0.3")
+struct BetaFeedback03Tests {
+    @Test("Das Format einer geladenen Datei ohne Endung wird erkannt")
+    func sniffsFormats() {
+        #expect(PlayableAsset.mimeType(forHeader: Data("ID3\u{04}\u{00}".utf8)) == "audio/mpeg")
+        #expect(PlayableAsset.mimeType(forHeader: Data([0xFF, 0xFB, 0x90, 0x64])) == "audio/mpeg")
+        #expect(PlayableAsset.mimeType(forHeader: Data([0xFF, 0xF1, 0x50, 0x80])) == "audio/aac")
+        #expect(PlayableAsset.mimeType(forHeader: Data([0, 0, 0, 0x20]) + Data("ftypM4A ".utf8)) == "audio/mp4")
+        #expect(PlayableAsset.mimeType(forHeader: Data("OggS\u{00}".utf8)) == "audio/ogg")
+        #expect(PlayableAsset.mimeType(forHeader: Data("<html>".utf8)) == nil)
+    }
+
+    @Test("Eine MP3 ohne Endung bekommt den MIME-Typ mitgegeben")
+    func extensionlessFileGetsMIMEType() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data("ID3\u{04}\u{00}\u{00}\u{00}\u{00}\u{00}\u{00}".utf8).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        #expect(PlayableAsset.sniffMIMEType(at: url) == "audio/mpeg")
+    }
+}

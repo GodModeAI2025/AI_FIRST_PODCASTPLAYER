@@ -92,4 +92,41 @@ final class BetaFeedback03UITests: XCTestCase {
         XCTAssertTrue(explanation.label.contains("dauerhaft"))
         attach(app, "interessen")
     }
+
+    /// Feedback zu 0.3: „Anzeige springt, es kommt auch kein Audio“. Das
+    /// passierte bei Folgen, die schon geladen waren: die lokale Datei hat
+    /// keine Endung, und AVFoundation konnte sie nicht öffnen.
+    func testDownloadedEpisodeActuallyPlays() {
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
+        addSource(app, "https://audio.podigee-cdn.net/2598733-m-21b7bc55dcb4707563cae78e503f9c5e.mp3?source=webplayer-download")
+        let row = app.staticTexts["Einzelne Folgen"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 20))
+        row.tap()
+        let episode = app.cells.element(boundBy: 1)
+        XCTAssertTrue(episode.waitForExistence(timeout: 10))
+        episode.tap()
+
+        // Erschliessen lädt die Datei. Im Simulator scheitert danach die
+        // Transkription, die Datei bleibt aber liegen. Genau dieser Zustand
+        // machte die Wiedergabe stumm.
+        let analyze = app.buttons["Erschliessen"].firstMatch
+        XCTAssertTrue(analyze.waitForExistence(timeout: 10))
+        analyze.tap()
+        let loaded = app.staticTexts.matching(NSPredicate(
+            format: "label BEGINSWITH 'fehlgeschlagen' OR label BEGINSWITH 'transkribiert' OR label BEGINSWITH 'erschlossen' OR label BEGINSWITH 'geladen'")).firstMatch
+        XCTAssertTrue(loaded.waitForExistence(timeout: 300), "Folge wurde nicht geladen")
+        attach(app, "geladen")
+
+        app.buttons["episode.play"].tap()
+        let miniBar = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Player öffnen'")).firstMatch
+        XCTAssertTrue(miniBar.waitForExistence(timeout: 10))
+        miniBar.tap()
+        XCTAssertTrue(app.navigationBars["Jetzt läuft"].waitForExistence(timeout: 5))
+        sleep(8)
+        XCTAssertFalse(app.staticTexts["player.error"].exists, "Player meldet einen Fehler")
+        let running = app.staticTexts.matching(NSPredicate(format: "label MATCHES '^0:(0[4-9]|[1-5][0-9])$'")).firstMatch
+        attach(app, "spielt")
+        XCTAssertTrue(running.exists, "Die Zeit läuft nicht, es kommt kein Audio")
+        app.buttons["Pause"].firstMatch.tap()
+    }
 }

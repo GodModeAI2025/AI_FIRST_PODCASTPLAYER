@@ -1,5 +1,12 @@
 # Änderungsverlauf
 
+## App 0.4 · 2026-09-22
+Aus dem Feedback zu 0.3:
+- Kein Ton bei erschlossenen Folgen behoben. Geladene Folgen liegen ohne Dateiendung auf dem Gerät, und AVFoundation konnte sie deshalb nicht öffnen. Der Player zeigte trotzdem „läuft“. Die App erkennt das Format jetzt am Dateianfang. Das betraf auch das Abspielen einzelner Stellen aus „Für dich“.
+- Lässt sich eine geladene Datei trotzdem nicht öffnen, spielt der Player die Folge aus dem Stream weiter.
+- Die Zeitanzeige springt beim Wechsel zwischen Kapiteln nicht mehr hin und her.
+- Der Player zeigt, wenn er noch lädt oder eine Folge nicht abspielen kann, statt stumm „läuft“ anzuzeigen.
+
 ## App 0.3 · 2026-09-22
 Aus dem zweiten TestFlight-Feedback:
 - Feeds von Transistor wie `feeds.transistor.fm/ai-to-the-dna` lassen sich abonnieren. Die App hielt sie für Webseiten, weil sie mit einer Stylesheet-Anweisung beginnen.

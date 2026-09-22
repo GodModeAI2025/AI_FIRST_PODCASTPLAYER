@@ -171,7 +171,7 @@ public final class PlaybackCoordinator {
         setState(.preparing(segmentIndex: index))
         if index > 0 { observer?.willChangeSource(to: segment) }
 
-        let item = AVPlayerItem(url: url)
+        let item = AVPlayerItem(asset: PlayableAsset.make(url: url))
         // Die eigentliche Grenze. Der Player stoppt hier von sich aus —
         // unabhängig davon, ob ein Zeitbeobachter rechtzeitig feuert.
         item.forwardPlaybackEndTime = segment.range.end.cmTime
