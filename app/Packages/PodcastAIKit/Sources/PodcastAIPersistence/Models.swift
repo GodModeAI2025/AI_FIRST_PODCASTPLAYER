@@ -256,19 +256,28 @@ public final class StoredSegment {
     }
 }
 
-/// Der gemeinsame Hörzustand je Medienfassung.
+/// Der Hörzustand einer Medienfassung auf einem Gerät.
 ///
-/// Bewusst **ein** Datensatz je Fassung mit den vereinigten Intervallen,
+/// Ein Datensatz je Fassung und Gerät mit den vereinigten Intervallen,
 /// nicht eine Ereignisliste. Die Vereinigung ist die Wahrheit; einzelne
 /// Ereignisse aufzubewahren würde den Datensatz unbegrenzt wachsen lassen
-/// und beim Zusammenführen zweier Geräte nichts hinzufügen — die Operation
-/// ist idempotent.
+/// und beim Zusammenführen zweier Geräte nichts hinzufügen, denn die
+/// Operation ist idempotent.
 ///
-/// Haben zwei Geräte vor dem Abgleich je eine Zeile für dieselbe Fassung
-/// angelegt, bleiben beide stehen. ``LibraryStore/ledger()`` vereinigt sie
-/// beim Lesen. Gelöscht wird keine davon: Ohne ein unveränderliches Merkmal
-/// könnte jedes Gerät die Zeile des anderen löschen, und nach dem nächsten
-/// Abgleich wären beide weg.
+/// Je Gerät, weil CloudKit bei zwei Änderungen an derselben Zeile die
+/// letzte gewinnen lässt. Die Intervalle stehen in einem einzigen Feld, und
+/// was ein Gerät gehört hatte, wäre mit dem Schreiben des anderen weg. So
+/// hat jede Zeile genau einen Schreiber. ``LibraryStore/ledger()``
+/// vereinigt beim Lesen alle Zeilen einer Fassung.
+///
+/// Das Gerät steckt im Schlüssel, `"<Fassung>#<Gerät>"` in
+/// `mediaVersionIdentifier`. Ein eigenes Feld ginge nicht: Das CloudKit-Schema
+/// ist ausgeliefert und bleibt, wie es ist. Zeilen im alten Format tragen nur
+/// die Fassung. Sie werden weiter gelesen, aber nicht mehr beschrieben.
+///
+/// Gelöscht wird beim Bereinigen keine dieser Zeilen: Ohne ein
+/// unveränderliches Merkmal könnte jedes Gerät die Zeile des anderen
+/// löschen, und nach dem nächsten Abgleich wären beide weg.
 @Model
 public final class StoredListeningState {
     public var mediaVersionIdentifier: String = ""
@@ -276,10 +285,27 @@ public final class StoredListeningState {
     public var skippedFlat: [Int] = []
     public var historyQualityRaw: String = HistoryQuality.exact.rawValue
     public var resumePositionMs: Int = 0
+    /// Wann die Fortsetzungsstelle zuletzt gesetzt wurde, also das letzte
+    /// Hören der ganzen Folge. Siehe ``MediaListeningState/lastEventAt``.
     public var lastEventAt: Date?
 
     public init(mediaVersionIdentifier: String) {
         self.mediaVersionIdentifier = mediaVersionIdentifier
+    }
+
+    /// Trennt Fassung und Gerät im Schlüssel. Kennungen von Fassungen
+    /// bestehen aus Hexzeichen, ein `#` kommt darin nie vor.
+    static let deviceSeparator: Character = "#"
+
+    /// Der Schlüssel der Zeile, die ein Gerät für eine Fassung schreibt.
+    /// Ohne Gerät bleibt es beim alten Format.
+    static func rowKey(media: String, deviceID: String) -> String {
+        deviceID.isEmpty ? media : media + String(deviceSeparator) + deviceID
+    }
+
+    /// Die Fassung, ohne das Gerät.
+    var mediaKey: String {
+        String(mediaVersionIdentifier.prefix { $0 != Self.deviceSeparator })
     }
 
     /// Der gespeicherte Zustand, so wie er geschrieben wurde.
@@ -292,7 +318,7 @@ public final class StoredListeningState {
     /// die ganze Folge weitergehen sollte.
     public var snapshot: MediaListeningState {
         MediaListeningState(
-            mediaVersionID: MediaVersionID(rawValue: mediaVersionIdentifier),
+            mediaVersionID: MediaVersionID(rawValue: mediaKey),
             heard: IntervalSet(StoredTranscript.ranges(from: heardFlat)),
             skipped: IntervalSet(StoredTranscript.ranges(from: skippedFlat)),
             quality: HistoryQuality(rawValue: historyQualityRaw) ?? .exact,
@@ -307,8 +333,8 @@ public final class StoredListeningState {
         skippedFlat = StoredTranscript.flat(from: state.skipped)
         historyQualityRaw = state.quality.rawValue
         resumePositionMs = Int(state.resumePosition?.milliseconds ?? 0)
-        // Der Zeitpunkt des letzten Ereignisses, nicht der des Schreibens.
-        // Sonst wäre das nächste Ereignis scheinbar älter als der Zustand.
+        // Der Zeitpunkt des Hörens, nicht der des Schreibens. Sonst wäre das
+        // nächste Ereignis scheinbar älter als der Zustand.
         lastEventAt = state.lastEventAt
     }
 }

@@ -213,8 +213,15 @@ public actor LibraryStore {
     /// entstehen können.
     ///
     /// Erst zusammenführen, dann löschen: Die Kinder einer Kopie (Folgen,
-    /// Fassungen, Transkripte, Segmente) wandern zur behaltenen Zeile, leere
-    /// Felder werden aus der Kopie ergänzt. Gelöscht wird erst die leere Kopie.
+    /// Fassungen, Transkripte) wandern zur behaltenen Zeile, leere Felder
+    /// werden aus der Kopie ergänzt. Gelöscht wird erst die leere Kopie.
+    /// Doppelte Transkripte sind die Ausnahme: Jede Zeile ist eine eigene
+    /// Transkription, eine davon bleibt ganz, die andere geht.
+    ///
+    /// Hat ein anderes Gerät eine Kopie gelöscht, bevor die umgehängten
+    /// Kinder hier angekommen sind, fehlt diesen die Elternzeile. Sie werden
+    /// wieder angehängt: Folgen an ihre Quelle, Fassungen an ihre Folge,
+    /// Transkripte an ihre Fassung.
     ///
     /// Welche Zeile bleibt, entscheiden Felder, die mit der Zeile abgeglichen
     /// werden und sich nicht mehr ändern, etwa `addedAt` oder `acquiredAt`.
@@ -244,11 +251,15 @@ public actor LibraryStore {
         // sonst noch, und der nächste Schritt muss die umgehängten Kinder sehen.
         try mergeDuplicateSources()
         try modelContext.save()
+        // Vor dem Zusammenführen der Folgen: Eine Folge ohne Quelle landet
+        // sonst in einer eigenen Gruppe und bliebe für immer doppelt.
+        try reattachOrphanedEpisodes()
         try settleEpisodeDuplicates(into: &report)
         try modelContext.save()
         try mergeDuplicateMediaVersions()
         try modelContext.save()
         try reattachOrphanedMediaVersions()
+        try reattachOrphanedTranscripts()
         try mergeDuplicateTranscripts()
         try modelContext.save()
 
@@ -337,6 +348,48 @@ public actor LibraryStore {
         // Erst die umgehängten Kinder sichern, dann die leeren Kopien löschen.
         try modelContext.save()
         for (_, drop) in groups { for copy in drop { modelContext.delete(copy) } }
+    }
+
+    /// Hängt Folgen ohne Quelle wieder an. Das passiert, wenn ein anderes
+    /// Gerät eine doppelte Quellzeile gelöscht hat, bevor die umgehängten
+    /// Folgen hier angekommen sind, oder wenn hier noch eine Folge unter
+    /// einer Quellzeile angelegt wurde, die dort schon weg war.
+    ///
+    /// Die Quelle kommt von einer anderen Zeile derselben Folge, sonst aus
+    /// ihren Belegen und Fakten. Lässt sie sich nicht eindeutig bestimmen,
+    /// bleibt die Folge, wie sie ist. Gelöschte Folgen werden ebenso
+    /// angehängt, damit ihr Merkzeichen wieder wirkt.
+    private func reattachOrphanedEpisodes() throws {
+        let orphans = try modelContext.fetch(FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.source == nil }))
+        guard !orphans.isEmpty else { return }
+        // Je Quelle die Zeile, die auch `upsert(episodes:forSource:)` nimmt.
+        var sourceRows: [String: StoredSource] = [:]
+        for source in try modelContext.fetch(FetchDescriptor<StoredSource>(
+            sortBy: [SortDescriptor(\.addedAt)])) where sourceRows[source.identifier] == nil {
+            sourceRows[source.identifier] = source
+        }
+        for episode in orphans where !episode.identifier.isEmpty {
+            guard let key = try sourceIdentifier(ofEpisode: episode.identifier),
+                  let source = sourceRows[key] else { continue }
+            episode.source = source
+        }
+        try modelContext.save()
+    }
+
+    /// Die Quelle einer Folge, wenn sie sich eindeutig bestimmen lässt.
+    private func sourceIdentifier(ofEpisode key: String) throws -> String? {
+        var candidates = Set(try modelContext.fetch(FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.identifier == key && $0.source != nil }))
+            .compactMap { $0.source?.identifier })
+        if candidates.isEmpty {
+            candidates.formUnion(try modelContext.fetch(FetchDescriptor<StoredEvidence>(
+                predicate: #Predicate { $0.episodeIdentifier == key })).map(\.sourceIdentifier))
+            candidates.formUnion(try modelContext.fetch(FetchDescriptor<StoredFact>(
+                predicate: #Predicate { $0.episodeIdentifier == key })).map(\.sourceIdentifier))
+        }
+        candidates.remove("")
+        return candidates.count == 1 ? candidates.first : nil
     }
 
     /// Folgen: gelöschte Kopien setzen sich durch, lebende werden zusammengeführt.
@@ -451,6 +504,41 @@ public actor LibraryStore {
         try modelContext.save()
     }
 
+    /// Hängt Transkripte ohne Fassung wieder an. Das passiert, wenn ein
+    /// anderes Gerät eine doppelte Fassung gelöscht hat, bevor die
+    /// umgehängten Transkripte hier angekommen sind. Ohne Fassung findet
+    /// weder ``transcript(forMedia:)`` noch das Löschen der Folge sie.
+    ///
+    /// Die Kennung eines Transkripts ist aus Fassung und Sprache gerechnet.
+    /// Passt sie zu keiner vorhandenen Fassung, bleibt das Transkript, wie es
+    /// ist: Die Fassung kann noch unterwegs sein.
+    private func reattachOrphanedTranscripts() throws {
+        let orphans = try modelContext.fetch(FetchDescriptor<StoredTranscript>(
+            predicate: #Predicate { $0.mediaVersion == nil }))
+        guard !orphans.isEmpty else { return }
+        // Bei doppelten Fassungen die, die auch das Zusammenführen behält.
+        let versions = try modelContext.fetch(FetchDescriptor<StoredMediaVersion>(
+            sortBy: [SortDescriptor(\.acquiredAt)]))
+        var byTranscriptKey: [String: StoredMediaVersion] = [:]
+        for locale in Set(orphans.map(\.locale)) {
+            for version in versions where !version.identifier.isEmpty {
+                let key = Self.transcriptKey(media: version.identifier, locale: locale)
+                if byTranscriptKey[key] == nil { byTranscriptKey[key] = version }
+            }
+        }
+        for transcript in orphans {
+            if let version = byTranscriptKey[transcript.identifier] { transcript.mediaVersion = version }
+        }
+        try modelContext.save()
+    }
+
+    /// Die Kennung des Transkripts einer Fassung in einer Sprache. Dieselbe
+    /// Rechnung wie in `TranscriptAssembler.finish`. Die Kennung ist ein
+    /// Hashwert, die Fassung lässt sich aus ihr nicht ablesen, nur nachrechnen.
+    static func transcriptKey(media: String, locale: String) -> String {
+        TranscriptID(stable: "\(media)|\(locale)").rawValue
+    }
+
     private func mergeDuplicateTranscripts() throws {
         let groups = try duplicateGroups(StoredTranscript.self, key: \.identifier, order: [
             RowOrder.ascending { $0.createdAt },
@@ -458,21 +546,21 @@ public actor LibraryStore {
         ])
         guard !groups.isEmpty else { return }
         for (keep, drop) in groups {
-            var present = Set((keep.segments ?? []).map(\.identifier))
             for copy in drop {
-                // Nur Segmente, die der behaltenen Zeile fehlen. Die übrigen
-                // sind Kopien von Segmenten, die sie schon hat.
-                for segment in Array(copy.segments ?? []) where present.insert(segment.identifier).inserted {
-                    segment.transcript = keep
-                }
+                // Zwei Zeilen mit derselben Kennung sind zwei getrennte
+                // Transkriptionen derselben Fassung, je eine von einem Gerät.
+                // Ihre Segmentgrenzen weichen ab, also auch die Kennungen der
+                // Segmente. Sie zu mischen hiesse, jede Stelle zweimal im Text
+                // zu haben. Die behaltene bleibt deshalb ganz, samt ihrer
+                // Abdeckung, und die Kopie geht mit ihren Segmenten.
                 keep.mediaVersion = keep.mediaVersion ?? copy.mediaVersion
                 keep.untimedText = keep.untimedText ?? copy.untimedText
-                keep.analyzedRangesFlat = StoredTranscript.flat(from: IntervalSet(
-                    StoredTranscript.ranges(from: keep.analyzedRangesFlat)
-                        + StoredTranscript.ranges(from: copy.analyzedRangesFlat)))
             }
         }
         try modelContext.save()
+        // Die Segmente der Kopie gehen über die Löschregel mit. Umgehängt
+        // wird keines, also kann ein anderes Gerät beim Übernehmen dieser
+        // Löschung auch keines verlieren, das bleiben sollte.
         for (_, drop) in groups { for copy in drop { modelContext.delete(copy) } }
     }
 
@@ -579,6 +667,7 @@ public actor LibraryStore {
     }
 
     public func episodes(forSource sourceID: SourceID, limit: Int = 200) throws -> [Episode] {
+        guard limit > 0 else { return [] }
         // Als Optional deklariert: `#Predicate` vergleicht `String?` gegen
         // `String` nicht — die implizite Promotion, die normaler Swift-Code
         // macht, gibt es in der Makroexpansion nicht.
@@ -592,13 +681,33 @@ public actor LibraryStore {
         removedDescriptor.propertiesToFetch = [\.identifier]
         let removed = Set(try modelContext.fetch(removedDescriptor).map(\.identifier))
 
-        var descriptor = FetchDescriptor<StoredEpisode>(
+        let order = [SortDescriptor(\StoredEpisode.publishedAt, order: .reverse),
+                     SortDescriptor(\StoredEpisode.identifier)]
+
+        // Die Grenze zählt Folgen, nicht Zeilen. Nach einem Abgleich kann
+        // jede Folge zweimal vorliegen, und eine Grenze auf den Zeilen hätte
+        // dann nur halb so viele Folgen geliefert. Deshalb zuerst nur die
+        // Kennungen, bis `limit` verschiedene beisammen sind.
+        var keysDescriptor = FetchDescriptor<StoredEpisode>(
             predicate: #Predicate { $0.source?.identifier == identifier && $0.removedAt == nil },
-            sortBy: [SortDescriptor(\.publishedAt, order: .reverse), SortDescriptor(\.identifier)]
-        )
-        descriptor.fetchLimit = limit + removed.count
+            sortBy: order)
+        keysDescriptor.propertiesToFetch = [\.identifier]
+        var chosen: Set<String> = []
+        for row in try modelContext.fetch(keysDescriptor) where !removed.contains(row.identifier) {
+            chosen.insert(row.identifier)
+            if chosen.count == limit { break }
+        }
+        guard !chosen.isEmpty else { return [] }
+
+        // Dann die ganzen Zeilen dieser Folgen, alle Kopien, damit die mit
+        // Fassung gewinnt.
+        let descriptor = FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate {
+                $0.source?.identifier == identifier && $0.removedAt == nil
+                    && chosen.contains($0.identifier)
+            },
+            sortBy: order)
         let rows = try modelContext.fetch(descriptor)
-            .filter { !removed.contains($0.identifier) }
             .uniqued(by: \.identifier, preferring: { $0.currentMediaVersionIdentifier != nil })
         return rows.prefix(limit).map(\.snapshot)
     }
@@ -611,11 +720,15 @@ public actor LibraryStore {
     /// ist; die Wahrheit über den Hörzustand entsteht an einer Stelle, damit
     /// Originalfolge, Chat-Fokus und persönliche Ausgabe nicht auseinander
     /// laufen können.
+    ///
+    /// Jedes Gerät schreibt nur seine eigene Zeile je Fassung, erkennbar am
+    /// Gerät im Ereignis. Die Zeilen der anderen Geräte bleiben unberührt,
+    /// damit der Abgleich nichts überschreibt, was dort gehört wurde. Siehe
+    /// ``StoredListeningState``.
     public func record(_ events: [LedgerEvent]) throws {
         for event in events {
-            let identifier = event.mediaVersionID.rawValue
-            // Gibt es nach einem Abgleich mehrere Zeilen, genügt eine davon:
-            // ``ledger()`` vereinigt beim Lesen alle.
+            let identifier = StoredListeningState.rowKey(
+                media: event.mediaVersionID.rawValue, deviceID: event.deviceID)
             let existing = try modelContext.fetch(
                 FetchDescriptor<StoredListeningState>(
                     predicate: #Predicate { $0.mediaVersionIdentifier == identifier }
@@ -636,13 +749,13 @@ public actor LibraryStore {
     /// `ListeningLedger` ist ein Wertetyp und verlässt den Actor gefahrlos —
     /// genau dafür ist die Trennung von Modell und Domäne da.
     ///
-    /// Mehrere Zeilen für dieselbe Fassung, etwa von zwei Geräten vor dem
-    /// Abgleich, werden vereinigt. Bisher gewann die zuletzt gelesene, und
-    /// was das andere Gerät gehört hatte, galt wieder als ungehört.
+    /// Alle Zeilen einer Fassung werden vereinigt: die Zeilen der Geräte
+    /// und Zeilen im alten Format ohne Gerät. Der Schlüssel im Ergebnis ist
+    /// immer die Fassung allein.
     public func ledger() throws -> ListeningLedger {
         let states = try modelContext.fetch(FetchDescriptor<StoredListeningState>())
         var result: [MediaVersionID: MediaListeningState] = [:]
-        for stored in states where !stored.mediaVersionIdentifier.isEmpty {
+        for stored in states where !stored.mediaKey.isEmpty {
             let snapshot = stored.snapshot
             result[snapshot.mediaVersionID] = result[snapshot.mediaVersionID]
                 .map { $0.merged(with: snapshot) } ?? snapshot
@@ -915,6 +1028,7 @@ public actor LibraryStore {
         let evidence = try modelContext.fetch(
             FetchDescriptor<StoredEvidence>(predicate: #Predicate { $0.episodeIdentifier == key }))
         let evidenceKeys = Set(evidence.map(\.identifier))
+        let evidenceTranscriptKeys = Set(evidence.map(\.transcriptIdentifier))
         for row in evidence {
             mediaKeys.insert(row.mediaVersionIdentifier)
             modelContext.delete(row)
@@ -932,11 +1046,13 @@ public actor LibraryStore {
                 modelContext.delete(highlight)
             }
         }
+        // Hörzustand aller Geräte und im alten Format. Der Schlüssel beginnt
+        // mit der Fassung, das Gerät steht dahinter.
+        for state in try modelContext.fetch(FetchDescriptor<StoredListeningState>())
+        where !state.mediaKey.isEmpty && mediaKeys.contains(state.mediaKey) {
+            modelContext.delete(state)
+        }
         for mediaKey in mediaKeys where !mediaKey.isEmpty {
-            for state in try modelContext.fetch(FetchDescriptor<StoredListeningState>(
-                predicate: #Predicate { $0.mediaVersionIdentifier == mediaKey })) {
-                modelContext.delete(state)
-            }
             for transcript in try modelContext.fetch(FetchDescriptor<StoredTranscript>(
                 predicate: #Predicate { $0.mediaVersion?.identifier == mediaKey })) {
                 modelContext.delete(transcript)
@@ -945,6 +1061,16 @@ public actor LibraryStore {
                 predicate: #Predicate { $0.identifier == mediaKey })) {
                 modelContext.delete(media)
             }
+        }
+        // Transkripte, die ihre Fassung verloren haben, findet die Abfrage
+        // oben nicht. Ihre Kennung nennen die Belege, und sie lässt sich aus
+        // Fassung und Sprache nachrechnen.
+        for transcript in try modelContext.fetch(FetchDescriptor<StoredTranscript>(
+            predicate: #Predicate { $0.mediaVersion == nil })) {
+            let belongs = evidenceTranscriptKeys.contains(transcript.identifier)
+                || mediaKeys.contains { !$0.isEmpty
+                    && Self.transcriptKey(media: $0, locale: transcript.locale) == transcript.identifier }
+            if belongs { modelContext.delete(transcript) }
         }
         // Aus dem Player gemerkte Stellen haben keinen gespeicherten Beleg.
         // Sie hängen über ihre Medienfassung an der Folge.
@@ -1023,7 +1149,8 @@ public actor LibraryStore {
         media: MediaVersion? = nil,
         acquiredAt: Date? = nil,
         transcript: Transcript? = nil,
-        removedAt: Date? = nil
+        removedAt: Date? = nil,
+        withoutSource: Bool = false
     ) throws {
         let key = episode.sourceID.rawValue
         let sources = try modelContext.fetch(FetchDescriptor<StoredSource>(
@@ -1032,7 +1159,9 @@ public actor LibraryStore {
         row.audioURLString = episode.audioURL?.absoluteString
         row.publishedAt = episode.publishedAt
         row.removedAt = removedAt
-        row.source = sources.first { $0.addedAt == sourceAddedAt } ?? sources.first
+        // Ohne Quelle: so sieht eine Folge aus, deren Quellzeile ein anderes
+        // Gerät gelöscht hat, bevor die umgehängte Folge hier ankam.
+        row.source = withoutSource ? nil : (sources.first { $0.addedAt == sourceAddedAt } ?? sources.first)
         modelContext.insert(row)
         if let media {
             let storedMedia = StoredMediaVersion(identifier: media.id.rawValue)
@@ -1045,6 +1174,7 @@ public actor LibraryStore {
                 let storedTranscript = StoredTranscript(identifier: transcript.id.rawValue)
                 storedTranscript.revisionValue = transcript.revision.value
                 storedTranscript.createdAt = transcript.createdAt
+                storedTranscript.locale = transcript.locale
                 storedTranscript.analyzedRangesFlat = StoredTranscript.flat(from: transcript.analyzedRanges)
                 storedTranscript.mediaVersion = storedMedia
                 modelContext.insert(storedTranscript)
@@ -1062,12 +1192,37 @@ public actor LibraryStore {
         try modelContext.save()
     }
 
+    /// Nur für Tests: löst ein Transkript von seiner Fassung, so wie es
+    /// passiert, wenn ein anderes Gerät die Fassungszeile gelöscht hat.
+    func detachTranscriptForTesting(_ id: TranscriptID) throws {
+        let key = id.rawValue
+        for row in try modelContext.fetch(FetchDescriptor<StoredTranscript>(
+            predicate: #Predicate { $0.identifier == key })) {
+            row.mediaVersion = nil
+        }
+        try modelContext.save()
+    }
+
     /// Nur für Tests: eine weitere Zeile Hörzustand für dieselbe Fassung.
-    func insertListeningStateCopyForTesting(_ state: MediaListeningState) throws {
-        let row = StoredListeningState(mediaVersionIdentifier: state.mediaVersionID.rawValue)
+    /// Ohne Gerät entsteht eine Zeile im alten Format, nur mit der Kennung
+    /// der Fassung.
+    func insertListeningStateCopyForTesting(_ state: MediaListeningState, deviceID: String? = nil) throws {
+        let media = state.mediaVersionID.rawValue
+        let row = StoredListeningState(mediaVersionIdentifier: deviceID.map {
+            StoredListeningState.rowKey(media: media, deviceID: $0)
+        } ?? media)
         row.apply(state)
         modelContext.insert(row)
         try modelContext.save()
+    }
+
+    /// Nur für Tests: jede Zeile Hörzustand unter ihrem gespeicherten Schlüssel.
+    func listeningRowsForTesting() throws -> [String: MediaListeningState] {
+        var result: [String: MediaListeningState] = [:]
+        for row in try modelContext.fetch(FetchDescriptor<StoredListeningState>()) {
+            result[row.mediaVersionIdentifier] = row.snapshot
+        }
+        return result
     }
 
     /// Nur für Tests: wie viele Zeilen eines Typs gespeichert sind.

@@ -90,6 +90,11 @@ public struct MediaListeningState: Hashable, Codable, Sendable {
     /// heißt nicht gehört, aber auch nicht „noch anzubieten“.
     public private(set) var skipped: IntervalSet
     public private(set) var quality: HistoryQuality
+    /// Wann die Fortsetzungsstelle zuletzt gesetzt wurde, also das jüngste
+    /// Hören der ganzen Folge. Chat-Fokus, Themen, Ausgaben und Überspringen
+    /// rücken diesen Zeitpunkt nicht vor. Beim Zusammenführen zweier Stände
+    /// entscheidet er, welche Stelle gilt. Rückte jedes Ereignis ihn vor,
+    /// holte ein kurzer Fokus auf einem Gerät dessen alte Stelle nach vorn.
     public private(set) var lastEventAt: Date?
 
     /// Zuletzt erreichte Position für „weiterhören“. Getrennt von ``heard``,
@@ -141,11 +146,12 @@ public struct MediaListeningState: Hashable, Codable, Sendable {
         }
         // Die Fortsetzungsstelle folgt dem jüngsten Hören der ganzen Folge.
         // Sie reist mit dem Hörzustand über iCloud auf die anderen Geräte.
+        // Nur hier rückt `lastEventAt` vor, siehe dort.
         if event.kind == .played, event.via == .originalEpisode,
            lastEventAt == nil || event.at >= lastEventAt! {
             resumePosition = event.range.end
+            lastEventAt = event.at
         }
-        if lastEventAt == nil || event.at > lastEventAt! { lastEventAt = event.at }
     }
 
     /// Der noch nicht gehörte Teil eines Bereichs.
@@ -163,9 +169,9 @@ public struct MediaListeningState: Hashable, Codable, Sendable {
     /// Vereinigt zwei Hörstände derselben Fassung, etwa von zwei Geräten.
     ///
     /// Gehörtes und Übersprungenes werden vereinigt, nie ersetzt. Die
-    /// Fortsetzungsstelle kommt von dem Stand mit dem jüngsten Ereignis.
-    /// Bei gleichem Zeitpunkt gilt die spätere Stelle, damit das Ergebnis
-    /// nicht von der Reihenfolge abhängt.
+    /// Fortsetzungsstelle kommt von dem Stand, der die ganze Folge zuletzt
+    /// gehört hat (``lastEventAt``). Bei gleichem Zeitpunkt gilt die spätere
+    /// Stelle, damit das Ergebnis nicht von der Reihenfolge abhängt.
     public func merged(with other: MediaListeningState) -> MediaListeningState {
         guard other.mediaVersionID == mediaVersionID else { return self }
         let heard = heard.union(other.heard)

@@ -68,7 +68,11 @@ extension AppModel {
             for episode in list { gone[episode.id] = episode }
             episodes[sourceID] = nil
         }
-        for episode in episodesInUse where !liveSources.contains(episode.sourceID) {
+        // Eine Folge ohne Quelle ist nicht abbestellt. Sie hat ihre Quellzeile
+        // beim Abgleich verloren, und das Bereinigen hängt sie wieder an.
+        // Gelöscht ist sie erst, wenn ein Merkzeichen das sagt.
+        for episode in episodesInUse
+        where !episode.sourceID.rawValue.isEmpty && !liveSources.contains(episode.sourceID) {
             gone[episode.id] = episode
         }
         if let tombstones = try? await store.removedEpisodes() {

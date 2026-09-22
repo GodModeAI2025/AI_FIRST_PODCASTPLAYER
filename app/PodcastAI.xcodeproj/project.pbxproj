@@ -56,6 +56,7 @@
 		AD87EA9A0365180F492320D7 /* ListeningViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40D86CC1E395802F6CBB0634 /* ListeningViews.swift */; };
 		B087FD0F267B402BE95356A7 /* EpisodePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20EC7F8EDB29F980CF84CB8E /* EpisodePlayer.swift */; };
 		B17A9C788A3BE5BD3B7143DE /* PodcastAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1FA87BDC51E9691B1B9F28C8 /* PodcastAIKit */; };
+		B2C13A56134E35382025EA88 /* SyncRepairTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 707098835FD963D00E634A7C /* SyncRepairTests.swift */; };
 		B420B13252F2C9234E6003A2 /* AppBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948480C17E0B8900F3A54E83 /* AppBootstrap.swift */; };
 		B87F86B5341D7C9EB9F297F5 /* MCPAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5952B00EE936516C48751042 /* MCPAccess.swift */; };
 		BB5E4795C55BF4AA6A5838AA /* PlanningContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56ED3EE14562899B30A5330 /* PlanningContext.swift */; };
@@ -108,6 +109,7 @@
 		5952B00EE936516C48751042 /* MCPAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPAccess.swift; sourceTree = "<group>"; };
 		653843CFBEA17360AA358D5D /* AppModel+Knowledge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Knowledge.swift"; sourceTree = "<group>"; };
 		654C51C37619544003228BF8 /* InterestPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestPersistenceTests.swift; sourceTree = "<group>"; };
+		707098835FD963D00E634A7C /* SyncRepairTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncRepairTests.swift; sourceTree = "<group>"; };
 		717DF51F7DDA424E680DEE43 /* PodcastAIKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PodcastAIKit; path = Packages/PodcastAIKit; sourceTree = SOURCE_ROOT; };
 		71B5398EFD3C9E76ACBF4D92 /* RemovalAndSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemovalAndSyncTests.swift; sourceTree = "<group>"; };
 		7C67E84F9B4659B1B07416AF /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
@@ -271,6 +273,7 @@
 				71B5398EFD3C9E76ACBF4D92 /* RemovalAndSyncTests.swift */,
 				E62E4AD033F13CC6F5377BDB /* RemovedEpisodeQueryTests.swift */,
 				AE3DEDB1A7C508B8E298DC2B /* SyncMergeTests.swift */,
+				707098835FD963D00E634A7C /* SyncRepairTests.swift */,
 			);
 			path = PodcastAIKitTests;
 			sourceTree = "<group>";
@@ -549,6 +552,7 @@
 				39A6C7F901FE78C9352E21B9 /* RemovalAndSyncTests.swift in Sources */,
 				E463FB2ECBBE33C7D75C251E /* RemovedEpisodeQueryTests.swift in Sources */,
 				97CDB152C33CFA1BFD427D08 /* SyncMergeTests.swift in Sources */,
+				B2C13A56134E35382025EA88 /* SyncRepairTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
