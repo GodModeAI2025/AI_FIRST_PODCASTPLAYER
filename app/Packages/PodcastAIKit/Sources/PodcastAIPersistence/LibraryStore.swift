@@ -671,10 +671,21 @@ public actor LibraryStore {
     public func episodes(ids: [EpisodeID]) throws -> [Episode] {
         let identifiers = Set(ids.map(\.rawValue))
         guard !identifiers.isEmpty else { return [] }
+        // Gelöschte Folgen bleiben als Merkzeichen stehen. Sie gehören nicht
+        // zurück in „Als Nächstes“ oder in einen Hörplan.
         return try modelContext.fetch(
             FetchDescriptor<StoredEpisode>(
-                predicate: #Predicate { identifiers.contains($0.identifier) }
+                predicate: #Predicate { identifiers.contains($0.identifier) && $0.removedAt == nil }
             )
+        ).map(\.snapshot)
+    }
+
+    /// Die gelöschten Folgen, deren Merkzeichen noch da sind. Ein Gerät,
+    /// das die Löschung nur über iCloud erfährt, räumt damit seine eigenen
+    /// Audiodateien und Listen auf.
+    public func removedEpisodes() throws -> [Episode] {
+        try modelContext.fetch(
+            FetchDescriptor<StoredEpisode>(predicate: #Predicate { $0.removedAt != nil })
         ).map(\.snapshot)
     }
 

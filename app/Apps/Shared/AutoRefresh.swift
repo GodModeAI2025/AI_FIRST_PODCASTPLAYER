@@ -28,7 +28,12 @@ private struct AutoRefreshModifier: ViewModifier {
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
-                Task { await model.refreshIfStale() }
+                Task {
+                    // Apple Intelligence kann inzwischen bereit, abgeschaltet
+                    // oder das Kontingent aufgebraucht sein.
+                    await model.refreshModelStatus()
+                    await model.refreshIfStale()
+                }
             }
     }
 }

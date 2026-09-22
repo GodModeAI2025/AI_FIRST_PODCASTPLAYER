@@ -125,6 +125,14 @@ public final class EpisodePlayer {
         positions[episodeID.rawValue]
     }
 
+    /// Vergisst die gemerkten Stellen gelöschter Folgen. Sonst bietet eine
+    /// neu abonnierte Quelle „Weiter ab …“ an, obwohl der Hörstand gelöscht ist.
+    public func forgetPositions(for episodeIDs: [EpisodeID]) {
+        var changed = false
+        for id in episodeIDs where positions.removeValue(forKey: id.rawValue) != nil { changed = true }
+        if changed { UserDefaults.standard.set(positions, forKey: positionsKey) }
+    }
+
     private func savePosition() {
         guard let episode, currentTime > 5 else { return }
         // Fast zu Ende heisst: beim nächsten Mal wieder von vorn.
