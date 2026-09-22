@@ -63,8 +63,10 @@ struct PodcastAIMacApp: App {
                     model.episodePlayer.stop()
                 }
                 .keyboardShortcut(".", modifiers: .command)
-                Button("Abspielen/Pause") { model.episodePlayer.togglePlayPause() }
-                    .disabled(model.episodePlayer.episode == nil)
+                // Derselbe Weg wie die Medientasten: läuft ein Fokus-Plan,
+                // hält er an, statt der Folge Platz zu machen.
+                Button("Abspielen/Pause") { model.episodePlayer.toggleActivePlayback() }
+                    .disabled(model.episodePlayer.episode == nil && model.playerPlan == nil)
             }
         }
 

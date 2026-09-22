@@ -544,12 +544,20 @@ extension AppModel {
         let isCurrent = episodePlayer.episode?.id == episode.id
         let wasPlaying = isCurrent && episodePlayer.isPlaying
         let position = episodePlayer.currentTime
+        // `stop()` räumt den Schlaf-Timer ab. Der Stream soll ihn behalten.
+        let sleepTimer = episodePlayer.sleepTimer
+        let sleepRemaining = episodePlayer.sleepRemaining
         if isCurrent { episodePlayer.stop() }
         guard let ids = try? await store.mediaVersionIDs(forEpisode: episode.id) else { return }
         LocalMediaLocator.removeFiles(for: ids)
         try? await store.markAudioRemoved(ids)
         mediaStorageChanged += 1
-        if wasPlaying { playEpisode(episode, at: position) }
+        if wasPlaying {
+            playEpisode(episode, at: position)
+            if sleepTimer != nil, episodePlayer.episode?.id == episode.id {
+                episodePlayer.restoreSleepTimer(sleepTimer, remaining: sleepRemaining)
+            }
+        }
     }
 
     /// Löscht alle geladenen Audiodateien. Alle Daten bleiben.

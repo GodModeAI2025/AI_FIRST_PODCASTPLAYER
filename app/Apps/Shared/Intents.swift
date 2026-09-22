@@ -169,14 +169,21 @@ struct RememberCurrentPassageIntent: AppIntent {
         return .result(dialog: "\(saved)")
     }
 
-    /// Die Stelle im Fokus-Plan, sonst die Stelle in der ganzen Folge.
+    /// Die Stelle, die gerade klingt. Läuft eine ganze Folge, gilt sie.
+    /// Sonst der Fokus-Plan, aber nur, solange das Modell ihn als laufend
+    /// führt: der Koordinator kann nach einem Fehler noch einen toten Plan
+    /// kennen. Zuletzt die angehaltene Folge.
     @MainActor
     private func currentPassage() -> (MediaVersionID, MediaTime)? {
-        if let focus = model.player.currentOriginalPosition() { return focus }
         let player = model.episodePlayer
-        guard let episode = player.episode, let mediaVersionID = episode.streamMediaVersionID,
-              player.currentTime > 0 else { return nil }
-        return (mediaVersionID, MediaTime(milliseconds: Int64(player.currentTime * 1000)))
+        var episodePassage: (MediaVersionID, MediaTime)? {
+            guard let episode = player.episode, let mediaVersionID = episode.streamMediaVersionID,
+                  player.currentTime > 0 else { return nil }
+            return (mediaVersionID, MediaTime(milliseconds: Int64(player.currentTime * 1000)))
+        }
+        if player.isPlaying, let passage = episodePassage { return passage }
+        if model.playerPlan != nil, let focus = model.player.currentOriginalPosition() { return focus }
+        return episodePassage
     }
 }
 
