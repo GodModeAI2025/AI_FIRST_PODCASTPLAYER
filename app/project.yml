@@ -32,8 +32,14 @@ settings:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     MARKETING_VERSION: "0.1"
+    # Jeder TestFlight-Upload braucht eine hoehere Buildnummer als der
+    # vorige. App Store Connect lehnt eine Wiederholung ab.
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
+    # Muss gefuellt werden, bevor archiviert wird. Bleibt die Variable leer,
+    # scheitert die Signierung mit "No signing certificate found" -- eine
+    # Meldung, die nach einem Zertifikatsproblem aussieht und keines ist.
+    DEVELOPMENT_TEAM: $(PODCASTAI_TEAM_ID)
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
 
@@ -59,6 +65,7 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAI/PodcastAI.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   PodcastAIMac:
     type: application
@@ -75,6 +82,7 @@ targets:
         INFOPLIST_FILE: Apps/PodcastAIMac/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIMac/PodcastAIMac.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   PodcastAIKitTests:
     type: bundle.unit-test

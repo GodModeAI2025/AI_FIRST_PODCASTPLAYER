@@ -9,6 +9,9 @@
     <!-- Fenster schliessen und App beenden sind verschiedene Zustaende:
          laufende Analysen sollen ein geschlossenes Fenster ueberleben. -->
     <key>LSUIElement</key><false/>
+    <!-- Pflichtangabe fuer den Mac App Store. Ohne sie meldet die
+         Validierung des Archivs einen Fehler. -->
+    <key>LSApplicationCategoryType</key><string>public.app-category.news</string>
     <key>ITSAppUsesNonExemptEncryption</key><false/>
 </dict>
 </plist>

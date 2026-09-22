@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        Privacy-Manifest. Seit Mai 2024 verlangt App Store Connect es beim
+        Upload; fehlt es, kommt der Build nicht durch die Validierung und
+        damit nicht in TestFlight.
+
+        Die Angaben hier sind keine Absichtserklaerung, sondern eine Aussage
+        ueber den Code. Sie wurden durch Durchsuchen des Quelltexts
+        ermittelt, nicht geschaetzt. Wer eine API hinzufuegt, die eine
+        Begruendung verlangt, muss diese Datei mitfuehren. Sonst wird aus
+        einer richtigen Angabe eine falsche.
+    -->
+
+    <!-- Kein Tracking. Die App verbindet nichts mit Daten Dritter und
+         folgt niemandem ueber Apps hinweg. -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+
+    <!-- Nichts wird erhoben. Alles bleibt auf dem Geraet; die einzigen
+         ausgehenden Verbindungen holen Feeds und Medien. -->
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <dict>
+            <!-- Geraetekennung je Installation, Spotlight-Einwilligung,
+                 abgelehnte Interessenvorschlaege. Alles Daten dieser App. -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array><string>CA92.1</string></array>
+        </dict>
+        <dict>
+            <!-- `attributesOfItem` in CoverArtworkCoordinator.adopt, um zu
+                 pruefen, ob die uebernommene Coverdatei leer ist. Sie liegt
+                 im Container der App. -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array><string>C617.1</string></array>
+        </dict>
+    </array>
+</dict>
+</plist>
