@@ -127,11 +127,21 @@ final class BetaFeedback03UITests: XCTestCase {
         XCTAssertTrue(miniBar.waitForExistence(timeout: 10))
         miniBar.tap()
         XCTAssertTrue(app.navigationBars["Jetzt läuft"].waitForExistence(timeout: 5))
-        sleep(8)
+        // Die Folge kann an einer gemerkten Stelle fortsetzen. Geprüft wird
+        // deshalb nicht eine feste Zeit, sondern dass die Zeit weiterläuft.
+        let elapsed = app.staticTexts.matching(NSPredicate(format: "label MATCHES '^[0-9]+:[0-9]{2}(:[0-9]{2})?$'")).firstMatch
+        XCTAssertTrue(elapsed.waitForExistence(timeout: 10))
+        sleep(3)
+        let first = Self.seconds(elapsed.label)
+        sleep(5)
+        let second = Self.seconds(elapsed.label)
         XCTAssertFalse(app.staticTexts["player.error"].exists, "Player meldet einen Fehler")
-        let running = app.staticTexts.matching(NSPredicate(format: "label MATCHES '^0:(0[4-9]|[1-5][0-9])$'")).firstMatch
         attach(app, "spielt")
-        XCTAssertTrue(running.exists, "Die Zeit läuft nicht, es kommt kein Audio")
+        XCTAssertGreaterThan(second, first, "Die Zeit läuft nicht, es kommt kein Audio")
         app.buttons["Pause"].firstMatch.tap()
+    }
+
+    static func seconds(_ label: String) -> Int {
+        label.split(separator: ":").compactMap { Int($0) }.reduce(0) { $0 * 60 + $1 }
     }
 }

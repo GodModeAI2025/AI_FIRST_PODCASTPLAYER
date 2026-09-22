@@ -26,6 +26,10 @@ public struct Highlight: Sendable, Identifiable, Hashable, Codable {
     public let capturedAt: Date
     /// Auf welchem Weg gemerkt — für die Anzeige, nicht für die Bedeutung.
     public let capturedVia: CaptureRoute
+    /// Die Medienfassung, aus der die Stelle stammt. Beim Merken aus dem
+    /// Player gibt es keinen gespeicherten Beleg; über die Fassung wird die
+    /// Stelle trotzdem mit ihrer Folge gelöscht. Ältere Einträge haben sie nicht.
+    public var mediaVersionID: MediaVersionID?
 
     public enum CaptureRoute: String, Sendable, Codable {
         case player
@@ -46,11 +50,11 @@ public struct Highlight: Sendable, Identifiable, Hashable, Codable {
     public init(
         id: HighlightID = HighlightID(), evidenceID: EvidenceID, note: String? = nil,
         interestIDs: [InterestID] = [], capturedAt: Date = Date(),
-        capturedVia: CaptureRoute = .player
+        capturedVia: CaptureRoute = .player, mediaVersionID: MediaVersionID? = nil
     ) {
         self.id = id; self.evidenceID = evidenceID; self.note = note
         self.interestIDs = interestIDs; self.capturedAt = capturedAt
-        self.capturedVia = capturedVia
+        self.capturedVia = capturedVia; self.mediaVersionID = mediaVersionID
     }
 }
 

@@ -23,6 +23,7 @@
 		39A6C7F901FE78C9352E21B9 /* RemovalAndSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B5398EFD3C9E76ACBF4D92 /* RemovalAndSyncTests.swift */; };
 		3E4D57B5413E316019A11AE4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE12FB2B75DBFB0812CC03F /* AppModel.swift */; };
 		3FAC36C9660EED555660CA4E /* PodcastAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5862B7C42AAD247B0503B32C /* PodcastAIKit */; };
+		436C87EE117653FD5F99D4DB /* AnswerPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC853F71E884276F4C6BDFAD /* AnswerPromptTests.swift */; };
 		448D5DEC858BF0CAB3CFBA36 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1B0E410F5D4C70AC267B92 /* DesignSystem.swift */; };
 		44FD4E8799183138C312052E /* EpisodeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1884DC0AEC7E8BD93DC0DB3 /* EpisodeViews.swift */; };
 		498182154F103090A7040E0E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 145839AE5F835BA91C11390C /* PrivacyInfo.xcprivacy */; };
@@ -47,6 +48,7 @@
 		8360924370DA4A569F7164B5 /* BackgroundWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7559EDE9F251C1BD2FB8E6C /* BackgroundWork.swift */; };
 		892155B355C93ED4AFE86904 /* GoalFeaturesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2542A126634BEE731EA9B08D /* GoalFeaturesUITests.swift */; };
 		8ED10D317026F8F52AEB9125 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 145839AE5F835BA91C11390C /* PrivacyInfo.xcprivacy */; };
+		97CDB152C33CFA1BFD427D08 /* SyncMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE3DEDB1A7C508B8E298DC2B /* SyncMergeTests.swift */; };
 		98E893007CB83DC5C9F62FAE /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1B0E410F5D4C70AC267B92 /* DesignSystem.swift */; };
 		996B38D964EA397957E2FDA0 /* AppModel+Knowledge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653843CFBEA17360AA358D5D /* AppModel+Knowledge.swift */; };
 		9F8F9C824B7420A3284CF221 /* EpisodePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20EC7F8EDB29F980CF84CB8E /* EpisodePlayer.swift */; };
@@ -120,6 +122,7 @@
 		A323EEBF0E9BF5744EE4F224 /* BetaFeedback03UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeedback03UITests.swift; sourceTree = "<group>"; };
 		A6E3863976ED3820B7DB9368 /* PassageRankerBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassageRankerBudgetTests.swift; sourceTree = "<group>"; };
 		ADA2CFB6537ED27DB238E866 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
+		AE3DEDB1A7C508B8E298DC2B /* SyncMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMergeTests.swift; sourceTree = "<group>"; };
 		B028E6CFAA38A2071402BF48 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B56ED3EE14562899B30A5330 /* PlanningContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningContext.swift; sourceTree = "<group>"; };
 		BB35B8C91F743C491DA753DE /* PodcastAIMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PodcastAIMac.entitlements; sourceTree = "<group>"; };
@@ -130,6 +133,7 @@
 		E62E4AD033F13CC6F5377BDB /* RemovedEpisodeQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemovedEpisodeQueryTests.swift; sourceTree = "<group>"; };
 		E7559EDE9F251C1BD2FB8E6C /* BackgroundWork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWork.swift; sourceTree = "<group>"; };
 		E8C2BFB9A41A80DC63C8F6ED /* BetaFeedbackUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeedbackUITests.swift; sourceTree = "<group>"; };
+		EC853F71E884276F4C6BDFAD /* AnswerPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnswerPromptTests.swift; sourceTree = "<group>"; };
 		EDBFAAEDED094DED2F661F3C /* PodcastAIKitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PodcastAIKitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EEA50A760A22D28142C51D30 /* MainFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlowUITests.swift; sourceTree = "<group>"; };
 		F1884DC0AEC7E8BD93DC0DB3 /* EpisodeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeViews.swift; sourceTree = "<group>"; };
@@ -258,6 +262,7 @@
 		722F0058292EC846935A75C1 /* PodcastAIKitTests */ = {
 			isa = PBXGroup;
 			children = (
+				EC853F71E884276F4C6BDFAD /* AnswerPromptTests.swift */,
 				F33A2209E55DEDF473AD0B60 /* CoreInvariantTests.swift */,
 				654C51C37619544003228BF8 /* InterestPersistenceTests.swift */,
 				FCA596D4A48ED1F0791C8772 /* LiveAnalysisTests.swift */,
@@ -265,6 +270,7 @@
 				35784A6AD29DE8BC94716D87 /* PipelineTests.swift */,
 				71B5398EFD3C9E76ACBF4D92 /* RemovalAndSyncTests.swift */,
 				E62E4AD033F13CC6F5377BDB /* RemovedEpisodeQueryTests.swift */,
+				AE3DEDB1A7C508B8E298DC2B /* SyncMergeTests.swift */,
 			);
 			path = PodcastAIKitTests;
 			sourceTree = "<group>";
@@ -534,6 +540,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				436C87EE117653FD5F99D4DB /* AnswerPromptTests.swift in Sources */,
 				CFF1973989506442E39CD787 /* CoreInvariantTests.swift in Sources */,
 				ED007FAF5D505809947A08DD /* InterestPersistenceTests.swift in Sources */,
 				7C989F71C6BA67BF63424BD1 /* LiveAnalysisTests.swift in Sources */,
@@ -541,6 +548,7 @@
 				78D3CCA2E169A250AB07C895 /* PipelineTests.swift in Sources */,
 				39A6C7F901FE78C9352E21B9 /* RemovalAndSyncTests.swift in Sources */,
 				E463FB2ECBBE33C7D75C251E /* RemovedEpisodeQueryTests.swift in Sources */,
+				97CDB152C33CFA1BFD427D08 /* SyncMergeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

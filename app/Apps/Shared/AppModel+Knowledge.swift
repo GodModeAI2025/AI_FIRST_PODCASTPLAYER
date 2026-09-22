@@ -540,11 +540,16 @@ extension AppModel {
     /// Löscht nur die Audiodatei. Transkript, Fakten, Belege und Hörzustand
     /// bleiben, abspielen geht danach als Stream.
     public func removeAudio(for episode: Episode) async {
-        if episodePlayer.episode?.id == episode.id { episodePlayer.stop() }
+        // Läuft die Folge gerade, geht es danach an derselben Stelle als Stream weiter.
+        let isCurrent = episodePlayer.episode?.id == episode.id
+        let wasPlaying = isCurrent && episodePlayer.isPlaying
+        let position = episodePlayer.currentTime
+        if isCurrent { episodePlayer.stop() }
         guard let ids = try? await store.mediaVersionIDs(forEpisode: episode.id) else { return }
         LocalMediaLocator.removeFiles(for: ids)
         try? await store.markAudioRemoved(ids)
         mediaStorageChanged += 1
+        if wasPlaying { playEpisode(episode, at: position) }
     }
 
     /// Löscht alle geladenen Audiodateien. Alle Daten bleiben.
@@ -647,7 +652,10 @@ extension AppModel {
         }
         episodePlayer.forgetPositions(for: report.episodeIDs)
         let removedEvidence = Set(report.evidenceIDs)
-        highlights.removeAll { removedEvidence.contains($0.evidenceID) }
+        let removedHighlights = Set(report.highlightIDs)
+        highlights.removeAll {
+            removedEvidence.contains($0.evidenceID) || removedHighlights.contains($0.id.rawValue)
+        }
         pruneChatAnswers(removedEpisodes: Set(report.episodeIDs), removedEvidence: removedEvidence)
         reindexSpotlight()
         mediaStorageChanged += 1

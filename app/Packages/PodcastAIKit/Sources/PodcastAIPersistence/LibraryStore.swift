@@ -854,6 +854,8 @@ public actor LibraryStore {
         public var mediaVersionIDs: [MediaVersionID] = []
         public var evidenceIDs: [EvidenceID] = []
         public var episodeIDs: [EpisodeID] = []
+        /// Gemerkte Stellen, die mit der Folge gelöscht wurden.
+        public var highlightIDs: [String] = []
     }
 
     /// Löscht eine Folge mit allem, was aus ihr entstanden ist: Transkript,
@@ -926,6 +928,7 @@ public actor LibraryStore {
         if !evidenceKeys.isEmpty {
             for highlight in try modelContext.fetch(FetchDescriptor<StoredHighlight>())
             where evidenceKeys.contains(highlight.evidenceIdentifier) {
+                report.highlightIDs.append(highlight.identifier)
                 modelContext.delete(highlight)
             }
         }
@@ -942,6 +945,17 @@ public actor LibraryStore {
                 predicate: #Predicate { $0.identifier == mediaKey })) {
                 modelContext.delete(media)
             }
+        }
+        // Aus dem Player gemerkte Stellen haben keinen gespeicherten Beleg.
+        // Sie hängen über ihre Medienfassung an der Folge.
+        let deletedHighlights = Set(report.highlightIDs)
+        for highlight in try modelContext.fetch(FetchDescriptor<StoredHighlight>())
+        where !deletedHighlights.contains(highlight.identifier) {
+            guard let payload = highlight.payload,
+                  let decoded = try? Self.decoder.decode(Highlight.self, from: payload),
+                  let media = decoded.mediaVersionID, mediaKeys.contains(media.rawValue) else { continue }
+            report.highlightIDs.append(highlight.identifier)
+            modelContext.delete(highlight)
         }
         report.mediaVersionIDs += mediaKeys.filter { !$0.isEmpty }.sorted().map(MediaVersionID.init(rawValue:))
     }

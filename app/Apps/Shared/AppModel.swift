@@ -196,7 +196,12 @@ public final class AppModel {
 
     public func load() async {
         // Nach einem iCloud-Abgleich können Datensätze doppelt vorliegen.
-        try? await store.removeDuplicates()
+        // Wurde dabei eine gelöschte Folge endgültig bereinigt, geht auch
+        // ihre Audiodatei.
+        if let report = try? await store.removeDuplicatesWithReport(), !report.mediaVersionIDs.isEmpty {
+            LocalMediaLocator.removeFiles(for: report.mediaVersionIDs)
+            mediaStorageChanged += 1
+        }
         do {
             sources = try await store.sources()
             profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
@@ -481,6 +486,8 @@ public final class AppModel {
                     // Eine gelöschte Folge taucht nicht wieder unter „Erschliessen“ auf.
                     guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }
                     self.stages[progress.episodeID] = progress.stage
+                    // Nach dem Download ändert sich der belegte Speicher.
+                    if progress.stage == .mediaDownloaded { self.mediaStorageChanged += 1 }
                     if let detail = progress.detail {
                         self.stageDetails[progress.episodeID] = detail
                     }
@@ -821,7 +828,7 @@ public final class AppModel {
             evidenceID: Evidence.stableID(
                 mediaVersionID: mediaVersionID, transcriptRevision: .initial, range: range
             ),
-            note: note, capturedVia: route
+            note: note, capturedVia: route, mediaVersionID: mediaVersionID
         )
         highlights.insert(highlight, at: 0)
         persistHighlights()

@@ -316,6 +316,11 @@ struct EpisodeDetailView: View {
                         Text("Sobald die Folge erschlossen ist, zieht die App überprüfbare Aussagen mit "
                              + "Zeitmarke heraus.")
                             .foregroundStyle(.secondary)
+                    } else if case .failure(let reason) = model.modelStatus.resolve(.extract) {
+                        // Ohne Apple Intelligence gibt es keine Fakten. Das steht hier,
+                        // statt dass ein Knopf ohne Wirkung angeboten wird.
+                        Label(reason.message, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.secondary)
                     } else {
                         Button {
                             Task { await model.prepareFacts(for: episode, force: true) }
