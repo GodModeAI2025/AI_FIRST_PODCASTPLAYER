@@ -78,12 +78,24 @@ open PodcastAI.xcodeproj
 ```
 
 Schemata: `PodcastAI` (iOS/iPadOS) und `PodcastAIMac` (nativ, kein Catalyst).
-Mindestversionen: iOS 26.0, macOS 26.0, Swift 6 mit strikter Nebenläufigkeit.
+Mindestversionen: iOS 27.0, macOS 27.0, Sprachmodus Swift 6 mit strikter
+Nebenläufigkeit.
 
-> Zur offenen Entscheidung D7 im Plan (26 gegen 27): der Code steht auf 26.0,
-> weil das die Version ist, auf der die vorhandene BrainSpeak-Basis läuft.
-> Ein Sprung auf 27.0 hebt die Mindesthardware an und ist eine
-> Produktentscheidung — siehe `plan/03-risiken-und-entscheidungen.md`.
+> **D7 war keine offene Entscheidung.** Der Code stand auf 26.0 mit dem
+> Hinweis, 27 sei noch zu klären. `config/toolchain-lock.json` trägt seit
+> dem 19. September `"policy": "latest-apple-native-27-only"` mit 27.0 für
+> alle vier Plattformen, und `AGENTS.md` Punkt 3 macht diese Politik
+> verbindlich. Die 26.0 war schlicht eine Abweichung davon.
+>
+> Für den Code ändert das nichts: `SpeechAnalyzer`, `.glassEffect`,
+> `.tabViewBottomAccessory` und `FoundationModels` gibt es ab 26, auf 27
+> also erst recht. Was sich ändert, ist die Mindesthardware — und das ist
+> genau die Entscheidung, die die Sperrdatei bereits getroffen hat.
+>
+> `swiftCompiler: "6.4"` und die Xcode-Buildnummer stehen dort auf
+> `null` bzw. `locallyVerified: false`. Beides bleibt so: hier ist kein
+> Apple-SDK, und geratene Buildnummern einzutragen verbietet die Datei
+> ausdrücklich.
 
 ## Aufbau
 

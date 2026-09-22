@@ -4,7 +4,9 @@
 #   cd app && xcodegen generate && open PodcastAI.xcodeproj
 #
 # Zielplattformen sind iOS und macOS. iPadOS läuft über das iOS-Target mit
-# TARGETED_DEVICE_FAMILY "1,2"; watchOS ist bewusst nicht enthalten.
+# TARGETED_DEVICE_FAMILY "1,2"; watchOS ist bewusst nicht enthalten — der
+# Auftrag nannte iOS und macOS. Die Sperrdatei führt watchOS 27.0 weiterhin
+# als Zielplattform des Gesamtprodukts; dieses Projekt setzt sie nicht um.
 #
 # Der Mac bekommt ein eigenes natives Target statt Catalyst: die Mediathek,
 # die Wissensansicht und der Export sind auf dem Mac andere Oberflächen,
@@ -14,9 +16,14 @@ name: PodcastAI
 
 options:
   bundleIdPrefix: com.podcastai
+  # 27-only. Das ist keine freie Wahl: `config/toolchain-lock.json` trägt
+  # `"policy": "latest-apple-native-27-only"` mit 27.0 für alle vier
+  # Plattformen, und `AGENTS.md` Punkt 3 macht sie verbindlich. Der Code
+  # stand hier auf 26.0 — das war eine Abweichung, die als offene
+  # Entscheidung D7 getarnt war, obwohl sie längst entschieden ist.
   deploymentTarget:
-    iOS: "26.0"
-    macOS: "26.0"
+    iOS: "27.0"
+    macOS: "27.0"
   createIntermediateGroups: true
   defaultConfig: Release
 

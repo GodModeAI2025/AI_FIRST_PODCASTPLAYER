@@ -189,9 +189,25 @@ ZIP-Upload und wurde ausgewertet (`plan/04-brainspeak-audit.md`). Er wurde
 **bewusst nicht** ins Repository übernommen — die Angaben in `plan/04` sind
 hier also nicht nachprüfbar.
 
+## Konvergenz-Review
+
+`AGENTS.md` Punkt 10 verlangt am Abschluss eine Konsistenzprüfung mit
+getrennt ausgewiesenen Ergebnissen. Sie steht in
+`plan/05-konvergenz-review.md`: was gelaufen ist (mit Ausgabe), was in
+dieser Umgebung nicht laufen kann (mit Grund), und was nicht gelaufen ist,
+obwohl es könnte — darunter alle 266 Umsetzungsschritte, die unangehakt
+bleiben müssen, weil es ohne Build keinen Abnahmebeleg gibt.
+
+Dort stehen auch sechs Konsistenzbefunde zwischen Spezifikationspaket und
+`app/`-Baum, jeder mit der Entscheidung, welche Seite gilt.
+
 ## Was ein Mac-Build klären muss
 
 GATE-SDK (`attributeOptions`), GATE-PCC, GATE-PLAY (exakte Grenzen bei
 erhöhter Geschwindigkeit), GATE-TIME (Timecodes gegen eine schneller als
 Echtzeit analysierte Datei), GATE-MIGRATE (die neuen SwiftData-Modelle gegen
-einen bestehenden Speicher), D7 (26 gegen 27).
+einen bestehenden Speicher).
+
+D7 (26 gegen 27) ist keines davon mehr: `config/toolchain-lock.json` hatte
+die Frage längst entschieden, der Code wich nur davon ab. Er steht jetzt
+auf 27.0.

@@ -190,12 +190,16 @@ def main():
 
     # --- Konkrete Produktfaelle ---
 
-    # "Mein KI Update": vier Quellen, 20-Minuten-Budget.
+    # Ein Themenfeed mit vier Quellen und 20-Minuten-Budget.
+    #
+    # Die Kennungen sind bewusst nichtssagend. Namen echter Sendungen waeren
+    # hier keine Testdaten, sondern eine Behauptung ueber sie -- und
+    # AGENTS.md Punkt 6 verlangt klar synthetische Fixtures.
     cands = [
-        {"id": "a", "media": "lex", "range": (492_000, 821_000), "score": 0.9, "published": 1},
-        {"id": "b", "media": "decoder", "range": (1_880_000, 2_224_000), "score": 0.8, "published": 2},
-        {"id": "c", "media": "enbw", "range": (1_022_000, 1_430_000), "score": 0.7, "published": 3},
-        {"id": "d", "media": "priv", "range": (2_531_000, 2_798_000), "score": 0.6, "published": 4},
+        {"id": "a", "media": "quelle-1", "range": (492_000, 821_000), "score": 0.9, "published": 1},
+        {"id": "b", "media": "quelle-2", "range": (1_880_000, 2_224_000), "score": 0.8, "published": 2},
+        {"id": "c", "media": "quelle-3", "range": (1_022_000, 1_430_000), "score": 0.7, "published": 3},
+        {"id": "d", "media": "quelle-4", "range": (2_531_000, 2_798_000), "score": 0.6, "published": 4},
     ]
     u = resolve_unheard(cands, {})
     assert len(u) == 4
