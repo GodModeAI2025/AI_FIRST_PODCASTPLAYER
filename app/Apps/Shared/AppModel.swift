@@ -145,6 +145,19 @@ public final class AppModel {
         episodePlayer.onFinished = { [weak self] episode in
             self?.playNextInQueue(after: episode)
         }
+        // Eine Folge und ein Fokus-Plan klingen nie gleichzeitig. Startet die
+        // Folge über irgendeinen Weg (Knopf, Menü, Sperrbildschirm), endet
+        // der Plan.
+        episodePlayer.onWillResume = { [weak self] in
+            guard let self, self.playerPlan != nil else { return }
+            self.stopPlayback()
+        }
+        // Solange ein Plan besteht, gehören ihm Sperrbildschirm und Tasten.
+        episodePlayer.focusRemote = EpisodePlayer.FocusRemote(
+            current: { [weak self] in self?.focusNowPlaying },
+            pause: { [weak self] in self?.pausePlayback() },
+            resume: { [weak self] in self?.resumePlayback() }
+        )
     }
 
     /// Der Zustand des Players, gespiegelt für die Oberfläche.
@@ -569,6 +582,7 @@ public final class AppModel {
             playerPlan = plan
             sessionListened = .zero
             closureOfferedThisSession = false
+            episodePlayer.refreshNowPlaying()
         } catch {
             lastError = UserFacingError.describe(error)
         }
@@ -580,7 +594,34 @@ public final class AppModel {
     // `PlaybackCoordinator` ist nicht beobachtbar; ein direkter Aufruf aus
     // einer Ansicht änderte den Zustand, ohne dass die Ansicht davon erfährt.
     public func pausePlayback() { player.pause() }
-    public func resumePlayback() { player.resume() }
+    public func resumePlayback() {
+        // Eine laufende Folge hält an, bevor der Plan weiterspielt.
+        if episodePlayer.isPlaying { episodePlayer.pause() }
+        player.resume()
+    }
+
+    /// Was ein Fokus-Plan am Sperrbildschirm zeigt, solange er besteht.
+    var focusNowPlaying: EpisodePlayer.FocusNowPlaying? {
+        guard let plan = playerPlan else { return nil }
+        let index: Int
+        let playing: Bool
+        switch playerState {
+        case .playing(let value), .preparing(let value):
+            index = value
+            playing = true
+        case .paused(let value):
+            index = value
+            playing = false
+        default:
+            return nil
+        }
+        guard index < plan.segments.count else { return nil }
+        let segment = plan.segments[index]
+        return EpisodePlayer.FocusNowPlaying(
+            title: segment.episodeTitle, artist: segment.sourceTitle,
+            album: plan.requestSummary, isPlaying: playing
+        )
+    }
     public func skipSegment() { player.skipSegment() }
 
     public func stopPlayback() {
@@ -1138,17 +1179,31 @@ public final class AppModel {
     /// Folge hier noch nie gespielt, hilft der Hörzustand weiter, sofern er
     /// am Anfang ansetzt.
     public func resumePosition(for episode: Episode) -> Double {
+        // Die echte Länge, sobald die Folge geladen ist. Die Angabe im Feed
+        // fehlt manchmal oder ist zu lang.
+        let loaded = episodePlayer.episode?.id == episode.id ? episodePlayer.duration : 0
+        let total = loaded > 0 ? loaded : (episode.declaredDuration?.seconds ?? 0)
+        let saved = episodePlayer.savedPosition(for: episode.id)
         // Zuerst der Hörzustand: er kommt über iCloud auch von den anderen Geräten.
         if let id = episode.streamMediaVersionID, let resume = ledger.state(for: id).resumePosition {
             let seconds = resume.seconds
-            let total = episode.declaredDuration?.seconds ?? 0
-            return total > 0 && seconds > total - 15 ? 0 : seconds
+            if total > 0 && seconds > total - 15 { return 0 }
+            // Hier zu Ende gehört (die gemerkte Stelle steht dann auf 0), und
+            // das Letzte, was lief, war das Ende des Gehörten: wieder von vorn.
+            // Das greift auch ohne bekannte Länge. Hat ein anderes Gerät die
+            // Folge danach neu begonnen, liegt die Stelle weiter vorn und gilt.
+            if saved == 0, let frontier = ledger.heard(in: id).ranges.last?.end.seconds,
+               seconds >= frontier - 15 {
+                return 0
+            }
+            return seconds
         }
-        if let saved = episodePlayer.savedPosition(for: episode.id) { return saved }
+        if let saved { return saved }
         guard let id = episode.streamMediaVersionID else { return 0 }
         let heard = ledger.heard(in: id)
         guard let first = heard.ranges.first, first.start.milliseconds < 5_000 else { return 0 }
-        return first.end.seconds
+        let end = first.end.seconds
+        return total > 0 && end > total - 15 ? 0 : end
     }
 
     /// Anteil der Folge, der schon gehört ist, zwischen 0 und 1.
@@ -1184,7 +1239,9 @@ public final class AppModel {
     /// Kapitel aus einer eigenen Datei nachladen, wenn der Feed nur darauf verweist.
     public func loadChapters(for episode: Episode) async {
         if !episode.publisherChapters.isEmpty {
-            episodePlayer.setChapters(episode.publisherChapters)
+            // Die Detailansicht ruft das für jede Folge auf. Kapitel einer
+            // anderen Folge gehören nicht in den Player.
+            if episodePlayer.episode?.id == episode.id { episodePlayer.setChapters(episode.publisherChapters) }
             return
         }
         guard let url = episode.chaptersURL,
@@ -1231,6 +1288,9 @@ extension AppModel: PlaybackObserver {
         default:
             break
         }
+        // Sperrbildschirm und Tasten folgen dem Plan, und nach seinem Ende
+        // wieder der Folge.
+        episodePlayer.refreshNowPlaying()
     }
 
     public func playbackProgressed(segmentIndex: Int, position: MediaTime) {

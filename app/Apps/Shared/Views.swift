@@ -743,12 +743,24 @@ struct FocusPlayerView: View {
     @State private var showingNote = false
     @State private var note = ""
 
+    /// Der Abschnitt des Plans, auch während er vorbereitet wird oder pausiert.
+    private var activeSegmentIndex: Int? {
+        switch model.playerState {
+        case .playing(let index), .paused(let index), .preparing(let index): index
+        default: nil
+        }
+    }
+
+    private var isPaused: Bool {
+        if case .paused = model.playerState { true } else { false }
+    }
+
     var body: some View {
         VStack(spacing: Design.Spacing.standard) {
             // Gespiegelter Zustand, nicht der Koordinator: `PlaybackCoordinator`
             // ist nicht beobachtbar, eine Ansicht darauf bliebe stehen.
             if let plan = model.playerPlan,
-               let index = model.playingSegmentIndex,
+               let index = activeSegmentIndex,
                index < plan.segments.count {
                 let segment = plan.segments[index]
 
@@ -770,12 +782,16 @@ struct FocusPlayerView: View {
                     .font(.caption2).foregroundStyle(.secondary)
 
                 HStack(spacing: Design.Spacing.large) {
-                    Button { model.pausePlayback() } label: {
-                        Image(systemName: "pause.fill")
+                    // Pausiert bleibt der Plan sichtbar. Auf dem Mac gibt es
+                    // sonst keinen Weg zurück, weil dort die Fokusleiste fehlt.
+                    Button {
+                        isPaused ? model.resumePlayback() : model.pausePlayback()
+                    } label: {
+                        Image(systemName: isPaused ? "play.fill" : "pause.fill")
                             .font(.title)
                             .tappableArea()
                     }
-                    .accessibilityLabel("Pausieren")
+                    .accessibilityLabel(isPaused ? "Fortsetzen" : "Pausieren")
 
                     Button { model.skipSegment() } label: {
                         Image(systemName: "forward.end.fill")

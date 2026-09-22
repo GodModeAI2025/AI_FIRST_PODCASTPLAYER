@@ -9,6 +9,10 @@
 //  Wiedergabe. „Für dich“ und die Themen-Updates wissen deshalb auch, was in
 //  einer ganzen Folge schon gehört wurde.
 //
+//  Sperrbildschirm und Kopfhörertasten gehören immer genau einem Player.
+//  Solange ein Fokus-Plan besteht, leitet dieser Player die Befehle an ihn
+//  weiter und zeigt ihn am Sperrbildschirm. Die Folge bleibt dann still.
+//
 
 import Foundation
 import AVFoundation
@@ -45,16 +49,64 @@ public final class EpisodePlayer {
         }
     }
     public private(set) var sleepTimer: SleepTimer?
+    /// Wann ein Minuten-Timer abläuft. Gesetzt nur, solange die Folge spielt.
     public private(set) var sleepDeadline: Date?
-    @ObservationIgnored private var sleepChapterEnd: Double?
+    /// Restzeit eines Minuten-Timers während einer Pause. In der Pause zählt
+    /// der Timer nicht weiter. Sonst hielte er gleich nach dem Fortsetzen an.
+    public private(set) var sleepPausedRemaining: TimeInterval?
+    /// Eine Stelle in dem Kapitel, dessen Ende der Timer abwartet. Das Ende
+    /// selbst wird bei jedem Tick aus den aktuellen Kapiteln bestimmt, damit
+    /// nachgeladene Kapitel und Sprünge es richtig verschieben.
+    @ObservationIgnored private var sleepChapterAnchor: Double?
     public var rate: Float = 1.0 {
-        didSet { if isPlaying { player.rate = rate } }
+        didSet {
+            if isPlaying { player.rate = rate }
+            updateNowPlaying()
+        }
+    }
+
+    /// Wie lange ein Minuten-Timer noch läuft.
+    public var sleepRemaining: TimeInterval? {
+        if let sleepDeadline { return max(0, sleepDeadline.timeIntervalSinceNow) }
+        return sleepPausedRemaining
     }
 
     /// Wird für jedes gehörte Stück aufgerufen, spätestens alle zehn Sekunden.
     @ObservationIgnored public var onHeard: ((MediaTimeRange, MediaVersionID) -> Void)?
     /// Wird am Ende einer Folge aufgerufen.
     @ObservationIgnored public var onFinished: ((Episode) -> Void)?
+    /// Wird aufgerufen, bevor die Folge Ton startet, egal über welchen Weg.
+    /// Das Modell beendet hier einen Fokus-Plan, damit nie beide klingen.
+    @ObservationIgnored public var onWillResume: (() -> Void)?
+    /// Die Steuerung eines Fokus-Plans. Solange `current` etwas liefert,
+    /// gehen Sperrbildschirm und Kopfhörertasten an den Plan.
+    @ObservationIgnored public var focusRemote: FocusRemote?
+
+    /// Was ein Fokus-Plan am Sperrbildschirm zeigt.
+    public struct FocusNowPlaying {
+        public var title: String
+        public var artist: String
+        public var album: String
+        public var isPlaying: Bool
+
+        public init(title: String, artist: String, album: String, isPlaying: Bool) {
+            self.title = title; self.artist = artist; self.album = album; self.isPlaying = isPlaying
+        }
+    }
+
+    /// Wie Sperrbildschirm und Kopfhörer einen Fokus-Plan bedienen.
+    /// `current` liefert `nil`, solange kein Plan besteht.
+    public struct FocusRemote {
+        public var current: @MainActor () -> FocusNowPlaying?
+        public var pause: @MainActor () -> Void
+        public var resume: @MainActor () -> Void
+
+        public init(current: @escaping @MainActor () -> FocusNowPlaying?,
+                    pause: @escaping @MainActor () -> Void,
+                    resume: @escaping @MainActor () -> Void) {
+            self.current = current; self.pause = pause; self.resume = resume
+        }
+    }
 
     @ObservationIgnored private let player = AVPlayer()
     @ObservationIgnored private var timeObserver: Any?
@@ -67,11 +119,18 @@ public final class EpisodePlayer {
     @ObservationIgnored private var seekGeneration = 0
     @ObservationIgnored private var seekInFlight = false
     @ObservationIgnored private var usingLocalFile = false
+    /// Die zuletzt geladene Adresse. Nach einem Fehler wird sie neu geladen.
+    @ObservationIgnored private var loadedURL: URL?
     /// Gewünschte Startstelle, solange die Folge noch nicht bereit ist.
     /// Ein Sprung vor `readyToPlay` verpufft, und die Folge lief dann
     /// irgendwo statt an der gewünschten Stelle.
     @ObservationIgnored private var pendingStart: Double?
     @ObservationIgnored private var resumeWhenReady = false
+    /// Die Folge ist bis zum Ende gelaufen. Wer dann auf Abspielen drückt,
+    /// meint den Anfang und nicht die letzte Sekunde.
+    @ObservationIgnored private var reachedEnd = false
+    /// Das Kapitel, das zuletzt am Sperrbildschirm stand.
+    @ObservationIgnored private var nowPlayingChapterStart: Double?
     @ObservationIgnored private let positionsKey = "episodePlaybackPositions"
     @ObservationIgnored private var positions: [String: Double]
 
@@ -83,9 +142,10 @@ public final class EpisodePlayer {
             MainActor.assumeIsolated { self?.tick(time.seconds) }
         }
         configureRemoteCommands()
-        controlObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
-            let status = player.timeControlStatus
-            Task { @MainActor in self?.controlStatusChanged(status) }
+        controlObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
+            // Der Zustand wird beim Eintreffen frisch gelesen. Ein verspäteter
+            // Wert könnte sonst eine gerade fortgesetzte Folge als pausiert führen.
+            Task { @MainActor in self?.controlStatusChanged() }
         }
     }
 
@@ -99,7 +159,10 @@ public final class EpisodePlayer {
             playbackError = "Zu dieser Folge gibt es keine Audiodatei."
             return
         }
-        if self.episode?.id == episode.id {
+        let sameEpisode = self.episode?.id == episode.id
+        // Nach einem Fehler hilft nur neu laden. Ein fehlgeschlagenes Element
+        // bleibt stumm, auch wenn man es erneut startet.
+        if sameEpisode, playbackError == nil, !needsReload {
             seek(to: seconds)
             resume()
             return
@@ -110,9 +173,13 @@ public final class EpisodePlayer {
         savePosition()
         heardStart = nil
         isPlaying = false
-        self.episode = episode
-        chapters = episode.publisherChapters
-        duration = episode.declaredDuration?.seconds ?? 0
+        if !sameEpisode {
+            // Das Kapitelende gehörte zur alten Folge.
+            if sleepTimer == .endOfChapter { setSleepTimer(nil) }
+            self.episode = episode
+            chapters = episode.publisherChapters
+            duration = episode.declaredDuration?.seconds ?? 0
+        }
         currentTime = seconds
         pendingStart = seconds
         resumeWhenReady = true
@@ -141,9 +208,16 @@ public final class EpisodePlayer {
         UserDefaults.standard.set(positions, forKey: positionsKey)
     }
 
+    /// Das geladene Element ist unbrauchbar und muss neu geladen werden.
+    private var needsReload: Bool {
+        player.currentItem == nil || player.currentItem?.status == .failed
+    }
+
     private func load(_ url: URL, isLocal: Bool) {
         playbackError = nil
         usingLocalFile = isLocal
+        loadedURL = url
+        reachedEnd = false
         let item = AVPlayerItem(asset: PlayableAsset.make(url: url))
         player.replaceCurrentItem(with: item)
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
@@ -152,16 +226,21 @@ public final class EpisodePlayer {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.finished() }
         }
-        statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+        // `.initial`, damit ein Element, das schon bereit ist, bevor die
+        // Beobachtung steht, nicht übersehen wird.
+        statusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             let status = item.status
             let message = item.error?.localizedDescription
             Task { @MainActor in self?.itemStatusChanged(status, message: message, item: item) }
         }
         Task { [weak self] in
-            if let loaded = try? await item.asset.load(.duration), loaded.seconds.isFinite, loaded.seconds > 0 {
-                self?.duration = loaded.seconds
-                self?.updateNowPlaying()
-            }
+            guard let loaded = try? await item.asset.load(.duration),
+                  loaded.seconds.isFinite, loaded.seconds > 0 else { return }
+            // Ein später Wert eines abgelösten Elements gehört zu einer
+            // anderen Folge und darf die Dauer der laufenden nicht ersetzen.
+            guard let self, self.player.currentItem === item else { return }
+            self.duration = loaded.seconds
+            self.updateNowPlaying()
         }
     }
 
@@ -181,7 +260,9 @@ public final class EpisodePlayer {
         guard status == .failed else { return }
         // Die geladene Datei ließ sich nicht öffnen: dann eben der Stream.
         if usingLocalFile, let stream = episode?.audioURL {
-            pendingStart = currentTime
+            // Eine noch ausstehende Startstelle bleibt gültig. Die Anzeige kann
+            // inzwischen auf 0 stehen, weil das Element nie bereit war.
+            pendingStart = pendingStart ?? currentTime
             resumeWhenReady = isPlaying || resumeWhenReady
             load(stream, isLocal: false)
             return
@@ -190,62 +271,120 @@ public final class EpisodePlayer {
         isBuffering = false
         resumeWhenReady = false
         pendingStart = nil
+        suspendSleepCountdown()
         playbackError = "Die Folge lässt sich nicht abspielen. "
             + (message.map { "Grund: \($0)" } ?? "Der Server liefert kein abspielbares Audio.")
         updateNowPlaying()
     }
 
-    private func controlStatusChanged(_ status: AVPlayer.TimeControlStatus) {
+    private func controlStatusChanged() {
+        let status = player.timeControlStatus
         isBuffering = status == .waitingToPlayAtSpecifiedRate
+        // Das System hat angehalten: Anruf, Siri, Kopfhörer gezogen. Dann gilt
+        // die Folge als pausiert, sonst zeigt die Taste weiter „Pause“ und
+        // braucht zwei Anläufe. Ein Fehler des Elements behandelt
+        // `itemStatusChanged`.
+        guard status == .paused, isPlaying, player.currentItem?.status == .readyToPlay else { return }
+        let now = player.currentTime().seconds
+        if now.isFinite, !seekInFlight, pendingStart == nil { currentTime = now }
+        enterPaused()
     }
 
     public func setChapters(_ chapters: [Chapter]) {
         guard !chapters.isEmpty else { return }
         self.chapters = chapters
+        updateNowPlaying()
     }
 
     public func resume() {
-        guard episode != nil else { return }
+        guard let episode else { return }
+        onWillResume?()
+        if needsReload {
+            // Nach einem Fehler neu laden, an der zuletzt gezeigten Stelle.
+            guard let url = loadedURL ?? episode.audioURL else { return }
+            pendingStart = pendingStart ?? currentTime
+            resumeWhenReady = true
+            load(url, isLocal: url == loadedURL && usingLocalFile)
+            updateNowPlaying()
+            return
+        }
+        if reachedEnd { seek(to: 0) }
         #if os(iOS)
         try? AVAudioSession.sharedInstance().setActive(true)
         #endif
         player.playImmediately(atRate: rate)
         isPlaying = true
         heardStart = currentTime
+        if let remaining = sleepPausedRemaining {
+            sleepPausedRemaining = nil
+            sleepDeadline = Date().addingTimeInterval(remaining)
+        }
         updateNowPlaying()
     }
 
     public func pause() {
-        flushHeard()
-        savePosition()
         resumeWhenReady = false
         player.pause()
+        enterPaused()
+    }
+
+    /// Was zu jeder Pause gehört, ob der Nutzer oder das System angehalten hat.
+    private func enterPaused() {
+        flushHeard()
+        savePosition()
         isPlaying = false
+        heardStart = nil
+        suspendSleepCountdown()
         updateNowPlaying()
     }
 
     public func togglePlayPause() { isPlaying ? pause() : resume() }
 
+    // MARK: - Schlaf-Timer
+
     public func setSleepTimer(_ timer: SleepTimer?) {
         sleepTimer = timer
         sleepDeadline = nil
-        sleepChapterEnd = nil
+        sleepPausedRemaining = nil
+        sleepChapterAnchor = nil
         switch timer {
         case .minutes(let value):
-            sleepDeadline = Date().addingTimeInterval(TimeInterval(value * 60))
+            let seconds = TimeInterval(value * 60)
+            if isPlaying {
+                sleepDeadline = Date().addingTimeInterval(seconds)
+            } else {
+                sleepPausedRemaining = seconds
+            }
         case .endOfChapter:
-            sleepChapterEnd = chapters.first { $0.start.seconds > currentTime + 1 }?.start.seconds ?? duration
+            sleepChapterAnchor = currentTime
         case .endOfEpisode, nil:
             break
         }
     }
 
+    /// Hält den Minuten-Timer an. Beim Fortsetzen läuft er mit der Restzeit weiter.
+    private func suspendSleepCountdown() {
+        guard let deadline = sleepDeadline else { return }
+        sleepDeadline = nil
+        sleepPausedRemaining = max(0, deadline.timeIntervalSinceNow)
+    }
+
+    /// Wo das Kapitel endet, in dem `position` liegt. `nil` im letzten
+    /// Kapitel: das endet mit der Folge. Die Toleranz passt zu `currentChapter`.
+    private func chapterEnd(containing position: Double) -> Double? {
+        chapters.map(\.start.seconds).filter { $0 > position + 0.5 }.min()
+    }
+
     private func checkSleepTimer() {
         guard isPlaying, let timer = sleepTimer else { return }
         let due: Bool = switch timer {
-        case .minutes: sleepDeadline.map { Date() >= $0 } ?? false
-        case .endOfChapter: sleepChapterEnd.map { currentTime >= $0 - 0.5 } ?? false
-        case .endOfEpisode: false
+        case .minutes:
+            sleepDeadline.map { Date() >= $0 } ?? false
+        case .endOfChapter:
+            // Die Grenze gilt auch dann, wenn ein Tick sie knapp übersprungen hat.
+            sleepChapterAnchor.flatMap { chapterEnd(containing: $0) }.map { currentTime >= $0 - 0.5 } ?? false
+        case .endOfEpisode:
+            false
         }
         if due {
             pause()
@@ -253,30 +392,33 @@ public final class EpisodePlayer {
         }
     }
 
+    // MARK: - Springen
+
     public func seek(to seconds: Double) {
         flushHeard()
-        // Vor `readyToPlay` verpufft ein Sprung. Dann wird er gemerkt.
+        reachedEnd = false
+        let target: Double
         if player.currentItem?.status != .readyToPlay {
-            let target = max(0, seconds)
+            // Vor `readyToPlay` verpufft ein Sprung. Dann wird er gemerkt.
+            target = max(0, seconds)
             pendingStart = target
-            currentTime = target
-            if isPlaying { heardStart = target }
-            updateNowPlaying()
-            return
-        }
-        let target = max(0, duration > 0 ? min(seconds, duration - 1) : seconds)
-        seekGeneration += 1
-        let generation = seekGeneration
-        seekInFlight = true
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
-                    toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.seekGeneration == generation else { return }
-                self.seekInFlight = false
+        } else {
+            target = max(0, duration > 0 ? min(seconds, duration - 1) : seconds)
+            seekGeneration += 1
+            let generation = seekGeneration
+            seekInFlight = true
+            player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
+                        toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.seekGeneration == generation else { return }
+                    self.seekInFlight = false
+                }
             }
         }
         currentTime = target
         if isPlaying { heardStart = target }
+        // Wer springt, meint das Kapitel an der neuen Stelle.
+        if sleepTimer == .endOfChapter { sleepChapterAnchor = target }
         updateNowPlaying()
     }
 
@@ -302,19 +444,25 @@ public final class EpisodePlayer {
         isBuffering = false
         playbackError = nil
         statusObservation = nil
+        resumeWhenReady = false
+        pendingStart = nil
+        heardStart = nil
+        setSleepTimer(nil)
         episode = nil
         chapters = []
         currentTime = 0
-        #if canImport(MediaPlayer)
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-        #endif
+        // Ohne Folge räumt das den Sperrbildschirm, bei einem Fokus-Plan zeigt es ihn.
+        updateNowPlaying()
     }
 
     // MARK: - Hörzustand
 
     private func tick(_ seconds: Double) {
-        guard seconds.isFinite, !seekInFlight else { return }
+        // Solange eine Startstelle aussteht, meldet der Beobachter noch die
+        // Zeit eines Elements, das nicht bereit ist, oft 0.
+        guard seconds.isFinite, !seekInFlight, pendingStart == nil else { return }
         currentTime = seconds
+        if currentChapter?.start.seconds != nowPlayingChapterStart { updateNowPlaying() }
         checkSleepTimer()
         if isPlaying, let start = heardStart, seconds - start >= 10 {
             flushHeard()
@@ -338,62 +486,144 @@ public final class EpisodePlayer {
     }
 
     private func finished() {
+        let end = player.currentTime().seconds
+        if end.isFinite, !seekInFlight, pendingStart == nil { currentTime = end }
         flushHeard()
+        heardStart = nil
+        isPlaying = false
+        reachedEnd = true
+        suspendSleepCountdown()
         if let episode {
             positions[episode.id.rawValue] = 0
             UserDefaults.standard.set(positions, forKey: positionsKey)
         }
-        if sleepTimer == .endOfEpisode {
-            // Schlafen statt die nächste Folge zu starten.
+        // „Ende der Folge“ hält hier an. Ein Kapitel-Timer auch: sein Kapitel
+        // endet mit der Folge. In beiden Fällen startet nichts aus „Als Nächstes“.
+        if sleepTimer == .endOfEpisode || sleepTimer == .endOfChapter {
             setSleepTimer(nil)
-            isPlaying = false
             updateNowPlaying()
             return
         }
-        isPlaying = false
+        updateNowPlaying()
         if let episode { onFinished?(episode) }
     }
 
     // MARK: - Sperrbildschirm und Kopfhörertasten
 
+    /// Aktualisiert den Sperrbildschirm, etwa nach einem Wechsel im Fokus-Plan.
+    public func refreshNowPlaying() { updateNowPlaying() }
+
     private func updateNowPlaying() {
+        nowPlayingChapterStart = currentChapter?.start.seconds
         #if canImport(MediaPlayer)
-        guard let episode else { return }
+        let center = MPNowPlayingInfoCenter.default()
+        let focus = focusRemote?.current()
+        setSeekCommandsEnabled(focus == nil)
+        if let focus {
+            center.nowPlayingInfo = [
+                MPMediaItemPropertyTitle: focus.title,
+                MPMediaItemPropertyArtist: focus.artist,
+                MPMediaItemPropertyAlbumTitle: focus.album,
+                MPNowPlayingInfoPropertyPlaybackRate: focus.isPlaying ? 1.0 : 0.0,
+            ]
+            #if os(macOS)
+            center.playbackState = focus.isPlaying ? .playing : .paused
+            #endif
+            return
+        }
+        guard let episode else {
+            center.nowPlayingInfo = nil
+            #if os(macOS)
+            center.playbackState = .stopped
+            #endif
+            return
+        }
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: episode.title,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? Double(rate) : 0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: Double(rate),
         ]
         if duration > 0 { info[MPMediaItemPropertyPlaybackDuration] = duration }
         if let chapter = currentChapter { info[MPMediaItemPropertyAlbumTitle] = chapter.title }
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        center.nowPlayingInfo = info
+        #if os(macOS)
+        center.playbackState = isPlaying ? .playing : .paused
+        #endif
         #endif
     }
+
+    /// Der Fokus-Plan, sofern er gerade Sperrbildschirm und Tasten besitzt.
+    private var activeFocus: (remote: FocusRemote, info: FocusNowPlaying)? {
+        guard let focusRemote, let info = focusRemote.current() else { return nil }
+        return (focusRemote, info)
+    }
+
+    private func remotePlay() {
+        if let focus = activeFocus { focus.remote.resume() } else { resume() }
+    }
+
+    private func remotePause() {
+        if let focus = activeFocus { focus.remote.pause() } else { pause() }
+    }
+
+    private func remoteToggle() {
+        if let focus = activeFocus {
+            if focus.info.isPlaying { focus.remote.pause() } else { focus.remote.resume() }
+        } else {
+            togglePlayPause()
+        }
+    }
+
+    /// Springen gilt nur für die Folge. Ein Fokus-Plan hat feste Stellen.
+    private func remoteSeek(to seconds: Double) -> Bool {
+        guard activeFocus == nil, episode != nil else { return false }
+        seek(to: seconds)
+        return true
+    }
+
+    #if canImport(MediaPlayer)
+    private func setSeekCommandsEnabled(_ enabled: Bool) {
+        let center = MPRemoteCommandCenter.shared()
+        center.skipForwardCommand.isEnabled = enabled
+        center.skipBackwardCommand.isEnabled = enabled
+        center.changePlaybackPositionCommand.isEnabled = enabled
+    }
+    #endif
 
     private func configureRemoteCommands() {
         #if canImport(MediaPlayer)
         let center = MPRemoteCommandCenter.shared()
         center.playCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.resume() }; return .success
+            MainActor.assumeIsolated { self?.remotePlay() }; return .success
         }
         center.pauseCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.pause() }; return .success
+            MainActor.assumeIsolated { self?.remotePause() }; return .success
         }
         center.togglePlayPauseCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.togglePlayPause() }; return .success
+            MainActor.assumeIsolated { self?.remoteToggle() }; return .success
         }
         center.skipForwardCommand.preferredIntervals = [30]
         center.skipForwardCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.skip(by: 30) }; return .success
+            let handled = MainActor.assumeIsolated {
+                guard let self else { return false }
+                return self.remoteSeek(to: self.currentTime + 30)
+            }
+            return handled ? .success : .commandFailed
         }
         center.skipBackwardCommand.preferredIntervals = [15]
         center.skipBackwardCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.skip(by: -15) }; return .success
+            let handled = MainActor.assumeIsolated {
+                guard let self else { return false }
+                return self.remoteSeek(to: self.currentTime - 15)
+            }
+            return handled ? .success : .commandFailed
         }
         center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
-            MainActor.assumeIsolated { self?.seek(to: event.positionTime) }
-            return .success
+            let position = event.positionTime
+            let handled = MainActor.assumeIsolated { self?.remoteSeek(to: position) ?? false }
+            return handled ? .success : .commandFailed
         }
         #endif
     }

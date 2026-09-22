@@ -160,13 +160,23 @@ struct RememberCurrentPassageIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard let (mediaVersionID, position) = model.player.currentOriginalPosition() else {
+        guard let (mediaVersionID, position) = currentPassage() else {
             return .result(dialog: "Gerade läuft nichts, das ich merken könnte.")
         }
         let saved = await model.rememberPassage(
             at: position, in: mediaVersionID, note: note, via: .appIntent
         )
         return .result(dialog: "\(saved)")
+    }
+
+    /// Die Stelle im Fokus-Plan, sonst die Stelle in der ganzen Folge.
+    @MainActor
+    private func currentPassage() -> (MediaVersionID, MediaTime)? {
+        if let focus = model.player.currentOriginalPosition() { return focus }
+        let player = model.episodePlayer
+        guard let episode = player.episode, let mediaVersionID = episode.streamMediaVersionID,
+              player.currentTime > 0 else { return nil }
+        return (mediaVersionID, MediaTime(milliseconds: Int64(player.currentTime * 1000)))
     }
 }
 
@@ -182,6 +192,8 @@ struct StopPlaybackIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         model.stopPlayback()
         model.policy.endFocusSession()
+        // Auch eine ganze Folge hört auf, wie beim Menübefehl auf dem Mac.
+        model.episodePlayer.stop()
         return .result()
     }
 }
