@@ -114,7 +114,13 @@ struct ChatView: View {
         Task {
             // Das Modell nimmt die Antwort selbst in den Verlauf auf. Nur dort
             // lässt sich prüfen, ob während der Suche eine Folge gelöscht wurde.
-            await model.ask(text, scope: currentScope)
+            if let answer = await model.ask(text, scope: currentScope) {
+                // Wer nicht auf den Bildschirm sieht, erfährt so, dass die Antwort steht.
+                let count = answer.citations.count
+                AccessibilityNotification.Announcement(
+                    count == 0 ? "Antwort da" : count == 1 ? "Antwort da, 1 Beleg" : "Antwort da, \(count) Belege"
+                ).post()
+            }
             isAsking = false
         }
     }

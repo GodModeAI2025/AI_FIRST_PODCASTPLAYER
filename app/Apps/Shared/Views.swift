@@ -171,8 +171,13 @@ struct FreshEpisodeRow: View {
             }
         }
         .swipeActions(edge: .leading) {
-            Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
-                .tint(.accentColor)
+            if model.canPlay(episode) {
+                Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
+                    .tint(.accentColor)
+            } else {
+                OpenEpisodeWebButton(episode: episode)
+                    .tint(.red)
+            }
         }
     }
 }
@@ -1136,6 +1141,15 @@ struct FocusPlayerView: View {
         if case .paused = model.playerState { true } else { false }
     }
 
+    /// Anteil der laufenden Stelle, der schon gespielt ist, zwischen 0 und 1.
+    /// Die Position zählt in der Originalfolge, wie die Grenzen der Stelle.
+    private func segmentProgress(_ range: MediaTimeRange) -> Double {
+        let length = Double(range.end.milliseconds - range.start.milliseconds)
+        guard length > 0 else { return 0 }
+        let done = Double(model.playerPosition.milliseconds - range.start.milliseconds)
+        return min(1, max(0, done / length))
+    }
+
     var body: some View {
         VStack(spacing: Design.Spacing.standard) {
             // Gespiegelter Zustand, nicht der Koordinator: `PlaybackCoordinator`
@@ -1151,6 +1165,11 @@ struct FocusPlayerView: View {
                     .font(.headline).multilineTextAlignment(.center)
                 Text("\(segment.range.start.timecode)–\(segment.range.end.timecode)")
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+
+                // Wie weit die Stelle schon gelaufen ist.
+                ProgressView(value: segmentProgress(segment.range))
+                    .frame(maxWidth: 240)
+                    .accessibilityLabel("Fortschritt der Stelle")
 
                 if let rationale = segment.rationale {
                     Text(rationale)
