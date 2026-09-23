@@ -173,7 +173,7 @@ public actor TimedTranscriptionEngine {
                     )
                 }
                 continuation.finish()
-                // Eingabe ist zu Ende: jetzt abschliessen. Erst danach endet
+                // Eingabe ist zu Ende: jetzt abschließen. Erst danach endet
                 // `transcriber.results`. Stünde dieser Aufruf hinter der
                 // Ergebnisschleife, warteten beide aufeinander.
                 try await analyzer.finalizeAndFinishThroughEndOfInput()

@@ -137,7 +137,7 @@ struct ChatView: View {
         .padding(Design.Spacing.control)
     }
 
-    /// Solange gesucht wird, sagt der Knopf das, statt weiter „senden“ zu heissen.
+    /// Solange gesucht wird, sagt der Knopf das, statt weiter „senden“ zu heißen.
     private var sendLabel: LocalizedStringKey {
         isAsking ? "Antwort wird gesucht" : "Frage senden"
     }
@@ -513,7 +513,7 @@ struct AnswerCard: View {
         isParked ? "Antwort gesichert" : "Antwort sichern"
     }
 
-    /// Mehr als eine Stelle heisst immer mindestens zwei, daher reicht der Plural.
+    /// Mehr als eine Stelle heißt immer mindestens zwei, daher reicht der Plural.
     private var playLabel: LocalizedStringKey {
         let count = answer.playableCitations.count
         return count == 1 ? "Diese Stelle anhören" : "Alle \(count) Stellen nacheinander anhören"

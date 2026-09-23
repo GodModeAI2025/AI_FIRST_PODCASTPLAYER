@@ -167,7 +167,7 @@ public struct CounterpointCheck: Sendable, Identifiable {
     ///
     /// Ob die Prüfung gesichert ist, steht in keinem Merker an ihr, sondern
     /// ergibt sich aus den Karten. Ein Merker blieb nach dem Löschen der
-    /// Karte stehen, und „Antwort gesichert“ liess sich nicht mehr sichern.
+    /// Karte stehen, und „Antwort gesichert“ ließ sich nicht mehr sichern.
     public var trailID: KnowledgeNodeID {
         KnowledgeNodeID(rawValue: KnowledgeTrail.thesisPrefix + id.uuidString)
     }
@@ -178,7 +178,7 @@ public struct CounterpointCheck: Sendable, Identifiable {
     }
 
     /// Die Karte, die „Antwort sichern“ anlegt: alle Stellen, und die
-    /// widersprechenden zusätzlich als Gegenpositionen. Aufbewahren heisst
+    /// widersprechenden zusätzlich als Gegenpositionen. Aufbewahren heißt
     /// nicht zustimmen.
     public func trail(question: String, parkedAt: Date = Date()) -> KnowledgeTrail {
         KnowledgeTrail(

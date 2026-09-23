@@ -107,7 +107,7 @@ public struct NativeCoverRenderer: Sendable {
     /// Die Bildbeschreibung. Beschreibt, was die Ausgabe **ist**, nicht wie
     /// sie aussieht — „blauer Farbverlauf“ hilft niemandem weiter.
     static func altText(feedTitle: String, segments: Int, sources: Int, topics: Int) -> String {
-        // Die Zahlen werden für sich gebeugt, der Titel bleibt ausserhalb:
+        // Die Zahlen werden für sich gebeugt, der Titel bleibt außerhalb:
         // er ist fremder Text und darf nicht als Markdown gelesen werden.
         let stellen = String(AttributedString(
             localized: "^[\(segments) Stelle](inflect: true)", bundle: .module).characters)

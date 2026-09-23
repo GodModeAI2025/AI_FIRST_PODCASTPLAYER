@@ -2,7 +2,7 @@
 //  LibraryStore+LateWrites.swift
 //  PodcastAIPersistence
 //
-//  Aufräumen nach einer Erschliessung, die nach dem Löschen ihrer Folge
+//  Aufräumen nach einer Erschließung, die nach dem Löschen ihrer Folge
 //  noch geschrieben hat.
 //
 
@@ -13,7 +13,7 @@ import PodcastAICore
 
 extension LibraryStore {
 
-    /// Entfernt, was eine Erschliessung für eine Fassung einer Folge
+    /// Entfernt, was eine Erschließung für eine Fassung einer Folge
     /// geschrieben hat: die Belege der Folge zu dieser Fassung, die
     /// Transkripte der Fassung und die Fassung selbst.
     ///
@@ -22,7 +22,7 @@ extension LibraryStore {
     /// schon. War es eine abbestellte Quelle, die inzwischen neu abonniert
     /// ist, gehört die Zeile der Folge zum neuen Abo. Als Merkzeichen legte
     /// der Feed sie nie wieder an. Hörzustand, Fakten und gemerkte Stellen
-    /// schreibt die Erschliessung nicht, sie bleiben ebenfalls.
+    /// schreibt die Erschließung nicht, sie bleiben ebenfalls.
     public func removeAnalysis(
         ofEpisode episodeID: EpisodeID, mediaVersionID: MediaVersionID
     ) throws -> RemovalReport {

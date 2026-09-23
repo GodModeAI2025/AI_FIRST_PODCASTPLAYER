@@ -169,7 +169,7 @@ struct ChatScopeAndTrailTests {
         let loaded = try #require(try await store.trails().first)
         #expect(loaded.answerText == "Antwort [1] und [3].")
         #expect(loaded.citationNumbers == [1: e1, 3: e3])
-        // Löschen heisst: nicht mehr in der Liste, die gespeichert wird.
+        // Löschen heißt: nicht mehr in der Liste, die gespeichert wird.
         try await store.save(trails: [])
         #expect(try await store.trails().isEmpty)
     }

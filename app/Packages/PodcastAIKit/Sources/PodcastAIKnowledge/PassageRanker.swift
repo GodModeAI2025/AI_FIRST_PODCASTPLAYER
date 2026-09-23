@@ -20,12 +20,12 @@ public struct PassageRanker: Sendable {
     public init() {}
 
     /// Die besten `limit` Belege zur Frage, beste zuerst. Stellen ohne jeden
-    /// Bezug fallen weg, ausser `keepAll` ist gesetzt (etwa für „fasse die
+    /// Bezug fallen weg, außer `keepAll` ist gesetzt (etwa für „fasse die
     /// Folge zusammen“, wo alles relevant ist).
     ///
     /// Eine Satzeinbettung kostet je Stelle einige zehn Millisekunden. Mit
     /// `embeddingLimit` bekommen nur so viele Stellen eine: zuerst die besten
-    /// Stichworttreffer, danach gleichmässig verteilte Stellen aus dem Rest,
+    /// Stichworttreffer, danach gleichmäßig verteilte Stellen aus dem Rest,
     /// damit auch Umschreibungen ohne gemeinsames Wort gefunden werden. Ohne
     /// Grenze wird jede Stelle eingebettet.
     public func rank(_ evidence: [Evidence], for question: String,
@@ -80,7 +80,7 @@ public struct PassageRanker: Sendable {
     }
 
     /// Welche Stellen eingebettet werden. Ohne Grenze alle. Mit Grenze die
-    /// besten Stichworttreffer, aufgefüllt mit gleichmässig verteilten
+    /// besten Stichworttreffer, aufgefüllt mit gleichmäßig verteilten
     /// Stellen ohne Treffer.
     static func embeddingSelection(keywords: [Double], limit: Int?) -> [Int] {
         guard let limit, limit < keywords.count else { return Array(keywords.indices) }

@@ -142,7 +142,7 @@ final class GoalFeaturesUITests: XCTestCase {
         let confirm = app.buttons["Folge und alle Daten löschen"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
-        // Die Folgenansicht schliesst sich, zurück in der Folgenliste des Podcasts.
+        // Die Folgenansicht schließt sich, zurück in der Folgenliste des Podcasts.
         XCTAssertTrue(app.segmentedControls["episode.sections"].waitForNonExistence(timeout: 10),
                       "Die gelöschte Folge ist noch geöffnet")
         XCTAssertFalse(menu.exists, "Das Menü der gelöschten Folge ist noch da")

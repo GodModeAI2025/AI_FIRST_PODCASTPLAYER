@@ -2,7 +2,7 @@
 //  BackgroundContinuation.swift
 //  PodcastAI
 //
-//  Hält die Erschliessung am Leben, wenn die App in den Hintergrund geht.
+//  Hält die Erschließung am Leben, wenn die App in den Hintergrund geht.
 //
 //  Auf dem iPhone meldet die App dafür eine „fortgesetzte Verarbeitung“ an.
 //  Das System zeigt dann eine Fortschrittsanzeige und lässt die Arbeit
@@ -93,7 +93,7 @@ public final class BackgroundContinuation {
     #if os(iOS)
     private func start(subtitle: String) {
         // Kurze Hintergrundzeit als Netz, bis die fortgesetzte Verarbeitung läuft.
-        fallbackID = UIApplication.shared.beginBackgroundTask(withName: "Erschliessen") { [weak self] in
+        fallbackID = UIApplication.shared.beginBackgroundTask(withName: "Erschließen") { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, self.fallbackID != .invalid else { return }
                 UIApplication.shared.endBackgroundTask(self.fallbackID)

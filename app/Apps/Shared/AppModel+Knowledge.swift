@@ -58,7 +58,7 @@ extension AppModel {
     /// Wendet Löschungen an, die über iCloud von einem anderen Gerät kommen.
     ///
     /// Audiodateien werden nicht abgeglichen, jedes Gerät hat seine eigenen.
-    /// Ebenso „Als Nächstes“, die Warteschlange der Erschliessung und die
+    /// Ebenso „Als Nächstes“, die Warteschlange der Erschließung und die
     /// gemerkten Stellen im Player. Das alles räumt dieses Gerät hier selbst
     /// auf. Gelöschte Folgen erkennt es an ihrem Merkzeichen, abbestellte
     /// Quellen daran, dass es sie nicht mehr gibt.
@@ -315,7 +315,7 @@ extension AppModel {
         let overview = Self.asksForOverview(question)
         let candidates: [Evidence]
         if overview {
-            // Für „worum geht es“ zählt die ganze Folge, gleichmässig verteilt.
+            // Für „worum geht es“ zählt die ganze Folge, gleichmäßig verteilt.
             // Eine Rangfolge braucht es dafür nicht. Vorn stehen so viele
             // Stellen, wie das Gerät fasst, damit auch ein Rückfall aufs
             // Gerät die ganze Folge sieht.
@@ -356,7 +356,7 @@ extension AppModel {
                 coverageCaveat: caveat, modelLabel: composed.tier?.label,
                 citationNumbers: composed.citations)
         } catch {
-            // Ein Fehler kann heissen, dass das Kontingent aufgebraucht oder
+            // Ein Fehler kann heißen, dass das Kontingent aufgebraucht oder
             // das Modell nicht mehr bereit ist. Die nächste Frage soll das wissen.
             await refreshModelStatus()
             // Ohne Modell wird nichts erfunden. Dann zeigt die Antwort die
@@ -384,7 +384,7 @@ extension AppModel {
     /// Will die Frage einen Überblick über das Ganze? Es zählen nur ganze
     /// Wörter und Wendungen. „Zusammenarbeit“, „Zusammenhang“ oder „das
     /// wichtigste Argument gegen …“ fragen nach bestimmten Stellen und
-    /// bekommen die passendsten, nicht eine gleichmässige Auswahl.
+    /// bekommen die passendsten, nicht eine gleichmäßige Auswahl.
     static func asksForOverview(_ question: String) -> Bool {
         let words = question.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
@@ -418,7 +418,7 @@ extension AppModel {
     /// Paket. Auf dem Gerät teilen sich Anweisungen, Schema, Kontext, Stellen
     /// und Antwort das Fenster des Modells, auf iOS 26 und macOS 26 sind das
     /// 4.096 Token. Dort gilt das Gerätebudget aus dem Paket, in einem
-    /// grösseren Fenster doppelt so viel Kontext. Gerechnet wird vorsichtig
+    /// größeren Fenster doppelt so viel Kontext. Gerechnet wird vorsichtig
     /// mit drei Zeichen je Token.
     ///
     /// Das Ergebnis für das Gerät geht als `onDeviceBudget` an den
@@ -450,7 +450,7 @@ extension AppModel {
         return (0..<count).map { items[Int(Double($0) * step)] }
     }
 
-    /// Ordnet eine gleichmässig verteilte, zeitlich sortierte Auswahl so um,
+    /// Ordnet eine gleichmäßig verteilte, zeitlich sortierte Auswahl so um,
     /// dass schon ihre ersten `leading` Einträge die ganze Folge abdecken.
     ///
     /// Fällt eine Antwort von Private Cloud Compute aufs Gerät zurück, sieht
@@ -467,7 +467,7 @@ extension AppModel {
         return front + rest
     }
 
-    /// Was der Chat über eine Folge ausser dem Transkript wissen soll.
+    /// Was der Chat über eine Folge außer dem Transkript wissen soll.
     func episodeContext(_ id: EpisodeID) async -> String {
         guard let episode = (try? await store.episodes(ids: [id]))?.first else { return "" }
         let source = sources.first { $0.id == episode.sourceID }?.title ?? ""
@@ -530,7 +530,7 @@ extension AppModel {
         return lines.joined(separator: "\n")
     }
 
-    /// Wie der Bereich einer Antwort heisst, mit dem Namen des gewählten Podcasts.
+    /// Wie der Bereich einer Antwort heißt, mit dem Namen des gewählten Podcasts.
     func scopeLabel(_ scope: ChatScope) -> String {
         guard case .library(let filter) = scope else { return scope.label }
         var parts: [String] = []
@@ -820,7 +820,7 @@ extension AppModel {
             factsProgress[episode.id] = nil
         }
         let ticket = removalTicket ?? removalCount
-        // Vorhandene Fakten gelten als fertig, ausser ein früherer Lauf hat
+        // Vorhandene Fakten gelten als fertig, außer ein früherer Lauf hat
         // Lücken hinterlassen.
         var stored: [EpisodeFact] = []
         var gaps: Set<String> = []
@@ -856,7 +856,7 @@ extension AppModel {
 
         let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let chunk = Self.factChunkSize(contextSize: Self.onDeviceContextSize)
-        // Lange Folgen: gleichmässig verteilte Stellen statt nur des Anfangs.
+        // Lange Folgen: gleichmäßig verteilte Stellen statt nur des Anfangs.
         let sample = Self.evenlySpaced(evidence, count: chunk * Self.factChunkLimit)
         let slices = stride(from: 0, to: sample.count, by: chunk).map {
             Array(sample[$0..<min($0 + chunk, sample.count)])
@@ -1057,7 +1057,7 @@ extension AppModel {
         let missing = rejected + failed
         var parts = [saved
             ? String(localized: "Die Fakten sind unvollständig: \(missing) von \(total) Abschnitten der Folge fehlen.")
-            : String(localized: "Aus dieser Folge liessen sich keine Fakten ermitteln: \(missing) von \(total) Abschnitten fehlen.")]
+            : String(localized: "Aus dieser Folge ließen sich keine Fakten ermitteln: \(missing) von \(total) Abschnitten fehlen.")]
         if rejected > 0 {
             parts.append(String(localized: """
                 \(rejected) davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. \
@@ -1134,7 +1134,7 @@ extension AppModel {
         UserDefaults.standard.set(all, forKey: factGapsKey)
     }
 
-    /// Merkt sich die Lücken, ausser die Folge wurde inzwischen gelöscht.
+    /// Merkt sich die Lücken, außer die Folge wurde inzwischen gelöscht.
     /// Dann hat das Löschen den Eintrag schon entfernt.
     private func recordFactGaps(_ gaps: Set<String>, for id: EpisodeID, since ticket: Int) {
         guard !wasRemoved(id, since: ticket) else { return }
@@ -1357,7 +1357,7 @@ extension AppModel {
 
     // MARK: Vorder- und Hintergrund
 
-    /// Ist die App vorn? Auf dem iPhone und iPad heisst das: nicht im
+    /// Ist die App vorn? Auf dem iPhone und iPad heißt das: nicht im
     /// Hintergrund. Kurz inaktiv, etwa unter dem Kontrollzentrum, zählt als
     /// vorn. Auf dem Mac zählt die laufende App als vorn.
     var appInForeground: Bool {
@@ -1643,7 +1643,7 @@ extension AppModel {
 
     /// Lädt nur das Audio, damit die Folge auch ohne Netz spielt. Transkribiert
     /// wird dabei nichts. Von Hand angefordert, deshalb auch im Mobilfunk,
-    /// ausser er ist in den Einstellungen aus. Dann fragt die App vorher.
+    /// außer er ist in den Einstellungen aus. Dann fragt die App vorher.
     public func downloadForOffline(_ episode: Episode) async {
         guard let audioURL = episode.audioURL, !downloading.contains(episode.id) else { return }
         if askBeforeMobileData(.download(episode)) { return }
@@ -1775,7 +1775,7 @@ extension AppModel {
     /// Bestellt eine Quelle ab und löscht alle ihre Folgen samt Daten.
     public func removeSource(_ sourceID: SourceID) async {
         var affected = episodes[sourceID] ?? []
-        // Auch was ausserhalb der geladenen Liste spielt, wartet oder läuft.
+        // Auch was außerhalb der geladenen Liste spielt, wartet oder läuft.
         for episode in episodesInUse
         where episode.sourceID == sourceID && !affected.contains(where: { $0.id == episode.id }) {
             affected.append(episode)
@@ -1797,7 +1797,7 @@ extension AppModel {
     }
 
     /// Alles, was vor dem Löschen in der Datenbank geschehen muss, ohne
-    /// Unterbrechung: Löschung vormerken, laufende Erschliessung abbrechen,
+    /// Unterbrechung: Löschung vormerken, laufende Erschließung abbrechen,
     /// die Wiedergabe ohne Hörzeit anhalten, aus den Listen nehmen.
     private func prepareRemoval(_ removed: [Episode]) {
         let ids = removed.map(\.id)
@@ -1819,7 +1819,7 @@ extension AppModel {
     }
 
     /// Merkt die Löschung für laufende Arbeit vor. Arbeitet die
-    /// Erschliessung gerade an einer dieser Folgen, wird sie abgebrochen.
+    /// Erschließung gerade an einer dieser Folgen, wird sie abgebrochen.
     private func markRemoved(_ ids: [EpisodeID]) {
         removalCount += 1
         for id in ids { removalTickets[id] = removalCount }
@@ -1841,7 +1841,7 @@ extension AppModel {
         episodePlayer.onHeard = onHeard
     }
 
-    /// Räumt nach, wenn die Erschliessung nach dem Löschen noch geschrieben
+    /// Räumt nach, wenn die Erschließung nach dem Löschen noch geschrieben
     /// hat: Transkript, Belege, Medienfassung und die frisch geladene
     /// Audiodatei.
     ///

@@ -30,7 +30,7 @@ private func transcript(_ lines: [(Int, Int, String)]) -> Transcript {
 struct MomentCaptureTests {
 
     private let demo = transcript([
-        (200, 238, "Für grössere Aufgaben gibt es Serverlösungen."),
+        (200, 238, "Für größere Aufgaben gibt es Serverlösungen."),
         (240, 278, "Eine Studie zeigt, dass Teams mit klaren Regeln zwanzig Prozent schneller arbeiten."),
         (280, 318, "Automatisierung verändert eher einzelne Tätigkeiten."),
     ])

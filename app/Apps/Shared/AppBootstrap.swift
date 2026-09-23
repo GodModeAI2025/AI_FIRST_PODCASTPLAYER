@@ -111,7 +111,7 @@ public enum AppBootstrap {
         return OpenedStore(container: container,
                            description: String(localized: "Aus", comment: "iCloud-Abgleich in den Einstellungen"),
                            failure: String(localized: """
-                               Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher, \
+                               Die Datenbank ließ sich nicht öffnen. Die App läuft ohne Speicher, \
                                und was du jetzt anlegst, ist beim nächsten Start weg.
                                """),
                            isTemporary: true)
@@ -213,7 +213,7 @@ public struct StartupIssue: Equatable, Sendable {
 }
 
 /// Zeigt den Hinweis vom Start. „Erneut versuchen“ öffnet den Speicher
-/// wirklich noch einmal, statt nur den Dialog zu schliessen.
+/// wirklich noch einmal, statt nur den Dialog zu schließen.
 private struct StartupIssueAlert: ViewModifier {
 
     @Binding var issue: StartupIssue?

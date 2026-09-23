@@ -86,7 +86,7 @@ public struct SmartPodcastFeed: Codable, Sendable, Identifiable, Hashable {
     public var topicIDs: [InterestID]
 
     /// Auf welche Quellen der Feed schauen darf. Leer heißt: alle abonnierten.
-    /// Ein Feed sucht niemals ausserhalb des Bestands — keine Websuche.
+    /// Ein Feed sucht niemals außerhalb des Bestands — keine Websuche.
     public var restrictedToSourceIDs: [SourceID]
 
     public var unheardFilter: UnheardFilter

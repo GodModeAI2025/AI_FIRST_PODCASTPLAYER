@@ -14,7 +14,7 @@
 //  - Es gibt **nur lesende Werkzeuge.** Kein Werkzeug schreibt, löscht,
 //    ändert Interessen oder startet Wiedergabe. Diese Methoden existieren
 //    hier schlicht nicht.
-//  - Standardmässig **aus**, und nur lokal über stdio. Kein Netzwerk-Port,
+//  - Standardmäßig **aus**, und nur lokal über stdio. Kein Netzwerk-Port,
 //    kein Lauschen im LAN.
 //  - Jede Freigabe hat einen **Scope** und läuft ab.
 //
@@ -70,7 +70,7 @@ public struct MCPGrant: Codable, Equatable, Sendable {
 
     public let agentName: String
     public let tools: Set<MCPTool>
-    /// Worauf zugegriffen werden darf. Leer heisst: nichts.
+    /// Worauf zugegriffen werden darf. Leer heißt: nichts.
     public let allowedSourceIDs: Set<SourceID>
     /// Auch gemerkte Stellen brauchen eine eigene Freigabe — sie enthalten
     /// eigene Notizen und sind damit privater als ein Transkriptausschnitt.
@@ -95,7 +95,7 @@ public struct MCPGrant: Codable, Equatable, Sendable {
     }
 }
 
-/// Der lokale Zugang. Standardmässig aus.
+/// Der lokale Zugang. Standardmäßig aus.
 @MainActor
 public final class MCPAccess {
 
@@ -166,7 +166,7 @@ public final class MCPAccess {
         guard let grant, grant.permits(.listInterests) else { return [] }
         let profile = (try? await store.interestProfile(learningEnabled: false))
             ?? InterestProfile()
-        // Nur bestätigte. Was PodcastAI bloss vermutet, geht keinen Agenten an.
+        // Nur bestätigte. Was PodcastAI bloß vermutet, geht keinen Agenten an.
         let labels = profile.confirmed.map(\.label)
         log(.listInterests, query: nil, count: labels.count)
         return labels
@@ -279,7 +279,7 @@ public final class MCPAccess {
 /// Was ein Agent zu sehen bekommt.
 ///
 /// Bewusst eine eigene Form statt des Domänentyps: hier wird entschieden,
-/// was nach draussen geht. Interne Kennungen von Medienfassung und
+/// was nach draußen geht. Interne Kennungen von Medienfassung und
 /// Transkriptrevision gehören nicht dazu — der Agent braucht Quelle, Zeit
 /// und Text.
 public struct EvidenceSummary: Codable, Sendable {

@@ -81,7 +81,7 @@ enum TranslationCache {
             .appendingPathComponent("\(key.transcriptID.rawValue)-\(key.target.rawValue).json")
     }
 
-    /// Gelesen ausserhalb des Hauptthreads. Die Schlüssel sind Startzeiten
+    /// Gelesen außerhalb des Hauptthreads. Die Schlüssel sind Startzeiten
     /// in Millisekunden.
     static func load(_ key: Key) async -> [Int64: Entry] {
         await Task.detached(priority: .userInitiated) {
@@ -95,7 +95,7 @@ enum TranslationCache {
         }.value
     }
 
-    /// Schreibt die Übersetzungen einer Folge, ausser sie wurde gelöscht,
+    /// Schreibt die Übersetzungen einer Folge, außer sie wurde gelöscht,
     /// nachdem `ticket` gezogen wurde.
     ///
     /// Eine Übersetzung kann noch laufen, während jemand die Folge löscht,
@@ -331,7 +331,7 @@ final class ParagraphTranslation {
     /// Läuft in `.translationTask`. Übersetzt in Portionen, damit die
     /// Absätze nach und nach erscheinen und ein Abbruch nicht alles kostet.
     ///
-    /// Ausserhalb des Hauptthreads: die Sitzung ist nicht `Sendable` und
+    /// Außerhalb des Hauptthreads: die Sitzung ist nicht `Sendable` und
     /// bleibt in dem Aufgabenkontext, in dem SwiftUI sie übergibt. Zum
     /// Hauptthread gehen nur fertige Texte.
     nonisolated static func run(_ session: TranslationSession, for translation: ParagraphTranslation) async {

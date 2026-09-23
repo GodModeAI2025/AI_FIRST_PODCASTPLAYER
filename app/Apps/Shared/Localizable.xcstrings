@@ -529,12 +529,12 @@
         }
       }
     },
-    "%lld von %lld Stellen liessen sich nicht einordnen.": {
+    "%lld von %lld Stellen ließen sich nicht einordnen.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "new",
-            "value": "%1$lld von %2$lld Stellen liessen sich nicht einordnen."
+            "value": "%1$lld von %2$lld Stellen ließen sich nicht einordnen."
           }
         },
         "en": {
@@ -2194,12 +2194,12 @@
         }
       }
     },
-    "Aus dieser Folge liessen sich keine Fakten ermitteln: %lld von %lld Abschnitten fehlen.": {
+    "Aus dieser Folge ließen sich keine Fakten ermitteln: %lld von %lld Abschnitten fehlen.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "new",
-            "value": "Aus dieser Folge liessen sich keine Fakten ermitteln: %1$lld von %2$lld Abschnitten fehlen."
+            "value": "Aus dieser Folge ließen sich keine Fakten ermitteln: %1$lld von %2$lld Abschnitten fehlen."
           }
         },
         "en": {
@@ -2595,12 +2595,12 @@
         }
       }
     },
-    "Das Ergebnis liess sich nicht darstellen.": {
+    "Das Ergebnis ließ sich nicht darstellen.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Das Ergebnis liess sich nicht darstellen."
+            "value": "Das Ergebnis ließ sich nicht darstellen."
           }
         },
         "en": {
@@ -3539,12 +3539,12 @@
         }
       }
     },
-    "Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher, und was du jetzt anlegst, ist beim nächsten Start weg.": {
+    "Die Datenbank ließ sich nicht öffnen. Die App läuft ohne Speicher, und was du jetzt anlegst, ist beim nächsten Start weg.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher, und was du jetzt anlegst, ist beim nächsten Start weg."
+            "value": "Die Datenbank ließ sich nicht öffnen. Die App läuft ohne Speicher, und was du jetzt anlegst, ist beim nächsten Start weg."
           }
         },
         "en": {
@@ -3555,12 +3555,12 @@
         }
       }
     },
-    "Die Datenbank von PodcastAI liess sich nicht öffnen. %@": {
+    "Die Datenbank von PodcastAI ließ sich nicht öffnen. %@": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Datenbank von PodcastAI liess sich nicht öffnen. %@"
+            "value": "Die Datenbank von PodcastAI ließ sich nicht öffnen. %@"
           }
         },
         "en": {
@@ -5749,12 +5749,12 @@
         }
       }
     },
-    "Gemerkte Stellen und gesicherte Antworten einschliessen": {
+    "Gemerkte Stellen und gesicherte Antworten einschließen": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gemerkte Stellen und gesicherte Antworten einschliessen"
+            "value": "Gemerkte Stellen und gesicherte Antworten einschließen"
           }
         },
         "en": {
@@ -5765,12 +5765,12 @@
         }
       }
     },
-    "Gemerkte Stellen werden dann auch ausserhalb von PodcastAI gefunden. Ausgeschaltet werden vorhandene Einträge wieder entfernt.\n\nPodcastAI stellt Relevanz bereit. Ob das System daraus einen Vorschlag macht, entscheidet das System.": {
+    "Gemerkte Stellen werden dann auch außerhalb von PodcastAI gefunden. Ausgeschaltet werden vorhandene Einträge wieder entfernt.\n\nPodcastAI stellt Relevanz bereit. Ob das System daraus einen Vorschlag macht, entscheidet das System.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gemerkte Stellen werden dann auch ausserhalb von PodcastAI gefunden. Ausgeschaltet werden vorhandene Einträge wieder entfernt.\n\nPodcastAI stellt Relevanz bereit. Ob das System daraus einen Vorschlag macht, entscheidet das System."
+            "value": "Gemerkte Stellen werden dann auch außerhalb von PodcastAI gefunden. Ausgeschaltet werden vorhandene Einträge wieder entfernt.\n\nPodcastAI stellt Relevanz bereit. Ob das System daraus einen Vorschlag macht, entscheidet das System."
           }
         },
         "en": {
@@ -8359,12 +8359,12 @@
         }
       }
     },
-    "PodcastAI nutzt ausschliesslich Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.": {
+    "PodcastAI nutzt ausschließlich Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "PodcastAI nutzt ausschliesslich Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen."
+            "value": "PodcastAI nutzt ausschließlich Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen."
           }
         },
         "en": {
@@ -11064,12 +11064,12 @@
         }
       }
     },
-    "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine einzelnen Videos.": {
+    "Zu diesem Video ließ sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine einzelnen Videos.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine einzelnen Videos."
+            "value": "Zu diesem Video ließ sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine einzelnen Videos."
           }
         },
         "en": {
@@ -11192,12 +11192,12 @@
         }
       }
     },
-    "Zu „%@“ liess sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge den Link zu einem Video des Kanals ein.": {
+    "Zu „%@“ ließ sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge den Link zu einem Video des Kanals ein.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zu „%@“ liess sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge den Link zu einem Video des Kanals ein."
+            "value": "Zu „%@“ ließ sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge den Link zu einem Video des Kanals ein."
           }
         },
         "en": {

@@ -195,7 +195,7 @@ public struct Episode: Hashable, Codable, Sendable, Identifiable {
     public var canBeAnalyzed: Bool { audioURL != nil || timedTranscriptURL != nil }
 
     /// Die Kennung der Medienfassung, die aus der Audioadresse folgt. Dieselbe
-    /// Regel benutzt die Erschliessung, deshalb passen Hörzustand und Belege
+    /// Regel benutzt die Erschließung, deshalb passen Hörzustand und Belege
     /// auch dann zusammen, wenn die Folge gestreamt statt geladen wurde.
     public var streamMediaVersionID: MediaVersionID? {
         currentMediaVersionID ?? audioURL.map { MediaVersionID(stable: $0.absoluteString) }

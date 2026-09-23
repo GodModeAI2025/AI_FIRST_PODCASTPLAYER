@@ -10,7 +10,7 @@ import Testing
 import Foundation
 @testable import PodcastAIKit
 
-@Suite("Live-Erschliessung", .enabled(if: ProcessInfo.processInfo.environment["PODCASTAI_LIVE"] == "1"))
+@Suite("Live-Erschließung", .enabled(if: ProcessInfo.processInfo.environment["PODCASTAI_LIVE"] == "1"))
 struct LiveAnalysisTests {
 
     @Test("Eine echte englische Folge wird mit Zeitmarken erschlossen", .timeLimit(.minutes(20)))

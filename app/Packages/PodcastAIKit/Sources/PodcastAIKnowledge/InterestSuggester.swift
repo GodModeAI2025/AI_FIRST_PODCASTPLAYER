@@ -29,7 +29,7 @@ import PodcastAICore
 public struct InterestSuggester: Sendable {
 
     /// In wie vielen **verschiedenen** gehörten Stellen ein Begriff vorkommen
-    /// muss. Über eine Stelle hinweg heisst gar nichts — jeder Podcast
+    /// muss. Über eine Stelle hinweg heißt gar nichts — jeder Podcast
     /// wiederholt sein eigenes Thema.
     public let minimumDistinctMentions: Int
     public let maximumSuggestions: Int

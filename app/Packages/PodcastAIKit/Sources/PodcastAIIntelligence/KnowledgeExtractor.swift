@@ -206,10 +206,10 @@ public struct KnowledgeExtractor: Sendable {
 
     /// Ordnet Belege gegen eine These ein — in **vorgegebene** Bezeichnungen.
     ///
-    /// Die erlaubten Bezeichnungen kommen von aussen, und das Ergebnis wird
+    /// Die erlaubten Bezeichnungen kommen von außen, und das Ergebnis wird
     /// gegen sie geprüft. Was das Modell sonst zurückgibt, wird verworfen
     /// und nicht auf die nächstähnliche Bezeichnung umgebogen — dieselbe
-    /// Regel wie bei den Nummern: eine falsche Antwort zu korrigieren heisst,
+    /// Regel wie bei den Nummern: eine falsche Antwort zu korrigieren heißt,
     /// sie zu übernehmen.
     ///
     /// Der Rückgabewert trägt bewusst `String` und nicht den Aufzählungstyp
@@ -248,7 +248,7 @@ public struct KnowledgeExtractor: Sendable {
             ClassificationOutput.self, instructions: classificationInstructions(labels: labels),
             profile: .compare, availability: availability) { request($0).prompt }
 
-        // Gross- und Kleinschreibung entscheidet nicht darüber, ob eine
+        // Groß- und Kleinschreibung entscheidet nicht darüber, ob eine
         // Antwort gültig ist — die Bezeichnung selbst schon. Zurückgegeben
         // wird deshalb die Schreibweise des Aufrufers, nicht die des Modells.
         let allowed = Dictionary(
@@ -412,7 +412,7 @@ public struct KnowledgeExtractor: Sendable {
         ohne Nummer und ohne Klammer. Schreib nie „[BIBLIOTHEK]“ in die Antwort.
 
         Regeln:
-        - Kein Wissen von ausserhalb dieser beiden Quellen.
+        - Kein Wissen von außerhalb dieser beiden Quellen.
         - Hinter jede Aussage über den Inhalt einer Folge die Nummer des \
         Abschnitts in eckigen Klammern, etwa [3]. Mehrere Belege als [3] [5].
         - Was in einer Folge gesagt wird, stützt du nie allein auf die Bibliothek.

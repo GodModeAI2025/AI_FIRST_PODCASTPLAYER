@@ -83,7 +83,7 @@ public struct TopicTagger: Sendable {
 
     // MARK: - Hauptwörter
 
-    /// Hauptwörter aus den Aussagen. Erkannt am grossen Anfangsbuchstaben
+    /// Hauptwörter aus den Aussagen. Erkannt am großen Anfangsbuchstaben
     /// mitten im Satz; das trägt im Deutschen weit, im Englischen bleiben
     /// Namen übrig, und auch die sind brauchbare Schlagworte.
     ///
@@ -167,7 +167,7 @@ public struct TopicTagger: Sendable {
             ?? key
     }
 
-    /// Wörter mit grossem Anfangsbuchstaben, die nicht am Satzanfang stehen.
+    /// Wörter mit großem Anfangsbuchstaben, die nicht am Satzanfang stehen.
     /// Satzzeichen am Rand fallen weg, ein Bindestrich im Wort bleibt.
     static func nounCandidates(in statement: String) -> [String] {
         var result: [String] = []

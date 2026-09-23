@@ -103,7 +103,7 @@ public struct SessionClosure: Sendable {
 
     /// Wie viele weiterführende Stellen es **tatsächlich** gibt.
     ///
-    /// Eine echte Zahl, keine Andeutung: „drei weitere Stellen“ heisst,
+    /// Eine echte Zahl, keine Andeutung: „drei weitere Stellen“ heißt,
     /// dass „Vertiefen“ genau diese drei Stellen plant.
     public var availableFollowUpCount: Int { followUpEvidenceIDs.count }
 

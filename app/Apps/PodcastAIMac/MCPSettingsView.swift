@@ -16,7 +16,7 @@
 //  Die Anfragen beantwortet nicht dieses Fenster, sondern der Prozess, den
 //  der Agent mit `--mcp` startet. Er liest Schalter und Freigabe aus den
 //  Einstellungen und schreibt dorthin sein Protokoll. Deshalb liest die
-//  Ansicht regelmässig nach, solange sie offen ist.
+//  Ansicht regelmäßig nach, solange sie offen ist.
 //
 
 import AppKit
@@ -104,7 +104,7 @@ struct MCPSettingsView: View {
                         ))
                     }
 
-                    Toggle("Gemerkte Stellen und gesicherte Antworten einschliessen",
+                    Toggle("Gemerkte Stellen und gesicherte Antworten einschließen",
                            isOn: $includesHighlights)
 
                     Stepper(value: $hours, in: 1...24) {

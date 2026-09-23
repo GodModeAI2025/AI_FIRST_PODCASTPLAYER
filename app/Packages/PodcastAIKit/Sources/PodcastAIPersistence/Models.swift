@@ -210,7 +210,7 @@ public final class StoredTranscript {
     }
 
     /// Segmente nach Zeit, jede Kennung einmal. Doppelte bleiben stehen,
-    /// wenn sich beim Bereinigen keine Kopie eindeutig vorziehen liess.
+    /// wenn sich beim Bereinigen keine Kopie eindeutig vorziehen ließ.
     static func uniqueSegments(_ segments: [StoredSegment]) -> [StoredSegment] {
         var seen: Set<String> = []
         return segments

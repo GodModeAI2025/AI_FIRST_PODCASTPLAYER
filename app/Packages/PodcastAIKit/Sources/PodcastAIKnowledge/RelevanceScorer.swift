@@ -198,7 +198,7 @@ public struct RelevanceScorer: Sendable {
     ///
     /// Tragende Wörter sind solche ab vier Buchstaben, die kein Füllwort
     /// sind („für“ träfe sonst überall), und kurze Abkürzungen, die der
-    /// Nutzer gross geschrieben hat: KI, AI, ML, EU.
+    /// Nutzer groß geschrieben hat: KI, AI, ML, EU.
     static func entries(for interest: Interest) -> [Entry] {
         var result: [Entry] = []
         for raw in [interest.label] + interest.keywords {
@@ -221,7 +221,7 @@ public struct RelevanceScorer: Sendable {
         return result
     }
 
-    /// „KI“, „AI“, „EU“: zwei oder drei Zeichen, alle Buchstaben gross.
+    /// „KI“, „AI“, „EU“: zwei oder drei Zeichen, alle Buchstaben groß.
     static func isAcronym(_ word: String) -> Bool {
         (2...3).contains(word.count)
             && word.contains(where: \.isLetter)

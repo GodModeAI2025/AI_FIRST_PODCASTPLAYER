@@ -141,7 +141,7 @@ struct PlaySmartFeedIntent: AppIntent {
         }
 
         // Siri liest den Dialog als Text, die Zählung wird deshalb vorher gebeugt.
-        // Der Titel bleibt draussen, damit Zeichen darin nicht als Markdown gelten.
+        // Der Titel bleibt draußen, damit Zeichen darin nicht als Markdown gelten.
         let passages = edition.segments.count
         let podcasts = edition.distinctSourceCount
         let counts = String(AttributedString(

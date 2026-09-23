@@ -33,7 +33,7 @@ enum DemoContent {
         "Viele Unternehmen testen KI-Assistenten zuerst im Kundenservice.",
         "Ein Problem ist der Datenschutz, denn Anfragen enthalten oft persönliche Daten.",
         "Modelle auf dem Gerät verarbeiten Text lokal, dadurch verlassen Daten das Telefon nicht.",
-        "Für grössere Aufgaben gibt es Serverlösungen, die Anfragen nicht speichern.",
+        "Für größere Aufgaben gibt es Serverlösungen, die Anfragen nicht speichern.",
         "Eine Studie zeigt, dass Teams mit klaren Regeln zwanzig Prozent schneller arbeiten.",
         "Ohne Regeln entstehen dagegen Schattenlösungen, bei denen niemand den Überblick hat.",
         "Wichtig ist, Mitarbeitende früh einzubinden und Ängste ernst zu nehmen.",

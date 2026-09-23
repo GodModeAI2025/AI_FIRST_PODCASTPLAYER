@@ -69,7 +69,7 @@ struct PrivateCloudToggle: View {
 /// oder ein Transkript anfordert.
 ///
 /// Vorher stand die Antwort nur im Kleingedruckten der Transkripte, und
-/// abschalten liess sich nichts. Die Zeilen sagen jetzt selbst, was gilt.
+/// abschalten ließ sich nichts. Die Zeilen sagen jetzt selbst, was gilt.
 struct MobileDataSettingsSection: View {
 
     @Environment(AppModel.self) private var model
@@ -124,7 +124,7 @@ struct MobileDataQuestion: ViewModifier {
                 set: { if !$0 { model.dismissMobileDataQuestion() } }
             ), presenting: model.pendingMobileData) { request in
                 // Die Anfrage kommt mit, damit die Reihenfolge von Knopf
-                // und Schliessen keine Rolle spielt.
+                // und Schließen keine Rolle spielt.
                 Button("Laden") { model.answerMobileData(request, load: true) }
                 Button("Immer über Mobilfunk laden") { model.answerMobileData(request, load: true, always: true) }
                 Button("Abbrechen", role: .cancel) { model.answerMobileData(request, load: false) }
@@ -196,7 +196,7 @@ struct AutomaticAnalysisSection: View {
         }
     }
 
-    /// Der Eintrag im Auswahlmenü. Bei einer Folge heisst er „nur die neueste“.
+    /// Der Eintrag im Auswahlmenü. Bei einer Folge heißt er „nur die neueste“.
     private static func choiceLabel(_ count: Int) -> LocalizedStringKey {
         count == 1 ? "nur die neueste" : "die \(count) neuesten"
     }

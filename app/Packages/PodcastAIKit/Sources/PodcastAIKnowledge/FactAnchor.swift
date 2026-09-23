@@ -66,7 +66,7 @@ public enum FactAnchor {
 
     // MARK: - Hilfen
 
-    /// Index des Textes mit der grössten gewichteten Wortüberschneidung.
+    /// Index des Textes mit der größten gewichteten Wortüberschneidung.
     /// Ein Wort, das in jedem Satz steht, sagt wenig und wiegt wenig. Bei
     /// Gleichstand gewinnt der frühere Satz.
     static func bestIndex(for statement: String, among texts: [String]) -> Int? {

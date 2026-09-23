@@ -3,7 +3,7 @@
 ## App 0.7 · 2026-09-23
 Aus dem TestFlight-Feedback, einem Test mit 50 Personas, einem Begriffstest mit 12 Personas und einer Prüfung jedes Bedienelements:
 - Podcast finden: Das Blatt „Podcast hinzufügen“ sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema und abonniert mit einem Tipp. Links aus Apple Podcasts funktionieren, YouTube-Links mit @-Namen auch. Bei Spotify-Links sagt die App, warum es nicht geht. Abos lassen sich als OPML-Datei übernehmen und sichern. Die Einführung beginnt mit der Suche.
-- Begriffe, die Einsteiger verstehen: „Transkript erstellen“ und „Transkript fertig“ statt „erschliessen“, Reiter „Meine Podcasts“, „Themen-Updates“ und „Chat“ mit Sprechblase statt Lupe, „Gesicherte Antworten“ statt „Wissenslandkarten“. Die Hilfe hat ein kleines Glossar.
+- Begriffe, die Einsteiger verstehen: „Transkript erstellen“ und „Transkript fertig“ statt „erschließen“, Reiter „Meine Podcasts“, „Themen-Updates“ und „Chat“ mit Sprechblase statt Lupe, „Gesicherte Antworten“ statt „Wissenslandkarten“. Die Hilfe hat ein kleines Glossar.
 - Englisch: Die ganze Oberfläche gibt es auf Englisch, samt Siri-Kurzbefehlen.
 - Moment merken: Im Player hält „Moment merken“ die Stelle mit Zitat, Zeitmarke und eigenem Kommentar fest. Merken geht auch im Transkript, bei Fakten, in Chat-Antworten und auf den Karten in „Für dich“. Notizen bleiben, wenn die Folge gelöscht wird.
 - Für dich: Weiterhören nach einem Neustart, neue Folgen aus den Abos, Treffer nach Thema gruppiert, mit Datum und „Nicht relevant“. Themen treffen ganze Wörter statt Wortteile („KI“ findet keine Kinder mehr) und haben eigene Stichworte mit Vorschlägen.
@@ -31,8 +31,8 @@ Nach einer gründlichen Prüfung von 0.6 mit 60 gemeldeten und 22 nachträglich 
 - Abgleich über iCloud: Abos, Folgen, Transkripte, Belege, Fakten, Hörstand mit Fortsetzungsstelle, Interessen, Themen-Updates und gemerkte Stellen gleichen sich zwischen iPhone, iPad und Mac ab. Audiodateien lädt jedes Gerät selbst. Ein Speicher aus einer früheren Testversion wird beim ersten Start beiseitegelegt und neu angelegt.
 - Löschen: „Audio entfernen“ löscht nur den Ton, Transkript, Fakten und Hörstand bleiben, gespielt wird dann aus dem Netz. „Folge löschen“ entfernt die Folge mit allem, was aus ihr entstanden ist, und der Feed legt sie nicht wieder an. Quellen lassen sich abbestellen.
 - Folgen haben Reiter: Überblick, Kapitel, Transkript mit Suche und Sprung an jede Stelle, Fakten mit Zeitmarke, Fragen an genau diese Folge.
-- Fragen: Antworten sind jetzt Fliesstext mit nummerierten Belegen, die an die Stelle springen. Die Suche nutzt Stichworte und die semantische Nähe aus Apples NaturalLanguage. Auch Fragen über die Mediathek selbst („Welche Folgen habe ich noch nicht gehört?“) finden eine Antwort. Vorschlagsfragen helfen beim Einstieg.
-- Private Cloud Compute: Antworten und Vergleiche laufen auf Apples Servermodell mit grösserem Kontext, sobald die Berechtigung vorliegt. Sonst und bei fehlendem Netz antwortet das Gerätemodell. Abschaltbar in den Einstellungen.
+- Fragen: Antworten sind jetzt Fließtext mit nummerierten Belegen, die an die Stelle springen. Die Suche nutzt Stichworte und die semantische Nähe aus Apples NaturalLanguage. Auch Fragen über die Mediathek selbst („Welche Folgen habe ich noch nicht gehört?“) finden eine Antwort. Vorschlagsfragen helfen beim Einstieg.
+- Private Cloud Compute: Antworten und Vergleiche laufen auf Apples Servermodell mit größerem Kontext, sobald die Berechtigung vorliegt. Sonst und bei fehlendem Netz antwortet das Gerätemodell. Abschaltbar in den Einstellungen.
 - Export: jede Folge mit Shownotes, Kapiteln, Fakten und Transkript als Markdown, jede Antwort mit ihren Belegen.
 - Player: Schlaf-Timer (Minuten, Kapitelende, Folgenende), AirPlay-Auswahl. Die Warteschlange bleibt über einen Neustart erhalten.
 - Einstieg: Willkommensblatt beim ersten Start mit zwei Beispiel-Podcasts, Hilfeseite „So funktioniert's“ für Einsteiger, Fortgeschrittene und Experten.
@@ -46,7 +46,7 @@ Aus dem Feedback zu 0.4:
 - Abspielen beginnt dort, wo man aufgehört hat. Die Stelle wird je Folge gemerkt, und der Sprung wartet, bis die Folge bereit ist. Vorher startete die Wiedergabe irgendwo.
 - Beim Wechsel auf eine andere Folge wird keine Hörzeit mehr auf die neue Folge gebucht.
 - Fehler beim automatischen Vorbereiten unterbrechen niemanden mehr. Kann ein Gerät gar nicht transkribieren, hört die App von selbst auf, Folgen dafür zu laden, und sagt das in der Warteschlange.
-- Neue Oberfläche: grosse Cover, Glas-Bedienelemente im Player und in der Folge, Karten in „Für dich“, Cover in Mediathek und Folgenliste, hervorgehobenes laufendes Kapitel.
+- Neue Oberfläche: große Cover, Glas-Bedienelemente im Player und in der Folge, Karten in „Für dich“, Cover in Mediathek und Folgenliste, hervorgehobenes laufendes Kapitel.
 
 ## App 0.4 · 2026-09-22
 Aus dem Feedback zu 0.3:
@@ -68,14 +68,14 @@ Aus dem zweiten TestFlight-Feedback:
 
 ## App 0.2 · 2026-09-22
 Aus dem ersten TestFlight-Feedback:
-- Direkte Audio-Links, etwa MP3-Downloads von Podigee, werden als Einzelfolge angelegt und lassen sich erschliessen. Vorher suchte die App darin nach einem Feed und brach an der 12-MB-Grenze ab.
+- Direkte Audio-Links, etwa MP3-Downloads von Podigee, werden als Einzelfolge angelegt und lassen sich erschließen. Vorher suchte die App darin nach einem Feed und brach an der 12-MB-Grenze ab.
 - Liegt unter einer Feed-Adresse kein Feed, sucht die App auf der Seite und auf der Startseite nach dem verlinkten Feed. `think-ai.podigee.io/rssfeed` führt so zu `/feed/mp3`.
 - Zu YouTube-Kanälen sucht die App im Apple-Podcast-Verzeichnis nach dem Audio-Podcast desselben Anbieters und bietet das Abo an. Dessen Folgen lassen sich transkribieren. Das Audio der YouTube-Videos selbst lädt die App weiterhin nicht.
 - Themen lassen sich direkt beim Anlegen eines Themen-Updates erstellen. „Für dich“ führt ohne Umweg zu den Interessen.
 
 ## App 0.1 · 2026-09-22
 - iOS- und macOS-App bauen mit Xcode 27 und starten ohne Absturz.
-- Erschliessen einer Folge funktioniert Ende zu Ende: Download, Transkription in der Feedsprache, Belege mit Zeitmarken.
+- Erschließen einer Folge funktioniert Ende zu Ende: Download, Transkription in der Feedsprache, Belege mit Zeitmarken.
 - App-Icon, Privacy-Manifest und Signierung für TestFlight im Team Mobile Box.
 - UI-Test für den Hauptweg und Ende-zu-Ende-Test für die Transkription.
 - Behobene Fehler stehen in [app/STATUS.md](app/STATUS.md).

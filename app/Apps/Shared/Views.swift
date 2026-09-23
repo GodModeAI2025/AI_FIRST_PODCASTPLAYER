@@ -122,7 +122,7 @@ struct ForYouView: View {
             NavigationLink { QueueView() } label: {
                 Label("Warteschlange", systemImage: "list.bullet")
             }
-            // Nach dem ersten Abo verschwindet der grosse Suchknopf. Weitere
+            // Nach dem ersten Abo verschwindet der große Suchknopf. Weitere
             // Podcasts kommen dann über das Plus dazu.
             Button { addingSource = true } label: {
                 Label("Podcast hinzufügen", systemImage: "plus")
@@ -1559,7 +1559,7 @@ struct PodcastSearchRow: View {
                         .accessibilityLabel("Abonniert")
                 }
             }
-            // Ausserhalb des Vorschau-Knopfs, damit es ein eigener Text bleibt.
+            // Außerhalb des Vorschau-Knopfs, damit es ein eigener Text bleibt.
             if case .added(let count) = state {
                 Text("Abonniert · ^[\(count) Folge](inflect: true) gefunden")
                     .font(.caption).foregroundStyle(.green)
@@ -1980,7 +1980,7 @@ struct NewSmartFeedSheet: View {
     @State private var selected: Set<InterestID> = []
     @State private var minutes = 20
     @State private var newTopic = ""
-    /// Leer heisst: alle abonnierten Quellen.
+    /// Leer heißt: alle abonnierten Quellen.
     @State private var selectedSources: Set<SourceID> = []
     @State private var prepared = false
 

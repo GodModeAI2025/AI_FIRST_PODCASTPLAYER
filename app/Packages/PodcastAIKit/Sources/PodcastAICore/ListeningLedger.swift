@@ -114,7 +114,7 @@ public struct MediaListeningState: Hashable, Codable, Sendable {
     ///
     /// Nachgespielte Ereignisse trügen den Zeitpunkt des Ladens und den Weg
     /// der ganzen Folge. Damit sähe jedes spätere echte Ereignis älter aus
-    /// als der Zustand, und die Fortsetzungsstelle bliebe stehen. Ausserdem
+    /// als der Zustand, und die Fortsetzungsstelle bliebe stehen. Außerdem
     /// würde Gehörtes aus dem Chat-Fokus zur Fortsetzungsstelle.
     public init(
         mediaVersionID: MediaVersionID,

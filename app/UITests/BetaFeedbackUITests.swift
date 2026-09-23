@@ -105,7 +105,7 @@ final class BetaFeedbackUITests: XCTestCase {
         let row = app.staticTexts["Wochenupdate"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
-        // Solange die erste Ausgabe entsteht, heisst der Knopf anders.
+        // Solange die erste Ausgabe entsteht, heißt der Knopf anders.
         let rebuild = app.buttons["Neue Ausgabe zusammenstellen"].firstMatch
         XCTAssertTrue(rebuild.waitForExistence(timeout: 30), "Kein Knopf für eine neue Ausgabe")
         attach(app, "themen-update")

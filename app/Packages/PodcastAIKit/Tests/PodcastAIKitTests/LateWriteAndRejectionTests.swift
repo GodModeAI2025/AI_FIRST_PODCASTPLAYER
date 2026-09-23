@@ -1,7 +1,7 @@
 //
 //  LateWriteAndRejectionTests.swift
 //
-//  - Eine Erschliessung, die nach dem Löschen noch schreibt, wird
+//  - Eine Erschließung, die nach dem Löschen noch schreibt, wird
 //    weggeräumt, ohne ein neues Merkzeichen zu setzen. Eine neu abonnierte
 //    Quelle behält ihre Folge.
 //  - Abgelehnte Eingaben des Modells sind von vorübergehenden Fehlern
@@ -19,7 +19,7 @@ import enum FoundationModels.LanguageModelError
 @testable import PodcastAIPersistence
 @testable import PodcastAIIntelligence
 
-@Suite("Späte Schreibvorgänge der Erschliessung")
+@Suite("Späte Schreibvorgänge der Erschließung")
 struct LateAnalysisWriteTests {
 
     let sourceID = SourceID(stable: "quelle")

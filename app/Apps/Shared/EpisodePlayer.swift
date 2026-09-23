@@ -309,7 +309,7 @@ public final class EpisodePlayer {
 
     private func savePosition() {
         guard let episode, currentTime > 5 else { return }
-        // Fast zu Ende heisst: beim nächsten Mal wieder von vorn.
+        // Fast zu Ende heißt: beim nächsten Mal wieder von vorn.
         let value = duration > 0 && currentTime > duration - 15 ? 0 : currentTime
         positions[episode.id.rawValue] = value
         UserDefaults.standard.set(positions, forKey: positionsKey)

@@ -53,11 +53,11 @@ public final class AppModel {
     public internal(set) var analyzing: Episode?
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
     public internal(set) var lastRefresh: Date?
-    /// Steht, sobald `load()` einmal durch ist. Vorher heisst „nicht
+    /// Steht, sobald `load()` einmal durch ist. Vorher heißt „nicht
     /// gefunden“ nur „noch nicht gelesen“.
     public internal(set) var isLoaded = false
 
-    /// Neue Folgen von selbst erschliessen, damit Wissen, „Für dich“ und
+    /// Neue Folgen von selbst erschließen, damit Wissen, „Für dich“ und
     /// die Themen-Updates gefüllt sind, bevor man danach sucht. Abschaltbar,
     /// weil es Daten, Akku und Zeit kostet.
     public var automaticAnalysis: Bool {
@@ -66,7 +66,7 @@ public final class AppModel {
             if automaticAnalysis {
                 Task { await prepareNewEpisodes() }
             } else {
-                // Ausgeschaltet heisst auch: was schon von selbst wartet, lädt
+                // Ausgeschaltet heißt auch: was schon von selbst wartet, lädt
                 // nicht mehr. Was gerade läuft, läuft zu Ende.
                 dropAutomaticallyQueued { _ in true }
             }
@@ -101,7 +101,7 @@ public final class AppModel {
 
     static let cellularLoadingKey = "allowCellularLoading"
     /// Was jemand selbst abspielt, für unterwegs lädt oder als Transkript
-    /// anfordert, darf über Mobilfunk laden. Aus heisst: die App fragt
+    /// anfordert, darf über Mobilfunk laden. Aus heißt: die App fragt
     /// vorher, statt still Daten zu verbrauchen. Transkripte für neue Folgen
     /// regelt davon getrennt „Nur im WLAN“.
     public var allowsCellularLoading: Bool {
@@ -143,7 +143,7 @@ public final class AppModel {
     }
 
     /// Stellt die Rückfrage, wenn Mobilfunk in den Einstellungen aus ist.
-    /// `true` heisst: gefragt, der Aufrufer lädt jetzt nichts.
+    /// `true` heißt: gefragt, der Aufrufer lädt jetzt nichts.
     func askBeforeMobileData(_ request: MobileDataRequest) -> Bool {
         guard mobileDataNeedsConsent else { return false }
         // Mehrere Folgen auf einmal angefordert: eine Frage für alle.
@@ -178,7 +178,7 @@ public final class AppModel {
         if !mobile { mobileDataApproved = false }
     }
     /// Was das Netz gerade einschränkt: kein Netz, Datensparmodus, Hotspot
-    /// oder Mobilfunk. `nil` heisst WLAN ohne Datenlimit.
+    /// oder Mobilfunk. `nil` heißt WLAN ohne Datenlimit.
     public private(set) var networkLimit: NetworkLimit?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
     /// Kein Netz. Dann spielt nur, was auf dem Gerät liegt.
@@ -348,7 +348,7 @@ public final class AppModel {
     static let automaticFactsKey = "automaticFacts"
 
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
-    /// danach die Grösse neu.
+    /// danach die Größe neu.
     public internal(set) var mediaStorageChanged = 0
     /// Bisherige Antworten, neueste zuerst. Bleiben beim Wechsel zwischen
     /// Ansichten erhalten.
@@ -367,7 +367,7 @@ public final class AppModel {
     @ObservationIgnored var removedSourceTickets: [SourceID: Int] = [:]
     /// Gelöschte Folge und Stand des Zählers bei ihrer Löschung.
     @ObservationIgnored var removalTickets: [EpisodeID: Int] = [:]
-    /// Die laufende Erschliessung einer einzelnen Folge. Löschen bricht nur
+    /// Die laufende Erschließung einer einzelnen Folge. Löschen bricht nur
     /// sie ab, die übrige Warteschlange läuft weiter.
     @ObservationIgnored var pipelineRun: Task<Void, Error>?
     @ObservationIgnored var pipelineEpisodeID: EpisodeID?
@@ -536,7 +536,7 @@ public final class AppModel {
             highlights = try await store.highlights()
             // Die Systemsuche zeigt den Stand der Datenbank, auch für Notizen,
             // die ein anderes Gerät angelegt, geändert oder gelöscht hat. Beim
-            // Start immer: was sich getan hat, während die App zu war, weiss
+            // Start immer: was sich getan hat, während die App zu war, weiß
             // sonst niemand.
             if !isLoaded || highlights != knownHighlights { reindexSpotlight() }
             trails = try await store.trails()
@@ -577,7 +577,7 @@ public final class AppModel {
     }
 
     /// Wechselt auf einen Speicher, der sich erst im zweiten Versuch öffnen
-    /// liess, und liest alles neu. Was bis dahin im flüchtigen Speicher lag,
+    /// ließ, und liest alles neu. Was bis dahin im flüchtigen Speicher lag,
     /// war nie gesichert und geht dabei verloren.
     public func replaceStore(_ newStore: LibraryStore) async {
         store = newStore
@@ -718,7 +718,7 @@ public final class AppModel {
         defer { activity = nil }
         do {
             let added = try await subscribe(to: input)
-            // Die Zahl mit passendem Wort für sich, der Titel ausserhalb:
+            // Die Zahl mit passendem Wort für sich, der Titel außerhalb:
             // `AttributedString(localized:)` liest Markdown und schluckte
             // sonst Zeichen wie * oder _ aus dem Namen des Podcasts.
             let found = String(AttributedString(localized: "^[\(added.episodeCount) Folge](inflect: true) gefunden").characters)
@@ -876,7 +876,7 @@ public final class AppModel {
         }
     }
 
-    // MARK: - Folgen erschliessen
+    // MARK: - Folgen erschließen
 
     public internal(set) var episodes: [SourceID: [Episode]] = [:]
     /// Welche Folge gerade in welcher Stufe steckt. Die Oberfläche zeigt
@@ -954,12 +954,12 @@ public final class AppModel {
     /// Wie viele Folgen der Warteschlange jetzt laufen dürfen.
     public var runnableQueueCount: Int { analysisQueue.filter(mayRunNow).count }
 
-    /// Erschliesst eine Folge: laden, transkribieren, Belege bilden.
+    /// Erschließt eine Folge: laden, transkribieren, Belege bilden.
     public func analyze(_ episode: Episode, audioURL: URL, locale explicitLocale: Locale? = nil) async {
         enqueueAnalysis(episode)
     }
 
-    /// Stellt eine Folge in die Warteschlange der Erschliessung.
+    /// Stellt eine Folge in die Warteschlange der Erschließung.
     public func enqueueAnalysis(_ episode: Episode, automatic: Bool = false) {
         let queued = analysisQueue.firstIndex { $0.id == episode.id }
         if automatic {
@@ -974,7 +974,7 @@ public final class AppModel {
                askBeforeMobileData(.transcripts([episode])) { return }
             automaticallyQueued.remove(episode.id)
             dismissedFromPreparation.remove(episode.id)
-            // Von Hand angefordert heisst: auch auf einem Gerät ohne
+            // Von Hand angefordert heißt: auch auf einem Gerät ohne
             // Spracherkennung darf man es erneut versuchen.
             preparationUnavailable = nil
             // Wartet die Folge schon, etwa von selbst eingereiht aufs WLAN,
@@ -1057,7 +1057,7 @@ public final class AppModel {
         }
     }
 
-    /// Erschliesst eine Folge. Gibt `true` zurück, wenn der Fehler
+    /// Erschließt eine Folge. Gibt `true` zurück, wenn der Fehler
     /// vorübergehend war und ein zweiter Versuch lohnt.
     private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
         guard let audioURL = episode.audioURL else { return false }
@@ -1087,7 +1087,7 @@ public final class AppModel {
         background.update(.discovered)
         let remaining = analysisQueue.count
         if remaining > 0 {
-            // Zahl und Wort für sich, der Titel ausserhalb des Markdowns.
+            // Zahl und Wort für sich, der Titel außerhalb des Markdowns.
             let more = String(AttributedString(localized: "^[\(remaining) Folge](inflect: true)").characters)
             activity = String(localized: "Transkript für „\(episode.title)“ wird erstellt, danach noch \(more) …")
         } else {
@@ -1099,7 +1099,7 @@ public final class AppModel {
             mediaDirectory: LocalMediaLocator.mediaDirectory,
             onProgress: { [weak self] progress in
                 Task { @MainActor in
-                    // Eine gelöschte Folge taucht nicht wieder unter „Erschliessen“ auf.
+                    // Eine gelöschte Folge taucht nicht wieder unter „Erschließen“ auf.
                     guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }
                     self.stages[progress.episodeID] = progress.stage
                     // Nach dem Download ändert sich der belegte Speicher.
@@ -1353,7 +1353,7 @@ public final class AppModel {
         // in dieser Sitzung nicht vorkam. Stand Gehörtes unter „Für dich“,
         // zählen nur dessen Interessen, sonst alle. Die Karte bekommt die
         // Kennungen selbst: „Vertiefen“ spielt genau diese Stellen, und
-        // „drei weitere Stellen“ heisst drei Stellen.
+        // „drei weitere Stellen“ heißt drei Stellen.
         let heardEvidence = Set(plan.segments.map(\.evidenceID))
         let sessionInterests = Set(relevantToday
             .filter { heardEvidence.contains($0.id) }
@@ -1373,7 +1373,7 @@ public final class AppModel {
     }
 
     /// Höchstens so viele Stellen plant „Vertiefen“. Das Zeitbudget der
-    /// Karte kürzt ohnehin, mehr Kandidaten machen die Zahl nur grösser.
+    /// Karte kürzt ohnehin, mehr Kandidaten machen die Zahl nur größer.
     static let followUpLimit = 12
 
     public func dismissClosure() { pendingClosure = nil }
@@ -1607,7 +1607,7 @@ public final class AppModel {
         }
         let note = await composeEdition(for: feed, requestedByUser: requestedByUser)
         // Die Automatik überschreibt keine Rückmeldung, um die jemand gebeten
-        // hat, ausser sie hat tatsächlich etwas veröffentlicht.
+        // hat, außer sie hat tatsächlich etwas veröffentlicht.
         if requestedByUser || note.published { editionNotes[feedID] = note.text }
         return note.text
     }
@@ -1657,7 +1657,7 @@ public final class AppModel {
                 }
                 editions[feedID, default: []].insert(episode, at: 0)
                 persistEditions(for: feedID)
-                // Die Zählung für sich, der Titel ausserhalb des Markdowns.
+                // Die Zählung für sich, der Titel außerhalb des Markdowns.
                 let content = String(AttributedString(localized: """
                     ^[\(episode.segments.count) Stelle](inflect: true) aus \
                     ^[\(episode.distinctSourceCount) Podcast](inflect: true)
@@ -1725,7 +1725,7 @@ public final class AppModel {
             let time = MediaTime(milliseconds: Int64(highlight.positionMs ?? 0)).timecode
             return String(localized: "Gemerkt: \(time) in „\(episode.title)“.")
         }
-        // Die Folge ist nicht mehr da. Was der Plan über sie weiss, bleibt
+        // Die Folge ist nicht mehr da. Was der Plan über sie weiß, bleibt
         // als Kopie, damit die Notiz nicht leer ist.
         let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
         let range = HighlightCapture().range(around: position, limit: nil)
@@ -2021,7 +2021,7 @@ public final class AppModel {
         guard !shortlist.isEmpty, !Task.isCancelled else { return CounterpointSearch(candidates: []) }
 
         // Das Modell ordnet ein, in vorgegebene Bezeichnungen, und was es
-        // sonst zurückgibt, wird verworfen. Jede Portion ist so gross, wie
+        // sonst zurückgibt, wird verworfen. Jede Portion ist so groß, wie
         // das Gerätemodell sie fasst. Fällt Private Cloud Compute aufs
         // Gerät zurück, sieht das Gerät trotzdem jede Stelle.
         await refreshModelStatus()
@@ -2084,7 +2084,7 @@ public final class AppModel {
                            """)].compactMap { $0 }.joined(separator: " ")
         } else if failed > 0 {
             // Hier ist `failed` kleiner als die Zahl der Stellen, also sind es mindestens zwei.
-            problem = [String(localized: "\(failed) von \(shortlist.count) Stellen liessen sich nicht einordnen."), reason]
+            problem = [String(localized: "\(failed) von \(shortlist.count) Stellen ließen sich nicht einordnen."), reason]
                 .compactMap { $0 }.joined(separator: " ")
         } else if classified.isEmpty {
             problem = String(localized: """
@@ -2109,7 +2109,7 @@ public final class AppModel {
         }
     }
 
-    /// Sichert die geprüfte These als gesicherte Antwort. Aufbewahren heisst
+    /// Sichert die geprüfte These als gesicherte Antwort. Aufbewahren heißt
     /// nicht zustimmen, die Karte sagt das auch. Ob sie gesichert ist, zeigen
     /// die Karten selbst: nach dem Löschen lässt sie sich wieder sichern.
     public func saveCounterpointCheck() {
@@ -2281,7 +2281,7 @@ public final class AppModel {
                 from: PlaylistProposal(evidenceIDs: evidence.map(\.id),
                                        requestSummary: first.episodeTitle),
                 route: .interestFocus,
-                // Ausdrücklich gewählt heisst: auch dann abspielen, wenn es
+                // Ausdrücklich gewählt heißt: auch dann abspielen, wenn es
                 // schon gehört wurde.
                 options: FocusPlannerOptions(skipAlreadyHeard: false, ledger: ledger)
             )
@@ -2488,7 +2488,7 @@ public final class AppModel {
     /// Eine halb gehörte Folge geht dort weiter, wo sie aufgehört hat.
     ///
     /// Ohne Netz kommt die erste Folge dran, die auf dem Gerät liegt. Die
-    /// anderen bleiben in der Liste, bis wieder Netz da ist. `false` heisst:
+    /// anderen bleiben in der Liste, bis wieder Netz da ist. `false` heißt:
     /// es startet nichts. Die Kopfhörertaste springt dann 30 s vor.
     @discardableResult
     public func playNextInQueue() -> Bool {
@@ -2582,7 +2582,7 @@ extension AppModel: PlaybackObserver {
         playerPosition = position
     }
 
-    /// **Hier schliesst sich der Kreis.**
+    /// **Hier schließt sich der Kreis.**
     ///
     /// Der Player meldet, was tatsächlich erklungen ist; der Store macht
     /// daraus die Wahrheit über den Hörzustand. Ohne diese Methode wäre die

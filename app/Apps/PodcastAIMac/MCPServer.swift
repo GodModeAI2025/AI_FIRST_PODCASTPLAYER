@@ -13,7 +13,7 @@
 //
 //  * **`MCPServer`** ist eine reine Funktion von Anfrage nach Antwort:
 //    `Data` rein, `Data` raus. Kein Dateihandle, keine Schleife, kein
-//    Zustand ausser dem Zugang selbst. Genau deshalb lässt sich das
+//    Zustand außer dem Zugang selbst. Genau deshalb lässt sich das
 //    Protokoll gegen echte Anfragen prüfen, ohne einen Prozess zu starten.
 //  * **`MCPStdioTransport`** liest Zeilen und schreibt Zeilen. Mehr nicht.
 //
@@ -58,7 +58,7 @@ public final class MCPServer {
 
     /// Beantwortet eine einzelne Anfrage.
     ///
-    /// `nil` heisst: nichts zurückschicken. Das ist kein Fehlerfall, sondern
+    /// `nil` heißt: nichts zurückschicken. Das ist kein Fehlerfall, sondern
     /// die vorgeschriebene Antwort auf eine Benachrichtigung — eine Anfrage
     /// ohne `id` erwartet keine.
     public func handle(_ data: Data) async -> Data? {
@@ -157,8 +157,8 @@ public final class MCPServer {
                               id: id)
             }
             guard let summary = await access.getEvidence(identifier) else {
-                // Nicht gefunden und nicht freigegeben sehen von aussen
-                // gleich aus. Sonst liesse sich über die Fehlermeldung
+                // Nicht gefunden und nicht freigegeben sehen von außen
+                // gleich aus. Sonst ließe sich über die Fehlermeldung
                 // herausfinden, welche Kennungen es gibt.
                 return encode(failure: .notAuthorized,
                               message: String(localized: "Zu dieser Kennung liegt nichts Freigegebenes vor."),
@@ -194,7 +194,7 @@ public final class MCPServer {
             requested = value
         case let value as Double:
             // Unendlich und `NaN` nach `Int` zu wandeln ist in Swift kein
-            // grosser Wert, sondern ein Absturz — und `1e30` ebenso.
+            // großer Wert, sondern ein Absturz — und `1e30` ebenso.
             // Deshalb wird **vor** der Umwandlung abgeschnitten, nicht danach.
             guard value.isFinite else { return fallback }
             if value >= Double(maximum) { return maximum }
@@ -275,7 +275,7 @@ public final class MCPServer {
         guard let json = try? encoder.encode(content),
               let text = String(data: json, encoding: .utf8) else {
             return encode(failure: .internalError,
-                          message: String(localized: "Das Ergebnis liess sich nicht darstellen."),
+                          message: String(localized: "Das Ergebnis ließ sich nicht darstellen."),
                           id: id)
         }
         let structured = (try? JSONSerialization.jsonObject(with: json)) ?? [:]
@@ -340,7 +340,7 @@ enum MCPHost {
             container = try LibraryStore.openPersistentContainer(sync: false)
         } catch {
             report(String(localized:
-                "Die Datenbank von PodcastAI liess sich nicht öffnen. \(error.localizedDescription)"))
+                "Die Datenbank von PodcastAI ließ sich nicht öffnen. \(error.localizedDescription)"))
             return 1
         }
         let access = MCPAccess(store: LibraryStore.make(container: container))
@@ -408,7 +408,7 @@ public final class MCPStdioTransport {
 /// Bewusst blockierend und kein `AsyncSequence`: dieser Leser läuft in einem
 /// Prozess, dessen einzige Aufgabe das Lesen ist. Ihn asynchron zu bauen
 /// hiesse, Nebenläufigkeit dort einzuführen, wo es nichts nebenher zu tun gibt.
-/// Blockierend heisst nur: warten, bis überhaupt etwas da ist. Eine Zeile
+/// Blockierend heißt nur: warten, bis überhaupt etwas da ist. Eine Zeile
 /// wird beantwortet, sobald sie angekommen ist.
 struct LineReader {
 

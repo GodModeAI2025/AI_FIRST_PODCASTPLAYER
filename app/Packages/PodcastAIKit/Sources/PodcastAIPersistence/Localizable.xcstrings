@@ -1,12 +1,12 @@
 {
   "sourceLanguage": "de",
   "strings": {
-    "Deine gespeicherten Daten passen nicht zu dieser Version der App und liessen sich nicht übernehmen. Die alte Datei liegt unverändert als %@ im App-Ordner. Die App beginnt mit einem leeren Speicher.": {
+    "Deine gespeicherten Daten passen nicht zu dieser Version der App und ließen sich nicht übernehmen. Die alte Datei liegt unverändert als %@ im App-Ordner. Die App beginnt mit einem leeren Speicher.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine gespeicherten Daten passen nicht zu dieser Version der App und liessen sich nicht übernehmen. Die alte Datei liegt unverändert als %@ im App-Ordner. Die App beginnt mit einem leeren Speicher."
+            "value": "Deine gespeicherten Daten passen nicht zu dieser Version der App und ließen sich nicht übernehmen. Die alte Datei liegt unverändert als %@ im App-Ordner. Die App beginnt mit einem leeren Speicher."
           }
         },
         "en": {

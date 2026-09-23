@@ -2,7 +2,7 @@
 //  PassageRankerBudgetTests.swift
 //  PodcastAIKitTests
 //
-//  Bei grossen Beständen bekommen nur wenige Stellen eine Einbettung.
+//  Bei großen Beständen bekommen nur wenige Stellen eine Einbettung.
 //  Die Auswahl muss die Stichworttreffer enthalten und darf die Grenze
 //  nicht überschreiten.
 //

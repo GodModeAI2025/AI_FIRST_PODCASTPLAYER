@@ -72,7 +72,7 @@ public actor LibraryStore {
     /// Mit `sync` spiegelt SwiftData die Datenbank in die private
     /// iCloud-Datenbank des Nutzers. Welcher Container das ist, steht in den
     /// Entitlements der App. Fehlt dort iCloud, bleibt der Speicher lokal.
-    /// Audiodateien liegen ausserhalb der Datenbank und synchronisieren sich
+    /// Audiodateien liegen außerhalb der Datenbank und synchronisieren sich
     /// nicht; jedes Gerät lädt den Ton selbst, Transkripte, Belege, Fakten,
     /// Hörzustand und alles Selbstangelegte kommen über iCloud.
     ///
@@ -140,7 +140,7 @@ public actor LibraryStore {
                 container: container,
                 recoveryNote: String(localized: """
                     Deine gespeicherten Daten passen nicht zu dieser Version der App \
-                    und liessen sich nicht übernehmen. Die alte Datei liegt unverändert als \
+                    und ließen sich nicht übernehmen. Die alte Datei liegt unverändert als \
                     \(backup.lastPathComponent) im App-Ordner. Die App beginnt mit einem leeren Speicher.
                     """, bundle: .module))
         }
@@ -992,7 +992,7 @@ public actor LibraryStore {
     // MARK: - Entfernen
 
     /// Was beim Entfernen gelöscht wurde. Die Audiodateien selbst liegen
-    /// ausserhalb der Datenbank; der Aufrufer löscht sie anhand dieser Liste.
+    /// außerhalb der Datenbank; der Aufrufer löscht sie anhand dieser Liste.
     public struct RemovalReport: Sendable, Equatable {
         public var mediaVersionIDs: [MediaVersionID] = []
         public var evidenceIDs: [EvidenceID] = []
@@ -1317,7 +1317,7 @@ public actor LibraryStore {
     }
 
     /// Belege aller Quellen, die für einen Themenfeed infrage kommen.
-    /// Die Grenze schützt nur vor einem Ausreisser. 500 schnitten schon bei
+    /// Die Grenze schützt nur vor einem Ausreißer. 500 schnitten schon bei
     /// einem mittleren Bestand neue Folgen ab, und Themen-Updates sahen sie nie.
     public func evidenceForAnalyzedEpisodes(limit: Int = 20_000) throws -> [Evidence] {
         var descriptor = FetchDescriptor<StoredEvidence>(

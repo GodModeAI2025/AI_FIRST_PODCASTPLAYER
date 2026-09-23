@@ -5,9 +5,9 @@
 //  Die gestalterischen Festlegungen an einer Stelle.
 //
 //  Warum als Tokens und nicht als Zahlen im Code: eine App, in der an
-//  dreissig Stellen `padding(12)` steht, driftet. Nach ein paar Wochen ist
+//  dreißig Stellen `padding(12)` steht, driftet. Nach ein paar Wochen ist
 //  es an zehn Stellen 12, an zwölf Stellen 14 und an acht Stellen 16 — und
-//  niemand weiss mehr, welcher Wert der richtige war.
+//  niemand weiß mehr, welcher Wert der richtige war.
 //
 //  Grundlage ist Apples 8-Punkt-Raster. Alle Abstände sind Vielfache von 4,
 //  die meisten von 8.
@@ -35,9 +35,9 @@ public enum Design {
         public static let standard: CGFloat = 16
         /// 20pt — kleine Abschnittstrennung.
         public static let section: CGFloat = 20
-        /// 32pt — grosse Abstände.
+        /// 32pt — große Abstände.
         public static let large: CGFloat = 32
-        /// 48pt — grosszügige Trennung, etwa um leere Zustände.
+        /// 48pt — großzügige Trennung, etwa um leere Zustände.
         public static let generous: CGFloat = 48
     }
 
@@ -52,7 +52,7 @@ public enum Design {
         public static let control: CGFloat = 10
         public static let chip: CGFloat = 8
 
-        /// Der passende Innenradius zu einem Aussenradius bei gegebenem Abstand.
+        /// Der passende Innenradius zu einem Außenradius bei gegebenem Abstand.
         public static func inner(outer: CGFloat, inset: CGFloat) -> CGFloat {
             max(0, outer - inset)
         }
@@ -60,7 +60,7 @@ public enum Design {
 
     // MARK: - Treffflächen
 
-    /// Apples Mindestmass. Alles, was angetippt wird, ist mindestens so gross —
+    /// Apples Mindestmass. Alles, was angetippt wird, ist mindestens so groß —
     /// auch wenn das Symbol darin kleiner ist.
     public static let minimumTapTarget: CGFloat = 44
 
@@ -106,7 +106,7 @@ public enum Design {
 public extension View {
 
     /// Sorgt dafür, dass ein Element mindestens 44×44 Punkt zum Antippen hat,
-    /// ohne es optisch zu vergrössern.
+    /// ohne es optisch zu vergrößern.
     func tappableArea() -> some View {
         frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
             .contentShape(Rectangle())
@@ -204,7 +204,7 @@ public struct TimecodeLabel: View {
     }
 
     /// „4 Minuten“, „1 Minute und 5 Sekunden“, „1 Stunde und 2 Minuten“.
-    /// Volle Minuten ohne eine „0“ dahinter, und Sekunden heissen Sekunden.
+    /// Volle Minuten ohne eine „0“ dahinter, und Sekunden heißen Sekunden.
     /// Einzahl, Mehrzahl und Wortstellung kommen aus der Sprache der App.
     static func spokenSingle(_ value: String) -> String {
         let units = value.split(separator: ":").map(String.init)

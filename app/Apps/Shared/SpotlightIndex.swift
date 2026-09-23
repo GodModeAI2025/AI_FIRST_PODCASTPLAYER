@@ -7,10 +7,10 @@
 //  Der Punkt, an dem hier alles hängt: der **app-interne Index und der
 //  Systemindex sind zwei verschiedene Dinge** mit verschiedenen Folgen.
 //  Was im app-internen Index liegt, bleibt im Scope der App. Was im
-//  Systemindex liegt, ist von aussen auffindbar — von der Systemsuche, von
+//  Systemindex liegt, ist von außen auffindbar — von der Systemsuche, von
 //  Vorschlägen, unter Umständen von anderen Stellen des Systems.
 //
-//  Deshalb: standardmässig aus, eigene Einwilligung, und beim Widerruf wird
+//  Deshalb: standardmäßig aus, eigene Einwilligung, und beim Widerruf wird
 //  wirklich entfernt statt nur nicht mehr ergänzt.
 //
 //  Und: PodcastAI stellt Relevanz bereit. Ob das Betriebssystem daraus
@@ -33,7 +33,7 @@ import UIKit
 @MainActor
 public final class SpotlightIndex {
 
-    /// Standardmässig aus. Eine Funktion, die Inhalte aus der App heraus
+    /// Standardmäßig aus. Eine Funktion, die Inhalte aus der App heraus
     /// sichtbar macht, schaltet sich nicht selbst ein.
     private let consentKey = "com.podcastai.spotlight.consent"
 
@@ -129,7 +129,7 @@ public final class SpotlightIndex {
 
     /// Entfernt alles. Wird beim Widerruf der Einwilligung aufgerufen.
     ///
-    /// Widerruf heisst entfernen, nicht „ab jetzt nichts Neues mehr“ —
+    /// Widerruf heißt entfernen, nicht „ab jetzt nichts Neues mehr“ —
     /// sonst bliebe alles Bisherige für immer auffindbar.
     public func removeAll() async {
         await enqueue {
@@ -158,7 +158,7 @@ struct SpotlightSettingsSection: View {
             Toggle("In der Systemsuche auffindbar", isOn: $isEnabled)
                 .onChange(of: isEnabled) { _, newValue in
                     model.spotlight.isEnabled = newValue
-                    // Einschalten heisst: die vorhandenen Stellen jetzt
+                    // Einschalten heißt: die vorhandenen Stellen jetzt
                     // melden, nicht erst bei der nächsten Änderung.
                     if newValue { model.reindexSpotlight() }
                 }
@@ -166,7 +166,7 @@ struct SpotlightSettingsSection: View {
             Text("Systemsuche")
         } footer: {
             Text("""
-                Gemerkte Stellen werden dann auch ausserhalb von PodcastAI gefunden. \
+                Gemerkte Stellen werden dann auch außerhalb von PodcastAI gefunden. \
                 Ausgeschaltet werden vorhandene Einträge wieder entfernt.
 
                 PodcastAI stellt Relevanz bereit. Ob das System daraus einen Vorschlag \
@@ -181,7 +181,7 @@ struct SpotlightSettingsSection: View {
 
 /// Öffnet die gemerkte Stelle, die in der Systemsuche angetippt wurde.
 ///
-/// Geöffnet heisst gezeigt, nicht abgespielt. Hören startet erst der Knopf
+/// Geöffnet heißt gezeigt, nicht abgespielt. Hören startet erst der Knopf
 /// in der Ansicht, also ein eigener Tipp.
 private struct SpotlightContinuation: ViewModifier {
 
@@ -292,7 +292,7 @@ extension View {
 struct RememberedPassageView: View {
 
     let highlightID: HighlightID
-    /// Schliesst die Ansicht, wenn sie nicht als `.sheet` gezeigt wird,
+    /// Schließt die Ansicht, wenn sie nicht als `.sheet` gezeigt wird,
     /// sondern über einem offenen Blatt. Dort erreicht `dismiss` sie nicht
     /// verlässlich.
     var close: (@MainActor () -> Void)? = nil

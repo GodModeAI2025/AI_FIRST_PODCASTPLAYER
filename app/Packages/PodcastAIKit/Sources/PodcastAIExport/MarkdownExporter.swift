@@ -42,7 +42,7 @@ public struct SafeSourceLink: Sendable, Equatable {
         // trotzdem nie. Premium-Feeds legen den Token genau dort ab.
         guard !Self.pathLooksLikeToken(url.path) else { return nil }
 
-        // Klammern im Pfad würden die Markdown-Linkklammer schliessen und
+        // Klammern im Pfad würden die Markdown-Linkklammer schließen und
         // alles danach zu aktiver Struktur machen.
         guard !url.path.contains(where: { "()<>[]".contains($0) }) else { return nil }
 

@@ -157,7 +157,7 @@ struct DuplicateMergeTests {
             mediaVersionID: mediaID, range: range(0, 60_000), kind: .played,
             via: .originalEpisode, deviceID: "b")])
 
-        // Schon vor dem Bereinigen: gelöscht heisst gelöscht.
+        // Schon vor dem Bereinigen: gelöscht heißt gelöscht.
         #expect(try await store.episodes(forSource: sourceID).isEmpty)
         #expect(try await store.upsert(episodes: [episode], forSource: sourceID) == 0)
         #expect(try await store.episodes(forSource: sourceID).isEmpty)

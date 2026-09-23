@@ -5,7 +5,7 @@
 //  Widerspruchs-Mixer und Breadcrumb-Trail.
 //
 //  Beide Oberflächen tragen dieselbe Zurückhaltung: sie helfen beim eigenen
-//  Urteil, statt eines nahezulegen. Konkret heisst das — die These steht als
+//  Urteil, statt eines nahezulegen. Konkret heißt das — die These steht als
 //  These da und nicht als Feststellung, Gegenpositionen kommen nach den
 //  stützenden statt zuerst, und eine unausgewogene Lage wird benannt,
 //  statt sie als Prüfung auszugeben.
@@ -543,13 +543,13 @@ struct TrailDetailView: View {
         }
     }
 
-    /// Mehr als eine Stelle heisst immer mindestens zwei, daher reicht der Plural.
+    /// Mehr als eine Stelle heißt immer mindestens zwei, daher reicht der Plural.
     private func playLabel(_ playable: Int) -> LocalizedStringKey {
         playable == 1 ? "Diese Stelle anhören" : "Alle \(playable) Stellen nacheinander anhören"
     }
 }
 
-/// Zeigt, was schiefgegangen ist, und schliesst die Hörsession ab.
+/// Zeigt, was schiefgegangen ist, und schließt die Hörsession ab.
 ///
 /// Zwei Befunde in einem: `lastError` wurde an fünfzehn Stellen gesetzt und
 /// an keiner gelesen — jeder Fehler verschwand still. Und

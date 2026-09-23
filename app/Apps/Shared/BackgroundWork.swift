@@ -143,7 +143,7 @@ public final class BackgroundWork {
     #else
 
     /// Auf dem Mac gibt es keinen BGTaskScheduler — dort läuft die App als
-    /// Prozess weiter, solange sie nicht beendet wird. Fenster schliessen
+    /// Prozess weiter, solange sie nicht beendet wird. Fenster schließen
     /// und App beenden sind verschiedene Zustände. Die Fakten sammelt dort
     /// die Warteschlange im Modell, solange die App läuft.
     public func register() {}

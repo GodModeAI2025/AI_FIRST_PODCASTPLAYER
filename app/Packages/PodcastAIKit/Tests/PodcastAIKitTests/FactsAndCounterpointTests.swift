@@ -41,7 +41,7 @@ struct FactAnchorTests {
         segment(0, 12, "Viele Unternehmen testen KI-Assistenten zuerst im Kundenservice."),
         segment(12, 25, "Ein Problem ist der Datenschutz, denn Anfragen enthalten persönliche Daten."),
         segment(25, 40, "Modelle auf dem Gerät verarbeiten Text lokal, dadurch verlassen Daten das Telefon nicht."),
-        segment(40, 60, "Für grössere Aufgaben gibt es Serverlösungen."),
+        segment(40, 60, "Für größere Aufgaben gibt es Serverlösungen."),
         segment(60, 80, "Modelle auf dem Gerät sind das Thema der nächsten Passage."),
     ]
 

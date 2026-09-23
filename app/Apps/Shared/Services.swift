@@ -460,7 +460,7 @@ public actor FeedRefresher {
         return feedURL
     }
 
-    /// Eine HTML-Seite ist grösser als ein Feed, aber nicht beliebig gross.
+    /// Eine HTML-Seite ist größer als ein Feed, aber nicht beliebig groß.
     /// YouTube-Seiten liegen bei wenigen Megabyte.
     private static let pageLimit: Int64 = 12 * 1024 * 1024
 
@@ -585,12 +585,12 @@ public enum FeedRefreshError: Error, LocalizedError {
                 """)
         case .noChannelForVideo:
             String(localized: """
-                Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine \
+                Zu diesem Video ließ sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine \
                 einzelnen Videos.
                 """)
         case .noChannelForHandle(let handle):
             String(localized: """
-                Zu „\(handle)“ liess sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge \
+                Zu „\(handle)“ ließ sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge \
                 den Link zu einem Video des Kanals ein.
                 """)
         }

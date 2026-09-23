@@ -2,7 +2,7 @@
 //  EpisodeViews.swift
 //  PodcastAI
 //
-//  Folgenliste und Erschliessung.
+//  Folgenliste und Erschließung.
 //
 //  Die App bereitet die jüngsten Folgen einer Quelle von selbst vor: laden,
 //  transkribieren, Belege mit Zeitmarken. Ohne das bleibt „Für dich“ leer,
@@ -167,7 +167,7 @@ struct EpisodeListView: View {
         }
         .navigationTitle(source?.title ?? String(localized: "Folgen"))
         // Auf dem iPhone steht die Suche immer da. Sonst erscheint sie erst
-        // beim Herunterziehen, und niemand weiss, dass es sie gibt.
+        // beim Herunterziehen, und niemand weiß, dass es sie gibt.
         #if os(iOS)
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
                     prompt: "Titel und Shownotes durchsuchen")
@@ -664,7 +664,7 @@ struct EpisodeAnalysisPrompt: View {
             .accessibilityIdentifier("episode.analyze")
         case .waiting(_, _, let limit?):
             // Nichts läuft, also kein Kreisel. Der Grund steht da, und von
-            // Hand geht es trotzdem los, ausser ganz ohne Netz.
+            // Hand geht es trotzdem los, außer ganz ohne Netz.
             Label(limit.settingsLabel, systemImage: limit.symbol)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -783,7 +783,7 @@ struct EpisodeAnalysisPrompt: View {
     }
 
     /// Ein Zustand aus der Warteschlange, etwa „wartet auf zweiten Versuch“,
-    /// als Satz mit grossem Anfang.
+    /// als Satz mit großem Anfang.
     static func sentence(_ detail: String) -> String {
         detail.prefix(1).uppercased() + detail.dropFirst()
     }
@@ -834,7 +834,7 @@ extension ProcessingStage {
 
 // MARK: - Wissen
 
-/// Gemerkte Stellen und ihr Weg nach draussen.
+/// Gemerkte Stellen und ihr Weg nach draußen.
 struct KnowledgeView: View {
 
     @Environment(AppModel.self) private var model
@@ -972,7 +972,7 @@ struct ExportPreview: Identifiable {
 struct ExportPreviewSheet: View {
 
     let text: String
-    /// Wie die Datei heisst, ohne Endung, etwa der Titel der Folge. Ohne
+    /// Wie die Datei heißt, ohne Endung, etwa der Titel der Folge. Ohne
     /// Angabe gilt die erste Überschrift des Exports.
     var fileName: String? = nil
     @Environment(\.dismiss) private var dismiss

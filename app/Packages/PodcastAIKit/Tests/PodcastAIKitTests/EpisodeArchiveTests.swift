@@ -78,7 +78,7 @@ struct EpisodeArchiveTests {
         #expect(EpisodeArchive.plainText("Kein Ende &#") == "Kein Ende &#")
     }
 
-    @Test("Leere Suche heisst: keine Einschränkung")
+    @Test("Leere Suche heißt: keine Einschränkung")
     func emptyQueryMatchesEverything() {
         let index = [episode(1), episode(2)].map { (id: $0.id, text: EpisodeArchive.searchableText(of: $0)) }
         #expect(EpisodeArchive.matchingIDs(for: EpisodeArchive.terms(of: "   "), in: index) == nil)

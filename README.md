@@ -46,7 +46,7 @@ Transkription braucht Apples Spracherkennung auf dem Gerät. Fragen, Fakten und 
 
 ## Testen über TestFlight
 
-Interne Builds für iOS und macOS laufen über TestFlight im Team Mobile Box. Die Apps heissen „PodcastAI“ und „PodcastAI Mac“, die Testgruppe „Intern“ verteilt neue Builds automatisch.
+Interne Builds für iOS und macOS laufen über TestFlight im Team Mobile Box. Die Apps heißen „PodcastAI“ und „PodcastAI Mac“, die Testgruppe „Intern“ verteilt neue Builds automatisch.
 
 ## Mehr
 

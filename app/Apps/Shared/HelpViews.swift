@@ -168,7 +168,7 @@ struct OnboardingView: View {
 
 struct HelpView: View {
 
-    // Wege, die auf dem Mac anders heissen. Dort gibt es eine Seitenleiste
+    // Wege, die auf dem Mac anders heißen. Dort gibt es eine Seitenleiste
     // statt Reitern, und die Einstellungen liegen im Programmmenü. Jeder
     // Text steht als ganzer Satz da, damit er sich übersetzen lässt.
     #if os(macOS)

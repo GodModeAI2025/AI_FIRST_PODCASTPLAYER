@@ -62,13 +62,13 @@ Stand 23. September 2026, Version 0.7.
 ## Frühere behobene Fehler
 
 - Beide Apps stürzten beim Start ab, weil die Fehleranzeige das App-Modell nicht fand.
-- Erschliessen hing: MP3-Dateien melden am Ende einen Fehler statt null Frames, und die Analyse wurde erst nach ihrem eigenen Ende abgeschlossen. Eine Folge von neun Minuten brauchte 44 Minuten, jetzt 21 Sekunden.
+- Erschließen hing: MP3-Dateien melden am Ende einen Fehler statt null Frames, und die Analyse wurde erst nach ihrem eigenen Ende abgeschlossen. Eine Folge von neun Minuten brauchte 44 Minuten, jetzt 21 Sekunden.
 - Transkription lief in der Gerätesprache statt in der Sprache des Podcasts.
 - Nach einem Fehler blieb die Transkription gesperrt und meldete bei jedem Versuch „läuft bereits“.
 - Der Markdown-Export schlug Quellen- und Folgentitel mit dem falschen Schlüssel nach und hätte überall „Unbekannte Quelle“ gezeigt.
 - Tabulator und Seitenvorschub im Transkript wurden im Export zu Zeilenumbrüchen.
 - Über der Tab-Leiste stand eine leere Mini-Player-Leiste, auch wenn nichts lief.
-- Mehrere gleichzeitig gestartete Erschliessungen scheiterten an der Grenze der Spracherkennung. Sie laufen jetzt nacheinander.
+- Mehrere gleichzeitig gestartete Erschließungen scheiterten an der Grenze der Spracherkennung. Sie laufen jetzt nacheinander.
 - Feeds, die mit einer Stylesheet-Anweisung beginnen, wurden als Webseite behandelt.
 - Geladene Folgen blieben stumm, weil die Datei keine Endung hat und AVFoundation das Format nicht erkannte.
 - Die Wiedergabe begann an einer zufälligen Stelle, weil der Sprung vor dem Bereitsein der Folge verpuffte.

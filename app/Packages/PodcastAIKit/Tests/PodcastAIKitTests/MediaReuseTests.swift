@@ -21,7 +21,7 @@ struct MediaReuseTests {
         return directory
     }
 
-    @Test("Eine vorhandene Datei liefert Grösse und Hash ohne Anfrage")
+    @Test("Eine vorhandene Datei liefert Größe und Hash ohne Anfrage")
     func existingFileIsReused() async throws {
         let directory = try makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

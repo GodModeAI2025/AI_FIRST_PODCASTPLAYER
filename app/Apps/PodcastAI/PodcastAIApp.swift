@@ -170,7 +170,7 @@ private extension View {
 }
 
 /// Stellt die Aktivitätszeile über die Navigation eines Tabs, nicht als
-/// Overlay darauf. Das Overlay lag beim Erschliessen auf Zurück, „Mehr“
+/// Overlay darauf. Das Overlay lag beim Erschließen auf Zurück, „Mehr“
 /// und den Reitern einer Folge, und jeder Tipp dort öffnete die
 /// Warteschlange.
 ///

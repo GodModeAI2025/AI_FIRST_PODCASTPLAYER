@@ -1237,7 +1237,7 @@ struct TranscriptSection: View {
                 withAnimation { proxy.scrollTo(start, anchor: .center) }
             }
         }
-        // Mit der Stufe als Schlüssel: endet die Erschliessung, während der
+        // Mit der Stufe als Schlüssel: endet die Erschließung, während der
         // Reiter offen ist, erscheint das Transkript ohne Umweg.
         .task(id: model.stages[episode.id]) {
             if let transcript = await model.transcript(for: episode) {
@@ -1351,7 +1351,7 @@ struct EpisodePlayerView: View {
 
     /// Eingebettet statt als Sheet, etwa in der Mac-Seitenleiste unter
     /// „Wiedergabe“. Dann ohne eigenen NavigationStack und ohne „Fertig“,
-    /// denn es gibt nichts zu schliessen.
+    /// denn es gibt nichts zu schließen.
     var isEmbedded = false
 
     @Environment(AppModel.self) private var model
@@ -1476,14 +1476,14 @@ struct EpisodePlayerView: View {
                     }
             }
         }
-        // Ausserhalb des `if let`: endet die Folge oder beginnt die nächste,
+        // Außerhalb des `if let`: endet die Folge oder beginnt die nächste,
         // während der Kommentar entsteht, bleibt das Blatt samt Text offen.
         //
         // Wird die Wiedergabe ganz beendet, etwa über Siri, über das Menü auf
         // dem Mac oder weil die Folge auf einem anderen Gerät gelöscht wurde,
         // verschwindet der Player und das Blatt mit ihm. Dann wird der Moment
         // mit dem Text gemerkt, der bis dahin dasteht, statt verloren zu gehen.
-        // Nichts gemerkt wird nur nach „Abbrechen“. Deshalb schliesst das
+        // Nichts gemerkt wird nur nach „Abbrechen“. Deshalb schließt das
         // Blatt nicht durch Wischen: das wäre weder das eine noch das andere.
         .sheet(isPresented: $showingNote) {
             // Hier festgehalten und nicht erst beim Verschwinden gelesen:
@@ -1624,7 +1624,7 @@ struct EpisodePlayerView: View {
 
     /// Nebeneinander, bei großer Schrift untereinander über die ganze
     /// Breite. Dort öffnen Tempo und Schlaf-Timer ein Blatt statt eines
-    /// Menüs, denn das Menü lief über den Bildschirmrand und liess sich
+    /// Menüs, denn das Menü lief über den Bildschirmrand und ließ sich
     /// nicht scrollen.
     @ViewBuilder private var optionsRow: some View {
         if dynamicTypeSize.isAccessibilitySize {
@@ -2218,7 +2218,7 @@ struct RoutePickerButton: NSViewRepresentable {
 extension Episode {
     /// Liegt die Folge bei YouTube? Dann gibt es ein Video, aber keine Audiodatei.
     var opensInYouTube: Bool { webPageURL?.host()?.contains("youtu") ?? false }
-    /// Wie der Knopf heisst, der eine Folge ohne Audiodatei öffnet.
+    /// Wie der Knopf heißt, der eine Folge ohne Audiodatei öffnet.
     var webLinkTitle: String {
         opensInYouTube ? String(localized: "In YouTube öffnen") : String(localized: "Webseite öffnen")
     }
