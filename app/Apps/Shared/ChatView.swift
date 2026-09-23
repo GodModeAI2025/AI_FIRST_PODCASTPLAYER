@@ -10,6 +10,7 @@
 //
 
 import SwiftUI
+import NaturalLanguage
 import Translation
 import PodcastAIKit
 
@@ -71,7 +72,10 @@ struct ChatView: View {
                             .padding(.top, fixedScope ? Design.Spacing.standard : Design.Spacing.large)
                         }
                         ForEach(answers) { answer in
-                            AnswerCard(answer: answer, focus: $focusedAnswer)
+                            // Über dem Verlauf stehen Bereich und Modell schon
+                            // in der Leiste. Die Antwort wiederholt sie nicht.
+                            AnswerCard(answer: answer, focus: $focusedAnswer,
+                                       scrollProxy: proxy, contextShownAbove: !fixedScope)
                                 .id(answer.id)
                         }
                         if let pendingQuestion {
@@ -391,10 +395,21 @@ struct AnswerCard: View {
     let answer: ChatAnswer
     /// Welche Antwort den VoiceOver-Fokus bekommt.
     var focus: AccessibilityFocusState<UUID?>.Binding
+    /// Führt von einem Verweis im Text zu seinem Beleg.
+    var scrollProxy: ScrollViewProxy?
+    /// Stehen Bereich und Modell schon in der Leiste über dem Verlauf?
+    var contextShownAbove = false
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var exported: String?
-    /// „Podcast · Folge · Datum“ je Folge. Innerhalb einer Folge leer.
-    @State private var origins: [EpisodeID: String] = [:]
+    /// Podcast, Folge, Datum und Cover je Folge. Innerhalb einer Folge leer.
+    @State private var episodes: [EpisodeID: CitedEpisode] = [:]
+    /// Folgen, deren Stellen ganz aufgeklappt sind.
+    @State private var expanded: Set<EpisodeID> = []
+    /// Der Beleg, zu dem ein Verweis im Text gerade geführt hat.
+    @State private var highlighted: Int?
+    @State private var showingCoverageInfo = false
+    @AccessibilityFocusState private var focusedCitation: Int?
 
     private var numbered: [(number: Int, evidence: Evidence)] {
         let byID = Dictionary(answer.citations.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -429,36 +444,25 @@ struct AnswerCard: View {
                 .accessibilityLabel("Antwort teilen oder kopieren")
             }
 
-            Text(answer.text)
-                .font(.body)
-                .textSelection(.enabled)
-                .accessibilityFocused(focus, equals: answer.id)
-
-            HStack(spacing: Design.Spacing.small) {
-                if let label = answer.modelLabel {
-                    Label(label, systemImage: "sparkles")
-                }
-                if !answer.scope.isEpisode {
-                    Label(model.scopeLabel(answer.scope), systemImage: "scope")
-                }
-            }
-            .font(.caption2)
-            .foregroundStyle(.secondary)
+            AnswerText(text: answer.text, citations: Set(numbered.map(\.number)),
+                       focus: focus, answerID: answer.id, onCitation: showCitation)
 
             if let caveat = answer.coverageCaveat {
-                Label(caveat, systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+                coverageNote(caveat)
+            }
+
+            // Der Bereich steht immer in der Leiste oder ist die Folge selbst.
+            // Das Modell nur dann, wenn keine Leiste es nennt oder die
+            // Antwort mit einem anderen entstand als dem, das sie jetzt zeigt.
+            if let label = answer.modelLabel,
+               !contextShownAbove || label != model.modelStatus.resolveLabel {
+                Label(label, systemImage: "sparkles")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
 
             if !numbered.isEmpty {
-                VStack(alignment: .leading, spacing: Design.Spacing.small) {
-                    ForEach(numbered, id: \.number) { item in
-                        CitationRow(number: item.number, evidence: item.evidence,
-                                    origin: origins[item.evidence.episodeID])
-                    }
-                }
-                .padding(.top, Design.Spacing.micro / 2)
+                citationList
             }
 
             if !answer.playableCitations.isEmpty {
@@ -497,7 +501,13 @@ struct AnswerCard: View {
         .task(id: answer.id) {
             // Innerhalb einer Folge ist die Herkunft klar.
             guard !answer.scope.isEpisode else { return }
-            origins = await model.citationOrigins(for: answer.citations)
+            episodes = await model.citedEpisodes(for: answer.citations)
+        }
+        .task(id: highlighted) {
+            // Die Hervorhebung zeigt nur, wo man gelandet ist, und geht wieder.
+            guard highlighted != nil else { return }
+            do { try await Task.sleep(for: .seconds(2.5)) } catch { return }
+            withAnimation(motion) { highlighted = nil }
         }
         .sheet(item: Binding(
             get: { exported.map(ExportPreview.init) },
@@ -505,6 +515,91 @@ struct AnswerCard: View {
         )) { preview in
             ExportPreviewSheet(text: preview.text).sheetFeedback()
         }
+    }
+
+    /// Die Belege, eine Karte je Folge. Innerhalb einer Folge ohne Kopf,
+    /// denn welche Folge gemeint ist, steht schon über dem Chat.
+    private var citationList: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            Text("Belege")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
+            ForEach(groups) { group in
+                CitedEpisodeCard(
+                    items: group.items,
+                    episode: episodes[group.id],
+                    showsHeader: !answer.scope.isEpisode,
+                    isExpanded: Binding(
+                        get: { expanded.contains(group.id) },
+                        set: { open in
+                            if open { expanded.insert(group.id) } else { expanded.remove(group.id) }
+                        }),
+                    highlighted: highlighted,
+                    anchor: citationAnchor,
+                    focusedCitation: $focusedCitation)
+            }
+        }
+    }
+
+    /// Belege je Folge, in der Reihenfolge ihrer ersten Nummer.
+    private var groups: [CitationGroup] { CitationGroup.grouping(numbered) }
+
+    /// Wie viel durchsucht wurde, als ruhige Zeile. Ein Tipp erklärt, warum.
+    private func coverageNote(_ caveat: String) -> some View {
+        Button {
+            showingCoverageInfo = true
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.micro) {
+                Text(caveat)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+            }
+            .font(.footnote)
+            .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Erklärt, warum nur Folgen mit Transkript durchsucht werden")
+        .popover(isPresented: $showingCoverageInfo) {
+            CoverageExplanation()
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    /// Ein Verweis im Text führt zu seinem Beleg: aufklappen, hinscrollen,
+    /// kurz hervorheben. Ton entsteht dabei nie. Abgespielt wird erst, wenn
+    /// jemand den Beleg selbst antippt.
+    private func showCitation(_ number: Int) {
+        guard let group = groups.first(where: { $0.items.contains { $0.number == number } }),
+              let position = group.items.firstIndex(where: { $0.number == number }) else { return }
+        let hidden = !expanded.contains(group.id)
+            && group.items.count > CitedEpisodeCard.collapsedCount
+            && position >= CitedEpisodeCard.collapsedCount
+        withAnimation(motion) {
+            if hidden { expanded.insert(group.id) }
+            highlighted = number
+        }
+        Task { @MainActor in
+            // Eine eben aufgeklappte Stelle steht erst nach dem nächsten Layout.
+            if hidden { try? await Task.sleep(for: .milliseconds(80)) }
+            withAnimation(motion) {
+                scrollProxy?.scrollTo(citationAnchor(number), anchor: .center)
+            }
+            focusedCitation = number
+        }
+    }
+
+    /// Je Antwort eigen: zwei Antworten können dieselbe Stelle belegen.
+    private func citationAnchor(_ number: Int) -> String {
+        "\(answer.id.uuidString)-citation-\(number)"
+    }
+
+    private var motion: Animation {
+        Design.Motion.respectingReduceMotion(Design.Motion.smooth, reduceMotion: reduceMotion)
     }
 
     private var isParked: Bool { model.isParked(answer) }
@@ -540,8 +635,11 @@ struct CitationRow: View {
 
     var number: Int = 0
     let evidence: Evidence
-    /// „Podcast · Folge · Datum“. Fehlt innerhalb einer Folge.
+    /// „Podcast · Folge · Datum“. Fehlt innerhalb einer Folge und in der
+    /// Belegkarte einer Folge, die das schon im Kopf trägt.
     var origin: String?
+    /// Kurz hinterlegt, wenn ein Verweis im Antworttext hierher geführt hat.
+    var highlighted = false
     @Environment(AppModel.self) private var model
     @State private var foreign = false
     @State private var translating = false
@@ -616,6 +714,460 @@ struct CitationRow: View {
                 }
             }
         }
+        // Über die ganze Breite: so trifft ein Tipp die Zeile überall, und
+        // die Hervorhebung reicht von Rand zu Rand.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
+        // Die Fläche ragt über den Rand hinaus, damit die Zeile beim
+        // Hervorheben nicht springt.
+        .background {
+            RoundedRectangle(cornerRadius: Design.Radius.chip, style: .continuous)
+                .fill(.tint.opacity(highlighted ? 0.15 : 0))
+                .padding(-Design.Spacing.micro)
+        }
+    }
+}
+
+// MARK: - Antwort gegliedert
+
+/// Der Antworttext in Abschnitten: zuerst die direkte Antwort, dann Absätze
+/// oder Punkte. Jeder Verweis wie [3] ist ein Link zu seinem Beleg.
+///
+/// Der Text ist Modellformulierung und damit fremde Daten. Er wird nie als
+/// Markdown gelesen, Links entstehen nur aus Verweisnummern mit Beleg, und
+/// jeder andere Link wird verworfen.
+private struct AnswerText: View {
+
+    let text: String
+    /// Nummern, zu denen es einen Beleg gibt. Nur sie werden zu Links.
+    let citations: Set<Int>
+    var focus: AccessibilityFocusState<UUID?>.Binding
+    let answerID: UUID
+    let onCitation: (Int) -> Void
+
+    var body: some View {
+        let blocks = AnswerLayout.blocks(for: text)
+        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
+                switch block {
+                case .lead(let sentence):
+                    focusable(line(sentence).font(.body.weight(.semibold)), first: index == 0)
+                case .paragraph(let paragraph):
+                    focusable(line(paragraph).font(.body), first: index == 0)
+                case .bullets(let items):
+                    VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                        ForEach(Array(items.enumerated()), id: \.offset) { position, item in
+                            HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.small) {
+                                Text(verbatim: "•")
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityHidden(true)
+                                focusable(line(item), first: index == 0 && position == 0)
+                            }
+                            .font(.body)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .textSelection(.enabled)
+        .environment(\.openURL, OpenURLAction { url in
+            guard let number = AnswerLayout.citationNumber(in: url) else { return .discarded }
+            onCitation(number)
+            return .handled
+        })
+    }
+
+    private func line(_ text: String) -> Text {
+        Text(AnswerLayout.attributed(text, linking: citations))
+    }
+
+    /// Eine neue Antwort bekommt den VoiceOver-Fokus auf ihrem ersten Satz.
+    @ViewBuilder
+    private func focusable(_ text: some View, first: Bool) -> some View {
+        if first {
+            text.accessibilityFocused(focus, equals: answerID)
+        } else {
+            text
+        }
+    }
+}
+
+/// Ein Abschnitt der Antwort, wie er angezeigt wird.
+enum AnswerBlock: Hashable {
+    /// Die direkte Antwort, der erste Satz.
+    case lead(String)
+    case paragraph(String)
+    case bullets([String])
+}
+
+/// Gliedert einen Antworttext, ohne ein Wort wegzulassen.
+///
+/// Das Modell liefert Fließtext in einer Zeile. Daraus wird: der erste Satz
+/// als direkte Antwort, danach Punkte, wenn die Sätze je einen eigenen Beleg
+/// tragen, sonst kurze Absätze. Texte mit Zeilenumbrüchen stammen aus dem
+/// Code, etwa die Liste der passendsten Stellen ohne Modell. Sie behalten
+/// ihre Zeilen.
+enum AnswerLayout {
+
+    static let scheme = "podcastai-citation"
+
+    /// Absätze mit höchstens so vielen Sätzen.
+    private static let sentencesPerParagraph = 3
+
+    @MainActor private static var cache: [String: [AnswerBlock]] = [:]
+
+    @MainActor
+    static func blocks(for text: String) -> [AnswerBlock] {
+        if let cached = cache[text] { return cached }
+        let blocks = layout(text)
+        if cache.count > 64 { cache.removeAll() }
+        cache[text] = blocks
+        return blocks
+    }
+
+    static func layout(_ text: String) -> [AnswerBlock] {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        if trimmed.contains(where: \.isNewline) { return lineBlocks(trimmed) }
+        let sentences = sentences(in: trimmed)
+        guard sentences.count > 1 else { return [.paragraph(trimmed)] }
+        let rest = Array(sentences.dropFirst())
+        var blocks: [AnswerBlock] = [.lead(sentences[0])]
+        let cited = rest.filter { !citationNumbers(in: $0).isEmpty }.count
+        if rest.count >= 2, cited * 2 >= rest.count {
+            blocks.append(.bullets(rest))
+        } else {
+            for start in stride(from: 0, to: rest.count, by: sentencesPerParagraph) {
+                let end = min(start + sentencesPerParagraph, rest.count)
+                blocks.append(.paragraph(rest[start..<end].joined(separator: " ")))
+            }
+        }
+        return blocks
+    }
+
+    /// Zeilen bleiben Zeilen. Aufeinanderfolgende Listenzeilen werden eine Liste.
+    private static func lineBlocks(_ text: String) -> [AnswerBlock] {
+        var blocks: [AnswerBlock] = []
+        for raw in text.components(separatedBy: .newlines) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty else { continue }
+            if let item = listItem(line) {
+                if case .bullets(let items) = blocks.last {
+                    blocks[blocks.count - 1] = .bullets(items + [item])
+                } else {
+                    blocks.append(.bullets([item]))
+                }
+            } else {
+                blocks.append(.paragraph(line))
+            }
+        }
+        return blocks
+    }
+
+    /// „• Aussage“, „- Aussage“ oder „[2] Zitat …“ ist ein Listenpunkt.
+    private static func listItem(_ line: String) -> String? {
+        for prefix in ["• ", "- ", "* ", "– "] where line.hasPrefix(prefix) {
+            let item = line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
+            return item.isEmpty ? nil : item
+        }
+        if line.hasPrefix("["), let close = line.firstIndex(of: "]"),
+           !numbers(inBrackets: line[line.index(after: line.startIndex)..<close]).isEmpty {
+            return line
+        }
+        return nil
+    }
+
+    /// Sätze nach der Sprache des Textes. Ein Verweis hinter dem Punkt gehört
+    /// zum Satz davor, und „am 12. Sept.“ beendet keinen Satz.
+    static func sentences(in text: String) -> [String] {
+        let tokenizer = NLTokenizer(unit: .sentence)
+        tokenizer.string = text
+        var result: [String] = []
+        tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
+            var sentence = text[range].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !sentence.isEmpty else { return true }
+            if !result.isEmpty {
+                let (markers, remainder) = leadingMarkers(sentence)
+                if !markers.isEmpty {
+                    result[result.count - 1] += " " + markers
+                    sentence = remainder
+                    if sentence.isEmpty { return true }
+                }
+            }
+            if let last = result.last, isFragment(sentence, after: last) {
+                result[result.count - 1] = last + " " + sentence
+            } else {
+                result.append(sentence)
+            }
+            return true
+        }
+        return result.isEmpty ? [text] : result
+    }
+
+    private static func isFragment(_ sentence: String, after previous: String) -> Bool {
+        guard let first = sentence.first else { return true }
+        if first.isLowercase || first.isNumber { return true }
+        if previous.hasSuffix("."), let digit = previous.dropLast().last, digit.isNumber { return true }
+        return sentence.count < 6
+    }
+
+    private static func leadingMarkers(_ sentence: String) -> (markers: String, rest: String) {
+        var rest = Substring(sentence)
+        var markers: [String] = []
+        while rest.hasPrefix("["), let close = rest.firstIndex(of: "]"),
+              !numbers(inBrackets: rest[rest.index(after: rest.startIndex)..<close]).isEmpty {
+            markers.append(String(rest[...close]))
+            rest = rest[rest.index(after: close)...].drop(while: \.isWhitespace)
+        }
+        return (markers.joined(separator: " "), String(rest))
+    }
+
+    /// Alle Verweisnummern eines Textes.
+    static func citationNumbers(in text: String) -> [Int] {
+        var result: [Int] = []
+        var index = text.startIndex
+        while let open = text[index...].firstIndex(of: "["),
+              let close = text[open...].firstIndex(of: "]") {
+            result += numbers(inBrackets: text[text.index(after: open)..<close])
+            index = text.index(after: close)
+        }
+        return result
+    }
+
+    /// „3“, „3, 5“, „3 5“ und „2-4“ sind Verweise. „Musik“ oder „00:12“ nicht.
+    static func numbers(inBrackets content: Substring) -> [Int] {
+        let allowed = CharacterSet(charactersIn: "0123456789,; -–")
+        guard !content.isEmpty, content.unicodeScalars.allSatisfy(allowed.contains),
+              content.contains(where: \.isNumber) else { return [] }
+        var result: [Int] = []
+        for part in content.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == " " }) {
+            let bounds = part.split(whereSeparator: { $0 == "-" || $0 == "–" }).compactMap { Int($0) }
+            if bounds.count == 2, bounds[0] <= bounds[1], bounds[1] - bounds[0] <= 10 {
+                result += Array(bounds[0]...bounds[1])
+            } else {
+                result += bounds
+            }
+        }
+        return result
+    }
+
+    /// Der Text mit einem Link je Verweisnummer, die einen Beleg hat.
+    /// Eine Klammer mit anderen Nummern bleibt, wie sie ist.
+    static func attributed(_ text: String, linking valid: Set<Int>) -> AttributedString {
+        var result = AttributedString()
+        var index = text.startIndex
+        while let open = text[index...].firstIndex(of: "[") {
+            guard let close = text[open...].firstIndex(of: "]") else { break }
+            let numbers = numbers(inBrackets: text[text.index(after: open)..<close])
+            guard !numbers.isEmpty, numbers.allSatisfy(valid.contains) else {
+                result += AttributedString(text[index...open])
+                index = text.index(after: open)
+                continue
+            }
+            result += AttributedString(text[index..<open])
+            for (offset, number) in numbers.enumerated() {
+                if offset > 0 { result += AttributedString("\u{2009}") }
+                var marker = AttributedString("[\(number)]")
+                marker.link = URL(string: "\(scheme)://\(number)")
+                marker.font = Font.footnote.weight(.semibold).monospacedDigit()
+                result += marker
+            }
+            index = text.index(after: close)
+        }
+        result += AttributedString(text[index...])
+        return result
+    }
+
+    static func citationNumber(in url: URL) -> Int? {
+        guard url.scheme == scheme, let host = url.host() else { return nil }
+        return Int(host)
+    }
+}
+
+// MARK: - Belege je Folge
+
+/// Die Belege einer Folge, nach Nummer.
+struct CitationGroup: Identifiable {
+    let id: EpisodeID
+    let items: [(number: Int, evidence: Evidence)]
+
+    /// Folgen in der Reihenfolge ihres ersten Verweises.
+    static func grouping(_ numbered: [(number: Int, evidence: Evidence)]) -> [CitationGroup] {
+        var order: [EpisodeID] = []
+        var byEpisode: [EpisodeID: [(number: Int, evidence: Evidence)]] = [:]
+        for item in numbered.sorted(by: { $0.number < $1.number }) {
+            let id = item.evidence.episodeID
+            if byEpisode[id] == nil { order.append(id) }
+            byEpisode[id, default: []].append(item)
+        }
+        return order.map { CitationGroup(id: $0, items: byEpisode[$0] ?? []) }
+    }
+}
+
+/// Was eine Belegkarte über ihre Folge zeigt.
+struct CitedEpisode: Sendable {
+    let podcast: String
+    let title: String
+    let publishedAt: Date?
+    let artworkURL: URL?
+}
+
+/// Eine Karte je Folge: Cover, Podcast, Folge und Datum, darunter die
+/// Stellen mit Zeitmarke. Mehr als zwei Stellen klappen zu.
+private struct CitedEpisodeCard: View {
+
+    let items: [(number: Int, evidence: Evidence)]
+    let episode: CitedEpisode?
+    /// Innerhalb einer Folge gibt es keinen Kopf und keine eigene Karte.
+    let showsHeader: Bool
+    @Binding var isExpanded: Bool
+    let highlighted: Int?
+    let anchor: (Int) -> String
+    var focusedCitation: AccessibilityFocusState<Int?>.Binding
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// So viele Stellen stehen zugeklappt da.
+    static let collapsedCount = 2
+
+    private var isCollapsible: Bool { items.count > Self.collapsedCount }
+
+    private var visible: ArraySlice<(number: Int, evidence: Evidence)> {
+        isCollapsible && !isExpanded ? items.prefix(Self.collapsedCount) : items[...]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.control) {
+            if showsHeader, let episode {
+                header(episode)
+            }
+            ForEach(visible, id: \.number) { item in
+                CitationRow(number: item.number, evidence: item.evidence,
+                            highlighted: highlighted == item.number)
+                    .id(anchor(item.number))
+                    .accessibilityFocused(focusedCitation, equals: item.number)
+            }
+            if isCollapsible {
+                toggle
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(showsHeader ? Design.Spacing.control : Design.Spacing.none)
+        .background {
+            if showsHeader {
+                RoundedRectangle(cornerRadius: Design.Radius.control, style: .continuous)
+                    .fill(.background)
+            }
+        }
+    }
+
+    /// Bei großer Schrift steht das Cover über den Titeln statt daneben.
+    private func header(_ episode: CitedEpisode) -> some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Design.Spacing.small))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: Design.Spacing.control))
+        return layout {
+            EpisodeArtwork(url: episode.artworkURL, size: 44)
+            VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                Text(episode.podcast)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Text(episode.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(3)
+                if let date = episode.publishedAt {
+                    Text(date.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .multilineTextAlignment(.leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private var toggle: some View {
+        Button {
+            withAnimation(Design.Motion.respectingReduceMotion(Design.Motion.smooth, reduceMotion: reduceMotion)) {
+                isExpanded.toggle()
+            }
+        } label: {
+            Label {
+                if isExpanded {
+                    Text("Weniger anzeigen")
+                } else {
+                    Text("^[\(items.count - Self.collapsedCount) weitere Stelle](inflect: true) anzeigen")
+                }
+            } icon: {
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .accessibilityHidden(true)
+            }
+            .font(.footnote.weight(.semibold))
+            .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.borderless)
+    }
+}
+
+/// Warum nur ein Teil der Folgen durchsucht wurde, in wenigen Sätzen.
+private struct CoverageExplanation: View {
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        // Bei großer Schrift passt der Text nicht ins Popover und scrollt.
+        if dynamicTypeSize.isAccessibilitySize {
+            ScrollView { content }
+                .frame(width: 300, height: 420)
+        } else {
+            content
+                .frame(width: 300)
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            Text("Warum nur Folgen mit Transkript?")
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
+            Text("""
+                Die App sucht im Transkript, also im mitgeschriebenen Text einer Folge. \
+                Folgen ohne Transkript kann sie nicht durchsuchen, auch wenn sie zum Thema passen.
+                """)
+            Text("""
+                Ein Transkript erstellst du in der Folge mit „Transkript erstellen“. \
+                Für neue Folgen geht das von selbst, wenn in den Einstellungen \
+                „Transkripte für neue Folgen erstellen“ an ist.
+                """)
+        }
+        .font(.callout)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(Design.Spacing.standard)
+    }
+}
+
+extension AppModel {
+
+    /// Podcast, Folge, Datum und Cover je zitierter Folge. Titel und Datum
+    /// kommen aus dem Speicher, auch für eine gelöschte Folge. Das Cover ist
+    /// das der Folge, sonst das des Podcasts.
+    fileprivate func citedEpisodes(for evidence: [Evidence]) async -> [EpisodeID: CitedEpisode] {
+        let ids = Array(Set(evidence.map(\.episodeID)))
+        guard !ids.isEmpty, let titles = try? await store.titles(forEpisodes: ids) else { return [:] }
+        let stored = (try? await store.episodes(ids: ids)) ?? []
+        let artwork = Dictionary(stored.map { ($0.id, $0.artworkURL) }, uniquingKeysWith: { first, _ in first })
+        var result: [EpisodeID: CitedEpisode] = [:]
+        for (id, titles) in titles {
+            let sourceID = evidence.first { $0.episodeID == id }?.sourceID
+            let podcastArtwork = sources.first { $0.id == sourceID }?.artworkURL
+            result[id] = CitedEpisode(
+                podcast: titles.source, title: titles.episode, publishedAt: titles.publishedAt,
+                artworkURL: artwork[id].flatMap { $0 } ?? podcastArtwork)
+        }
+        return result
     }
 }

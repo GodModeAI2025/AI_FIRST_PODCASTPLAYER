@@ -4258,6 +4258,22 @@
         }
       }
     },
+    "Die App sucht im Transkript, also im mitgeschriebenen Text einer Folge. Folgen ohne Transkript kann sie nicht durchsuchen, auch wenn sie zum Thema passen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App sucht im Transkript, also im mitgeschriebenen Text einer Folge. Folgen ohne Transkript kann sie nicht durchsuchen, auch wenn sie zum Thema passen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app searches the transcript, the written text of an episode. It can't search episodes without a transcript, even if they fit the topic."
+          }
+        }
+      }
+    },
     "Die Audiodatei dieser Folge lässt sich nicht lesen. Das liegt meist an der Datei selbst, nicht an der App.": {
       "localizations": {
         "de": {
@@ -5219,6 +5235,22 @@
         }
       }
     },
+    "Ein Transkript erstellst du in der Folge mit „Transkript erstellen“. Für neue Folgen geht das von selbst, wenn in den Einstellungen „Transkripte für neue Folgen erstellen“ an ist.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Transkript erstellst du in der Folge mit „Transkript erstellen“. Für neue Folgen geht das von selbst, wenn in den Einstellungen „Transkripte für neue Folgen erstellen“ an ist."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To get one, open the episode and tap \"Create Transcript\". New episodes get one automatically when \"Create transcripts for new episodes\" is on in Settings."
+          }
+        }
+      }
+    },
     "Ein Zugang ohne Protokoll ist kein kontrollierter Zugang.": {
       "localizations": {
         "de": {
@@ -5631,6 +5663,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remove"
+          }
+        }
+      }
+    },
+    "Erklärt, warum nur Folgen mit Transkript durchsucht werden": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erklärt, warum nur Folgen mit Transkript durchsucht werden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explains why only episodes with a transcript were searched"
           }
         }
       }
@@ -12535,6 +12583,22 @@
         }
       }
     },
+    "Warum nur Folgen mit Transkript?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warum nur Folgen mit Transkript?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why Only Episodes with a Transcript?"
+          }
+        }
+      }
+    },
     "Was gelesen wurde": {
       "localizations": {
         "de": {
@@ -12787,6 +12851,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Which numbers and names are mentioned?"
+          }
+        }
+      }
+    },
+    "Weniger anzeigen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weniger anzeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Less"
           }
         }
       }
@@ -13717,6 +13797,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "^[%lld new episode](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld weitere Stelle](inflect: true) anzeigen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld weitere Stelle](inflect: true) anzeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show ^[%lld More Passage](inflect: true)"
           }
         }
       }
