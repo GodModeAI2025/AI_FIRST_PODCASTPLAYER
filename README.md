@@ -22,7 +22,7 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 | Themen-Updates | eine eigene Folge je Thema mit Kapiteln, Shownotes und Cover, gebaut aus Originalstellen |
 | Export | Folge mit Shownotes, Kapiteln, Fakten und Transkript; Chat-Antworten mit Belegen; gemerkte Stellen |
 | Abgleich | über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac |
-| Speicher | „Audio entfernen“ löscht nur den Ton, alle Daten bleiben; „Folge löschen“ löscht die Folge mit allen Daten |
+| Speicher | „Laden (offline)“ holt nur den Ton; „Audio entfernen“ löscht nur den Ton, alle Daten bleiben; „Folge löschen“ löscht die Folge mit allen Daten; nach dem Auswerten und einen Tag nach dem Hören räumt die App den Ton von selbst weg |
 
 Die jüngsten Folgen jeder Quelle bereitet die App von selbst vor. Das lässt sich in den Einstellungen abschalten.
 

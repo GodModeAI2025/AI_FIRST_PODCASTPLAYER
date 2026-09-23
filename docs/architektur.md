@@ -49,3 +49,5 @@ CloudKit kennt keine eindeutigen Schlüssel. Treffen zwei Geräte denselben Date
 | Quelle abbestellen | die Quelle mit allen Folgen und deren Daten | deine Notizen |
 
 Beides ist in `LibraryStore.removeEpisode`, `removeSource` und `markAudioRemoved` umgesetzt und durch Tests abgesichert.
+
+Den Ton räumt die App auch von selbst weg, beides in den Einstellungen abschaltbar und voreingestellt an: nach dem erfolgreichen Auswerten und einen Tag, nachdem eine Folge zu Ende gehört ist. Es ist derselbe Weg wie „Audio entfernen“, alle Daten bleiben. Was mit „Laden (offline)“ geholt wurde, bleibt nach dem Auswerten liegen. Eine Folge im Player wartet, bis sie dort nicht mehr liegt. Welche Folgen jemand aus der Warteschlange genommen oder für unterwegs geladen hat, merkt sich jedes Gerät in den Benutzereinstellungen, nicht in der Datenbank.

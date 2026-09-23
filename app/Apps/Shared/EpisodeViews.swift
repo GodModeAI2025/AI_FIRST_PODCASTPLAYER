@@ -77,6 +77,12 @@ struct EpisodeListView: View {
                             OpenEpisodeWebButton(episode: episode)
                                 .tint(.red)
                         }
+                        if canDownload(episode) {
+                            Button { Task { await model.downloadForOffline(episode) } } label: {
+                                Label("Laden (offline)", systemImage: "arrow.down.circle")
+                            }
+                            .tint(.green)
+                        }
                     }
                     .swipeActions(edge: .trailing) {
                         if model.canPlay(episode) {
@@ -120,6 +126,10 @@ struct EpisodeListView: View {
                             Button { Task { await model.removeAudio(for: episode) } } label: {
                                 Label("Audio entfernen, Daten behalten", systemImage: "arrow.down.circle.dotted")
                             }
+                        } else if canDownload(episode) {
+                            Button { Task { await model.downloadForOffline(episode) } } label: {
+                                Label("Laden (offline)", systemImage: "arrow.down.circle")
+                            }
                         }
                         Button(role: .destructive) { pendingDelete = episode } label: {
                             Label("Folge löschen", systemImage: "trash")
@@ -158,9 +168,12 @@ struct EpisodeListView: View {
     /// Liegt die Audiodatei auf dem Gerät? Liest Speicherzähler und Stufe
     /// mit, damit das Kontextmenü nach Laden oder Entfernen neu prüft.
     private func hasLocalAudio(_ episode: Episode) -> Bool {
-        _ = model.mediaStorageChanged
-        _ = model.stages[episode.id]
-        return episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) } != nil
+        model.hasLocalAudio(episode)
+    }
+
+    /// Nur laden, was eine Audiodatei hat, noch nicht da ist und nicht gerade lädt.
+    private func canDownload(_ episode: Episode) -> Bool {
+        episode.audioURL != nil && !model.downloading.contains(episode.id) && !model.hasLocalAudio(episode)
     }
 }
 
@@ -187,6 +200,14 @@ struct EpisodeRow: View {
                 }
                 if let duration = episode.declaredDuration {
                     Text(duration.shortDescription)
+                }
+                if model.downloading.contains(episode.id) {
+                    Label("lädt …", systemImage: "arrow.down.circle")
+                        .symbolEffect(.pulse)
+                } else if model.hasLocalAudio(episode) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .accessibilityLabel("auf dem Gerät")
+                        .help("Auf dem Gerät, spielt auch ohne Netz")
                 }
             }
             .font(.caption)

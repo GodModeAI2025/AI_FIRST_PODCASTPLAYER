@@ -72,8 +72,8 @@ struct AutomaticAnalysisSection: View {
                     get: { model.preparationOnWiFiOnly },
                     set: { model.preparationOnWiFiOnly = $0 }
                 ))
-                if model.preparationWaitsForWiFi {
-                    Label("Wartet auf WLAN", systemImage: "wifi.exclamationmark")
+                if let wait = model.preparationWait {
+                    Label(wait.settingsLabel, systemImage: wait.symbol)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -82,7 +82,8 @@ struct AutomaticAnalysisSection: View {
         } footer: {
             Text("Vorbereiten heisst: die Folge laden und mit Zeitmarken transkribieren. Erst dann finden "
                  + "„Für dich“, die Fragen und die Themen-Updates etwas darin. Ältere Folgen bereitest du "
-                 + "bei Bedarf einzeln vor. Was du selbst abspielst oder anforderst, lädt auch im Mobilfunk.")
+                 + "bei Bedarf einzeln vor. Was du selbst abspielst oder anforderst, lädt auch im Mobilfunk. "
+                 + "Im Datensparmodus bereitet die App nichts von selbst vor.")
         }
     }
 }
@@ -99,13 +100,22 @@ struct StorageSettingsSection: View {
             LabeledContent("Audiodateien auf diesem Gerät") {
                 Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
             }
+            Toggle("Audio nach dem Auswerten entfernen", isOn: Binding(
+                get: { model.removeAudioAfterAnalysis },
+                set: { model.removeAudioAfterAnalysis = $0 }
+            ))
+            Toggle("Gehörte Folgen nach einem Tag vom Gerät entfernen", isOn: Binding(
+                get: { model.removeHeardAudio },
+                set: { model.removeHeardAudio = $0 }
+            ))
             Button("Alle Audiodateien entfernen", role: .destructive) { confirm = true }
                 .disabled(bytes == 0)
         } header: {
             Text("Speicher")
         } footer: {
             Text("Audio entfernen löscht nur den Ton. Transkripte, Fakten, gemerkte Stellen und der "
-                 + "Hörstand bleiben, abgespielt wird dann aus dem Netz. Eine einzelne Folge löschst du "
+                 + "Hörstand bleiben, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ "
+                 + "holst, bleibt auch nach dem Auswerten auf dem Gerät. Eine einzelne Folge löschst du "
                  + "in der Folge selbst; dann verschwinden auch ihre Daten.")
         }
         .task(id: model.mediaStorageChanged) { bytes = LocalMediaLocator.storedBytes() }

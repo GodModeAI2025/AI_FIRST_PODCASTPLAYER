@@ -785,31 +785,123 @@ extension AppModel {
     /// Löscht nur die Audiodatei. Transkript, Fakten, Belege und Hörzustand
     /// bleiben, abspielen geht danach als Stream.
     public func removeAudio(for episode: Episode) async {
-        // Läuft die Folge gerade, geht es danach an derselben Stelle als Stream weiter.
-        let isCurrent = episodePlayer.episode?.id == episode.id
-        let wasPlaying = isCurrent && episodePlayer.isPlaying
-        let position = episodePlayer.currentTime
-        // `stop()` räumt den Schlaf-Timer ab. Der Stream soll ihn behalten.
-        let sleepTimer = episodePlayer.sleepTimer
-        let sleepRemaining = episodePlayer.sleepRemaining
-        if isCurrent { episodePlayer.stop() }
-        guard let ids = try? await store.mediaVersionIDs(forEpisode: episode.id) else { return }
-        LocalMediaLocator.removeFiles(for: ids)
-        try? await store.markAudioRemoved(ids)
-        mediaStorageChanged += 1
-        if wasPlaying {
-            playEpisode(episode, at: position)
-            if sleepTimer != nil, episodePlayer.episode?.id == episode.id {
-                episodePlayer.restoreSleepTimer(sleepTimer, remaining: sleepRemaining)
-            }
-        }
+        // Spielt die Folge gerade aus der Datei, geht sie an derselben Stelle
+        // als Stream weiter, laufend oder pausiert. Player, Kapitel und
+        // Schlaf-Timer bleiben.
+        if episodePlayer.episode?.id == episode.id { episodePlayer.switchToStream() }
+        keptOffline.remove(episode.id)
+        await deleteLocalAudio(of: episode)
     }
 
     /// Löscht alle geladenen Audiodateien. Alle Daten bleiben.
     public func removeAllAudio() async {
-        episodePlayer.stop()
+        // Nur eine Folge, die aus der Datei spielt, wechselt auf den Stream.
+        // Eine gestreamte läuft einfach weiter.
+        episodePlayer.switchToStream()
         let removed = LocalMediaLocator.removeAllFiles()
+        keptOffline.removeAll()
         try? await store.markAudioRemoved(removed)
+        mediaStorageChanged += 1
+    }
+
+    // MARK: - Audio auf dem Gerät
+
+    /// Die geladene Audiodatei einer Folge, sofern sie auf dem Gerät liegt.
+    public func localAudioFile(for episode: Episode) -> URL? {
+        let locator = LocalMediaLocator()
+        let ids = [episode.streamMediaVersionID].compactMap { $0 } + Self.localMediaIDs(of: [episode])
+        return ids.lazy.compactMap { locator.localFile(for: $0) }.first
+    }
+
+    /// Liegt das Audio auf dem Gerät? Liest den Speicherzähler und die Stufe
+    /// mit, damit Ansichten nach Laden, Auswerten oder Entfernen neu prüfen.
+    public func hasLocalAudio(_ episode: Episode) -> Bool {
+        _ = mediaStorageChanged
+        _ = stages[episode.id]
+        return localAudioFile(for: episode) != nil
+    }
+
+    /// Lädt nur das Audio, damit die Folge auch ohne Netz spielt. Transkribiert
+    /// wird dabei nichts. Von Hand angefordert, deshalb auch im Mobilfunk.
+    public func downloadForOffline(_ episode: Episode) async {
+        guard let audioURL = episode.audioURL, !downloading.contains(episode.id) else { return }
+        keptOffline.insert(episode.id)
+        downloading.insert(episode.id)
+        defer { downloading.remove(episode.id) }
+        let ticket = removalCount
+        do {
+            // Derselbe Name wie beim Auswerten: die Wiedergabe findet die Datei.
+            _ = try await MediaDownloader(directory: LocalMediaLocator.mediaDirectory)
+                .download(from: audioURL, mediaVersionID: MediaVersionID(stable: audioURL.absoluteString))
+            // Während des Ladens gelöscht: die Datei gehört zu keiner Folge mehr.
+            if wasRemoved(episode.id, since: ticket) {
+                LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
+                keptOffline.remove(episode.id)
+            }
+            mediaStorageChanged += 1
+        } catch {
+            // Hat das Auswerten dieselbe Datei gleichzeitig fertig geladen, ist sie da.
+            if localAudioFile(for: episode) != nil {
+                mediaStorageChanged += 1
+                return
+            }
+            keptOffline.remove(episode.id)
+            lastError = "„\(episode.title)“ wurde nicht geladen: \(UserFacingError.describe(error))"
+        }
+    }
+
+    /// Nach dem Auswerten bleibt nur der Text, wenn so eingestellt. Was für
+    /// unterwegs geladen ist, bleibt liegen. Liegt die Folge gerade im Player,
+    /// räumt `tidyLocalAudio()` sie später auf.
+    func removeAudioAfterAnalysisIfWanted(_ episode: Episode) async {
+        guard removeAudioAfterAnalysis, !keptOffline.contains(episode.id),
+              episodePlayer.episode?.id != episode.id else { return }
+        await deleteLocalAudio(of: episode)
+    }
+
+    /// Wie lange eine gehörte Folge noch auf dem Gerät bleibt.
+    static let heardAudioRetention: TimeInterval = 24 * 60 * 60
+
+    /// Entfernt Audiodateien, die nach den Einstellungen nicht mehr auf das
+    /// Gerät gehören: ausgewertete Folgen und Folgen, die seit einem Tag
+    /// gehört sind. Was im Player liegt oder gerade ausgewertet wird, bleibt.
+    public func tidyLocalAudio() async {
+        guard removeAudioAfterAnalysis || removeHeardAudio else { return }
+        let files = Set((try? FileManager.default.contentsOfDirectory(
+            atPath: LocalMediaLocator.mediaDirectory.path)) ?? [])
+        guard !files.isEmpty else { return }
+        var busy = Set(analysisQueue.map(\.id))
+        if let analyzing { busy.insert(analyzing.id) }
+        if let playing = episodePlayer.episode { busy.insert(playing.id) }
+        for episode in episodes.values.joined() where !busy.contains(episode.id) {
+            guard Self.localMediaIDs(of: [episode]).contains(where: { files.contains($0.rawValue) })
+            else { continue }
+            let analyzed = removeAudioAfterAnalysis && analyzedEpisodes.contains(episode.id)
+                && !keptOffline.contains(episode.id)
+            let heard = removeHeardAudio && wasHeardLongAgo(episode)
+            guard analyzed || heard else { continue }
+            keptOffline.remove(episode.id)
+            await deleteLocalAudio(of: episode)
+        }
+    }
+
+    /// Zu Ende gehört, und das letzte Hören liegt länger als einen Tag zurück.
+    private func wasHeardLongAgo(_ episode: Episode) -> Bool {
+        guard let id = episode.streamMediaVersionID,
+              let last = ledger.state(for: id).lastEventAt,
+              Date().timeIntervalSince(last) >= Self.heardAudioRetention else { return false }
+        // Hier zu Ende gehört steht die gemerkte Stelle auf 0.
+        return heardFraction(for: episode) >= 0.9 || episodePlayer.savedPosition(for: episode.id) == 0
+    }
+
+    /// Löscht die Audiodatei einer Folge und vermerkt das. Der Player bleibt
+    /// unberührt; das regeln die Aufrufer.
+    private func deleteLocalAudio(of episode: Episode) async {
+        var ids = Set(Self.localMediaIDs(of: [episode]))
+        if let stored = try? await store.mediaVersionIDs(forEpisode: episode.id) { ids.formUnion(stored) }
+        let list = Array(ids)
+        LocalMediaLocator.removeFiles(for: list)
+        try? await store.markAudioRemoved(list)
         mediaStorageChanged += 1
     }
 
@@ -952,4 +1044,42 @@ extension AppModel {
         case .smartFeed, .allAnalyzed: return false
         }
     }
+}
+
+/// Eine gemerkte Liste von Folgen in den Benutzereinstellungen, etwa was
+/// jemand aus der Warteschlange genommen oder für unterwegs geladen hat.
+/// Nur auf diesem Gerät. Die ältesten Einträge fallen ab einer Grenze weg.
+struct StoredEpisodeIDs {
+    let key: String
+    let limit: Int
+    private var ids: [EpisodeID]
+
+    init(key: String, limit: Int = 500) {
+        self.key = key
+        self.limit = limit
+        ids = (UserDefaults.standard.stringArray(forKey: key) ?? []).map(EpisodeID.init(rawValue:))
+    }
+
+    func contains(_ id: EpisodeID) -> Bool { ids.contains(id) }
+
+    mutating func insert(_ id: EpisodeID) {
+        ids.removeAll { $0 == id }
+        ids.append(id)
+        if ids.count > limit { ids.removeFirst(ids.count - limit) }
+        save()
+    }
+
+    mutating func remove(_ id: EpisodeID) {
+        guard ids.contains(id) else { return }
+        ids.removeAll { $0 == id }
+        save()
+    }
+
+    mutating func removeAll() {
+        guard !ids.isEmpty else { return }
+        ids.removeAll()
+        save()
+    }
+
+    private func save() { UserDefaults.standard.set(ids.map(\.rawValue), forKey: key) }
 }

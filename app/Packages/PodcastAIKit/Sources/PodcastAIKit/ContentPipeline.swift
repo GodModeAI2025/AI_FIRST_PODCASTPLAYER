@@ -145,7 +145,13 @@ public actor ContentPipeline {
         let mediaVersionID = MediaVersionID(stable: audioURL.absoluteString)
 
         onProgress(PipelineProgress(episodeID: episode.id, stage: .discovered))
-        let download = try await downloader.download(from: audioURL, mediaVersionID: mediaVersionID)
+        // Liegt die Datei schon da, wird sie nicht ein zweites Mal geladen.
+        let download: DownloadResult
+        if let existing = await downloader.existing(mediaVersionID: mediaVersionID) {
+            download = existing
+        } else {
+            download = try await downloader.download(from: audioURL, mediaVersionID: mediaVersionID)
+        }
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .mediaDownloaded,
             detail: download.duration?.shortDescription
