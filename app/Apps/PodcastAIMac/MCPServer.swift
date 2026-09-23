@@ -331,7 +331,7 @@ enum MCPHost {
             container = try LibraryStore.openPersistentContainer(sync: false)
         } catch {
             report(String(localized:
-                "Die Mediathek liess sich nicht öffnen. \(error.localizedDescription)"))
+                "Die Datenbank von PodcastAI liess sich nicht öffnen. \(error.localizedDescription)"))
             return 1
         }
         let access = MCPAccess(store: LibraryStore.make(container: container))

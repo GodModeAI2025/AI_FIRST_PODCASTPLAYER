@@ -41,10 +41,10 @@ public enum MCPTool: String, CaseIterable, Codable, Sendable {
     public var summary: String {
         switch self {
         case .listInterests: "Bestätigte Interessen lesen"
-        case .searchEvidence: "Im ausgewerteten Bestand suchen"
+        case .searchEvidence: "In den Transkripten suchen"
         case .getEvidence: "Eine Fundstelle mit Quelle und Timecode abrufen"
         case .listHighlights: "Gemerkte Stellen lesen"
-        case .listTrails: "Geparkte Wissenslandkarten lesen"
+        case .listTrails: "Gesicherte Antworten lesen"
         }
     }
 
