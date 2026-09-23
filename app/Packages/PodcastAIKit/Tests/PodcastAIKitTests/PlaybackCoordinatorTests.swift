@@ -94,5 +94,46 @@ struct PlaybackCoordinatorTests {
         #expect(playing)
         coordinator.stop()
     }
+
+    /// Merkt sich, was der Koordinator meldet.
+    private final class Recorder: PlaybackObserver {
+        var states: [PlaybackState] = []
+        var completed: [Int] = []
+        func playbackStateChanged(_ state: PlaybackState) { states.append(state) }
+        func playbackProgressed(segmentIndex: Int, position: MediaTime) {}
+        func segmentCompleted(segmentIndex: Int, heard: MediaTimeRange, mediaVersionID: MediaVersionID) {
+            completed.append(segmentIndex)
+        }
+        func willChangeSource(to segment: PlanSegment) {}
+    }
+
+    @Test("Nach einer Stelle folgt von selbst die nächste, jede genau einmal")
+    func nextSegmentFollowsOnItsOwn() async throws {
+        let url = try makeSilence(seconds: 12)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let recorder = Recorder()
+        let coordinator = PlaybackCoordinator(locator: FixedLocator(url: url), observer: recorder)
+        let segments = [(1.0, 2.5), (5.0, 6.5), (9.0, 10.5)].enumerated().map { index, bounds in
+            PlanSegment(
+                evidenceID: EvidenceID(rawValue: "e\(index)"),
+                mediaVersionID: MediaVersionID(rawValue: "m1"),
+                episodeID: EpisodeID(rawValue: "ep1"),
+                sourceID: SourceID(rawValue: "s1"),
+                range: MediaTimeRange(start: MediaTime(seconds: bounds.0), end: MediaTime(seconds: bounds.1)),
+                sourceTitle: "Quelle", episodeTitle: "Folge"
+            )
+        }
+        let plan = ValidatedPlaybackPlan(segments: segments, requestSummary: "Test", route: .smartFeedEpisode)
+        let grant = PlaybackPolicy(deviceID: "device").grantForUserTap(on: plan)
+
+        try coordinator.start(plan: plan, grant: grant, deviceID: "device")
+        let finished = await waitUntil(.seconds(15)) { coordinator.state == .finished }
+        #expect(finished)
+        // Jede Stelle hat wirklich gespielt, keine wurde durch ein doppelt
+        // gemeldetes Ende übersprungen.
+        #expect(recorder.states.contains(.playing(segmentIndex: 1)))
+        #expect(recorder.states.contains(.playing(segmentIndex: 2)))
+        #expect(recorder.completed == [0, 1, 2])
+    }
 }
 #endif

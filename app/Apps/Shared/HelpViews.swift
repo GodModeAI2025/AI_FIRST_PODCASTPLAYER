@@ -264,7 +264,7 @@ struct HelpView: View {
                     """, "translate")
                 tip("Fakten", "Aussagen aus der Folge, jede mit Zeitmarke zum Nachhören. Die App prüft sie nicht.", "checkmark.seal")
                 tip("Fragen und Chat", Self.askText, "text.bubble")
-                tip("Interessen", "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“.",
+                tip("Interessen", "Deine Themen, jedes mit eigenen Stichworten. Daraus entstehen „Für dich“ und die Themen-Updates.",
                     "target")
             } header: { Text("Fortgeschrittene: verstehen") }
 

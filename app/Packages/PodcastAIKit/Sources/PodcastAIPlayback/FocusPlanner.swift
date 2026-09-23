@@ -7,8 +7,9 @@
 //
 //  Reihenfolge der Prüfungen ist bewusst: erst Existenz und Scope, dann
 //  Rechte und Fassung, dann Zeitbezug, dann Kontext, dann Verschmelzen,
-//  zuletzt Budget. Wer das Budget vorzieht, kürzt Stellen weg, die später
-//  ohnehin ausgeschlossen worden wären.
+//  dann Budget. Wer das Budget vorzieht, kürzt Stellen weg, die später
+//  ohnehin ausgeschlossen worden wären. Erst ganz am Ende entsteht die
+//  Abspielfolge; das Budget soll nach Wichtigkeit kürzen, nicht nach Zeit.
 //
 
 import Foundation
@@ -107,11 +108,16 @@ public struct FocusPlanner: Sendable {
         let merged = mergeOverlapping(resolved)
 
         // 3. Budget anwenden — erst jetzt, wenn feststeht, was überhaupt übrig ist.
+        //    In der Reihenfolge des Vorschlags, damit das Wichtigste bleibt.
         let (kept, overBudget) = applyBudget(merged, options: options)
         excluded.append(contentsOf: overBudget)
 
-        // 4. In Abschnitte übersetzen.
-        let segments = kept.map { candidate in
+        // 4. Abspielfolge: Folgen in der Reihenfolge des Vorschlags, ihre
+        //    Stellen am Stück und in der Zeitfolge des Originals.
+        let ordered = playbackOrder(kept)
+
+        // 5. In Abschnitte übersetzen.
+        let segments = ordered.map { candidate in
             PlanSegment(
                 evidenceID: candidate.primaryEvidenceID,
                 mediaVersionID: candidate.mediaVersionID,
@@ -150,7 +156,8 @@ public struct FocusPlanner: Sendable {
         var range: MediaTimeRange
         var sourceTitle: String
         var episodeTitle: String
-        /// Reihenfolge im ursprünglichen Vorschlag — bestimmt die Abspielfolge.
+        /// Reihenfolge im ursprünglichen Vorschlag. Bestimmt, was ins Budget
+        /// kommt und welche Folge zuerst läuft.
         var proposalIndex: Int = 0
     }
 
@@ -271,6 +278,26 @@ public struct FocusPlanner: Sendable {
             $0.proposalIndex != $1.proposalIndex
                 ? $0.proposalIndex < $1.proposalIndex
                 : $0.range < $1.range
+        }
+    }
+
+    // MARK: - Abspielfolge
+
+    /// Eine Folge steht dort, wo ihre früheste Stelle im Vorschlag stand.
+    /// Ihre Stellen laufen danach am Stück und in der Zeitfolge der Folge,
+    /// statt darin vor und zurück zu springen.
+    private func playbackOrder(_ candidates: [ResolvedCandidate]) -> [ResolvedCandidate] {
+        var order: [EpisodeID] = []
+        var groups: [EpisodeID: [ResolvedCandidate]] = [:]
+        for candidate in candidates {
+            if groups[candidate.episodeID] == nil { order.append(candidate.episodeID) }
+            groups[candidate.episodeID, default: []].append(candidate)
+        }
+        return order.flatMap { key in
+            (groups[key] ?? []).sorted { lhs, rhs in
+                if lhs.range.start != rhs.range.start { return lhs.range.start < rhs.range.start }
+                return lhs.proposalIndex < rhs.proposalIndex
+            }
         }
     }
 

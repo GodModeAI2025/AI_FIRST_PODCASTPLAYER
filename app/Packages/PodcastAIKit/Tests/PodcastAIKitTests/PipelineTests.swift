@@ -39,11 +39,11 @@ struct FocusPlannerTests {
     }
 
     private func makeEvidence(_ name: String, _ start: Int64, _ end: Int64,
-                              media: String = "m1") -> Evidence {
+                              media: String = "m1", episode: String = "ep") -> Evidence {
         Evidence(
             id: EvidenceID(rawValue: name),
             mediaVersionID: MediaVersionID(rawValue: media),
-            episodeID: EpisodeID(rawValue: "ep"), sourceID: SourceID(rawValue: "s"),
+            episodeID: EpisodeID(rawValue: episode), sourceID: SourceID(rawValue: "s"),
             transcriptID: TranscriptID(rawValue: "t"), transcriptRevision: .initial,
             range: MediaTimeRange(start: MediaTime(milliseconds: start),
                                   end: MediaTime(milliseconds: end)),
@@ -72,6 +72,47 @@ struct FocusPlannerTests {
         )
         #expect(plan.segments.map(\.evidenceID.rawValue) == ["a", "b", "c"])
         #expect(plan.excluded.isEmpty)
+    }
+
+    @Test("Stellen einer Folge laufen in der Zeitfolge der Folge")
+    func keepsEpisodeTimeOrder() {
+        let evidence = [makeEvidence("spaet", 2_000_000, 2_100_000), makeEvidence("frueh", 100_000, 200_000)]
+        let plan = FocusPlanner(context: context(evidence)).plan(
+            from: PlaylistProposal(evidenceIDs: evidence.map(\.id), requestSummary: "x"),
+            route: .interestFocus,
+            options: FocusPlannerOptions(skipAlreadyHeard: false)
+        )
+        #expect(plan.segments.map(\.evidenceID.rawValue) == ["frueh", "spaet"])
+    }
+
+    @Test("Folgen in der Reihenfolge des Vorschlags, ihre Stellen am Stück")
+    func groupsSegmentsByEpisode() {
+        let evidence = [
+            makeEvidence("a2", 1_000_000, 1_100_000, media: "m1", episode: "a"),
+            makeEvidence("b1", 500_000, 600_000, media: "m2", episode: "b"),
+            makeEvidence("a1", 200_000, 300_000, media: "m1", episode: "a"),
+        ]
+        let plan = FocusPlanner(context: context(evidence)).plan(
+            from: PlaylistProposal(evidenceIDs: evidence.map(\.id), requestSummary: "x"),
+            route: .interestFocus,
+            options: FocusPlannerOptions(skipAlreadyHeard: false)
+        )
+        #expect(plan.segments.map(\.evidenceID.rawValue) == ["a1", "a2", "b1"])
+    }
+
+    @Test("Das Budget kürzt nach Vorschlag, nicht nach Zeitfolge")
+    func budgetFollowsProposalBeforeTimeOrder() {
+        // Beide Stellen passen nicht zusammen ins Budget. Die vorgeschlagene
+        // zuerst bleibt, auch wenn sie in der Folge später kommt.
+        let evidence = [makeEvidence("wichtig", 2_000_000, 2_300_000),
+                        makeEvidence("frueher", 100_000, 400_000)]
+        let plan = FocusPlanner(context: context(evidence)).plan(
+            from: PlaylistProposal(evidenceIDs: evidence.map(\.id), requestSummary: "x"),
+            route: .interestFocus,
+            options: FocusPlannerOptions(budget: MediaDuration(minutes: 6), skipAlreadyHeard: false,
+                                         minimumSegmentDuration: MediaDuration(minutes: 2))
+        )
+        #expect(plan.segments.map(\.evidenceID.rawValue) == ["wichtig"])
     }
 
     @Test("Zwei nahe Stellen verschmelzen zu einer")
@@ -371,6 +412,107 @@ struct SmartFeedEditionTests {
         let untouched = publisher.removingSegments(from: episode, where: { _ in false })
         #expect(untouched == episode)
         #expect(publisher.removingSegments(from: episode, where: { _ in true }) == nil)
+    }
+
+    // MARK: Kapitel und Abspielfolge
+
+    private func chapters(_ starts: [Int64], duration: Int64?) -> EpisodeChapters {
+        EpisodeChapters(
+            chapters: starts.map {
+                Chapter(start: MediaTime(milliseconds: $0), title: "Kapitel", provenance: .original)
+            },
+            duration: duration.map { MediaDuration(milliseconds: $0) }
+        )
+    }
+
+    private func edition(
+        _ candidates: [SegmentCandidate], chapters: [EpisodeID: EpisodeChapters] = [:]
+    ) -> PersonalEpisode? {
+        guard case .published(let episode) = PersonalEpisodePublisher().makeEdition(
+            feed: automaticFeed, candidates: candidates, ledger: ListeningLedger(),
+            chapters: chapters, requestedByUser: true
+        ) else { return nil }
+        return episode
+    }
+
+    private func range(_ start: Int64, _ end: Int64) -> MediaTimeRange {
+        MediaTimeRange(start: MediaTime(milliseconds: start), end: MediaTime(milliseconds: end))
+    }
+
+    @Test("Eine Stelle in einem Kapitel bringt das ganze Kapitel, ohne Vorlauf")
+    func snapsToChapter() throws {
+        let episode = try #require(edition(
+            [candidate("a", media: "m1", 300_000, 360_000)],
+            chapters: [EpisodeID(rawValue: "ep-m1"): chapters([0, 240_000, 600_000], duration: 900_000)]
+        ))
+        #expect(episode.segments.count == 1)
+        #expect(episode.segments[0].coreRange == range(240_000, 600_000))
+        #expect(episode.segments[0].playbackRange == range(240_000, 600_000))
+        #expect(!episode.segments[0].contextReplay)
+    }
+
+    @Test("Das letzte Kapitel reicht bis zum Ende der Folge")
+    func lastChapterEndsWithEpisode() throws {
+        let marks = [EpisodeID(rawValue: "ep-m1"): chapters([0, 240_000], duration: 500_000)]
+        let episode = try #require(edition([candidate("a", media: "m1", 300_000, 360_000)], chapters: marks))
+        #expect(episode.segments[0].coreRange == range(240_000, 500_000))
+
+        // Ohne bekannte Länge hat das letzte Kapitel kein Ende. Dann bleibt es bei der Stelle.
+        let open = [EpisodeID(rawValue: "ep-m1"): chapters([0, 240_000], duration: nil)]
+        let fallback = try #require(edition([candidate("a", media: "m1", 300_000, 360_000)], chapters: open))
+        #expect(fallback.segments[0].coreRange == range(300_000, 360_000))
+    }
+
+    @Test("Ein zu langes Kapitel wird nicht gespielt, dann bleibt es bei der Stelle")
+    func longChapterKeepsPassage() throws {
+        let episode = try #require(edition(
+            [candidate("a", media: "m1", 300_000, 360_000)],
+            chapters: [EpisodeID(rawValue: "ep-m1"): chapters([0, 1_200_000], duration: 3_600_000)]
+        ))
+        #expect(episode.segments[0].coreRange == range(300_000, 360_000))
+        // Der übliche Vorlauf von sechs Sekunden.
+        #expect(episode.segments[0].playbackRange == range(294_000, 360_000))
+
+        let without = try #require(edition([candidate("a", media: "m1", 300_000, 360_000)]))
+        #expect(without.segments[0].coreRange == range(300_000, 360_000))
+    }
+
+    @Test("Zwei Stellen im selben Kapitel ergeben einen Abschnitt mit beiden Belegen")
+    func passagesInOneChapterShareASegment() throws {
+        let episode = try #require(edition(
+            [candidate("a", media: "m1", 300_000, 360_000, score: 0.5),
+             candidate("b", media: "m1", 420_000, 480_000, score: 0.9)],
+            chapters: [EpisodeID(rawValue: "ep-m1"): chapters([0, 240_000, 600_000], duration: 900_000)]
+        ))
+        #expect(episode.segments.count == 1)
+        #expect(Set(episode.segments[0].evidenceIDs.map(\.rawValue)) == ["a", "b"])
+        // Der relevantere Beleg trägt den Abschnitt.
+        #expect(episode.segments[0].evidenceIDs.first?.rawValue == "b")
+    }
+
+    @Test("Stellen einer Folge laufen in der Zeitfolge der Folge")
+    func segmentsOfAnEpisodeKeepTimeOrder() throws {
+        let episode = try #require(edition([
+            candidate("spaet", media: "m1", 700_000, 760_000, score: 0.9),
+            candidate("frueh", media: "m1", 100_000, 160_000, score: 0.5),
+        ]))
+        #expect(episode.segments.map(\.coreRange.start.milliseconds) == [100_000, 700_000])
+        #expect(episode.segments.map { $0.evidenceIDs.first?.rawValue } == ["frueh", "spaet"])
+        // Die Zeitachse der Ausgabe folgt der Abspielfolge.
+        #expect(episode.segments[0].virtualRange.start == .zero)
+        #expect(episode.segments[1].virtualRange.start > episode.segments[0].virtualRange.end)
+    }
+
+    @Test("Folgen nach Relevanz, ihre Stellen am Stück")
+    func episodesByRelevanceSegmentsConsecutive() throws {
+        let episode = try #require(edition([
+            candidate("a1", media: "m1", 100_000, 160_000, score: 0.6),
+            candidate("a2", media: "m1", 700_000, 760_000, score: 0.5),
+            candidate("b2", media: "m2", 500_000, 560_000, score: 0.9),
+            candidate("b1", media: "m2", 50_000, 110_000, score: 0.4),
+        ]))
+        #expect(episode.segments.map { $0.evidenceIDs.first?.rawValue } == ["b1", "b2", "a1", "a2"])
+        #expect(episode.segments.map(\.episodeID.rawValue) == ["ep-m2", "ep-m2", "ep-m1", "ep-m1"])
     }
 
     @Test("Gehört zählt nur das Neue, nicht den Kontextvorlauf")
