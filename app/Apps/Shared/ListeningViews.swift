@@ -194,6 +194,18 @@ struct EpisodeDetailView: View {
                 }
             }
 
+            let episodeNotes = model.notes(for: episode.id)
+            if !episodeNotes.isEmpty {
+                SwiftUI.Section("Deine Notizen") {
+                    ForEach(episodeNotes) { note in
+                        Button { Task { await model.playHighlight(note) } } label: {
+                            NoteRow(highlight: note, showsEpisode: false).contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
             if !chapters.isEmpty {
                 SwiftUI.Section("Kapitel") {
                     ForEach(Array(chapters.prefix(4).enumerated()), id: \.offset) { _, chapter in
@@ -570,6 +582,9 @@ struct EpisodePlayerView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var scrubbing: Double?
+    @State private var showingNote = false
+    @State private var noteText = ""
+    @State private var notePosition: Double = 0
 
     private var player: EpisodePlayer { model.episodePlayer }
 
@@ -608,6 +623,18 @@ struct EpisodePlayerView: View {
                         }
                         scrubber
                         transport
+                        Button {
+                            notePosition = player.currentTime
+                            noteText = ""
+                            showingNote = true
+                        } label: {
+                            Label("Moment merken", systemImage: "bookmark")
+                                .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .accessibilityIdentifier("player.note")
+                        .accessibilityHint("Merkt die aktuelle Stelle, auf Wunsch mit Kommentar")
                         HStack(spacing: Design.Spacing.control) {
                             rateMenu
                             sleepMenu
@@ -620,6 +647,12 @@ struct EpisodePlayerView: View {
                     .padding(.horizontal)
                 }
                 .navigationTitle("Jetzt läuft")
+                .sheet(isPresented: $showingNote) {
+                    NoteSheet(position: notePosition, text: $noteText) {
+                        Task { await model.addNote(noteText, at: notePosition, in: episode) }
+                    }
+                    .presentationDetents([.medium])
+                }
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
@@ -1061,3 +1094,74 @@ struct RoutePickerButton: NSViewRepresentable {
     func updateNSView(_ nsView: AVRoutePickerView, context: Context) {}
 }
 #endif
+
+// MARK: - Notizen
+
+/// Kommentar zu einem Moment. Die Stelle ist schon gemerkt, der Text ist freiwillig.
+struct NoteSheet: View {
+    let position: Double
+    @Binding var text: String
+    let save: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Was ist dir hier wichtig? (freiwillig)", text: $text, axis: .vertical)
+                        .lineLimit(3...8)
+                        .accessibilityIdentifier("note.text")
+                } header: {
+                    Text("Moment bei \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
+                } footer: {
+                    Text("Die Notiz hängt an dieser Stelle. Du findest sie in der Folge und unter Wissen › Gemerkte Stellen. Sie bleibt auch, wenn du die Folge löschst.")
+                }
+            }
+            .navigationTitle("Moment merken")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Merken") { save(); dismiss() }
+                        .accessibilityIdentifier("note.save")
+                }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Abbrechen") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// Eine gemerkte Stelle mit Kommentar, Zitat und Herkunft.
+struct NoteRow: View {
+    let highlight: Highlight
+    var showsEpisode = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+            if let note = highlight.note {
+                Text(note).font(.body)
+            }
+            if let quote = highlight.quote {
+                Text("„\(quote)“")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(4)
+            }
+            HStack(spacing: Design.Spacing.micro) {
+                Image(systemName: "bookmark.fill").foregroundStyle(.tint)
+                if let ms = highlight.positionMs {
+                    TimecodeLabel(MediaTime(milliseconds: Int64(ms)))
+                }
+                if showsEpisode, let title = highlight.episodeTitle {
+                    Text("· \(title)").lineLimit(1)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, Design.Spacing.micro)
+    }
+}

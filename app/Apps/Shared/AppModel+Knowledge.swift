@@ -452,6 +452,63 @@ extension AppModel {
         playEpisode(episode, at: seconds)
     }
 
+    // MARK: - Notizen an der Abspielposition
+
+    /// Merkt einen Moment der laufenden Folge, mit optionalem Kommentar. Das
+    /// Zitat kommt aus dem Transkript, wenn es eines gibt, und wird mit
+    /// Folgen- und Quellentitel kopiert. So bleibt die Notiz auch nach dem
+    /// Löschen der Folge lesbar.
+    @discardableResult
+    public func addNote(_ note: String?, at seconds: Double, in episode: Episode) async -> Highlight? {
+        guard let media = episode.streamMediaVersionID else { return nil }
+        let position = MediaTime(milliseconds: Int64(max(0, seconds) * 1000))
+        let range = HighlightCapture().range(around: position, limit: nil)
+        var quote: String?
+        if let transcript = await transcript(for: episode) {
+            let text = transcript.segments
+                .filter { $0.range.end.milliseconds > range.start.milliseconds
+                    && $0.range.start.milliseconds < range.end.milliseconds }
+                .map(\.text).joined(separator: " ")
+            if !text.isEmpty { quote = String(text.prefix(700)) }
+        }
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let highlight = Highlight(
+            evidenceID: Evidence.stableID(mediaVersionID: media, transcriptRevision: .initial, range: range),
+            note: (trimmed?.isEmpty ?? true) ? nil : trimmed,
+            capturedVia: .player, mediaVersionID: media, quote: quote, episodeID: episode.id,
+            episodeTitle: episode.title,
+            sourceTitle: sources.first { $0.id == episode.sourceID }?.title,
+            positionMs: Int(position.milliseconds))
+        highlights.insert(highlight, at: 0)
+        saveHighlights()
+        return highlight
+    }
+
+    public func updateNote(_ id: HighlightID, text: String?) {
+        guard let index = highlights.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        highlights[index].note = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        saveHighlights()
+    }
+
+    public func removeHighlight(_ id: HighlightID) {
+        highlights.removeAll { $0.id == id }
+        saveHighlights()
+    }
+
+    /// Spielt die Stelle einer Notiz, solange ihre Folge noch da ist.
+    public func playHighlight(_ highlight: Highlight) async {
+        guard let episodeID = highlight.episodeID,
+              let episode = (try? await store.episodes(ids: [episodeID]))?.first else { return }
+        let seconds = Double(highlight.positionMs ?? 0) / 1000
+        playEpisode(episode, at: max(0, seconds - 5))
+    }
+
+    /// Notizen einer Folge, neueste zuerst.
+    public func notes(for episodeID: EpisodeID) -> [Highlight] {
+        highlights.filter { $0.episodeID == episodeID }
+    }
+
     // MARK: - Fakten
 
     /// Ermittelt die Fakten einer Folge aus ihren Belegen und speichert sie.
@@ -847,10 +904,7 @@ extension AppModel {
         }
         episodePlayer.forgetPositions(for: report.episodeIDs)
         let removedEvidence = Set(report.evidenceIDs)
-        let removedHighlights = Set(report.highlightIDs)
-        highlights.removeAll {
-            removedEvidence.contains($0.evidenceID) || removedHighlights.contains($0.id.rawValue)
-        }
+        // Gemerkte Stellen bleiben als eigenes Wissen erhalten.
         pruneChatAnswers(removedEpisodes: Set(report.episodeIDs), removedEvidence: removedEvidence)
         reindexSpotlight()
         mediaStorageChanged += 1

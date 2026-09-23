@@ -252,6 +252,8 @@ struct KnowledgeView: View {
 
     @Environment(AppModel.self) private var model
     @State private var exported: String?
+    @State private var editing: Highlight?
+    @State private var editText = ""
 
     var body: some View {
         List {
@@ -259,22 +261,41 @@ struct KnowledgeView: View {
                 ContentUnavailableView {
                     Label("Noch nichts gemerkt", systemImage: "bookmark")
                 } description: {
-                    Text("Während des Hörens kannst du eine Stelle merken — mit Quelle, "
-                         + "Timecode und Originaltext.")
+                    Text("Tippe beim Hören im Player auf „Moment merken“. Die Stelle wird mit Zeitmarke, "
+                         + "Zitat und deinem Kommentar gespeichert.")
                 }
             }
             ForEach(model.highlights) { highlight in
-                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                    if let note = highlight.note {
-                        Text(note).font(.body)
+                Button { Task { await model.playHighlight(highlight) } } label: {
+                    NoteRow(highlight: highlight).contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .swipeActions {
+                    Button(role: .destructive) { model.removeHighlight(highlight.id) } label: {
+                        Label("Löschen", systemImage: "trash")
                     }
-                    Text("gemerkt \(highlight.capturedVia.label)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    Button { editing = highlight; editText = highlight.note ?? "" } label: {
+                        Label("Kommentar", systemImage: "square.and.pencil")
+                    }
+                    .tint(.indigo)
+                }
+                .contextMenu {
+                    Button { editing = highlight; editText = highlight.note ?? "" } label: {
+                        Label("Kommentar bearbeiten", systemImage: "square.and.pencil")
+                    }
+                    Button(role: .destructive) { model.removeHighlight(highlight.id) } label: {
+                        Label("Löschen", systemImage: "trash")
+                    }
                 }
             }
         }
-        .navigationTitle("Wissen")
+        .navigationTitle("Gemerkte Stellen")
+        .sheet(item: $editing) { highlight in
+            NoteSheet(position: Double(highlight.positionMs ?? 0) / 1000, text: $editText) {
+                model.updateNote(highlight.id, text: editText)
+            }
+            .presentationDetents([.medium])
+        }
         .toolbar {
             if !model.highlights.isEmpty {
                 Button {

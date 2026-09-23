@@ -160,20 +160,22 @@ struct PassageRankerTests {
 
 @Suite("Gemerkte Stellen aus dem Player")
 struct PlayerHighlightRemovalTests {
-    @Test("Eine aus dem Player gemerkte Stelle geht mit ihrer Folge")
-    func playerHighlightIsRemovedWithEpisode() async throws {
+    @Test("Eine gemerkte Stelle bleibt, wenn die Folge gelöscht wird")
+    func noteSurvivesEpisodeRemoval() async throws {
         let base = RemovalAndSyncTests()
         let store = try await base.seededStore()
-        // Beim Merken aus dem Player entsteht ein Beleg-Schlüssel ohne gespeicherten Beleg.
+        // Notizen sind eigenes Wissen. Sie tragen Zitat und Herkunft selbst.
         let highlight = Highlight(evidenceID: EvidenceID(stable: "nicht-gespeichert"), note: "merken",
-                                  capturedVia: .player, mediaVersionID: base.mediaID)
-        let unrelated = Highlight(evidenceID: EvidenceID(stable: "anderswo"), note: "bleibt",
-                                  capturedVia: .player, mediaVersionID: MediaVersionID(stable: "andere"))
-        try await store.save(highlights: [highlight, unrelated])
+                                  capturedVia: .player, mediaVersionID: base.mediaID,
+                                  quote: "Ein Satz aus der Folge", episodeID: base.episodeID,
+                                  episodeTitle: "Folge", sourceTitle: "Quelle", positionMs: 12_000)
+        try await store.save(highlights: [highlight])
         let report = try await store.removeEpisode(base.episodeID)
-        #expect(report.highlightIDs.contains(highlight.id.rawValue))
+        #expect(report.highlightIDs.isEmpty)
         let left = try await store.highlights()
-        #expect(left.map(\.id) == [unrelated.id])
+        #expect(left.map(\.id) == [highlight.id])
+        #expect(left.first?.quote == "Ein Satz aus der Folge")
+        #expect(left.first?.positionMs == 12_000)
     }
 }
 

@@ -1042,13 +1042,9 @@ public actor LibraryStore {
             FetchDescriptor<StoredFact>(predicate: #Predicate { $0.episodeIdentifier == key })) {
             modelContext.delete(fact)
         }
-        if !evidenceKeys.isEmpty {
-            for highlight in try modelContext.fetch(FetchDescriptor<StoredHighlight>())
-            where evidenceKeys.contains(highlight.evidenceIdentifier) {
-                report.highlightIDs.append(highlight.identifier)
-                modelContext.delete(highlight)
-            }
-        }
+        // Gemerkte Stellen und Notizen bleiben. Sie sind eigenes Wissen und
+        // tragen Zitat und Titel als Kopie, verlieren also nur den Sprung in
+        // den Originalton.
         // Hörzustand aller Geräte und im alten Format. Der Schlüssel beginnt
         // mit der Fassung, das Gerät steht dahinter.
         // Gefiltert in der Datenbank, nicht über die ganze Tabelle.
@@ -1080,17 +1076,6 @@ public actor LibraryStore {
                 || mediaKeys.contains { !$0.isEmpty
                     && Self.transcriptKey(media: $0, locale: transcript.locale) == transcript.identifier }
             if belongs { modelContext.delete(transcript) }
-        }
-        // Aus dem Player gemerkte Stellen haben keinen gespeicherten Beleg.
-        // Sie hängen über ihre Medienfassung an der Folge.
-        let deletedHighlights = Set(report.highlightIDs)
-        for highlight in try modelContext.fetch(FetchDescriptor<StoredHighlight>())
-        where !deletedHighlights.contains(highlight.identifier) {
-            guard let payload = highlight.payload,
-                  let decoded = try? Self.decoder.decode(Highlight.self, from: payload),
-                  let media = decoded.mediaVersionID, mediaKeys.contains(media.rawValue) else { continue }
-            report.highlightIDs.append(highlight.identifier)
-            modelContext.delete(highlight)
         }
         report.mediaVersionIDs += mediaKeys.filter { !$0.isEmpty }.sorted().map(MediaVersionID.init(rawValue:))
     }

@@ -30,6 +30,14 @@ public struct Highlight: Sendable, Identifiable, Hashable, Codable {
     /// Player gibt es keinen gespeicherten Beleg; über die Fassung wird die
     /// Stelle trotzdem mit ihrer Folge gelöscht. Ältere Einträge haben sie nicht.
     public var mediaVersionID: MediaVersionID?
+    /// Was zur Stelle gehört, als Kopie. So bleibt die Notiz verständlich,
+    /// auch wenn die Folge samt Transkript gelöscht ist.
+    public var quote: String?
+    public var episodeID: EpisodeID?
+    public var episodeTitle: String?
+    public var sourceTitle: String?
+    /// Die Abspielposition beim Merken, in Millisekunden.
+    public var positionMs: Int?
 
     public enum CaptureRoute: String, Sendable, Codable {
         case player
@@ -50,11 +58,15 @@ public struct Highlight: Sendable, Identifiable, Hashable, Codable {
     public init(
         id: HighlightID = HighlightID(), evidenceID: EvidenceID, note: String? = nil,
         interestIDs: [InterestID] = [], capturedAt: Date = Date(),
-        capturedVia: CaptureRoute = .player, mediaVersionID: MediaVersionID? = nil
+        capturedVia: CaptureRoute = .player, mediaVersionID: MediaVersionID? = nil,
+        quote: String? = nil, episodeID: EpisodeID? = nil, episodeTitle: String? = nil,
+        sourceTitle: String? = nil, positionMs: Int? = nil
     ) {
         self.id = id; self.evidenceID = evidenceID; self.note = note
         self.interestIDs = interestIDs; self.capturedAt = capturedAt
         self.capturedVia = capturedVia; self.mediaVersionID = mediaVersionID
+        self.quote = quote; self.episodeID = episodeID; self.episodeTitle = episodeTitle
+        self.sourceTitle = sourceTitle; self.positionMs = positionMs
     }
 }
 

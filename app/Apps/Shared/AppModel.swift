@@ -732,6 +732,8 @@ public final class AppModel {
         Task { await persist { try await $0.save(editions: list, forFeed: feedID) } }
     }
 
+    func saveHighlights() { persistHighlights() }
+
     private func persistHighlights() {
         let list = highlights
         Task { await persist { try await $0.save(highlights: list) } }
@@ -998,7 +1000,10 @@ public final class AppModel {
 
         let exporter = MarkdownExporter()
         return highlights.compactMap { highlight -> String? in
-            guard let evidence = found[highlight.evidenceID] else { return nil }
+            guard let evidence = found[highlight.evidenceID] else {
+                // Notiz aus dem Player oder Folge gelöscht: Kopie statt Beleg.
+                return Self.snapshotMarkdown(highlight)
+            }
             let claim = Claim(
                 id: ClaimID(stable: highlight.id.rawValue),
                 statement: highlight.note ?? "Gemerkte Stelle",
@@ -1347,6 +1352,19 @@ extension AppModel: PlaybackObserver {
     /// sie deshalb nicht auf ein anderes Gerät mit. In den Einstellungen
     /// würde sie mitreisen, und zwei Geräte schrieben dann in dieselbe
     /// Hörstand-Zeile, von der CloudKit nur die letzte Änderung behält.
+    /// Eine Notiz ohne gespeicherten Beleg als Markdown, aus ihrer Kopie.
+    static func snapshotMarkdown(_ highlight: Highlight) -> String {
+        var lines = ["## " + (highlight.note ?? "Gemerkte Stelle")]
+        var meta: [String] = []
+        if let episode = highlight.episodeTitle { meta.append(episode) }
+        if let source = highlight.sourceTitle { meta.append(source) }
+        if let ms = highlight.positionMs { meta.append(MediaTime(milliseconds: Int64(ms)).timecode) }
+        meta.append(highlight.capturedAt.formatted(date: .abbreviated, time: .shortened))
+        lines.append("*" + meta.joined(separator: " · ") + "*")
+        if let quote = highlight.quote { lines.append("> " + quote) }
+        return lines.joined(separator: "\n\n")
+    }
+
     public static func currentDeviceID() -> String {
         let service = "com.godmodeai.podcastai.device"
         let query: [String: Any] = [
