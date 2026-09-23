@@ -87,6 +87,46 @@ struct MentionTests {
         #expect(when.date == date(2026, 10, 12, 18))
         #expect(found.contains { $0.kind == .address && $0.display.contains("Infinite Loop") })
         #expect(found.contains { $0.kind == .phone && $0.normalized == "4089961010" })
+        // „CA“ gehört zur Adresse und ist keine Organisation.
+        #expect(!found.contains { $0.kind.isName && $0.display == "CA" })
+    }
+
+    @Test("Link hinter einer Beschriftung mit der Domain behält Pfad und https")
+    func anchorLabelNamingHost() throws {
+        let html = """
+            <p>Bericht auf <a href="https://www.heise.de/news/KI-Gesetz-9876543.html">heise.de</a>.</p>
+            <p><a href="https://arxiv.org/abs/2401.00001">Studie auf arxiv.org</a></p>
+            <p>Kurz: <a href="https://example.org/sehr/langer/pfad/zum/artikel">https://example.org/sehr/langer/pa…</a></p>
+            <p>Startseite: <a href="https://www.spiegel.de/">spiegel.de</a></p>
+            """
+        let links = extract(shownotes: html).filter { $0.kind == .link }
+        #expect(links.map(\.normalized) == [
+            "heise.de/news/ki-gesetz-9876543.html", "arxiv.org/abs/2401.00001",
+            "example.org/sehr/langer/pfad/zum/artikel", "spiegel.de",
+        ])
+        let heise = try #require(links.first)
+        #expect(heise.url?.absoluteString == "https://www.heise.de/news/KI-Gesetz-9876543.html")
+        #expect(links.allSatisfy { $0.url?.scheme == "https" })
+    }
+
+    @Test("Links mit anderer Kennung in der Anfrage bleiben getrennt, Tracking fällt weg")
+    func linkQueries() throws {
+        let html = """
+            <p><a href="https://www.youtube.com/watch?v=AAA111&utm_source=feed">Video 1</a>
+            <a href="https://www.youtube.com/watch?v=BBB222&si=xyz">Video 2</a>
+            <a href="https://news.ycombinator.com/item?id=1">HN 1</a>
+            <a href="https://news.ycombinator.com/item?id=2">HN 2</a>
+            <a href="https://www.youtube.com/watch?v=AAA111">Video 1 noch einmal</a></p>
+            """
+        let links = extract(shownotes: html).filter { $0.kind == .link }
+        #expect(links.map(\.normalized) == [
+            "youtube.com/watch?v=AAA111", "youtube.com/watch?v=BBB222",
+            "news.ycombinator.com/item?id=1", "news.ycombinator.com/item?id=2",
+        ])
+        #expect(links.map(\.display).contains("youtube.com/watch?v=BBB222"))
+        #expect(links.first?.occurrences.count == 2)
+        let tracked = try #require(URL(string: "https://example.org/a/?utm_medium=x&fbclid=1"))
+        #expect(MentionExtractor.linkKey(tracked)?.key == "example.org/a")
     }
 
     // MARK: - Gesprochene Webadressen
@@ -110,10 +150,21 @@ struct MentionTests {
             "Er kam auf den Punkt at the end.",
             "Zwei Punkt null ist die neue Version.",
             "Das war der Punkt. De facto ging es weiter.",
+            "Bei der Regulierung ist das ein wichtiger Punkt de facto entscheidend.",
+            "Bei uns ist das ein wichtiger Punkt es geht um Vertrauen.",
+            "Unter anderem ist das ein wichtiger Punkt de facto.",
+            "Es geht darum, das ist ein wichtiger Punkt de facto.",
         ]
         for sentence in sentences {
             #expect(MentionExtractor.spokenWebAddresses(in: sentence).isEmpty, "\(sentence)")
         }
+    }
+
+    @Test("Kleine Wörter zählen nur direkt vor der Adresse")
+    func spokenAddressAdjacentCue() {
+        let found = MentionExtractor.spokenWebAddresses(
+            in: "Mehr dazu auf beispiel punkt de. Head over to example dot com.").map { $0.host + $0.path }
+        #expect(found == ["beispiel.de", "example.com"])
     }
 
     @Test("Gesprochener Link im Transkript trägt die Zeitmarke seines Satzes")
@@ -162,8 +213,81 @@ struct MentionTests {
             "Heute sprechen wir über Datenschutz.",
             "Am Montag war ich müde, und morgen geht es weiter.",
             "Um 18 Uhr ist Feierabend.",
+            "Der Support ist 24/7 erreichbar.",
+            "Das Verhältnis war etwa 3/4 zu eins.",
         ], published: date(2026, 3, 1))
         #expect(!found.contains { $0.kind == .date })
+        let english = extract(lines: ["We're open 24/7 for you."], language: "en_US", published: date(2026, 3, 1))
+        #expect(!english.contains { $0.kind == .date })
+    }
+
+    @Test("Kapitelmarken, „24/7“ und „jeden Freitag“ in den Shownotes sind kein Termin")
+    func shownotesNoiseDates() {
+        let notes = [
+            "<p>Kapitel:<br>00:00 Intro<br>03:15 News<br>12:40 Interview mit Anna<br>1:02:30 Verabschiedung</p>",
+            "(00:00) Begrüßung\n(05:30) Thema der Woche\n(41:10) Ausblick",
+            "<p>Neue Folgen jeden Freitag.</p>",
+            "New episodes every Friday at 6pm.",
+            "Unser Support ist 24/7 für euch da.",
+        ]
+        for text in notes {
+            let found = extract(shownotes: text, published: date(2026, 3, 1))
+            #expect(!found.contains { $0.kind == .date }, "\(text)")
+        }
+    }
+
+    @Test("Wochentag in den Shownotes meint den nächsten nach dem Erscheinen")
+    func weekdayInShownotes() throws {
+        // Der 1. März 2026 ist ein Sonntag.
+        let found = extract(shownotes: "Live am Dienstag um 20 Uhr.", published: date(2026, 3, 1, 9))
+        let when = try #require(found.first { $0.kind == .date })
+        #expect(when.date == date(2026, 3, 3, 20))
+        #expect(when.isVague)
+    }
+
+    @Test("Englische Ordnungszahlen behalten ihren Tag")
+    func englishOrdinals() throws {
+        let published = date(2026, 2, 1)
+        let november = try #require(extract(shownotes: "Join us on November 12th, 2026 at 7pm.", language: "en_US",
+                                            published: published).first { $0.kind == .date })
+        #expect(november.date == date(2026, 11, 12, 19))
+        #expect(!november.isVague)
+
+        let march = try #require(extract(shownotes: "Live show on March 3rd.", language: "en_US",
+                                         published: published).first { $0.kind == .date })
+        #expect(march.date == date(2026, 3, 3))
+        #expect(march.isVague)
+
+        let may = try #require(extract(lines: ["We meet on the 5th of May 2026."], language: "en_US",
+                                       published: published).first { $0.kind == .date })
+        #expect(may.date == date(2026, 5, 5))
+        #expect(!may.isVague)
+
+        let june = try #require(extract(lines: ["See you on June 21st."], language: "en_US",
+                                        published: published).first { $0.kind == .date })
+        #expect(june.date == date(2026, 6, 21))
+    }
+
+    @Test("ISO-Daten und Daten mit Bindestrich werden Termine")
+    func isoDates() throws {
+        let found = extract(shownotes: "Termin: 2026-11-12, Anmeldung bis 2026-10-01.", published: date(2026, 9, 1))
+        let dates = found.filter { $0.kind == .date }
+        #expect(dates.map(\.date) == [date(2026, 10, 1), date(2026, 11, 12)])
+        #expect(dates.allSatisfy { !$0.isVague })
+
+        let hyphen = try #require(extract(shownotes: "Anmeldeschluss: 12-11-2026", published: date(2026, 9, 1))
+            .first { $0.kind == .date })
+        #expect(hyphen.date == date(2026, 11, 12))
+        #expect(!hyphen.isVague)
+    }
+
+    @Test("„bis 12. November“ meint den 12. November, nicht heute")
+    func untilDate() throws {
+        for notes in ["Anmeldung bis 12. November 2026.", "Register until November 12, 2026."] {
+            let when = try #require(extract(shownotes: notes, published: date(2026, 9, 1)).first { $0.kind == .date })
+            #expect(when.date == date(2026, 11, 12), "\(notes)")
+            #expect(!when.isVague)
+        }
     }
 
     @Test("„Heute um 20 Uhr“ in den Shownotes meint den Tag der Folge")
@@ -270,6 +394,17 @@ struct MentionTests {
         #expect(!people.contains("Deutsche Bahn"))
     }
 
+    @Test("„Unser Gast“ und „Mein Gast“ sind weder Person noch Organisation")
+    func possessivesAreNotNames() {
+        let found = extract(lines: [
+            "Unser Gast heute ist Peter Müller von der Uni Bonn.",
+            "Mein Gast ist heute Katharina Zweig.",
+        ])
+        let names = found.filter(\.kind.isName).map(\.normalized)
+        #expect(!names.contains { $0.contains("gast") })
+        #expect(found.contains { $0.kind == .person && $0.display == "Katharina Zweig" })
+    }
+
     // MARK: - Fragen im Chat
 
     @Test("Fragen nach Nennungen werden erkannt")
@@ -287,6 +422,12 @@ struct MentionTests {
         #expect(MentionQuestion.kinds(in: "Any phone numbers?") == [.phone])
         #expect(MentionQuestion.kinds(in: "Kommt in der Folge eine Adresse vor?") == [.address])
         #expect(MentionQuestion.kinds(in: "Which dates come up?") == [.date])
+        #expect(MentionQuestion.kinds(in: "Welche Mails werden genannt?") == [.email])
+        #expect(MentionQuestion.kinds(in: "Welche Mail-Adressen werden genannt?") == [.email])
+        #expect(MentionQuestion.kinds(in: "Welche E-Mails kommen vor?") == [.email])
+        #expect(MentionQuestion.kinds(in: "Welche Webadressen gibt es?") == [.link])
+        #expect(MentionQuestion.kinds(in: "Welche Veranstaltungen werden genannt?") == [.date])
+        #expect(MentionQuestion.kinds(in: "Termine und Veranstaltungen?") == [.date])
     }
 
     @Test("Fragen an den Inhalt bleiben beim Sprachmodell")
@@ -302,6 +443,9 @@ struct MentionTests {
         #expect(MentionQuestion.kinds(in: "Welche Firma war vor allem betroffen?").isEmpty)
         #expect(MentionQuestion.kinds(in: "What appears to be the problem with the link?").isEmpty)
         #expect(MentionQuestion.kinds(in: "Is there any link between sleep and memory?").isEmpty)
+        #expect(MentionQuestion.kinds(in: "Which events shaped AI in 2024?").isEmpty)
+        #expect(MentionQuestion.kinds(in: "Welche Veranstaltungen lohnen sich für Einsteiger?").isEmpty)
+        #expect(MentionQuestion.kinds(in: "Welcher Kalender eignet sich für Teams?").isEmpty)
     }
 
     // MARK: - Ausgabe

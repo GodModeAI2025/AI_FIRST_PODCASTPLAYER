@@ -165,8 +165,9 @@ struct MentionRow: View {
         .padding(.vertical, Design.Spacing.micro)
         .contextMenu {
             Button {
+                // Nur der Wert, ohne Quelle. Die Meldung sagt das auch so.
                 Clipboard.copy(mention.kind == .date ? mention.title : mention.display)
-                confirm(NoteFeedback.copied)
+                confirm(String(localized: "Kopiert."))
             } label: {
                 Label("Kopieren", systemImage: "doc.on.doc")
             }
@@ -288,7 +289,7 @@ struct CalendarDraft: Identifiable {
         if mention.isVague {
             lines.append(String(localized: "Das Datum ist ungefähr, gesagt wurde: „\(mention.display)“"))
         }
-        if !context.isEmpty { lines.append("„\(context)“") }
+        if !context.isEmpty { lines.append(String(localized: "„\(context)“")) }
         notes = lines.joined(separator: "\n")
         url = episode.webPageURL
         location = addresses.first { address in

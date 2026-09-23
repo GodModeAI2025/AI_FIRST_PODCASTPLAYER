@@ -8651,6 +8651,22 @@
         }
       }
     },
+    "Kopiert.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied."
+          }
+        }
+      }
+    },
     "Kurz gesagt": {
       "localizations": {
         "de": {
@@ -15262,6 +15278,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "\"%1$@\"\n(%2$@)\n\n%3$@"
+          }
+        }
+      }
+    },
+    "„%@“ (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%1$@“ (%2$@)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%1$@\" (%2$@)"
           }
         }
       }

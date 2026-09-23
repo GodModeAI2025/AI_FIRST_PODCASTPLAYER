@@ -161,18 +161,26 @@ extension AppModel {
     }
 
     /// Nennungen der neuesten Folgen im Bereich, für das Sprachmodell.
-    /// Nur Folgen mit Transkript und nur wenige, der Platz ist knapp.
-    func libraryMentionContext(filter: LibraryFilter) async -> String? {
+    /// Nur Folgen mit Transkript und nur so viele, wie in `limit` Zeichen
+    /// passen. Jede Zeile kürzt ``MentionSummary/modelContext(_:limit:calendar:)``
+    /// auf den Platz, der noch bleibt. Kontext für das Modell, deshalb deutsch.
+    func libraryMentionContext(filter: LibraryFilter, limit: Int) async -> String? {
         let now = Date()
         let recent = ((try? await store.episodes(ids: Array(analyzedEpisodes))) ?? [])
             .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }
             .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
             .prefix(5)
         var lines: [String] = []
+        var used = 0
         for episode in recent {
-            guard let block = MentionSummary.modelContext(await mentions(for: episode).mentions, limit: 260)
+            let title = "„\(episode.title.prefix(60))“ "
+            let room = min(260, limit - used - title.count - 1)
+            guard room >= 80 else { break }
+            guard let block = MentionSummary.modelContext(await mentions(for: episode).mentions, limit: room)
             else { continue }
-            lines.append("„\(episode.title)“ " + block)
+            let line = title + block
+            used += line.count + 1
+            lines.append(line)
         }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
@@ -352,7 +360,8 @@ private struct MentionAnswerComposer {
         let spots = parts.joined(separator: ", ")
         guard !single else { return spots }
         let podcast = sources.first { $0.id == episode.sourceID }?.title ?? String(localized: "Unbekannter Podcast")
-        return "„\(episode.title)“ (\(podcast))" + (spots.isEmpty ? "" : " " + spots)
+        let named = String(localized: "„\(episode.title)“ (\(podcast))")
+        return named + (spots.isEmpty ? "" : " " + spots)
     }
 
     /// Die gespeicherte Stelle des Transkripts, in der die Zeit liegt, mit

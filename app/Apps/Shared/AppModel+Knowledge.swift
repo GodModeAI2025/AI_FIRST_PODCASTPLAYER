@@ -102,6 +102,7 @@ extension AppModel {
             analyzedEpisodes.remove(id)
         }
         pruneChatAnswers(removedEpisodes: Set(gone.keys))
+        pruneTrails(removedEvidence: [], removedEpisodes: Set(gone.keys))
         pruneEditions(removedEpisodes: Set(gone.keys))
         mediaStorageChanged += 1
     }
@@ -123,6 +124,9 @@ extension AppModel {
         if analyzedEpisodes.contains(id) || facts[id] != nil || stages[id] != nil { return true }
         if episodePlayer.savedPosition(for: id) != nil { return true }
         if chatAnswers.contains(where: { Self.answer($0, touches: [id]) }) { return true }
+        if trails.contains(where: { $0.answerText != nil && ($0.referencedEpisodeIDs ?? []).contains(id) }) {
+            return true
+        }
         let locator = LocalMediaLocator()
         return Self.localMediaIDs(of: [episode]).contains { locator.localFile(for: $0) != nil }
     }
@@ -238,6 +242,20 @@ extension AppModel {
         // aufgebraucht sein. Die Abfrage ist billig.
         await refreshModelStatus()
 
+        // Das Gerätebudget gilt immer: direkt auf dem Gerät und ebenso, wenn
+        // eine Anfrage von Private Cloud Compute aufs Gerät zurückfällt.
+        let device = Self.answerBudget(privateCloud: false,
+                                       contextSize: Self.onDeviceContextSize,
+                                       questionLength: question.count)
+        let budget = answersUsePrivateCloud
+            ? Self.answerBudget(privateCloud: true, contextSize: Self.onDeviceContextSize,
+                                questionLength: question.count)
+            : device
+        // Die Nennungen stehen vorn und bekommen einen festen Anteil des
+        // Gerätebudgets. Gekürzt wird am Ende, also am Überblick, auch wenn
+        // eine Anfrage aufs Gerät zurückfällt.
+        let mentionShare = device.libraryContextLimit * 2 / 5
+
         let pool: [Evidence]
         var libraryContext = ""
         var caveat: String?
@@ -259,8 +277,8 @@ extension AppModel {
         case .smartFeed, .allAnalyzed:
             pool = (try? await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)) ?? []
             libraryContext = await libraryOverview()
-            if let mentioned = await libraryMentionContext(filter: LibraryFilter()) {
-                libraryContext += "\n" + mentioned
+            if let mentioned = await libraryMentionContext(filter: LibraryFilter(), limit: mentionShare) {
+                libraryContext = mentioned + "\n" + libraryContext
             }
             let known = episodes.values.flatMap { $0 }.count
             let analyzed = analyzedEpisodes.count
@@ -280,8 +298,8 @@ extension AppModel {
             // Wie bei allem Ausgewerteten nur Belege mit Zeitmarke.
             pool = all.filter { $0.range != nil }
             libraryContext = await libraryOverview(filter: filter)
-            if let mentioned = await libraryMentionContext(filter: filter) {
-                libraryContext += "\n" + mentioned
+            if let mentioned = await libraryMentionContext(filter: filter, limit: mentionShare) {
+                libraryContext = mentioned + "\n" + libraryContext
             }
             let known = episodes.values.joined()
                 .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }.count
@@ -316,15 +334,6 @@ extension AppModel {
                 citations: [], coverageCaveat: caveat)
         }
 
-        // Das Gerätebudget gilt immer: direkt auf dem Gerät und ebenso, wenn
-        // eine Anfrage von Private Cloud Compute aufs Gerät zurückfällt.
-        let device = Self.answerBudget(privateCloud: false,
-                                       contextSize: Self.onDeviceContextSize,
-                                       questionLength: question.count)
-        let budget = answersUsePrivateCloud
-            ? Self.answerBudget(privateCloud: true, contextSize: Self.onDeviceContextSize,
-                                questionLength: question.count)
-            : device
         let limit = budget.maximumCandidates
         let overview = Self.asksForOverview(question)
         let candidates: [Evidence]
@@ -491,6 +500,9 @@ extension AppModel {
         if let date = episode.publishedAt { lines.append("Erschienen: \(date.formatted(date: .long, time: .omitted))") }
         if let duration = episode.declaredDuration { lines.append("Länge: \(duration.shortDescription)") }
         lines.append("Gehört: \(Int(heardFraction(for: episode) * 100)) %")
+        // Gleich nach dem Knappen: Kapitel und Fakten können lang werden,
+        // und auf dem Gerät fiele der Block sonst beim Kürzen weg.
+        if let mentioned = await mentionContext(for: episode) { lines.append(mentioned) }
         let chapters = episode.publisherChapters.isEmpty ? (chapterCache[id] ?? []) : episode.publisherChapters
         if !chapters.isEmpty {
             lines.append("Kapitel: " + chapters.map { "\($0.start.timecode) \($0.title)" }.joined(separator: "; "))
@@ -500,8 +512,6 @@ extension AppModel {
         if !known.isEmpty {
             lines.append("Bereits ermittelte Fakten: " + known.prefix(15).map(\.statement).joined(separator: " | "))
         }
-        // Vor den Shownotes, denn die fallen beim Kürzen zuerst weg.
-        if let mentioned = await mentionContext(for: episode) { lines.append(mentioned) }
         if let notes = ShownotesText.plain(episode.shownotesHTML ?? episode.summary) {
             lines.append("Shownotes: " + String(notes.prefix(1_500)))
         }
@@ -1875,7 +1885,7 @@ extension AppModel {
                ofEpisode: episode.id, mediaVersionID: MediaVersionID(stable: audio.absoluteString)),
            !report.evidenceIDs.isEmpty {
             pruneChatAnswers(removedEpisodes: [], removedEvidence: Set(report.evidenceIDs))
-            pruneTrails(removedEvidence: Set(report.evidenceIDs))
+            pruneTrails(removedEvidence: Set(report.evidenceIDs), removedEpisodes: [episode.id])
             await refreshRelevantToday()
         }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
@@ -1903,7 +1913,7 @@ extension AppModel {
         let removedEvidence = Set(report.evidenceIDs)
         // Gemerkte Stellen bleiben als eigenes Wissen erhalten.
         pruneChatAnswers(removedEpisodes: Set(report.episodeIDs), removedEvidence: removedEvidence)
-        pruneTrails(removedEvidence: removedEvidence)
+        pruneTrails(removedEvidence: removedEvidence, removedEpisodes: Set(report.episodeIDs))
         pruneEditions(removedEpisodes: Set(report.episodeIDs))
         reindexSpotlight()
         mediaStorageChanged += 1

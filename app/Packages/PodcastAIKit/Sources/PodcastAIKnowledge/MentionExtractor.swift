@@ -18,10 +18,12 @@
 //  Termin ungefähr (``Mention/isVague``).
 //
 //  Gegen Rauschen: bloßes „heute“ oder „am Montag“ zählt im Transkript
-//  nicht, Telefonnummern im Transkript nur mit einem Wort wie „Telefon“
-//  in der Nähe, Links auf die eigene Adresse des Podcasts nur aus den
-//  Shownotes, einzelne Wörter als Person nur, wenn sie mehrfach und nicht
-//  nur am Satzanfang fallen oder zu einem vollen Namen gehören. Jede Art
+//  nicht, ebenso wenig „24/7“ oder Kapitelmarken wie „03:15“ in den
+//  Shownotes. Telefonnummern im Transkript brauchen ein Wort wie „Telefon“
+//  in der Nähe, Links auf die eigene Adresse des Podcasts zählen nur aus
+//  den Shownotes. Ein einzelnes Wort ist eine Person nur, wenn es mehrfach
+//  und nicht nur am Satzanfang fällt oder zu einem vollen Namen gehört.
+//  Was in einer Adresse oder Telefonnummer steht, ist kein Name. Jede Art
 //  hat eine Obergrenze.
 //
 
@@ -33,7 +35,7 @@ public struct MentionExtractor: Sendable {
 
     /// Steigt, wenn sich die Regeln ändern. Gespeicherte Ergebnisse älterer
     /// Regeln gelten dann nicht mehr.
-    public static let version = 1
+    public static let version = 2
 
     public struct Input: Sendable {
         /// HTML oder Text.
@@ -82,11 +84,11 @@ public struct MentionExtractor: Sendable {
             documents.append(document)
         }
         for document in documents {
-            scanDetected(document, published: input.publishedAt, ownDomains: own, into: &collector)
+            let taken = scanDetected(document, published: input.publishedAt, ownDomains: own, into: &collector)
             if document.origin == .transcript {
                 scanSpokenAddresses(document, ownDomains: own, into: &collector)
             }
-            names += nameHits(in: document, languageCode: input.languageCode)
+            names += nameHits(in: document, languageCode: input.languageCode, excluding: taken)
         }
         resolveNames(names, into: &collector)
         return collector.finish()
@@ -94,24 +96,40 @@ public struct MentionExtractor: Sendable {
 
     // MARK: - Datenerkennung
 
+    /// Sammelt, was `NSDataDetector` findet. Gibt die Stellen von Links,
+    /// Adressen und Telefonnummern zurück: Was darin steht, etwa „CA“ in
+    /// „Cupertino, CA 95014“, ist kein Name.
     private func scanDetected(_ document: Document, published: Date?, ownDomains: Set<String>,
-                              into collector: inout Collector) {
+                              into collector: inout Collector) -> [NSRange] {
         let types: NSTextCheckingResult.CheckingType = [.link, .date, .address, .phoneNumber]
-        guard let detector = try? NSDataDetector(types: types.rawValue) else { return }
+        guard let detector = try? NSDataDetector(types: types.rawValue) else { return [] }
         let text = document.text as NSString
         let whole = NSRange(location: 0, length: text.length)
+        var taken: [NSRange] = []
         for match in detector.matches(in: document.text, range: whole) {
             let matched = text.substring(with: match.range)
             let occurrence = document.occurrence(at: match.range)
+            if match.resultType == .link || match.resultType == .address || match.resultType == .phoneNumber {
+                taken.append(match.range)
+            }
             switch match.resultType {
             case .link:
                 guard let url = match.url else { continue }
                 addLink(url, matched: matched, origin: document.origin, ownDomains: ownDomains,
                         occurrence: occurrence, into: &collector)
             case .date:
-                guard let detected = match.date,
-                      let resolved = resolveDate(matched, detected: detected, published: published,
-                                                 origin: document.origin) else { continue }
+                // Der Text davor, nur aus derselben Zeile.
+                let lead = max(0, match.range.location - 40)
+                let before = text.substring(with: NSRange(location: lead, length: match.range.location - lead))
+                    .components(separatedBy: .newlines).last ?? ""
+                guard var detected = match.date else { continue }
+                // „bis 12. November“ ist für die Erkennung ein Zeitraum ab
+                // jetzt. Gemeint ist sein Ende, nicht der heutige Tag.
+                if match.duration > 0, let first = Self.words(matched).first, Self.untilWords.contains(first) {
+                    detected = detected.addingTimeInterval(match.duration)
+                }
+                guard let resolved = resolveDate(matched, detected: detected, published: published,
+                                                 origin: document.origin, before: before) else { continue }
                 collector.add(Mention(
                     kind: .date, normalized: dayKey(resolved.date), display: Self.clean(matched),
                     date: resolved.date, hasTime: resolved.hasTime, isVague: resolved.vague,
@@ -134,6 +152,7 @@ public struct MentionExtractor: Sendable {
                 continue
             }
         }
+        return taken
     }
 
     private func addLink(_ url: URL, matched: String, origin: Mention.Occurrence.Origin,
@@ -163,9 +182,11 @@ public struct MentionExtractor: Sendable {
     /// Vorsichtig, denn „Punkt“ ist auch ein gewöhnliches Wort: Die Endung
     /// muss aus einer festen Liste stammen, kein Teil darf ein Füllwort wie
     /// „der“ oder „the“ sein, und es braucht ein Zeichen, dass eine Adresse
-    /// gemeint ist: „www“ davor, einen Pfad dahinter oder ein Wort wie
-    /// „unter“, „auf“ oder „Webseite“ kurz davor. „ein wichtiger Punkt de
-    /// facto“ bleibt so ein Satz.
+    /// gemeint ist: „www“ davor, einen Pfad dahinter, ein Wort wie „Webseite“
+    /// oder „Link“ kurz davor oder „unter“, „auf“, „bei“ direkt davor. So
+    /// bleibt „Bei der Regulierung ist das ein wichtiger Punkt de facto
+    /// entscheidend“ ein Satz: Das „bei“ steht weit vorn, direkt vor der
+    /// vermeintlichen Adresse steht „ein“.
     static func spokenWebAddresses(in text: String) -> [(range: NSRange, host: String, path: String)] {
         guard let regex = spokenPattern else { return [] }
         let ns = text as NSString
@@ -183,8 +204,10 @@ public struct MentionExtractor: Sendable {
             let path = spaced(pathText).filter { !pathWords.contains($0) }
             guard path.allSatisfy({ !spokenStopwords.contains($0) }) else { continue }
             let lead = max(0, match.range.location - 80)
-            let before = ns.substring(with: NSRange(location: lead, length: match.range.location - lead))
-            let cue = words(before).suffix(6).contains { spokenCues.contains($0) }
+            let before = words(ns.substring(with: NSRange(location: lead, length: match.range.location - lead)))
+            let cue = before.suffix(6).contains { spokenCues.contains($0) }
+                || before.suffix(2).contains { nearSpokenCues.contains($0) }
+                || before.last.map(adjacentSpokenCues.contains) == true
             guard hasWWW || !path.isEmpty || cue else { continue }
             let host = (labels + [tld]).joined(separator: ".")
             found.append((match.range, host, path.isEmpty ? "" : "/" + path.joined(separator: "/")))
@@ -223,11 +246,23 @@ public struct MentionExtractor: Sendable {
     ]
 
     /// Wörter kurz vor einer Adresse, die sagen, dass eine gemeint ist.
+    /// Sie zählen bis zu sechs Wörter davor.
     private static let spokenCues: Set<String> = [
-        "unter", "auf", "bei", "website", "webseite", "seite", "homepage", "adresse", "link", "links",
-        "shownotes", "url", "domain", "besucht", "besuch", "besuchen", "schaut", "schau", "geht", "gehe",
-        "findet", "findest", "finden", "online", "internet", "web", "visit", "go", "head", "check",
-        "at", "on", "site", "find",
+        "website", "webseite", "websites", "webseiten", "internetseite", "homepage", "url", "domain",
+        "link", "links", "shownotes", "visit", "besucht", "besuchen", "go", "head", "check",
+    ]
+
+    /// Zählen nur in den letzten zwei Wörtern: „findet ihr unter beispiel
+    /// punkt de“, aber nicht „unter anderem ein wichtiger Punkt de facto“.
+    private static let nearSpokenCues: Set<String> = [
+        "unter", "seite", "site", "adresse", "online", "internet", "web", "findet", "findest", "finden",
+        "find", "schaut", "schau", "geht", "gehe",
+    ]
+
+    /// Kleine Wörter, die nur direkt vor der Adresse zählen: „auf beispiel
+    /// punkt de“. Weiter vorn stehen sie in fast jedem Satz.
+    private static let adjacentSpokenCues: Set<String> = [
+        "auf", "bei", "zu", "über", "ueber", "via", "at", "on", "to",
     ]
 
     // MARK: - Termine
@@ -239,21 +274,34 @@ public struct MentionExtractor: Sendable {
     }
 
     /// Löst einen erkannten Termin gegen das Erscheinungsdatum auf.
+    /// `before` ist der Text kurz vor der Stelle, für „jeden Freitag“.
     func resolveDate(_ matched: String, detected: Date, published: Date?,
-                     origin: Mention.Occurrence.Origin) -> ResolvedDate? {
+                     origin: Mention.Occurrence.Origin, before: String = "") -> ResolvedDate? {
         let lower = matched.lowercased()
+        // „24/7“ heißt rund um die Uhr, nicht der 24. Juli.
+        guard !Self.contains(lower, Self.aroundTheClockPattern) else { return nil }
         let tokens = Set(Self.words(lower))
         let hasTime = Self.contains(lower, Self.timePattern)
         // Ohne Uhrzeit, sonst hielte „18.30 Uhr“ sich für den 18. März.
         let withoutTime = Self.removing(Self.timePattern, from: lower)
         let hasYear = Self.contains(withoutTime, Self.yearPattern)
         let hasMonthName = !tokens.isDisjoint(with: Self.monthNames)
-        let hasNumericDate = Self.contains(withoutTime, Self.numericDatePattern)
+        // „3/5“ ohne Jahr ist im Gespräch eher ein Verhältnis als ein Datum.
+        let hasSlashDate = Self.contains(withoutTime, Self.slashDatePattern)
+            && (origin == .shownotes || hasYear)
+        let hasNumericDate = Self.contains(withoutTime, Self.numericDatePattern) || hasSlashDate
 
         guard hasMonthName || hasNumericDate else {
             // Nur ein Jahr, eine Uhrzeit, ein Wochentag oder „morgen“. Im
             // Transkript ist das fast immer Gesprächsfluss, kein Termin.
             guard origin == .shownotes, !hasYear, let published else { return nil }
+            // Eine bloße Uhrzeit wie „03:15 News“ ist eine Kapitelmarke.
+            // Es braucht „heute“, „morgen“ oder einen Wochentag.
+            guard !tokens.isDisjoint(with: Self.relativeWords.union(Self.weekdayNames)) else { return nil }
+            // „Neue Folgen jeden Freitag“ ist ein Rhythmus, kein Termin.
+            let lead = Set(Self.words(before).suffix(3))
+            guard tokens.isDisjoint(with: Self.recurringWords), lead.isDisjoint(with: Self.recurringWords)
+            else { return nil }
             return relativeDate(detected: detected, tokens: tokens, hasTime: hasTime, published: published)
         }
 
@@ -328,11 +376,19 @@ public struct MentionExtractor: Sendable {
         pattern: #"\b\d{1,2}(?:[:.]\d{2})?\s*(?:uhr|h\b|am\b|pm\b|a\.m\.|p\.m\.)|\b\d{1,2}:\d{2}\b"#,
         options: [.caseInsensitive])
     private static let yearPattern = try? NSRegularExpression(
-        pattern: #"\b(?:19|20)\d{2}\b|(?<=\b\d{1,2}\.\d{1,2}\.)\d{2}\b"#, options: [])
+        pattern: #"\b(?:19|20)\d{2}\b|(?<=\b\d{1,2}\.\d{1,2}\.)\d{2}\b|(?<=\b\d{1,2}-\d{1,2}-)\d{2}\b"#,
+        options: [])
+    /// „3.5.“, „2026-11-12“ und „12-11-2026“. Schrägstriche prüft ``slashDatePattern``.
     private static let numericDatePattern = try? NSRegularExpression(
-        pattern: #"\b\d{1,2}\.\s?\d{1,2}\b|\b\d{1,2}/\d{1,2}\b"#, options: [])
+        pattern: #"\b\d{1,2}\.\s?\d{1,2}\b|\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}-\d{1,2}-\d{2,4}\b"#,
+        options: [])
+    private static let slashDatePattern = try? NSRegularExpression(
+        pattern: #"\b\d{1,2}/\d{1,2}\b"#, options: [])
+    private static let aroundTheClockPattern = try? NSRegularExpression(
+        pattern: #"\b24\s?/\s?7\b"#, options: [])
+    /// Ein Tag, auch mit englischer Endung wie „12th“ oder „3rd“.
     private static let dayPattern = try? NSRegularExpression(
-        pattern: #"\b(?:0?[1-9]|[12]\d|3[01])\b"#, options: [])
+        pattern: #"\b(?:0?[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\b"#, options: [])
 
     static let monthNames: Set<String> = [
         "januar", "jänner", "jaenner", "februar", "märz", "maerz", "april", "mai", "juni", "juli",
@@ -351,6 +407,15 @@ public struct MentionExtractor: Sendable {
         "today", "tomorrow", "yesterday", "tonight",
     ]
 
+    /// Wörter, mit denen ein offener Zeitraum bis zu einem Tag beginnt.
+    private static let untilWords: Set<String> = ["bis", "until", "till", "til", "through", "thru"]
+
+    /// Wörter für einen Rhythmus: „jeden Freitag“, „every Friday“.
+    private static let recurringWords: Set<String> = [
+        "jeden", "jede", "jedem", "jeder", "alle", "immer", "wöchentlich", "woechentlich", "regelmäßig",
+        "regelmaessig", "every", "each", "weekly",
+    ]
+
     // MARK: - Namen
 
     struct NameHit {
@@ -365,7 +430,7 @@ public struct MentionExtractor: Sendable {
         }
     }
 
-    private func nameHits(in document: Document, languageCode: String?) -> [NameHit] {
+    private func nameHits(in document: Document, languageCode: String?, excluding taken: [NSRange]) -> [NameHit] {
         let text = document.text
         guard !text.isEmpty else { return [] }
         let tagger = NLTagger(tagSchemes: [.nameType, .lexicalClass])
@@ -383,23 +448,44 @@ public struct MentionExtractor: Sendable {
         var hits: [NameHit] = []
         for (tagged, range) in found {
             var kind = tagged
-            var tokens = String(text[range]).split(whereSeparator: \.isWhitespace).map(String.init)
-            while let first = tokens.first, Self.leadingNoise.contains(NameHit.fold(first)) { tokens.removeFirst() }
-            guard !tokens.isEmpty, tokens.count <= 5 else { continue }
+            // „CA“ in „Cupertino, CA 95014“ gehört zur Adresse.
+            let whole = NSRange(range, in: text)
+            if taken.contains(where: { NSIntersectionRange($0, whole).length > 0 }) { continue }
+            var parts = Self.tokenRanges(in: text, range: range)
+            while let first = parts.first, Self.leadingNoise.contains(NameHit.fold(String(text[first]))) {
+                parts.removeFirst()
+            }
+            guard let start = parts.first, parts.count <= 5 else { continue }
+            let tokens = parts.map { String(text[$0]) }
             let name = tokens.joined(separator: " ")
             guard Self.isPlausibleName(name) else { continue }
-            // „Deutsche Bahn“ ist keine Person: ein Name beginnt nicht mit einem Adjektiv.
-            if kind == .person, tokens.count > 1,
-               let lexical = tagger.tag(at: range.lowerBound, unit: .word, scheme: .lexicalClass).0,
-               lexical == .adjective || lexical == .determiner {
-                kind = .organization
+            if tokens.count > 1, let lexical = tagger.tag(at: start.lowerBound, unit: .word, scheme: .lexicalClass).0 {
+                // „Unser Gast“ ist niemand: Ein Name beginnt nicht mit einem Begleiter.
+                if lexical == .determiner { continue }
+                // „Deutsche Bahn“ ist keine Person: Ein Name beginnt nicht mit einem Adjektiv.
+                if kind == .person, lexical == .adjective { kind = .organization }
             }
-            let location = NSRange(range, in: text)
+            // Satzanfang wie bisher ab dem ersten Wort, auch wenn es wegfiel:
+            // „Die Studie“ am Satzanfang bleibt am Satzanfang.
             hits.append(NameHit(kind: kind, name: name, tokens: tokens,
-                                occurrence: document.occurrence(at: location),
-                                sentenceInitial: document.isSentenceInitial(location.location)))
+                                occurrence: document.occurrence(at: whole),
+                                sentenceInitial: document.isSentenceInitial(whole.location)))
         }
         return hits
+    }
+
+    /// Die Wörter in einem Bereich, an Leerraum getrennt.
+    private static func tokenRanges(in text: String, range: Range<String.Index>) -> [Range<String.Index>] {
+        var result: [Range<String.Index>] = []
+        var index = range.lowerBound
+        while index < range.upperBound {
+            guard !text[index].isWhitespace else { index = text.index(after: index); continue }
+            var end = index
+            while end < range.upperBound, !text[end].isWhitespace { end = text.index(after: end) }
+            result.append(index..<end)
+            index = end
+        }
+        return result
     }
 
     /// Führt Namen zusammen und siebt einzelne Wörter aus.
@@ -474,13 +560,16 @@ public struct MentionExtractor: Sendable {
     private static let leadingNoise: Set<String> = [
         "the", "der", "die", "das", "den", "dem", "des", "herr", "herrn", "frau", "dr.", "dr", "prof.",
         "prof", "mr.", "mr", "mrs.", "mrs", "ms.", "ms",
+        "mein", "meine", "meinem", "meinen", "meiner", "unser", "unsere", "unserem", "unseren", "unserer",
+        "euer", "eure", "eurem", "euren", "eurer", "my", "our", "your",
     ]
 
     /// Großgeschriebene Wörter, die die Namenserkennung gern für Namen hält.
+    /// In gefalteter Form, „Gäste“ steht hier als „gaste“.
     private static let nameStopwords: Set<String> = [
         "heute", "morgen", "gestern", "hallo", "danke", "okay", "ok", "ja", "nein", "genau", "also",
         "ki", "ai", "folge", "podcast", "episode", "shownotes", "link", "links", "hi", "hey", "yes", "no",
-        "thanks", "today", "tomorrow", "yesterday",
+        "thanks", "today", "tomorrow", "yesterday", "gast", "gaste", "guest", "guests",
     ]
 
     static func isPlausibleName(_ name: String) -> Bool {
@@ -499,9 +588,10 @@ public struct MentionExtractor: Sendable {
 
     // MARK: - Schlüssel
 
-    /// Host ohne „www.“ und Pfad ohne Schrägstrich am Ende. Anfragen und
-    /// Sprungmarken gehören nicht zum Schlüssel, sie tragen oft nur
-    /// Tracking. Mediendateien und Adressen ohne echte Endung zählen nicht.
+    /// Host ohne „www.“, Pfad ohne Schrägstrich am Ende und die Anfrage ohne
+    /// Tracking. Was in der Anfrage bleibt, gehört dazu: „youtube.com/watch?v=…“
+    /// ist je Video ein eigener Link. Sprungmarken zählen nicht. Mediendateien
+    /// und Adressen ohne echte Endung auch nicht.
     static func linkKey(_ url: URL) -> (key: String, display: String, host: String)? {
         guard var host = url.host(percentEncoded: false)?.lowercased(), host.contains(".") else { return nil }
         if host.hasPrefix("www.") { host.removeFirst(4) }
@@ -510,9 +600,24 @@ public struct MentionExtractor: Sendable {
         while path.hasSuffix("/") { path.removeLast() }
         let lowerPath = path.lowercased()
         if mediaExtensions.contains(where: { lowerPath.hasSuffix(".\($0)") }) { return nil }
-        let display = host + path
-        return (display.lowercased(), display, host)
+        let query = (url.query(percentEncoded: true) ?? "")
+            .split(separator: "&")
+            .filter { item in
+                let name = item.split(separator: "=", maxSplits: 1).first.map { $0.lowercased() } ?? ""
+                return !name.isEmpty && !name.hasPrefix("utm_") && !trackingParameters.contains(name)
+            }
+            .joined(separator: "&")
+        let base = host + path
+        guard !query.isEmpty else { return (base.lowercased(), base, host) }
+        // Werte in der Anfrage unterscheiden Groß und Klein, etwa die Kennung eines Videos.
+        return (base.lowercased() + "?" + query, base + "?" + (query.removingPercentEncoding ?? query), host)
     }
+
+    /// Parameter, die nur sagen, woher jemand kam.
+    private static let trackingParameters: Set<String> = [
+        "fbclid", "gclid", "dclid", "gbraid", "wbraid", "msclkid", "yclid", "mc_cid", "mc_eid", "igshid", "igsh",
+        "si", "ref", "ref_src", "ref_url", "_hsenc", "_hsmi", "mkt_tok", "feature", "trk", "spm",
+    ]
 
     private static let mediaExtensions = [
         "mp3", "m4a", "aac", "ogg", "opus", "wav", "mp4", "m4v", "mov", "jpg", "jpeg", "png", "gif", "webp", "svg",
@@ -709,10 +814,12 @@ struct Document {
                 let label = EpisodeArchive.plainText(ns.substring(with: match.range(at: 2)))
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 let lowerHref = href.lowercased()
-                let target = lowerHref.hasPrefix("mailto:") ? String(href.dropFirst(7)) : href
-                let named = Self.labelNames(label, target: target)
-                if lowerHref.hasPrefix("http") || lowerHref.hasPrefix("mailto:"), !named {
-                    output += label.isEmpty ? " \(target) " : "\(label) (\(target))"
+                if lowerHref.hasPrefix("mailto:") {
+                    let address = String(href.dropFirst(7))
+                    let named = !address.isEmpty && label.lowercased().contains(address.lowercased())
+                    output += named ? label : label.isEmpty ? " \(address) " : "\(label) (\(address))"
+                } else if lowerHref.hasPrefix("http") {
+                    output += Self.linkText(label: label, href: href)
                 } else {
                     output += label
                 }
@@ -734,11 +841,28 @@ struct Document {
         self.starts = []; self.lengths = []; self.times = []
     }
 
-    /// Nennt die Beschriftung das Ziel schon? Dann reicht sie.
-    private static func labelNames(_ label: String, target: String) -> Bool {
-        let host = URL(string: target)?.host(percentEncoded: false)?.lowercased() ?? target.lowercased()
-        let bare = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-        return !bare.isEmpty && label.lowercased().contains(bare)
+    /// Der Text für einen Link mit Beschriftung. Das Ziel ist immer die
+    /// ganze Adresse aus `href`, mit Pfad und Schema, nie nur die Domain.
+    ///
+    /// Nennt die Beschriftung die Domain, etwa „Bericht auf heise.de“ oder
+    /// eine gekürzte Adresse wie „https://example.org/lange/pa…“, tritt die
+    /// ganze Adresse an die Stelle dieses Worts. Sonst fände die Erkennung
+    /// die Domain allein und daneben den eigentlichen Artikel. Andere
+    /// Beschriftungen bekommen die Adresse in Klammern dahinter.
+    private static func linkText(label: String, href: String) -> String {
+        guard !label.isEmpty else { return " \(href) " }
+        let host = URL(string: href)?.host(percentEncoded: false)?.lowercased() ?? ""
+        let domain = host.isEmpty ? "" : MentionExtractor.baseDomain(host)
+        guard !domain.isEmpty else { return "\(label) (\(href))" }
+        var words = label.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+        guard let index = words.firstIndex(where: { $0.lowercased().contains(domain) }) else {
+            return "\(label) (\(href))"
+        }
+        // Satzzeichen hinter dem Wort bleiben stehen: „auf heise.de.“
+        let word = words[index]
+        let trailing = word.reversed().prefix { ".,;:!?)".contains($0) }
+        words[index] = " \(href) " + String(trailing.reversed())
+        return words.joined(separator: " ")
     }
 
     private static let anchorPattern = try? NSRegularExpression(

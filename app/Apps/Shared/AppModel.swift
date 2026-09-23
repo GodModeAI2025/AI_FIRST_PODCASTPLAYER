@@ -2271,6 +2271,14 @@ public final class AppModel {
         guard !trails.contains(where: { $0.id == id }) else { return }
         let cited = Set(answer.citations.map(\.id))
         let numbers = answer.citationNumbers.filter { cited.contains($0.value) }
+        // Folgen, über die der Text spricht, ohne dass ein Beleg aus ihnen
+        // stammt: bei Fragen nach Nennungen und bei Fragen an eine Folge.
+        var referenced = answer.referencedEpisodeIDs
+        switch answer.scope {
+        case .episode(let episodeID): referenced.append(episodeID)
+        case .episodes(let ids): referenced += ids
+        case .smartFeed, .allAnalyzed, .library: break
+        }
         trails.insert(KnowledgeTrail(
             id: id,
             question: answer.question,
@@ -2278,7 +2286,8 @@ public final class AppModel {
             highlightIDs: KnowledgeTrail.noteIDs(in: highlights, matching: answer.citations),
             parkedAt: Date(),
             answerText: answer.text,
-            citationNumbers: numbers.isEmpty ? nil : numbers
+            citationNumbers: numbers.isEmpty ? nil : numbers,
+            referencedEpisodeIDs: referenced.isEmpty ? nil : referenced
         ), at: 0)
         persistTrails()
     }
@@ -2302,9 +2311,11 @@ public final class AppModel {
 
     /// Nimmt gelöschte Belege aus den Karten. Was aus ihnen formuliert war,
     /// geht mit, leere Karten verschwinden (`KnowledgeTrail.removing`).
-    func pruneTrails(removedEvidence: Set<EvidenceID>) {
-        guard !removedEvidence.isEmpty else { return }
-        let pruned = trails.compactMap { $0.removing(evidence: removedEvidence) }
+    /// Nennt ein Antworttext eine gelöschte Folge, geht er ebenfalls, auch
+    /// wenn kein Beleg aus ihr stammt.
+    func pruneTrails(removedEvidence: Set<EvidenceID>, removedEpisodes: Set<EpisodeID> = []) {
+        guard !removedEvidence.isEmpty || !removedEpisodes.isEmpty else { return }
+        let pruned = trails.compactMap { $0.removing(evidence: removedEvidence)?.removing(episodes: removedEpisodes) }
         let changed = pruned.count != trails.count || zip(pruned, trails).contains {
             $0.evidenceIDs != $1.evidenceIDs || $0.counterpointEvidenceIDs != $1.counterpointEvidenceIDs
                 || $0.answerText != $1.answerText
