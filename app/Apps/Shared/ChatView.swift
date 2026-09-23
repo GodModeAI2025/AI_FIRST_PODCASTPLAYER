@@ -18,6 +18,11 @@ struct ChatView: View {
     @Environment(AppModel.self) private var model
     @State private var question = ""
     @State private var isAsking = false
+    /// Die Frage, auf die gerade eine Antwort gesucht wird, und ihr Bereich.
+    /// Sie steht unten im Verlauf, dort, wo die Antwort erscheinen wird.
+    @State private var pending: (question: String, scope: ChatScope)?
+    /// Eine neue Antwort bekommt den VoiceOver-Fokus.
+    @AccessibilityFocusState private var focusedAnswer: UUID?
     /// Im eigenständigen Chat: gilt die Frage der Folge, die gerade läuft?
     @State private var followsPlayer = false
     /// Eingrenzung der Mediathek auf einen Podcast und einen Zeitraum.
@@ -53,22 +58,39 @@ struct ChatView: View {
                 Divider()
             }
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: Design.Spacing.section) {
-                    if answers.isEmpty {
-                        ChatEmptyState(scope: scope) { suggestion in
-                            question = suggestion
-                            ask()
+            // Der Verlauf liest sich von oben nach unten: die neueste Antwort
+            // steht unten, und die Ansicht springt an ihren Anfang.
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: Design.Spacing.section) {
+                        if answers.isEmpty && pendingQuestion == nil {
+                            ChatEmptyState(scope: scope) { suggestion in
+                                question = suggestion
+                                ask()
+                            }
+                            .padding(.top, fixedScope ? Design.Spacing.standard : Design.Spacing.large)
                         }
-                        .padding(.top, fixedScope ? Design.Spacing.standard : Design.Spacing.large)
+                        ForEach(answers) { answer in
+                            AnswerCard(answer: answer, focus: $focusedAnswer)
+                                .id(answer.id)
+                        }
+                        if let pendingQuestion {
+                            PendingAnswerCard(question: pendingQuestion)
+                                .id(Self.pendingID)
+                        }
                     }
-                    ForEach(answers) { answer in
-                        AnswerCard(answer: answer)
-                    }
+                    .padding()
                 }
-                .padding()
+                .scrollDismissesKeyboard(.interactively)
+                .onChange(of: pendingQuestion) { _, waiting in
+                    guard waiting != nil else { return }
+                    withAnimation { proxy.scrollTo(Self.pendingID, anchor: .bottom) }
+                }
+                .onChange(of: answers.last?.id) { _, newest in
+                    guard let newest else { return }
+                    withAnimation { proxy.scrollTo(newest, anchor: .top) }
+                }
             }
-            .scrollDismissesKeyboard(.interactively)
 
             askField
         }
@@ -94,14 +116,19 @@ struct ChatView: View {
                 .accessibilityIdentifier("chat.input")
 
             Button(action: ask) {
-                Image(systemName: isAsking ? "ellipsis" : "arrow.up.circle.fill")
-                    .font(.title2)
-                    .symbolEffect(.pulse, isActive: isAsking)
-                    .tappableArea()
+                Group {
+                    if isAsking {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                    }
+                }
+                .tappableArea()
             }
             .buttonStyle(.pressable)
             .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || isAsking)
-            .accessibilityLabel("Frage senden")
+            .accessibilityLabel(sendLabel)
             .accessibilityIdentifier("chat.send")
         }
         .padding(.horizontal, Design.Spacing.standard)
@@ -109,6 +136,19 @@ struct ChatView: View {
         .glassEffect(.regular, in: .capsule)
         .padding(Design.Spacing.control)
     }
+
+    /// Solange gesucht wird, sagt der Knopf das, statt weiter „senden“ zu heissen.
+    private var sendLabel: LocalizedStringKey {
+        isAsking ? "Antwort wird gesucht" : "Frage senden"
+    }
+
+    /// Die wartende Frage, nur im Bereich, in dem sie gestellt wurde.
+    private var pendingQuestion: String? {
+        guard let pending, pending.scope == scope else { return nil }
+        return pending.question
+    }
+
+    private static let pendingID = "chat.pending"
 
     @ViewBuilder private var inputField: some View {
         let prompt: LocalizedStringKey = fixedScope ? "Frage zu dieser Folge …" : "Frage stellen …"
@@ -129,19 +169,25 @@ struct ChatView: View {
         question = ""
         isAsking = true
         let currentScope = scope
+        pending = (question: text, scope: currentScope)
         Task {
             // Das Modell nimmt die Antwort selbst in den Verlauf auf. Nur dort
             // lässt sich prüfen, ob während der Suche eine Folge gelöscht wurde.
-            if let answer = await model.ask(text, scope: currentScope) {
-                // Wer nicht auf den Bildschirm sieht, erfährt so, dass die Antwort steht.
-                let count = answer.citations.count
-                AccessibilityNotification.Announcement(
-                    count == 0
-                        ? AttributedString(localized: "Antwort da")
-                        : AttributedString(localized: "Antwort da, ^[\(count) Beleg](inflect: true)")
-                ).post()
-            }
+            let answer = await model.ask(text, scope: currentScope)
+            pending = nil
             isAsking = false
+            if let answer {
+                // VoiceOver springt auf die neue Antwort und liest sie vor.
+                focusedAnswer = answer.id
+                // Wer nicht auf den Bildschirm sieht, erfährt so, dass die
+                // Antwort steht. Nachrangig, damit die Antwort selbst zuerst kommt.
+                let count = answer.citations.count
+                var message = count == 0
+                    ? AttributedString(localized: "Antwort da")
+                    : AttributedString(localized: "Antwort da, ^[\(count) Beleg](inflect: true)")
+                message.accessibilitySpeechAnnouncementPriority = .low
+                AccessibilityNotification.Announcement(message).post()
+            }
         }
     }
 }
@@ -311,9 +357,32 @@ extension ChatScope {
     var isEpisode: Bool { if case .episode = self { return true } else { return false } }
 }
 
+/// Die gestellte Frage, solange ihre Antwort gesucht wird.
+private struct PendingAnswerCard: View {
+    let question: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.control) {
+            Text(question)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: Design.Spacing.small) {
+                ProgressView()
+                Text("Antwort wird gesucht …")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentCard()
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct AnswerCard: View {
 
     let answer: ChatAnswer
+    /// Welche Antwort den VoiceOver-Fokus bekommt.
+    var focus: AccessibilityFocusState<UUID?>.Binding
     @Environment(AppModel.self) private var model
     @State private var exported: String?
     /// „Podcast · Folge · Datum“ je Folge. Innerhalb einer Folge leer.
@@ -351,6 +420,7 @@ struct AnswerCard: View {
             Text(answer.text)
                 .font(.body)
                 .textSelection(.enabled)
+                .accessibilityFocused(focus, equals: answer.id)
 
             HStack(spacing: Design.Spacing.small) {
                 if let label = answer.modelLabel {

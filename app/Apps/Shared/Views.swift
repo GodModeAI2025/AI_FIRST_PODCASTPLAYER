@@ -546,6 +546,9 @@ struct SmartFeedRow: View {
                     Text(status)
                         .font(.caption).foregroundStyle(.secondary)
                         .lineLimit(2)
+                    Text(next)
+                        .font(.caption2).foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
             }
         }
@@ -560,6 +563,21 @@ struct SmartFeedRow: View {
                      latest.totalMediaDuration.shortDescription]
         if latest.heardFraction(in: model.ledger) >= 0.8 { parts.append(String(localized: "gehört")) }
         return parts.joined(separator: " · ")
+    }
+
+    /// Wann die nächste Ausgabe kommen kann, kurz.
+    private var next: String {
+        let policy = feed.publicationPolicy
+        guard policy.isAutomatic else { return String(localized: "Neue Ausgabe nur auf Knopfdruck") }
+        if let earliest = model.earliestAutomaticEdition(for: feed) {
+            return String(localized: "Nächste frühestens \(AppModel.editionMoment(earliest))")
+        }
+        if let waiting = model.editionChecks[feed.id]?.waiting {
+            return String(localized: """
+                Wartet auf Material: \(waiting.shortDescription) von \(policy.minimumMaterial.shortDescription)
+                """)
+        }
+        return String(localized: "Nächste ab \(policy.minimumMaterial.shortDescription) neuem Material")
     }
 }
 
@@ -576,10 +594,23 @@ struct SmartFeedDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var editingFeed: SmartPodcastFeed?
     @State private var pendingDeletion: SmartPodcastFeed?
+    /// Läuft ein Zusammenstellen, um das hier jemand gebeten hat?
+    @State private var requesting = false
+    /// Wann das letzte Zusammenstellen von hier aus fertig war.
+    @State private var resultAt: Date?
+    @State private var addingSource = false
+    /// Stichwortvorschläge je Thema ohne Treffer.
+    @State private var keywordIdeas: [InterestID: [String]] = [:]
 
     private var feed: SmartPodcastFeed? { model.smartFeeds.first { $0.id == feedID } }
     private var editions: [PersonalEpisode] { model.editions[feedID] ?? [] }
-    private var isBuilding: Bool { model.buildingFeeds.contains(feedID) }
+    private var isBuilding: Bool { requesting || model.buildingFeeds.contains(feedID) }
+
+    /// Themen des Updates, zu denen keine Stelle passt.
+    private var topicsWithoutHits: [Interest] {
+        let ids = model.editionChecks[feedID]?.topicsWithoutHits ?? []
+        return model.profile.interests.filter { ids.contains($0.id) }
+    }
 
     var body: some View {
         List {
@@ -593,6 +624,8 @@ struct SmartFeedDetailView: View {
                     }
                 } header: {
                     Text("Neueste Ausgabe")
+                } footer: {
+                    Text("Erstellt \(AppModel.editionMoment(latest.publishedAt))")
                 }
             } else if isBuilding {
                 // Nicht „Noch keine Ausgabe“, solange eine entsteht: das
@@ -608,21 +641,23 @@ struct SmartFeedDetailView: View {
                 ContentUnavailableView {
                     Label("Noch keine Ausgabe", systemImage: "waveform.circle")
                 } description: {
-                    if let note = model.editionNotes[feedID] {
-                        Text(note)
-                    } else {
-                        Text("""
-                            Sobald genug ungehörtes Material zu deinen Themen vorliegt, \
-                            entsteht daraus von selbst eine Ausgabe.
-                            """)
+                    if let feed {
+                        Text(model.nextEditionHint(for: feed))
                     }
                 }
             }
 
+            if !isBuilding, !topicsWithoutHits.isEmpty {
+                topicsWithoutHitsSection
+            }
+
             Section {
-                Button {
-                    Task { await model.buildEdition(feedID: feedID) }
-                } label: {
+                if let feed, !editions.isEmpty {
+                    Text(model.nextEditionHint(for: feed))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Button(action: requestEdition) {
                     HStack {
                         Label(isBuilding ? "Wird zusammengestellt …" : "Neue Ausgabe zusammenstellen",
                               systemImage: "arrow.triangle.2.circlepath")
@@ -633,10 +668,27 @@ struct SmartFeedDetailView: View {
                     }
                 }
                 .disabled(isBuilding || feed == nil)
+                // Die Rückmeldung als Satz: was entstanden ist oder warum
+                // nicht. Nach einem Tipp mit der Uhrzeit, damit sichtbar ist,
+                // dass gerade geprüft wurde, auch wenn dasselbe herauskam.
+                if !isBuilding, let note = model.editionNotes[feedID] {
+                    VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                        Label(note, systemImage: "info.circle")
+                            .font(.callout)
+                        if let resultAt {
+                            Text("Geprüft \(AppModel.editionMoment(resultAt))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("edition.result")
+                }
+            } header: {
+                Text("Nächste Ausgabe")
             } footer: {
-                // Die Rückmeldung als Satz: was entstanden ist oder warum nicht.
-                if !editions.isEmpty, !isBuilding, let note = model.editionNotes[feedID] {
-                    Text(note)
+                if let feed {
+                    Text(AppModel.editionRule(for: feed.publicationPolicy))
                 }
             }
 
@@ -683,7 +735,70 @@ struct SmartFeedDetailView: View {
             }
         }
         .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed) }
+        .sheet(isPresented: $addingSource) { AddSourceSheet() }
         .smartFeedDeletionDialog(for: $pendingDeletion) { dismiss() }
+        .task(id: topicsWithoutHits) {
+            var ideas: [InterestID: [String]] = [:]
+            for interest in topicsWithoutHits {
+                ideas[interest.id] = Array(
+                    AppModel.keywordSuggestions(for: interest.label, existing: interest.keywords).prefix(3))
+            }
+            keywordIdeas = ideas
+        }
+    }
+
+    /// Ein Thema ohne Treffer sagt das und schlägt Stichworte vor. Ohne
+    /// Stichworte trifft ein Thema nur sein eigenes Wort.
+    private var topicsWithoutHitsSection: some View {
+        Section {
+            ForEach(topicsWithoutHits) { interest in
+                NavigationLink {
+                    InterestEditView(interest: interest)
+                } label: {
+                    VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                        Text("Zu \(interest.label) noch keine passende Stelle")
+                        if let ideas = keywordIdeas[interest.id], !ideas.isEmpty {
+                            Text("Stichworte ergänzen, etwa \(ideas.joined(separator: ", "))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Stichworte ergänzen, etwa englische Begriffe oder Abkürzungen")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            Button {
+                addingSource = true
+            } label: {
+                Label("Passende Podcasts suchen", systemImage: "magnifyingglass")
+            }
+        } header: {
+            Text("Themen ohne Treffer")
+        } footer: {
+            Text("""
+                Ein Thema findet Stellen, in denen seine Bezeichnung oder eines seiner Stichworte vorkommt, \
+                und nur in Folgen mit Transkript.
+                """)
+        }
+    }
+
+    /// Stellt von Hand eine Ausgabe zusammen. Der Fortschritt bleibt kurz
+    /// sichtbar, auch wenn die Prüfung sofort fertig ist: sonst sähe der
+    /// Tipp aus, als hätte er nichts getan.
+    private func requestEdition() {
+        guard !isBuilding else { return }
+        requesting = true
+        Task {
+            let started = Date()
+            let note = await model.buildEdition(feedID: feedID)
+            let elapsed = Date().timeIntervalSince(started)
+            if elapsed < 0.8 { try? await Task.sleep(for: .seconds(0.8 - elapsed)) }
+            requesting = false
+            resultAt = Date()
+            AccessibilityNotification.Announcement(note).post()
+        }
     }
 
     /// „6:40“ für heute, sonst das Datum.
@@ -1600,10 +1715,15 @@ struct NewSmartFeedSheet: View {
                 } footer: {
                     // Eine neue Ausgabe nimmt nur Ungehörtes. Was nicht
                     // hineinpasst, rückt also erst nach, wenn das Vorige gehört ist.
-                    Text("""
-                        Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. \
-                        Der Rest rückt nach, sobald du sie gehört hast.
-                        """)
+                    VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                        Text("""
+                            Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. \
+                            Der Rest rückt nach, sobald du sie gehört hast.
+                            """)
+                        // Wann Ausgaben entstehen, steht schon hier und nicht
+                        // erst, wenn die erste ausbleibt.
+                        Text(AppModel.editionRule(for: publicationPolicy))
+                    }
                 }
                 if !model.sources.isEmpty {
                     Section {
@@ -1660,6 +1780,11 @@ struct NewSmartFeedSheet: View {
     }
 
     private var pendingTopic: String { newTopic.trimmingCharacters(in: .whitespaces) }
+
+    /// Die Regel des Updates, beim Anlegen die übliche.
+    private var publicationPolicy: PublicationPolicy {
+        editing?.publicationPolicy ?? SmartPodcastFeed(title: "", topicIDs: []).publicationPolicy
+    }
 
     private var canCreate: Bool {
         !selected.isEmpty || !pendingTopic.isEmpty

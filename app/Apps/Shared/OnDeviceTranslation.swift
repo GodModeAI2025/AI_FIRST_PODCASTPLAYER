@@ -176,6 +176,9 @@ final class ParagraphTranslation {
     private(set) var problem: String?
     /// Ein Hinweis, der kein Fehler ist, etwa dass ein Sprachpaket kommt.
     private(set) var notice: String?
+    /// Übersetzt die App hier nicht selbst, bleibt das Übersetzungsfenster
+    /// des Systems. Es bietet auch an, Sprachen zu laden.
+    private(set) var offersSystemSheet = false
 
     private(set) var source: Locale.Language?
     private let target: AppLanguage
@@ -224,6 +227,7 @@ final class ParagraphTranslation {
         activeRun = nil
         problem = nil
         notice = nil
+        offersSystemSheet = false
         // Vor dem Lesen: wird die Folge danach gelöscht, schreibt diese
         // Übersetzung nichts mehr in die Ablage.
         cacheTicket = TranslationCache.ticket
@@ -263,6 +267,7 @@ final class ParagraphTranslation {
         }
         problem = nil
         notice = nil
+        offersSystemSheet = false
         expected = paragraphs.filter { !$0.text.isEmpty }.map(\.key)
         let missing = paragraphs.filter { texts[$0.key] == nil && !$0.text.isEmpty }
         guard !missing.isEmpty else {
@@ -270,13 +275,18 @@ final class ParagraphTranslation {
             isShown = true
             return
         }
-        let targetLanguage = target.localeLanguage
+        var sessionSource = source
+        var sessionTarget = Self.preferredVariant(of: target.localeLanguage)
         if let source {
-            switch await LanguageAvailability().status(from: source, to: targetLanguage) {
+            let pair = await Self.resolvedPair(source: source, target: target.localeLanguage)
+            switch pair.status {
             case .unsupported:
                 problem = Self.unsupported(from: source)
+                offersSystemSheet = true
                 return
             case .supported:
+                // Das Sprachpaket fehlt noch. Die Sitzung fragt gleich, ob
+                // das System es laden soll. Abgesagt wird deshalb nicht.
                 notice = String(localized: """
                     Für diese Übersetzung braucht das Gerät ein Sprachpaket. \
                     Das System fragt, ob es geladen werden soll.
@@ -286,13 +296,15 @@ final class ParagraphTranslation {
             @unknown default:
                 break
             }
+            sessionSource = pair.source
+            sessionTarget = pair.target
         }
         pending = missing
         total = missing.count
         isRunning = true
         isShown = true
         if configuration == nil {
-            configuration = TranslationSession.Configuration(source: source, target: targetLanguage)
+            configuration = TranslationSession.Configuration(source: sessionSource, target: sessionTarget)
         } else {
             configuration?.invalidate()
         }
@@ -407,6 +419,7 @@ final class ParagraphTranslation {
         pending = []
         problem = Self.describe(error)
         notice = nil
+        offersSystemSheet = Self.isUnsupported(error)
         // Ohne einen einzigen übersetzten Absatz bleibt das Original stehen.
         if texts.isEmpty { isShown = false }
     }
@@ -419,16 +432,93 @@ final class ParagraphTranslation {
     /// So viele Absätze je Aufruf.
     nonisolated private static let portion = 12
 
+    // MARK: Sprachen
+
+    /// Ausgangs- und Zielsprache in der Form, die Apples Übersetzung führt,
+    /// und wie es um das Paar steht.
+    ///
+    /// Das Transkript nennt nur das Kürzel „de“, die App „en“. Die
+    /// Übersetzung führt ihre Sprachen meist mit Region, etwa „de-DE“ und
+    /// „en-US“. Das Systemblatt übersetzte nach „English (US)“, während die
+    /// Prüfung mit den blossen Kürzeln „nicht unterstützt“ meldete. Deshalb
+    /// prüft die App auch die Formen aus der Liste des Systems, fürs Ziel
+    /// zuerst die Region des Geräts, und nimmt das beste Ergebnis. Meldet
+    /// keine Form Unterstützung, stehen beide Sprachen aber in der Liste,
+    /// versucht es die Sitzung trotzdem und fragt nach dem Sprachpaket.
+    nonisolated static func resolvedPair(
+        source: Locale.Language, target: Locale.Language
+    ) async -> (source: Locale.Language, target: Locale.Language, status: LanguageAvailability.Status) {
+        let availability = LanguageAvailability()
+        let supported = await availability.supportedLanguages
+        let sources = variants(of: source, in: supported)
+        var targets = [preferredVariant(of: target)]
+        for variant in variants(of: target, in: supported) where !targets.contains(variant) {
+            targets.append(variant)
+        }
+        var best: (source: Locale.Language, target: Locale.Language)?
+        for candidateSource in sources {
+            for candidateTarget in targets {
+                switch await availability.status(from: candidateSource, to: candidateTarget) {
+                case .installed:
+                    return (candidateSource, candidateTarget, .installed)
+                case .supported:
+                    if best == nil { best = (candidateSource, candidateTarget) }
+                default:
+                    break
+                }
+            }
+        }
+        if let best { return (best.source, best.target, .supported) }
+        let listed = { (language: Locale.Language) in
+            supported.contains { $0.languageCode == language.languageCode }
+        }
+        let status: LanguageAvailability.Status = listed(source) && listed(target) ? .supported : .unsupported
+        return (sources.first ?? source, targets.first ?? target, status)
+    }
+
+    /// Die Sprache selbst und bis zu drei Formen aus der Liste des Systems
+    /// mit demselben Kürzel, die mit der Region des Geräts zuerst.
+    nonisolated private static func variants(of language: Locale.Language, in supported: [Locale.Language]) -> [Locale.Language] {
+        guard let code = language.languageCode else { return [language] }
+        let region = Locale.current.region
+        let matching = supported
+            .filter { $0.languageCode == code && $0 != language }
+            .sorted { ($0.region == region ? 0 : 1) < ($1.region == region ? 0 : 1) }
+        return [language] + matching.prefix(3)
+    }
+
+    /// Fürs Ziel die Sprache des Geräts, wenn sie dieselbe ist, also mit
+    /// dessen Region, etwa „en-US“ statt „en“.
+    nonisolated static func preferredVariant(of language: Locale.Language) -> Locale.Language {
+        let device = Locale.current.language
+        return device.languageCode == language.languageCode ? device : language
+    }
+
     // MARK: Meldungen
 
-    /// „Von Englisch nach Deutsch …“, mit den Namen in der Sprache der App.
+    /// „Von Englisch nach Deutsch …“, mit den Namen in der Sprache der App,
+    /// und der nächste Schritt.
     static func unsupported(from source: Locale.Language) -> String {
         let names = Locale(identifier: AppLanguage.current.rawValue)
         let from = source.languageCode.flatMap { names.localizedString(forLanguageCode: $0.identifier) }
             ?? source.minimalIdentifier
         let to = names.localizedString(forLanguageCode: AppLanguage.current.rawValue)
             ?? AppLanguage.current.rawValue
-        return String(localized: "Von \(from) nach \(to) kann dieses Gerät nicht übersetzen.")
+        return String(localized: """
+            Von \(from) nach \(to) kann die App hier nicht selbst übersetzen. \
+            Versuch es im Übersetzungsfenster des Systems, dort lassen sich auch Sprachen laden.
+            """)
+    }
+
+    /// Kann das Gerät diese Sprachen gar nicht übersetzen?
+    static func isUnsupported(_ error: any Error) -> Bool {
+        switch error {
+        case TranslationError.unsupportedLanguagePairing, TranslationError.unsupportedSourceLanguage,
+             TranslationError.unsupportedTargetLanguage:
+            true
+        default:
+            false
+        }
     }
 
     static func describe(_ error: any Error) -> String {
@@ -440,7 +530,10 @@ final class ParagraphTranslation {
                 """)
         case TranslationError.unsupportedLanguagePairing, TranslationError.unsupportedSourceLanguage,
              TranslationError.unsupportedTargetLanguage:
-            String(localized: "Diese Sprache kann dieses Gerät nicht übersetzen.")
+            String(localized: """
+                Diese Sprache kann die App hier nicht selbst übersetzen. \
+                Versuch es im Übersetzungsfenster des Systems, dort lassen sich auch Sprachen laden.
+                """)
         case TranslationError.unableToIdentifyLanguage:
             String(localized: "Die Sprache dieses Textes lässt sich nicht erkennen.")
         default:
@@ -459,6 +552,19 @@ struct TranslationControl: View {
     let note: LocalizedStringKey
     /// Die Absätze, wie die Ansicht sie gerade zeigt.
     let paragraphs: [(key: Int64, text: String)]
+    @State private var showsSystemSheet = false
+
+    /// Für das Übersetzungsfenster: ganze Absätze bis etwa 5.000 Zeichen.
+    private var sheetText: String {
+        var result: [String] = []
+        var length = 0
+        for paragraph in paragraphs where !paragraph.text.isEmpty {
+            if length > 0, length + paragraph.text.count > 5_000 { break }
+            result.append(paragraph.text)
+            length += paragraph.text.count
+        }
+        return result.joined(separator: "\n\n")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.micro) {
@@ -489,6 +595,18 @@ struct TranslationControl: View {
                 Label(problem, systemImage: "exclamationmark.triangle")
                     .font(.caption)
                     .foregroundStyle(.orange)
+                if translation.offersSystemSheet {
+                    Button {
+                        showsSystemSheet = true
+                    } label: {
+                        Label("Im Übersetzungsfenster öffnen", systemImage: "translate")
+                            .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityHint("Zeigt den Anfang des Textes im Übersetzungsfenster des Systems")
+                    .accessibilityIdentifier("\(identifier).system")
+                }
             } else if let notice = translation.notice {
                 Text(notice)
                     .font(.caption)
@@ -517,6 +635,7 @@ struct TranslationControl: View {
                 }
             }
         }
+        .translationPresentation(isPresented: $showsSystemSheet, text: sheetText)
     }
 }
 

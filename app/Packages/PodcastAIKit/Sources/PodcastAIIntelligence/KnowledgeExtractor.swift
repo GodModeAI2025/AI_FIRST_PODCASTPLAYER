@@ -20,6 +20,7 @@
 #if canImport(FoundationModels)
 import Foundation
 import FoundationModels
+import NaturalLanguage
 import PodcastAICore
 
 /// Was das Modell bei der Relevanzprüfung zurückgeben darf.
@@ -67,8 +68,8 @@ public struct AnswerOutput {
         des Abschnitts in eckigen Klammern dahinter, etwa [3]. Aussagen über die \
         Bibliothek selbst, etwa welche Folgen es gibt, wann sie erschienen sind \
         oder was schon gehört ist, dürfen aus dem Block BIBLIOTHEK kommen, ohne \
-        Nummer. Steht die Antwort in keinem von beiden, sag das in einem Satz \
-        und erfinde nichts.
+        Nummer und ohne Klammer. Steht die Antwort in keinem von beiden, sag das \
+        in einem Satz und erfinde nichts.
         """)
     public let answer: String
 
@@ -186,8 +187,9 @@ public struct KnowledgeExtractor: Sendable {
             // Ein Verweis auf eine Nummer, die es nicht gibt, wird verworfen —
             // nicht auf den nächstliegenden Kandidaten umgebogen.
             guard let evidenceID = byIndex[index] else { continue }
-            let cleaned = EvidenceSelectionValidator.sanitize(statement, limit: 400)
-            guard !cleaned.isEmpty else { continue }
+            // Zu kurz, zu lang oder mehrere Aussagen in einer: verworfen,
+            // nicht abgeschnitten. Ein Fakt, der mit „…“ endet, ist keiner.
+            guard let cleaned = Self.validatedStatement(statement) else { continue }
 
             claims.append(Claim(
                 id: ClaimID(stable: "\(evidenceID.rawValue)|\(cleaned)"),
@@ -302,15 +304,18 @@ public struct KnowledgeExtractor: Sendable {
         let byIndex = Dictionary(uniqueKeysWithValues: candidates.map { ($0.index, $0.id) })
         var claims: [Claim] = []
         for (index, statement) in Self.parsePipedLines(content.claimLines) {
-            guard let evidenceID = byIndex[index] else { continue }
-            let cleaned = EvidenceSelectionValidator.sanitize(statement, limit: 400)
-            guard !cleaned.isEmpty else { continue }
+            guard let evidenceID = byIndex[index],
+                  let cleaned = Self.validatedStatement(statement) else { continue }
             claims.append(Claim(
                 id: ClaimID(stable: "\(evidenceID.rawValue)|\(cleaned)"),
                 statement: cleaned, evidenceIDs: [evidenceID], provenance: .derived))
         }
-        // Verweise im Text, die auf keinen Kandidaten zeigen, bleiben ohne Ziel.
-        let text = EvidenceSelectionValidator.sanitize(content.answer, limit: 2_000)
+        // Verweise im Text, die auf keinen Kandidaten zeigen, fallen weg,
+        // ebenso Blocknamen wie „[BIBLIOTHEK]“. Sonst stünden Nummern ohne
+        // Beleg und Kennungen aus dem Prompt in der Antwort.
+        let text = Self.cleanedAnswerText(
+            EvidenceSelectionValidator.sanitize(content.answer, limit: 2_000),
+            validNumbers: Set(byIndex.keys))
         var citations: [Int: EvidenceID] = [:]
         for number in Self.citedNumbers(in: text) {
             if let id = byIndex[number] { citations[number] = id }
@@ -404,7 +409,7 @@ public struct KnowledgeExtractor: Sendable {
         - Der Block BIBLIOTHEK, falls vorhanden, beschreibt die Bibliothek: \
         Podcasts, Folgen, Erscheinungsdaten, Längen, Kapitel, Hörstand, Interessen \
         und Notizen. Fragen über die Bibliothek selbst beantwortest du daraus, \
-        ohne Nummer.
+        ohne Nummer und ohne Klammer. Schreib nie „[BIBLIOTHEK]“ in die Antwort.
 
         Regeln:
         - Kein Wissen von ausserhalb dieser beiden Quellen.
@@ -727,6 +732,8 @@ public struct KnowledgeExtractor: Sendable {
         Regeln:
         - Jede Zeile beginnt mit der Nummer des Abschnitts, aus dem die \
         Aussage stammt.
+        - Eine Aussage je Zeile, ein Satz je Aussage. Nach jeder Aussage \
+        beginnt eine neue Zeile.
         - Gib nur wieder, was im Text steht. Keine Schlussfolgerung, keine \
         Ergänzung aus eigenem Wissen.
         - Nenne keine Sprecher, außer der Text tut es selbst.
@@ -781,13 +788,124 @@ public struct KnowledgeExtractor: Sendable {
     }
 
     /// `"3 | Aussage"` → `[(3, "Aussage")]`
+    ///
+    /// Ein Eintrag beginnt mit „<Nummer> |“ am Anfang oder nach Leerraum,
+    /// nicht nur am Zeilenanfang. Das Gerätemodell schreibt manchmal alles
+    /// in eine Zeile: `"1 | A. 2 | B. 3 | C."`. Nur an Zeilenumbrüchen
+    /// getrennt, wurde daraus eine einzige Aussage zu Abschnitt 1, mit den
+    /// anderen Nummern mitten im Text. Ein Eintrag endet an der nächsten
+    /// Nummer oder am Zeilenende. Text ohne Nummer davor zählt nicht.
     static func parsePipedLines(_ text: String) -> [(Int, String)] {
-        text.split(separator: "\n").compactMap { line in
-            let parts = line.split(separator: "|", maxSplits: 1)
-            guard parts.count == 2,
-                  let number = Int(parts[0].trimmingCharacters(in: .whitespaces)) else { return nil }
-            return (number, parts[1].trimmingCharacters(in: .whitespaces))
+        var starts: [(number: Int, marker: Range<String.Index>)] = []
+        for match in text.matches(of: /(\d{1,3})[ \t]*\|/) {
+            let lower = match.range.lowerBound
+            // „2023 |“ ist keine Nummer 23, „x2 |“ keine Nummer 2.
+            guard lower == text.startIndex || text[text.index(before: lower)].isWhitespace,
+                  let number = Int(match.output.1) else { continue }
+            starts.append((number, match.range))
         }
+        return starts.indices.map { position in
+            var end = position + 1 < starts.count ? starts[position + 1].marker.lowerBound : text.endIndex
+            let bodyStart = starts[position].marker.upperBound
+            if let lineEnd = text[bodyStart..<end].firstIndex(where: \.isNewline) { end = lineEnd }
+            let body = text[bodyStart..<end]
+            return (starts[position].number, body.trimmingCharacters(in: .whitespaces))
+        }
+    }
+
+    /// So lang darf eine Aussage höchstens sein, in Zeichen.
+    static let statementLimit = 400
+
+    /// Eine Aussage, wie sie als Fakt stehen darf, oder `nil`.
+    ///
+    /// Eine Aussage ist ein Satz, höchstens zwei, mit mindestens drei
+    /// Wörtern und höchstens ``statementLimit`` Zeichen. Was länger ist,
+    /// wird verworfen statt abgeschnitten, ebenso ein Text mit einem
+    /// Trennstrich „|“: dann hängen mehrere Aussagen aneinander.
+    static func validatedStatement(_ raw: String) -> String? {
+        let cleaned = EvidenceSelectionValidator.sanitize(raw, limit: Int.max)
+        guard cleaned.count <= statementLimit, !cleaned.contains("|") else { return nil }
+        let words = cleaned.split(whereSeparator: \.isWhitespace)
+        guard words.count >= 3, words.contains(where: { $0.contains(where: \.isLetter) }) else { return nil }
+        let tokenizer = NLTokenizer(unit: .sentence)
+        tokenizer.string = cleaned
+        guard tokenizer.tokens(for: cleaned.startIndex..<cleaned.endIndex).count <= 2 else { return nil }
+        return cleaned
+    }
+
+    /// Räumt den Antworttext auf, bevor ihn jemand liest.
+    ///
+    /// Eine Verweisklammer bleibt nur mit Nummern aus `validNumbers`. Eine
+    /// Klammer, deren Nummern alle ins Leere zeigen, fällt weg, ebenso
+    /// Blocknamen aus dem Prompt wie „[BIBLIOTHEK]“ oder „(BIBLIOTHEK)“.
+    /// Andere Klammern, etwa „[Musik]“ oder „(2023)“, bleiben stehen.
+    static func cleanedAnswerText(_ text: String, validNumbers: Set<Int>) -> String {
+        var result = ""
+        var position = text.startIndex
+        while position < text.endIndex {
+            let character = text[position]
+            guard character == "[" || character == "(",
+                  let close = text[position...].firstIndex(of: character == "[" ? "]" : ")") else {
+                result.append(character)
+                position = text.index(after: position)
+                continue
+            }
+            let inner = text[text.index(after: position)..<close]
+            let original = String(text[position...close])
+            position = text.index(after: close)
+            guard !inner.contains("[") && !inner.contains("("),
+                  let tokens = referenceTokens(in: String(inner)) else {
+                // Keine Verweisklammer: unverändert, auch was darin steht.
+                result += original
+                continue
+            }
+            // In runden Klammern gelten nur Blocknamen als Verweis. „(3)“
+            // kann eine Zahl im Satz sein.
+            if character == "(" {
+                if tokens.numbers.isEmpty { continue }
+                result += original
+                continue
+            }
+            let kept = tokens.numbers.filter(validNumbers.contains)
+            if kept.isEmpty { continue }
+            result += kept.count == tokens.numbers.count && !tokens.hadMarker
+                ? original
+                : "[" + kept.map(String.init).joined(separator: ", ") + "]"
+        }
+        return tidied(result)
+    }
+
+    /// Die Nummern und Blocknamen in einer Klammer. `nil`, wenn etwas
+    /// anderes darin steht.
+    private static func referenceTokens(in content: String) -> (numbers: [Int], hadMarker: Bool)? {
+        let parts = content.split(whereSeparator: { $0 == "," || $0 == ";" || $0.isWhitespace })
+        guard !parts.isEmpty else { return nil }
+        var hadMarker = false
+        var rest: [Substring] = []
+        for part in parts {
+            if isBlockMarker(part) { hadMarker = true } else { rest.append(part) }
+        }
+        if rest.isEmpty { return hadMarker ? ([], true) : nil }
+        let numbers = numbers(inBrackets: rest.joined(separator: " "))
+        guard !numbers.isEmpty else { return nil }
+        return (numbers, hadMarker)
+    }
+
+    /// Ein Blockname aus dem Prompt: ganz in Grossbuchstaben, etwa
+    /// BIBLIOTHEK, KANDIDATEN oder PROFIL, oder „Bibliothek“ und „Library“.
+    private static func isBlockMarker(_ token: Substring) -> Bool {
+        let word = token.trimmingCharacters(in: .punctuationCharacters)
+        guard word.count >= 4, word.allSatisfy(\.isLetter) else { return false }
+        if ["bibliothek", "library"].contains(word.lowercased()) { return true }
+        return word == word.uppercased()
+    }
+
+    /// Leerraum vor Satzzeichen und doppelte Leerzeichen, die beim
+    /// Entfernen entstehen.
+    private static func tidied(_ text: String) -> String {
+        var result = text.replacing(/[ \t]+([.,;:!?])/) { $0.output.1 }
+        result = result.replacing(/[ \t]{2,}/, with: " ")
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
