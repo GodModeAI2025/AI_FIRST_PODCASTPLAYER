@@ -92,7 +92,7 @@ struct EpisodeDetailView: View {
         // ändert: die Erschliessung lädt die Datei, ohne `mediaStorageChanged`
         // zu erhöhen.
         .task(id: LocalAudioCheck(storage: model.mediaStorageChanged, stage: model.stages[episode.id])) {
-            hasLocalAudio = episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) } != nil
+            hasLocalAudio = model.localAudioFile(for: episode) != nil
         }
         .task { await model.loadChapters(for: episode) }
         .sheet(item: Binding(get: { exported.map(ExportPreview.init) }, set: { exported = $0?.text })) {
@@ -146,6 +146,12 @@ struct EpisodeDetailView: View {
                 Button {
                     Task { await model.removeAudio(for: episode) }
                 } label: { Label("Audio entfernen, Daten behalten", systemImage: "arrow.down.circle.dotted") }
+            } else if model.downloading.contains(episode.id) {
+                Label("Wird geladen …", systemImage: "arrow.down.circle")
+            } else if episode.audioURL != nil {
+                Button {
+                    Task { await model.downloadForOffline(episode) }
+                } label: { Label("Laden (offline)", systemImage: "arrow.down.circle") }
             }
             Button(role: .destructive) { confirmDelete = true } label: {
                 Label("Folge löschen", systemImage: "trash")
@@ -181,6 +187,13 @@ struct EpisodeDetailView: View {
                 }
             } else if let detail = model.stageDetails[episode.id] {
                 SwiftUI.Section("Erschliessung") { Label(detail, systemImage: "clock") }
+            }
+            if stage == nil, hasLocalAudio || model.downloading.contains(episode.id) {
+                SwiftUI.Section {
+                    Label(hasLocalAudio ? "Audio liegt auf diesem Gerät" : "Audio wird geladen …",
+                          systemImage: hasLocalAudio ? "internaldrive" : "arrow.down.circle")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
 
             if !facts.isEmpty {
@@ -981,7 +994,8 @@ struct QueueView: View {
                     }
                 }
                 ForEach(model.analysisQueue) { episode in
-                    QueueRow(episode: episode, detail: "wartet")
+                    // Der echte Grund: auf WLAN, auf einen zweiten Versuch oder einfach der Reihe nach.
+                    QueueRow(episode: episode, detail: model.stageDetails[episode.id] ?? "wartet")
                         .swipeActions {
                             Button("Entfernen", role: .destructive) { model.removeFromAnalysisQueue(episode.id) }
                         }

@@ -498,6 +498,32 @@ public final class EpisodePlayer {
         seek(to: earlier.last?.start.seconds ?? 0)
     }
 
+    /// Wechselt von der geladenen Datei auf den Stream, an derselben Stelle.
+    /// Folge, Kapitel und Schlaf-Timer bleiben, eine pausierte Folge bleibt
+    /// pausiert. Danach lässt sich die Datei löschen, ohne dass der Player
+    /// verschwindet. Spielt die Folge schon aus dem Netz, passiert nichts.
+    public func switchToStream() {
+        guard let episode, usingLocalFile else { return }
+        guard let stream = episode.audioURL else {
+            stop()
+            return
+        }
+        let wasPlaying = isPlaying || resumeWhenReady
+        let ended = reachedEnd
+        flushHeard()
+        savePosition()
+        heardStart = nil
+        player.pause()
+        isPlaying = false
+        suspendSleepCountdown()
+        pendingStart = pendingStart ?? currentTime
+        resumeWhenReady = wasPlaying
+        load(stream, isLocal: false)
+        // Zu Ende gehört bleibt zu Ende gehört: Abspielen beginnt dann von vorn.
+        reachedEnd = ended
+        updateNowPlaying()
+    }
+
     public func stop() {
         flushHeard()
         savePosition()

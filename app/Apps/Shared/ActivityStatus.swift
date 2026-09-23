@@ -21,15 +21,24 @@ struct ActivityStatusButton: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openQueue) private var openQueue
 
-    private var pending: Int { model.analysisQueue.count + (model.analyzing == nil ? 0 : 1) }
+    /// Was läuft oder gleich laufen darf.
+    private var pending: Int { model.runnableQueueCount + (model.analyzing == nil ? 0 : 1) }
+    /// Was auf ein passendes Netz wartet.
+    private var waiting: Int { model.analysisQueue.count - model.runnableQueueCount }
 
     var body: some View {
-        if model.activity != nil || pending > 0 {
+        if model.activity != nil || pending > 0 || waiting > 0 {
             Button { openQueue?() } label: {
                 HStack(spacing: Design.Spacing.micro) {
-                    ProgressView().controlSize(.small)
-                    if pending > 0 {
-                        Text("\(pending)").font(.caption.monospacedDigit().weight(.semibold))
+                    if model.activity != nil || pending > 0 {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        // Nichts läuft, alles wartet: ein ruhiges Symbol statt eines Kreisels.
+                        Image(systemName: model.preparationWait?.symbol ?? "clock")
+                    }
+                    let count = pending > 0 ? pending : waiting
+                    if count > 0 {
+                        Text("\(count)").font(.caption.monospacedDigit().weight(.semibold))
                     }
                 }
             }
@@ -43,7 +52,12 @@ struct ActivityStatusButton: View {
         if pending > 0 {
             return pending == 1 ? "Eine Folge wird vorbereitet" : "\(pending) Folgen werden vorbereitet"
         }
-        return model.activity ?? "Arbeit läuft"
+        if let activity = model.activity { return activity }
+        if waiting > 0 {
+            let count = waiting == 1 ? "Eine Folge wartet" : "\(waiting) Folgen warten"
+            return model.preparationWait.map { "\(count). \($0.settingsLabel)" } ?? count
+        }
+        return "Arbeit läuft"
     }
 }
 

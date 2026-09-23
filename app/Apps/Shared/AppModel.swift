@@ -64,13 +64,24 @@ public final class AppModel {
     public var automaticAnalysis: Bool {
         didSet {
             UserDefaults.standard.set(automaticAnalysis, forKey: Self.automaticAnalysisKey)
-            if automaticAnalysis { Task { await prepareNewEpisodes() } }
+            if automaticAnalysis {
+                Task { await prepareNewEpisodes() }
+            } else {
+                // Ausgeschaltet heisst auch: was schon von selbst wartet, lädt
+                // nicht mehr. Was gerade läuft, läuft zu Ende.
+                dropAutomaticallyQueued { _ in true }
+            }
         }
     }
     /// Wie viele der jüngsten Folgen je Quelle die App von sich aus vorbereitet.
     public var episodesPerSource: Int {
         didSet {
             UserDefaults.standard.set(episodesPerSource, forKey: Self.episodesPerSourceKey)
+            if episodesPerSource < oldValue {
+                // Weniger gewählt: was nicht mehr zu den jüngsten zählt, fällt heraus.
+                let keep = Set(episodes.values.flatMap { newestCandidates(in: $0).map(\.id) })
+                dropAutomaticallyQueued { !keep.contains($0.id) }
+            }
             Task { await prepareNewEpisodes() }
         }
     }
@@ -82,18 +93,93 @@ public final class AppModel {
     public var preparationOnWiFiOnly: Bool {
         didSet {
             UserDefaults.standard.set(preparationOnWiFiOnly, forKey: Self.wifiOnlyKey)
-            networkChanged(expensive: onExpensiveNetwork)
+            networkChanged(networkLimit)
         }
     }
-    /// Mobilfunk, persönlicher Hotspot oder Datensparmodus.
-    public private(set) var onExpensiveNetwork = false
+    /// Was das Netz gerade einschränkt: kein Netz, Datensparmodus, Hotspot
+    /// oder Mobilfunk. `nil` heisst WLAN ohne Datenlimit.
+    public private(set) var networkLimit: NetworkLimit?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
-    /// Die automatische Vorbereitung wartet gerade auf WLAN.
-    public var preparationWaitsForWiFi: Bool { preparationOnWiFiOnly && onExpensiveNetwork }
+    /// Kein Netz. Dann spielt nur, was auf dem Gerät liegt.
+    public var isOffline: Bool { networkLimit == .offline }
+    /// Warum automatisch Eingereihtes gerade wartet, oder `nil`, wenn es
+    /// laufen darf. Den Datensparmodus achtet die App immer, Mobilfunk und
+    /// Hotspot nur mit „Nur im WLAN“.
+    public var preparationWait: NetworkLimit? {
+        switch networkLimit {
+        case .offline, .lowDataMode: networkLimit
+        case .hotspot, .cellular: preparationOnWiFiOnly ? networkLimit : nil
+        case nil: nil
+        }
+    }
+
+    /// Die Einschränkungen des Netzes, die das Vorbereiten anhalten.
+    public enum NetworkLimit: Equatable, Sendable {
+        case offline, lowDataMode, hotspot, cellular
+
+        /// Kurz, für die Warteschlange und die Folge.
+        public var queueDetail: String {
+            switch self {
+            case .offline: "wartet auf Netz"
+            case .lowDataMode: "wartet, Datensparmodus ist an"
+            case .hotspot: "Hotspot erkannt, wartet auf WLAN ohne Datenlimit"
+            case .cellular: "wartet auf WLAN"
+            }
+        }
+
+        /// Für die Einstellungen und das Aktivitätssymbol.
+        public var settingsLabel: String {
+            switch self {
+            case .offline: "Kein Netz, das Vorbereiten wartet"
+            case .lowDataMode: "Datensparmodus ist an, das Vorbereiten wartet"
+            case .hotspot: "Hotspot erkannt, wartet auf WLAN ohne Datenlimit"
+            case .cellular: "Wartet auf WLAN"
+            }
+        }
+
+        public var symbol: String { self == .offline ? "wifi.slash" : "wifi.exclamationmark" }
+
+        /// Liest den Pfad des Systems. Ein teures WLAN ist fast immer der
+        /// Hotspot eines Telefons.
+        nonisolated static func of(_ path: NWPath) -> NetworkLimit? {
+            // `requiresConnection` gilt nicht als offline: ein Verbindungsaufbau
+            // kann das Netz erst wecken.
+            if path.status == .unsatisfied { return .offline }
+            if path.isConstrained { return .lowDataMode }
+            guard path.isExpensive else { return nil }
+            return path.usesInterfaceType(.wifi) ? .hotspot : .cellular
+        }
+    }
     @ObservationIgnored var analyzedEpisodes: Set<EpisodeID> = []
     /// Von der App selbst eingereihte Folgen. Ihre Fehler unterbrechen
     /// niemanden: wer nicht darum gebeten hat, will dafür keinen Dialog.
     @ObservationIgnored private var automaticallyQueued: Set<EpisodeID> = []
+    /// Aus der Warteschlange genommen. Das Vorbereiten reiht sie nicht wieder
+    /// ein, erst ein ausdrückliches Anfordern.
+    @ObservationIgnored private var dismissedFromPreparation = StoredEpisodeIDs(key: "dismissedFromPreparation")
+
+    /// Nach dem Auswerten nur Transkript, Fakten und Notizen behalten.
+    /// Abgespielt wird danach aus dem Netz.
+    public var removeAudioAfterAnalysis: Bool {
+        didSet {
+            UserDefaults.standard.set(removeAudioAfterAnalysis, forKey: Self.removeAfterAnalysisKey)
+            if removeAudioAfterAnalysis { Task { await tidyLocalAudio() } }
+        }
+    }
+    /// Gehörte Folgen einen Tag nach dem letzten Hören vom Gerät nehmen.
+    public var removeHeardAudio: Bool {
+        didSet {
+            UserDefaults.standard.set(removeHeardAudio, forKey: Self.removeHeardKey)
+            if removeHeardAudio { Task { await tidyLocalAudio() } }
+        }
+    }
+    static let removeAfterAnalysisKey = "removeAudioAfterAnalysis"
+    static let removeHeardKey = "removeHeardAudioAfterDay"
+    /// Folgen, deren Audio gerade für unterwegs geladen wird.
+    public internal(set) var downloading: Set<EpisodeID> = []
+    /// Ausdrücklich für unterwegs geladen. Das Aufräumen nach dem Auswerten
+    /// lässt diese Dateien liegen.
+    @ObservationIgnored var keptOffline = StoredEpisodeIDs(key: "keptOfflineEpisodes")
     /// Kann dieses Gerät gar nicht transkribieren, hört die App von selbst
     /// auf, es zu versuchen, statt Folge um Folge zu laden.
     public internal(set) var preparationUnavailable: String?
@@ -158,6 +244,9 @@ public final class AppModel {
         let perSource = UserDefaults.standard.integer(forKey: Self.episodesPerSourceKey)
         self.episodesPerSource = perSource > 0 ? perSource : 3
         self.preparationOnWiFiOnly = UserDefaults.standard.object(forKey: Self.wifiOnlyKey) as? Bool ?? true
+        // Beide an: der Text bleibt, der Ton kommt bei Bedarf aus dem Netz.
+        self.removeAudioAfterAnalysis = UserDefaults.standard.object(forKey: Self.removeAfterAnalysisKey) as? Bool ?? true
+        self.removeHeardAudio = UserDefaults.standard.object(forKey: Self.removeHeardKey) as? Bool ?? true
         self.deviceID = deviceID
         self.policy = PlaybackPolicy(deviceID: deviceID)
         let locator = LocalMediaLocator()
@@ -174,8 +263,8 @@ public final class AppModel {
             self?.playNextInQueue(after: episode)
         }
         pathMonitor.pathUpdateHandler = { [weak self] path in
-            let expensive = path.isExpensive || path.isConstrained
-            Task { @MainActor in self?.networkChanged(expensive: expensive) }
+            let limit = NetworkLimit.of(path)
+            Task { @MainActor in self?.networkChanged(limit) }
         }
         pathMonitor.start(queue: DispatchQueue(label: "PodcastAI.network"))
         // Eine Folge und ein Fokus-Plan klingen nie gleichzeitig. Startet die
@@ -273,6 +362,7 @@ public final class AppModel {
         // „Als Nächstes“, Warteschlange und gemerkte Stellen.
         await forgetEpisodesRemovedElsewhere()
         await refreshRelevantToday()
+        await tidyLocalAudio()
     }
 
     /// Angefangene Folgen, zuletzt gestartete zuerst, mit der Stelle zum Weiterhören.
@@ -418,6 +508,7 @@ public final class AppModel {
             lastError = UserFacingError.describe(error)
         }
         await refreshRelevantToday()
+        await tidyLocalAudio()
     }
 
     // MARK: - Folgen erschliessen
@@ -452,33 +543,51 @@ public final class AppModel {
         guard automaticAnalysis, preparationUnavailable == nil else { return }
         let ids = sourceID.map { [$0] } ?? sources.map(\.id)
         for id in ids {
-            let list = episodes[id] ?? []
             // Erst die jüngsten N, dann filtern. Umgekehrt rückte nach jeder
             // fertigen Folge die nächstältere nach, bis durchs ganze Archiv.
-            let candidates = list
-                .filter { $0.audioURL != nil && $0.canBeAnalyzed }
-                .prefix(episodesPerSource)
+            let candidates = newestCandidates(in: episodes[id] ?? [])
                 .filter { !analyzedEpisodes.contains($0.id) }
                 .filter { stages[$0.id] == nil }
+                .filter { !dismissedFromPreparation.contains($0.id) }
             for episode in candidates { enqueueAnalysis(episode, automatic: true) }
         }
     }
 
-    /// Netz gewechselt. Im WLAN läuft Wartendes weiter, im Mobilfunk bleibt
-    /// automatisch Eingereihtes stehen.
-    func networkChanged(expensive: Bool) {
-        onExpensiveNetwork = expensive
-        for episode in analysisQueue where automaticallyQueued.contains(episode.id) {
-            stageDetails[episode.id] = preparationWaitsForWiFi ? "wartet auf WLAN" : "wartet"
-        }
-        if !preparationWaitsForWiFi, !analysisQueue.isEmpty { startAnalysisWorker() }
+    /// Die jüngsten Folgen einer Quelle, die das Vorbereiten von selbst nimmt.
+    private func newestCandidates(in list: [Episode]) -> ArraySlice<Episode> {
+        list.filter { $0.audioURL != nil && $0.canBeAnalyzed }.prefix(episodesPerSource)
     }
 
-    /// Darf diese Folge jetzt laufen? Automatisch Eingereihtes wartet im
-    /// Mobilfunk, wenn „Nur im WLAN“ an ist.
-    private func mayRunNow(_ episode: Episode) -> Bool {
-        !(preparationWaitsForWiFi && automaticallyQueued.contains(episode.id))
+    /// Nimmt von selbst Eingereihtes wieder aus der Warteschlange.
+    private func dropAutomaticallyQueued(where shouldDrop: (Episode) -> Bool) {
+        let dropped = Set(analysisQueue.filter { automaticallyQueued.contains($0.id) && shouldDrop($0) }.map(\.id))
+        guard !dropped.isEmpty else { return }
+        analysisQueue.removeAll { dropped.contains($0.id) }
+        for id in dropped {
+            automaticallyQueued.remove(id)
+            stageDetails[id] = nil
+        }
     }
+
+    /// Netz gewechselt. Im WLAN ohne Datenlimit läuft Wartendes weiter,
+    /// sonst bleibt automatisch Eingereihtes stehen und sagt, warum.
+    func networkChanged(_ limit: NetworkLimit?) {
+        networkLimit = limit
+        let detail = preparationWait?.queueDetail ?? "wartet"
+        for episode in analysisQueue where automaticallyQueued.contains(episode.id) {
+            stageDetails[episode.id] = detail
+        }
+        if preparationWait == nil, !analysisQueue.isEmpty { startAnalysisWorker() }
+    }
+
+    /// Darf diese Folge jetzt laufen? Automatisch Eingereihtes wartet, solange
+    /// das Netz es nicht erlaubt. Von Hand Angefordertes läuft immer.
+    func mayRunNow(_ episode: Episode) -> Bool {
+        !(preparationWait != nil && automaticallyQueued.contains(episode.id))
+    }
+
+    /// Wie viele Folgen der Warteschlange jetzt laufen dürfen.
+    public var runnableQueueCount: Int { analysisQueue.filter(mayRunNow).count }
 
     /// Erschliesst eine Folge: laden, transkribieren, Belege bilden.
     public func analyze(_ episode: Episode, audioURL: URL, locale explicitLocale: Locale? = nil) async {
@@ -487,25 +596,41 @@ public final class AppModel {
 
     /// Stellt eine Folge in die Warteschlange der Erschliessung.
     public func enqueueAnalysis(_ episode: Episode, automatic: Bool = false) {
+        let queued = analysisQueue.firstIndex { $0.id == episode.id }
         if automatic {
-            guard preparationUnavailable == nil else { return }
+            // Schon eingereiht oder in Arbeit: so bleibt es. Sonst würde aus
+            // einer Folge, die jemand angefordert hat, eine, die aufs WLAN wartet.
+            guard preparationUnavailable == nil, queued == nil, analyzing?.id != episode.id else { return }
             automaticallyQueued.insert(episode.id)
         } else {
             automaticallyQueued.remove(episode.id)
+            dismissedFromPreparation.remove(episode.id)
             // Von Hand angefordert heisst: auch auf einem Gerät ohne
             // Spracherkennung darf man es erneut versuchen.
             preparationUnavailable = nil
+            // Wartet die Folge schon, etwa von selbst eingereiht aufs WLAN,
+            // läuft sie jetzt als Nächste.
+            if let queued {
+                analysisQueue.insert(analysisQueue.remove(at: queued), at: 0)
+                stageDetails[episode.id] = "wartet"
+                startAnalysisWorker()
+                return
+            }
         }
         guard episode.audioURL != nil,
               analyzing?.id != episode.id,
               !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
         analysisQueue.append(episode)
         stages[episode.id] = nil
-        stageDetails[episode.id] = automatic && preparationWaitsForWiFi ? "wartet auf WLAN" : "wartet"
+        stageDetails[episode.id] = automatic ? preparationWait?.queueDetail ?? "wartet" : "wartet"
         startAnalysisWorker()
     }
 
     public func removeFromAnalysisQueue(_ episodeID: EpisodeID) {
+        // Wer eine Folge herausnimmt, will sie nicht beim nächsten
+        // Aktualisieren wieder in der Warteschlange sehen.
+        if analysisQueue.contains(where: { $0.id == episodeID }) { dismissedFromPreparation.insert(episodeID) }
+        automaticallyQueued.remove(episodeID)
         analysisQueue.removeAll { $0.id == episodeID }
         stageDetails[episodeID] = nil
     }
@@ -611,6 +736,7 @@ public final class AppModel {
             }
             analyzedEpisodes.insert(episode.id)
             automaticallyQueued.remove(episode.id)
+            await removeAudioAfterAnalysisIfWanted(episode)
             await refreshRelevantToday()
             // Fakten gleich mit ermitteln, solange die Folge frisch ist.
             await prepareFacts(for: episode, removalTicket: ticket)
@@ -1293,10 +1419,18 @@ public final class AppModel {
     public func playEpisode(_ episode: Episode, at seconds: Double? = nil) {
         if playerPlan != nil { stopPlayback() }
         let start = seconds ?? resumePosition(for: episode)
-        let local = episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) }
+        let local = localAudioFile(for: episode)
+        // Ohne Netz und ohne Datei gleich sagen, woran es liegt, statt einen
+        // Player zu öffnen, der nur lädt.
+        if local == nil, isOffline {
+            lastError = "„\(episode.title)“ ist nicht auf diesem Gerät geladen. Ohne Netz lässt sich die Folge nicht abspielen."
+            return
+        }
         episodePlayer.play(episode, at: start, localFile: local)
         upNext.removeAll { $0.id == episode.id }
         Task { await loadChapters(for: episode) }
+        // Die vorige Folge liegt jetzt nicht mehr im Player und darf aufgeräumt werden.
+        Task { await tidyLocalAudio() }
     }
 
     /// Springt aus „Für dich“ an die Stelle in der ganzen Folge.

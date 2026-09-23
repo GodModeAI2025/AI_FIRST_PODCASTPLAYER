@@ -96,6 +96,24 @@ public actor MediaDownloader {
         }
     }
 
+    /// Die schon geladene Datei dieser Fassung, ohne neue Anfrage, etwa nach
+    /// „Laden (offline)“ oder einem gescheiterten Transkript. Am endgültigen
+    /// Ort liegt nur, was vollständig geladen wurde (siehe oben), deshalb
+    /// gilt sie ohne weitere Prüfung als ganz. Liegt nichts da, `nil`.
+    public func existing(mediaVersionID: MediaVersionID) -> DownloadResult? {
+        let destination = directory.appendingPathComponent(mediaVersionID.rawValue)
+        guard let values = try? destination.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]),
+              values.isRegularFile == true, let bytes = values.fileSize, bytes > 0,
+              let hash = try? Self.sha256(of: destination) else { return nil }
+        return DownloadResult(
+            localRelativePath: mediaVersionID.rawValue,
+            byteCount: Int64(bytes),
+            contentHash: hash,
+            duration: try? AudioFileReader.duration(of: destination),
+            mimeType: PlayableAsset.sniffMIMEType(at: destination)
+        )
+    }
+
     /// Blockweiser SHA-256. 1 MB je Block: groß genug, dass der Overhead
     /// nicht ins Gewicht fällt, klein genug für ein Telefon.
     static func sha256(of url: URL) throws -> String {
