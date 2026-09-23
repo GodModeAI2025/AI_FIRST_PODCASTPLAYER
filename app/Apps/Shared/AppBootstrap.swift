@@ -46,6 +46,10 @@ public enum AppBootstrap {
     public static func start(with model: AppModel) -> BackgroundWork {
         registerIntentDependencies(model)
         configureAudioSession()
+        // Vor dem ersten Laden: die Fakten arbeiten nur vorn oder mit
+        // Hintergrundzeit vom System, und die App muss wissen, wann sie
+        // in den Hintergrund geht.
+        model.observeAppState()
 
         let background = BackgroundWork(model: model)
         background.register()

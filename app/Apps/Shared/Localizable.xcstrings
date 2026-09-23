@@ -1745,6 +1745,22 @@
         }
       }
     },
+    "Apple Intelligence auf dem Gerät": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence auf dem Gerät"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence on device"
+          }
+        }
+      }
+    },
     "Apple Intelligence und Datenschutz": {
       "localizations": {
         "de": {
@@ -1757,6 +1773,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apple Intelligence and Privacy"
+          }
+        }
+      }
+    },
+    "Apple Intelligence über Private Cloud Compute": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence über Private Cloud Compute"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Intelligence via Private Cloud Compute"
           }
         }
       }
@@ -7575,6 +7607,22 @@
         }
       }
     },
+    "Noch nicht alles übersetzt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch nicht alles übersetzt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not everything is translated yet."
+          }
+        }
+      }
+    },
     "Noch nichts abgefragt.": {
       "localizations": {
         "de": {
@@ -8627,6 +8675,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "How It Works"
+          }
+        }
+      }
+    },
+    "Sobald das Transkript fertig ist, lassen sich hier überprüfbare Aussagen mit Zeitmarke ermitteln.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sobald das Transkript fertig ist, lassen sich hier überprüfbare Aussagen mit Zeitmarke ermitteln."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once the transcript is ready, you can extract verifiable statements with timestamps here."
           }
         }
       }
@@ -10388,6 +10452,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Resume at %@"
+          }
+        }
+      }
+    },
+    "Weiter übersetzen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weiter übersetzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue Translating"
           }
         }
       }

@@ -419,10 +419,17 @@ struct EpisodeDetailView: View {
                         FactsGatheringRow(title: "Fakten werden gesammelt …",
                                           progress: model.factsProgress[episode.id], detail: nil)
                     } else if passages.isEmpty {
-                        EpisodeAnalysisPrompt(episode: episode, style: .inline(String(localized: """
-                            Sobald das Transkript fertig ist, zieht die App überprüfbare Aussagen \
-                            mit Zeitmarke heraus.
-                            """)))
+                        // Von selbst kommen die Fakten nur, wenn „Fakten automatisch
+                        // sammeln“ an ist. Sonst holt sie „Jetzt ermitteln“.
+                        EpisodeAnalysisPrompt(episode: episode, style: .inline(model.automaticFacts
+                            ? String(localized: """
+                                Sobald das Transkript fertig ist, zieht die App überprüfbare Aussagen \
+                                mit Zeitmarke heraus.
+                                """)
+                            : String(localized: """
+                                Sobald das Transkript fertig ist, lassen sich hier überprüfbare Aussagen \
+                                mit Zeitmarke ermitteln.
+                                """)))
                     } else if let position = model.factsQueuePosition(of: episode.id) {
                         // Wartet in der Warteschlange. Der Knopf holt die Folge nur nach vorn.
                         FactsGatheringRow(title: "Fakten werden gesammelt …", progress: nil,
@@ -455,7 +462,7 @@ struct EpisodeDetailView: View {
                         }
                     }
                 } footer: {
-                    let tier = facts.first?.modelTier ?? "Apple Intelligence"
+                    let tier = Self.factAuthor(facts.first?.modelTier)
                     Text("""
                         Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. \
                         Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. \
@@ -471,6 +478,10 @@ struct EpisodeDetailView: View {
                                           detail: factsQueueDetail(position: position),
                                           paused: model.factsWait != nil)
                     } else {
+                        // Etwa: unvollständig, der Rest kommt bei einem späteren Lauf.
+                        if let issue = model.factsIssues[episode.id] {
+                            Text(issue).font(.callout).foregroundStyle(.secondary)
+                        }
                         Button {
                             model.requestFacts(for: episode)
                         } label: { Label("Neu ermitteln", systemImage: "arrow.clockwise") }
@@ -494,6 +505,26 @@ struct EpisodeDetailView: View {
         let ahead = position + (model.gatheringFacts == nil ? 0 : 1)
         guard ahead > 0 else { return String(localized: "startet gleich") }
         return String(AttributedString(localized: "wartet, noch ^[\(ahead) Folge](inflect: true) davor").characters)
+    }
+
+    /// Wer die Fakten formuliert hat, in der Sprache der App.
+    ///
+    /// Gespeichert ist die Kennung der Stufe, etwa `onDevice`. Fakten aus
+    /// älteren Versionen tragen noch die Bezeichnung in der Sprache, in der
+    /// sie entstanden sind. „Auf dem Gerät“ und nicht „auf diesem Gerät“:
+    /// über iCloud kommen auch Fakten, die ein anderes Gerät formuliert hat.
+    /// Was keiner Stufe entspricht, etwa bei Beispieldaten, steht wörtlich da.
+    static func factAuthor(_ stored: String?) -> String {
+        let stored = stored ?? ""
+        let tier: ModelTier? = switch stored {
+        case "Auf diesem Gerät", "On This Device": .onDevice
+        default: ModelTier(rawValue: stored)
+        }
+        switch tier {
+        case .onDevice: return String(localized: "Apple Intelligence auf dem Gerät")
+        case .privateCloudCompute: return String(localized: "Apple Intelligence über Private Cloud Compute")
+        case nil: return stored.isEmpty ? "Apple Intelligence" : stored
+        }
     }
 }
 
@@ -824,11 +855,9 @@ struct TranscriptSection: View {
                     if foreignSource != nil {
                         TranslationControl(
                             translation: translation, identifier: "transcript.translate",
-                            note: "Auf dem Gerät übersetzt. Merken und Kopieren nehmen den Originaltext."
-                        ) {
-                            let list = keyedParagraphs
-                            Task { await translation.toggle(list) }
-                        }
+                            note: "Auf dem Gerät übersetzt. Merken und Kopieren nehmen den Originaltext.",
+                            paragraphs: keyedParagraphs
+                        )
                     }
                 }
                 if loaded && paragraphs.isEmpty {
@@ -900,6 +929,10 @@ struct TranscriptSection: View {
         .translationTask(translation.configuration) { @Sendable [translation] session in
             await ParagraphTranslation.run(session, for: translation)
         }
+        // Mit der Ansicht endet die Sitzung, etwa beim Wechsel des Tabs.
+        // Kommt sie zurück, geht die Übersetzung dort weiter, wo sie stand.
+        .onAppear { translation.viewAppeared() }
+        .onDisappear { translation.viewDisappeared() }
     }
 
     private var currentStart: Int64? {

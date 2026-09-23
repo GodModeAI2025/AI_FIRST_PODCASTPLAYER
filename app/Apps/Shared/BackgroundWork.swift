@@ -12,7 +12,11 @@
 //
 //  Der Audio-Hintergrundmodus wird ausdrücklich **nicht** als Schlupfloch
 //  für Dauerarbeit benutzt. Analyse läuft über BGProcessing und hält an
-//  Checkpoints an.
+//  Checkpoints an. Die Fakten arbeiten im Hintergrund nur hier in der
+//  Aufgabe `com.podcastai.analysis` oder neben Transkripten, die unter der
+//  fortgesetzten Verarbeitung entstehen. Geht die App sonst in den
+//  Hintergrund, hält die laufende Folge an und bleibt vorn in der
+//  Warteschlange.
 //
 
 import Foundation

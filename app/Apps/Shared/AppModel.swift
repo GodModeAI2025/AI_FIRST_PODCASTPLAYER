@@ -223,9 +223,20 @@ public final class AppModel {
     @ObservationIgnored var factsTask: Task<Void, Never>?
     /// Von Hand angefordert. Läuft vorn, rechnet neu und meldet Fehler.
     @ObservationIgnored var factsRequested: Set<EpisodeID> = []
-    /// Nach zwei vergeblichen Versuchen in diesem Lauf. Erst der nächste
+    /// Nach zwei vergeblichen Versuchen im Vordergrund. Erst der nächste
     /// Start oder ein wieder bereites Modell versucht es erneut.
     @ObservationIgnored var factsDeferred: Set<EpisodeID> = []
+    /// Wie viele Arbeiten gerade Hintergrundzeit vom System haben und die
+    /// Fakten mitnehmen: die Aufgabe `com.podcastai.analysis` und die
+    /// fortgesetzte Verarbeitung der Transkripte. Ohne sie arbeitet die
+    /// Warteschlange der Fakten nur, solange die App vorn ist.
+    @ObservationIgnored var factsGrants = 0
+    /// Beobachter für Vorder- und Hintergrund, siehe `observeAppState()`.
+    @ObservationIgnored var appStateObservers: [any NSObjectProtocol] = []
+    /// War die App seit dem letzten Aktivwerden im Hintergrund, oder ist
+    /// sie eben erst gestartet? Dann sucht sie beim Aktivwerden nach
+    /// fehlenden Fakten, sonst nicht, etwa nach dem Kontrollzentrum.
+    @ObservationIgnored var returningFromBackground = true
     /// Seit wann eine Folge mit Transkript ohne Fakten bekannt ist. Kommt
     /// das Transkript per iCloud, sammelt meist das andere Gerät gerade.
     @ObservationIgnored var factsMissingSince: [EpisodeID: Date] = [:]
@@ -839,6 +850,10 @@ public final class AppModel {
         analysisTask = Task { [weak self] in
             guard let self else { return }
             let background = BackgroundContinuation.begin(title: self.analysisQueue.first?.title ?? "")
+            // Solange Transkripte entstehen, dürfen die Fakten mitlaufen,
+            // auch im Hintergrund. Endet die Phase, hält `releaseFactsGrant`
+            // sie an, wenn die App nicht vorn ist.
+            self.factsGrants += 1
             var retried: Set<EpisodeID> = []
             while let index = self.analysisQueue.firstIndex(where: { self.mayRunNow($0) }) {
                 let next = self.analysisQueue.remove(at: index)
@@ -854,6 +869,7 @@ public final class AppModel {
                 }
             }
             background.end()
+            self.releaseFactsGrant()
             self.analysisTask = nil
             self.analyzing = nil
             self.activity = nil
