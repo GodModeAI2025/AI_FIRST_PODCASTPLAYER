@@ -305,6 +305,15 @@ public final class MCPServer {
 /// unpassender Speicher wird hier nicht beiseitegelegt, sondern gemeldet.
 /// Ob etwas herausgeht, entscheiden Schalter und Freigabe aus den
 /// Einstellungen der App, bei jeder Anfrage neu.
+///
+/// Die App-Sandbox steht dem nicht im Weg. Der Agent startet dasselbe
+/// signierte Programm wie die App, also mit derselben Sandbox und demselben
+/// Container: dieselbe Datenbank, dieselben Einstellungen, dasselbe
+/// Protokoll. Standardein- und -ausgabe bringt der Prozess vom Agenten mit,
+/// und die Sandbox lässt ihm diese geerbten Kanäle. Nicht starten kann das
+/// Programm nur ein Agent, der selbst in einer Sandbox läuft. Sein
+/// Kindprozess müsste dessen Sandbox erben und dürfte keine eigene
+/// mitbringen.
 @MainActor
 enum MCPHost {
 
@@ -399,6 +408,8 @@ public final class MCPStdioTransport {
 /// Bewusst blockierend und kein `AsyncSequence`: dieser Leser läuft in einem
 /// Prozess, dessen einzige Aufgabe das Lesen ist. Ihn asynchron zu bauen
 /// hiesse, Nebenläufigkeit dort einzuführen, wo es nichts nebenher zu tun gibt.
+/// Blockierend heisst nur: warten, bis überhaupt etwas da ist. Eine Zeile
+/// wird beantwortet, sobald sie angekommen ist.
 struct LineReader {
 
     static let maximumLineBytes = 4 * 1024 * 1024
@@ -433,11 +444,45 @@ struct LineReader {
                 buffer.removeAll(keepingCapacity: false)
                 return Data()
             }
-            guard let chunk = try? handle.read(upToCount: Self.chunkBytes), !chunk.isEmpty else {
+            guard let chunk = readAvailable() else {
                 finished = true
                 continue
             }
             buffer.append(chunk)
+        }
+    }
+
+    /// Was gerade in der Eingabe liegt, höchstens `chunkBytes`. Wartet nur,
+    /// solange noch gar nichts da ist. `nil` am Ende der Eingabe oder bei
+    /// einem Lesefehler.
+    ///
+    /// Bewusst `read(2)` und nicht `FileHandle.read(upToCount:)`. Das kehrt
+    /// an einer Pipe erst zurück, wenn die ganze Menge beisammen ist oder die
+    /// Eingabe endet. Ein Agent schickt `initialize` und wartet auf die
+    /// Antwort, bevor er weiterschreibt. Mit dem alten Aufruf warteten beide
+    /// aufeinander, und keine einzige Antwort kam an.
+    private func readAvailable() -> Data? {
+        let descriptor = handle.fileDescriptor
+        var bytes = [UInt8](repeating: 0, count: Self.chunkBytes)
+        while true {
+            let count = bytes.withUnsafeMutableBytes { raw in
+                Darwin.read(descriptor, raw.baseAddress, raw.count)
+            }
+            if count > 0 { return Data(bytes[0..<count]) }
+            if count == 0 { return nil }
+            switch errno {
+            case EINTR:
+                continue
+            case EAGAIN:
+                // Manche Aufrufer reichen die Pipe nicht blockierend weiter.
+                // Dann wird gewartet, bis etwas kommt, statt das als Ende
+                // der Eingabe zu lesen.
+                var request = pollfd(fd: descriptor, events: Int16(POLLIN), revents: 0)
+                _ = poll(&request, 1, -1)
+                continue
+            default:
+                return nil
+            }
         }
     }
 }

@@ -867,12 +867,10 @@ struct EpisodePlayerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var scrubbing: Double?
     @State private var showingNote = false
-    @State private var noteText = ""
-    @State private var notePosition: Double = 0
-    /// Folge und Zitat beim Öffnen des Blatts. Endet die Folge, während der
-    /// Kommentar entsteht, und die nächste beginnt, bleibt die Notiz hier.
-    @State private var noteEpisode: Episode?
-    @State private var noteQuote: String?
+    /// Folge, Stelle, Zitat und Text aus „Moment merken“. Endet die Folge,
+    /// während der Kommentar entsteht, und die nächste beginnt, bleibt die
+    /// Notiz bei der Folge, in der sie begonnen wurde.
+    @State private var note = MomentNoteDraft()
 
     private var player: EpisodePlayer { model.episodePlayer }
 
@@ -920,10 +918,7 @@ struct EpisodePlayerView: View {
                         scrubber
                         transport
                         Button {
-                            notePosition = player.currentTime
-                            noteEpisode = episode
-                            noteQuote = nil
-                            noteText = ""
+                            note.begin(in: episode, at: player.currentTime)
                             showingNote = true
                         } label: {
                             Label("Moment merken", systemImage: "bookmark")
@@ -978,16 +973,28 @@ struct EpisodePlayerView: View {
                     }
             }
         }
-        // Ausserhalb des `if let`: hört die Wiedergabe auf, während der
-        // Kommentar entsteht, bleibt das Blatt samt Text offen.
+        // Ausserhalb des `if let`: endet die Folge oder beginnt die nächste,
+        // während der Kommentar entsteht, bleibt das Blatt samt Text offen.
+        //
+        // Wird die Wiedergabe ganz beendet, etwa über Siri, über das Menü auf
+        // dem Mac oder weil die Folge auf einem anderen Gerät gelöscht wurde,
+        // verschwindet der Player und das Blatt mit ihm. Dann wird der Moment
+        // mit dem Text gemerkt, der bis dahin dasteht, statt verloren zu gehen.
+        // Nichts gemerkt wird nur nach „Abbrechen“. Deshalb schliesst das
+        // Blatt nicht durch Wischen: das wäre weder das eine noch das andere.
         .sheet(isPresented: $showingNote) {
-            if let noteEpisode {
-                NoteSheet(position: notePosition, quote: noteQuote, text: $noteText) {
-                    let text = noteText, position = notePosition, quote = noteQuote
-                    Task { await model.addNote(text, at: position, in: noteEpisode, quote: quote) }
-                }
-                .presentationDetents([.medium, .large])
-                .task { noteQuote = await model.noteQuote(at: notePosition, in: noteEpisode) }
+            // Hier festgehalten und nicht erst beim Verschwinden gelesen:
+            // dann ist der Player womöglich schon abgebaut.
+            let draft = note
+            let appModel = model
+            if let episode = draft.episode {
+                NoteSheet(position: draft.position, quote: draft.quote, text: Bindable(draft).text,
+                          save: { draft.save(with: appModel) },
+                          cancel: { draft.discard() })
+                    .presentationDetents([.medium, .large])
+                    .interactiveDismissDisabled()
+                    .task { draft.quote = await appModel.noteQuote(at: draft.position, in: episode) }
+                    .onDisappear { draft.save(with: appModel) }
             }
         }
     }
@@ -1530,6 +1537,42 @@ struct OpenEpisodeWebButton: View {
 
 // MARK: - Notizen
 
+/// Was im Blatt „Moment merken“ im Player entsteht.
+///
+/// Eine Klasse statt einzelner `@State`-Werte: verschwindet der Player samt
+/// Blatt, muss der Stand noch lesbar sein, damit der Moment gemerkt wird.
+/// Gespeichert wird höchstens einmal, und nach „Abbrechen“ gar nicht.
+@MainActor
+@Observable
+final class MomentNoteDraft {
+    private(set) var episode: Episode?
+    private(set) var position: Double = 0
+    var quote: String?
+    var text = ""
+    /// „Merken“ oder „Abbrechen“ ist gewählt, oder es wurde noch nichts
+    /// begonnen.
+    private var isSettled = true
+
+    func begin(in episode: Episode, at position: Double) {
+        self.episode = episode
+        self.position = position
+        quote = nil
+        text = ""
+        isSettled = false
+    }
+
+    func save(with model: AppModel) {
+        guard !isSettled, let episode else { return }
+        isSettled = true
+        let text = text, position = position, quote = quote
+        Task { await model.addNote(text, at: position, in: episode, quote: quote) }
+    }
+
+    func discard() {
+        isSettled = true
+    }
+}
+
 /// Kommentar zu einem Moment. Die Stelle ist schon gemerkt, der Text ist freiwillig.
 struct NoteSheet: View {
     /// Ältere Notizen haben keine Zeitmarke.
@@ -1538,6 +1581,9 @@ struct NoteSheet: View {
     var quote: String? = nil
     @Binding var text: String
     let save: () -> Void
+    /// Für „Abbrechen“, wenn der Aufrufer wissen muss, dass nichts gemerkt
+    /// werden soll.
+    var cancel: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -1574,7 +1620,7 @@ struct NoteSheet: View {
                         .accessibilityIdentifier("note.save")
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Abbrechen") { dismiss() }
+                    Button("Abbrechen") { cancel(); dismiss() }
                 }
             }
         }
