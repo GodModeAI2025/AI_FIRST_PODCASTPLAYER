@@ -48,9 +48,10 @@ public final class EpisodePlayer {
         case minutes(Int), endOfChapter, endOfEpisode
         public var label: String {
             switch self {
-            case .minutes(let value): "\(value) Minuten"
-            case .endOfChapter: "Ende des Kapitels"
-            case .endOfEpisode: "Ende der Folge"
+            case .minutes(let value):
+                String(AttributedString(localized: "^[\(value) Minute](inflect: true)").characters)
+            case .endOfChapter: String(localized: "Ende des Kapitels")
+            case .endOfEpisode: String(localized: "Ende der Folge")
             }
         }
     }
@@ -213,7 +214,7 @@ public final class EpisodePlayer {
         guard let url = localFile ?? episode.audioURL else {
             // Die Meldung gehört nur zur eigenen Folge. Läuft gerade eine
             // andere, stünde sonst „Nicht abspielbar“ unter ihrem Titel.
-            if sameEpisode { playbackError = "Zu dieser Folge gibt es keine Audiodatei." }
+            if sameEpisode { playbackError = String(localized: "Zu dieser Folge gibt es keine Audiodatei.") }
             return
         }
         // Nach einem Fehler hilft nur neu laden. Ein fehlgeschlagenes Element
@@ -331,8 +332,10 @@ public final class EpisodePlayer {
             } else {
                 self.resumeWhenReady = false
                 self.isBuffering = false
-                self.playbackError = "Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, "
-                    + "dann tippe erneut auf Abspielen."
+                self.playbackError = String(localized: """
+                    Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, dann tippe erneut \
+                    auf Abspielen.
+                    """)
                 self.updateNowPlaying()
             }
         }
@@ -378,8 +381,12 @@ public final class EpisodePlayer {
         resumeWhenReady = false
         pendingStart = nil
         suspendSleepCountdown()
-        playbackError = "Die Folge lässt sich nicht abspielen. "
-            + (message.map { "Grund: \($0)" } ?? "Der Server liefert kein abspielbares Audio.")
+        // Zwei ganze Sätze statt zusammengesetzter Teile, damit beide übersetzbar bleiben.
+        if let message {
+            playbackError = String(localized: "Die Folge lässt sich nicht abspielen. Grund: \(message)")
+        } else {
+            playbackError = String(localized: "Die Folge lässt sich nicht abspielen. Der Server liefert kein abspielbares Audio.")
+        }
         updateNowPlaying()
     }
 
