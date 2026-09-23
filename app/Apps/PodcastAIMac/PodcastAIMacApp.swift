@@ -132,6 +132,15 @@ struct MacRootView: View {
     /// Stapel neu auf. Sonst läge die Seite aus der Hilfe über dem Ziel.
     @State private var helpJumps = 0
 
+    /// Wann der Inhalt von vorn beginnt: mit jedem anderen Eintrag in der
+    /// Seitenleiste und mit jedem Sprung aus der Hilfe. Hinge es nur an den
+    /// Sprüngen, bliebe eine Seite, die die Hilfe geöffnet hat, über dem
+    /// Eintrag stehen, den jemand in der Seitenleiste anklickt.
+    private struct DetailIdentity: Hashable {
+        let section: Section?
+        let helpJumps: Int
+    }
+
     /// Zeigt dieses Fenster, was die ganze App betrifft?
     private var isPresenter: Bool { windows.presenter == windowID }
 
@@ -229,7 +238,7 @@ struct MacRootView: View {
                     }
                 }
             }
-            .id(helpJumps)
+            .id(DetailIdentity(section: section, helpJumps: helpJumps))
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 0) {
                     // Über dem Mini-Player statt als Overlay darauf, sonst

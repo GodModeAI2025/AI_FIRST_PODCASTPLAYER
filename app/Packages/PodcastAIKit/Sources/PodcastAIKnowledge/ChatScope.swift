@@ -120,6 +120,15 @@ public struct ChatScopeSnapshot: Sendable {
     }
 }
 
+/// Wovon der Hinweis unter einer Antwort spricht.
+public enum CaveatKind: Sendable, Hashable {
+    /// Durchsucht wurden nur Folgen mit Transkript.
+    case transcriptCoverage
+    /// Wie weit eine Frage nach Links, Terminen oder Namen gesucht hat. Dort
+    /// zählen auch die Shownotes, mit oder ohne Transkript.
+    case mentionScope
+}
+
 /// Eine Antwort mit Belegen.
 ///
 /// Es gibt keinen Konstruktor ohne `citations` — eine Antwort ohne Beleg
@@ -136,6 +145,9 @@ public struct ChatAnswer: Sendable, Identifiable {
     public let citations: [Evidence]
     /// Wenn der Scope keine Vollständigkeitsaussage trägt, steht hier, warum.
     public let coverageCaveat: String?
+    /// Wovon der Hinweis spricht. Die Erklärung „Warum nur Folgen mit
+    /// Transkript?“ passt nur zur Suche im Transkript.
+    public let caveatKind: CaveatKind
     public let answeredAt: Date
     /// Wo die Antwort formuliert wurde, etwa „Private Cloud Compute“.
     public let modelLabel: String?
@@ -147,12 +159,14 @@ public struct ChatAnswer: Sendable, Identifiable {
 
     public init(
         id: UUID = UUID(), question: String, scope: ChatScope, text: String,
-        citations: [Evidence], coverageCaveat: String? = nil, answeredAt: Date = Date(),
+        citations: [Evidence], coverageCaveat: String? = nil,
+        caveatKind: CaveatKind = .transcriptCoverage, answeredAt: Date = Date(),
         modelLabel: String? = nil, citationNumbers: [Int: EvidenceID] = [:],
         referencedEpisodeIDs: [EpisodeID] = []
     ) {
         self.id = id; self.question = question; self.scope = scope; self.text = text
         self.citations = citations; self.coverageCaveat = coverageCaveat
+        self.caveatKind = caveatKind
         self.answeredAt = answeredAt; self.modelLabel = modelLabel
         self.citationNumbers = citationNumbers
         self.referencedEpisodeIDs = referencedEpisodeIDs

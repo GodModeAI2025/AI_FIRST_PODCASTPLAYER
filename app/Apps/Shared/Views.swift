@@ -910,7 +910,13 @@ struct SmartFeedDetailView: View {
             case .failed:
                 model.lastError = String(localized: "Das Cover konnte nicht erzeugt werden. Das bisherige bleibt.")
             case .postponed:
-                break
+                // Unterbrochen, etwa weil die App kurz im Hintergrund war.
+                // Von selbst kommt kein neuer Versuch: das alte Cover passt
+                // ja noch zu den Themen.
+                model.lastError = String(localized: """
+                    Das Cover wurde unterbrochen, etwa weil PodcastAI im Hintergrund war. \
+                    Das bisherige bleibt. Wähle noch einmal „Neues Cover erzeugen“.
+                    """)
             }
         }
     }

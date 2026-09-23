@@ -145,7 +145,8 @@ public struct PersonalEpisodePublisher: Sendable {
     ///
     /// `chapters`: die Kapitelmarken der Originalfolgen, soweit bekannt.
     /// Liegt eine Stelle in einem Kapitel, das nicht länger als
-    /// `maximumSegmentDuration` ist, spielt die Ausgabe das ganze Kapitel.
+    /// `maximumSegmentDuration` ist und allein ins Zeitbudget des Feeds
+    /// passt, spielt die Ausgabe das ganze Kapitel.
     public func makeEdition(
         feed: SmartPodcastFeed,
         candidates: [SegmentCandidate],
@@ -175,11 +176,23 @@ public struct PersonalEpisodePublisher: Sendable {
         //    gebildet und reihenfolgeunabhängig: ein zweiter Refresh mit
         //    denselben Stellen erzeugt denselben Schlüssel, auch wenn die
         //    Reihenfolge der Kandidaten anders hereinkam.
-        let batchKey = StableDigest.hex(ofUnordered: unheard.map {
-            "\($0.candidate.evidence.mediaVersionID.rawValue):\($0.core.start.milliseconds)-\($0.core.end.milliseconds)"
-        })
+        //
+        //    Die Kerne kommen aus den Stellen selbst, nicht aus ihren
+        //    Kapiteln. Kapitelmarken lädt die App nach und nach aus dem Netz
+        //    und hält sie nur im Speicher. Hinge der Schlüssel an ihnen,
+        //    bekäme derselbe Stand mit jedem neu geladenen Kapitel einen
+        //    neuen Schlüssel und damit eine zweite Ausgabe.
+        let passages = chapters.isEmpty ? unheard : resolveUnheard(
+            candidates, ledger: ledger, chapters: [:], feed: feed, options: options)
+        let batchKey = Self.batchKey(for: passages)
         if existingBatchKeys.contains(batchKey) {
             return .alreadyPublished(PersonalEpisodeID(stable: batchKey))
+        }
+        // Frühere Ausgaben tragen den Schlüssel ihrer Kapitel. Gleicht er,
+        // ist es dieselbe Ausgabe.
+        let chapterKey = Self.batchKey(for: unheard)
+        if existingBatchKeys.contains(chapterKey) {
+            return .alreadyPublished(PersonalEpisodeID(stable: chapterKey))
         }
 
         // 3. Schwelle der Veröffentlichungsregel prüfen.
@@ -243,6 +256,13 @@ public struct PersonalEpisodePublisher: Sendable {
         return .published(episode)
     }
 
+    /// Schlüssel eines Kandidatenlaufs aus Fassung und Kern jedes Abschnitts.
+    static func batchKey(for items: [UnheardCandidate]) -> String {
+        StableDigest.hex(ofUnordered: items.map {
+            "\($0.candidate.evidence.mediaVersionID.rawValue):\($0.core.start.milliseconds)-\($0.core.end.milliseconds)"
+        })
+    }
+
     // MARK: - Ungehörtes auflösen
 
     struct UnheardCandidate {
@@ -296,6 +316,15 @@ public struct PersonalEpisodePublisher: Sendable {
         // zwei Belege derselben Stelle zweimal in dieselbe Ausgabe geraten.
         var reserved: [MediaVersionID: IntervalSet] = [:]
 
+        // Ein Kapitel, das allein nicht ins Zeitbudget passt, fiele beim
+        // Budget ganz heraus, denn gekürzt wird dort nicht. Dann spielt die
+        // Ausgabe nur die Stelle.
+        func fits(_ chapter: MediaTimeRange) -> Bool {
+            guard chapter.duration <= options.maximumSegmentDuration else { return false }
+            guard let budget = feed.editionMode.budget else { return true }
+            return chapter.duration.listeningDuration(atRate: options.playbackRate) <= budget
+        }
+
         for candidate in candidates {
             guard let range = candidate.evidence.range, !range.isEmpty else { continue }
             let mediaID = candidate.evidence.mediaVersionID
@@ -333,7 +362,7 @@ public struct PersonalEpisodePublisher: Sendable {
             // Auf das Kapitel des Originals einrasten, wenn es eines gibt und
             // es nicht zu lang ist. Sonst bleibt es bei der Stelle.
             let chapter = chapters[candidate.episodeID]?.span(covering: passage)
-                .flatMap { $0.duration <= options.maximumSegmentDuration ? $0 : nil }
+                .flatMap { fits($0) ? $0 : nil }
             var core: MediaTimeRange?
             var floor: Int64 = 0
             if let chapter {

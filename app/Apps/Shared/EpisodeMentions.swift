@@ -251,7 +251,7 @@ extension AppModel {
         return ChatAnswer(
             question: question, scope: scope, text: composer.text,
             citations: composer.citations, coverageCaveat: caveats.isEmpty ? nil : caveats.joined(separator: " "),
-            modelLabel: nil, citationNumbers: composer.numbers,
+            caveatKind: .mentionScope, modelLabel: nil, citationNumbers: composer.numbers,
             referencedEpisodeIDs: composer.referenced)
     }
 

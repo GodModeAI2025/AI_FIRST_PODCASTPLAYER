@@ -181,6 +181,20 @@ public struct TopicCoverStore: Sendable {
         for url in files(for: feedID) { try? FileManager.default.removeItem(at: url) }
     }
 
+    /// Entfernt die Bilder aller Updates außer den genannten. Ein Update,
+    /// das auf einem anderen Gerät gelöscht wurde, fehlt hier nur in der
+    /// Liste, und ohne diesen Abgleich bliebe sein Bild für immer liegen.
+    public func removeAll(except kept: Set<SmartFeedID>) {
+        let prefixes = kept.map(Self.prefix(for:))
+        let all = (try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil)) ?? []
+        for url in all where url.pathExtension == "png" && url.lastPathComponent.hasPrefix("cover-") {
+            let name = url.lastPathComponent
+            guard !prefixes.contains(where: { name.hasPrefix($0) }) else { continue }
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     /// Erzeugt ein Bild mit Image Playground und legt es ab.
     public func generate(for recipe: TopicCoverRecipe) async throws -> TopicCover {
         let image = try await TopicCoverGenerator.makeImage(for: recipe)

@@ -14,7 +14,7 @@
 //  Der Titel im Layout bricht nie mitten im Wort. Früher stand dort
 //  „Datensch utz“: SwiftUI trennt ein Wort, das nicht in die Zeile passt,
 //  zwischen zwei Buchstaben. Die Schriftgröße richtet sich deshalb nach dem
-//  breitesten Wort (`CoverTitleFit`), erst danach darf SwiftUI verkleinern.
+//  breitesten Stück (`CoverTitleFit`), erst danach darf SwiftUI verkleinern.
 //
 
 import SwiftUI
@@ -177,18 +177,37 @@ enum CoverPalette {
 ///
 /// `lineBreakStrategy` gibt es nur in UIKit und AppKit, und auch dort
 /// verhindert sie nicht, dass ein zu langes Wort zerteilt wird. Gemessen
-/// wird deshalb das breiteste Wort in der Schrift des Covers.
+/// wird deshalb das breiteste Stück in der Schrift des Covers.
 enum CoverTitleFit {
 
     static func fontSize(for title: String, width: CGFloat, preferred: CGFloat) -> CGFloat {
         guard width > 0, preferred > 0 else { return preferred }
-        // Nach einem Bindestrich darf die Zeile umbrechen, also zählt das Stück.
-        let words = title.split { $0.isWhitespace || $0 == "-" || $0 == "/" }
-        let widest = words.map { measuredWidth(of: String($0), size: preferred) }.max() ?? 0
+        let widest = pieces(of: title).map { measuredWidth(of: $0, size: preferred) }.max() ?? 0
         // Etwas Luft, weil SwiftUI nicht auf den Punkt genau so setzt.
         let available = width * 0.96
         guard widest > available else { return preferred }
         return max(6, preferred * available / widest)
+    }
+
+    /// Was zusammen in einer Zeile stehen muss. Nach einem Bindestrich oder
+    /// Schrägstrich darf die Zeile umbrechen, davor nicht. Das Zeichen
+    /// gehört deshalb zum Stück davor: „Datenschutz-“ und „Update“. Ohne
+    /// den Strich gemessen passte „Datenschutz“, mit ihm nicht mehr, und
+    /// SwiftUI brach doch wieder mitten im Wort.
+    static func pieces(of title: String) -> [String] {
+        var pieces: [String] = []
+        for word in title.split(whereSeparator: \.isWhitespace) {
+            var piece = ""
+            for character in word {
+                piece.append(character)
+                if character == "-" || character == "/" {
+                    pieces.append(piece)
+                    piece = ""
+                }
+            }
+            if !piece.isEmpty { pieces.append(piece) }
+        }
+        return pieces
     }
 
     private static func measuredWidth(of word: String, size: CGFloat) -> CGFloat {
@@ -264,7 +283,10 @@ struct CoverPlaygroundSheet: ViewModifier {
                 options.personalization = .disabled
                 return AnyView(content.imagePlaygroundOptions(options))
             } else {
-                return AnyView(content)
+                // Vor 26.4 heißt dieselbe Sperre noch so. Ohne sie böte der
+                // Dialog Gesichter aus der Mediathek an, etwa wenn ein Thema
+                // ein Name ist.
+                return AnyView(content.imagePlaygroundPersonalizationPolicy(.disabled))
             }
         }
     }
@@ -308,6 +330,8 @@ final class TopicCoverArt {
     @ObservationIgnored private var loads: [SmartFeedID: Task<Void, Never>] = [:]
     @ObservationIgnored private var attempted: [SmartFeedID: String] = [:]
     @ObservationIgnored private var pending: [TopicCoverRecipe] = []
+    /// Neue Themen eines Updates, dessen Bild gerade entsteht. Kommen danach dran.
+    @ObservationIgnored private var followUps: [SmartFeedID: TopicCoverRecipe] = [:]
     @ObservationIgnored private var worker: Task<Void, Never>?
     @ObservationIgnored private var outcomes: [SmartFeedID: Outcome] = [:]
     @ObservationIgnored private var removed: Set<SmartFeedID> = []
@@ -369,9 +393,28 @@ final class TopicCoverArt {
         covers[feedID] = nil
         attempted[feedID] = nil
         loads[feedID] = nil
+        followUps[feedID] = nil
         pending.removeAll { $0.feedID == feedID }
         let store = self.store
         Task.detached(priority: .utility) { store.remove(feedID) }
+    }
+
+    /// Behält nur die Bilder der Updates, die es noch gibt.
+    ///
+    /// Ein Update, das auf einem anderen Gerät gelöscht wurde, kommt hier
+    /// nicht über `remove(_:)` an, sondern fehlt nach dem Abgleich einfach in
+    /// der Liste. Ein Bild, das gerade entsteht, bleibt: sein Update kann
+    /// eben erst angelegt und noch nicht gespeichert sein.
+    func retain(only live: Set<SmartFeedID>) {
+        let kept = live.union(generating)
+        for feedID in Set(covers.keys).union(attempted.keys) where !kept.contains(feedID) {
+            covers[feedID] = nil
+            attempted[feedID] = nil
+            loads[feedID] = nil
+            outcomes[feedID] = nil
+        }
+        let store = self.store
+        Task.detached(priority: .utility) { store.removeAll(except: kept) }
     }
 
     /// Das Bild für den Sperrbildschirm: das erzeugte, sonst das Layout.
@@ -420,10 +463,20 @@ final class TopicCoverArt {
     }
 
     private func enqueue(_ recipe: TopicCoverRecipe) {
-        guard !generating.contains(recipe.feedID) else { return }
+        attempted[recipe.feedID] = recipe.digest
+        // Entsteht das Bild dieses Updates schon, gilt das neueste Rezept.
+        // Wartet es noch, ersetzt es das alte. Läuft es gerade, kommt es
+        // danach dran. Sonst bliebe das Bild zu den alten Themen stehen.
+        if generating.contains(recipe.feedID) {
+            if let index = pending.firstIndex(where: { $0.feedID == recipe.feedID }) {
+                pending[index] = recipe
+            } else {
+                followUps[recipe.feedID] = recipe
+            }
+            return
+        }
         removed.remove(recipe.feedID)
         generating.insert(recipe.feedID)
-        attempted[recipe.feedID] = recipe.digest
         pending.append(recipe)
         if worker == nil {
             worker = Task { await drain() }
@@ -433,8 +486,16 @@ final class TopicCoverArt {
     private func drain() async {
         while !pending.isEmpty {
             let recipe = pending.removeFirst()
-            outcomes[recipe.feedID] = await generate(recipe)
+            let outcome = await generate(recipe)
+            outcomes[recipe.feedID] = outcome
             generating.remove(recipe.feedID)
+            // Während das Bild entstand, änderten sich die Themen. Gleich
+            // weiter geht es nur, wenn Image Playground bereitsteht. Nach
+            // einem Aufschub versucht es das nächste Erscheinen ohnehin.
+            if let next = followUps.removeValue(forKey: recipe.feedID),
+               next.digest != recipe.digest, outcome == .created || outcome == .failed {
+                enqueue(next)
+            }
         }
         worker = nil
     }

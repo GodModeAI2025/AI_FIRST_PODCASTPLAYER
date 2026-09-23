@@ -169,8 +169,11 @@ struct RootView: View {
         case .highlights, .trails, .counterpoints, .interests, .addPodcast, .settings, .privacy:
             return
         }
-        // Andere Tabs bleiben, wie sie waren, etwa mit einer Frage im Chat.
-        if selection == area { stackResets[area, default: 0] += 1 }
+        // Meine Podcasts und Themen-Updates beginnen von vorn, dort geht
+        // nichts verloren. Sonst läge dort noch die Folge oder die Hilfe von
+        // vorhin. Der Chat nur, wenn die Hilfe in ihm liegt: eine laufende
+        // Frage soll stehen bleiben.
+        if area != .ask || selection == area { stackResets[area, default: 0] += 1 }
         selection = area
     }
 }

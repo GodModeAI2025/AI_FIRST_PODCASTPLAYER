@@ -62,9 +62,11 @@ public struct TopicTagger: Sendable {
     /// Themen, zu denen die Folge etwas sagt. Bei kurzen Folgen genügt
     /// eine Stelle, sonst braucht es zwei, damit ein Nebensatz kein Thema macht.
     ///
-    /// Nur Interessen der Art Thema. Offene Fragen und Vorhaben sind ganze
-    /// Sätze wie „Welche Möglichkeiten bietet iOS 27 für agentische Apps?“
-    /// und taugen nicht als Schlagwort.
+    /// Nur Interessen, die wie ein Schlagwort aussehen. Offene Fragen und
+    /// Vorhaben sind ganze Sätze wie „Welche Möglichkeiten bietet iOS 27 für
+    /// agentische Apps?“ und taugen nicht als Schlagwort. Seit es nur noch
+    /// Themen gibt, werden sie beim Laden zu Themen. Deshalb zählt die Form
+    /// der Bezeichnung und nicht die Art (``isTagShaped(_:)``).
     func interestTags(passages: [Evidence], profile: InterestProfile) -> [TopicTag] {
         let needed = passages.count < 8 ? 1 : 2
         var hits: [InterestID: Set<EvidenceID>] = [:]
@@ -72,13 +74,23 @@ public struct TopicTagger: Sendable {
             hits[match.interestID, default: []].insert(match.evidenceID)
         }
         return profile.topics
-            .filter { (hits[$0.id]?.count ?? 0) >= needed }
+            .filter { Self.isTagShaped($0.label) && (hits[$0.id]?.count ?? 0) >= needed }
             .sorted { lhs, rhs in
                 let left = hits[lhs.id]?.count ?? 0, right = hits[rhs.id]?.count ?? 0
                 return left != right ? left > right : lhs.label < rhs.label
             }
             .prefix(maximumInterests)
             .map { TopicTag(label: $0.label, interestID: $0.id) }
+    }
+
+    /// Höchstens so viele Wörter hat ein Schlagwort.
+    static let maximumTagWords = 3
+
+    /// Ein Begriff, kein Satz: keine Frage und höchstens ``maximumTagWords`` Wörter.
+    static func isTagShaped(_ label: String) -> Bool {
+        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains("?") else { return false }
+        return trimmed.split(whereSeparator: \.isWhitespace).count <= maximumTagWords
     }
 
     // MARK: - Hauptwörter

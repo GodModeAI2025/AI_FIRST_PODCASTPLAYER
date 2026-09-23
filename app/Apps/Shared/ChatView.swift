@@ -10,7 +10,6 @@
 //
 
 import SwiftUI
-import NaturalLanguage
 import Translation
 import PodcastAIKit
 
@@ -295,13 +294,12 @@ struct ScopeBar: View {
 }
 
 extension ModelStatus {
-    /// Kurzform für die Anzeige, womit geantwortet wird.
+    /// Kurzform für die Anzeige, womit geantwortet wird. Dieselbe
+    /// Bezeichnung wie unter einer Antwort (`ModelTier.label`). Nur so
+    /// erkennt die Antwort, dass die Leiste ihr Modell schon nennt.
     var resolveLabel: String? {
         switch resolve(.answer) {
-        case .success(let tier):
-            tier == .privateCloudCompute
-                ? String(localized: "Private Cloud Compute")
-                : String(localized: "Auf dem Gerät")
+        case .success(let tier): tier.label
         case .failure: nil
         }
     }
@@ -454,7 +452,17 @@ struct AnswerCard: View {
                        focus: focus, answerID: answer.id, onCitation: showCitation)
 
             if let caveat = answer.coverageCaveat {
-                coverageNote(caveat)
+                // Nur der Hinweis auf Folgen ohne Transkript hat die
+                // Erklärung dahinter. Bei Links, Terminen und Namen zählen
+                // auch die Shownotes, dort stimmte sie nicht.
+                if answer.caveatKind == .transcriptCoverage {
+                    coverageNote(caveat)
+                } else {
+                    Text(caveat)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             // Der Bereich steht immer in der Leiste oder ist die Folge selbst.
@@ -884,49 +892,9 @@ enum AnswerLayout {
         return nil
     }
 
-    /// Sätze nach der Sprache des Textes. Ein Verweis hinter dem Punkt gehört
-    /// zum Satz davor, und „am 12. Sept.“ beendet keinen Satz.
+    /// Sätze nach der Sprache des Textes, siehe ``AnswerMarkers/sentences(in:)``.
     static func sentences(in text: String) -> [String] {
-        let tokenizer = NLTokenizer(unit: .sentence)
-        tokenizer.string = text
-        var result: [String] = []
-        tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
-            var sentence = text[range].trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !sentence.isEmpty else { return true }
-            if !result.isEmpty {
-                let (markers, remainder) = leadingMarkers(sentence)
-                if !markers.isEmpty {
-                    result[result.count - 1] += " " + markers
-                    sentence = remainder
-                    if sentence.isEmpty { return true }
-                }
-            }
-            if let last = result.last, isFragment(sentence, after: last) {
-                result[result.count - 1] = last + " " + sentence
-            } else {
-                result.append(sentence)
-            }
-            return true
-        }
-        return result.isEmpty ? [text] : result
-    }
-
-    private static func isFragment(_ sentence: String, after previous: String) -> Bool {
-        guard let first = sentence.first else { return true }
-        if first.isLowercase || first.isNumber { return true }
-        if previous.hasSuffix("."), let digit = previous.dropLast().last, digit.isNumber { return true }
-        return sentence.count < 6
-    }
-
-    private static func leadingMarkers(_ sentence: String) -> (markers: String, rest: String) {
-        var rest = Substring(sentence)
-        var markers: [String] = []
-        while rest.hasPrefix("["), let close = rest.firstIndex(of: "]"),
-              !numbers(inBrackets: rest[rest.index(after: rest.startIndex)..<close]).isEmpty {
-            markers.append(String(rest[...close]))
-            rest = rest[rest.index(after: close)...].drop(while: \.isWhitespace)
-        }
-        return (markers.joined(separator: " "), String(rest))
+        AnswerMarkers.sentences(in: text)
     }
 
     /// Alle Verweisnummern eines Textes.
@@ -941,21 +909,11 @@ enum AnswerLayout {
         return result
     }
 
-    /// „3“, „3, 5“, „3 5“ und „2-4“ sind Verweise. „Musik“ oder „00:12“ nicht.
+    /// „3“, „3, 5“, „3 5“, „2-4“ und „2 - 4“ sind Verweise. „Musik“ oder
+    /// „00:12“ nicht. Dieselben Regeln wie beim Lesen der Belege, sonst
+    /// zeigte der Text andere Nummern als die Liste darunter.
     static func numbers(inBrackets content: Substring) -> [Int] {
-        let allowed = CharacterSet(charactersIn: "0123456789,; -–")
-        guard !content.isEmpty, content.unicodeScalars.allSatisfy(allowed.contains),
-              content.contains(where: \.isNumber) else { return [] }
-        var result: [Int] = []
-        for part in content.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == " " }) {
-            let bounds = part.split(whereSeparator: { $0 == "-" || $0 == "–" }).compactMap { Int($0) }
-            if bounds.count == 2, bounds[0] <= bounds[1], bounds[1] - bounds[0] <= 10 {
-                result += Array(bounds[0]...bounds[1])
-            } else {
-                result += bounds
-            }
-        }
-        return result
+        AnswerMarkers.numbers(inBrackets: content)
     }
 
     /// Der Text mit einem Link je Verweisnummer, die einen Beleg hat.

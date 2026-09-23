@@ -176,6 +176,7 @@ struct OnboardingView: View {
 struct HelpView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// `nil` heißt: alle Stufen.
     @State private var level: HelpLevel?
     @State private var query = ""
@@ -184,6 +185,15 @@ struct HelpView: View {
     @ScaledMetric(relativeTo: .body) private var cardWidth: CGFloat = 150
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// Bei Schriftgrößen für Bedienungshilfen eine Karte je Zeile, so breit
+    /// wie der Bildschirm. Die Mindestbreite wuchs dort über die Breite des
+    /// iPhones hinaus, und die Karte ragte über den Rand.
+    private var columns: [GridItem] {
+        dynamicTypeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.adaptive(minimum: cardWidth), spacing: Design.Spacing.control)]
+    }
 
     /// Die Begriffe gehören zu keiner Stufe und bleiben immer sichtbar.
     private var visibleTopics: [HelpTopic] {
@@ -227,7 +237,7 @@ struct HelpView: View {
                 }
 
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: cardWidth), spacing: Design.Spacing.control)],
+                    columns: columns,
                     alignment: .leading,
                     spacing: Design.Spacing.control
                 ) {
