@@ -27,8 +27,7 @@ public struct RefreshResult: Sendable {
 }
 
 /// Was man vor dem Abonnieren von einem Podcast sieht: Beschreibung, Zahl
-/// der Folgen und die neuesten Titel. Aus dem Feed selbst, wenn der Katalog
-/// den Podcast nicht kennt.
+/// der Folgen und die neuesten Titel, aus dem Feed selbst.
 public struct PodcastPreview: Sendable {
     public struct Item: Sendable, Identifiable {
         public let id: Int
@@ -655,7 +654,7 @@ public enum PodcastDirectory {
             URLQueryItem(name: "media", value: "podcast"),
             URLQueryItem(name: "entity", value: "podcast"),
             URLQueryItem(name: "limit", value: "10"),
-            URLQueryItem(name: "country", value: Locale.current.region?.identifier ?? "DE"),
+            URLQueryItem(name: "country", value: CatalogStorefront.current),
             URLQueryItem(name: "term", value: term),
         ]
         guard let url = components.url else { return [] }
@@ -672,26 +671,6 @@ public enum PodcastDirectory {
             let matches = author.lowercased().contains(needle) || title.lowercased().contains(needle)
             return matches ? PodcastCounterpart(title: title, author: author, feedURL: feed) : nil
         }
-    }
-
-    /// Sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema,
-    /// als Einträge für den Katalog.
-    ///
-    /// Wirft, wenn das Verzeichnis nicht erreichbar ist. Eine leere Liste
-    /// heißt nur: nichts gefunden. Vorher sah beides gleich aus, und wer
-    /// offline suchte, las „Keine Ergebnisse“.
-    public static func search(_ term: String) async throws -> [CatalogPodcast] {
-        let term = term.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard term.count >= 2 else { return [] }
-        let results = try await query("search", [
-            URLQueryItem(name: "media", value: "podcast"),
-            URLQueryItem(name: "entity", value: "podcast"),
-            URLQueryItem(name: "limit", value: "25"),
-            URLQueryItem(name: "country", value: Locale.current.region?.identifier ?? "DE"),
-            URLQueryItem(name: "term", value: term),
-        ])
-        var seen = Set<URL>()
-        return results.compactMap(\.catalogPodcast).filter { seen.insert($0.feedURL).inserted }
     }
 
     /// Die Feed-Adresse zu einem Link aus Apple Podcasts. Apple nennt sie
@@ -744,30 +723,13 @@ public enum PodcastDirectory {
     private struct SearchResponse: Decodable {
         let results: [Result]
         struct Result: Decodable {
-            let collectionId: Int?
             let collectionName: String?
             let artistName: String?
             let feedUrl: String?
             let artworkUrl100: String?
-            let artworkUrl600: String?
             let primaryGenreName: String?
             let trackCount: Int?
             let releaseDate: String?
-            let collectionExplicitness: String?
-
-            /// Ein Eintrag für den Katalog. Das große Bild zuerst, die
-            /// Detailseite zeigt es groß.
-            var catalogPodcast: CatalogPodcast? {
-                guard let counterpart else { return nil }
-                return CatalogPodcast(
-                    origin: .appleDirectory, itunesID: collectionId,
-                    title: CatalogText.line(counterpart.title) ?? counterpart.title,
-                    author: CatalogText.line(counterpart.author) ?? "",
-                    feedURL: counterpart.feedURL,
-                    artworkURL: CatalogText.safeURL(artworkUrl600) ?? CatalogText.safeURL(artworkUrl100),
-                    genre: counterpart.genre, isExplicit: collectionExplicitness == "explicit",
-                    episodeCount: counterpart.episodeCount, newestEpisodeDate: counterpart.latestRelease)
-            }
 
             var counterpart: PodcastCounterpart? {
                 guard let feed = feedUrl.flatMap(URL.init(string:)) else { return nil }

@@ -48,13 +48,6 @@ targets:
     sources:
       - path: Apps/PodcastAI
       - path: Apps/Shared
-      # Zugang zum Podcast-Katalog als Ordnerreferenz: kopiert wird, was beim
-      # Bauen darin liegt. Die echte Datei ist in .gitignore; fehlt sie, baut
-      # die App trotzdem und sucht nur im Apple-Verzeichnis. Eine einzelne
-      # Datei mit `optional: true` bricht den Build ab, wenn sie fehlt.
-      - path: Config/PodcastIndex
-        type: folder
-        buildPhase: resources
     dependencies:
       - package: PodcastAIKit
     settings:
@@ -72,9 +65,6 @@ targets:
     sources:
       - path: Apps/PodcastAIMac
       - path: Apps/Shared
-      - path: Config/PodcastIndex
-        type: folder
-        buildPhase: resources
     dependencies:
       - package: PodcastAIKit
     settings:

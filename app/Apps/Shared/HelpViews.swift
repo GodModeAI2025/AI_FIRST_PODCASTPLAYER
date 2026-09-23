@@ -411,18 +411,15 @@ extension HelpTopic {
         HelpTopic(
             kind: .finding, title: "Podcasts finden", summary: "Abonnieren, auch per Link",
             symbol: "magnifyingglass", tint: .pink,
-            // Den Katalog gibt es nur in einer Fassung mit Zugang. Ohne ihn
-            // beschreibt die Hilfe nichts, was die App dann nicht zeigt.
             tips: [
                 HelpTip(title: "Abonnieren", text: subscribeText, symbol: "plus.circle", level: .beginner),
-            ] + (PodcastCatalog.isConfigured ? [
                 HelpTip(title: "Angesagt und Kategorien", text: """
-                    Ohne Suchbegriff zeigt „Podcast hinzufügen“ den Katalog: was gerade angesagt ist, in \
-                    deiner Sprache oder in allen, und Kategorien von Nachrichten bis True Crime. Ein Tipp \
-                    auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, \
+                    Ohne Suchbegriff zeigt „Podcast hinzufügen“ den Katalog: die Charts von Apple Podcasts \
+                    für die Region deines Geräts und Kategorien von Nachrichten bis Wahre Kriminalfälle. Ein \
+                    Tipp auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, \
                     erst nach dem Abonnieren.
                     """, symbol: "square.grid.2x2", level: .beginner),
-            ] : []),
+            ],
             jumps: [.addPodcast]
         )
     }
@@ -550,16 +547,13 @@ extension HelpTopic {
                     Die Spracherkennung von Apple läuft auf deinem iPhone, iPad oder Mac. Der Ton verlässt \
                     dafür das Gerät nicht.
                     """, symbol: "waveform", level: .beginner),
-            ] + (PodcastCatalog.isConfigured ? [
-                // Wie auf der Seite „Datenschutz“: nur, wenn die App den
-                // Katalog wirklich fragt.
+                // Derselbe Text wie auf der Seite „Datenschutz“.
                 HelpTip(title: "Podcast-Katalog", text: """
-                    Suche, Angesagt und Kategorien im Blatt „Podcast hinzufügen“ fragen Podcast Index \
-                    (podcastindex.org), einen offenen Podcast-Katalog. Podcast Index sieht dabei deinen \
-                    Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht. Die Cover lädt die App \
-                    vom Server des jeweiligen Podcasts.
+                    Angesagt und Kategorien im Blatt „Podcast hinzufügen“ kommen von Apple Podcasts. Deinen \
+                    Suchbegriff schickt die App an Apple und an Podcast Index (podcastindex.org), einen \
+                    offenen Podcast-Katalog. Ein Konto brauchst du bei keinem der beiden, beide sehen aber \
+                    deine IP-Adresse. Die Cover kommen von Apple oder vom Server des jeweiligen Podcasts.
                     """, symbol: "square.grid.2x2", level: .beginner),
-            ] : []) + [
                 HelpTip(title: "Apple Intelligence", text: intelligenceText, symbol: "sparkles", level: .expert),
             ],
             jumps: [.privacy]
@@ -647,19 +641,11 @@ extension HelpTopic {
         """
     }
     private static var subscribeText: LocalizedStringResource {
-        guard PodcastCatalog.isConfigured else {
-            return """
-                Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im \
-                Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, \
-                einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.
-                """
-        }
-        return """
-            Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, \
-            gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen \
-            auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen \
-            sucht die App den passenden Audio-Podcast.
-            """
+        """
+        Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht \
+        wird bei Apple Podcasts und bei Podcast Index. Links gehen auch: Apple Podcasts, Feed-Adresse, \
+        einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.
+        """
     }
     /// Ohne Mobilfunk-Tipp heißt die Karte auf dem Mac nur „Speicher“.
     private static var storageTitle: LocalizedStringResource { "Speicher" }
@@ -685,19 +671,11 @@ extension HelpTopic {
         """
     }
     private static var subscribeText: LocalizedStringResource {
-        guard PodcastCatalog.isConfigured else {
-            return """
-                Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im \
-                Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, \
-                einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.
-                """
-        }
-        return """
-            Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen, \
-            gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen \
-            auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen \
-            sucht die App den passenden Audio-Podcast.
-            """
+        """
+        Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird bei Apple \
+        Podcasts und bei Podcast Index. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 \
+        oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.
+        """
     }
     private static var storageTitle: LocalizedStringResource { "Speicher und Mobilfunk" }
     /// Den Agentenzugang gibt es nur auf dem Mac, auf iOS gibt es hier kein Ziel.

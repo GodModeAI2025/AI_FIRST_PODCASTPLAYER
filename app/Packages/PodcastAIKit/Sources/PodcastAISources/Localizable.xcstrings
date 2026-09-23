@@ -129,22 +129,6 @@
         }
       }
     },
-    "Der Podcast-Katalog hat die Anfrage abgelehnt. Stimmt die Uhrzeit des Geräts? Sonst später noch einmal versuchen.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der Podcast-Katalog hat die Anfrage abgelehnt. Stimmt die Uhrzeit des Geräts? Sonst später noch einmal versuchen."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The podcast catalog turned the request down. Check that the device's clock is right, or try again later."
-          }
-        }
-      }
-    },
     "Der Podcast-Katalog hat keine lesbare Antwort geschickt. Versuch es gleich noch einmal.": {
       "localizations": {
         "de": {
@@ -189,38 +173,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "This file isn't an OPML list. Export your subscriptions as OPML from your previous app, then choose that file."
-          }
-        }
-      }
-    },
-    "Diesen Podcast führt der Katalog nicht mehr.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Diesen Podcast führt der Katalog nicht mehr."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The catalog no longer lists this podcast."
-          }
-        }
-      }
-    },
-    "Dieser Fassung der App fehlt der Zugang zum Podcast-Katalog. Gesucht wird im Apple-Podcast-Verzeichnis.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dieser Fassung der App fehlt der Zugang zum Podcast-Katalog. Gesucht wird im Apple-Podcast-Verzeichnis."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This version of the app has no access to the podcast catalog. Search uses the Apple Podcasts directory instead."
           }
         }
       }
@@ -289,12 +241,12 @@
         }
       }
     },
-    "Gesellschaft & Kultur": {
+    "Gesellschaft und Kultur": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gesellschaft & Kultur"
+            "value": "Gesellschaft und Kultur"
           }
         },
         "en": {
@@ -305,12 +257,12 @@
         }
       }
     },
-    "Gesundheit & Fitness": {
+    "Gesundheit und Fitness": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gesundheit & Fitness"
+            "value": "Gesundheit und Fitness"
           }
         },
         "en": {
@@ -353,12 +305,12 @@
         }
       }
     },
-    "Kinder & Familie": {
+    "Kinder und Familie": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kinder & Familie"
+            "value": "Kinder und Familie"
           }
         },
         "en": {
@@ -433,28 +385,28 @@
         }
       }
     },
-    "Politik & Staat": {
+    "Regierung": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Politik & Staat"
+            "value": "Regierung"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Politics & Government"
+            "value": "Government"
           }
         }
       }
     },
-    "Religion & Spiritualität": {
+    "Religion und Spiritualität": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Religion & Spiritualität"
+            "value": "Religion und Spiritualität"
           }
         },
         "en": {
@@ -481,12 +433,12 @@
         }
       }
     },
-    "TV & Film": {
+    "TV und Film": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "TV & Film"
+            "value": "TV und Film"
           }
         },
         "en": {
@@ -497,12 +449,12 @@
         }
       }
     },
-    "Technik": {
+    "Technologie": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Technik"
+            "value": "Technologie"
           }
         },
         "en": {
@@ -513,12 +465,12 @@
         }
       }
     },
-    "True Crime": {
+    "Wahre Kriminalfälle": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "True Crime"
+            "value": "Wahre Kriminalfälle"
           }
         },
         "en": {

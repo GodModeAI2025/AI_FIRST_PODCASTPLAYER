@@ -3,11 +3,13 @@
 //  PodcastAIUITests
 //
 //  Der Podcast-Katalog im Blatt „Podcast hinzufügen“: Angesagt, Kategorien,
-//  die Liste einer Kategorie und die Seite eines Podcasts.
+//  die Liste einer Kategorie, die Seite eines Podcasts und die Suche bei
+//  Apple und Podcast Index.
 //
-//  Mit `-catalog-fixtures` antwortet der Katalog aus festen Daten. Der Test
-//  braucht so weder Netz noch Zugang zu Podcast Index und sieht jedes Mal
-//  dieselben ausgedachten Podcasts.
+//  Mit `-catalog-fixtures` antworten Charts, Einzelheiten, beide Suchen und
+//  die Feeds aus festen Daten. Der Test braucht so kein Netz und sieht
+//  jedes Mal dieselben ausgedachten Podcasts, als stünde das Gerät in
+//  Deutschland.
 //
 
 import XCTest
@@ -16,19 +18,19 @@ final class CatalogUITests: XCTestCase {
 
     override func setUp() { continueAfterFailure = false }
 
-    private func attach(_ app: XCUIApplication, _ name: String) {
+    @MainActor private func attach(_ app: XCUIApplication, _ name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = name
         shot.lifetime = .keepAlways
         add(shot)
     }
 
-    private func tab(_ app: XCUIApplication, _ name: String) {
+    @MainActor private func tab(_ app: XCUIApplication, _ name: String) {
         let button = app.tabBars.buttons[name]
         (button.exists ? button : app.buttons[name].firstMatch).tap()
     }
 
-    private func openAddSheet() -> XCUIApplication {
+    @MainActor private func openAddSheet() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh", "-catalog-fixtures"]
         app.launch()
@@ -39,7 +41,7 @@ final class CatalogUITests: XCTestCase {
 
     /// Scrollt, bis das Element antippbar ist. Die Liste lädt Zeilen erst,
     /// wenn sie sichtbar werden.
-    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, attempts: Int = 8) {
+    @MainActor private func scrollTo(_ element: XCUIElement, in app: XCUIApplication, attempts: Int = 8) {
         var left = attempts
         while !(element.exists && element.isHittable) && left > 0 {
             app.swipeUp()
@@ -47,9 +49,14 @@ final class CatalogUITests: XCTestCase {
         }
     }
 
-    /// Angesagt und Kategorien stehen da, eine Kategorie öffnet ihre Liste,
-    /// ein Podcast daraus seine Seite mit „Abonnieren“ und den neuesten Folgen.
-    func testBrowseCategoryAndOpenPodcast() {
+    @MainActor private func subscribeButtons(_ app: XCUIApplication, for title: String) -> XCUIElementQuery {
+        app.buttons.matching(NSPredicate(format: "label == %@", "\(title) abonnieren"))
+    }
+
+    /// Angesagt und Kategorien stehen da, eine Kategorie öffnet ihre Charts,
+    /// ein Podcast daraus seine Seite mit „Abonnieren“ und den neuesten
+    /// Folgen, aber ohne etwas zum Abspielen.
+    @MainActor func testBrowseCategoryAndOpenPodcast() {
         let app = openAddSheet()
 
         let card = app.buttons["catalog.trending.card"].firstMatch
@@ -66,10 +73,13 @@ final class CatalogUITests: XCTestCase {
 
         let subscribe = app.buttons.matching(NSPredicate(format: "label ENDSWITH ' abonnieren'")).firstMatch
         XCTAssertTrue(subscribe.waitForExistence(timeout: 10), "Die Kategorie zeigt keine Podcasts")
-        XCTAssertTrue(app.buttons["Morgenlage abonnieren"].exists, "Der deutsche Nachrichten-Podcast fehlt")
-        XCTAssertFalse(app.buttons["Morning Signal abonnieren"].exists, "Ein englischer Podcast steht unter Deutsch")
+        XCTAssertTrue(subscribeButtons(app, for: "Morgenlage").firstMatch.exists, "Die Charts der Nachrichten fehlen")
+        XCTAssertTrue(subscribeButtons(app, for: "Morning Signal").firstMatch.exists,
+                      "Die Charts einer Kategorie hängen nicht an der Sprache")
+        XCTAssertFalse(subscribeButtons(app, for: "Ohne Feed").firstMatch.exists,
+                       "Ein Platz ohne Feed steht in der Liste")
         XCTAssertTrue(app.descendants(matching: .any)["catalog.attribution"].firstMatch.exists,
-                      "Der Hinweis auf Podcast Index fehlt")
+                      "Der Hinweis auf Apple Podcasts und Podcast Index fehlt")
         attach(app, "katalog-nachrichten")
 
         app.buttons["catalog.row"].firstMatch.tap()
@@ -88,19 +98,24 @@ final class CatalogUITests: XCTestCase {
         XCTAssertFalse(app.buttons["episode.play"].exists, "Aus dem Katalog lässt sich etwas abspielen")
     }
 
-    /// Die Suche zeigt Treffer aus dem Katalog, ohne aufgegebene Feeds und
-    /// ohne Musik, und bietet für jeden „Abonnieren“.
-    func testSearchShowsCatalogResults() {
+    /// Die Suche fragt Apple und Podcast Index, zeigt Treffer beider und
+    /// jeden Podcast nur einmal, auch wenn beide ihn kennen.
+    @MainActor func testSearchMergesBothSources() {
         let app = openAddSheet()
         let field = app.descendants(matching: .any)["source.input"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
         field.typeText("kaffee")
-        XCTAssertTrue(app.buttons["Code und Kaffee abonnieren"].waitForExistence(timeout: 10),
-                      "Kein Treffer aus dem Katalog")
-        XCTAssertTrue(app.buttons["Kaffeeklatsch abonnieren"].exists)
-        XCTAssertFalse(app.buttons["Alter Funkturm abonnieren"].exists, "Ein aufgegebener Feed steht in den Treffern")
-        XCTAssertFalse(app.buttons["Beat Kaffee abonnieren"].exists, "Ein Musik-Feed steht in den Treffern")
+        XCTAssertTrue(subscribeButtons(app, for: "Code und Kaffee").firstMatch.waitForExistence(timeout: 10),
+                      "Kein Treffer aus der Suche")
+        XCTAssertEqual(subscribeButtons(app, for: "Code und Kaffee").count, 1,
+                       "Ein Podcast, den beide Dienste kennen, steht doppelt da")
+        XCTAssertEqual(subscribeButtons(app, for: "Kaffeeklatsch").count, 1,
+                       "Derselbe Feed in anderer Schreibweise steht doppelt da")
+        XCTAssertTrue(subscribeButtons(app, for: "Bohnenfunk").firstMatch.exists,
+                      "Der Treffer, den nur Podcast Index kennt, fehlt")
+        XCTAssertFalse(subscribeButtons(app, for: "Kaffee ohne Feed").firstMatch.exists,
+                       "Ein Treffer ohne Feed steht in der Liste")
         attach(app, "katalog-suche")
     }
 }

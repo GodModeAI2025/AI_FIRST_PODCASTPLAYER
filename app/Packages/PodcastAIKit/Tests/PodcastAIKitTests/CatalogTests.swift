@@ -2,20 +2,26 @@
 //  CatalogTests.swift
 //  PodcastAIKitTests
 //
-//  Der Podcast-Katalog über Podcast Index: Anmeldung, Lesen der Antworten,
-//  Rubriken, Sprache und das Zusammenführen mit dem Apple-Verzeichnis.
+//  Der Podcast-Katalog ohne Schlüssel: Charts und Rubriken aus Apple
+//  Podcasts, Einzelheiten in Stapeln, Suche bei Apple und Podcast Index,
+//  Zwischenspeicher, Land und Zusammenführen der Treffer.
 //  Kein Test geht ins Netz; die Antworten kommen aus festen Texten.
 //
 
 import Foundation
+import Synchronization
 import Testing
 import PodcastAIKit
 @testable import PodcastAISources
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// Merkt sich jede Anfrage, die der Client stellt.
 private actor Recorder {
     private(set) var calls: [(url: URL, headers: [String: String])] = []
     func record(_ url: URL, _ headers: [String: String]) { calls.append((url, headers)) }
+    var urls: [URL] { calls.map(\.url) }
 }
 
 /// Hält Anfragen an, bis `count` von ihnen da sind, und lässt dann alle
@@ -36,250 +42,177 @@ private actor Gate {
     }
 }
 
+/// Eine Uhr, die der Test vorstellt.
+private final class TestClock: Sendable {
+    private let time = Mutex(Date(timeIntervalSince1970: 1_790_140_000))
+    var now: Date { time.withLock { $0 } }
+    func advance(by seconds: TimeInterval) { time.withLock { $0 = $0.addingTimeInterval(seconds) } }
+}
+
 private func client(
-    _ transport: @escaping CatalogTransport = PodcastIndexFixtures.transport,
-    credentials: PodcastIndexCredentials = PodcastIndexFixtures.credentials,
-    clock: @escaping @Sendable () -> Date = { Date(timeIntervalSince1970: 1_790_140_000) }
-) -> PodcastIndexClient {
-    PodcastIndexClient(credentials: credentials, userAgent: "PodcastAI/0.7.2", transport: transport, clock: clock)
+    country: String = "de",
+    _ transport: @escaping CatalogTransport = CatalogFixtures.transport,
+    clock: TestClock = TestClock()
+) -> PodcastCatalogClient {
+    PodcastCatalogClient(country: country, userAgent: "PodcastAI/0.7.2", transport: transport,
+                         clock: { clock.now })
 }
 
-@Suite("Podcast Index: Anmeldung")
-struct PodcastIndexSigningTests {
-
-    @Test("Hash nach dem Rechenbeispiel der Dokumentation")
-    func knownVector() {
-        let hash = PodcastIndexSignature.authorization(
-            key: "UXKCGDSYGUUEVQJSYDZH", secret: "yzJe2eE7XV-3eY576dyRZ6wXyAbndh6LUrCZ8KN|", timestamp: 1613713388)
-        #expect(hash == "73a1fffed61c1d30d858beb1fc48f355386449d2")
-    }
-
-    @Test("Vier Kopfzeilen, Zeit in ganzen Sekunden abgerundet")
-    func headers() {
-        let credentials = PodcastIndexCredentials(apiKey: "UXKCGDSYGUUEVQJSYDZH",
-                                                  apiSecret: "yzJe2eE7XV-3eY576dyRZ6wXyAbndh6LUrCZ8KN|")
-        let headers = PodcastIndexSignature.headers(for: credentials, at: Date(timeIntervalSince1970: 1613713388.97),
-                                                    userAgent: "PodcastAI/0.7.2")
-        #expect(headers["X-Auth-Date"] == "1613713388")
-        #expect(headers["X-Auth-Key"] == "UXKCGDSYGUUEVQJSYDZH")
-        #expect(headers["Authorization"] == "73a1fffed61c1d30d858beb1fc48f355386449d2")
-        #expect(headers["User-Agent"] == "PodcastAI/0.7.2")
-    }
-
-    @Test("Zugangsdaten aus der Property-Liste, leeres Geheimnis heißt: aus")
-    func credentialsFromPropertyList() throws {
-        let complete = try PropertyListSerialization.data(
-            fromPropertyList: ["APIKey": " KEY ", "APISecret": "se$cr|et//x"], format: .xml, options: 0)
-        let parsed = try #require(PodcastIndexCredentials(propertyList: complete))
-        #expect(parsed.apiKey == "KEY")
-        #expect(parsed.apiSecret == "se$cr|et//x")
-        #expect(parsed.isComplete)
-
-        let withoutSecret = try PropertyListSerialization.data(
-            fromPropertyList: ["APIKey": "KEY", "APISecret": ""], format: .xml, options: 0)
-        #expect(PodcastIndexCredentials(propertyList: withoutSecret)?.isComplete == false)
-        let keyOnly = try PropertyListSerialization.data(fromPropertyList: ["APIKey": "KEY"], format: .xml, options: 0)
-        #expect(PodcastIndexCredentials(propertyList: keyOnly)?.isComplete == false)
-        #expect(PodcastIndexCredentials(propertyList: Data("kein plist".utf8)) == nil)
-    }
-
-    @Test("Der Client schickt Schlüssel, Zeit, Hash und Produktnamen mit")
-    func clientSignsRequests() async throws {
-        let recorder = Recorder()
-        let catalog = client { url, headers in
-            await recorder.record(url, headers)
-            return try await PodcastIndexFixtures.transport(url, headers)
-        }
-        _ = try await catalog.trending(language: .german)
-        let call = try #require(await recorder.calls.first)
-        #expect(call.headers["X-Auth-Key"] == "FIXTUREKEY")
-        #expect(call.headers["X-Auth-Date"] == "1790140000")
-        #expect(call.headers["User-Agent"] == "PodcastAI/0.7.2")
-        let hash = try #require(call.headers["Authorization"])
-        #expect(hash.count == 40 && hash == hash.lowercased())
-        #expect(hash == PodcastIndexSignature.authorization(key: "FIXTUREKEY", secret: "fixture-secret",
-                                                            timestamp: 1_790_140_000))
-    }
-
-    @Test("Ohne Geheimnis keine Anfrage")
-    func missingSecretSendsNothing() async {
-        let recorder = Recorder()
-        let catalog = client({ url, headers in
-            await recorder.record(url, headers)
-            return CatalogHTTPResponse(status: 200, body: Data())
-        }, credentials: PodcastIndexCredentials(apiKey: "KEY", apiSecret: ""))
-        await #expect(throws: PodcastIndexError.missingCredentials) { try await catalog.search("lage") }
-        #expect(await recorder.calls.isEmpty)
-    }
-
-    @Test("Falsche Geräteuhr: einmal mit der Zeit des Servers nachrechnen")
-    func clockSkewRetriesOnce() async throws {
-        let recorder = Recorder()
-        let serverNow = Date(timeIntervalSince1970: 1_790_140_000 + 900)
-        let catalog = client { url, headers in
-            await recorder.record(url, headers)
-            let sent = Int(headers["X-Auth-Date"] ?? "") ?? 0
-            guard abs(TimeInterval(sent) - serverNow.timeIntervalSince1970) < 180 else {
-                return CatalogHTTPResponse(status: 401, body: Data("The hash in the Authorization header doesn't match up.".utf8),
-                                           serverDate: serverNow)
-            }
-            return try await PodcastIndexFixtures.transport(url, headers)
-        }
-        let found = try await catalog.search("kaffee")
-        #expect(found.count == 2)
-        let calls = await recorder.calls
-        #expect(calls.count == 2)
-        #expect(calls.last?.headers["X-Auth-Date"] == "1790140900")
-    }
-
-    @Test("Falsche Geräteuhr: zwei Anfragen zugleich, beide rechnen nach")
-    func clockSkewWithConcurrentRequests() async throws {
-        let gate = Gate(count: 2)
-        let serverNow = Date(timeIntervalSince1970: 1_790_140_000 + 900)
-        let catalog = client { url, headers in
-            let sent = Int(headers["X-Auth-Date"] ?? "") ?? 0
-            guard abs(TimeInterval(sent) - serverNow.timeIntervalSince1970) < 180 else {
-                // Beide falsch signierten Anfragen sind unterwegs, bevor die
-                // erste ihre Ablehnung sieht.
-                await gate.arrive()
-                return CatalogHTTPResponse(status: 401, body: Data(), serverDate: serverNow)
-            }
-            return try await PodcastIndexFixtures.transport(url, headers)
-        }
-        async let found = catalog.search("kaffee")
-        async let trending = catalog.trending(language: nil)
-        let (fromSearch, fromTrending) = try await (found, trending)
-        #expect(fromSearch.count == 2)
-        #expect(fromTrending.count == 10)
-    }
-
-    @Test("Fehler des Katalogs kommen als eigene Fehler, nicht als Serverfehler eines Podcasts")
-    func errors() async {
-        let unauthorized = client { _, _ in CatalogHTTPResponse(status: 401, body: Data("nope".utf8)) }
-        await #expect(throws: PodcastIndexError.unauthorized) { try await unauthorized.search("lage") }
-        let limited = client { _, _ in CatalogHTTPResponse(status: 429, body: Data()) }
-        await #expect(throws: PodcastIndexError.rateLimited) { try await limited.trending(language: nil) }
-        let broken = client { _, _ in CatalogHTTPResponse(status: 503, body: Data()) }
-        await #expect(throws: PodcastIndexError.serverStatus(503)) { try await broken.trending(language: nil) }
-        let offline = client { _, _ in throw URLError(.notConnectedToInternet) }
-        await #expect(throws: PodcastIndexError.unreachable) { try await offline.search("lage") }
-        let tooLarge = client { _, _ in throw HTTPTransferError.tooLarge(limit: 10) }
-        await #expect(throws: PodcastIndexError.unreadableAnswer) { try await tooLarge.search("lage") }
-        let garbage = client { _, _ in CatalogHTTPResponse(status: 200, body: Data("<html>".utf8)) }
-        await #expect(throws: PodcastIndexError.unreadableAnswer) { try await garbage.search("lage") }
-        await #expect(throws: PodcastIndexError.notFound) { try await client().podcast(id: 1) }
-    }
-
-    @Test("Fehlermeldungen in der Sprache der App")
-    func errorMessages() {
-        #expect(PodcastIndexError.rateLimited.errorDescription == TestLanguage.pick(
-            de: "Der Podcast-Katalog bekommt gerade zu viele Anfragen. In einer Minute noch einmal versuchen.",
-            en: "The podcast catalog is getting too many requests right now. Try again in a minute."))
-        #expect(PodcastIndexError.serverStatus(503).errorDescription == TestLanguage.pick(
-            de: "Der Podcast-Katalog antwortet gerade nicht (Status 503). Später noch einmal versuchen.",
-            en: "The podcast catalog isn't responding right now (status 503). Try again later."))
-    }
-
-    @Test("Zeit aus der Kopfzeile Date")
-    func httpDate() {
-        #expect(PodcastIndexClient.httpDate("Wed, 23 Sep 2026 12:58:57 GMT")
-                == Date(timeIntervalSince1970: 1_790_168_337))
-        #expect(PodcastIndexClient.httpDate("gestern") == nil)
-    }
-
-    @Test("Suchbegriffe mit Plus und Und-Zeichen kommen unverfälscht an")
-    func queryEncoding() throws {
-        let url = try #require(PodcastIndexClient.url("search/byterm", [URLQueryItem(name: "q", value: "c++ & co")]))
-        #expect(url.absoluteString == "https://api.podcastindex.org/api/1.0/search/byterm?q=c%2B%2B%20%26%20co")
+/// Der Transport der Fixtures, der jede Anfrage aufschreibt.
+private func recording(_ recorder: Recorder,
+                       _ transport: @escaping CatalogTransport = CatalogFixtures.transport) -> CatalogTransport {
+    { url, headers in
+        await recorder.record(url, headers)
+        return try await transport(url, headers)
     }
 }
 
-@Suite("Podcast Index: Antworten lesen")
-struct PodcastIndexDecodingTests {
+private func query(_ url: URL?, _ name: String) -> String? {
+    url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == name }?.value }
+}
 
-    @Test("Trends: Felder, Bild über https, Beschreibung ohne HTML")
-    func trending() async throws {
-        let all = try await client().trending(language: nil)
-        #expect(all.count == 10)
-        let first = try #require(all.first)
-        #expect(first.title == "Morgenlage")
-        #expect(first.podcastIndexID == 9001)
-        #expect(first.itunesID == 1000000001)
-        #expect(first.feedURL.absoluteString == "https://example.com/feeds/morgenlage.xml")
-        #expect(first.summary == "Die Nachrichten des Tages in zehn Minuten.\n\nJeden Morgen um sechs.")
-        #expect(first.categoryIDs == [55, 56])
-        #expect(first.categories.first == .news)
-        #expect(first.newestEpisodeDate == Date(timeIntervalSince1970: 1_790_141_400))
-        #expect(first.origin == .podcastIndex)
+private func json(_ text: String) -> Data { Data(text.utf8) }
 
-        let comedy = try #require(all.first { $0.podcastIndexID == 9002 })
-        // `artwork` leer, `image` mit http: das Bild kommt über https.
-        #expect(comedy.artworkURL?.absoluteString == "https://example.com/art/lachen.png")
-        #expect(comedy.itunesID == nil)
-        #expect(comedy.summary == "Zwei Freunde, ein Mikrofon & keine Regeln.")
+// MARK: - Antworten lesen
+
+@Suite("Katalog: Antworten lesen")
+struct CatalogDecodingTests {
+
+    @Test("Charts eines Landes: Kennung als Text, Rubrik, kaputte Einträge übersprungen")
+    func topChart() throws {
+        let body = json(#"""
+        {"feed": {"title": "Top-Podcasts", "country": "de", "results": [
+          {"artistName": "Paul Ronzheimer", "id": "1700432142", "name": "RONZHEIMER.", "kind": "podcasts",
+           "artworkUrl100": "https://is1-ssl.mzstatic.com/image/thumb/Podcasts116/v4/16/ab/81/x.jpg/100x100bb.png",
+           "genres": [{"genreId": "1489", "name": "Nachrichten", "url": "https://itunes.apple.com/de/genre/id1489"}],
+           "url": "https://podcasts.apple.com/de/podcast/ronzheimer/id1700432142"},
+          {"artistName": "Ohne Kennung", "name": "Kaputt"},
+          17,
+          {"artistName": "Beispiel", "id": 1413425371, "name": "Mord &amp; Lust",
+           "artworkUrl100": "http://example.com/a.png", "genres": [{"genreId": "26", "name": "Podcasts"}]}
+        ]}}
+        """#)
+        let entries = try PodcastCatalogClient.decodeChart(.top, body)
+        #expect(entries.map(\.itunesID) == [1_700_432_142, 1_413_425_371])
+        let first = try #require(entries.first)
+        #expect(first.title == "RONZHEIMER.")
+        #expect(first.author == "Paul Ronzheimer")
+        #expect(first.genreIDs == [1489])
+        #expect(first.genres == ["Nachrichten"])
+        #expect(first.artworkURL?.host() == "is1-ssl.mzstatic.com")
+        // „Podcasts“ fällt weg, http wird https, Entitäten werden Text.
+        #expect(entries[1].genreIDs.isEmpty)
+        #expect(entries[1].title == "Mord & Lust")
+        #expect(entries[1].artworkURL?.absoluteString == "https://example.com/a.png")
     }
 
-    @Test("Suche: aufgegebene Feeds, Musik und Feeds ohne Adresse fallen weg")
-    func search() async throws {
-        let found = try await client().search("kaffee")
-        #expect(found.map(\.title) == ["Code und Kaffee", "Kaffeeklatsch"])
-        let code = found[0]
-        #expect(code.originalFeedURL?.absoluteString == "http://old.example.com/code.xml")
-        #expect(code.websiteURL?.absoluteString == "https://example.com/code")
-        #expect(code.episodeCount == 212)
-        #expect(code.podcastGUID == "5f3c2a10-0000-4000-8000-000000009004")
-        #expect(code.isExplicit == false)
-        #expect(code.newestEpisodeDate == Date(timeIntervalSince1970: 1_789_819_200))
-        let klatsch = found[1]
-        // Kein Autor, aber ein Eigentümer. Kategorien als leere Liste `[]`.
-        #expect(klatsch.author == "Beispiel Familie")
-        #expect(klatsch.categoryIDs.isEmpty)
-        #expect(klatsch.isExplicit)
-        #expect(try await client().search("k").isEmpty)
-    }
-
-    @Test("Einzelheiten und neueste Folgen")
-    func detailAndEpisodes() async throws {
-        let catalog = client()
-        let podcast = try await catalog.podcast(id: 9003)
-        #expect(podcast.title == "Kalte Spuren")
-        #expect(podcast.episodeCount == 123)
-        #expect(podcast.websiteURL?.absoluteString == "https://example.com/podcasts/9003")
-        let episodes = try await catalog.episodes(feedID: 9003)
-        #expect(episodes.count == 5)
-        #expect(episodes.first?.title == "Folge 40: Beispiel & Einordnung")
-        #expect(episodes.first?.duration == 1_800)
-        #expect(episodes.first?.season == 2)
-        #expect(episodes.map(\.publishedAt) == episodes.map(\.publishedAt).sorted { ($0 ?? .distantPast) > ($1 ?? .distantPast) })
-    }
-
-    @Test("Zahlen als Text, Wahrheitswerte als 0 und 1, kaputte Einträge übersprungen")
-    func lenientDecoding() throws {
-        let json = #"""
-        {"status": "true", "feeds": [
-          42, null,
-          {"id": "77", "title": "Als &quot;Text&quot;", "url": "https://example.com/t.xml", "explicit": 1,
-           "dead": "0", "episodeCount": "12", "newestItemPubdate": 1790000000.0, "categories": {"103": null}},
-          {"id": 78, "title": "Aufgegeben", "url": "https://example.com/d.xml", "dead": true},
-          {"id": 79, "title": "Lokal", "url": "http://127.0.0.1/feed.xml"}
-        ]}
+    @Test("Charts einer Rubrik: Liste, einzelnes Objekt oder gar kein Eintrag")
+    func genreChart() throws {
+        let entry = #"""
+        {"im:name": {"label": "Mordlust"},
+         "im:image": [{"label": "https://example.com/55x55bb.png", "attributes": {"height": "55"}},
+                      {"label": "https://example.com/170x170bb.png", "attributes": {"height": "170"}},
+                      {"label": "https://example.com/60x60bb.png", "attributes": {"height": "60"}}],
+         "summary": {"label": "Wahre Fälle &amp; Hintergründe.\n\nJede Woche neu."},
+         "id": {"label": "https://podcasts.apple.com/de/podcast/mordlust/id1413425371?uo=2",
+                "attributes": {"im:id": "1413425371"}},
+         "im:artist": {"label": "Paulina Krasa & Laura Wohlers"},
+         "category": {"attributes": {"im:id": "1488", "term": "True Crime", "label": "Wahre Kriminalfälle"}},
+         "im:releaseDate": {"label": "2026-09-22T20:00:00-07:00"}}
         """#
-        let envelope = try JSONDecoder().decode(FeedsEnvelope.self, from: Data(json.utf8))
-        #expect(envelope.feeds.count == 3)
-        let podcasts = envelope.feeds.compactMap(PodcastIndexClient.podcast(from:))
+        let list = try PodcastCatalogClient.decodeChart(.genre(.trueCrime),
+                                                        json(#"{"feed": {"entry": [\#(entry), {"im:name": {"label": "Ohne Kennung"}}]}}"#))
+        #expect(list.count == 1)
+        let first = try #require(list.first)
+        #expect(first.itunesID == 1_413_425_371)
+        #expect(first.author == "Paulina Krasa & Laura Wohlers")
+        #expect(first.artworkURL?.absoluteString == "https://example.com/170x170bb.png")
+        #expect(first.genreIDs == [1488])
+        #expect(first.genres == ["Wahre Kriminalfälle"])
+        #expect(first.summary == "Wahre Fälle & Hintergründe.\n\nJede Woche neu.")
+
+        let single = try PodcastCatalogClient.decodeChart(.genre(.trueCrime), json(#"{"feed": {"entry": \#(entry)}}"#))
+        #expect(single.map(\.title) == ["Mordlust"])
+        let none = try PodcastCatalogClient.decodeChart(.genre(.politics), json(#"{"feed": {"title": {"label": "leer"}}}"#))
+        #expect(none.isEmpty)
+    }
+
+    @Test("Einzelheiten und Apples Suche: Feed, großes Cover, Rubriken ohne „Podcasts“")
+    func lookup() throws {
+        let body = json(#"""
+        {"resultCount": 4, "results": [
+          {"wrapperType": "track", "kind": "podcast", "collectionId": 1700432142, "trackId": 1700432142,
+           "artistName": "Paul Ronzheimer", "collectionName": "RONZHEIMER.",
+           "collectionViewUrl": "https://podcasts.apple.com/de/podcast/ronzheimer/id1700432142?uo=4",
+           "feedUrl": "https://ronzheimer.podigee.io/feed/mp3",
+           "artworkUrl100": "https://example.com/100x100bb.jpg", "artworkUrl600": "https://example.com/600x600bb.jpg",
+           "releaseDate": "2026-09-22T02:00:00Z", "collectionExplicitness": "notExplicit", "trackCount": 834,
+           "primaryGenreName": "Politik", "contentAdvisoryRating": "Clean",
+           "genreIds": ["1527", "26", "1489", "1526"],
+           "genres": ["Politik", "Podcasts", "Nachrichten", "Nachrichten des Tages"]},
+          {"wrapperType": "track", "kind": "podcast", "collectionId": 1, "collectionName": "Ohne Feed"},
+          {"wrapperType": "track", "kind": "podcast-episode", "collectionId": 2, "collectionName": "Eine Folge",
+           "feedUrl": "https://example.com/folge.xml"},
+          {"kind": "podcast", "collectionId": 3, "collectionName": "Lokal", "feedUrl": "http://127.0.0.1/feed.xml"}
+        ]}
+        """#)
+        let podcasts = try PodcastCatalogClient.decodeResults(body, origin: .appleDirectory)
         #expect(podcasts.count == 1)
         let podcast = try #require(podcasts.first)
-        #expect(podcast.podcastIndexID == 77)
-        #expect(podcast.title == "Als \"Text\"")
-        #expect(podcast.isExplicit)
-        #expect(podcast.episodeCount == 12)
-        #expect(podcast.categories == [.trueCrime])
-
-        let unknown = try JSONDecoder().decode(FeedEnvelope.self, from: Data(#"{"status":"true","feed":[]}"#.utf8))
-        #expect(unknown.feed == nil)
+        #expect(podcast.itunesID == 1_700_432_142)
+        #expect(podcast.feedURL.absoluteString == "https://ronzheimer.podigee.io/feed/mp3")
+        #expect(podcast.artworkURL?.absoluteString == "https://example.com/600x600bb.jpg")
+        #expect(podcast.genre == "Politik")
+        #expect(podcast.genres == ["Politik", "Nachrichten", "Nachrichten des Tages"])
+        #expect(podcast.genreIDs == [1527, 1489, 1526])
+        #expect(podcast.categories == [.news])
+        #expect(podcast.episodeCount == 834)
+        #expect(podcast.newestEpisodeDate == Date(timeIntervalSince1970: 1_790_042_400))
+        #expect(!podcast.isExplicit)
+        #expect(podcast.origin == .appleDirectory)
     }
 
-    @Test("HTML wird zu Text")
+    @Test("Suche bei Podcast Index: Kennungen als Zahlen, Zeitzone ohne Doppelpunkt")
+    func podcastIndexSearch() throws {
+        let body = json(#"""
+        {"resultCount": 2, "results": [
+          {"wrapperType": "track", "kind": "podcast", "collectionId": 1594623221,
+           "artistName": "Trail Talk", "collectionName": "Wanderwach &amp; Kaffee",
+           "collectionViewUrl": "https://podcasts.apple.com/us/podcast/*/id1594623221?uo=4",
+           "feedUrl": "https://rss.buzzsprout.com/1885272.rss",
+           "artworkUrl600": "https://storage.buzzsprout.com/abc?.jpg",
+           "releaseDate": "2026-09-23T15:51:20-0500", "collectionExplicitness": "explicit", "trackCount": 163,
+           "primaryGenreName": "Sports", "genreIds": [1545, 1324, 1502, 26],
+           "genres": ["Sports", "Society & Culture", "Leisure", "Podcasts"]},
+          {"kind": "podcast", "collectionId": 7004512, "collectionName": "Nur im Index",
+           "collectionViewUrl": "https://podcastindex.org/podcast/7004512",
+           "feedUrl": "https://example.org/index.xml", "genreIds": [], "genres": []}
+        ]}
+        """#)
+        let podcasts = try PodcastCatalogClient.decodeResults(body, origin: .podcastIndex)
+        #expect(podcasts.map(\.title) == ["Wanderwach & Kaffee", "Nur im Index"])
+        let first = podcasts[0]
+        #expect(first.genreIDs == [1545, 1324, 1502])
+        #expect(first.categories == [.sports, .society, .leisure])
+        // Podcast Index schreibt dort die Zeit der Anfrage hin, kein Datum einer Folge.
+        #expect(first.newestEpisodeDate == nil)
+        #expect(first.isExplicit)
+        #expect(first.itunesID == 1_594_623_221)
+        // Die Kennung zeigt nicht auf Apple Podcasts und gilt nicht als Apple-Kennung.
+        #expect(podcasts[1].itunesID == nil)
+    }
+
+    @Test("Unlesbares wird zu einem eigenen Fehler")
+    func unreadable() {
+        #expect(throws: CatalogError.unreadableAnswer) { try PodcastCatalogClient.decodeChart(.top, json("<html>")) }
+        #expect(throws: CatalogError.unreadableAnswer) { try PodcastCatalogClient.decodeChart(.top, json(#"{"results": []}"#)) }
+        #expect(throws: CatalogError.unreadableAnswer) {
+            try PodcastCatalogClient.decodeResults(json("nicht json"), origin: .appleDirectory)
+        }
+        #expect((try? PodcastCatalogClient.decodeResults(json(#"{"resultCount": 0}"#), origin: .appleDirectory))?.isEmpty == true)
+    }
+
+    @Test("HTML wird zu Text, Adressen werden geprüft")
     func plainText() {
         #expect(CatalogText.plain("Erste Zeile<br>zweite &amp;lt;b&amp;gt; &#228; &#x2014; ok<script>alert(1)</script>")
                 == "Erste Zeile\nzweite &lt;b&gt; ä — ok")
@@ -296,158 +229,483 @@ struct PodcastIndexDecodingTests {
     }
 }
 
+// MARK: - Charts und Seiten
+
+@Suite("Katalog: Charts und Seiten")
+struct CatalogChartTests {
+
+    @Test("Eine Seite: Charts einmal, Einzelheiten in einem Abruf, Reihenfolge der Charts")
+    func firstPage() async throws {
+        let recorder = Recorder()
+        let catalog = client(recording(recorder))
+        let page = try await catalog.page(of: .top, offset: 0, count: 4)
+        #expect(page.podcasts.map(\.title) == ["Morgenlage", "Lachen verboten", "Kalte Spuren", "Code und Kaffee"])
+        #expect(page.nextOffset == 4)
+        #expect(page.total == 11)
+        #expect(page.country == "de")
+
+        let urls = await recorder.urls
+        #expect(urls.count == 2)
+        #expect(urls[0].absoluteString == "https://rss.marketingtools.apple.com/api/v2/de/podcasts/top/100/podcasts.json")
+        #expect(urls[1].host() == "itunes.apple.com" && urls[1].path() == "/lookup")
+        #expect(query(urls[1], "id") == "1000000001,1000000002,1000000003,1000000004")
+        #expect(query(urls[1], "country") == "de")
+        #expect(query(urls[1], "entity") == "podcast")
+
+        // Aus den Einzelheiten: Feed, großes Cover, Folgen, Unterrubrik.
+        let first = try #require(page.podcasts.first)
+        #expect(first.feedURL.absoluteString == "https://example.com/feeds/morgenlage.xml")
+        #expect(first.artworkURL?.absoluteString == "https://example.com/art/1000000001/600x600bb.jpg")
+        #expect(first.episodeCount == 812)
+        #expect(first.genres == ["Nachrichten", "Nachrichten des Tages"])
+        #expect(page.podcasts[1].isExplicit)
+    }
+
+    @Test("Ohne Feed fällt ein Platz aus der Seite, am Ende gibt es keine nächste")
+    func lastPage() async throws {
+        let page = try await client().page(of: .top, offset: 8, count: 25)
+        #expect(page.podcasts.map(\.title) == ["Kurs und Kapital", "Story Time Tales"])
+        #expect(page.nextOffset == nil)
+        let beyond = try await client().page(of: .top, offset: 40, count: 25)
+        #expect(beyond.podcasts.isEmpty && beyond.nextOffset == nil)
+    }
+
+    @Test("Mehr als 100 Kennungen gehen in Stapeln zu 100")
+    func lookupBatches() async throws {
+        #expect(PodcastCatalogClient.batches(Array(1...250), size: 100).map(\.count) == [100, 100, 50])
+        #expect(PodcastCatalogClient.batches([], size: 100).isEmpty)
+        #expect(PodcastCatalogClient.batches([7], size: 100) == [[7]])
+
+        // Charts mit 150 Plätzen, jede Kennung hat einen Feed.
+        let chart: [String: Any] = ["feed": ["results": (1...150).map { index in
+            ["id": String(5_000 + index), "name": "Podcast \(index)", "artistName": "Beispiel"]
+        }]]
+        let chartBody = try JSONSerialization.data(withJSONObject: chart)
+        let recorder = Recorder()
+        let catalog = client { url, headers in
+            await recorder.record(url, headers)
+            if url.path() == "/lookup" {
+                let ids = (query(url, "id") ?? "").split(separator: ",").compactMap { Int($0) }
+                let results = ids.map { id in
+                    ["kind": "podcast", "collectionId": id, "collectionName": "Podcast \(id - 5_000)",
+                     "feedUrl": "https://example.com/\(id).xml"] as [String: Any]
+                }
+                return CatalogHTTPResponse(status: 200, body: try JSONSerialization.data(withJSONObject: ["results": results]))
+            }
+            return CatalogHTTPResponse(status: 200, body: chartBody)
+        }
+        let page = try await catalog.page(of: .top, offset: 0, count: 150)
+        #expect(page.podcasts.count == 150)
+        #expect(page.podcasts.first?.title == "Podcast 1" && page.podcasts.last?.title == "Podcast 150")
+        let lookups = await recorder.urls.filter { $0.path() == "/lookup" }
+        #expect(lookups.map { (query($0, "id") ?? "").split(separator: ",").count } == [100, 50])
+        #expect(query(lookups[1], "id")?.hasPrefix("5101,") == true)
+    }
+
+    @Test("Rubriken: Charts der Rubrik, auch mit nur einem oder gar keinem Platz")
+    func genreCharts() async throws {
+        let recorder = Recorder()
+        let catalog = client(recording(recorder))
+        let news = try await catalog.page(of: .genre(.news), offset: 0, count: 25)
+        #expect(news.podcasts.map(\.title) == ["Morgenlage", "Morning Signal"])
+        #expect(await recorder.urls.first?.absoluteString
+                == "https://itunes.apple.com/de/rss/toppodcasts/limit=200/genre=1489/json")
+        // Die Beschreibung bringen die Charts einer Rubrik mit.
+        #expect(news.podcasts.first?.summary == "Die Nachrichten des Tages in zehn Minuten.\n\nJeden Morgen um sechs.")
+
+        let crime = try await catalog.page(of: .genre(.trueCrime), offset: 0, count: 25)
+        #expect(crime.podcasts.map(\.title) == ["Kalte Spuren"])
+
+        let before = await recorder.calls.count
+        let government = try await catalog.page(of: .genre(.politics), offset: 0, count: 25)
+        #expect(government.podcasts.isEmpty && government.total == 0 && government.nextOffset == nil)
+        // Leer im Land, also noch einmal in den USA. Kein leerer Abruf der Einzelheiten.
+        #expect(await recorder.urls.dropFirst(before).map(\.absoluteString) == [
+            "https://itunes.apple.com/de/rss/toppodcasts/limit=200/genre=1511/json",
+            "https://itunes.apple.com/us/rss/toppodcasts/limit=200/genre=1511/json",
+        ])
+    }
+
+    @Test("Rubrik ohne Einträge im Land: Charts aus den USA, nur kurz gehalten")
+    func emptyGenreChartFallsBack() async throws {
+        let recorder = Recorder()
+        let clock = TestClock()
+        let catalog = client(country: "li", { url, headers in
+            await recorder.record(url, headers)
+            if url.path().hasPrefix("/li/") {
+                return CatalogHTTPResponse(status: 200, body: json(#"{"feed": {"author": {}}}"#))
+            }
+            return try await CatalogFixtures.transport(url, headers)
+        }, clock: clock)
+        let news = try await catalog.page(of: .genre(.news), offset: 0, count: 25)
+        #expect(news.country == "us")
+        #expect(!news.podcasts.isEmpty)
+        let charts = { await recorder.urls.filter { $0.path().contains("/rss/") }.count }
+        #expect(await charts() == 2)
+
+        _ = try await catalog.page(of: .genre(.news), offset: 0, count: 25)
+        #expect(await charts() == 2)
+        // Charts aus den USA statt aus dem eigenen Land gelten nur eine Minute.
+        clock.advance(by: 2 * 60)
+        _ = try await catalog.page(of: .genre(.news), offset: 0, count: 25)
+        #expect(await charts() == 4)
+    }
+
+    @Test("Zwei Plätze mit demselben Feed: nur der höhere bleibt")
+    func sameFeedOnOnePage() async throws {
+        let chart: [String: Any] = ["feed": ["results": (1...3).map { index in
+            ["id": String(7_000 + index), "name": "Platz \(index)", "artistName": "Beispiel"]
+        }]]
+        let chartBody = try JSONSerialization.data(withJSONObject: chart)
+        let catalog = client { url, _ in
+            if url.path() == "/lookup" {
+                let ids = (query(url, "id") ?? "").split(separator: ",").compactMap { Int($0) }
+                let results = ids.map { id in
+                    // 7001 und 7003 zeigen auf denselben Feed, einmal mit www.
+                    let feed = id == 7_002 ? "https://example.com/b.xml"
+                        : id == 7_001 ? "https://example.com/a.xml" : "https://www.example.com/a.xml"
+                    return ["kind": "podcast", "collectionId": id, "collectionName": "Platz \(id - 7_000)",
+                            "feedUrl": feed] as [String: Any]
+                }
+                return CatalogHTTPResponse(status: 200, body: try JSONSerialization.data(withJSONObject: ["results": results]))
+            }
+            return CatalogHTTPResponse(status: 200, body: chartBody)
+        }
+        let page = try await catalog.page(of: .top, offset: 0, count: 3)
+        #expect(page.podcasts.map(\.title) == ["Platz 1", "Platz 2"])
+        #expect(Set(page.podcasts.map(\.id)).count == page.podcasts.count)
+    }
+
+    @Test("Eine Viertelstunde aus dem Zwischenspeicher, danach neu")
+    func caching() async throws {
+        let recorder = Recorder()
+        let clock = TestClock()
+        let catalog = client(recording(recorder), clock: clock)
+        _ = try await catalog.page(of: .top, offset: 0, count: 5)
+        #expect(await recorder.calls.count == 2)
+
+        _ = try await catalog.page(of: .top, offset: 0, count: 5)
+        #expect(await recorder.calls.count == 2)
+
+        // Die zweite Seite braucht nur ihre Einzelheiten.
+        _ = try await catalog.page(of: .top, offset: 5, count: 5)
+        #expect(await recorder.calls.count == 3)
+
+        clock.advance(by: 14 * 60)
+        _ = try await catalog.page(of: .top, offset: 0, count: 5)
+        #expect(await recorder.calls.count == 3)
+
+        clock.advance(by: 2 * 60)
+        _ = try await catalog.page(of: .top, offset: 0, count: 5)
+        #expect(await recorder.calls.count == 5)
+    }
+
+    @Test("Führt Apple das Land nicht, kommen Charts und Einzelheiten aus den USA")
+    func storefrontFallback() async throws {
+        let recorder = Recorder()
+        let catalog = client(country: "kp") { url, headers in
+            await recorder.record(url, headers)
+            if url.path().contains("/kp/") || query(url, "country") == "kp" {
+                return CatalogHTTPResponse(status: url.host() == "itunes.apple.com" ? 400 : 500, body: Data())
+            }
+            return try await CatalogFixtures.transport(url, headers)
+        }
+        let page = try await catalog.page(of: .top, offset: 0, count: 3)
+        #expect(page.country == "us")
+        #expect(page.podcasts.count == 3)
+        let urls = await recorder.urls
+        #expect(urls.map(\.absoluteString).prefix(2) == [
+            "https://rss.marketingtools.apple.com/api/v2/kp/podcasts/top/100/podcasts.json",
+            "https://rss.marketingtools.apple.com/api/v2/us/podcasts/top/100/podcasts.json",
+        ])
+        #expect(query(urls.last, "country") == "us")
+
+        let found = try await catalog.search("kaffee")
+        #expect(found.contains { $0.title == "Kaffeeklatsch" })
+        let searches = await recorder.urls.filter { $0.path() == "/search" && $0.host() == "itunes.apple.com" }
+        #expect(searches.map { query($0, "country") } == ["kp", "us"])
+    }
+
+    @Test("Eine 500 bei der Suche heißt nicht, dass Apple das Land nicht führt")
+    func searchServerErrorStaysInCountry() async throws {
+        let recorder = Recorder()
+        let catalog = client { url, headers in
+            await recorder.record(url, headers)
+            if url.host() == "itunes.apple.com", url.path() == "/search" {
+                return CatalogHTTPResponse(status: 500, body: Data())
+            }
+            return try await CatalogFixtures.transport(url, headers)
+        }
+        let found = try await catalog.search("kaffee")
+        #expect(!found.isEmpty && found.allSatisfy { $0.origin == .podcastIndex })
+        let searches = await recorder.urls.filter { $0.path() == "/search" && $0.host() == "itunes.apple.com" }
+        #expect(searches.map { query($0, "country") } == ["de"])
+    }
+
+    @Test("Fehler des Katalogs kommen als eigene Fehler")
+    func errors() async {
+        let limited = client { _, _ in CatalogHTTPResponse(status: 429, body: Data()) }
+        await #expect(throws: CatalogError.rateLimited) { try await limited.page(of: .top, offset: 0, count: 5) }
+        let throttled = client { _, _ in CatalogHTTPResponse(status: 403, body: Data()) }
+        await #expect(throws: CatalogError.rateLimited) { try await throttled.page(of: .top, offset: 0, count: 5) }
+        let broken = client { _, _ in CatalogHTTPResponse(status: 503, body: Data()) }
+        await #expect(throws: CatalogError.serverStatus(503)) { try await broken.page(of: .top, offset: 0, count: 5) }
+        // In den USA gibt es kein Land, auf das noch auszuweichen wäre.
+        let american = client(country: "US") { _, _ in CatalogHTTPResponse(status: 500, body: Data()) }
+        await #expect(throws: CatalogError.serverStatus(500)) { try await american.page(of: .top, offset: 0, count: 5) }
+        let offline = client { _, _ in throw URLError(.notConnectedToInternet) }
+        await #expect(throws: CatalogError.unreachable) { try await offline.page(of: .top, offset: 0, count: 5) }
+        let tooLarge = client { _, _ in throw HTTPTransferError.tooLarge(limit: 10) }
+        await #expect(throws: CatalogError.unreadableAnswer) { try await tooLarge.page(of: .top, offset: 0, count: 5) }
+    }
+
+    @Test("Fehlermeldungen in der Sprache der App")
+    func errorMessages() {
+        #expect(CatalogError.rateLimited.errorDescription == TestLanguage.pick(
+            de: "Der Podcast-Katalog bekommt gerade zu viele Anfragen. In einer Minute noch einmal versuchen.",
+            en: "The podcast catalog is getting too many requests right now. Try again in a minute."))
+        #expect(CatalogError.serverStatus(503).errorDescription == TestLanguage.pick(
+            de: "Der Podcast-Katalog antwortet gerade nicht (Status 503). Später noch einmal versuchen.",
+            en: "The podcast catalog isn't responding right now (status 503). Try again later."))
+    }
+}
+
+// MARK: - Suche
+
+@Suite("Katalog: Suche bei Apple und Podcast Index")
+struct CatalogSearchTests {
+
+    @Test("Beide Dienste, zusammengeführt und ohne Doppelte")
+    func mergedSearch() async throws {
+        let recorder = Recorder()
+        let found = try await client(recording(recorder)).search("kaffee")
+        #expect(found.map(\.title) == ["Code und Kaffee", "Kaffeeklatsch", "Bohnenfunk"])
+        #expect(found.map(\.origin) == [.appleDirectory, .appleDirectory, .podcastIndex])
+        // „Code und Kaffee“ stand bei beiden, bei Podcast Index mit „www.“,
+        // http und Schrägstrich. „Kaffeeklatsch“ ohne Apple-Kennung, aber
+        // mit derselben Adresse. „Kaffee ohne Feed“ fehlt ganz.
+        #expect(found[0].itunesID == 1_000_000_004)
+        #expect(found[1].itunesID == 1_000_000_012)
+        #expect(found[2].feedURL.absoluteString == "https://example.org/bohnenfunk/rss")
+
+        let urls = await recorder.urls
+        let apple = try #require(urls.first { $0.host() == "itunes.apple.com" })
+        #expect(apple.path() == "/search")
+        #expect(query(apple, "term") == "kaffee")
+        #expect(query(apple, "country") == "de")
+        #expect(query(apple, "media") == "podcast")
+        let index = try #require(urls.first { $0.host() == "api.podcastindex.org" })
+        #expect(index.absoluteString == "https://api.podcastindex.org/search?term=kaffee")
+        // Podcast Index lehnt Anfragen ohne Namen der App ab.
+        #expect(await recorder.calls.allSatisfy { $0.headers["User-Agent"] == "PodcastAI/0.7.2" })
+    }
+
+    @Test("Beide Anfragen laufen zugleich", .timeLimit(.minutes(1)))
+    func parallel() async throws {
+        let gate = Gate(count: 2)
+        let catalog = client { url, headers in
+            await gate.arrive()
+            return try await CatalogFixtures.transport(url, headers)
+        }
+        #expect(try await catalog.search("kaffee").count == 3)
+    }
+
+    @Test("Antwortet nur einer, zählt dessen Liste; antwortet keiner, kommt Apples Fehler")
+    func partialFailure() async throws {
+        let indexDown = client { url, headers in
+            if url.host() == "api.podcastindex.org" { return CatalogHTTPResponse(status: 503, body: Data()) }
+            return try await CatalogFixtures.transport(url, headers)
+        }
+        #expect(try await indexDown.search("kaffee").map(\.title) == ["Code und Kaffee", "Kaffeeklatsch"])
+
+        let appleDown = client { url, headers in
+            if url.host() == "itunes.apple.com" { throw URLError(.timedOut) }
+            return try await CatalogFixtures.transport(url, headers)
+        }
+        #expect(try await appleDown.search("kaffee").map(\.title) == ["Code und Kaffee", "Bohnenfunk", "Kaffeeklatsch"])
+
+        let bothDown = client { url, _ in
+            if url.host() == "itunes.apple.com" { throw URLError(.notConnectedToInternet) }
+            return CatalogHTTPResponse(status: 429, body: Data())
+        }
+        await #expect(throws: CatalogError.unreachable) { try await bothDown.search("kaffee") }
+    }
+
+    @Test("Zu kurze Begriffe fragen niemanden")
+    func shortTerm() async throws {
+        let recorder = Recorder()
+        #expect(try await client(recording(recorder)).search(" k ").isEmpty)
+        #expect(await recorder.calls.isEmpty)
+    }
+
+    @Test("Suchbegriffe mit Plus und Und-Zeichen kommen unverfälscht an")
+    func queryEncoding() throws {
+        let index = try #require(PodcastCatalogClient.podcastIndexSearchURL("c++ & co"))
+        #expect(index.absoluteString == "https://api.podcastindex.org/search?term=c%2B%2B%20%26%20co")
+        let apple = try #require(PodcastCatalogClient.appleSearchURL("c++", country: "de"))
+        #expect(apple.absoluteString.hasSuffix("&term=c%2B%2B"))
+    }
+}
+
+// MARK: - Land
+
+@Suite("Katalog: Land")
+struct CatalogStorefrontTests {
+
+    @Test("Region des Geräts in Kleinschrift, sonst die USA")
+    func country() {
+        #expect(CatalogStorefront.country(forRegion: "DE") == "de")
+        #expect(CatalogStorefront.country(forRegion: "at") == "at")
+        #expect(CatalogStorefront.country(forRegion: nil) == "us")
+        #expect(CatalogStorefront.country(forRegion: "") == "us")
+        #expect(CatalogStorefront.country(forRegion: "001") == "us")
+        #expect(CatalogStorefront.country(forRegion: "150") == "us")
+        #expect(CatalogStorefront.country(forRegion: "DEU") == "us")
+        #expect(CatalogStorefront.country(forRegion: "Ö1") == "us")
+        #expect(CatalogStorefront.country(forRegion: "d/") == "us")
+    }
+
+    @Test("Der Client nimmt nur ein gültiges Land in seine Adressen")
+    func clientCountry() {
+        #expect(client(country: "CH").country == "ch")
+        #expect(client(country: "../x").country == "us")
+        #expect(PodcastCatalogClient.chartURL(.top, country: "ch")?.absoluteString
+                == "https://rss.marketingtools.apple.com/api/v2/ch/podcasts/top/100/podcasts.json")
+        #expect(PodcastCatalogClient.chartURL(.genre(.science), country: "ch")?.absoluteString
+                == "https://itunes.apple.com/ch/rss/toppodcasts/limit=200/genre=1533/json")
+    }
+}
+
+// MARK: - Rubriken
+
 @Suite("Katalog: Rubriken")
 struct CatalogCategoryTests {
 
-    @Test("Jede der 112 Kategorien gehört zu genau einer Rubrik")
-    func everyIDMapsOnce() {
-        let ids = CatalogCategory.allCases.flatMap(\.podcastIndexIDs)
-        #expect(Set(ids) == Set(1...112))
-        #expect(ids.count == 112)
+    @Test("Die 19 Rubriken von Apple Podcasts, jede Kennung einmal")
+    func genres() {
+        let topLevel: Set<Int> = [1301, 1321, 1303, 1304, 1483, 1511, 1512, 1487, 1305, 1502,
+                                  1310, 1489, 1314, 1533, 1324, 1545, 1309, 1318, 1488]
         #expect(CatalogCategory.allCases.count == 19)
-        #expect(Set(CatalogCategory.allCases.map(\.symbol)).count == 19)
-        #expect(Set(CatalogCategory.allCases.map(\.title)).count == 19)
+        #expect(Set(CatalogCategory.allCases.map(\.genreID)) == topLevel)
+        let subgenres = CatalogCategory.allCases.flatMap(\.subgenreIDs)
+        #expect(subgenres.count == 91)
+        #expect(Set(subgenres).count == subgenres.count)
+        #expect(Set(subgenres).isDisjoint(with: topLevel))
+        for category in CatalogCategory.allCases {
+            #expect(CatalogCategory(genreID: category.genreID) == category)
+            #expect(category.subgenreIDs.allSatisfy { CatalogCategory(genreID: $0) == category })
+        }
     }
 
-    @Test("Oberbegriffe entscheiden, Unterbegriffe nur als Rückfall")
+    @Test("Unterrubriken gehören zu ihrer Rubrik, „Podcasts“ zu keiner")
     func mapping() {
-        // „TV & Film > TV Reviews“
-        #expect(CatalogCategory.primary(for: [104, 105, 107]) == .tvFilm)
-        // „News > Politics“: beide Rubriken, Nachrichten zuerst.
-        #expect(CatalogCategory.categories(for: [55, 59]) == [.news, .politics])
-        // Nur „Interviews“ oder nur „Commentary“.
-        #expect(CatalogCategory.primary(for: [17]) == .comedy)
-        #expect(CatalogCategory.primary(for: [54]) == .news)
-        // „Comedy Fiction“: das Genauere zuerst.
-        #expect(CatalogCategory.primary(for: [16, 26]) == .comedy)
-        #expect(CatalogCategory.primary(for: [77, 103]) == .trueCrime)
-        // „Sports > Fantasy Sports“ ist Sport, nicht Freizeit.
-        #expect(CatalogCategory.primary(for: [86, 90]) == .sports)
-        #expect(CatalogCategory.primary(for: [112]) == .business)
-        #expect(CatalogCategory.primary(for: []) == nil)
-        #expect(CatalogCategory.primary(for: [999]) == nil)
+        #expect(CatalogCategory(genreID: 1527) == .news)
+        #expect(CatalogCategory(genreID: 1546) == .sports)
+        #expect(CatalogCategory(genreID: 1438) == .religion)
+        #expect(CatalogCategory(genreID: CatalogCategory.podcastsGenreID) == nil)
+        #expect(CatalogCategory(genreID: 9_999) == nil)
+        #expect(CatalogCategory.categories(for: [1527, 26, 1489, 1526]) == [.news])
+        #expect(CatalogCategory.categories(for: [1538, 1533, 1304]) == [.science, .education])
+        #expect(CatalogCategory.categories(for: []).isEmpty)
     }
 
-    @Test("Namen in der Sprache der App")
+    @Test("Jedes Symbol gibt es, keines doppelt")
+    func symbols() {
+        let symbols = CatalogCategory.allCases.map(\.symbol)
+        #expect(Set(symbols).count == 19)
+        #if canImport(AppKit)
+        for symbol in symbols {
+            #expect(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "\(symbol)")
+        }
+        #endif
+    }
+
+    @Test("Apples Namen in der Sprache der App")
     func titles() {
+        #expect(Set(CatalogCategory.allCases.map(\.title)).count == 19)
         #expect(CatalogCategory.news.title == TestLanguage.pick(de: "Nachrichten", en: "News"))
-        #expect(CatalogCategory.kidsFamily.title == TestLanguage.pick(de: "Kinder & Familie", en: "Kids & Family"))
-        #expect(CatalogCategory.technology.title == TestLanguage.pick(de: "Technik", en: "Technology"))
-        #expect(CatalogCategory.trueCrime.title == "True Crime")
-    }
-
-    @Test("Trends einer Rubrik fragen alle ihre Kennungen ab")
-    func categoryRequest() async throws {
-        let recorder = Recorder()
-        let catalog = client { url, headers in
-            await recorder.record(url, headers)
-            return try await PodcastIndexFixtures.transport(url, headers)
-        }
-        let news = try await catalog.trending(language: nil, category: .news, max: 25)
-        #expect(news.map(\.title) == ["Morgenlage", "Morning Signal"])
-        let url = try #require(await recorder.calls.first?.url)
-        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        #expect(items.first { $0.name == "cat" }?.value == "55,54,56,57")
-        #expect(items.first { $0.name == "max" }?.value == "25")
-        #expect(items.contains { $0.name == "lang" } == false)
-    }
-
-    @Test("In einer Rubrik nur, was nach Oberbegriffen dorthin gehört")
-    func categoryListUsesPrimaryRule() async throws {
-        let json = #"""
-        {"status": "true", "feeds": [
-          {"id": 1, "title": "Musikkommentar", "url": "https://example.com/1.xml", "categories": {"53": "Music", "54": "Commentary"}},
-          {"id": 2, "title": "Musikgespräche", "url": "https://example.com/2.xml", "categories": {"53": "Music", "17": "Interviews"}},
-          {"id": 3, "title": "Tageslage", "url": "https://example.com/3.xml", "categories": {"55": "News", "56": "Daily"}},
-          {"id": 4, "title": "Nur Kommentar", "url": "https://example.com/4.xml", "categories": {"54": "Commentary"}}
-        ]}
-        """#
-        let catalog = client { _, _ in CatalogHTTPResponse(status: 200, body: Data(json.utf8)) }
-        #expect(try await catalog.trending(language: nil, category: .news).map(\.title) == ["Tageslage", "Nur Kommentar"])
-        #expect(try await catalog.trending(language: nil, category: .comedy).isEmpty)
-        #expect(try await catalog.trending(language: nil, category: .music).map(\.title)
-                == ["Musikkommentar", "Musikgespräche"])
+        #expect(CatalogCategory.trueCrime.title == TestLanguage.pick(de: "Wahre Kriminalfälle", en: "True Crime"))
+        #expect(CatalogCategory.politics.title == TestLanguage.pick(de: "Regierung", en: "Government"))
+        #expect(CatalogCategory.kidsFamily.title == TestLanguage.pick(de: "Kinder und Familie", en: "Kids & Family"))
+        #expect(CatalogCategory.technology.title == TestLanguage.pick(de: "Technologie", en: "Technology"))
     }
 }
 
-@Suite("Katalog: Sprache")
-struct CatalogLanguageTests {
-
-    @Test("Schreibweisen der Sprache im Feed")
-    func matches() {
-        #expect(CatalogLanguage.matches("de", .german))
-        #expect(CatalogLanguage.matches("de-DE", .german))
-        #expect(CatalogLanguage.matches("de_at", .german))
-        #expect(CatalogLanguage.matches("DE", .german))
-        #expect(!CatalogLanguage.matches("en-us", .german))
-        #expect(!CatalogLanguage.matches(nil, .german))
-        #expect(!CatalogLanguage.matches("", .english))
-        #expect(CatalogLanguage.matches("en-GB", .english))
-    }
-
-    @Test("Trends in der Sprache der App oder in allen")
-    func trendingByLanguage() async throws {
-        let recorder = Recorder()
-        let catalog = client { url, headers in
-            await recorder.record(url, headers)
-            return try await PodcastIndexFixtures.transport(url, headers)
-        }
-        let german = try await catalog.trending(language: .german)
-        #expect(german.map(\.podcastIndexID) == [9001, 9002, 9003, 9004, 9007, 9008, 9009])
-        let english = try await catalog.trending(language: .english)
-        #expect(english.map(\.title) == ["Morning Signal", "Deep Field Notes", "Story Time Tales"])
-        #expect(try await catalog.trending(language: nil).count == 10)
-        let url = try #require(await recorder.calls.first?.url)
-        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        #expect(items.first { $0.name == "lang" }?.value == "de,de-de,de-at,de-ch")
-    }
-}
+// MARK: - Zusammenführen
 
 @Suite("Katalog: Treffer zusammenführen")
 struct CatalogMergeTests {
 
-    private func podcast(_ title: String, _ feed: String, origin: CatalogPodcast.Origin = .podcastIndex,
-                         itunes: Int? = nil, original: String? = nil, artwork: String? = nil) -> CatalogPodcast {
+    private func podcast(_ title: String, _ feed: String, origin: CatalogPodcast.Origin = .appleDirectory,
+                         itunes: Int? = nil, artwork: String? = nil, genres: [String] = []) -> CatalogPodcast {
         CatalogPodcast(origin: origin, itunesID: itunes, title: title, author: "", feedURL: URL(string: feed)!,
-                       originalFeedURL: original.flatMap(URL.init(string:)),
-                       artworkURL: artwork.flatMap(URL.init(string:)))
+                       artworkURL: artwork.flatMap(URL.init(string:)), genres: genres)
     }
 
-    @Test("Gleicher Feed, alte Adresse oder gleiche Apple-Kennung: nur einmal")
+    @Test("Gleicher Feed in anderer Schreibweise oder gleiche Apple-Kennung: nur einmal")
     func deduplicates() {
-        let index = [
+        let apple = [
             podcast("A", "https://example.com/a.xml", itunes: 1),
-            podcast("B", "https://example.com/b.xml", original: "http://old.example.com/b.xml"),
+            podcast("B", "https://example.com/b.xml"),
             podcast("E", "https://example.com/e.xml"),
         ]
-        let apple = [
-            podcast("A (Apple)", "http://www.Example.com/a.xml/", origin: .appleDirectory,
-                    artwork: "https://example.com/a.jpg"),
-            podcast("B (Apple)", "http://old.example.com/b.xml", origin: .appleDirectory),
-            podcast("A (andere Adresse)", "https://feeds.example.org/a", origin: .appleDirectory, itunes: 1),
-            podcast("D", "https://example.com/d.xml", origin: .appleDirectory, itunes: 4),
+        let index = [
+            podcast("A (Index)", "http://www.Example.com/a.xml/", origin: .podcastIndex,
+                    artwork: "https://example.com/a.jpg", genres: ["Nachrichten"]),
+            podcast("A (andere Adresse)", "https://feeds.example.org/a", origin: .podcastIndex, itunes: 1),
+            podcast("D", "https://example.com/d.xml", origin: .podcastIndex, itunes: 4),
         ]
-        let merged = CatalogMerge.merged(index, apple)
+        let merged = CatalogMerge.merged(apple, index)
         #expect(merged.map(\.title) == ["A", "B", "E", "D"])
         // Was dem ersten Eintrag fehlt, kommt vom zweiten.
         #expect(merged[0].artworkURL?.absoluteString == "https://example.com/a.jpg")
+        #expect(merged[0].genres == ["Nachrichten"])
         #expect(merged[0].itunesID == 1)
-        #expect(merged[3].origin == .appleDirectory)
-        // Die Adresse aus dem Apple-Verzeichnis zählt beim Abo-Abgleich mit.
-        let keysOfA = Set(merged[0].knownFeedURLs.map(CatalogMerge.feedKey))
-        #expect(keysOfA.contains(CatalogMerge.feedKey(URL(string: "https://feeds.example.org/a")!)))
+        #expect(merged[3].origin == .podcastIndex)
+        // Die andere Adresse zählt beim Abo-Abgleich mit.
         #expect(merged[0].knownFeedURLs.contains(URL(string: "https://feeds.example.org/a")!))
         #expect(merged[0].feedURL.absoluteString == "https://example.com/a.xml")
     }
 
-    @Test("Ohne Treffer bei Podcast Index bleibt die Apple-Liste, wie sie ist")
-    func appleOnly() {
-        let apple = [podcast("X", "https://example.com/x.xml", origin: .appleDirectory),
-                     podcast("Y", "https://example.com/y.xml", origin: .appleDirectory)]
-        #expect(CatalogMerge.merged([], apple).map(\.title) == ["X", "Y"])
+    @Test("Nennt Podcast Index den Podcast zuerst, zählen trotzdem Apples Angaben")
+    func appleWinsWhenIndexComesFirst() {
+        var fromIndex = podcast("A (Index)", "http://www.example.com/a.xml", origin: .podcastIndex, genres: ["News"])
+        fromIndex.genre = "News"
+        var fromApple = podcast("A", "https://example.com/a.xml", itunes: 1, genres: ["Nachrichten"])
+        fromApple.genre = "Nachrichten"
+        fromApple.newestEpisodeDate = Date(timeIntervalSince1970: 1_790_000_000)
+        let merged = CatalogMerge.merged([fromIndex], [fromApple])
+        #expect(merged.count == 1)
+        #expect(merged[0].origin == .appleDirectory)
+        #expect(merged[0].genres == ["Nachrichten"] && merged[0].genre == "Nachrichten")
+        #expect(merged[0].newestEpisodeDate == Date(timeIntervalSince1970: 1_790_000_000))
+        #expect(merged[0].feedURL.absoluteString == "https://example.com/a.xml")
+    }
+
+    @Test("Ohne Treffer der zweiten Liste bleibt die erste, wie sie ist")
+    func firstOnly() {
+        let apple = [podcast("X", "https://example.com/x.xml"), podcast("Y", "https://example.com/y.xml")]
+        #expect(CatalogMerge.merged(apple, []).map(\.title) == ["X", "Y"])
         #expect(CatalogMerge.feedKey(URL(string: "https://WWW.example.com:443/feed/")!)
                 == CatalogMerge.feedKey(URL(string: "http://example.com/feed")!))
         #expect(CatalogMerge.feedKey(URL(string: "https://example.com/feed?id=1")!)
                 != CatalogMerge.feedKey(URL(string: "https://example.com/feed?id=2")!))
+    }
+}
+
+// MARK: - Feeds der Fixtures
+
+@Suite("Katalog: Feeds der Fixtures")
+struct CatalogFixtureFeedTests {
+
+    @Test("Jeder ausgedachte Podcast hat einen lesbaren Feed ohne Audio")
+    func feeds() throws {
+        let data = try #require(CatalogFixtures.feed(for: URL(string: "http://www.example.com/feeds/morgenlage.xml")!))
+        let feed = try FeedParser().parse(data)
+        #expect(feed.title == "Morgenlage")
+        #expect(feed.items.count == 5)
+        #expect(feed.items.first?.title == "Folge 40: Beispiel & Einordnung")
+        #expect(feed.items.allSatisfy { $0.audioURL == nil })
+        #expect(CatalogFixtures.feed(for: URL(string: "https://example.com/unbekannt.xml")!) == nil)
     }
 }

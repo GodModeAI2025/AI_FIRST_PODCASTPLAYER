@@ -7,7 +7,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 | Modul | Aufgabe |
 |---|---|
 | PodcastAICore | Domäne: Quellen, Folgen, Zeitbereiche, Belege, Fakten, Hörzustand |
-| PodcastAISources | RSS, Atom, OPML, Podlove- und Podcasting-2.0-Kapitel, Feed-Suche, YouTube, Podcast-Katalog über Podcast Index |
+| PodcastAISources | RSS, Atom, OPML, Podlove- und Podcasting-2.0-Kapitel, Feed-Suche, YouTube, Podcast-Katalog über Apple Podcasts und Podcast Index |
 | PodcastAIMedia | Download, Audio lesen, Formaterkennung für Dateien ohne Endung |
 | PodcastAITranscription | SpeechAnalyzer mit Zeitmarken |
 | PodcastAIIntelligence | Apple Intelligence auf dem Gerät und auf Private Cloud Compute |
@@ -27,29 +27,28 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 
 ## Podcast-Katalog
 
-Das Blatt „Podcast hinzufügen“ ist zugleich der Katalog. Die Daten kommen von Podcast Index (podcastindex.org), einem offenen Verzeichnis mit gut vier Millionen Feeds. Der Client steht in `PodcastIndexClient`, die Ansichten in `CatalogViews.swift`, Zugang und Zwischenspeicher in `PodcastCatalog.swift`.
+Das Blatt „Podcast hinzufügen“ ist zugleich der Katalog. Er kommt ohne Schlüssel und ohne Konto aus: Charts, Rubriken und Einzelheiten liefert Apple Podcasts, gesucht wird zusätzlich bei Podcast Index. Der Client steht in `PodcastCatalogClient` (Paket), die Ansichten in `CatalogViews.swift`, die Verbindung zur App in `PodcastCatalog.swift`.
 
-| Teil | Endpunkt | Was die App daraus macht |
+| Teil | Quelle | Was die App daraus macht |
 |---|---|---|
-| Suche | `search/byterm` und Apples `itunes.apple.com/search` zugleich | `CatalogMerge` legt Treffer mit gleicher Feed-Adresse (auch der alten vor einem Umzug) oder gleicher Apple-Kennung zusammen. Antwortet nur einer der beiden Dienste, zählt dessen Liste. |
-| Angesagt | `podcasts/trending?lang=de,de-de,de-at,de-ch` | In der Sprache der App, mit Schalter für alle Sprachen. `lang` trifft die Schreibweise im Feed, deshalb filtert die App die Antwort noch einmal nach `language`. |
-| Kategorien | `podcasts/trending?cat=…` | Podcast Index kennt 112 Wörter ohne Hierarchie, nur auf Englisch. `CatalogCategory` fasst sie zu 19 Rubriken mit Namen auf Deutsch und Englisch, SF Symbol und Farbe zusammen. Oberbegriffe entscheiden, Unterbegriffe zählen nur, wenn kein Oberbegriff passt. Die API blättert nicht, „Mehr laden“ fragt eine längere Liste, höchstens 200. |
-| Seite eines Podcasts | `podcasts/byfeedid`, `episodes/byfeedid` (10 Folgen) | Großes Cover, Kategorien, Beschreibung, Website, neueste Folgen mit Datum und Länge. Ohne Kennung bei Podcast Index liest die App den Feed selbst. |
+| Angesagt | `rss.marketingtools.apple.com/api/v2/{land}/podcasts/top/100/podcasts.json` | Die 100 Plätze der Charts, mehr gibt der Dienst nicht her (bei 200 antwortet er mit 500). |
+| Kategorien | `itunes.apple.com/{land}/rss/toppodcasts/limit=200/genre={id}/json` | Apples 19 oberste Rubriken, Kennungen und Namen einmal beim Entwickeln aus `…/ws/genres?id=26` geholt und fest in `CatalogCategory` hinterlegt, samt Unterrubriken. Namen auf Deutsch und Englisch wie bei Apple, SF Symbols gegen die Symbolliste von iOS 27 und macOS 27 geprüft. Bei genau einem Platz ist `entry` ein Objekt statt einer Liste. |
+| Einzelheiten | `itunes.apple.com/lookup?id=…&entity=podcast&country={land}` | Die Charts nennen nur Kennung, Name, Anbieter und ein kleines Bild. Feed-Adresse, Cover in 600 Pixeln, Zahl der Folgen, neueste Folge und Rubriken holt ein Abruf je Seite, bis 100 Kennungen auf einmal. Apple ordnet die Antwort nicht und lässt Unbekanntes weg; zugeordnet wird über die Kennung, Plätze ohne Feed fallen heraus. |
+| Suche | `itunes.apple.com/search` und `api.podcastindex.org/search` zugleich | Podcast Index antwortet dort ohne Schlüssel in Apples Form und findet Feeds, die Apples Suche nicht zeigt. `CatalogMerge` legt Treffer mit gleicher Feed-Adresse (Schema, `www.`, Schrägstrich egal) oder gleicher Apple-Kennung zusammen. Antwortet nur einer, zählt dessen Liste. |
+| Seite eines Podcasts | der Feed selbst | Großes Cover, Anbieter, Rubriken als Marken, Beschreibung, Website und die 10 neuesten Folgen mit Datum und Länge. Geladen über `AppModel.previewPodcast`, damit ein Abo gleich danach den Feed nicht noch einmal holt. |
 
 Regeln:
 
-- Aus dem Katalog wird nichts abgespielt. `CatalogEpisode` trägt nicht einmal eine Audio-Adresse. Abonniert wird über `AppModel.subscribe(to:)`, denselben Weg wie ein eingefügter Link.
+- Das Land kommt aus der Region des Geräts (`Locale.current.region`), nicht aus der Sprache der App. Ohne Region oder bei Regionen wie „150“ gilt „us“. Führt Apple ein Land nicht (400 bei Suche und Einzelheiten, 500 bei den Charts), fragt der Client einmal in den USA nach. Welches Land die Charts zeigen, steht unter der Liste.
+- „Mehr laden“ blättert in den schon geladenen Charts, 25 Plätze je Seite, und holt nur deren Einzelheiten.
+- Charts und Einzelheiten hält der Client 15 Minuten im Speicher. Die Suche wartet wie bisher 450 ms nach dem letzten Tastendruck.
+- Podcast Index lehnt Anfragen ohne einen User-Agent ab, der die App nennt. Jede Anfrage des Katalogs trägt `PodcastAI/<Version>`.
+- Apple drosselt zu schnelle Suchen mit 403. Das zählt wie 429 als „zu viele Anfragen“ (`CatalogError.rateLimited`), nicht als Fehler des Servers eines Podcasts.
+- Aus dem Katalog wird nichts abgespielt. Abonniert wird über `AppModel.subscribe(to:)`, denselben Weg wie ein eingefügter Link.
 - Texte aus dem Katalog sind fremde Daten. `CatalogText` macht aus HTML reinen Text, Adressen gehen durch `NetworkDestination` und werden auf https gehoben. Nichts davon geht an ein Sprachmodell.
-- Aufgegebene Feeds (`dead`) und Feeds, die kein Podcast sind (`medium` Musik, Film, Blog, Newsletter), zeigt der Katalog nicht.
-- Jede Anfrage trägt `User-Agent: PodcastAI/<Version>`, `X-Auth-Key`, `X-Auth-Date` (Unixzeit in ganzen Sekunden) und `Authorization`, den SHA-1 über Schlüssel, Geheimnis und Zeit in kleinen Hexziffern. `PodcastIndexSignature` rechnet ihn, ein Test prüft ihn am Rechenbeispiel der Dokumentation. Der Server nimmt nur Zeiten an, die höchstens drei Minuten abweichen. Nach einem 401 rechnet der Client deshalb einmal mit der Zeit aus der Kopfzeile `Date` nach, wenn die Uhr des Geräts mehr als eine Minute danebenliegt.
-- `RedirectGuard` entfernt bei einem Wechsel des Hosts auch `X-Auth-Key` und `X-Auth-Date`.
-- Fehler des Katalogs (`PodcastIndexError`) haben eigene Sätze. Ein 429 heißt „zu viele Anfragen“ und nicht „der Server des Podcasts“.
-- Angesagt, Einzelheiten und Folgen hält die App 15 Minuten im Speicher. Die Betreiber erlauben das für Daten, die jemand öffnet, nicht aber, den Index abzugrasen. Die Suche wartet wie bisher 450 ms nach dem letzten Tastendruck.
-- Cover lädt `AsyncImage` direkt vom Server des Podcasts über den gemeinsamen `URLCache` (32 MB Speicher, 256 MB Platte).
+- Cover lädt `AsyncImage` von Apple oder vom Server des Podcasts über den gemeinsamen `URLCache` (32 MB Speicher, 256 MB Platte).
 
-Zugang: Schlüssel und Geheimnis stehen in `app/Config/PodcastIndex/PodcastIndexCredentials.plist`. Die Datei ist in `.gitignore`, denn das Repository ist öffentlich. Wie man sie anlegt, steht in `app/README.md`. Der Ordner ist in `project.yml` als Ordnerreferenz eingebunden, kopiert wird also, was beim Bauen darin liegt. Eine einzelne Datei mit `optional: true` ließ den Build scheitern, wenn sie fehlte. Fehlt die Datei oder ist ein Feld leer, ist der Katalog aus: Die Suche fragt nur Apple, Angesagt, Kategorien und der Absatz zu Podcast Index in den Datenschutzangaben fehlen, und nichts geht an Podcast Index.
-
-UI-Tests starten mit `-catalog-fixtures`. Dann antwortet der Katalog in Debug-Builds aus `PodcastIndexFixtures`, ohne Netz und ohne Zugang.
+UI-Tests starten mit `-catalog-fixtures`. Dann antworten Charts, Einzelheiten, beide Suchen und die Feeds der Podcast-Seiten in Debug-Builds aus `CatalogFixtures`, ohne Netz und als stünde das Gerät in Deutschland.
 
 ## Welches Modell wann
 

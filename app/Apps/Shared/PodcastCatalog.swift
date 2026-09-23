@@ -2,13 +2,12 @@
 //  PodcastCatalog.swift
 //  PodcastAI
 //
-//  Der Katalog im Blatt „Podcast hinzufügen“: Suche, Trends und Rubriken
-//  über Podcast Index, dazu das Apple-Podcast-Verzeichnis wie bisher.
+//  Der Katalog im Blatt „Podcast hinzufügen“: Charts und Kategorien aus
+//  Apple Podcasts, gesucht wird bei Apple und bei Podcast Index zugleich.
+//  Kein Schlüssel, kein Konto, der Katalog ist immer an.
 //
-//  Der Zugang liegt in `Config/PodcastIndex/PodcastIndexCredentials.plist`,
-//  die nicht im Repository steht und beim Bauen in das App-Bundle kommt.
-//  Fehlt sie oder ist ein Feld leer, ist der Katalog aus: die Suche fragt
-//  nur Apple, Trends und Rubriken bleiben verborgen.
+//  Das Land der Charts kommt aus der Region des Geräts, siehe
+//  `CatalogStorefront`.
 //
 //  Was der Katalog liefert, ist fremder Text. Er wird angezeigt und sonst
 //  nirgends hingegeben, auch keinem Sprachmodell. Abgespielt wird aus dem
@@ -23,66 +22,33 @@ final class PodcastCatalog {
 
     static let shared = PodcastCatalog()
 
-    /// Die Seite, auf die „Katalog: Podcast Index“ verweist.
-    static let website = URL(string: "https://podcastindex.org")!
+    /// Podcast Index, dort sucht die App zusätzlich.
+    static let podcastIndexWebsite = URL(string: "https://podcastindex.org")!
     /// Datenschutzerklärung von Podcast Index.
-    static let privacyPolicy = URL(string: "https://github.com/Podcastindex-org/legal/blob/main/PrivacyPolicy.md")!
+    static let podcastIndexPrivacyPolicy = URL(string: "https://github.com/Podcastindex-org/legal/blob/main/PrivacyPolicy.md")!
 
-    private let client: PodcastIndexClient?
+    private let client: PodcastCatalogClient
     /// Feste Antworten statt Netz, nur für UI-Tests.
     private let usesFixtures: Bool
-    /// Was jemand angesehen hat, für eine Viertelstunde. Die Betreiber
-    /// bitten darum, die API zu schonen, und erlauben das Zwischenspeichern
-    /// dessen, was ein Nutzer öffnet.
-    private var cache: [String: (at: Date, value: Any)] = [:]
-    private static let cacheLifetime: TimeInterval = 15 * 60
-
-    /// Trends, Rubriken und Einzelheiten gibt es nur mit Zugang.
-    var isAvailable: Bool { client != nil }
-
-    /// Dasselbe wie `isAvailable`, aber ohne Main Actor lesbar, etwa für
-    /// die Texte der Hilfe. Ändert sich nicht, solange die App läuft.
-    nonisolated static let isConfigured: Bool = {
-        #if DEBUG
-        if usesFixtureArgument { return true }
-        #endif
-        return bundledCredentials()?.isComplete == true
-    }()
-
-    #if DEBUG
-    private nonisolated static var usesFixtureArgument: Bool {
-        ProcessInfo.processInfo.arguments.contains("-catalog-fixtures")
-    }
-    #endif
 
     private init() {
         #if DEBUG
-        if Self.usesFixtureArgument {
-            client = PodcastIndexClient(credentials: PodcastIndexFixtures.credentials,
-                                        userAgent: Self.userAgent, transport: PodcastIndexFixtures.transport)
+        if ProcessInfo.processInfo.arguments.contains("-catalog-fixtures") {
+            client = PodcastCatalogClient(country: "de", userAgent: Self.userAgent,
+                                          transport: CatalogFixtures.transport)
             usesFixtures = true
             return
         }
         #endif
+        client = PodcastCatalogClient(userAgent: Self.userAgent)
         usesFixtures = false
-        if let credentials = Self.bundledCredentials(), credentials.isComplete {
-            client = PodcastIndexClient(credentials: credentials, userAgent: Self.userAgent)
-        } else {
-            client = nil
-        }
     }
 
-    /// `PodcastAI/0.7.2`: so erkennt der Betreiber die App in seinen Protokollen.
+    /// `PodcastAI/0.7.2`: Podcast Index verlangt einen User-Agent, der die
+    /// App nennt, und lehnt allgemeine ab.
     static var userAgent: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         return "PodcastAI/\(version)"
-    }
-
-    private nonisolated static func bundledCredentials() -> PodcastIndexCredentials? {
-        guard let url = Bundle.main.url(forResource: "PodcastIndexCredentials", withExtension: "plist",
-                                        subdirectory: "PodcastIndex"),
-              let data = try? Data(contentsOf: url) else { return nil }
-        return PodcastIndexCredentials(propertyList: data)
     }
 
     /// Cover kommen über `AsyncImage` und damit über den gemeinsamen
@@ -92,74 +58,38 @@ final class PodcastCatalog {
         URLCache.shared = URLCache(memoryCapacity: 32 * 1024 * 1024, diskCapacity: 256 * 1024 * 1024)
     }
 
-    // MARK: - Suche
+    /// „Deutschland“ für „de“, in der Sprache der App.
+    static func regionName(_ country: String) -> String {
+        Locale(identifier: AppLanguage.current.rawValue).localizedString(forRegionCode: country.uppercased())
+            ?? country.uppercased()
+    }
 
-    /// Sucht in Podcast Index und im Apple-Verzeichnis zugleich und führt
-    /// die Treffer zusammen. Antwortet nur eines von beiden, zählt dessen
-    /// Liste. Ohne Zugang zum Katalog sucht nur Apple, wie bisher.
+    // MARK: - Suche, Charts
+
+    /// Sucht bei Apple und bei Podcast Index zugleich und führt die Treffer
+    /// zusammen.
     func search(_ term: String) async throws -> [CatalogPodcast] {
-        guard let client else { return try await PodcastDirectory.search(term) }
-        if usesFixtures { return try await client.search(term) }
-        async let index = Self.outcome { try await client.search(term) }
-        async let apple = Self.outcome { try await PodcastDirectory.search(term) }
-        let (fromIndex, fromApple) = await (index, apple)
-        try Task.checkCancellation()
-        switch (fromIndex, fromApple) {
-        case (.success(let found), .success(let listed)):
-            return CatalogMerge.merged(found, listed)
-        case (.success(let found), .failure):
-            return found
-        case (.failure, .success(let listed)):
-            return listed
-        case (.failure, .failure(let error)):
-            // Die Meldung des Apple-Verzeichnisses kennt man schon.
-            throw error
+        try await client.search(term)
+    }
+
+    /// Eine Seite der Charts. Charts und Einzelheiten hält der Client eine
+    /// Viertelstunde.
+    func page(of chart: CatalogChart, offset: Int, count: Int) async throws -> CatalogPage {
+        try await client.page(of: chart, offset: offset, count: count)
+    }
+
+    // MARK: - Seite eines Podcasts
+
+    /// Beschreibung, Website und neueste Folgen aus dem Feed des Podcasts.
+    /// Über `AppModel`, damit ein Abo gleich danach den Feed nicht noch
+    /// einmal lädt. In UI-Tests aus einem festen Feed.
+    func preview(of feed: URL, model: AppModel) async throws -> PodcastPreview {
+        #if DEBUG
+        if usesFixtures {
+            guard let data = CatalogFixtures.feed(for: feed) else { throw CatalogError.unreadableAnswer }
+            return PodcastPreview(try FeedParser().parse(data))
         }
-    }
-
-    // MARK: - Trends, Einzelheiten, Folgen
-
-    func trending(language: AppLanguage?, category: CatalogCategory? = nil, max: Int) async throws -> [CatalogPodcast] {
-        guard let client else { throw PodcastIndexError.missingCredentials }
-        let key = "trending|\(language?.rawValue ?? "*")|\(category?.rawValue ?? "*")|\(max)"
-        if let cached: [CatalogPodcast] = cached(key) { return cached }
-        let podcasts = try await client.trending(language: language, category: category, max: max)
-        store(podcasts, for: key)
-        return podcasts
-    }
-
-    func podcast(id: Int) async throws -> CatalogPodcast {
-        guard let client else { throw PodcastIndexError.missingCredentials }
-        let key = "podcast|\(id)"
-        if let cached: CatalogPodcast = cached(key) { return cached }
-        let podcast = try await client.podcast(id: id)
-        store(podcast, for: key)
-        return podcast
-    }
-
-    func episodes(feedID: Int) async throws -> [CatalogEpisode] {
-        guard let client else { throw PodcastIndexError.missingCredentials }
-        let key = "episodes|\(feedID)"
-        if let cached: [CatalogEpisode] = cached(key) { return cached }
-        let episodes = try await client.episodes(feedID: feedID, max: 10)
-        store(episodes, for: key)
-        return episodes
-    }
-
-    // MARK: - Zwischenspeicher
-
-    private func cached<Value>(_ key: String) -> Value? {
-        guard let entry = cache[key], Date().timeIntervalSince(entry.at) < Self.cacheLifetime else { return nil }
-        return entry.value as? Value
-    }
-
-    private func store(_ value: Any, for key: String) {
-        cache[key] = (Date(), value)
-    }
-
-    private nonisolated static func outcome<Value: Sendable>(
-        _ body: @Sendable () async throws -> Value
-    ) async -> Result<Value, any Error> {
-        do { return .success(try await body()) } catch { return .failure(error) }
+        #endif
+        return try await model.previewPodcast(feed)
     }
 }
