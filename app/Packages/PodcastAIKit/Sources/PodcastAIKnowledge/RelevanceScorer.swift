@@ -184,7 +184,8 @@ public struct RelevanceScorer: Sendable {
         var matched: [String] = []
         var value = 0.0
 
-        for term in terms where haystack.contains(term) {
+        let padded = " " + haystack + " "
+        for term in terms where occurs(term, in: padded) {
             matched.append(term)
             // Mehrwortbegriffe sind spezifischer und wiegen schwerer.
             value += term.contains(" ") ? 0.5 : 0.2
@@ -194,6 +195,18 @@ public struct RelevanceScorer: Sendable {
         // Sättigung: der zehnte Treffer macht einen Abschnitt nicht zehnmal
         // relevanter.
         return (min(1.0, value), matched.sorted { $0.count > $1.count })
+    }
+
+    /// Kommt der Begriff an einer Wortgrenze vor?
+    ///
+    /// Kurze Begriffe (KI, AI, ML) nur als ganzes Wort, sonst trifft „ki“ in
+    /// „Kinder“ und „Skigebiet“. Längere am Wortanfang, damit „datenschutz“
+    /// auch „Datenschutzbeauftragte“ findet, aber „führung“ nicht
+    /// „Einführung“. `padded` ist der normalisierte Text mit Leerzeichen an
+    /// beiden Enden.
+    static func occurs(_ term: String, in padded: String) -> Bool {
+        if term.count <= 3 { return padded.contains(" \(term) ") }
+        return padded.contains(" \(term)")
     }
 
     /// Kleinschreibung; alles, was kein Buchstabe und keine Ziffer ist, wird
@@ -226,5 +239,13 @@ public struct RelevanceScorer: Sendable {
         "beim", "durch", "gegen", "ohne", "über", "unter", "zwischen",
         "mein", "meine", "meinen", "mit", "von", "vom", "zum", "zur",
         "the", "and", "for", "with", "from", "that", "this",
+        // Fragewörter und Allerweltsverben aus offenen Fragen und Vorhaben.
+        // Sonst trifft „Welche Möglichkeiten bietet …“ jeden zweiten Satz.
+        "welche", "welcher", "welches", "warum", "wieso", "weshalb", "wann", "womit", "woher",
+        "bietet", "bieten", "gibt", "geben", "kann", "können", "könnte", "soll", "sollte", "sollen",
+        "muss", "müssen", "wird", "werden", "wurde", "sind", "haben", "hat", "machen", "macht",
+        "gerade", "heute", "mehr", "sehr", "viele", "vielen", "etwas", "alles", "immer", "wirklich",
+        "aktuell", "beschäftige", "beschäftigen", "möglichkeiten", "frage", "fragen", "thema", "themen",
+        "what", "which", "when", "does", "about", "have", "will", "would", "should", "could",
     ]
 }
