@@ -65,8 +65,10 @@ final class GoalFeaturesUITests: XCTestCase {
         let suggestion = app.buttons["Worum geht es in dieser Folge?"]
         XCTAssertTrue(suggestion.waitForExistence(timeout: 5), "Keine Vorschlagsfragen")
         suggestion.tap()
-        // Im Simulator ist die Folge nicht erschlossen. Die Antwort sagt das.
-        let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'erschlossen'")).firstMatch
+        // Im Simulator ist die Folge nicht ausgewertet. Die Antwort sagt das,
+        // je nach Zustand anders, aber immer mit dem Hinweis auf die Belege.
+        let answer = app.staticTexts.matching(NSPredicate(
+            format: "label CONTAINS 'Belegen aus dem Transkript' OR label CONTAINS 'keine Belege'")).firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 20), "Keine Antwort im Folgen-Chat")
         attach(app, "folgen-chat")
 

@@ -115,10 +115,10 @@ final class BetaFeedback03UITests: XCTestCase {
         // Die App bereitet neue Folgen von selbst vor und lädt die Datei
         // dabei. Im Simulator scheitert danach die Transkription, die Datei
         // bleibt aber liegen. Genau dieser Zustand machte die Wiedergabe stumm.
-        let analyze = app.buttons["Erschliessen"].firstMatch
+        let analyze = app.buttons["Folge auswerten"].firstMatch
         if analyze.waitForExistence(timeout: 5) { analyze.tap() }
         let loaded = app.staticTexts.matching(NSPredicate(
-            format: "label BEGINSWITH 'fehlgeschlagen' OR label BEGINSWITH 'transkribiert' OR label BEGINSWITH 'erschlossen' OR label BEGINSWITH 'geladen'")).firstMatch
+            format: "label BEGINSWITH 'fehlgeschlagen' OR label BEGINSWITH 'transkribiert' OR label BEGINSWITH 'ausgewertet' OR label BEGINSWITH 'geladen'")).firstMatch
         XCTAssertTrue(loaded.waitForExistence(timeout: 300), "Folge wurde nicht geladen")
         attach(app, "geladen")
 

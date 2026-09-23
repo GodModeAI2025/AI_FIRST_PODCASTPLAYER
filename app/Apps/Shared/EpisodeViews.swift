@@ -20,11 +20,25 @@ struct EpisodeListView: View {
     let sourceID: SourceID
     @Environment(AppModel.self) private var model
     @State private var pendingDelete: Episode?
+    // Suche, Filter und Reihenfolge gelten nur für diese Liste.
+    @State private var query = ""
+    @State private var options = EpisodeArchive.Options()
+    /// Im Auswahlmodus öffnet ein Tippen nicht die Folge, sondern wählt sie
+    /// zum Auswerten aus.
+    @State private var selecting = false
+    @State private var selection: Set<EpisodeID> = []
+    /// Durchsuchbarer Text je Folge, beim ersten Suchen im Hintergrund
+    /// vorbereitet.
+    @State private var searchIndex: [EpisodeID: String] = [:]
+    /// Treffer der Suche, `nil`, solange nichts gesucht wird.
+    @State private var matches: Set<EpisodeID>?
 
     private var source: Source? { model.sources.first { $0.id == sourceID } }
     private var episodes: [Episode] { model.episodes[sourceID] ?? [] }
 
     var body: some View {
+        let analyzed = Set(episodes.lazy.map(\.id).filter { model.stages[$0] == .evidenceExtracted })
+        let shown = EpisodeArchive.arrange(episodes, options: options, analyzed: analyzed, matches: matches)
         List {
             if !(source?.capabilities.supportsTimedKnowledge ?? true),
                let reason = source?.capabilities.limitationReason {
@@ -60,12 +74,8 @@ struct EpisodeListView: View {
             }
 
             Section {
-                ForEach(episodes) { episode in
-                    NavigationLink {
-                        EpisodeDetailView(episode: episode)
-                    } label: {
-                        EpisodeRow(episode: episode)
-                    }
+                ForEach(shown) { episode in
+                    row(for: episode)
                     .swipeActions(edge: .leading) {
                         // Folgen ohne Audiodatei (YouTube) führen zum Video.
                         if model.canPlay(episode) {
@@ -96,7 +106,7 @@ struct EpisodeListView: View {
                         }
                         if episode.audioURL != nil, model.stages[episode.id] == nil || model.stages[episode.id] == .failed {
                             Button { model.enqueueAnalysis(episode) } label: {
-                                Label("Erschliessen", systemImage: "waveform.badge.magnifyingglass")
+                                Label("Auswerten", systemImage: "waveform.badge.magnifyingglass")
                             }
                             .tint(.teal)
                         }
@@ -115,7 +125,7 @@ struct EpisodeListView: View {
                         }
                         if episode.audioURL != nil {
                             Button { model.enqueueAnalysis(episode) } label: {
-                                Label("Erschliessen", systemImage: "waveform.badge.magnifyingglass")
+                                Label("Auswerten", systemImage: "waveform.badge.magnifyingglass")
                             }
                         }
                         Divider()
@@ -137,13 +147,28 @@ struct EpisodeListView: View {
                     }
                 }
             } header: {
-                // Gefunden und erschlossen sind getrennte Zahlen. Sie zu
+                // Gefunden und ausgewertet sind getrennte Zahlen. Sie zu
                 // vermischen würde behaupten, alles sei durchsuchbar.
-                let analyzed = episodes.filter { model.stages[$0.id] == .evidenceExtracted }.count
-                Text("\(episodes.count) gefunden · \(analyzed) erschlossen")
+                if !episodes.isEmpty {
+                    VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                        Text(coverage(analyzed: analyzed.count))
+                        if matches != nil || options.onlyUnanalyzed {
+                            Text(shown.count == 1 ? "1 Folge angezeigt" : "\(shown.count) Folgen angezeigt")
+                        }
+                    }
+                    .textCase(nil)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("episodes.coverage")
+                }
             }
         }
         .navigationTitle(source?.title ?? "Folgen")
+        .searchable(text: $query, prompt: "Titel und Shownotes durchsuchen")
+        .task(id: SearchRequest(query: query, episodeCount: episodes.count)) { await search() }
+        .toolbar { archiveToolbar }
+        .safeAreaInset(edge: .bottom) {
+            if selecting { selectionBar(shown) }
+        }
         .confirmationDialog("Folge löschen?", isPresented: Binding(
             get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }
         ), titleVisibility: .visible, presenting: pendingDelete) { episode in
@@ -161,8 +186,176 @@ struct EpisodeListView: View {
                     systemImage: "list.bullet",
                     description: Text("In diesem Feed wurden keine Folgen gefunden.")
                 )
+            } else if shown.isEmpty, matches != nil {
+                ContentUnavailableView(
+                    "Keine Treffer",
+                    systemImage: "magnifyingglass",
+                    description: Text("Keine Folge enthält „\(query.trimmingCharacters(in: .whitespaces))“ "
+                                      + "in Titel oder Shownotes.")
+                )
+            } else if shown.isEmpty {
+                ContentUnavailableView(
+                    "Alles ausgewertet",
+                    systemImage: "checkmark.circle",
+                    description: Text("Jede Folge dieser Quelle ist ausgewertet. Ohne den Filter siehst du alle.")
+                )
             }
         }
+    }
+
+    // MARK: Ältere Folgen
+
+    /// Normal führt die Zeile in die Folge. Im Auswahlmodus hakt ein Tippen
+    /// sie an. Was schon ausgewertet ist, läuft oder keinen Ton hat, bleibt
+    /// grau.
+    @ViewBuilder
+    private func row(for episode: Episode) -> some View {
+        if selecting {
+            let selectable = canQueue(episode)
+            let selected = selection.contains(episode.id)
+            Button {
+                if selected { selection.remove(episode.id) } else { selection.insert(episode.id) }
+            } label: {
+                HStack(spacing: Design.Spacing.control) {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                        .accessibilityHidden(true)
+                    EpisodeRow(episode: episode)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!selectable)
+            .opacity(selectable ? 1 : 0.45)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+        } else {
+            NavigationLink {
+                EpisodeDetailView(episode: episode)
+            } label: {
+                EpisodeRow(episode: episode)
+            }
+        }
+    }
+
+    /// Lässt sich die Folge jetzt einreihen? Nicht ohne Ton, nicht wenn sie
+    /// schon ausgewertet ist, gerade läuft oder schon wartet.
+    private func canQueue(_ episode: Episode) -> Bool {
+        guard episode.audioURL != nil else { return false }
+        let stage = model.stages[episode.id]
+        guard stage == nil || stage == .failed else { return false }
+        return model.analyzing?.id != episode.id && !model.analysisQueue.contains { $0.id == episode.id }
+    }
+
+    private func coverage(analyzed: Int) -> String {
+        let automatic: EpisodeArchive.Automatic = !model.automaticAnalysis ? .off
+            : model.preparationUnavailable != nil ? .paused
+            : .newest(AppModel.automaticAnalysisPerSource)
+        return EpisodeArchive.coverage(
+            total: episodes.count, analyzed: analyzed,
+            analyzable: episodes.contains { $0.audioURL != nil }, automatic: automatic)
+    }
+
+    @ToolbarContentBuilder
+    private var archiveToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .primaryAction) {
+            Menu {
+                Toggle(isOn: $options.onlyUnanalyzed) {
+                    Label("Nur nicht ausgewertete", systemImage: "circle.dashed")
+                }
+                Picker("Reihenfolge", selection: $options.oldestFirst) {
+                    Text("Neueste zuerst").tag(false)
+                    Text("Älteste zuerst").tag(true)
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Label("Filtern und sortieren", systemImage: options == EpisodeArchive.Options()
+                      ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+            }
+            .accessibilityIdentifier("episodes.filter")
+
+            if episodes.contains(where: { $0.audioURL != nil }) {
+                Button(selecting ? "Fertig" : "Auswählen") {
+                    selecting.toggle()
+                    selection.removeAll()
+                }
+                .accessibilityIdentifier("episodes.select")
+            }
+        }
+    }
+
+    /// Die Leiste im Auswahlmodus: was ausgewählt ist, wie lang es dauert,
+    /// und der Knopf dazu.
+    private func selectionBar(_ shown: [Episode]) -> some View {
+        let chosen = episodes.filter { selection.contains($0.id) && canQueue($0) }
+        let selectable = shown.filter(canQueue).map(\.id)
+        let allChosen = !selectable.isEmpty && selectable.allSatisfy(selection.contains)
+        return VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            Text(EpisodeArchive.selectionSummary(chosen))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            HStack {
+                Button(allChosen ? "Auswahl aufheben" : "Alle auswählen") {
+                    if allChosen { selection.subtract(selectable) } else { selection.formUnion(selectable) }
+                }
+                .disabled(selectable.isEmpty)
+                Spacer()
+                Button { analyzeSelection() } label: {
+                    Label("Auswahl auswerten", systemImage: "waveform.badge.magnifyingglass")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(chosen.isEmpty)
+                .accessibilityIdentifier("episodes.analyzeSelection")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Spacing.standard)
+        .padding(.vertical, Design.Spacing.small)
+        .background(.bar)
+    }
+
+    /// Reiht die Auswahl in der Reihenfolge der Liste ein. Jede Folge gilt
+    /// als selbst angefordert, wie ein Tippen auf „Auswerten“. Abgespielt
+    /// wird dabei nichts.
+    private func analyzeSelection() {
+        let ordered = options.oldestFirst ? EpisodeArchive.oldestFirst(episodes) : episodes
+        for episode in ordered where selection.contains(episode.id) && canQueue(episode) {
+            model.enqueueAnalysis(episode)
+        }
+        selection.removeAll()
+        selecting = false
+    }
+
+    private struct SearchRequest: Equatable {
+        let query: String
+        let episodeCount: Int
+    }
+
+    /// Sucht kurz nach der letzten Eingabe, im Hintergrund. Den Text der
+    /// Shownotes bereitet sie beim ersten Mal je Folge vor und behält ihn.
+    private func search() async {
+        let terms = EpisodeArchive.terms(of: query)
+        guard !terms.isEmpty else {
+            matches = nil
+            return
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        guard !Task.isCancelled else { return }
+        let list = episodes
+        let missing = list.filter { searchIndex[$0.id] == nil }
+        if !missing.isEmpty {
+            let fresh = await Task.detached(priority: .userInitiated) {
+                EpisodeArchive.searchIndex(for: missing)
+            }.value
+            searchIndex.merge(fresh) { _, new in new }
+        }
+        guard !Task.isCancelled else { return }
+        let index = list.map { (id: $0.id, text: searchIndex[$0.id] ?? "") }
+        let found = await Task.detached(priority: .userInitiated) {
+            EpisodeArchive.matchingIDs(for: terms, in: index)
+        }.value
+        guard !Task.isCancelled else { return }
+        matches = found
     }
 
     /// Liegt die Audiodatei auf dem Gerät? Liest Speicherzähler und Stufe
@@ -254,6 +447,224 @@ struct EpisodeRow: View {
         }
         .padding(.vertical, Design.Spacing.micro)
         .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Auswerten auf Wunsch
+
+/// Wo eine Folge beim Auswerten steht, so wie die Oberfläche es braucht.
+enum AnalysisPhase: Equatable {
+    /// Ohne Audiodatei gibt es nichts auszuwerten. Der Text sagt warum.
+    case unavailable(String)
+    /// Wartet. So viele Folgen sind vorher dran.
+    case waiting(ahead: Int)
+    /// Läuft. Die Stufe ist die zuletzt erreichte.
+    case running(ProcessingStage)
+    case failed(String?)
+    case ready
+    case done
+}
+
+extension AppModel {
+
+    /// Wo die Folge beim Auswerten steht. Knöpfe, Fortschritt und die
+    /// Antwort im Reiter „Fragen“ lesen alle hier, damit keiner auf einen
+    /// Knopf verweist, den es gerade nicht gibt.
+    func analysisPhase(for episode: Episode) -> AnalysisPhase {
+        let stage = stages[episode.id]
+        if stage == .evidenceExtracted { return .done }
+        if analyzing?.id == episode.id {
+            return .running(stage.flatMap { $0.isRunning ? $0 : nil } ?? .discovered)
+        }
+        if let index = analysisQueue.firstIndex(where: { $0.id == episode.id }) {
+            return .waiting(ahead: index + (analyzing == nil ? 0 : 1))
+        }
+        if let stage, stage.isRunning { return .running(stage) }
+        if let reason = analysisUnavailableReason(for: episode) { return .unavailable(reason) }
+        if stage == .failed { return .failed(stageDetails[episode.id]) }
+        return .ready
+    }
+
+    /// Warum sich eine Folge nicht auswerten lässt, oder `nil`, wenn es geht.
+    /// Ausgewertet wird der Ton. Ohne Audiodatei, etwa bei YouTube, entsteht
+    /// kein Transkript und damit auch keine Fakten.
+    func analysisUnavailableReason(for episode: Episode) -> String? {
+        guard episode.audioURL == nil else { return nil }
+        if let reason = sources.first(where: { $0.id == episode.sourceID })?.capabilities.limitationReason {
+            return "Diese Folge lässt sich nicht auswerten. \(reason)"
+        }
+        return "Diese Folge lässt sich nicht auswerten, weil der Feed zu ihr keine Audiodatei liefert. "
+            + "Ohne Ton entsteht kein Transkript."
+    }
+
+    /// Die Antwort im Reiter „Fragen“, solange eine Folge keine Belege hat.
+    /// Sie nennt nur Knöpfe, die es im jeweiligen Zustand auch gibt.
+    func unanalyzedEpisodeAnswer(_ id: EpisodeID) async -> String {
+        guard let episode = try? await store.episodes(ids: [id]).first else {
+            return "Diese Folge ist nicht mehr in der Mediathek. Ohne Transkript habe ich keine Belege, "
+                + "mit denen ich antworten kann."
+        }
+        switch analysisPhase(for: episode) {
+        case .unavailable(let reason):
+            return "\(reason) Deshalb habe ich keine Belege, mit denen ich antworten kann."
+        case .waiting:
+            return "Diese Folge wartet darauf, ausgewertet zu werden. Danach kann ich mit Belegen "
+                + "aus dem Transkript antworten."
+        case .running:
+            return "Diese Folge wird gerade ausgewertet. Sobald das fertig ist, kann ich mit Belegen "
+                + "aus dem Transkript antworten."
+        case .failed(let message):
+            let reason = message.map { ": \($0)" } ?? "."
+            return "Das Auswerten dieser Folge ist fehlgeschlagen\(reason) Tippe in der Folge auf "
+                + "„Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten."
+        case .ready:
+            return "Diese Folge ist noch nicht ausgewertet. Tippe in der Folge auf „Folge auswerten“, "
+                + "danach kann ich mit Belegen aus dem Transkript antworten."
+        case .done:
+            return "Beim Auswerten dieser Folge sind keine Belege entstanden. Ohne sie kann ich nicht antworten."
+        }
+    }
+}
+
+/// Der Weg zum Auswerten aus einer leeren Ansicht heraus.
+///
+/// Transkript, Fakten und Antworten entstehen erst beim Auswerten. Statt
+/// nur darauf zu verweisen, steht hier ein Knopf mit Aufschrift. Läuft es
+/// schon, zeigt die Ansicht den Schritt. Geht es nicht, sagt sie warum.
+struct EpisodeAnalysisPrompt: View {
+
+    enum Style: Equatable {
+        /// Nur Knopf oder Fortschritt, unter einer Leeransicht.
+        case actions
+        /// Ein Satz, was danach hier steht, und darunter der Knopf.
+        case inline(String)
+        /// Eine schmale Zeile über dem Chat.
+        case banner
+    }
+
+    let episode: Episode
+    var style: Style = .actions
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let phase = model.analysisPhase(for: episode)
+        switch style {
+        case .actions:
+            controls(phase)
+        case .inline(let outcome):
+            VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                if case .unavailable(let reason) = phase {
+                    Label(reason, systemImage: "speaker.slash")
+                        .foregroundStyle(.secondary)
+                } else if phase != .done {
+                    Text(outcome)
+                        .foregroundStyle(.secondary)
+                    controls(phase)
+                }
+            }
+        case .banner:
+            banner(phase)
+        }
+    }
+
+    @ViewBuilder
+    private func controls(_ phase: AnalysisPhase) -> some View {
+        switch phase {
+        case .ready:
+            Button { model.enqueueAnalysis(episode) } label: {
+                Label("Folge auswerten", systemImage: "waveform.badge.magnifyingglass")
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("episode.analyze")
+        case .failed(let message):
+            if let message {
+                Text(message)
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            }
+            Button { model.enqueueAnalysis(episode) } label: {
+                Label("Erneut versuchen", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("episode.analyze")
+        case .waiting(let ahead):
+            progress(Self.waitingDescription(ahead))
+        case .running(let stage):
+            progress(Self.stepDescription(stage))
+        case .unavailable, .done:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func banner(_ phase: AnalysisPhase) -> some View {
+        switch phase {
+        case .done:
+            EmptyView()
+        case .unavailable:
+            bannerRow {
+                Label("Diese Folge lässt sich nicht auswerten.", systemImage: "speaker.slash")
+            }
+        case .ready, .failed:
+            bannerRow {
+                Text(phase == .ready
+                     ? "Noch nicht ausgewertet. Antworten aus dem Transkript gibt es erst danach."
+                     : "Das Auswerten ist fehlgeschlagen.")
+                Spacer(minLength: Design.Spacing.small)
+                Button(phase == .ready ? "Folge auswerten" : "Erneut versuchen") {
+                    model.enqueueAnalysis(episode)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("episode.analyze")
+            }
+        case .waiting(let ahead):
+            bannerRow {
+                ProgressView().controlSize(.small)
+                Text(Self.waitingDescription(ahead))
+            }
+        case .running(let stage):
+            bannerRow {
+                ProgressView().controlSize(.small)
+                Text(Self.stepDescription(stage))
+            }
+        }
+    }
+
+    private func bannerRow(@ViewBuilder _ content: () -> some View) -> some View {
+        HStack(spacing: Design.Spacing.small) { content() }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Design.Spacing.standard)
+            .padding(.bottom, Design.Spacing.small)
+    }
+
+    private func progress(_ text: String) -> some View {
+        HStack(spacing: Design.Spacing.small) {
+            ProgressView().controlSize(.small)
+            Text(text)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    static func waitingDescription(_ ahead: Int) -> String {
+        switch ahead {
+        case 0: "Wartet, kommt als Nächstes dran"
+        case 1: "Wartet, davor ist noch 1 Folge dran"
+        default: "Wartet, davor sind noch \(ahead) Folgen dran"
+        }
+    }
+
+    /// Der Schritt, der gerade läuft. Die Stufe nennt, was schon fertig ist.
+    static func stepDescription(_ stage: ProcessingStage) -> String {
+        switch stage {
+        case .mediaDownloaded: "Schritt 2 von 3: Die Folge wird transkribiert"
+        case .transcribed: "Schritt 3 von 3: Fundstellen werden gebildet"
+        default: "Schritt 1 von 3: Der Ton wird geladen"
+        }
     }
 }
 

@@ -669,8 +669,14 @@ public actor LibraryStore {
         return inserted
     }
 
-    public func episodes(forSource sourceID: SourceID, limit: Int = 200) throws -> [Episode] {
-        guard limit > 0 else { return [] }
+    /// Die Folgen einer Quelle, neueste zuerst.
+    ///
+    /// Ohne `limit` kommen alle. Früher endete die Liste bei 200 Folgen, und
+    /// wer eine alte Folge auswerten wollte, fand sie nicht. Eine Folge ist
+    /// ein paar Kilobyte Text; so viele, wie der Feed liefert, hält die App
+    /// beim Aktualisieren ohnehin auf einmal im Speicher.
+    public func episodes(forSource sourceID: SourceID, limit: Int? = nil) throws -> [Episode] {
+        if let limit, limit <= 0 { return [] }
         // Als Optional deklariert: `#Predicate` vergleicht `String?` gegen
         // `String` nicht — die implizite Promotion, die normaler Swift-Code
         // macht, gibt es in der Makroexpansion nicht.
@@ -686,6 +692,16 @@ public actor LibraryStore {
 
         let order = [SortDescriptor(\StoredEpisode.publishedAt, order: .reverse),
                      SortDescriptor(\StoredEpisode.identifier)]
+
+        guard let limit else {
+            let all = FetchDescriptor<StoredEpisode>(
+                predicate: #Predicate { $0.source?.identifier == identifier && $0.removedAt == nil },
+                sortBy: order)
+            return try modelContext.fetch(all)
+                .filter { !removed.contains($0.identifier) }
+                .uniqued(by: \.identifier, preferring: { $0.currentMediaVersionIdentifier != nil })
+                .map(\.snapshot)
+        }
 
         // Die Grenze zählt Folgen, nicht Zeilen. Nach einem Abgleich kann
         // jede Folge zweimal vorliegen, und eine Grenze auf den Zeilen hätte

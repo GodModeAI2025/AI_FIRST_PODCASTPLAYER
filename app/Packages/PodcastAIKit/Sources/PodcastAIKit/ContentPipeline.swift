@@ -46,7 +46,7 @@ public enum ProcessingStage: String, Sendable, Codable, CaseIterable {
         case .discovered: "gefunden"
         case .mediaDownloaded: "geladen"
         case .transcribed: "transkribiert"
-        case .evidenceExtracted: "erschlossen"
+        case .evidenceExtracted: "ausgewertet"
         case .failed: "fehlgeschlagen"
         }
     }

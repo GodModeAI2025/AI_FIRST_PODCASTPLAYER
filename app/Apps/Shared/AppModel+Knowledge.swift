@@ -216,11 +216,11 @@ extension AppModel {
             pool = (try? await store.evidence(forEpisode: id)) ?? []
             libraryContext = await episodeContext(id)
             if pool.isEmpty {
-                return ChatAnswer(
-                    question: question, scope: scope,
-                    text: "Diese Folge ist noch nicht erschlossen. Tippe in der Folge auf „Erschliessen“, "
-                        + "danach kann ich mit Belegen aus dem Transkript antworten.",
-                    citations: [])
+                // Je nach Zustand: auswertbar, wartend, laufend, gescheitert
+                // oder ohne Ton. Ein Verweis auf einen Knopf, den es nicht
+                // gibt, hilft niemandem.
+                let text = await unanalyzedEpisodeAnswer(id)
+                return ChatAnswer(question: question, scope: scope, text: text, citations: [])
             }
         case .episodes(let ids):
             var all: [Evidence] = []

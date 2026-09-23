@@ -77,6 +77,9 @@ struct EpisodeDetailView: View {
             case .ask:
                 VStack(spacing: 0) {
                     askScopeHeader
+                    if passages.isEmpty {
+                        EpisodeAnalysisPrompt(episode: episode, style: .banner)
+                    }
                     ChatView(scope: .episode(episode.id), fixed: true)
                 }
             }
@@ -174,7 +177,7 @@ struct EpisodeDetailView: View {
             }
 
             if let stage {
-                SwiftUI.Section("Erschliessung") {
+                SwiftUI.Section("Auswertung") {
                     Label {
                         Text(model.stageDetails[episode.id].map { "\(stage.label) · \($0)" } ?? stage.label)
                     } icon: {
@@ -188,7 +191,7 @@ struct EpisodeDetailView: View {
                     }
                 }
             } else if let detail = model.stageDetails[episode.id] {
-                SwiftUI.Section("Erschliessung") { Label(detail, systemImage: "clock") }
+                SwiftUI.Section("Auswertung") { Label(detail, systemImage: "clock") }
             }
             if stage == nil, hasLocalAudio || model.downloading.contains(episode.id) {
                 SwiftUI.Section {
@@ -351,14 +354,15 @@ struct EpisodeDetailView: View {
                 Button {
                     model.enqueueAnalysis(episode)
                 } label: {
-                    Label(stage == .failed ? "Erneut versuchen" : "Erschliessen",
+                    Label(stage == .failed ? "Erneut versuchen" : "Folge auswerten",
                           systemImage: "waveform.badge.magnifyingglass")
                         .labelStyle(.iconOnly)
                         .frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.bordered)
                 .disabled(model.stageDetails[episode.id] == "wartet")
-                .accessibilityLabel(stage == .failed ? "Erneut versuchen" : "Erschliessen")
+                .help(stage == .failed ? "Auswerten erneut versuchen" : "Folge auswerten")
+                .accessibilityLabel(stage == .failed ? "Erneut versuchen" : "Folge auswerten")
             }
         }
         .buttonBorderShape(.capsule)
@@ -393,9 +397,9 @@ struct EpisodeDetailView: View {
                     if model.factsInProgress.contains(episode.id) {
                         HStack { ProgressView(); Text("Fakten werden ermittelt …") }
                     } else if passages.isEmpty {
-                        Text("Sobald die Folge erschlossen ist, zieht die App überprüfbare Aussagen mit "
-                             + "Zeitmarke heraus.")
-                            .foregroundStyle(.secondary)
+                        EpisodeAnalysisPrompt(episode: episode, style: .inline(
+                            "Sobald die Folge ausgewertet ist, zieht die App überprüfbare Aussagen mit "
+                            + "Zeitmarke heraus."))
                     } else if case .failure(let reason) = model.modelStatus.resolve(.extract) {
                         // Ohne Apple Intelligence gibt es keine Fakten. Das steht hier,
                         // statt dass ein Knopf ohne Wirkung angeboten wird.
@@ -687,9 +691,16 @@ struct TranscriptSection: View {
                     }
                 }
                 if loaded && paragraphs.isEmpty {
-                    ContentUnavailableView(
-                        "Noch kein Transkript", systemImage: "text.alignleft",
-                        description: Text("Die App erstellt das Transkript beim Erschliessen, auf dem Gerät und mit Zeitmarken."))
+                    let unavailable = model.analysisUnavailableReason(for: episode)
+                    ContentUnavailableView {
+                        Label(unavailable == nil ? "Noch kein Transkript" : "Kein Transkript",
+                              systemImage: "text.alignleft")
+                    } description: {
+                        Text(unavailable
+                             ?? "Die App erstellt das Transkript beim Auswerten, auf dem Gerät und mit Zeitmarken.")
+                    } actions: {
+                        EpisodeAnalysisPrompt(episode: episode)
+                    }
                 }
                 ForEach(Array(filtered.enumerated()), id: \.element.start) { _, paragraph in
                     Button {
@@ -1235,12 +1246,13 @@ struct QueueView: View {
                     ids.forEach(model.removeFromAnalysisQueue)
                 }
                 if model.analyzing == nil && model.analysisQueue.isEmpty {
-                    Text("Nichts in Arbeit. Erschliessen startest du in einer Folge.")
+                    Text("Nichts in Arbeit. Eine Folge wertest du in der Folge selbst aus, mehrere in der "
+                         + "Folgenliste einer Quelle über „Auswählen“.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             } header: {
-                Text("Erschliessen")
+                Text("Auswerten")
             } footer: {
                 if let unavailable = model.preparationUnavailable {
                     Text("Automatisch vorbereitet wird gerade nichts. \(unavailable)")
