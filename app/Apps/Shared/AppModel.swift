@@ -300,19 +300,25 @@ public final class AppModel {
     @ObservationIgnored var refresher: FeedRefresher
     private let deviceID: String
 
+    /// Ein gespeicherter Schalter. `bool(forKey:)` versteht auch Werte aus
+    /// Startargumenten wie `-automaticAnalysis NO`, die als Text ankommen.
+    static func storedFlag(_ key: String, default value: Bool) -> Bool {
+        UserDefaults.standard.object(forKey: key) == nil ? value : UserDefaults.standard.bool(forKey: key)
+    }
+
     public init(store: LibraryStore, deviceID: String = AppModel.currentDeviceID()) {
         self.store = store
         // Voreingestellt an: ohne vorbereitete Folgen bleibt „Für dich“ leer,
         // und die App wirkt, als könne sie nichts.
-        self.automaticAnalysis = UserDefaults.standard.object(forKey: Self.automaticAnalysisKey) as? Bool ?? true
-        self.automaticFacts = UserDefaults.standard.object(forKey: Self.automaticFactsKey) as? Bool ?? true
-        self.allowPrivateCloudCompute = UserDefaults.standard.object(forKey: Self.privateCloudKey) as? Bool ?? true
+        self.automaticAnalysis = Self.storedFlag(Self.automaticAnalysisKey, default: true)
+        self.automaticFacts = Self.storedFlag(Self.automaticFactsKey, default: true)
+        self.allowPrivateCloudCompute = Self.storedFlag(Self.privateCloudKey, default: true)
         let perSource = UserDefaults.standard.integer(forKey: Self.episodesPerSourceKey)
         self.episodesPerSource = perSource > 0 ? perSource : 3
-        self.preparationOnWiFiOnly = UserDefaults.standard.object(forKey: Self.wifiOnlyKey) as? Bool ?? true
+        self.preparationOnWiFiOnly = Self.storedFlag(Self.wifiOnlyKey, default: true)
         // Beide an: der Text bleibt, der Ton kommt bei Bedarf aus dem Netz.
-        self.removeAudioAfterAnalysis = UserDefaults.standard.object(forKey: Self.removeAfterAnalysisKey) as? Bool ?? true
-        self.removeHeardAudio = UserDefaults.standard.object(forKey: Self.removeHeardKey) as? Bool ?? true
+        self.removeAudioAfterAnalysis = Self.storedFlag(Self.removeAfterAnalysisKey, default: true)
+        self.removeHeardAudio = Self.storedFlag(Self.removeHeardKey, default: true)
         // Der Schalter „Interessen vorschlagen“ gilt über den Neustart hinaus.
         // Jedes Neuladen des Profils reicht den Wert von hier weiter.
         self.profile = InterestProfile(learningEnabled: UserDefaults.standard.bool(forKey: Self.learningEnabledKey))
