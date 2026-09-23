@@ -130,9 +130,25 @@ public final class EpisodePlayer {
         public var artist: String
         public var album: String
         public var isPlaying: Bool
+        public var artwork: FocusArtwork?
 
-        public init(title: String, artist: String, album: String, isPlaying: Bool) {
+        public init(title: String, artist: String, album: String, isPlaying: Bool,
+                    artwork: FocusArtwork? = nil) {
             self.title = title; self.artist = artist; self.album = album; self.isPlaying = isPlaying
+            self.artwork = artwork
+        }
+    }
+
+    /// Das Cover eines Fokus-Plans: ein Bild, das schon da ist, oder eine
+    /// Adresse. `key` wechselt mit dem Bild, damit es nur einmal je Bild
+    /// aufgebaut oder geladen wird.
+    public struct FocusArtwork {
+        public var key: String
+        public var image: CGImage?
+        public var url: URL?
+
+        public init(key: String, image: CGImage? = nil, url: URL? = nil) {
+            self.key = key; self.image = image; self.url = url
         }
     }
 
@@ -181,6 +197,8 @@ public final class EpisodePlayer {
     #if canImport(MediaPlayer)
     /// Das Cover der Folge am Sperrbildschirm, einmal je Folge geladen.
     @ObservationIgnored private var nowPlayingArtwork: (episodeID: EpisodeID, artwork: MPMediaItemArtwork?)?
+    /// Das Cover des Fokus-Plans, einmal je Bild.
+    @ObservationIgnored private var focusArtwork: (key: String, artwork: MPMediaItemArtwork?)?
     #endif
     #if os(iOS)
     @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
@@ -764,12 +782,14 @@ public final class EpisodePlayer {
         let focus = focusRemote?.current()
         setSeekCommandsEnabled(focus == nil)
         if let focus {
-            center.nowPlayingInfo = [
+            var info: [String: Any] = [
                 MPMediaItemPropertyTitle: focus.title,
                 MPMediaItemPropertyArtist: focus.artist,
                 MPMediaItemPropertyAlbumTitle: focus.album,
                 MPNowPlayingInfoPropertyPlaybackRate: focus.isPlaying ? 1.0 : 0.0,
             ]
+            if let artwork = artwork(for: focus.artwork) { info[MPMediaItemPropertyArtwork] = artwork }
+            center.nowPlayingInfo = info
             #if os(macOS)
             center.playbackState = focus.isPlaying ? .playing : .paused
             #endif
@@ -831,6 +851,40 @@ public final class EpisodePlayer {
         guard let image = NSImage(data: data) else { return nil }
         #endif
         return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }
+
+    nonisolated private static func artwork(from cgImage: CGImage) -> MPMediaItemArtwork {
+        #if canImport(UIKit)
+        let image = UIImage(cgImage: cgImage)
+        #elseif canImport(AppKit)
+        let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        #endif
+        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }
+
+    /// Das Cover des Fokus-Plans: ein vorhandenes Bild sofort, eine Adresse
+    /// einmal geladen. Danach steht es bis zum nächsten Bildwechsel fest.
+    private func artwork(for source: FocusArtwork?) -> MPMediaItemArtwork? {
+        guard let source else { return nil }
+        if let cached = focusArtwork, cached.key == source.key { return cached.artwork }
+        if let image = source.image {
+            let artwork = Self.artwork(from: image)
+            focusArtwork = (source.key, artwork)
+            return artwork
+        }
+        // Gleich vormerken, damit jede Aktualisierung bis dahin nicht erneut lädt.
+        focusArtwork = (source.key, nil)
+        guard let url = source.url else { return nil }
+        let key = source.key
+        Task { [weak self] in
+            // Ein Podcastcover kommt von fremden Servern, wie bei der Folge.
+            guard let data = try? await SafeHTTP.load(url, using: .shared, limit: 5 * 1024 * 1024),
+                  let artwork = Self.artwork(from: data),
+                  let self, self.focusArtwork?.key == key else { return }
+            self.focusArtwork = (key, artwork)
+            self.updateNowPlaying()
+        }
+        return nil
     }
     #endif
 

@@ -49,6 +49,22 @@
         }
       }
     },
+    "Cover für %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cover für %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cover art for %@."
+          }
+        }
+      }
+    },
     "Cover für %@: %@ aus %@.": {
       "localizations": {
         "de": {
@@ -177,6 +193,22 @@
         }
       }
     },
+    "Mit Image Playground erzeugt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Image Playground erzeugt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generated with Image Playground"
+          }
+        }
+      }
+    },
     "Motiv des Podcasts": {
       "localizations": {
         "de": {
@@ -221,22 +253,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Original %1$@–%2$@"
-          }
-        }
-      }
-    },
-    "Vom Nutzer bestätigtes Cover für %@.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vom Nutzer bestätigtes Cover für %@."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cover art for %@, confirmed by you."
           }
         }
       }

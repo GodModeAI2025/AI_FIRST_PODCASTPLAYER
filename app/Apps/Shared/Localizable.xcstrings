@@ -3153,6 +3153,22 @@
         }
       }
     },
+    "Cover wird mit Image Playground erzeugt …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cover wird mit Image Playground erzeugt …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating cover with Image Playground…"
+          }
+        }
+      }
+    },
     "Das Audio nimmt die App danach wieder vom Gerät, abgespielt wird dann aus dem Netz.": {
       "localizations": {
         "de": {
@@ -3165,6 +3181,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "After that, the app removes the audio from the device, and episodes play from the internet."
+          }
+        }
+      }
+    },
+    "Das Cover konnte nicht erzeugt werden. Das bisherige bleibt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Cover konnte nicht erzeugt werden. Das bisherige bleibt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The cover couldn't be created. The current one stays."
+          }
+        }
+      }
+    },
+    "Das Cover konnte nicht übernommen werden. Das bisherige bleibt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Cover konnte nicht übernommen werden. Das bisherige bleibt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The cover couldn't be saved. The current one stays."
           }
         }
       }
@@ -7497,6 +7545,22 @@
         }
       }
     },
+    "Image Playground ist auf diesem Gerät gerade nicht verfügbar. Das Update behält sein bisheriges Cover.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image Playground ist auf diesem Gerät gerade nicht verfügbar. Das Update behält sein bisheriges Cover."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image Playground isn't available on this device right now. The topic update keeps its current cover."
+          }
+        }
+      }
+    },
     "Immer über Mobilfunk laden": {
       "localizations": {
         "de": {
@@ -9017,6 +9081,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "New editions are only created when you tap \"Create New Edition\"."
+          }
+        }
+      }
+    },
+    "Neues Cover entsteht": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Cover entsteht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating new cover"
+          }
+        }
+      }
+    },
+    "Neues Cover erzeugen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Cover erzeugen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create New Cover"
+          }
+        }
+      }
+    },
+    "Neues Cover ist fertig": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neues Cover ist fertig"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New cover is ready"
           }
         }
       }

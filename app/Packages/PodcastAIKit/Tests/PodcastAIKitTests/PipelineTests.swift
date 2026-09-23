@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+import CoreGraphics
 @testable import PodcastAIKit
 @testable import PodcastAIExport
 
@@ -389,6 +390,81 @@ struct SmartFeedEditionTests {
             kind: .played, via: .smartFeedEpisode, deviceID: "t"
         ))
         #expect(abs(episode.heardFraction(in: ledger) - 0.5) < 0.01)
+    }
+}
+
+// MARK: - Cover der Themen-Updates
+
+@Suite("Cover der Themen-Updates")
+struct TopicCoverTests {
+
+    private let feed = SmartPodcastFeed(title: "Datenschutz und JEV", topicIDs: [])
+
+    @Test("Themen werden bereinigt, doppelte fallen weg, höchstens vier")
+    func recipeCleansTopics() {
+        let recipe = TopicCoverRecipe(
+            feed: feed, topics: ["  Datenschutz ", "datenschutz", "", "KI", "Recht", "Europa", "Cloud"],
+            languageCode: "de")
+        #expect(recipe.concepts == ["Datenschutz", "KI", "Recht", "Europa"])
+        #expect(recipe.attempts.first == recipe.concepts + [recipe.abstractConcept])
+        // Der letzte Versuch kommt ohne Themen aus.
+        #expect(recipe.attempts.last == [TopicCoverRecipe.neutralConcept])
+    }
+
+    @Test("Der Fingerabdruck hängt an den Themen, nicht an ihrer Reihenfolge")
+    func digestFollowsTopics() {
+        let a = TopicCoverRecipe(feed: feed, topics: ["Datenschutz", "KI"])
+        let b = TopicCoverRecipe(feed: feed, topics: ["KI", "Datenschutz"])
+        let c = TopicCoverRecipe(feed: feed, topics: ["Datenschutz", "Recht"])
+        #expect(a.digest == b.digest)
+        #expect(a.digest != c.digest)
+    }
+
+    @Test("Ohne Themen entsteht das Bild aus dem Titel")
+    func recipeFallsBackToTitle() {
+        let recipe = TopicCoverRecipe(feed: feed, topics: [" "])
+        #expect(recipe.concepts == ["Datenschutz und JEV"])
+    }
+
+    @Test("Ein Bild je Update: neue Themen ersetzen das alte, Löschen entfernt es")
+    func storeKeepsOneCoverPerFeed() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covers-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = TopicCoverStore(directory: directory)
+        let other = SmartPodcastFeed(title: "Anderes", topicIDs: [])
+        let first = TopicCoverRecipe(feed: feed, topics: ["Datenschutz"])
+        let second = TopicCoverRecipe(feed: feed, topics: ["Datenschutz", "KI"])
+        let image = try #require(Self.image(width: 40, height: 20))
+
+        #expect(store.stored(for: feed.id) == nil)
+        try store.write(image, for: first)
+        try store.write(image, for: TopicCoverRecipe(feed: other, topics: ["Musik"]))
+        #expect(store.stored(for: feed.id)?.matches(first) == true)
+        #expect(store.stored(for: feed.id)?.matches(second) == false)
+
+        let replaced = try store.write(image, for: second)
+        #expect(store.stored(for: feed.id)?.digest == second.digest)
+        let files = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        #expect(files.count == 2)
+
+        // Quadratisch abgelegt, auch wenn das Bild es nicht war.
+        let loaded = try #require(TopicCoverStore.loadImage(at: replaced.url))
+        #expect(loaded.width == 20 && loaded.height == 20)
+
+        store.remove(feed.id)
+        #expect(store.stored(for: feed.id) == nil)
+        #expect(store.stored(for: other.id) != nil)
+    }
+
+    private static func image(width: Int, height: Int) -> CGImage? {
+        guard let context = CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        context.setFillColor(CGColor(red: 0.3, green: 0.2, blue: 0.8, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage()
     }
 }
 

@@ -604,13 +604,9 @@ struct SmartFeedRow: View {
 
     var body: some View {
         HStack(spacing: Design.Spacing.control) {
-            // Ein Themenfeed sieht aus wie ein Podcast — das ist Kapitel 7,
-            // und es hing bis hierher an einem Renderer ohne Aufrufer.
-            if let latest = editions.first {
-                CoverView(
-                    cover: NativeCoverRenderer().makeCover(for: latest, feedTitle: feed.title),
-                    size: 56)
-            }
+            // Ein Themenfeed sieht aus wie ein Podcast, auch bevor die
+            // erste Ausgabe da ist.
+            FeedCoverView(feed: feed, edition: editions.first, size: 56)
             VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                 Text(feed.title).font(.headline)
                 // Der Zustand, nicht nur der Name: ob gerade etwas entsteht,
@@ -677,6 +673,8 @@ struct SmartFeedDetailView: View {
     @State private var addingSource = false
     /// Stichwortvorschläge je Thema ohne Treffer.
     @State private var keywordIdeas: [InterestID: [String]] = [:]
+    /// Der Systemdialog von Image Playground, wenn die App selbst kein Bild erzeugen kann.
+    @State private var showingPlayground = false
 
     private var feed: SmartPodcastFeed? { model.smartFeeds.first { $0.id == feedID } }
     private var editions: [PersonalEpisode] { model.editions[feedID] ?? [] }
@@ -797,6 +795,12 @@ struct SmartFeedDetailView: View {
                     Button { editingFeed = feed } label: {
                         Label("Bearbeiten", systemImage: "pencil")
                     }
+                    if model.coverArt.canCreate {
+                        Button { createCover(for: feed) } label: {
+                            Label("Neues Cover erzeugen", systemImage: "wand.and.sparkles")
+                        }
+                        .disabled(model.coverArt.isGenerating(feed.id))
+                    }
                     if let latest = editions.first {
                         ShareLink(item: ShownotesBuilder().markdown(for: latest)) {
                             Label("Neueste Ausgabe als Text teilen", systemImage: "square.and.arrow.up")
@@ -812,6 +816,17 @@ struct SmartFeedDetailView: View {
         }
         .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback() }
         .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
+        .coverPlaygroundSheet(isPresented: $showingPlayground, recipe: feed.map(model.coverRecipe(for:))) { url in
+            guard let feed else { return }
+            let recipe = model.coverRecipe(for: feed)
+            Task {
+                if await model.coverArt.adopt(fileAt: url, for: recipe) {
+                    AccessibilityNotification.Announcement(String(localized: "Neues Cover ist fertig")).post()
+                } else {
+                    model.lastError = String(localized: "Das Cover konnte nicht übernommen werden. Das bisherige bleibt.")
+                }
+            }
+        }
         .smartFeedDeletionDialog(for: $pendingDeletion) { dismiss() }
         .task(id: topicsWithoutHits) {
             var ideas: [InterestID: [String]] = [:]
@@ -877,6 +892,29 @@ struct SmartFeedDetailView: View {
         }
     }
 
+    /// Ein neues Cover auf Wunsch. Kann die App kein Bild selbst erzeugen,
+    /// übernimmt der Systemdialog von Image Playground.
+    private func createCover(for feed: SmartPodcastFeed) {
+        let recipe = model.coverRecipe(for: feed)
+        Task {
+            switch await model.coverArt.regenerate(recipe) {
+            case .created:
+                AccessibilityNotification.Announcement(String(localized: "Neues Cover ist fertig")).post()
+            case .needsDialog:
+                showingPlayground = true
+            case .unavailable:
+                model.lastError = String(localized: """
+                    Image Playground ist auf diesem Gerät gerade nicht verfügbar. \
+                    Das Update behält sein bisheriges Cover.
+                    """)
+            case .failed:
+                model.lastError = String(localized: "Das Cover konnte nicht erzeugt werden. Das bisherige bleibt.")
+            case .postponed:
+                break
+            }
+        }
+    }
+
     /// „6:40“ für heute, sonst das Datum.
     static func readySince(_ date: Date) -> String {
         Calendar.current.isDateInToday(date)
@@ -918,8 +956,18 @@ struct EditionHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.control) {
-            if let cover = model.cover(for: episode) {
-                CoverView(cover: cover, size: 120)
+            if let feed = model.smartFeeds.first(where: { $0.id == episode.feedID }) {
+                FeedCoverView(feed: feed, edition: episode, size: 148)
+                    .shadow(color: .black.opacity(0.12), radius: 10, y: 5)
+                if model.coverArt.isGenerating(feed.id) {
+                    Label {
+                        Text("Cover wird mit Image Playground erzeugt …")
+                    } icon: {
+                        ProgressView().controlSize(.small)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
             }
             Text(episode.title)
                 .font(.title2.weight(.bold))
@@ -2189,6 +2237,8 @@ struct NewSmartFeedSheet: View {
 struct FocusPlayerView: View {
 
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingNote = false
     @State private var note = ""
     /// Die Stelle beim Öffnen des Blatts. Läuft der Plan weiter, während
@@ -2217,91 +2267,28 @@ struct FocusPlayerView: View {
     }
 
     var body: some View {
-        VStack(spacing: Design.Spacing.standard) {
+        Group {
             // Gespiegelter Zustand, nicht der Koordinator: `PlaybackCoordinator`
             // ist nicht beobachtbar, eine Ansicht darauf bliebe stehen.
             if let plan = model.playerPlan,
                let index = activeSegmentIndex,
                index < plan.segments.count {
-                let segment = plan.segments[index]
-
-                Text(segment.sourceTitle)
-                    .font(.caption).foregroundStyle(.secondary)
-                Text(segment.episodeTitle)
-                    .font(.headline).multilineTextAlignment(.center)
-                Text(verbatim: "\(segment.range.start.timecode)–\(segment.range.end.timecode)")
-                    .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-
-                // Wie weit die Stelle schon gelaufen ist.
-                ProgressView(value: segmentProgress(segment.range))
-                    .frame(maxWidth: 240)
-                    .accessibilityLabel("Fortschritt der Stelle")
-
-                if let rationale = segment.rationale {
-                    Text(rationale)
-                        .font(.callout)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                // Im Rollbereich, damit bei großer Schrift nichts abgeschnitten wird.
+                ScrollView {
+                    playing(plan, at: index)
+                        .padding()
+                        .frame(maxWidth: 560)
+                        .frame(maxWidth: .infinity)
                 }
-
-                Text("Stelle \(index + 1) von \(plan.segments.count)")
-                    .font(.caption2).foregroundStyle(.secondary)
-
-                HStack(spacing: Design.Spacing.large) {
-                    // Pausiert bleibt der Plan sichtbar. Auf dem Mac gibt es
-                    // sonst keinen Weg zurück, weil dort die Fokusleiste fehlt.
-                    Button {
-                        isPaused ? model.resumePlayback() : model.pausePlayback()
-                    } label: {
-                        Image(systemName: isPaused ? "play.fill" : "pause.fill")
-                            .font(.title)
-                            .tappableArea()
-                    }
-                    .accessibilityLabel(isPaused ? "Fortsetzen" : "Pause")
-
-                    Button { model.skipSegment() } label: {
-                        Image(systemName: "forward.end.fill")
-                            .font(.title)
-                            .tappableArea()
-                    }
-                    .accessibilityLabel("Diese Stelle überspringen")
-                    .accessibilityHint("Der übersprungene Teil zählt nicht als gehört")
-
-                    Button { model.stopPlayback() } label: {
-                        Image(systemName: "stop.fill")
-                            .font(.title)
-                            .tappableArea()
-                    }
-                    .accessibilityLabel("Wiedergabe beenden")
-                }
-                .buttonStyle(.pressable)
-
-                // „Merken“ gab es bisher nur als Kurzbefehl — in der App
-                // selbst führte kein Weg dorthin. Das Kapitel „Highlights
-                // und Wissen“ beginnt aber hier, beim Hören.
-                Button {
-                    captured = model.player.currentOriginalPosition().map { media, position in
-                        let segments = model.playerPlan?.segments ?? []
-                        let episodeID = activeSegmentIndex.flatMap {
-                            $0 < segments.count ? segments[$0].episodeID : nil
-                        }
-                        return (media, position, episodeID)
-                    }
-                    showingNote = true
-                } label: {
-                    Label("Diese Stelle merken", systemImage: "bookmark")
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.player.currentOriginalPosition() == nil)
             } else {
                 ContentUnavailableView(
                     "Nichts wird abgespielt",
                     systemImage: "speaker.slash",
                     description: Text("Starte eine Ausgabe oder eine Stelle aus „Für dich“.")
                 )
+                .padding()
             }
         }
-        .padding()
         .navigationTitle("Wiedergabe")
         .sheet(isPresented: $showingNote) {
             NavigationStack {
@@ -2331,6 +2318,98 @@ struct FocusPlayerView: View {
         }
     }
 
+    /// Oben groß das Cover, darunter klein die Quelle der laufenden Stelle.
+    ///
+    /// Bei einem Themen-Update ist das Cover das des Updates. Bei „Für dich“
+    /// und im Chat gibt es kein eigenes Cover, dort steht oben das Cover des
+    /// Podcasts, aus dem die Stelle gerade kommt.
+    @ViewBuilder
+    private func playing(_ plan: ValidatedPlaybackPlan, at index: Int) -> some View {
+        let segment = plan.segments[index]
+        let edition = model.edition(playing: plan)
+        let feed = edition.flatMap { edition in model.smartFeeds.first { $0.id == edition.feedID } }
+        let podcastArtwork = model.podcastArtworkURL(for: segment)
+
+        VStack(spacing: Design.Spacing.section) {
+            FocusHeroArtwork(
+                feed: feed, edition: edition, podcastArtwork: podcastArtwork,
+                maxSide: dynamicTypeSize.isAccessibilitySize ? 200 : 320)
+
+            // Worum es in dieser Wiedergabe geht. Bei einer einzelnen Stelle
+            // ist das die Folge selbst, dann steht sie nur einmal da.
+            if plan.requestSummary != segment.episodeTitle {
+                Text(plan.requestSummary)
+                    .font(.title3.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
+
+            FocusSourceCard(
+                segment: segment, position: index + 1, count: plan.segments.count,
+                artworkURL: podcastArtwork)
+
+            // Wie weit die Stelle schon gelaufen ist.
+            ProgressView(value: segmentProgress(segment.range))
+                .accessibilityLabel("Fortschritt der Stelle")
+
+            HStack(spacing: Design.Spacing.large) {
+                // Pausiert bleibt der Plan sichtbar. Auf dem Mac gibt es
+                // sonst keinen Weg zurück, weil dort die Fokusleiste fehlt.
+                Button {
+                    isPaused ? model.resumePlayback() : model.pausePlayback()
+                } label: {
+                    Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                        .font(.title)
+                        .tappableArea()
+                }
+                .accessibilityLabel(isPaused ? "Fortsetzen" : "Pause")
+
+                Button { model.skipSegment() } label: {
+                    Image(systemName: "forward.end.fill")
+                        .font(.title)
+                        .tappableArea()
+                }
+                .accessibilityLabel("Diese Stelle überspringen")
+                .accessibilityHint("Der übersprungene Teil zählt nicht als gehört")
+
+                Button { model.stopPlayback() } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.title)
+                        .tappableArea()
+                }
+                .accessibilityLabel("Wiedergabe beenden")
+            }
+            .buttonStyle(.pressable)
+
+            if let rationale = segment.rationale {
+                Text(rationale)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            // „Merken“ gab es bisher nur als Kurzbefehl — in der App
+            // selbst führte kein Weg dorthin. Das Kapitel „Highlights
+            // und Wissen“ beginnt aber hier, beim Hören.
+            Button {
+                captured = model.player.currentOriginalPosition().map { media, position in
+                    let segments = model.playerPlan?.segments ?? []
+                    let episodeID = activeSegmentIndex.flatMap {
+                        $0 < segments.count ? segments[$0].episodeID : nil
+                    }
+                    return (media, position, episodeID)
+                }
+                showingNote = true
+            } label: {
+                Label("Diese Stelle merken", systemImage: "bookmark")
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.player.currentOriginalPosition() == nil)
+        }
+        // Wechselt die Stelle, gleiten Cover und Quelle über, statt zu springen.
+        .animation(reduceMotion ? nil : Design.Motion.smooth, value: index)
+    }
+
     private func remember() {
         guard let captured else {
             showingNote = false
@@ -2348,6 +2427,82 @@ struct FocusPlayerView: View {
     }
 }
 
+
+/// Das große Cover im Player: das des Themen-Updates oder das des Podcasts
+/// der laufenden Stelle.
+private struct FocusHeroArtwork: View {
+
+    let feed: SmartPodcastFeed?
+    let edition: PersonalEpisode?
+    let podcastArtwork: URL?
+    let maxSide: CGFloat
+
+    var body: some View {
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxWidth: maxSide)
+            .overlay {
+                GeometryReader { proxy in
+                    let side = min(proxy.size.width, proxy.size.height)
+                    if let feed {
+                        FeedCoverView(feed: feed, edition: edition, size: side)
+                    } else {
+                        EpisodeArtwork(url: podcastArtwork, size: side)
+                            .id(podcastArtwork)
+                            .transition(.opacity)
+                    }
+                }
+            }
+            .shadow(color: .black.opacity(0.16), radius: 18, y: 10)
+            .padding(.top, Design.Spacing.small)
+    }
+}
+
+/// Die Quelle der laufenden Stelle, klein unter dem Cover: Podcastcover,
+/// Podcast, Folge, Zeitbereich und Position im Plan.
+private struct FocusSourceCard: View {
+
+    let segment: PlanSegment
+    let position: Int
+    let count: Int
+    let artworkURL: URL?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: Design.Spacing.small))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: Design.Spacing.control))
+        layout {
+            EpisodeArtwork(url: artworkURL, size: 56)
+                .id(artworkURL)
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                Text(segment.sourceTitle)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(segment.episodeTitle)
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: Design.Spacing.small) { timeAndPosition }
+                    VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) { timeAndPosition }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(Design.Spacing.control)
+        .background(.quaternary.opacity(0.35), in: RoundedRectangle(
+            cornerRadius: Design.Radius.card, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var timeAndPosition: some View {
+        TimecodeLabel(segment.range)
+        Text("Stelle \(position) von \(count)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+}
 
 struct SourceDetailView: View {
 

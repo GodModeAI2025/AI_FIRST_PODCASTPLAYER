@@ -43,6 +43,8 @@ public final class AppModel {
 
     /// Spielt ganze Folgen mit Kapiteln.
     public let episodePlayer = EpisodePlayer()
+    /// Die Bildcover der Themen-Updates.
+    let coverArt = TopicCoverArt()
     /// Was als Nächstes gehört wird. Am Ende einer Folge startet die nächste.
     public internal(set) var upNext: [Episode] = [] {
         didSet { UserDefaults.standard.set(upNext.map(\.id.rawValue), forKey: "upNextEpisodeIDs") }
@@ -480,6 +482,8 @@ public final class AppModel {
             pause: { [weak self] in self?.pausePlayback() },
             resume: { [weak self] in self?.resumePlayback() }
         )
+        // Ein neues Cover erscheint auch am Sperrbildschirm, nicht erst bei der nächsten Stelle.
+        coverArt.onChange = { [weak self] in self?.episodePlayer.refreshNowPlaying() }
     }
 
     /// Der Zustand des Players, gespiegelt für die Oberfläche.
@@ -1403,7 +1407,8 @@ public final class AppModel {
         let segment = plan.segments[index]
         return EpisodePlayer.FocusNowPlaying(
             title: segment.episodeTitle, artist: segment.sourceTitle,
-            album: plan.requestSummary, isPlaying: playing
+            album: plan.requestSummary, isPlaying: playing,
+            artwork: focusArtwork(for: plan, segment: segment)
         )
     }
     public func skipSegment() { player.skipSegment() }
@@ -1518,6 +1523,7 @@ public final class AppModel {
         editions[feedID] = nil
         editionNotes[feedID] = nil
         editionChecks[feedID] = nil
+        coverArt.remove(feedID)
         persistSmartFeeds()
         Task { await persist { try await $0.save(editions: [], forFeed: feedID) } }
     }
