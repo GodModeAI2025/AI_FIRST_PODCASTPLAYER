@@ -590,20 +590,24 @@ extension AppModel {
     /// Chat, Kurzbefehl und Fokus-Player. Zitat, Folgen- und Quellentitel
     /// und die Zeitmarke werden als Kopie gespeichert. So bleibt die Notiz
     /// auch nach dem Löschen der Folge lesbar. Ohne mitgegebenes Zitat kommt
-    /// es aus dem Transkript, wenn es eines gibt. `evidenceID` gibt, wer einen
-    /// gespeicherten Beleg merkt, sonst entsteht eine Kennung aus dem Bereich.
+    /// es aus dem Transkript: der Satz, der an der Stelle läuft, und die
+    /// Zeitmarke rückt auf seinen Anfang (``notePassage(at:in:)``).
+    /// `evidenceID` gibt, wer einen gespeicherten Beleg merkt, sonst entsteht
+    /// eine Kennung aus dem Bereich.
     @discardableResult
     public func addNote(_ note: String?, at seconds: Double, in episode: Episode,
                         quote given: String? = nil, evidenceID givenEvidence: EvidenceID? = nil,
                         mediaVersionID givenMedia: MediaVersionID? = nil,
                         via route: Highlight.CaptureRoute = .player) async -> Highlight? {
         guard let media = givenMedia ?? episode.streamMediaVersionID else { return nil }
-        let position = MediaTime(milliseconds: Int64(max(0, seconds) * 1000))
-        let range = HighlightCapture().range(around: position, limit: nil)
+        var position = MediaTime(milliseconds: Int64(max(0, seconds) * 1000))
         var quote = given.map { String($0.prefix(700)) }
-        if quote?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
-            quote = await noteQuote(at: seconds, in: episode)
+        if quote?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true,
+           let passage = await notePassage(at: seconds, in: episode) {
+            quote = passage.text
+            position = passage.start
         }
+        let range = HighlightCapture().range(around: position, limit: nil)
         let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
         let highlight = Highlight(
             evidenceID: givenEvidence
@@ -618,17 +622,20 @@ extension AppModel {
         return highlight
     }
 
-    /// Der Transkripttext um einen Moment, so wie „Moment merken“ ihn
-    /// speichert: ganze Segmente von kurz davor bis kurz danach.
-    public func noteQuote(at seconds: Double, in episode: Episode) async -> String? {
+    /// Was „Moment merken“ an einer Position speichert: der Satz aus dem
+    /// Transkript, der dort läuft, und sein Anfang als Zeitmarke.
+    ///
+    /// Früher kamen alle Segmente von 45 Sekunden davor bis 10 danach. Das
+    /// Zitat begann dann mit dem Satz davor, und die Zeitmarke war der
+    /// Moment des Tippens, der weder zum Anfang des Zitats passte noch zum
+    /// gemeinten Satz. Ohne Transkript gibt es kein Zitat, und die Zeitmarke
+    /// bleibt, wo getippt wurde.
+    public func notePassage(at seconds: Double, in episode: Episode) async -> (start: MediaTime, text: String)? {
         guard let transcript = await transcript(for: episode) else { return nil }
         let position = MediaTime(milliseconds: Int64(max(0, seconds) * 1000))
-        let range = HighlightCapture().range(around: position, limit: nil)
-        let text = transcript.segments
-            .filter { $0.range.end.milliseconds > range.start.milliseconds
-                && $0.range.start.milliseconds < range.end.milliseconds }
-            .map(\.text).joined(separator: " ")
-        return text.isEmpty ? nil : String(text.prefix(700))
+        guard let segment = HighlightCapture().segment(at: position, in: transcript) else { return nil }
+        let text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : (segment.range.start, String(text.prefix(700)))
     }
 
     /// Merkt einen gespeicherten Beleg, etwa aus dem Chat oder zu einem
@@ -649,10 +656,13 @@ extension AppModel {
         (try? await store.evidence(ids: [id]))?[id]
     }
 
-    /// Ein Zitat mit Herkunft, zum Kopieren oder Teilen.
+    /// Ein Zitat mit Herkunft, zum Kopieren oder Teilen: Folge, Podcast,
+    /// Zeitmarke, Erscheinungsdatum und, wenn es sie gibt, die Seite der Folge.
     public func citation(_ text: String, at start: MediaTime, in episode: Episode) -> String {
-        let place = self.origin(at: start, in: episode)
-        return String(localized: "„\(text)“\n(\(place))", comment: "Zitat mit Herkunft zum Kopieren")
+        Citation.plainText(ExportedNote(
+            quote: text, episodeTitle: episode.title,
+            sourceTitle: sources.first { $0.id == episode.sourceID }?.title,
+            position: start, publishedAt: episode.publishedAt, webPageURL: episode.webPageURL))
     }
 
     /// Was zu einem Fakt wörtlich gesagt wurde: der Satz aus seinem Beleg,
@@ -673,16 +683,40 @@ extension AppModel {
     /// Anführungszeichen.
     public func factCitation(_ fact: EpisodeFact, quote: String?, in episode: Episode) -> String {
         let summary = String(localized: "Zusammenfassung: \(fact.statement)")
-        let place = self.origin(at: fact.range.start, in: episode)
-        guard let quote, !quote.isEmpty else {
-            return "\(summary)\n(\(place))"
-        }
-        return String(localized: "„\(quote)“\n(\(place))\n\n\(summary)", comment: "Fakt mit wörtlichem Beleg zum Kopieren")
+        // Ohne Wortlaut steht nur die Herkunft da, ohne leere Anführungszeichen.
+        let place = citation(quote ?? "", at: fact.range.start, in: episode)
+        return "\(place)\n\n\(summary)"
     }
 
-    private func origin(at start: MediaTime, in episode: Episode) -> String {
-        let source = sources.first { $0.id == episode.sourceID }?.title
-        return [episode.title, source, start.timecode].compactMap { $0 }.joined(separator: " · ")
+    /// Eine gemerkte Stelle zum Kopieren oder Teilen, als Klartext: Zitat,
+    /// Folge, Podcast, Zeitmarke, Erscheinungsdatum, Link und der eigene
+    /// Kommentar. Titel und Zitat kommen aus der Kopie in der Notiz, sie
+    /// gelten also auch nach dem Löschen der Folge.
+    public func noteCitation(_ highlight: Highlight) -> String {
+        Citation.plainText(exportedNote(highlight, episode: loadedEpisode(highlight.episodeID)))
+    }
+
+    /// Eine gemerkte Stelle für Export und Zwischenablage. Erscheinungsdatum
+    /// und Link kommen aus der Folge, solange es sie gibt.
+    func exportedNote(_ highlight: Highlight, episode: Episode?) -> ExportedNote {
+        ExportedNote(
+            note: highlight.note, quote: highlight.quote,
+            episodeTitle: highlight.episodeTitle ?? episode?.title,
+            sourceTitle: highlight.sourceTitle ?? episode.flatMap { episode in
+                sources.first { $0.id == episode.sourceID }?.title
+            },
+            position: highlight.positionMs.map { MediaTime(milliseconds: Int64($0)) },
+            publishedAt: episode?.publishedAt, webPageURL: episode?.webPageURL,
+            capturedAt: highlight.capturedAt)
+    }
+
+    /// Eine Folge, die schon geladen ist, ohne Umweg über den Speicher.
+    func loadedEpisode(_ id: EpisodeID?) -> Episode? {
+        guard let id else { return nil }
+        for list in episodes.values {
+            if let episode = list.first(where: { $0.id == id }) { return episode }
+        }
+        return nil
     }
 
     public func updateNote(_ id: HighlightID, text: String?) {
@@ -701,14 +735,15 @@ extension AppModel {
     }
 
     /// Spielt die Stelle einer Notiz, solange ihre Folge noch da ist.
-    /// Nur auf Antippen, nie von selbst.
+    /// Nur auf Antippen, nie von selbst. Genau ab der Zeitmarke der Notiz,
+    /// denn die ist der Anfang des gemerkten Satzes und steht so auf dem Knopf.
     public func playHighlight(_ highlight: Highlight) async {
         guard let episodeID = highlight.episodeID, let ms = highlight.positionMs else { return }
         guard let episode = (try? await store.episodes(ids: [episodeID]))?.first else {
             lastError = String(localized: "Die Folge zu dieser Notiz ist gelöscht. Die Notiz selbst bleibt.")
             return
         }
-        playEpisode(episode, at: max(0, Double(ms) / 1000 - 5))
+        playEpisode(episode, at: max(0, Double(ms) / 1000))
     }
 
     /// Ältere Notizen aus Kurzbefehl und Fokus-Player kennen nur die
@@ -731,14 +766,26 @@ extension AppModel {
     /// Welche Folgen dieser Notizen noch da sind. Notizen gelöschter Folgen
     /// bleiben lesbar, abspielen lassen sie sich nicht mehr.
     public func availableEpisodeIDs(for notes: [Highlight]) async -> Set<EpisodeID> {
+        Set(await noteEpisodes(for: notes).keys)
+    }
+
+    /// Die Folgen dieser Notizen, soweit es sie noch gibt.
+    public func noteEpisodes(for notes: [Highlight]) async -> [EpisodeID: Episode] {
         let ids = Array(Set(notes.compactMap(\.episodeID)))
-        guard !ids.isEmpty else { return [] }
-        return Set(((try? await store.episodes(ids: ids)) ?? []).map(\.id))
+        guard !ids.isEmpty else { return [:] }
+        let found = (try? await store.episodes(ids: ids)) ?? []
+        return Dictionary(found.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// Notizen einer Folge, neueste zuerst.
     public func notes(for episodeID: EpisodeID) -> [Highlight] {
         highlights.filter { $0.episodeID == episodeID }
+    }
+
+    /// Gibt es an dieser Stelle schon eine Notiz? Dann trägt die Zeile im
+    /// Transkript oder bei den Fakten ein Lesezeichen.
+    public func hasNote(in episodeID: EpisodeID, at start: MediaTime) -> Bool {
+        highlights.contains { $0.episodeID == episodeID && $0.positionMs.map(Int64.init) == start.milliseconds }
     }
 
     // MARK: - Fakten
@@ -1480,14 +1527,33 @@ extension AppModel {
                                         episodeID: episode.id)
         }
         let passages = known.isEmpty ? [] : ((try? await store.evidence(forEpisode: episode.id)) ?? [])
+        // Die eigenen Notizen in der Reihenfolge der Folge, nicht des Merkens.
+        let episodeNotes = notes(for: episode.id)
+            .sorted { ($0.positionMs ?? 0) < ($1.positionMs ?? 0) }
+            .map { exportedNote($0, episode: episode) }
         let dossier = EpisodeDossier(
             title: episode.title, sourceTitle: source, publishedAt: episode.publishedAt,
             duration: episode.declaredDuration, webPageURL: episode.webPageURL,
             shownotes: ShownotesText.plain(episode.shownotesHTML ?? episode.summary),
             chapters: chapters, facts: known,
             transcript: includeTranscript ? await transcript(for: episode) : nil,
-            factQuotes: factWording(known, passages: passages))
+            factQuotes: factWording(known, passages: passages), notes: episodeNotes)
         return EpisodeDossierExporter().markdown(dossier, includeTranscript: includeTranscript)
+    }
+
+    /// Alle gemerkten Stellen als eine Markdown-Datei.
+    ///
+    /// Jede Stelle steht mit ihrer Kopie da: Kommentar, Zitat, Folge,
+    /// Podcast und Zeitmarke. Die Quelle nennt das Erscheinungsdatum der
+    /// Folge und ihre Seite, solange es die Folge gibt. Wann gemerkt wurde,
+    /// steht getrennt und beschriftet. Früher stand an der Stelle der
+    /// Quelle die Merkzeit, als wäre sie das Datum der Folge.
+    public func exportKnowledge() async -> String {
+        guard !highlights.isEmpty else { return "" }
+        let episodes = await noteEpisodes(for: highlights)
+        return NotesExporter().markdown(highlights.map { highlight in
+            exportedNote(highlight, episode: highlight.episodeID.flatMap { episodes[$0] })
+        })
     }
 
     /// Eine Chat-Antwort mit ihren Belegen als Markdown.

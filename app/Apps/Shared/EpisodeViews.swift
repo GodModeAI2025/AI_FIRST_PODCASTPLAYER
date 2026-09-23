@@ -840,7 +840,9 @@ struct KnowledgeView: View {
     @State private var editing: Highlight?
     @State private var editText = ""
     /// Folgen, die noch da sind. `nil`, solange das noch nicht geprüft ist.
-    @State private var availableEpisodes: Set<EpisodeID>?
+    @State private var availableEpisodes: [EpisodeID: Episode]?
+    /// Für die VoiceOver-Aktionen der Zeilen: ansagen, was passiert ist.
+    @Environment(\.confirm) private var confirm
 
     var body: some View {
         List {
@@ -860,26 +862,24 @@ struct KnowledgeView: View {
                     Button(role: .destructive) { model.removeHighlight(highlight.id) } label: {
                         Label("Löschen", systemImage: "trash")
                     }
-                    Button { editing = highlight; editText = highlight.note ?? "" } label: {
+                    Button { edit(highlight) } label: {
                         Label("Kommentar", systemImage: "square.and.pencil")
                     }
                     .tint(.indigo)
                 }
                 .contextMenu {
-                    Button { editing = highlight; editText = highlight.note ?? "" } label: {
-                        Label("Kommentar bearbeiten", systemImage: "square.and.pencil")
-                    }
-                    Button(role: .destructive) { model.removeHighlight(highlight.id) } label: {
-                        Label("Löschen", systemImage: "trash")
-                    }
+                    NoteActions(highlight: highlight, playable: isPlayable(highlight),
+                                edit: { edit(highlight) }, deletable: true)
                 }
             }
         }
         .navigationTitle("Gemerkte Stellen")
         .task(id: model.highlights.compactMap(\.episodeID)) {
             model.fillMissingNoteTitles()
-            availableEpisodes = await model.availableEpisodeIDs(for: model.highlights)
+            availableEpisodes = await model.noteEpisodes(for: model.highlights)
         }
+        // „Mit Quelle kopiert“ und „Spielt ab 4:00“.
+        .confirmationBanner()
         .sheet(item: $editing) { highlight in
             NoteSheet(position: highlight.positionMs.map { Double($0) / 1000 }, quote: highlight.quote,
                       text: $editText) {
@@ -900,23 +900,58 @@ struct KnowledgeView: View {
             get: { exported.map(ExportPreview.init) },
             set: { exported = $0?.text }
         )) { preview in
-            ExportPreviewSheet(text: preview.text)
+            ExportPreviewSheet(text: preview.text, fileName: String(localized: "Gemerkte Stellen"))
         }
     }
 
-    /// Abspielbar ist eine Notiz nur mit Folge und Zeitmarke. Alles andere
-    /// ist eine Zeile zum Lesen und sieht auch so aus.
+    private func edit(_ highlight: Highlight) {
+        editing = highlight
+        editText = highlight.note ?? ""
+    }
+
+    private func episode(of highlight: Highlight) -> Episode? {
+        highlight.episodeID.flatMap { availableEpisodes?[$0] }
+    }
+
+    /// Abspielbar ist eine Notiz nur mit Folge und Zeitmarke.
+    private func isPlayable(_ highlight: Highlight) -> Bool {
+        episode(of: highlight) != nil && highlight.positionMs != nil
+    }
+
+    /// Ein Tipp auf die Zeile öffnet die Folge und startet keinen Ton.
+    /// Abgespielt wird über den eigenen Knopf, der die Zeitmarke nennt.
+    /// Kopieren, Teilen, Bearbeiten und Löschen stehen im Menü „…“. Ohne
+    /// Folge bleibt die Zeile zum Lesen, das Menü zum Kopieren gibt es trotzdem.
     @ViewBuilder
     private func noteRow(_ highlight: Highlight) -> some View {
-        let gone = highlight.episodeID.map { id in availableEpisodes.map { !$0.contains(id) } ?? false } ?? false
-        if highlight.episodeID != nil, highlight.positionMs != nil, !gone {
-            Button { Task { await model.playHighlight(highlight) } } label: {
-                NoteRow(highlight: highlight).contentShape(.rect)
+        let gone = highlight.episodeID.map { id in availableEpisodes.map { $0[id] == nil } ?? false } ?? false
+        let controls = HStack(spacing: Design.Spacing.none) {
+            if isPlayable(highlight) { NotePlayButton(highlight: highlight) }
+            NoteActionsMenu(highlight: highlight, playable: isPlayable(highlight),
+                            edit: { edit(highlight) }, deletable: true)
+        }
+        if let episode = episode(of: highlight) {
+            NavigationLink {
+                EpisodeDetailView(episode: episode)
+            } label: {
+                HStack(alignment: .top, spacing: Design.Spacing.small) {
+                    NoteRow(highlight: highlight).frame(maxWidth: .infinity, alignment: .leading)
+                    controls
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Spielt die Folge ab dieser Stelle")
+            .accessibilityHint("Öffnet die Folge. Abspielen und Kopieren unter Aktionen.")
+            .accessibilityAction(named: "Abspielen") {
+                NoteActions.play(highlight, model: model, confirm: confirm)
+            }
+            .accessibilityAction(named: "Mit Quelle kopieren") {
+                Clipboard.copy(model.noteCitation(highlight))
+                confirm(NoteFeedback.copied)
+            }
         } else {
-            NoteRow(highlight: highlight, episodeGone: gone)
+            HStack(alignment: .top, spacing: Design.Spacing.small) {
+                NoteRow(highlight: highlight, episodeGone: gone).frame(maxWidth: .infinity, alignment: .leading)
+                controls
+            }
         }
     }
 }
@@ -935,7 +970,14 @@ struct ExportPreview: Identifiable {
 struct ExportPreviewSheet: View {
 
     let text: String
+    /// Wie die Datei heisst, ohne Endung, etwa der Titel der Folge. Ohne
+    /// Angabe gilt die erste Überschrift des Exports.
+    var fileName: String? = nil
     @Environment(\.dismiss) private var dismiss
+    /// Die Markdown-Datei, die geteilt wird. Geteilt wurde vorher ein
+    /// String, und „In Dateien sichern“ legte „Text.txt“ ab.
+    @State private var file: URL?
+    @State private var copied = false
 
     var body: some View {
         NavigationStack {
@@ -949,12 +991,86 @@ struct ExportPreviewSheet: View {
             .navigationTitle("Export")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    ShareLink(item: text) { Label("Teilen", systemImage: "square.and.arrow.up") }
+                    if let file {
+                        ShareLink(item: file) { Label("Teilen", systemImage: "square.and.arrow.up") }
+                            .accessibilityIdentifier("export.share")
+                    } else {
+                        ShareLink(item: text) { Label("Teilen", systemImage: "square.and.arrow.up") }
+                            .accessibilityIdentifier("export.share")
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        Clipboard.copy(text)
+                        copied = true
+                        AccessibilityNotification.Announcement(String(localized: "Text kopiert")).post()
+                    } label: {
+                        Label(copied ? "Kopiert" : "Text kopieren", systemImage: copied ? "checkmark" : "doc.on.doc")
+                    }
+                    .accessibilityIdentifier("export.copy")
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fertig") { dismiss() }
                 }
             }
         }
+        .task(id: text) {
+            MarkdownFile.remove(file)
+            file = MarkdownFile.write(text, named: fileName ?? MarkdownFile.title(of: text))
+        }
+        .task(id: copied) {
+            guard copied else { return }
+            try? await Task.sleep(for: .seconds(2))
+            copied = false
+        }
+        .onDisappear { MarkdownFile.remove(file) }
+    }
+}
+
+/// Der Export als echte Datei mit Endung .md, benannt nach seinem Inhalt.
+/// Sie liegt in einem eigenen Ordner im temporären Verzeichnis, damit zwei
+/// Exporte mit gleichem Titel sich nicht überschreiben.
+enum MarkdownFile {
+
+    static func write(_ text: String, named title: String) -> URL? {
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Export", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let url = folder.appendingPathComponent(fileName(title) + ".md", isDirectory: false)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try Data(text.utf8).write(to: url, options: .atomic)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    /// Entfernt die Datei samt ihrem Ordner, sobald das Blatt zu ist.
+    static func remove(_ url: URL?) {
+        guard let url else { return }
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
+
+    /// Ein Dateiname aus dem Titel: ohne Zeichen, die Dateisysteme nicht
+    /// mögen, ohne Zeilenumbrüche und nicht zu lang. Aus „Titel: Untertitel“
+    /// wird „Titel - Untertitel“.
+    static func fileName(_ title: String) -> String {
+        let forbidden = CharacterSet(charactersIn: "/\\:?%*|\"<>")
+            .union(.newlines).union(.controlCharacters)
+        let cleaned = title.replacingOccurrences(of: ": ", with: " - ")
+            .components(separatedBy: forbidden).joined(separator: " ")
+            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            .trimmingCharacters(in: CharacterSet(charactersIn: " ."))
+        let short = String(cleaned.prefix(120)).trimmingCharacters(in: .whitespaces)
+        return short.isEmpty ? "PodcastAI" : short
+    }
+
+    /// Die erste Überschrift des Exports, ohne Markdown-Maskierung.
+    static func title(of markdown: String) -> String {
+        guard let heading = markdown.split(separator: "\n").first(where: { $0.hasPrefix("# ") }) else {
+            return "PodcastAI"
+        }
+        return String(heading.dropFirst(2)).replacingOccurrences(of: "\\", with: "")
     }
 }

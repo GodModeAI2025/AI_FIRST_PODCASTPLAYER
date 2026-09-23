@@ -1773,60 +1773,6 @@ public final class AppModel {
         return NativeCoverRenderer().makeCover(for: episode, feedTitle: feed.title)
     }
 
-    /// Baut den Markdown-Export über alle gemerkten Stellen.
-    ///
-    /// Bisher übergab diese Methode `evidence: []` und leere Titelkarten —
-    /// der Export hatte eine Überschrift „Quellen“ und nichts darunter.
-    /// Genau das, wogegen die ganze Belegkette gebaut ist: ein Zitat ohne
-    /// Herkunft. Die Belege werden jetzt geholt, und wenn einer fehlt,
-    /// erscheint die Stelle nicht mit halber Herkunft, sondern gar nicht.
-    public func exportKnowledge() async -> String {
-        guard !highlights.isEmpty else { return "" }
-
-        let found = (try? await store.evidence(
-            ids: highlights.map(\.evidenceID))) ?? [:]
-        let episodes = (try? await store.episodes(
-            ids: Array(Set(found.values.map(\.episodeID))))) ?? []
-
-        let titleByEpisode = Dictionary(
-            episodes.map { ($0.id, $0.title) }, uniquingKeysWith: { first, _ in first })
-        let titleBySource = Dictionary(
-            sources.map { ($0.id, $0.title) }, uniquingKeysWith: { first, _ in first })
-        // Der Exporter schlägt Titel je Beleg nach, nicht je Quelle.
-        var episodeTitles: [EvidenceID: String] = [:]
-        var sourceTitles: [EvidenceID: String] = [:]
-        for evidence in found.values {
-            episodeTitles[evidence.id] = titleByEpisode[evidence.episodeID]
-            sourceTitles[evidence.id] = titleBySource[evidence.sourceID]
-        }
-
-        let exporter = MarkdownExporter()
-        return highlights.compactMap { highlight -> String? in
-            guard let evidence = found[highlight.evidenceID] else {
-                // Notiz aus dem Player oder Folge gelöscht: Kopie statt Beleg.
-                return Self.snapshotMarkdown(highlight)
-            }
-            let claim = Claim(
-                id: ClaimID(stable: highlight.id.rawValue),
-                statement: highlight.note ?? Self.rememberedPassageTitle,
-                evidenceIDs: [highlight.evidenceID],
-                provenance: highlight.note == nil ? .original : .user
-            )
-            return exporter.export(ExportableInsight(
-                title: highlight.note ?? Self.rememberedPassageTitle,
-                claim: claim, evidence: [evidence],
-                userNote: highlight.note,
-                sourceTitles: sourceTitles, episodeTitles: episodeTitles
-            ))
-        }
-        .joined(separator: "\n\n")
-    }
-
-    /// Überschrift einer gemerkten Stelle ohne eigene Notiz, im Export.
-    nonisolated static var rememberedPassageTitle: String {
-        String(localized: "Gemerkte Stelle")
-    }
-
     /// Prüft alle automatischen Themenfeeds auf neues Material.
     ///
     /// Veröffentlicht höchstens eine Ausgabe je Feed und Lauf: fünf auf
@@ -2492,19 +2438,6 @@ extension AppModel: PlaybackObserver {
     /// sie deshalb nicht auf ein anderes Gerät mit. In den Einstellungen
     /// würde sie mitreisen, und zwei Geräte schrieben dann in dieselbe
     /// Hörstand-Zeile, von der CloudKit nur die letzte Änderung behält.
-    /// Eine Notiz ohne gespeicherten Beleg als Markdown, aus ihrer Kopie.
-    static func snapshotMarkdown(_ highlight: Highlight) -> String {
-        var lines = ["## " + (highlight.note ?? rememberedPassageTitle)]
-        var meta: [String] = []
-        if let episode = highlight.episodeTitle { meta.append(episode) }
-        if let source = highlight.sourceTitle { meta.append(source) }
-        if let ms = highlight.positionMs { meta.append(MediaTime(milliseconds: Int64(ms)).timecode) }
-        meta.append(highlight.capturedAt.formatted(date: .abbreviated, time: .shortened))
-        lines.append("*" + meta.joined(separator: " · ") + "*")
-        if let quote = highlight.quote { lines.append("> " + quote) }
-        return lines.joined(separator: "\n\n")
-    }
-
     public static func currentDeviceID() -> String {
         let service = "com.godmodeai.podcastai.device"
         let query: [String: Any] = [
