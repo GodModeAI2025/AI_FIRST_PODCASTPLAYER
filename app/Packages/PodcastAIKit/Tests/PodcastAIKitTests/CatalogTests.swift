@@ -18,6 +18,24 @@ private actor Recorder {
     func record(_ url: URL, _ headers: [String: String]) { calls.append((url, headers)) }
 }
 
+/// Hält Anfragen an, bis `count` von ihnen da sind, und lässt dann alle
+/// zugleich weiter.
+private actor Gate {
+    private let count: Int
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+    init(count: Int) { self.count = count }
+
+    func arrive() async {
+        await withCheckedContinuation { continuation in
+            waiting.append(continuation)
+            if waiting.count == count {
+                waiting.forEach { $0.resume() }
+                waiting.removeAll()
+            }
+        }
+    }
+}
+
 private func client(
     _ transport: @escaping CatalogTransport = PodcastIndexFixtures.transport,
     credentials: PodcastIndexCredentials = PodcastIndexFixtures.credentials,
@@ -112,6 +130,27 @@ struct PodcastIndexSigningTests {
         let calls = await recorder.calls
         #expect(calls.count == 2)
         #expect(calls.last?.headers["X-Auth-Date"] == "1790140900")
+    }
+
+    @Test("Falsche Geräteuhr: zwei Anfragen zugleich, beide rechnen nach")
+    func clockSkewWithConcurrentRequests() async throws {
+        let gate = Gate(count: 2)
+        let serverNow = Date(timeIntervalSince1970: 1_790_140_000 + 900)
+        let catalog = client { url, headers in
+            let sent = Int(headers["X-Auth-Date"] ?? "") ?? 0
+            guard abs(TimeInterval(sent) - serverNow.timeIntervalSince1970) < 180 else {
+                // Beide falsch signierten Anfragen sind unterwegs, bevor die
+                // erste ihre Ablehnung sieht.
+                await gate.arrive()
+                return CatalogHTTPResponse(status: 401, body: Data(), serverDate: serverNow)
+            }
+            return try await PodcastIndexFixtures.transport(url, headers)
+        }
+        async let found = catalog.search("kaffee")
+        async let trending = catalog.trending(language: nil)
+        let (fromSearch, fromTrending) = try await (found, trending)
+        #expect(fromSearch.count == 2)
+        #expect(fromTrending.count == 10)
     }
 
     @Test("Fehler des Katalogs kommen als eigene Fehler, nicht als Serverfehler eines Podcasts")
@@ -246,6 +285,10 @@ struct PodcastIndexDecodingTests {
                 == "Erste Zeile\nzweite &lt;b&gt; ä — ok")
         #expect(CatalogText.plain("<ul><li>eins</li><li>zwei</li></ul>") == "• eins\n• zwei")
         #expect(CatalogText.plain("   <p> </p> ") == nil)
+        #expect(CatalogText.plain("&Ouml;sterreich &Uuml;ber &Auml;rger &auml;h") == "Österreich Über Ärger äh")
+        #expect(CatalogText.plain("Fisch &AMP; Chips &LT;3") == "Fisch & Chips <3")
+        #expect(CatalogText.plain("<style type=\"text/css\">\n.x{color:red}\n</style>Text<SCRIPT>\nlet a = 1\n</SCRIPT> bleibt")
+                == "Text bleibt")
         #expect(CatalogText.line("  Titel\n mit   <i>Umbruch</i> ") == "Titel mit Umbruch")
         #expect(CatalogText.safeURL("http://example.com/a.jpg")?.absoluteString == "https://example.com/a.jpg")
         #expect(CatalogText.safeURL("file:///etc/passwd") == nil)
@@ -307,6 +350,23 @@ struct CatalogCategoryTests {
         #expect(items.first { $0.name == "cat" }?.value == "55,54,56,57")
         #expect(items.first { $0.name == "max" }?.value == "25")
         #expect(items.contains { $0.name == "lang" } == false)
+    }
+
+    @Test("In einer Rubrik nur, was nach Oberbegriffen dorthin gehört")
+    func categoryListUsesPrimaryRule() async throws {
+        let json = #"""
+        {"status": "true", "feeds": [
+          {"id": 1, "title": "Musikkommentar", "url": "https://example.com/1.xml", "categories": {"53": "Music", "54": "Commentary"}},
+          {"id": 2, "title": "Musikgespräche", "url": "https://example.com/2.xml", "categories": {"53": "Music", "17": "Interviews"}},
+          {"id": 3, "title": "Tageslage", "url": "https://example.com/3.xml", "categories": {"55": "News", "56": "Daily"}},
+          {"id": 4, "title": "Nur Kommentar", "url": "https://example.com/4.xml", "categories": {"54": "Commentary"}}
+        ]}
+        """#
+        let catalog = client { _, _ in CatalogHTTPResponse(status: 200, body: Data(json.utf8)) }
+        #expect(try await catalog.trending(language: nil, category: .news).map(\.title) == ["Tageslage", "Nur Kommentar"])
+        #expect(try await catalog.trending(language: nil, category: .comedy).isEmpty)
+        #expect(try await catalog.trending(language: nil, category: .music).map(\.title)
+                == ["Musikkommentar", "Musikgespräche"])
     }
 }
 
@@ -373,6 +433,11 @@ struct CatalogMergeTests {
         #expect(merged[0].artworkURL?.absoluteString == "https://example.com/a.jpg")
         #expect(merged[0].itunesID == 1)
         #expect(merged[3].origin == .appleDirectory)
+        // Die Adresse aus dem Apple-Verzeichnis zählt beim Abo-Abgleich mit.
+        let keysOfA = Set(merged[0].knownFeedURLs.map(CatalogMerge.feedKey))
+        #expect(keysOfA.contains(CatalogMerge.feedKey(URL(string: "https://feeds.example.org/a")!)))
+        #expect(merged[0].knownFeedURLs.contains(URL(string: "https://feeds.example.org/a")!))
+        #expect(merged[0].feedURL.absoluteString == "https://example.com/a.xml")
     }
 
     @Test("Ohne Treffer bei Podcast Index bleibt die Apple-Liste, wie sie ist")

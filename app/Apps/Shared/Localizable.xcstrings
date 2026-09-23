@@ -3354,6 +3354,22 @@
         }
       }
     },
+    "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The plus button in the toolbar of \"For You\" or \"My Podcasts\". Type a name and subscribe from Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
+          }
+        }
+      }
+    },
     "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
       "localizations" : {
         "de" : {
@@ -3366,6 +3382,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The plus button in the toolbar of \"For You\" or \"My Podcasts\". Type a name to search the Podcast Index catalog and Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
+          }
+        }
+      }
+    },
+    "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The plus button at the top of \"For You\" or \"My Podcasts\". Type a name and subscribe from Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
           }
         }
       }

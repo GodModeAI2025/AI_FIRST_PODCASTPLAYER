@@ -229,8 +229,10 @@ public actor PodcastIndexClient {
         // Schreibweise des Feeds trifft und nicht die Sprache.
         podcasts = CatalogLanguage.filter(podcasts, language: language)
         if let category {
-            let wanted = Set(category.podcastIndexIDs)
-            podcasts = podcasts.filter { !wanted.isDisjoint(with: $0.categoryIDs) }
+            // Nach derselben Regel wie die Rubriken auf der Seite eines
+            // Podcasts: Oberbegriffe zuerst. „Musik > Kommentar“ trägt die
+            // 54 der Nachrichten, bleibt aber Musik.
+            podcasts = podcasts.filter { CatalogCategory.categories(for: $0.categoryIDs).contains(category) }
         }
         return podcasts
     }
@@ -279,7 +281,10 @@ public actor PodcastIndexClient {
 
     private func send(_ url: URL, retryWithServerTime: Bool) async throws -> Data {
         guard credentials.isComplete else { throw PodcastIndexError.missingCredentials }
-        let headers = PodcastIndexSignature.headers(for: credentials, at: clock().addingTimeInterval(clockOffset),
+        // Während diese Anfrage läuft, kann eine andere den Abstand schon
+        // berichtigt haben. Verglichen wird mit dem, womit hier signiert wurde.
+        let usedOffset = clockOffset
+        let headers = PodcastIndexSignature.headers(for: credentials, at: clock().addingTimeInterval(usedOffset),
                                                     userAgent: userAgent)
         let response: CatalogHTTPResponse
         do {
@@ -303,7 +308,7 @@ public actor PodcastIndexClient {
             // Servers nachrechnen, und nur, wenn sie deutlich abweicht.
             if retryWithServerTime, let serverDate = response.serverDate {
                 let offset = serverDate.timeIntervalSince(clock())
-                if abs(offset - clockOffset) > 60 {
+                if abs(offset - usedOffset) > 60 {
                     clockOffset = offset
                     return try await send(url, retryWithServerTime: false)
                 }

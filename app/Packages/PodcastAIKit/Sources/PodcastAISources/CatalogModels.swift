@@ -35,6 +35,9 @@ public struct CatalogPodcast: Sendable, Hashable, Identifiable {
     /// Die Feed-Adresse vor einem Umzug. Wer den Podcast unter der alten
     /// Adresse abonniert hat, hat ihn trotzdem schon.
     public var originalFeedURL: URL?
+    /// Weitere Schreibweisen des Feeds, die beim Zusammenführen aufgefallen
+    /// sind, etwa die Adresse aus dem Apple-Verzeichnis.
+    public var alternateFeedURLs: [URL]
     public var websiteURL: URL?
     /// Schon auf https gehoben und geprüft, siehe `CatalogText.safeURL`.
     public var artworkURL: URL?
@@ -55,7 +58,7 @@ public struct CatalogPodcast: Sendable, Hashable, Identifiable {
     public init(
         origin: Origin, podcastIndexID: Int? = nil, itunesID: Int? = nil, podcastGUID: String? = nil,
         title: String, author: String, feedURL: URL, originalFeedURL: URL? = nil,
-        websiteURL: URL? = nil, artworkURL: URL? = nil, summary: String? = nil,
+        alternateFeedURLs: [URL] = [], websiteURL: URL? = nil, artworkURL: URL? = nil, summary: String? = nil,
         language: String? = nil, categoryIDs: [Int] = [], genre: String? = nil,
         isExplicit: Bool = false, episodeCount: Int? = nil, newestEpisodeDate: Date? = nil
     ) {
@@ -67,6 +70,7 @@ public struct CatalogPodcast: Sendable, Hashable, Identifiable {
         self.author = author
         self.feedURL = feedURL
         self.originalFeedURL = originalFeedURL
+        self.alternateFeedURLs = alternateFeedURLs
         self.websiteURL = websiteURL
         self.artworkURL = artworkURL
         self.summary = summary
@@ -82,7 +86,7 @@ public struct CatalogPodcast: Sendable, Hashable, Identifiable {
     public var categories: [CatalogCategory] { CatalogCategory.categories(for: categoryIDs) }
 
     /// Alle Feed-Adressen, unter denen jemand den Podcast abonniert haben kann.
-    public var knownFeedURLs: [URL] { [feedURL] + (originalFeedURL.map { [$0] } ?? []) }
+    public var knownFeedURLs: [URL] { [feedURL] + (originalFeedURL.map { [$0] } ?? []) + alternateFeedURLs }
 }
 
 /// Eine Folge aus dem Katalog, nur zum Ansehen vor dem Abonnieren. Eine
@@ -129,7 +133,7 @@ public enum CatalogText {
             .replacingOccurrences(of: #"<li[^>]*>"#, with: "• ", options: [.regularExpression, .caseInsensitive])
             .replacingOccurrences(of: #"</li>"#, with: "\n", options: [.regularExpression, .caseInsensitive])
         // Skripte und Stile tragen keinen lesbaren Text.
-        text = text.replacingOccurrences(of: #"<(script|style)[^>]*>.*?</\1>"#, with: "",
+        text = text.replacingOccurrences(of: #"(?s)<(script|style)[^>]*>.*?</\1>"#, with: "",
                                          options: [.regularExpression, .caseInsensitive])
         text = decodeEntities(text.replacingOccurrences(of: #"<[^>]*>"#, with: "", options: .regularExpression))
         text = text
@@ -173,15 +177,18 @@ public enum CatalogText {
         ("&Ouml;", "Ö"), ("&Uuml;", "Ü"), ("&szlig;", "ß"), ("&ndash;", "–"), ("&mdash;", "—"),
         ("&hellip;", "…"), ("&rsquo;", "’"), ("&lsquo;", "‘"), ("&rdquo;", "”"), ("&ldquo;", "“"),
         ("&bdquo;", "„"), ("&eacute;", "é"), ("&egrave;", "è"), ("&copy;", "©"),
+        // Die alten Großschreibungen, die HTML noch kennt.
+        ("&LT;", "<"), ("&GT;", ">"), ("&QUOT;", "\""),
         // Zuletzt, damit „&amp;lt;“ als „&lt;“ stehen bleibt.
-        ("&amp;", "&"),
+        ("&amp;", "&"), ("&AMP;", "&"),
     ]
 
     static func decodeEntities(_ text: String) -> String {
         guard text.contains("&") else { return text }
         var result = decodeNumericEntities(text)
         for (entity, value) in namedEntities {
-            result = result.replacingOccurrences(of: entity, with: value, options: .caseInsensitive)
+            // Namen von Entitäten unterscheiden Groß und Klein: „&Uuml;“ ist „Ü“.
+            result = result.replacingOccurrences(of: entity, with: value)
         }
         return result
     }
@@ -297,6 +304,14 @@ public enum CatalogMerge {
         merged.itunesID = base.itunesID ?? other.itunesID
         merged.podcastGUID = base.podcastGUID ?? other.podcastGUID
         merged.originalFeedURL = base.originalFeedURL ?? other.originalFeedURL
+        // Die Schreibweisen des anderen Eintrags bleiben erhalten, damit ein
+        // Abo unter seiner Adresse als Abo erkannt wird.
+        for url in other.knownFeedURLs {
+            let key = feedKey(url)
+            if !merged.knownFeedURLs.contains(where: { feedKey($0) == key }) {
+                merged.alternateFeedURLs.append(url)
+            }
+        }
         merged.websiteURL = base.websiteURL ?? other.websiteURL
         merged.artworkURL = base.artworkURL ?? other.artworkURL
         merged.summary = base.summary ?? other.summary

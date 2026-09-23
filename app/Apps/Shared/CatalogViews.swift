@@ -47,10 +47,27 @@ final class CatalogSubscriptions {
 
     func state(of podcast: CatalogPodcast, in model: AppModel) -> CatalogPodcastRow.State {
         if let count = added[podcast.feedURL] { return .added(count) }
-        // Auch unter der alten Adresse zählt ein Abo.
-        if podcast.knownFeedURLs.contains(where: model.isSubscribed) { return .subscribed }
+        // Auch unter der alten Adresse oder der aus dem Apple-Verzeichnis
+        // zählt ein Abo, und http oder ein Schrägstrich am Ende machen
+        // keinen anderen Feed.
+        let subscribed = subscribedFeedKeys(in: model)
+        if podcast.knownFeedURLs.contains(where: { subscribed.contains(CatalogMerge.feedKey($0)) }) {
+            return .subscribed
+        }
         if working.contains(podcast.feedURL) { return .working }
         return .open
+    }
+
+    /// Die Schlüssel der abonnierten Feeds, neu berechnet nur, wenn sich die
+    /// Abos ändern. Jede Zeile einer langen Liste fragt danach.
+    @ObservationIgnored private var feedKeyMemo: (feeds: [URL], keys: Set<String>) = ([], [])
+
+    private func subscribedFeedKeys(in model: AppModel) -> Set<String> {
+        let feeds = model.sources.compactMap(\.feedURL)
+        if feeds != feedKeyMemo.feeds {
+            feedKeyMemo = (feeds, Set(feeds.map(CatalogMerge.feedKey)))
+        }
+        return feedKeyMemo.keys
     }
 
     func failure(for podcast: CatalogPodcast) -> String? {
@@ -430,6 +447,10 @@ struct CatalogListView: View {
     @State private var loading = false
     @State private var failure: String?
     @State private var exhausted = false
+    /// Für welche Sprachwahl die Liste steht. Zurück von der Seite eines
+    /// Podcasts startet die Aufgabe neu; was „Mehr laden“ gebracht hat,
+    /// bleibt dann stehen.
+    @State private var loadedLanguage: Bool?
 
     private static let pageSize = 40
     private static let maximum = 200
@@ -439,7 +460,9 @@ struct CatalogListView: View {
             Section {
                 CatalogLanguagePicker(allLanguages: $allLanguages)
             }
-            if let failed = subscriptions.failure {
+            // Nur der Fehler zu einem Podcast aus dieser Liste, nicht der
+            // aus einer anderen Rubrik oder der Suche.
+            if let failed = subscriptions.failure, podcasts.contains(where: { $0.feedURL == failed.podcast.feedURL }) {
                 Section {
                     NoticeLabel(String(localized: "„\(failed.podcast.title)“: \(failed.message)"), kind: .failure)
                     Button("Nochmal versuchen", systemImage: "arrow.clockwise") {
@@ -458,7 +481,11 @@ struct CatalogListView: View {
                 ContentUnavailableView {
                     Label("Nichts angesagt", systemImage: category?.symbol ?? "chart.line.uptrend.xyaxis")
                 } description: {
-                    Text("In dieser Sprache ist hier gerade nichts angesagt.")
+                    if allLanguages {
+                        Text("Gerade ist hier nichts angesagt.")
+                    } else {
+                        Text("In dieser Sprache ist hier gerade nichts angesagt.")
+                    }
                 } actions: {
                     if !allLanguages {
                         Button("Alle Sprachen zeigen") { allLanguages = true }
@@ -499,6 +526,7 @@ struct CatalogListView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task(id: allLanguages) {
+            guard loadedLanguage != allLanguages || podcasts.isEmpty else { return }
             limit = Self.pageSize
             await load()
         }
@@ -511,6 +539,7 @@ struct CatalogListView: View {
             let found = try await PodcastCatalog.shared.trending(language: allLanguages ? nil : .current,
                                                                   category: category, max: limit)
             podcasts = found
+            loadedLanguage = allLanguages
             failure = nil
             // Ohne Blättern sieht man das Ende nur daran, dass nichts dazukommt.
             if let previousCount {

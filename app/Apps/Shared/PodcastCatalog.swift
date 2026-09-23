@@ -40,9 +40,24 @@ final class PodcastCatalog {
     /// Trends, Rubriken und Einzelheiten gibt es nur mit Zugang.
     var isAvailable: Bool { client != nil }
 
+    /// Dasselbe wie `isAvailable`, aber ohne Main Actor lesbar, etwa für
+    /// die Texte der Hilfe. Ändert sich nicht, solange die App läuft.
+    nonisolated static let isConfigured: Bool = {
+        #if DEBUG
+        if usesFixtureArgument { return true }
+        #endif
+        return bundledCredentials()?.isComplete == true
+    }()
+
+    #if DEBUG
+    private nonisolated static var usesFixtureArgument: Bool {
+        ProcessInfo.processInfo.arguments.contains("-catalog-fixtures")
+    }
+    #endif
+
     private init() {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-catalog-fixtures") {
+        if Self.usesFixtureArgument {
             client = PodcastIndexClient(credentials: PodcastIndexFixtures.credentials,
                                         userAgent: Self.userAgent, transport: PodcastIndexFixtures.transport)
             usesFixtures = true
@@ -63,7 +78,7 @@ final class PodcastCatalog {
         return "PodcastAI/\(version)"
     }
 
-    private static func bundledCredentials() -> PodcastIndexCredentials? {
+    private nonisolated static func bundledCredentials() -> PodcastIndexCredentials? {
         guard let url = Bundle.main.url(forResource: "PodcastIndexCredentials", withExtension: "plist",
                                         subdirectory: "PodcastIndex"),
               let data = try? Data(contentsOf: url) else { return nil }

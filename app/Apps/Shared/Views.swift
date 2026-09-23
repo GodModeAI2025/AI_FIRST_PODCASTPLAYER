@@ -1540,6 +1540,9 @@ struct AddSourceSheet: View {
 
     private func searchAfterPause() async {
         failure = nil
+        // Wer weitertippt, sucht etwas anderes. Der Fehler beim Abonnieren
+        // eines früheren Treffers geht dann weg, wie jeder andere.
+        subscriptions.failure = nil
         guard !isLink, trimmed.count >= 2 else { results = []; searchedTerm = nil; return }
         try? await Task.sleep(for: .milliseconds(450))
         guard !Task.isCancelled else { return }
