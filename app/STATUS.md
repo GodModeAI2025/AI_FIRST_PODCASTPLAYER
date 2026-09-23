@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 22. September 2026, Version 0.6.1.
+Stand 23. September 2026, Version 0.7.
 
 ## Geprüft
 
@@ -20,20 +20,25 @@ Stand 22. September 2026, Version 0.6.1.
 | CloudKit-Schema für alle 13 Datentypen | angelegt und nach Production übertragen |
 | Zusammenführen doppelter Datensätze, Hörstand je Gerät, verwaiste Zeilen | Swift-Tests, zuerst rot gegen den alten Stand |
 | Code-Prüfung | mehrstufig: Funde je Bereich, jeder von zwei Prüfern gegengeprüft, jede Korrektur einzeln nachgeprüft |
-| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben | 104 Swift-Tests im Paket |
+| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben, Sprache der Modelltexte, Archiv, Gegenpositionen | 174 Swift-Tests im Paket |
+| Podcastsuche nach Namen, Spotify-Hinweis, Moment merken, OPML-Import, YouTube-@-Links, Archiv, Speicher, Themen-Updates bearbeiten | UI-Tests im Simulator |
+| Englische Oberfläche und deutsche Mehrzahl | UI-Tests mit `-AppleLanguages (en)` und `(de)` |
+| iOS 26.4 und iOS 27 | komplette UI-Suite auf beiden Simulatoren |
+| Bedienung durch Einsteiger bis Experten | 50 Personas mit Screenshots und Code, danach 10 Personas, die die App im Simulator selbst bedient haben, plus ein Begriffstest mit 12 Personas |
+| Jeder Knopf, jedes Menü, jeder Schalter, jeder Hinweistext | Prüfung auf Wirkung, jeder Fund von Gegenprüfern bestätigt oder verworfen |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
 
 ## Noch auf einem Gerät zu prüfen
 
 | Bereich | Warum offen |
 |---|---|
-| Relevanzauswahl, Chat, Fakten, Gegenpositionen | Brauchen Apple Intelligence, das es im Simulator nicht gibt |
+| Relevanzauswahl, Chat, Fakten, Gegenpositionen | Auf dem iOS-27-Simulator läuft das Gerätemodell; die Qualität der Antworten zeigt sich erst auf einem Gerät mit Apple Intelligence |
 | Abgleich zwischen iPhone, iPad und Mac | Braucht zwei Geräte mit derselben Apple-ID und das Schema in der Produktionsumgebung |
-| Private Cloud Compute | Braucht die von Apple zugewiesene Berechtigung |
+| Private Cloud Compute | Braucht die von Apple zugewiesene Berechtigung. Bis dahin bleibt PCC aus, weil iOS 27 ohne sie beim ersten Fehler die App beendet |
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |
 | Wiedergabe im Hintergrund, AirPlay, CarPlay | Nur auf Hardware sinnvoll |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
-| Erschliessen im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
+| Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |
 
 ## Bewusst nicht enthalten
@@ -43,7 +48,18 @@ Stand 22. September 2026, Version 0.6.1.
 - CarPlay. Dafür vergibt Apple eine eigene Berechtigung.
 - Apple Watch App.
 
-## In diesem Stand behobene Fehler
+## In Version 0.7 behobene Fehler
+
+- Fragen im Chat, in einer Folge und bei den Gegenpositionen beendeten die App unter iOS 27, weil FoundationModels ohne PCC-Berechtigung hart abbricht.
+- Die automatische Vorbereitung arbeitete sich rückwärts durchs ganze Archiv.
+- „Transkript erstellen“ tat nichts, solange die Folge automatisch eingereiht auf WLAN wartete.
+- Automatische Themen-Updates entstanden nie, weil der Hintergrundauftrag nie angemeldet war.
+- Der Agentenzugang (MCP) auf dem Mac startete nie.
+- Per Siri gemerkte Stellen hatten weder Zitat noch Folge noch Zeitmarke.
+- Themen trafen Wortteile, etwa „KI“ in „Kinder“.
+- Fakten entstanden nur einmal direkt nach dem Transkript; scheiterte das, kamen nie welche.
+
+## Frühere behobene Fehler
 
 - Beide Apps stürzten beim Start ab, weil die Fehleranzeige das App-Modell nicht fand.
 - Erschliessen hing: MP3-Dateien melden am Ende einen Fehler statt null Frames, und die Analyse wurde erst nach ihrem eigenen Ende abgeschlossen. Eine Folge von neun Minuten brauchte 44 Minuten, jetzt 21 Sekunden.
