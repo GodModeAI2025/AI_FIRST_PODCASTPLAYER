@@ -36,7 +36,11 @@ struct MCPSettingsView: View {
     @State private var hours = 1
     @State private var grant: MCPGrant?
     @State private var entries: [MCPAccess.AuditEntry] = []
-    @State private var copied = false
+    @State private var copied: CopiedText?
+
+    /// Was zuletzt in die Zwischenablage ging, damit nur dieser Knopf
+    /// „Kopiert“ zeigt.
+    private enum CopiedText { case configuration, command }
 
     var body: some View {
         Form {
@@ -62,14 +66,26 @@ struct MCPSettingsView: View {
                     Text(Self.configuration)
                         .font(.system(.caption, design: .monospaced))
                         .textSelection(.enabled)
-                    Button(copied ? "Kopiert" : "Eintrag kopieren") { copyConfiguration() }
+                    Button(copyLabel(.configuration, idle: "Eintrag kopieren")) {
+                        copy(Self.configuration, as: .configuration)
+                    }
+                    Text(Self.command)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                    Button(copyLabel(.command, idle: "Befehl kopieren")) {
+                        copy(Self.command, as: .command)
+                    }
                 } header: {
                     Text("Verbinden")
                 } footer: {
                     Text("""
-                        Diesen Eintrag in die MCP-Einstellungen deines Agenten übernehmen, etwa in die \
-                        Konfigurationsdatei von Claude Desktop. Der Agent startet dann PodcastAI mit \
-                        „\(MCPHost.argument)“. Ohne Freigabe darunter bekommt er nichts zu lesen.
+                        Den Eintrag übernimmst du in die MCP-Einstellungen deines Agenten, etwa in die \
+                        Konfigurationsdatei von Claude Desktop. Agenten im Terminal bekommen stattdessen \
+                        den Befehl. Der Agent startet PodcastAI dann selbst mit „\(MCPHost.argument)“, im \
+                        Hintergrund ohne Fenster und ohne Symbol im Dock, und beendet es wieder, wenn er \
+                        fertig ist. Die App muss dafür nicht offen sein. Liegt PodcastAI später an einem \
+                        anderen Ort, braucht der Agent den neuen Eintrag. Ohne Freigabe darunter bekommt \
+                        er nichts zu lesen.
                         """)
                 }
 
@@ -184,13 +200,19 @@ struct MCPSettingsView: View {
         reload()
     }
 
-    private func copyConfiguration() {
+    /// Als `LocalizedStringKey` getippt, damit beide Beschriftungen im
+    /// Katalog landen.
+    private func copyLabel(_ kind: CopiedText, idle: LocalizedStringKey) -> LocalizedStringKey {
+        copied == kind ? "Kopiert" : idle
+    }
+
+    private func copy(_ text: String, as kind: CopiedText) {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(Self.configuration, forType: .string)
-        copied = true
+        NSPasteboard.general.setString(text, forType: .string)
+        copied = kind
         Task {
             try? await Task.sleep(for: .seconds(2))
-            copied = false
+            if copied == kind { copied = nil }
         }
     }
 
@@ -198,6 +220,19 @@ struct MCPSettingsView: View {
     /// die App muss nicht unter /Programme liegen.
     private static var executablePath: String {
         Bundle.main.executableURL?.path ?? "/Applications/PodcastAI.app/Contents/MacOS/PodcastAI"
+    }
+
+    /// Die Befehlszeile für Agenten, die einen Befehl statt eines Eintrags
+    /// erwarten. Der Pfad steht in einfachen Anführungszeichen, sobald er
+    /// etwas enthält, das die Shell anders lesen würde, etwa ein Leerzeichen.
+    private static var command: String {
+        "\(shellQuoted(executablePath)) \(MCPHost.argument)"
+    }
+
+    private static func shellQuoted(_ path: String) -> String {
+        let plain = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "/._-+"))
+        guard path.unicodeScalars.contains(where: { !plain.contains($0) }) else { return path }
+        return "'" + path.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
     }
 
     /// Der Eintrag im Format, das die meisten MCP-Programme lesen.

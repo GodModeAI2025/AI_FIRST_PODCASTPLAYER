@@ -38,6 +38,14 @@ struct PodcastAIApp: App {
         // Hier und nicht in `.task`: Intent-Abhängigkeit, Audiositzung und
         // BGTask-Registrierung müssen stehen, bevor der Start fertig ist.
         self.background = AppBootstrap.start(with: model)
+        // Einmal für die App, wie auf dem Mac. In `.task` lief das mit jeder
+        // neu verbundenen Szene noch einmal. Baut iOS die Szene im
+        // Hintergrund ab, während der Ton weiterläuft, lud danach jede
+        // Änderung aus iCloud alles doppelt.
+        Task {
+            await model.ensureLoaded()
+            model.observeRemoteChanges()
+        }
     }
 
     var body: some Scene {
@@ -46,7 +54,6 @@ struct PodcastAIApp: App {
                 .environment(model)
                 .task {
                     await model.ensureLoaded()
-                    model.observeRemoteChanges()
                     background.scheduleRefresh()
                     // Ohne diesen ersten Auftrag lief die Analyse-Aufgabe nie,
                     // und kein Themen-Update entstand im Hintergrund.

@@ -26,6 +26,10 @@ import PodcastAIKit
 import CoreSpotlight
 #endif
 
+#if os(iOS)
+import UIKit
+#endif
+
 @MainActor
 public final class SpotlightIndex {
 
@@ -183,6 +187,9 @@ private struct SpotlightContinuation: ViewModifier {
 
     @Environment(AppModel.self) private var model
     @State private var opened: OpenedHighlight?
+    #if os(iOS)
+    @State private var anchor = PresentationAnchor()
+    #endif
 
     private struct OpenedHighlight: Identifiable {
         let id: HighlightID
@@ -194,13 +201,16 @@ private struct SpotlightContinuation: ViewModifier {
             .onContinueUserActivity(CSSearchableItemActionType) { activity in
                 guard let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String
                 else { return }
-                opened = OpenedHighlight(id: HighlightID(rawValue: identifier))
+                open(HighlightID(rawValue: identifier))
             }
             #endif
             #if os(macOS)
             // Ein offenes Fenster nimmt den Treffer an. Ohne das öffnet der
             // Mac für jeden Tipp in der Systemsuche ein neues Fenster.
             .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+            #endif
+            #if os(iOS)
+            .background { PresentationAnchor.Marker(anchor: anchor) }
             #endif
             .sheet(item: $opened) { item in
                 RememberedPassageView(highlightID: item.id)
@@ -210,7 +220,68 @@ private struct SpotlightContinuation: ViewModifier {
                     #endif
             }
     }
+
+    private func open(_ id: HighlightID) {
+        #if os(iOS)
+        let model = model
+        let shown = anchor.presentAboveOpenSheet { close in
+            RememberedPassageView(highlightID: id, close: close)
+                .environment(model)
+        }
+        if shown { return }
+        #endif
+        opened = OpenedHighlight(id: id)
+    }
 }
+
+#if os(iOS)
+/// Zeigt eine Ansicht über dem Blatt, das gerade offen ist.
+///
+/// Ein `.sheet` an der Wurzel erscheint nicht, solange dort schon ein Blatt
+/// offen ist: die Warteschlange, der Player aus der Leiste, „Podcast
+/// hinzufügen“ oder eine Notiz. iOS legt dann kein zweites darüber, und wer
+/// aus der Systemsuche kam, sah die gemerkte Stelle nie. Geschlossen wird
+/// dafür nichts. Was im offenen Blatt steht, bleibt stehen, und nach
+/// „Fertig“ ist man wieder dort.
+@MainActor
+private final class PresentationAnchor {
+
+    /// Eine Ansicht im Fenster der Wurzel. Über sie findet sich das Fenster,
+    /// in dem der Treffer ankam.
+    weak var view: UIView?
+
+    /// `false`, wenn an der Wurzel gerade nichts offen ist oder das Fenster
+    /// noch fehlt. Dann reicht das gewohnte `.sheet`.
+    func presentAboveOpenSheet<Content: View>(
+        _ content: (_ close: @escaping @MainActor () -> Void) -> Content
+    ) -> Bool {
+        guard let root = view?.window?.rootViewController else { return false }
+        var top = root
+        while let next = top.presentedViewController, !next.isBeingDismissed { top = next }
+        guard top !== root else { return false }
+        let host = UIHostingController<Content?>(rootView: nil)
+        host.rootView = content { [weak host] in host?.dismiss(animated: true) }
+        top.present(host, animated: true)
+        return true
+    }
+
+    /// Unsichtbar im Hintergrund der Wurzel.
+    struct Marker: UIViewRepresentable {
+        let anchor: PresentationAnchor
+
+        func makeUIView(context: Context) -> UIView {
+            let view = UIView()
+            view.isUserInteractionEnabled = false
+            anchor.view = view
+            return view
+        }
+
+        func updateUIView(_ uiView: UIView, context: Context) {
+            anchor.view = uiView
+        }
+    }
+}
+#endif
 
 extension View {
     /// Nimmt Treffer aus der Systemsuche entgegen.
@@ -221,10 +292,18 @@ extension View {
 struct RememberedPassageView: View {
 
     let highlightID: HighlightID
+    /// Schliesst die Ansicht, wenn sie nicht als `.sheet` gezeigt wird,
+    /// sondern über einem offenen Blatt. Dort erreicht `dismiss` sie nicht
+    /// verlässlich.
+    var close: (@MainActor () -> Void)? = nil
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     private var highlight: Highlight? { model.highlights.first { $0.id == highlightID } }
+
+    private func finish() {
+        if let close { close() } else { dismiss() }
+    }
 
     /// Abspielen geht nur, solange die Folge noch da ist.
     private func canPlay(_ highlight: Highlight) -> Bool {
@@ -248,7 +327,7 @@ struct RememberedPassageView: View {
                             Section {
                                 Button {
                                     Task { await model.playHighlight(highlight) }
-                                    dismiss()
+                                    finish()
                                 } label: {
                                     Label("Stelle anhören", systemImage: "play.fill")
                                 }
@@ -268,7 +347,7 @@ struct RememberedPassageView: View {
             .navigationTitle("Gemerkte Stelle")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Fertig") { dismiss() }
+                    Button("Fertig") { finish() }
                 }
             }
         }

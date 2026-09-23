@@ -527,6 +527,11 @@ public enum PodcastDirectory {
         } catch {
             // Eine abgebrochene Suche (weitergetippt) ist kein Verbindungsfehler.
             if Task.isCancelled || (error as? URLError)?.code == .cancelled { throw CancellationError() }
+            // Hat das Verzeichnis geantwortet, etwa mit 403 oder 503, weil zu
+            // schnell hintereinander gesucht wurde, liegt es nicht an der
+            // Verbindung. „Prüf die Internetverbindung“ schickte dann auf die
+            // falsche Suche.
+            if error is HTTPTransferError { throw PodcastDirectoryError.unreadableAnswer }
             throw PodcastDirectoryError.unreachable
         }
         guard let response = try? JSONDecoder().decode(SearchResponse.self, from: data) else {
