@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 23. September 2026, Version 0.7.
+Stand 23. September 2026, Version 0.7.1.
 
 ## Geprüft
 
@@ -34,7 +34,7 @@ Stand 23. September 2026, Version 0.7.
 |---|---|
 | Relevanzauswahl, Chat, Fakten, Gegenpositionen | Auf dem iOS-27-Simulator läuft das Gerätemodell; die Qualität der Antworten zeigt sich erst auf einem Gerät mit Apple Intelligence |
 | Abgleich zwischen iPhone, iPad und Mac | Braucht zwei Geräte mit derselben Apple-ID und das Schema in der Produktionsumgebung |
-| Private Cloud Compute | Braucht die von Apple zugewiesene Berechtigung. Bis dahin bleibt PCC aus, weil iOS 27 ohne sie beim ersten Fehler die App beendet |
+| Private Cloud Compute | Berechtigung erteilt und in beiden App-IDs eingeschaltet. Chat und Folgen-Chat antworten im iOS-27-Simulator über PCC; die Qualität zeigt sich auf einem Gerät |
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |
 | Wiedergabe im Hintergrund, AirPlay, CarPlay | Nur auf Hardware sinnvoll |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |

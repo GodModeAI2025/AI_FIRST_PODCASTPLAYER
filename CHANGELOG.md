@@ -1,5 +1,8 @@
 # Änderungsverlauf
 
+## App 0.7.1 · 2026-09-23
+- Private Cloud Compute ist freigegeben. Apple hat den Zugang für das Team erteilt, die App fragt Apples Server jetzt für Antworten im Chat, Überblicke und Gegenpositionen. Dort passt mehr Text in eine Anfrage. Abschaltbar unter Einstellungen › Intelligenz. Fakten und Relevanz entstehen weiter auf dem Gerät.
+
 ## App 0.7 · 2026-09-23
 Aus dem TestFlight-Feedback, einem Test mit 50 Personas, einer Runde mit 10 Personas, die die App im Simulator selbst bedient haben, einem Begriffstest mit 12 Personas und einer Prüfung jedes Bedienelements:
 - Podcast finden: Das Blatt „Podcast hinzufügen“ sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema und abonniert mit einem Tipp. Links aus Apple Podcasts funktionieren, YouTube-Links mit @-Namen auch. Bei Spotify-Links sagt die App, warum es nicht geht. Abos lassen sich als OPML-Datei übernehmen und sichern. Die Einführung beginnt mit der Suche.

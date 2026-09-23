@@ -32,7 +32,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 | Fragen beantworten, Positionen vergleichen | Private Cloud Compute | Gerätemodell |
 | Fakten ziehen, Relevanz prüfen | Gerätemodell | keiner |
 
-PCC heißt in der Oberfläche „Apple-Server“ und ist in den Einstellungen und auf der Datenschutzseite abschaltbar. Solange der Build den Info.plist-Schlüssel `PodcastAIPrivateCloudComputeEntitled` nicht trägt, steht der Schalter ab Werk aus und lässt sich nicht einschalten. Ohne Apple Intelligence formuliert die App nichts und zeigt die passendsten Stellen im Wortlaut.
+PCC heißt in der Oberfläche „Apple-Server“ und ist in den Einstellungen und auf der Datenschutzseite abschaltbar. Seit 0.7.1 tragen beide Apps die Berechtigung `com.apple.developer.private-cloud-compute` und den Info.plist-Schlüssel `PodcastAIPrivateCloudComputeEntitled`; der Schalter steht ab Werk an. Fehlt der Schlüssel in einem Build, bleibt PCC aus, denn ohne Berechtigung beendet FoundationModels unter iOS 27 die App beim ersten Fehler einer PCC-Anfrage. Ohne Apple Intelligence formuliert die App nichts und zeigt die passendsten Stellen im Wortlaut.
 
 ## Mobilfunk
 

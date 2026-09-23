@@ -8,5 +8,8 @@
     <key>com.apple.developer.icloud-services</key>
     <array><string>CloudKit</string></array>
     <key>aps-environment</key><string>development</string>
+    <!-- Apple Intelligence auf Private Cloud Compute, von Apple für das Team freigegeben. -->
+    <key>com.apple.developer.private-cloud-compute</key>
+    <true/>
 </dict>
 </plist>
