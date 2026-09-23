@@ -72,6 +72,17 @@ public enum CounterpointRelation: String, Sendable, Codable, CaseIterable {
     case differentPremise
     /// Schränkt sie ein, ohne sie zu verwerfen.
     case qualifies
+    /// Passt zum Thema, ist aber nicht eingeordnet: das Modell fehlte,
+    /// scheiterte oder hat zu dieser Stelle nichts gesagt. Früher landete
+    /// so eine Stelle unter „Andere Voraussetzung“, und die App schloss
+    /// daraus, es gebe keine Gegenposition.
+    case unclassified
+
+    /// Die Bezeichnungen, zwischen denen das Modell wählen darf.
+    /// „Nicht eingeordnet“ gehört nicht dazu, das entscheidet der Code.
+    public static var classifiable: [CounterpointRelation] {
+        [.contradicts, .supports, .differentPremise, .qualifies]
+    }
 
     public var label: String {
         switch self {
@@ -79,6 +90,7 @@ public enum CounterpointRelation: String, Sendable, Codable, CaseIterable {
         case .supports: "Stützt die These"
         case .differentPremise: "Andere Voraussetzung"
         case .qualifies: "Schränkt ein"
+        case .unclassified: "Zum Thema, nicht eingeordnet"
         }
     }
 
@@ -98,14 +110,61 @@ public struct CounterpointCandidate: Sendable, Identifiable {
     public let isModelConfirmed: Bool
     public let sourceTitle: String
     public let excerpt: String
+    /// Folge und Stelle, damit eine Zeile sagt, woher sie stammt, und sich
+    /// abspielen und merken lässt.
+    public let episodeID: EpisodeID?
+    public let episodeTitle: String?
+    public let range: MediaTimeRange?
 
     public init(
         evidenceID: EvidenceID, relation: CounterpointRelation,
-        isModelConfirmed: Bool, sourceTitle: String, excerpt: String
+        isModelConfirmed: Bool, sourceTitle: String, excerpt: String,
+        episodeID: EpisodeID? = nil, episodeTitle: String? = nil, range: MediaTimeRange? = nil
     ) {
         self.evidenceID = evidenceID; self.relation = relation
         self.isModelConfirmed = isModelConfirmed
         self.sourceTitle = sourceTitle; self.excerpt = excerpt
+        self.episodeID = episodeID; self.episodeTitle = episodeTitle; self.range = range
+    }
+}
+
+/// Was eine Suche zu einer These ergeben hat.
+public struct CounterpointSearch: Sendable {
+    /// Die passendsten Stellen, beste zuerst.
+    public let candidates: [CounterpointCandidate]
+    /// Warum die Einordnung ganz oder teilweise fehlt. `nil`, wenn das
+    /// Modell jede Stelle gesehen hat.
+    public let classificationProblem: String?
+
+    public init(candidates: [CounterpointCandidate], classificationProblem: String? = nil) {
+        self.candidates = candidates
+        self.classificationProblem = classificationProblem
+    }
+}
+
+/// Eine geprüfte These mit ihrem Ergebnis.
+///
+/// Sie lebt im App-Modell und nicht in der Ansicht. So ist das Ergebnis nach
+/// dem Zurückgehen noch da, und die Stellen gehören immer zu der These, die
+/// geprüft wurde, nicht zu dem, was gerade im Textfeld steht.
+public struct CounterpointCheck: Sendable, Identifiable {
+    public let id: UUID
+    public let thesis: String
+    public var isRunning: Bool
+    /// Schon ausgewogen zusammengestellt, siehe ``CounterpointMixer/balance(_:)``.
+    public var candidates: [CounterpointCandidate]
+    public var classificationProblem: String?
+    /// Als Wissenslandkarte gesichert.
+    public var isSaved: Bool
+
+    public init(
+        id: UUID = UUID(), thesis: String, isRunning: Bool = true,
+        candidates: [CounterpointCandidate] = [], classificationProblem: String? = nil,
+        isSaved: Bool = false
+    ) {
+        self.id = id; self.thesis = thesis; self.isRunning = isRunning
+        self.candidates = candidates; self.classificationProblem = classificationProblem
+        self.isSaved = isSaved
     }
 }
 
@@ -134,16 +193,22 @@ public struct CounterpointMixer: Sendable {
 
         // Reihenfolge bewusst: erst was stützt, dann was widerspricht, dann
         // was anders ansetzt. Wer mit der Gegenposition anfängt, hört sie
-        // als Angriff statt als Argument.
-        let order: [CounterpointRelation] = [.supports, .contradicts, .differentPremise, .qualifies]
+        // als Angriff statt als Argument. Nicht Eingeordnetes steht am Ende.
+        let order: [CounterpointRelation] = [.supports, .contradicts, .differentPremise, .qualifies, .unclassified]
         return order.flatMap { relation in
-            (byRelation[relation] ?? [])
+            // Innerhalb einer Gruppe zählt die Eingangsreihenfolge, also die
+            // Relevanz. Nach der Kennung sortiert standen dort die drei
+            // Stellen mit der kleinsten Kennung, nicht die passendsten.
+            (byRelation[relation] ?? []).enumerated()
                 .sorted { lhs, rhs in
-                    lhs.isModelConfirmed != rhs.isModelConfirmed
-                        ? lhs.isModelConfirmed && !rhs.isModelConfirmed
-                        : lhs.evidenceID.rawValue < rhs.evidenceID.rawValue
+                    lhs.element.isModelConfirmed != rhs.element.isModelConfirmed
+                        ? lhs.element.isModelConfirmed
+                        : lhs.offset < rhs.offset
                 }
-                .prefix(perSide)
+                // Ohne Einordnung gibt es keine Seiten, die sich die Waage
+                // halten müssen. Dann dürfen es ein paar Stellen mehr sein.
+                .prefix(relation == .unclassified ? perSide * 2 : perSide)
+                .map(\.element)
         }
     }
 
@@ -159,15 +224,18 @@ public struct CounterpointMixer: Sendable {
 
     public func imbalanceNotice(_ selection: [CounterpointCandidate]) -> String? {
         guard !isBalanced(selection) else { return nil }
-        let relations = Set(selection.map(\.relation))
         if selection.isEmpty {
-            return "Zu dieser These ist in deinem Bestand nichts erschlossen."
+            return "Zu dieser These passt nichts aus deinen ausgewerteten Folgen."
         }
+        // Ohne Einordnung lässt sich über Gegenpositionen nichts sagen. Den
+        // Grund nennt die App an anderer Stelle, hier wird nichts behauptet.
+        let relations = Set(selection.map(\.relation)).subtracting([.unclassified])
+        guard !relations.isEmpty else { return nil }
         if !relations.contains(.contradicts) {
-            return "Im erschlossenen Bestand findet sich keine Gegenposition. "
+            return "In deinen ausgewerteten Folgen findet sich keine Gegenposition. "
                 + "Das heißt nicht, dass es keine gibt."
         }
-        return "Im erschlossenen Bestand findet sich nur die Gegenseite. "
+        return "In deinen ausgewerteten Folgen findet sich nur die Gegenseite. "
             + "Das ist keine ausgewogene Prüfung."
     }
 }

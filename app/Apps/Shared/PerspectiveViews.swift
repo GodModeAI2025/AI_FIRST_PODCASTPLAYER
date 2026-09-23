@@ -20,137 +20,170 @@ struct CounterpointView: View {
 
     @Environment(AppModel.self) private var model
     @State private var thesis = ""
-    @State private var stance: Stance?
-    @State private var candidates: [CounterpointCandidate] = []
-    @State private var notice: String?
 
     private let mixer = CounterpointMixer()
+
+    private var check: CounterpointCheck? { model.counterpointCheck }
+    private var isChecking: Bool { check?.isRunning ?? false }
 
     var body: some View {
         List {
             Section {
                 TextField("Deine These", text: $thesis, axis: .vertical)
                     .lineLimit(1...3)
-                Button("Prüfen") { check() }
+                Button("Prüfen") { model.checkThesis(thesis) }
                     .frame(minHeight: Design.minimumTapTarget)
                     .buttonStyle(.pressable)
-                    .disabled(thesis.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(isChecking || thesis.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             } header: {
                 Text("These")
             } footer: {
                 Text("Formuliere, was du für richtig hältst. PodcastAI sucht dazu belegte "
-                     + "Positionen aus deinen Quellen — dafür und dagegen.")
+                     + "Positionen aus deinen Quellen, dafür und dagegen.")
             }
 
-            if let stance {
-                Section("Status") {
-                    // Der Unterschied zwischen „gespeichert“ und „das ist
-                    // meine Meinung“ steht hier ausdrücklich.
-                    Label(
-                        stance.isUserPosition
-                            ? "Als dein Standpunkt bestätigt"
-                            : "Noch nicht als dein Standpunkt bestätigt",
-                        systemImage: stance.isUserPosition ? "checkmark.seal" : "questionmark.circle"
-                    )
-                    .font(.callout)
-
-                    if !stance.isUserPosition {
-                        Button("Als meinen Standpunkt bestätigen") {
-                            self.stance?.status = .confirmed
-                        }
-                    } else {
-                        Button("Bestätigung zurücknehmen", role: .destructive) {
-                            self.stance?.status = .withdrawn
-                        }
-                    }
-                }
-            }
-
-            if let notice {
-                Section {
-                    Label(notice, systemImage: "exclamationmark.triangle")
+            if let check {
+                // Die geprüfte These steht da, wie sie geprüft wurde. Wird das
+                // Textfeld danach geändert, gehören die Stellen trotzdem zu ihr.
+                Section("Geprüft") {
+                    Text(check.thesis)
                         .font(.callout)
-                        .foregroundStyle(.orange)
-                }
-            }
-
-            if !candidates.isEmpty {
-                ForEach(CounterpointRelation.allOrdered, id: \.self) { relation in
-                    let group = candidates.filter { $0.relation == relation }
-                    if !group.isEmpty {
-                        Section(relation.label) {
-                            ForEach(group) { candidate in
-                                CounterpointRow(candidate: candidate)
-                            }
+                    if check.isRunning {
+                        HStack(spacing: Design.Spacing.small) {
+                            ProgressView()
+                            Text("Stellen werden gesucht und eingeordnet …")
+                                .foregroundStyle(.secondary)
                         }
+                        .font(.callout)
                     }
                 }
 
-                Section {
-                    Button {
-                        model.playCounterpoints(candidates, thesis: thesis)
-                    } label: {
-                        Label("Nacheinander anhören", systemImage: "play.circle")
-                            .frame(minHeight: Design.minimumTapTarget)
-                    }
-                    .buttonStyle(.pressable)
-                } footer: {
-                    Text("Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie "
-                         + "nicht zusammen und spricht sie nicht nach.")
+                if !check.isRunning {
+                    results(check)
                 }
             }
         }
         .navigationTitle("Gegenpositionen")
+        .onAppear {
+            if thesis.isEmpty, let check { thesis = check.thesis }
+        }
     }
 
-    private func check() {
-        let text = thesis.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        // Origin ist explicitUser, Status bleibt proposed: formuliert zu
-        // haben ist noch nicht dasselbe wie bestätigt zu haben.
-        stance = Stance(text: text, origin: .explicitUser)
-        Task {
-            let found = await model.findCounterpoints(for: text)
-            candidates = mixer.balance(found)
-            notice = mixer.imbalanceNotice(candidates)
+    @ViewBuilder
+    private func results(_ check: CounterpointCheck) -> some View {
+        if let notice = check.classificationProblem ?? mixer.imbalanceNotice(check.candidates) {
+            Section {
+                Label(notice, systemImage: "exclamationmark.triangle")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            }
+        }
+
+        ForEach(CounterpointRelation.allOrdered, id: \.self) { relation in
+            let group = check.candidates.filter { $0.relation == relation }
+            if !group.isEmpty {
+                Section(relation.label) {
+                    ForEach(group) { candidate in
+                        CounterpointRow(candidate: candidate)
+                    }
+                }
+            }
+        }
+
+        if !check.candidates.isEmpty {
+            Section {
+                Button {
+                    model.playCounterpoints(check.candidates, thesis: check.thesis)
+                } label: {
+                    Label("Nacheinander anhören", systemImage: "play.circle")
+                        .frame(minHeight: Design.minimumTapTarget)
+                }
+                .buttonStyle(.pressable)
+                Button {
+                    model.saveCounterpointCheck()
+                } label: {
+                    Label(check.isSaved ? "Als Wissenslandkarte gesichert" : "Als Wissenslandkarte sichern",
+                          systemImage: check.isSaved ? "checkmark" : "map")
+                        .frame(minHeight: Design.minimumTapTarget)
+                }
+                .buttonStyle(.pressable)
+                .disabled(check.isSaved)
+            } footer: {
+                Text("Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht "
+                     + "zusammen und spricht sie nicht nach. Eine gesicherte These ist aufbewahrt, "
+                     + "nicht als deine Meinung vermerkt.")
+            }
         }
     }
 }
 
 extension CounterpointRelation {
     /// Stützendes zuerst, dann Widerspruch, dann abweichende Voraussetzungen.
-    /// Wer mit der Gegenposition anfängt, hört sie als Angriff.
+    /// Wer mit der Gegenposition anfängt, hört sie als Angriff. Was nicht
+    /// eingeordnet ist, steht zuletzt.
     static var allOrdered: [CounterpointRelation] {
-        [.supports, .contradicts, .differentPremise, .qualifies]
+        [.supports, .contradicts, .differentPremise, .qualifies, .unclassified]
     }
 }
 
 struct CounterpointRow: View {
 
     let candidate: CounterpointCandidate
+    @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-            Text(candidate.sourceTitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(candidate.excerpt)
-                .font(.callout)
-                .lineLimit(4)
-            if !candidate.isModelConfirmed {
-                // Eine vermutete Zuordnung wird als vermutet gezeigt. Sie als
-                // Tatsache auszugeben wäre genau der Fehler, den dieser
-                // Modus vermeiden soll.
-                //
-                // Symbol **und** Text: Farbe allein trägt die Warnung nicht
-                // für jeden.
-                Label("Zuordnung vermutet, nicht geprüft",
-                      systemImage: "questionmark.circle")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
+        Button {
+            model.playCounterpoint(candidate)
+        } label: {
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                Text(origin)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Text(candidate.excerpt)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(4)
+                    .multilineTextAlignment(.leading)
+                if let range = candidate.range {
+                    HStack(spacing: Design.Spacing.micro) {
+                        TimecodeLabel(range.start)
+                        Image(systemName: "play.fill").font(.caption2).foregroundStyle(.tint)
+                    }
+                }
+                if !candidate.isModelConfirmed, candidate.relation != .unclassified {
+                    // Eine vermutete Zuordnung wird als vermutet gezeigt. Sie als
+                    // Tatsache auszugeben wäre genau der Fehler, den dieser
+                    // Modus vermeiden soll.
+                    //
+                    // Symbol **und** Text: Farbe allein trägt die Warnung nicht
+                    // für jeden.
+                    Label("Zuordnung vermutet, nicht geprüft",
+                          systemImage: "questionmark.circle")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
+            .padding(.vertical, Design.Spacing.micro / 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .disabled(candidate.range == nil || candidate.episodeID == nil)
+        .accessibilityHint("Spielt die Folge ab dieser Stelle")
+        .contextMenu {
+            Button { model.playCounterpoint(candidate) } label: {
+                Label("In der Folge ab hier hören", systemImage: "play.fill")
+            }
+            Button { model.rememberCounterpoint(candidate) } label: {
+                Label("Stelle merken", systemImage: "bookmark")
             }
         }
-        .padding(.vertical, Design.Spacing.micro / 2)
+    }
+
+    /// Podcast und Folge, damit man sieht, wer das gesagt hat.
+    private var origin: String {
+        [candidate.sourceTitle, candidate.episodeTitle].compactMap { $0 }.joined(separator: " · ")
     }
 }
 

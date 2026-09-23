@@ -1030,19 +1030,32 @@ public final class AppModel {
 
         closureOfferedThisSession = true
 
-        // Weiterführend ist, was zu denselben Interessen erschlossen ist und
-        // in dieser Sitzung nicht vorkam. Eine echte Zahl, keine Andeutung:
-        // „drei weitere Quellen“ muss drei Quellen bedeuten.
+        // Weiterführend ist, was zu denselben Interessen ausgewertet ist und
+        // in dieser Sitzung nicht vorkam. Stand Gehörtes unter „Für dich“,
+        // zählen nur dessen Interessen, sonst alle. Die Karte bekommt die
+        // Kennungen selbst: „Vertiefen“ spielt genau diese Stellen, und
+        // „drei weitere Stellen“ heisst drei Stellen.
         let heardEvidence = Set(plan.segments.map(\.evidenceID))
-        let followUps = relevantToday.filter { !heardEvidence.contains($0.id) }
+        let sessionInterests = Set(relevantToday
+            .filter { heardEvidence.contains($0.id) }
+            .compactMap { $0.relevance?.interestID })
+        let followUps = relevantToday.filter { item in
+            guard !heardEvidence.contains(item.id) else { return false }
+            guard !sessionInterests.isEmpty else { return true }
+            return item.relevance.map { sessionInterests.contains($0.interestID) } ?? false
+        }
 
         pendingClosure = SessionClosure(
             question: plan.requestSummary,
             supportingEvidenceIDs: Array(heardEvidence),
-            availableFollowUpCount: followUps.count,
+            followUpEvidenceIDs: Array(followUps.prefix(Self.followUpLimit).map(\.id)),
             startedAt: plan.createdAt
         )
     }
+
+    /// Höchstens so viele Stellen plant „Vertiefen“. Das Zeitbudget der
+    /// Karte kürzt ohnehin, mehr Kandidaten machen die Zahl nur grösser.
+    static let followUpLimit = 12
 
     public func dismissClosure() { pendingClosure = nil }
 
@@ -1553,40 +1566,174 @@ public final class AppModel {
 
     public internal(set) var trails: [KnowledgeTrail] = []
 
+    /// Die zuletzt geprüfte These und ihr Ergebnis. Im Modell statt in der
+    /// Ansicht, damit es nach dem Zurückgehen noch da ist.
+    public internal(set) var counterpointCheck: CounterpointCheck?
+    private var counterpointTask: Task<Void, Never>?
+
+    /// Prüft eine These: sucht passende Stellen und lässt sie einordnen.
+    ///
+    /// Eine neue Prüfung bricht die laufende ab und leert das alte Ergebnis
+    /// sofort. So stehen nie Stellen zu einer anderen These da.
+    public func checkThesis(_ thesis: String) {
+        let text = thesis.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        counterpointTask?.cancel()
+        let check = CounterpointCheck(thesis: text)
+        counterpointCheck = check
+        counterpointTask = Task { [weak self] in
+            guard let self else { return }
+            let search = await self.findCounterpoints(for: text)
+            guard !Task.isCancelled, self.counterpointCheck?.id == check.id else { return }
+            self.counterpointCheck = CounterpointCheck(
+                id: check.id, thesis: text, isRunning: false,
+                candidates: CounterpointMixer().balance(search.candidates),
+                classificationProblem: search.classificationProblem)
+        }
+    }
+
     /// Sucht belegte Positionen zu einer These.
     ///
-    /// Die Zuordnung ist zunächst eine Vermutung aus Stichworten und wird
-    /// auch so gekennzeichnet. Ein Modell kann sie bestätigen; ohne Modell
-    /// bleibt sie sichtbar ungeprüft.
-    public func findCounterpoints(for thesis: String) async -> [CounterpointCandidate] {
-        guard let evidence = try? await store.evidenceForAnalyzedEpisodes(), !evidence.isEmpty else {
-            return []
+    /// Gesucht wird in allen ausgewerteten Stellen, sortiert nach Relevanz,
+    /// wie im Chat. Das Modell ordnet die besten ein, in Portionen, die auch
+    /// in das Fenster des Gerätemodells passen. Was es nicht einordnen
+    /// konnte, bleibt sichtbar „nicht eingeordnet“, und der Grund steht
+    /// dabei. Ohne Einordnung sagt die App nichts über Gegenpositionen.
+    public func findCounterpoints(for thesis: String) async -> CounterpointSearch {
+        let pool = (try? await store.evidenceForAnalyzedEpisodes(limit: 20_000)) ?? []
+        guard !pool.isEmpty else {
+            return CounterpointSearch(candidates: [], classificationProblem:
+                "Noch ist keine Folge ausgewertet. Sobald das geschehen ist, sucht die App darin.")
         }
-        let asQuestion = Interest(label: thesis, kind: .openQuestion)
-        let matches = RelevanceScorer(threshold: 0.15, maximumPerInterest: 20)
-            .score(evidence: evidence, profile: InterestProfile(interests: [asQuestion]))
 
-        let byID = Dictionary(uniqueKeysWithValues: evidence.map { ($0.id, $0) })
-        let shortlist = matches.compactMap { byID[$0.evidenceID] }
+        let embeddingLimit = Self.embeddingBudget
+        let limit = Self.counterpointLimit
+        let shortlist = await Task.detached(priority: .userInitiated) {
+            PassageRanker().rank(pool, for: thesis, limit: limit, embeddingLimit: embeddingLimit)
+        }.value
+        guard !shortlist.isEmpty, !Task.isCancelled else { return CounterpointSearch(candidates: []) }
 
-        // Das Modell ordnet ein — in vorgegebene Bezeichnungen, und was es
-        // sonst zurückgibt, wird verworfen. Ohne Modell bleibt es bei der
-        // Vermutung, und `isModelConfirmed: false` sagt das in der
-        // Oberfläche auch: die Stelle gehört zum Thema, mehr nicht.
-        let labels = CounterpointRelation.allCases.map(\.rawValue)
-        let classified = (try? await KnowledgeExtractor().classify(
-            shortlist, against: thesis, labels: labels, availability: modelStatus)) ?? [:]
+        // Das Modell ordnet ein, in vorgegebene Bezeichnungen, und was es
+        // sonst zurückgibt, wird verworfen. Jede Portion ist so gross, wie
+        // das Gerätemodell sie fasst. Fällt Private Cloud Compute aufs
+        // Gerät zurück, sieht das Gerät trotzdem jede Stelle.
+        await refreshModelStatus()
+        let device = Self.answerBudget(privateCloud: false, contextSize: Self.onDeviceContextSize,
+                                       questionLength: thesis.count)
+        let portions = Int((Double(shortlist.count) / Double(max(1, device.maximumCandidates))).rounded(.up))
+        let size = Int((Double(shortlist.count) / Double(max(1, portions))).rounded(.up))
+        let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
+            candidateBuilder: CandidateListBuilder(
+                excerptLimit: ContextBudget.privateCloudCompute.excerptLimit, maximumCandidates: size),
+            onDeviceBudget: device))
+        let labels = CounterpointRelation.classifiable.map(\.rawValue)
 
-        return shortlist.map { item in
-            let assigned = classified[item.id].flatMap(CounterpointRelation.init(rawValue:))
+        var classified: [EvidenceID: CounterpointRelation] = [:]
+        var processed = 0
+        var failed = 0
+        var reason: String?
+        for start in stride(from: 0, to: shortlist.count, by: size) {
+            let portion = Array(shortlist[start..<min(start + size, shortlist.count)])
+            do {
+                let result = try await extractor.classify(
+                    portion, against: thesis, labels: labels, availability: modelStatus)
+                for (id, label) in result {
+                    if let relation = CounterpointRelation(rawValue: label) { classified[id] = relation }
+                }
+                processed += portion.count
+            } catch {
+                if error is CancellationError || Task.isCancelled { return CounterpointSearch(candidates: []) }
+                reason = Self.classificationReason(error)
+                // Fehlt das Modell, scheitert jede weitere Portion genauso.
+                if let extractorError = error as? ExtractorError, case .modelUnavailable = extractorError {
+                    failed = shortlist.count - processed
+                    break
+                }
+                failed += portion.count
+            }
+        }
+
+        let titles = (try? await store.titles(forEpisodes: Array(Set(shortlist.map(\.episodeID))))) ?? [:]
+        let candidates = shortlist.map { item in
+            let assigned = classified[item.id]
             return CounterpointCandidate(
                 evidenceID: item.id,
-                relation: assigned ?? .differentPremise,
+                relation: assigned ?? .unclassified,
                 isModelConfirmed: assigned != nil,
-                sourceTitle: sources.first { $0.id == item.sourceID }?.title
-                    ?? "Unbekannte Quelle",
-                excerpt: item.quotedText
-            )
+                sourceTitle: titles[item.episodeID]?.source
+                    ?? sources.first { $0.id == item.sourceID }?.title ?? "Unbekannte Quelle",
+                excerpt: item.quotedText,
+                episodeID: item.episodeID,
+                episodeTitle: titles[item.episodeID]?.episode,
+                range: item.range)
+        }
+
+        let problem: String?
+        if failed >= shortlist.count {
+            problem = ["Die Stellen sind nicht eingeordnet.", reason,
+                       "Sie passen zum Thema der These. Ob sie dafür oder dagegen sprechen, "
+                        + "lässt sich so nicht sagen."].compactMap { $0 }.joined(separator: " ")
+        } else if failed > 0 {
+            problem = ["\(failed) von \(shortlist.count) Stellen liessen sich nicht einordnen.", reason]
+                .compactMap { $0 }.joined(separator: " ")
+        } else if classified.isEmpty {
+            problem = "Das Modell hat keine der Stellen dieser These zugeordnet. "
+                + "Sie passen nur dem Wortlaut nach."
+        } else {
+            problem = nil
+        }
+        return CounterpointSearch(candidates: candidates, classificationProblem: problem)
+    }
+
+    /// So viele Stellen sucht eine Prüfung höchstens heraus.
+    static let counterpointLimit = 20
+
+    /// Ein Satz dazu, warum die Einordnung fehlt, ohne Fehlercode.
+    private static func classificationReason(_ error: any Error) -> String {
+        guard let error = error as? ExtractorError else { return error.localizedDescription }
+        switch error {
+        case .modelUnavailable(let reason): return reason.message
+        case .generationFailed(let detail), .generationRejected(let detail): return detail
+        }
+    }
+
+    /// Sichert die geprüfte These als Wissenslandkarte. Aufbewahren heisst
+    /// nicht zustimmen, die Landkarte sagt das auch.
+    public func saveCounterpointCheck() {
+        guard var check = counterpointCheck, !check.isRunning, !check.isSaved,
+              !check.candidates.isEmpty else { return }
+        trails.insert(KnowledgeTrail(
+            question: "These: \(check.thesis)",
+            evidenceIDs: check.candidates.map(\.evidenceID),
+            counterpointEvidenceIDs: check.candidates.filter { $0.relation == .contradicts }.map(\.evidenceID)
+        ), at: 0)
+        persistTrails()
+        check.isSaved = true
+        counterpointCheck = check
+    }
+
+    /// Spielt die Folge einer Gegenposition ab ihrer Stelle. Nur auf Tipp.
+    public func playCounterpoint(_ candidate: CounterpointCandidate) {
+        Task {
+            guard let episodeID = candidate.episodeID, let range = candidate.range,
+                  let episode = (try? await store.episodes(ids: [episodeID]))?.first else {
+                lastError = "Diese Stelle ist nicht mehr verfügbar."
+                return
+            }
+            playEpisode(episode, at: range.start.seconds)
+        }
+    }
+
+    /// Merkt eine Gegenposition wie jede andere Stelle, mit Zitat, Folge,
+    /// Quelle und Zeitmarke.
+    public func rememberCounterpoint(_ candidate: CounterpointCandidate) {
+        Task {
+            guard let episodeID = candidate.episodeID, let range = candidate.range,
+                  let episode = (try? await store.episodes(ids: [episodeID]))?.first else {
+                lastError = "Diese Stelle ist nicht mehr verfügbar."
+                return
+            }
+            await addNote(nil, at: range.start.seconds, in: episode, quote: candidate.excerpt)
         }
     }
 
@@ -1674,14 +1821,16 @@ public final class AppModel {
         persistTrails()
     }
 
-    /// Vertiefen: erzeugt eine neue, begrenzte Hörsession zur Anschlussfrage.
+    /// Vertiefen: erzeugt eine neue, begrenzte Hörsession aus den Stellen,
+    /// die die Abschlusskarte angekündigt hat. Nicht aus dem eben Gehörten:
+    /// das verwarf der Planer als schon gehört, und die Session blieb leer.
     public func deepen(_ closure: SessionClosure) {
         Task {
-            guard let all = try? await store.evidence(ids: closure.supportingEvidenceIDs) else { return }
+            guard let all = try? await store.evidence(ids: closure.followUpEvidenceIDs) else { return }
             let context = await planningContext(for: Array(all.values))
             let plan = FocusPlanner(context: context).plan(
                 from: PlaylistProposal(
-                    evidenceIDs: closure.supportingEvidenceIDs,
+                    evidenceIDs: closure.followUpEvidenceIDs,
                     requestSummary: closure.question
                 ),
                 route: .interestFocus,
@@ -1691,7 +1840,7 @@ public final class AppModel {
                 )
             )
             guard !plan.isEmpty else {
-                lastError = "Dazu ist nichts weiter erschlossen."
+                lastError = "Die weiteren Stellen sind inzwischen gehört oder nicht mehr da."
                 return
             }
             play(plan, from: .tap)

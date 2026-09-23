@@ -104,7 +104,7 @@ struct ChatScopeAndTrailTests {
         let supporting = EvidenceID(stable: "beleg")
         let atEvidence = Highlight(evidenceID: supporting, capturedAt: start.addingTimeInterval(-86_400))
         let closure = SessionClosure(question: "Frage", supportingEvidenceIDs: [supporting],
-                                     availableFollowUpCount: 0, startedAt: start)
+                                     startedAt: start)
         #expect(Set(closure.noteIDs(in: [before, during, atEvidence])) == [during.id, atEvidence.id])
     }
 

@@ -21,13 +21,17 @@ public struct EpisodeDossier: Sendable {
     public var chapters: [Chapter]
     public var facts: [EpisodeFact]
     public var transcript: Transcript?
+    /// Fakt-Kennung → was in der Folge dazu wörtlich gesagt wurde.
+    public var factQuotes: [String: String]
 
     public init(title: String, sourceTitle: String, publishedAt: Date? = nil,
                 duration: MediaDuration? = nil, webPageURL: URL? = nil, shownotes: String? = nil,
-                chapters: [Chapter] = [], facts: [EpisodeFact] = [], transcript: Transcript? = nil) {
+                chapters: [Chapter] = [], facts: [EpisodeFact] = [], transcript: Transcript? = nil,
+                factQuotes: [String: String] = [:]) {
         self.title = title; self.sourceTitle = sourceTitle; self.publishedAt = publishedAt
         self.duration = duration; self.webPageURL = webPageURL; self.shownotes = shownotes
         self.chapters = chapters; self.facts = facts; self.transcript = transcript
+        self.factQuotes = factQuotes
     }
 }
 
@@ -74,10 +78,14 @@ public struct EpisodeDossierExporter: Sendable {
             }
         }
         if !dossier.facts.isEmpty {
-            lines += ["", "## Fakten", ""]
+            lines += ["", "## Fakten", "", "Aussagen aus der Folge, gesagt, nicht geprüft.", ""]
             for fact in dossier.facts {
                 lines.append("- " + MarkdownExporter.escapeInline(fact.statement)
-                             + " (`\(fact.range.start.timecode)`)")
+                             + " (`\(fact.range.start.timecode)–\(fact.range.end.timecode)`)")
+                if let quote = dossier.factQuotes[fact.id]?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !quote.isEmpty {
+                    lines.append("  > " + MarkdownExporter.escapeInline(quote))
+                }
             }
         }
         if includeTranscript, let transcript = dossier.transcript, !transcript.segments.isEmpty {
