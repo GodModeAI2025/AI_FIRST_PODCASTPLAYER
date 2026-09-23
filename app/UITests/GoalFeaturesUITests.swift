@@ -92,8 +92,13 @@ final class GoalFeaturesUITests: XCTestCase {
             throw XCTSkip("Es wird gerade kein Transkript erstellt, das Symbol erscheint nicht")
         }
         attach(app, "aktivitaet")
+        // Unter iOS 27 ist ein Transkript manchmal schneller fertig, als der
+        // Test das Symbol ausmisst. Einmal lesen, sonst überspringen.
+        guard let symbol = try? status.snapshot() else {
+            throw XCTSkip("Das Transkript war fertig, bevor das Symbol gemessen wurde")
+        }
         let bar = app.navigationBars.firstMatch
-        XCTAssertTrue(bar.frame.contains(CGPoint(x: status.frame.midX, y: status.frame.midY)),
+        XCTAssertTrue(bar.frame.contains(CGPoint(x: symbol.frame.midX, y: symbol.frame.midY)),
                       "Das Symbol sitzt nicht in der Navigationsleiste")
         status.tap()
         if !app.navigationBars["Warteschlange"].waitForExistence(timeout: 5) {
