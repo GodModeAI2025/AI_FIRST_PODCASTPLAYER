@@ -58,7 +58,7 @@ public actor FeedRefresher {
         // Spotify verlinken keinen Feed auf ihren Seiten.
         if let shared = Self.firstLink(in: input), let host = shared.host()?.lowercased() {
             if host.hasSuffix("podcasts.apple.com") || host == "itunes.apple.com" {
-                guard let feed = await PodcastDirectory.feedURL(forAppleLink: shared) else {
+                guard let feed = try await PodcastDirectory.feedURL(forAppleLink: shared) else {
                     throw FeedRefreshError.appleLinkWithoutFeed
                 }
                 return try await addSource(from: feed.absoluteString)
@@ -91,7 +91,7 @@ public actor FeedRefresher {
                 throw FeedRefreshError.needsDiscovery
             }
             linkFeedURL = url; kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
-        case .youTubeVideo:
+        case .youTubeVideo, .youTubeChannelPage:
             linkFeedURL = try await discoverYouTubeChannelFeed(for: link)
             kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
         case .webPageNeedingDiscovery:
@@ -307,7 +307,8 @@ public actor FeedRefresher {
         return feedURL
     }
 
-    /// Macht aus einem YouTube-Video den Feed seines Kanals.
+    /// Macht aus einem YouTube-Video oder einem Kanalnamen (`/@name`) den
+    /// Feed des Kanals.
     ///
     /// Ein einzelnes Video ist kein Feed. Abonniert wird deshalb der Kanal —
     /// und das steht auch in der Oberfläche, statt so zu tun, als sei das
@@ -316,11 +317,22 @@ public actor FeedRefresher {
         guard let page = FeedDiscovery.pageToInspect(for: link) else {
             throw FeedRefreshError.needsDiscovery
         }
-        let data = try await SafeHTTP.load(page, using: session, limit: Self.pageLimit)
+        var handle: String?
+        if case .youTubeChannelPage(let name, _) = link { handle = name }
+        // Ohne das Cookie leitet YouTube in der EU auf eine Einwilligungsseite
+        // um, und dort steht keine Kanalkennung.
+        let data: Data
+        do {
+            data = try await SafeHTTP.load(page, using: session, limit: Self.pageLimit,
+                                           headers: ["Cookie": "SOCS=CAI", "Accept-Language": "de"])
+        } catch HTTPTransferError.httpStatus(404) where handle != nil {
+            throw FeedRefreshError.noChannelForHandle(handle ?? "")
+        }
         let html = String(decoding: data, as: UTF8.self)
 
         guard let channelID = FeedDiscovery.youTubeChannelID(inHTML: html),
               let feedURL = FeedDiscovery.youTubeFeedURL(forChannel: channelID) else {
+            if let handle { throw FeedRefreshError.noChannelForHandle(handle) }
             throw FeedRefreshError.noChannelForVideo
         }
         return feedURL
@@ -344,6 +356,7 @@ public enum FeedRefreshError: Error, LocalizedError {
     case needsDiscovery
     case noFeedOnPage(String)
     case noChannelForVideo
+    case noChannelForHandle(String)
     case notAFeed(String)
     case youTubeFeedUnavailable
     case appleLinkWithoutFeed
@@ -371,6 +384,9 @@ public enum FeedRefreshError: Error, LocalizedError {
         case .noChannelForVideo:
             "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert "
             + "Kanäle, keine einzelnen Videos."
+        case .noChannelForHandle(let handle):
+            "Zu „\(handle)“ liess sich kein YouTube-Kanal finden. Prüf die Schreibweise "
+            + "oder füge den Link zu einem Video des Kanals ein."
         }
     }
 }
@@ -389,6 +405,20 @@ public struct PodcastCounterpart: Sendable, Hashable, Identifiable {
     public var artworkURL: URL?
     public var genre: String?
     public var id: URL { feedURL }
+}
+
+public enum PodcastDirectoryError: Error, LocalizedError {
+    case unreachable
+    case unreadableAnswer
+
+    public var errorDescription: String? {
+        switch self {
+        case .unreachable:
+            "Keine Verbindung zum Podcast-Verzeichnis. Prüf die Internetverbindung und versuch es noch einmal."
+        case .unreadableAnswer:
+            "Das Podcast-Verzeichnis hat gerade keine lesbare Antwort geschickt. Versuch es gleich noch einmal."
+        }
+    }
 }
 
 public enum PodcastDirectory {
@@ -422,10 +452,14 @@ public enum PodcastDirectory {
     }
 
     /// Sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema.
-    public static func search(_ term: String) async -> [PodcastCounterpart] {
+    ///
+    /// Wirft, wenn das Verzeichnis nicht erreichbar ist. Eine leere Liste
+    /// heißt nur: nichts gefunden. Vorher sah beides gleich aus, und wer
+    /// offline suchte, las „Keine Ergebnisse“.
+    public static func search(_ term: String) async throws -> [PodcastCounterpart] {
         let term = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard term.count >= 2 else { return [] }
-        let results = await query("search", [
+        let results = try await query("search", [
             URLQueryItem(name: "media", value: "podcast"),
             URLQueryItem(name: "entity", value: "podcast"),
             URLQueryItem(name: "limit", value: "25"),
@@ -437,10 +471,12 @@ public enum PodcastDirectory {
     }
 
     /// Die Feed-Adresse zu einem Link aus Apple Podcasts. Apple nennt sie
-    /// im Verzeichnis, die Seite selbst verlinkt keinen Feed.
-    public static func feedURL(forAppleLink url: URL) async -> URL? {
+    /// im Verzeichnis, die Seite selbst verlinkt keinen Feed. `nil` heißt:
+    /// das Verzeichnis kennt keinen Feed dazu. Ist es nicht erreichbar,
+    /// wirft die Methode.
+    public static func feedURL(forAppleLink url: URL) async throws -> URL? {
         guard let id = applePodcastID(in: url) else { return nil }
-        let results = await query("lookup", [
+        let results = try await query("lookup", [
             URLQueryItem(name: "id", value: id),
             URLQueryItem(name: "entity", value: "podcast"),
         ])
@@ -456,14 +492,23 @@ public enum PodcastDirectory {
         return nil
     }
 
-    private static func query(_ endpoint: String, _ items: [URLQueryItem]) async -> [SearchResponse.Result] {
+    private static func query(_ endpoint: String, _ items: [URLQueryItem]) async throws -> [SearchResponse.Result] {
         guard var components = URLComponents(string: "https://itunes.apple.com/\(endpoint)") else { return [] }
         components.queryItems = items
         guard let url = components.url else { return [] }
         let session = SafeHTTP.makeSession { $0.timeoutIntervalForRequest = 15 }
         defer { session.finishTasksAndInvalidate() }
-        guard let data = try? await SafeHTTP.load(url, using: session, limit: 2 * 1024 * 1024),
-              let response = try? JSONDecoder().decode(SearchResponse.self, from: data) else { return [] }
+        let data: Data
+        do {
+            data = try await SafeHTTP.load(url, using: session, limit: 2 * 1024 * 1024)
+        } catch {
+            // Eine abgebrochene Suche (weitergetippt) ist kein Verbindungsfehler.
+            if Task.isCancelled || (error as? URLError)?.code == .cancelled { throw CancellationError() }
+            throw PodcastDirectoryError.unreachable
+        }
+        guard let response = try? JSONDecoder().decode(SearchResponse.self, from: data) else {
+            throw PodcastDirectoryError.unreadableAnswer
+        }
         return response.results
     }
 

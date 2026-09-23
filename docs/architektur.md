@@ -7,7 +7,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 | Modul | Aufgabe |
 |---|---|
 | PodcastAICore | Domäne: Quellen, Folgen, Zeitbereiche, Belege, Fakten, Hörzustand |
-| PodcastAISources | RSS, Atom, Podlove- und Podcasting-2.0-Kapitel, Feed-Suche, YouTube |
+| PodcastAISources | RSS, Atom, OPML, Podlove- und Podcasting-2.0-Kapitel, Feed-Suche, YouTube |
 | PodcastAIMedia | Download, Audio lesen, Formaterkennung für Dateien ohne Endung |
 | PodcastAITranscription | SpeechAnalyzer mit Zeitmarken |
 | PodcastAIIntelligence | Apple Intelligence auf dem Gerät und auf Private Cloud Compute |
