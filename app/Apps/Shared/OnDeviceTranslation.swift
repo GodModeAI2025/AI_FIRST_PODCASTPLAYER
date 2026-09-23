@@ -592,9 +592,10 @@ struct TranslationControl: View {
                 .foregroundStyle(.secondary)
             }
             if let problem = translation.problem {
-                Label(problem, systemImage: "exclamationmark.triangle")
+                // Eine Sprache, die das Gerät nicht übersetzt, ist eine Grenze
+                // mit einem Ausweg darunter. Gescheitert ist nur der Rest.
+                NoticeLabel(problem, kind: translation.offersSystemSheet ? .info : .failure)
                     .font(.caption)
-                    .foregroundStyle(.orange)
                 if translation.offersSystemSheet {
                     Button {
                         showsSystemSheet = true

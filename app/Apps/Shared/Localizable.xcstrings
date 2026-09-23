@@ -498,6 +498,22 @@
         }
       }
     },
+    "%lld Stellen ließen sich nicht einordnen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Stellen ließen sich nicht einordnen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld passages couldn't be classified."
+          }
+        }
+      }
+    },
     "%lld Stellen sind nicht mehr da.": {
       "localizations": {
         "de": {
@@ -3137,6 +3153,22 @@
         }
       }
     },
+    "Blendet die Erklärung aus": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blendet die Erklärung aus"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hides the explanation"
+          }
+        }
+      }
+    },
     "Chat": {
       "localizations": {
         "de": {
@@ -5311,6 +5343,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "One passage is no longer available."
+          }
+        }
+      }
+    },
+    "Eine Stelle ließ sich nicht einordnen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Stelle ließ sich nicht einordnen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One passage couldn't be classified."
           }
         }
       }
@@ -8011,6 +8059,22 @@
         }
       }
     },
+    "Keine Gegenposition gefunden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Gegenposition gefunden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No counterpoint found."
+          }
+        }
+      }
+    },
     "Keine Internetverbindung": {
       "localizations": {
         "de": {
@@ -9193,6 +9257,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nothing new. You've already heard all the matching passages."
+          }
+        }
+      }
+    },
+    "Nichts gefunden, was die These stützt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nichts gefunden, was die These stützt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing found that supports the claim."
           }
         }
       }
@@ -13108,6 +13188,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Shows the beginning of the text in the system translation window"
+          }
+        }
+      }
+    },
+    "Zeigt die Erklärung": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt die Erklärung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows the explanation"
           }
         }
       }

@@ -73,11 +73,13 @@ struct CounterpointView: View {
 
     @ViewBuilder
     private func results(_ check: CounterpointCheck) -> some View {
-        if let notice = check.classificationProblem ?? mixer.imbalanceNotice(check.candidates) {
+        if let notice = Self.notice(for: check, mixer: mixer) {
             Section {
-                Label(notice, systemImage: "exclamationmark.triangle")
+                // Kein Fehler, sondern ein Ergebnis. Deshalb grau und mit „i“,
+                // das Warum hinter dem „i“.
+                NoticeLabel(notice.headline, kind: .info, explanation: notice.explanation)
                     .font(.callout)
-                    .foregroundStyle(.orange)
+                    .accessibilityIdentifier("counterpoint.notice")
             }
         }
 
@@ -122,6 +124,52 @@ struct CounterpointView: View {
             }
         }
     }
+
+    /// Was über dem Ergebnis steht: in einem Satz, was herauskam, etwa
+    /// „Keine Gegenposition gefunden. 4 Stellen ließen sich nicht einordnen.“
+    /// Die Erklärung dazu steht hinter dem „i“.
+    ///
+    /// Ausgewogen und alles eingeordnet: kein Hinweis. Die Zahl nennt die
+    /// Stellen, die darunter unter „Zum Thema, nicht eingeordnet“ stehen.
+    static func notice(
+        for check: CounterpointCheck, mixer: CounterpointMixer
+    ) -> (headline: String, explanation: String?)? {
+        let candidates = check.candidates
+        // Nichts gefunden: der Grund ist schon die ganze Aussage.
+        guard !candidates.isEmpty else {
+            guard let headline = check.classificationProblem ?? mixer.imbalanceNotice(candidates) else { return nil }
+            return (headline, nil)
+        }
+        let relations = Set(candidates.map(\.relation)).subtracting([.unclassified])
+        let open = candidates.filter { $0.relation == .unclassified }.count
+
+        var sentences: [String] = []
+        if !relations.isEmpty, !relations.contains(.contradicts) {
+            sentences.append(String(localized: "Keine Gegenposition gefunden."))
+        } else if relations.contains(.contradicts),
+                  !relations.contains(.supports), !relations.contains(.differentPremise) {
+            sentences.append(String(localized: "Nichts gefunden, was die These stützt."))
+        }
+        // Zwei Sätze statt einer Beugung: `inflect` passt nur das Hauptwort
+        // an, nicht das Verb.
+        if open == 1 {
+            sentences.append(String(localized: "Eine Stelle ließ sich nicht einordnen."))
+        } else if open > 1 {
+            sentences.append(String(localized: "\(open) Stellen ließen sich nicht einordnen."))
+        }
+        guard !sentences.isEmpty else { return nil }
+
+        // Warum die Seite fehlt, und warum die Einordnung fehlt, sofern es
+        // dafür einen Grund gibt. Sonst, was „nicht eingeordnet“ heißt.
+        var why = [mixer.imbalanceNotice(candidates), check.classificationProblem].compactMap { $0 }
+        if why.isEmpty, open > 0 {
+            why.append(String(localized: """
+                Sie passen zum Thema der These. Ob sie dafür oder dagegen sprechen, \
+                lässt sich so nicht sagen.
+                """))
+        }
+        return (sentences.joined(separator: " "), why.isEmpty ? nil : why.joined(separator: " "))
+    }
 }
 
 extension CounterpointRelation {
@@ -163,12 +211,9 @@ struct CounterpointRow: View {
                     // Tatsache auszugeben wäre genau der Fehler, den dieser
                     // Modus vermeiden soll.
                     //
-                    // Symbol **und** Text: Farbe allein trägt die Warnung nicht
-                    // für jeden.
-                    Label("Zuordnung vermutet, nicht geprüft",
-                          systemImage: "questionmark.circle")
+                    // Ein Hinweis, kein Fehler: grau mit „i“, wie überall.
+                    NoticeLabel("Zuordnung vermutet, nicht geprüft", kind: .info)
                         .font(.caption2)
-                        .foregroundStyle(.orange)
                 }
             }
             .padding(.vertical, Design.Spacing.micro / 2)

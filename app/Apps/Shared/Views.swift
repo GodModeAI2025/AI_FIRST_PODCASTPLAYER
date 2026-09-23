@@ -1187,9 +1187,8 @@ struct SourceRow: View {
             // Audiozugang soll nicht so aussehen wie einer mit.
             if !source.capabilities.supportsTimedKnowledge,
                let reason = source.capabilities.limitationReason {
-                Label(reason, systemImage: "exclamationmark.triangle")
+                NoticeLabel(reason, kind: .info)
                     .font(.caption2)
-                    .foregroundStyle(.orange)
             }
         }
         }
@@ -1266,8 +1265,7 @@ struct AddSourceSheet: View {
 
                 if let failure {
                     Section {
-                        Label(failure, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
+                        NoticeLabel(failure, kind: .failure)
                             .accessibilityIdentifier("source.error")
                         if lastAttempt != nil {
                             Button("Nochmal versuchen", systemImage: "arrow.clockwise", action: retry)
@@ -1619,8 +1617,7 @@ struct PodcastPreviewView: View {
                 }
                 subscribeControl
                 if let failure {
-                    Label(failure, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
+                    NoticeLabel(failure, kind: .failure)
                 }
             }
 
@@ -1641,8 +1638,7 @@ struct PodcastPreviewView: View {
                         Text("Der Podcast hat keine Beschreibung.").foregroundStyle(.secondary)
                     }
                 } else if let loadFailure {
-                    Label(loadFailure, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
+                    NoticeLabel(loadFailure, kind: .failure)
                     Button("Nochmal versuchen", systemImage: "arrow.clockwise") {
                         self.loadFailure = nil
                         Task { await load() }

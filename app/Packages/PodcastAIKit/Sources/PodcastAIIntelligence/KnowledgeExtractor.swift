@@ -20,7 +20,6 @@
 #if canImport(FoundationModels)
 import Foundation
 import FoundationModels
-import NaturalLanguage
 import PodcastAICore
 
 /// Was das Modell bei der Relevanzprüfung zurückgeben darf.
@@ -41,16 +40,37 @@ public struct RelevanceSelectionOutput {
     public let reasons: String
 }
 
+/// Eine Aussage mit der Nummer des Abschnitts, aus dem sie stammt.
+///
+/// Nummer und Satz stehen in getrennten Feldern. Früher schrieb das Modell
+/// beides als Zeile „<Nummer> | <Aussage>“, das Gerätemodell manchmal alle
+/// Zeilen in eine, und aus der Liste wurde ein einziger Fakt mit den
+/// Nummern mitten im Text. Ein eigenes Feld für die Nummer lässt sich nicht
+/// mit dem Satz verkleben.
+@Generable
+public struct NumberedClaim {
+    @Guide(description: """
+        Die Nummer des Abschnitts, aus dem die Aussage stammt. \
+        Nur eine Nummer aus der Liste.
+        """)
+    public let passage: Int
+
+    @Guide(description: """
+        Die Aussage in einem Satz, mit eigenen Worten. Ohne Nummer, ohne \
+        Klammer, ohne Text aus einem anderen Abschnitt.
+        """)
+    public let statement: String
+}
+
 /// Was das Modell bei der Aussagenextraktion zurückgeben darf.
 @Generable
 public struct ClaimExtractionOutput {
     @Guide(description: """
-        Die Aussagen aus den Kandidaten, je Zeile im Format \
-        "<Nummer> | <Aussage in einem Satz>". Nur Nummern aus der Liste. \
-        Keine Meinung, keine Zusammenfassung mehrerer Kandidaten in einer Zeile. \
-        Leer, wenn keine belegbare Aussage enthalten ist.
-        """)
-    public let claimLines: String
+        Die belegbaren Aussagen aus den Abschnitten, eine je Eintrag. \
+        Keine Meinung, keine Zusammenfassung mehrerer Abschnitte in einem \
+        Eintrag. Leer, wenn keine belegbare Aussage enthalten ist.
+        """, .maximumCount(12))
+    public let claims: [NumberedClaim]
 
     @Guide(description: """
         Offene Fragen, die diese Abschnitte aufwerfen, eine je Zeile. \
@@ -176,21 +196,30 @@ public struct KnowledgeExtractor: Sendable {
             ClaimExtractionOutput.self, instructions: claimInstructions(),
             profile: .extract, availability: availability) { _ in prompt }
 
-        let byIndex = Dictionary(uniqueKeysWithValues: candidates.map { ($0.index, $0.id) })
         let questions = response.openQuestions
             .split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+        return Self.claims(
+            from: response.claims.map { ($0.passage, $0.statement) },
+            candidates: candidates, openQuestions: questions)
+    }
 
+    /// Macht aus Nummer und Satz des Modells Aussagen mit Beleg.
+    ///
+    /// Ein Verweis auf eine Nummer, die es nicht gibt, wird verworfen, nicht
+    /// auf den nächstliegenden Kandidaten umgebogen. Zu kurz, zu lang,
+    /// abgeschrieben oder mehrere Aussagen in einer: verworfen, nicht
+    /// abgeschnitten, siehe ``ClaimStatement/validated(_:)``.
+    static func claims(
+        from items: [(passage: Int, statement: String)],
+        candidates: [EvidenceCandidate], openQuestions questions: [String]
+    ) -> [Claim] {
+        let byIndex = Dictionary(uniqueKeysWithValues: candidates.map { ($0.index, $0.id) })
         var claims: [Claim] = []
-        for (index, statement) in Self.parsePipedLines(response.claimLines) {
-            // Ein Verweis auf eine Nummer, die es nicht gibt, wird verworfen —
-            // nicht auf den nächstliegenden Kandidaten umgebogen.
-            guard let evidenceID = byIndex[index] else { continue }
-            // Zu kurz, zu lang oder mehrere Aussagen in einer: verworfen,
-            // nicht abgeschnitten. Ein Fakt, der mit „…“ endet, ist keiner.
-            guard let cleaned = Self.validatedStatement(statement) else { continue }
-
+        for (index, statement) in items {
+            guard let evidenceID = byIndex[index],
+                  let cleaned = ClaimStatement.validated(statement) else { continue }
             claims.append(Claim(
                 id: ClaimID(stable: "\(evidenceID.rawValue)|\(cleaned)"),
                 statement: cleaned,
@@ -730,10 +759,12 @@ public struct KnowledgeExtractor: Sendable {
         Du ziehst belegbare Aussagen aus Abschnitten von Podcast-Transkripten.
 
         Regeln:
-        - Jede Zeile beginnt mit der Nummer des Abschnitts, aus dem die \
-        Aussage stammt.
-        - Eine Aussage je Zeile, ein Satz je Aussage. Nach jeder Aussage \
-        beginnt eine neue Zeile.
+        - Jeder Eintrag nennt im Feld für die Nummer den Abschnitt, aus dem \
+        die Aussage stammt. Die Aussage selbst enthält keine Nummer und keine \
+        Klammer.
+        - Eine Aussage je Eintrag, ein Satz je Aussage.
+        - Schreib keinen Abschnitt ab. Ist ein Abschnitt mit „…“ gekürzt, \
+        übernimm nichts von dem gekürzten Ende.
         - Gib nur wieder, was im Text steht. Keine Schlussfolgerung, keine \
         Ergänzung aus eigenem Wissen.
         - Nenne keine Sprecher, außer der Text tut es selbst.
@@ -814,23 +845,13 @@ public struct KnowledgeExtractor: Sendable {
     }
 
     /// So lang darf eine Aussage höchstens sein, in Zeichen.
-    static let statementLimit = 400
+    static var statementLimit: Int { ClaimStatement.characterLimit }
 
-    /// Eine Aussage, wie sie als Fakt stehen darf, oder `nil`.
-    ///
-    /// Eine Aussage ist ein Satz, höchstens zwei, mit mindestens drei
-    /// Wörtern und höchstens ``statementLimit`` Zeichen. Was länger ist,
-    /// wird verworfen statt abgeschnitten, ebenso ein Text mit einem
-    /// Trennstrich „|“: dann hängen mehrere Aussagen aneinander.
+    /// Eine Aussage, wie sie als Fakt stehen darf, oder `nil`. Die Regeln
+    /// stehen in ``ClaimStatement/validated(_:)``, damit die App dieselben
+    /// auch auf gespeicherte Fakten anwenden kann.
     static func validatedStatement(_ raw: String) -> String? {
-        let cleaned = EvidenceSelectionValidator.sanitize(raw, limit: Int.max)
-        guard cleaned.count <= statementLimit, !cleaned.contains("|") else { return nil }
-        let words = cleaned.split(whereSeparator: \.isWhitespace)
-        guard words.count >= 3, words.contains(where: { $0.contains(where: \.isLetter) }) else { return nil }
-        let tokenizer = NLTokenizer(unit: .sentence)
-        tokenizer.string = cleaned
-        guard tokenizer.tokens(for: cleaned.startIndex..<cleaned.endIndex).count <= 2 else { return nil }
-        return cleaned
+        ClaimStatement.validated(raw)
     }
 
     /// Räumt den Antworttext auf, bevor ihn jemand liest.

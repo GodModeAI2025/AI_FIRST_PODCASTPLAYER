@@ -43,9 +43,9 @@ struct EpisodeListView: View {
             if !(source?.capabilities.supportsTimedKnowledge ?? true),
                let reason = source?.capabilities.limitationReason {
                 Section {
-                    Label(reason, systemImage: "exclamationmark.triangle")
+                    // Eine Grenze der Quelle, kein Fehler.
+                    NoticeLabel(reason, kind: .info)
                         .font(.callout)
-                        .foregroundStyle(.orange)
                 }
             }
 
@@ -444,11 +444,13 @@ struct EpisodeRow: View {
                     Text(model.stageDetails[episode.id].map { String(localized: "\(stage.label) · \($0)") }
                          ?? stage.label)
                 } icon: {
+                    // Nur eine Störung trägt Farbe, und nur das Symbol.
                     Image(systemName: stage.symbol)
                         .symbolEffect(.pulse, isActive: stage.isRunning)
+                        .foregroundStyle(stage == .failed ? Design.Notice.failure.tint : Color.secondary)
                 }
                 .font(.caption)
-                .foregroundStyle(stage == .failed ? .orange : .secondary)
+                .foregroundStyle(.secondary)
             }
 
             HeardProgress(fraction: model.heardFraction(for: episode))
@@ -654,9 +656,8 @@ struct EpisodeAnalysisPrompt: View {
             .accessibilityIdentifier("episode.analyze")
         case .failed(let message):
             if let message {
-                Text(message)
+                NoticeLabel(message, kind: .failure)
                     .font(.callout)
-                    .foregroundStyle(.orange)
             }
             Button { model.enqueueAnalysis(episode) } label: {
                 Label("Erneut versuchen", systemImage: "arrow.clockwise")

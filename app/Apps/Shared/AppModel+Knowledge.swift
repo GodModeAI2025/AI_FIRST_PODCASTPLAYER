@@ -482,7 +482,7 @@ extension AppModel {
             lines.append("Kapitel: " + chapters.map { "\($0.start.timecode) \($0.title)" }.joined(separator: "; "))
         }
         var known = facts[id] ?? []
-        if known.isEmpty { known = (try? await store.facts(forEpisode: id)) ?? [] }
+        if known.isEmpty { known = ((try? await store.facts(forEpisode: id)) ?? []).filter { !$0.hasListArtifacts } }
         if !known.isEmpty {
             lines.append("Bereits ermittelte Fakten: " + known.prefix(15).map(\.statement).joined(separator: " | "))
         }
@@ -827,11 +827,13 @@ extension AppModel {
         // „Neu ermitteln“ rechnet alles neu, merkt sich aber die bisherigen
         // Fakten. Liefert der neue Lauf deutlich weniger, bleiben sie.
         var previous: [EpisodeFact] = []
+        // Fakten mit Listenresten zählen nicht. Sind es alle, rechnet der
+        // Lauf die Folge neu, und beim Speichern fallen sie weg.
         if !force {
-            stored = (try? await store.facts(forEpisode: episode.id)) ?? []
+            stored = ((try? await store.facts(forEpisode: episode.id)) ?? []).filter { !$0.hasListArtifacts }
             gaps = Self.factGaps(of: episode.id)
         } else {
-            previous = (try? await store.facts(forEpisode: episode.id)) ?? []
+            previous = ((try? await store.facts(forEpisode: episode.id)) ?? []).filter { !$0.hasListArtifacts }
         }
         if !stored.isEmpty, gaps.isEmpty {
             facts[episode.id] = await anchoredFacts(stored, episodeID: episode.id)
@@ -1512,7 +1514,18 @@ extension AppModel {
 
     public func loadFacts(for episodeID: EpisodeID) async {
         if let stored = try? await store.facts(forEpisode: episodeID) {
-            facts[episodeID] = await anchoredFacts(stored, episodeID: episodeID)
+            let shown = await anchoredFacts(stored, episodeID: episodeID)
+            facts[episodeID] = shown
+            // Nur Fakten mit Listenresten aus einer älteren Version: neu
+            // ermitteln, sofern das von selbst geschehen darf, und nur einmal.
+            // Fand ein Lauf nichts, gilt die Folge als erledigt. Sonst steht
+            // unter „Fakten“ der Knopf „Jetzt ermitteln“.
+            if !stored.isEmpty, shown.isEmpty, automaticFacts, analyzedEpisodes.contains(episodeID),
+               !StoredEpisodeIDs(key: Self.factsSettledKey).contains(episodeID),
+               !factsDeferred.contains(episodeID),
+               let episode = try? await store.episodes(ids: [episodeID]).first {
+                enqueueFacts(episode)
+            }
         }
     }
 
@@ -1520,7 +1533,11 @@ extension AppModel {
     /// Passage von ein, zwei Minuten. Für die Anzeige bekommen sie ihren
     /// Satz. Gespeichert wird dabei nichts, „Neu ermitteln“ schreibt die
     /// neuen Zeitmarken.
+    ///
+    /// Fakten aus Läufen vor Version 0.7, in denen mehrere Aussagen samt
+    /// Nummern aneinanderhängen („… 2 | Ich habe …“), zeigt die App nicht.
     func anchoredFacts(_ list: [EpisodeFact], episodeID: EpisodeID) async -> [EpisodeFact] {
+        let list = list.filter { !$0.hasListArtifacts }
         guard list.contains(where: { $0.range.duration.milliseconds >= 30_000 }),
               let transcript = try? await store.transcript(forEpisode: episodeID) else { return list }
         return FactAnchor.anchored(list, in: transcript)
