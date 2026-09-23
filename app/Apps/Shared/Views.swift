@@ -1123,6 +1123,9 @@ struct FocusPlayerView: View {
     @Environment(AppModel.self) private var model
     @State private var showingNote = false
     @State private var note = ""
+    /// Die Stelle beim Öffnen des Blatts. Läuft der Plan weiter, während
+    /// der Kommentar entsteht, gehört die Notiz trotzdem hierher.
+    @State private var captured: (media: MediaVersionID, position: MediaTime, episodeID: EpisodeID?)?
 
     /// Der Abschnitt des Plans, auch während er vorbereitet wird oder pausiert.
     private var activeSegmentIndex: Int? {
@@ -1195,6 +1198,13 @@ struct FocusPlayerView: View {
                 // selbst führte kein Weg dorthin. Das Kapitel „Highlights
                 // und Wissen“ beginnt aber hier, beim Hören.
                 Button {
+                    captured = model.player.currentOriginalPosition().map { media, position in
+                        let segments = model.playerPlan?.segments ?? []
+                        let episodeID = activeSegmentIndex.flatMap {
+                            $0 < segments.count ? segments[$0].episodeID : nil
+                        }
+                        return (media, position, episodeID)
+                    }
                     showingNote = true
                 } label: {
                     Label("Diese Stelle merken", systemImage: "bookmark")
@@ -1218,9 +1228,9 @@ struct FocusPlayerView: View {
                         TextField("Notiz (optional)", text: $note, axis: .vertical)
                             .lineLimit(3...6)
                     } footer: {
-                        Text("Gemerkt wird die Stelle, die gerade gelaufen ist — "
-                             + "mit Quelle, Timecode und Originaltext. Deine Notiz bleibt "
-                             + "davon getrennt und wird nie überschrieben.")
+                        Text("Gemerkt wird die Stelle, die beim Antippen lief, mit Folge, Quelle "
+                             + "und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu. "
+                             + "Deine Notiz bleibt davon getrennt und wird nie überschrieben.")
                     }
                 }
                 .navigationTitle("Stelle merken")
@@ -1237,16 +1247,17 @@ struct FocusPlayerView: View {
     }
 
     private func remember() {
-        guard let (mediaVersionID, position) = model.player.currentOriginalPosition() else {
+        guard let captured else {
             showingNote = false
             return
         }
         let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
         showingNote = false
         note = ""
+        self.captured = nil
         Task {
             await model.rememberPassage(
-                at: position, in: mediaVersionID,
+                at: captured.position, in: captured.media, episodeID: captured.episodeID,
                 note: text.isEmpty ? nil : text, via: .player)
         }
     }

@@ -149,7 +149,7 @@ struct RememberCurrentPassageIntent: AppIntent {
 
     static let title: LocalizedStringResource = "Diese Stelle merken"
     static let description = IntentDescription(
-        "Merkt sich die Stelle, die gerade läuft, mit Quelle, Timecode und Originaltext."
+        "Merkt sich die Stelle, die gerade läuft, mit Folge, Quelle und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu."
     )
     static let openAppWhenRun = false
 
@@ -160,11 +160,11 @@ struct RememberCurrentPassageIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard let (mediaVersionID, position) = currentPassage() else {
+        guard let (mediaVersionID, position, episodeID) = currentPassage() else {
             return .result(dialog: "Gerade läuft nichts, das ich merken könnte.")
         }
         let saved = await model.rememberPassage(
-            at: position, in: mediaVersionID, note: note, via: .appIntent
+            at: position, in: mediaVersionID, episodeID: episodeID, note: note, via: .appIntent
         )
         return .result(dialog: "\(saved)")
     }
@@ -173,16 +173,20 @@ struct RememberCurrentPassageIntent: AppIntent {
     /// Sonst der Fokus-Plan, aber nur, solange das Modell ihn als laufend
     /// führt: der Koordinator kann nach einem Fehler noch einen toten Plan
     /// kennen. Zuletzt die angehaltene Folge.
+    /// Die Folge kennt nur der Zweig mit ganzer Folge, beim Fokus-Plan
+    /// sucht `rememberPassage` sie über den laufenden Abschnitt.
     @MainActor
-    private func currentPassage() -> (MediaVersionID, MediaTime)? {
+    private func currentPassage() -> (MediaVersionID, MediaTime, EpisodeID?)? {
         let player = model.episodePlayer
-        var episodePassage: (MediaVersionID, MediaTime)? {
+        var episodePassage: (MediaVersionID, MediaTime, EpisodeID?)? {
             guard let episode = player.episode, let mediaVersionID = episode.streamMediaVersionID,
                   player.currentTime > 0 else { return nil }
-            return (mediaVersionID, MediaTime(milliseconds: Int64(player.currentTime * 1000)))
+            return (mediaVersionID, MediaTime(milliseconds: Int64(player.currentTime * 1000)), episode.id)
         }
         if player.isPlaying, let passage = episodePassage { return passage }
-        if model.playerPlan != nil, let focus = model.player.currentOriginalPosition() { return focus }
+        if model.playerPlan != nil, let (media, position) = model.player.currentOriginalPosition() {
+            return (media, position, nil)
+        }
         return episodePassage
     }
 }

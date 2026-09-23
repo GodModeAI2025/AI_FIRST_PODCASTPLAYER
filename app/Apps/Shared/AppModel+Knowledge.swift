@@ -463,29 +463,32 @@ extension AppModel {
 
     // MARK: - Notizen an der Abspielposition
 
-    /// Merkt einen Moment der laufenden Folge, mit optionalem Kommentar. Das
-    /// Zitat kommt aus dem Transkript, wenn es eines gibt, und wird mit
-    /// Folgen- und Quellentitel kopiert. So bleibt die Notiz auch nach dem
-    /// Löschen der Folge lesbar.
+    /// Merkt eine Stelle einer Folge, mit optionalem Kommentar.
+    ///
+    /// Alle Wege zum Merken laufen hier durch: Player, Transkript, Fakten,
+    /// Chat, Kurzbefehl und Fokus-Player. Zitat, Folgen- und Quellentitel
+    /// und die Zeitmarke werden als Kopie gespeichert. So bleibt die Notiz
+    /// auch nach dem Löschen der Folge lesbar. Ohne mitgegebenes Zitat kommt
+    /// es aus dem Transkript, wenn es eines gibt. `evidenceID` gibt, wer einen
+    /// gespeicherten Beleg merkt, sonst entsteht eine Kennung aus dem Bereich.
     @discardableResult
     public func addNote(_ note: String?, at seconds: Double, in episode: Episode,
-                        quote given: String? = nil) async -> Highlight? {
-        guard let media = episode.streamMediaVersionID else { return nil }
+                        quote given: String? = nil, evidenceID givenEvidence: EvidenceID? = nil,
+                        mediaVersionID givenMedia: MediaVersionID? = nil,
+                        via route: Highlight.CaptureRoute = .player) async -> Highlight? {
+        guard let media = givenMedia ?? episode.streamMediaVersionID else { return nil }
         let position = MediaTime(milliseconds: Int64(max(0, seconds) * 1000))
         let range = HighlightCapture().range(around: position, limit: nil)
         var quote = given.map { String($0.prefix(700)) }
-        if quote == nil, let transcript = await transcript(for: episode) {
-            let text = transcript.segments
-                .filter { $0.range.end.milliseconds > range.start.milliseconds
-                    && $0.range.start.milliseconds < range.end.milliseconds }
-                .map(\.text).joined(separator: " ")
-            if !text.isEmpty { quote = String(text.prefix(700)) }
+        if quote?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true {
+            quote = await noteQuote(at: seconds, in: episode)
         }
         let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
         let highlight = Highlight(
-            evidenceID: Evidence.stableID(mediaVersionID: media, transcriptRevision: .initial, range: range),
+            evidenceID: givenEvidence
+                ?? Evidence.stableID(mediaVersionID: media, transcriptRevision: .initial, range: range),
             note: (trimmed?.isEmpty ?? true) ? nil : trimmed,
-            capturedVia: .player, mediaVersionID: media, quote: quote, episodeID: episode.id,
+            capturedVia: route, mediaVersionID: media, quote: quote, episodeID: episode.id,
             episodeTitle: episode.title,
             sourceTitle: sources.first { $0.id == episode.sourceID }?.title,
             positionMs: Int(position.milliseconds))
@@ -494,11 +497,56 @@ extension AppModel {
         return highlight
     }
 
+    /// Der Transkripttext um einen Moment, so wie „Moment merken“ ihn
+    /// speichert: ganze Segmente von kurz davor bis kurz danach.
+    public func noteQuote(at seconds: Double, in episode: Episode) async -> String? {
+        guard let transcript = await transcript(for: episode) else { return nil }
+        let position = MediaTime(milliseconds: Int64(max(0, seconds) * 1000))
+        let range = HighlightCapture().range(around: position, limit: nil)
+        let text = transcript.segments
+            .filter { $0.range.end.milliseconds > range.start.milliseconds
+                && $0.range.start.milliseconds < range.end.milliseconds }
+            .map(\.text).joined(separator: " ")
+        return text.isEmpty ? nil : String(text.prefix(700))
+    }
+
+    /// Merkt einen gespeicherten Beleg, etwa aus dem Chat oder zu einem
+    /// Fakt. Zitat ist der Wortlaut des Belegs, die Zeitmarke sein Anfang.
+    @discardableResult
+    public func rememberEvidence(_ evidence: Evidence, via route: Highlight.CaptureRoute) async -> Highlight? {
+        guard let range = evidence.range else { return nil }
+        guard let episode = (try? await store.episodes(ids: [evidence.episodeID]))?.first else {
+            lastError = "Die Folge zu dieser Stelle ist gelöscht. Merken geht deshalb nicht mehr."
+            return nil
+        }
+        return await addNote(nil, at: range.start.seconds, in: episode, quote: evidence.quotedText,
+                             evidenceID: evidence.id, mediaVersionID: evidence.mediaVersionID, via: route)
+    }
+
+    /// Den gespeicherten Beleg zu einer Kennung, etwa zum Wortlaut eines Fakts.
+    public func evidence(_ id: EvidenceID) async -> Evidence? {
+        (try? await store.evidence(ids: [id]))?[id]
+    }
+
     /// Ein Zitat mit Herkunft, zum Kopieren oder Teilen.
     public func citation(_ text: String, at start: MediaTime, in episode: Episode) -> String {
+        "„\(text)“\n(\(origin(at: start, in: episode)))"
+    }
+
+    /// Ein Fakt zum Kopieren oder Teilen. Wörtlich zitiert wird nur der
+    /// Beleg. Die Aussage hat das Modell formuliert, sie steht deshalb als
+    /// Zusammenfassung da und nie in Anführungszeichen.
+    public func factCitation(_ fact: EpisodeFact, evidenceText: String?, in episode: Episode) -> String {
+        let summary = "Zusammenfassung: \(fact.statement)"
+        guard let evidenceText, !evidenceText.isEmpty else {
+            return "\(summary)\n(\(origin(at: fact.range.start, in: episode)))"
+        }
+        return "„\(evidenceText)“\n(\(origin(at: fact.range.start, in: episode)))\n\n\(summary)"
+    }
+
+    private func origin(at start: MediaTime, in episode: Episode) -> String {
         let source = sources.first { $0.id == episode.sourceID }?.title
-        let origin = [episode.title, source, start.timecode].compactMap { $0 }.joined(separator: " · ")
-        return "„\(text)“\n(\(origin))"
+        return [episode.title, source, start.timecode].compactMap { $0 }.joined(separator: " · ")
     }
 
     public func updateNote(_ id: HighlightID, text: String?) {
@@ -511,14 +559,45 @@ extension AppModel {
     public func removeHighlight(_ id: HighlightID) {
         highlights.removeAll { $0.id == id }
         saveHighlights()
+        // Neu melden ergänzt nur. Was gelöscht ist, muss auch aus der
+        // Systemsuche verschwinden.
+        Task { await spotlight.remove(id) }
     }
 
     /// Spielt die Stelle einer Notiz, solange ihre Folge noch da ist.
+    /// Nur auf Antippen, nie von selbst.
     public func playHighlight(_ highlight: Highlight) async {
-        guard let episodeID = highlight.episodeID,
-              let episode = (try? await store.episodes(ids: [episodeID]))?.first else { return }
-        let seconds = Double(highlight.positionMs ?? 0) / 1000
-        playEpisode(episode, at: max(0, seconds - 5))
+        guard let episodeID = highlight.episodeID, let ms = highlight.positionMs else { return }
+        guard let episode = (try? await store.episodes(ids: [episodeID]))?.first else {
+            lastError = "Die Folge zu dieser Notiz ist gelöscht. Die Notiz selbst bleibt."
+            return
+        }
+        playEpisode(episode, at: max(0, Double(ms) / 1000 - 5))
+    }
+
+    /// Ältere Notizen aus Kurzbefehl und Fokus-Player kennen nur die
+    /// Medienfassung. Ist deren Folge geladen, bekommen sie Folgen- und
+    /// Quellentitel nachgetragen. Zitat und Zeitmarke lassen sich nicht
+    /// mehr herleiten, die Notiz bleibt deshalb ohne Sprung in den Ton.
+    public func fillMissingNoteTitles() {
+        var changed = false
+        for index in highlights.indices where highlights[index].episodeTitle == nil {
+            guard let media = highlights[index].mediaVersionID,
+                  let episode = episodes.values.joined().first(where: { $0.streamMediaVersionID == media })
+            else { continue }
+            highlights[index].episodeTitle = episode.title
+            highlights[index].sourceTitle = sources.first { $0.id == episode.sourceID }?.title
+            changed = true
+        }
+        if changed { saveHighlights() }
+    }
+
+    /// Welche Folgen dieser Notizen noch da sind. Notizen gelöschter Folgen
+    /// bleiben lesbar, abspielen lassen sie sich nicht mehr.
+    public func availableEpisodeIDs(for notes: [Highlight]) async -> Set<EpisodeID> {
+        let ids = Array(Set(notes.compactMap(\.episodeID)))
+        guard !ids.isEmpty else { return [] }
+        return Set(((try? await store.episodes(ids: ids)) ?? []).map(\.id))
     }
 
     /// Notizen einer Folge, neueste zuerst.

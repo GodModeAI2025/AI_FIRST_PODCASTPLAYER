@@ -43,6 +43,7 @@ struct PodcastAIMacApp: App {
                         .environment(model)
                 }
                 .appFeedback()
+                .opensSpotlightResults()
                 // Zuletzt, damit auch appFeedback das Modell sieht.
                 .environment(model)
         }

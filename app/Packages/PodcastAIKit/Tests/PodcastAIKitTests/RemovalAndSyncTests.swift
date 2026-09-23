@@ -170,8 +170,7 @@ struct PlayerHighlightRemovalTests {
                                   quote: "Ein Satz aus der Folge", episodeID: base.episodeID,
                                   episodeTitle: "Folge", sourceTitle: "Quelle", positionMs: 12_000)
         try await store.save(highlights: [highlight])
-        let report = try await store.removeEpisode(base.episodeID)
-        #expect(report.highlightIDs.isEmpty)
+        _ = try await store.removeEpisode(base.episodeID)
         let left = try await store.highlights()
         #expect(left.map(\.id) == [highlight.id])
         #expect(left.first?.quote == "Ein Satz aus der Folge")

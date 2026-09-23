@@ -149,7 +149,8 @@ struct HelpView: View {
                 tip("Warteschlange", "„Als Nächstes“ reiht eine Folge ein. Die Warteschlange liegt in der Mediathek.",
                     "list.bullet")
                 tip("Speicher", "In einer Folge über „Mehr“: „Audio entfernen“ löscht nur den Ton, „Folge "
-                    + "löschen“ löscht alles zu dieser Folge.", "internaldrive")
+                    + "löschen“ löscht Ton, Transkript, Fakten und Hörstand. Deine Notizen bleiben unter Wissen.",
+                    "internaldrive")
             } header: { Text("Einsteiger: hören") }
 
             Section {

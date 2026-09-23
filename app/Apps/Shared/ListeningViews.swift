@@ -403,6 +403,8 @@ struct FactRow: View {
     let fact: EpisodeFact
     let episode: Episode
     @Environment(AppModel.self) private var model
+    /// Der Wortlaut des Belegs. Nur er wird wörtlich zitiert.
+    @State private var evidenceText: String?
 
     var body: some View {
         Button {
@@ -421,7 +423,44 @@ struct FactRow: View {
         }
         .accessibilityHint("Spielt die Stelle, aus der die Aussage stammt")
         .contextMenu {
-            PassageActions(text: fact.statement, start: fact.range.start, episode: episode)
+            FactActions(fact: fact, episode: episode, evidenceText: evidenceText)
+        }
+        .task(id: fact.evidenceID) { evidenceText = await model.evidence(fact.evidenceID)?.quotedText }
+    }
+}
+
+/// Merken, Kopieren und Teilen für einen Fakt. Die Aussage hat das Modell
+/// formuliert. Wörtlich zitiert und gemerkt wird deshalb der Beleg, die
+/// Aussage steht beim Kopieren als Zusammenfassung daneben.
+struct FactActions: View {
+    let fact: EpisodeFact
+    let episode: Episode
+    let evidenceText: String?
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Button {
+            model.playEpisode(episode, at: fact.range.start.seconds)
+        } label: {
+            Label("Ab hier abspielen", systemImage: "play.fill")
+        }
+        Button {
+            // Ohne Beleg füllt addNote das Zitat aus dem Transkript.
+            Task {
+                await model.addNote(nil, at: fact.range.start.seconds, in: episode, quote: evidenceText,
+                                    evidenceID: evidenceText == nil ? nil : fact.evidenceID,
+                                    mediaVersionID: fact.mediaVersionID, via: .transcript)
+            }
+        } label: {
+            Label("Stelle merken", systemImage: "bookmark")
+        }
+        Button {
+            Clipboard.copy(model.factCitation(fact, evidenceText: evidenceText, in: episode))
+        } label: {
+            Label("Mit Quelle kopieren", systemImage: "doc.on.doc")
+        }
+        ShareLink(item: model.factCitation(fact, evidenceText: evidenceText, in: episode)) {
+            Label("Teilen", systemImage: "square.and.arrow.up")
         }
     }
 }
@@ -639,6 +678,10 @@ struct EpisodePlayerView: View {
     @State private var showingNote = false
     @State private var noteText = ""
     @State private var notePosition: Double = 0
+    /// Folge und Zitat beim Öffnen des Blatts. Endet die Folge, während der
+    /// Kommentar entsteht, und die nächste beginnt, bleibt die Notiz hier.
+    @State private var noteEpisode: Episode?
+    @State private var noteQuote: String?
 
     private var player: EpisodePlayer { model.episodePlayer }
 
@@ -679,6 +722,8 @@ struct EpisodePlayerView: View {
                         transport
                         Button {
                             notePosition = player.currentTime
+                            noteEpisode = episode
+                            noteQuote = nil
                             noteText = ""
                             showingNote = true
                         } label: {
@@ -701,12 +746,6 @@ struct EpisodePlayerView: View {
                     .padding(.horizontal)
                 }
                 .navigationTitle("Jetzt läuft")
-                .sheet(isPresented: $showingNote) {
-                    NoteSheet(position: notePosition, text: $noteText) {
-                        Task { await model.addNote(noteText, at: notePosition, in: episode) }
-                    }
-                    .presentationDetents([.medium])
-                }
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
@@ -727,6 +766,18 @@ struct EpisodePlayerView: View {
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) { Button("Fertig") { dismiss() } }
                     }
+            }
+        }
+        // Ausserhalb des `if let`: hört die Wiedergabe auf, während der
+        // Kommentar entsteht, bleibt das Blatt samt Text offen.
+        .sheet(isPresented: $showingNote) {
+            if let noteEpisode {
+                NoteSheet(position: notePosition, quote: noteQuote, text: $noteText) {
+                    let text = noteText, position = notePosition, quote = noteQuote
+                    Task { await model.addNote(text, at: position, in: noteEpisode, quote: quote) }
+                }
+                .presentationDetents([.medium, .large])
+                .task { noteQuote = await model.noteQuote(at: notePosition, in: noteEpisode) }
             }
         }
     }
@@ -1153,7 +1204,10 @@ struct RoutePickerButton: NSViewRepresentable {
 
 /// Kommentar zu einem Moment. Die Stelle ist schon gemerkt, der Text ist freiwillig.
 struct NoteSheet: View {
-    let position: Double
+    /// Ältere Notizen haben keine Zeitmarke.
+    let position: Double?
+    /// Was mit der Stelle gespeichert wird, damit man es vorher sieht.
+    var quote: String? = nil
     @Binding var text: String
     let save: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -1166,9 +1220,20 @@ struct NoteSheet: View {
                         .lineLimit(3...8)
                         .accessibilityIdentifier("note.text")
                 } header: {
-                    Text("Moment bei \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
+                    if let position {
+                        Text("Moment bei \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
+                    } else {
+                        Text("Gemerkte Stelle")
+                    }
                 } footer: {
                     Text("Die Notiz hängt an dieser Stelle. Du findest sie in der Folge und unter Wissen › Gemerkte Stellen. Sie bleibt auch, wenn du die Folge löschst.")
+                }
+                if let quote {
+                    Section("Zitat") {
+                        Text("„\(quote)“")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .navigationTitle("Moment merken")
@@ -1192,6 +1257,8 @@ struct NoteSheet: View {
 struct NoteRow: View {
     let highlight: Highlight
     var showsEpisode = true
+    /// Die Folge ist gelöscht: die Notiz bleibt lesbar, abspielen geht nicht.
+    var episodeGone = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.micro) {
@@ -1204,13 +1271,23 @@ struct NoteRow: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(4)
             }
+            if highlight.note == nil && highlight.quote == nil {
+                // Ältere Einträge aus Kurzbefehl und Fokus-Player tragen weder
+                // Kommentar noch Zitat. Leer bleibt die Zeile trotzdem nicht.
+                Text("Gemerkte Stelle \(highlight.capturedVia.label)").font(.body)
+            }
             HStack(spacing: Design.Spacing.micro) {
                 Image(systemName: "bookmark.fill").foregroundStyle(.tint)
                 if let ms = highlight.positionMs {
                     TimecodeLabel(MediaTime(milliseconds: Int64(ms)))
+                } else {
+                    Text(highlight.capturedAt, format: .dateTime.day().month().year())
                 }
                 if showsEpisode, let title = highlight.episodeTitle {
                     Text("· \(title)").lineLimit(1)
+                }
+                if episodeGone {
+                    Text("· Folge gelöscht").layoutPriority(1)
                 }
             }
             .font(.caption)

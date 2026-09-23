@@ -378,5 +378,15 @@ struct CitationRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Spielt die Folge ab dieser Stelle")
+        .contextMenu {
+            // Gemerkt wird genau dieser Beleg: sein Wortlaut, seine Zeit.
+            if evidence.range != nil {
+                Button {
+                    Task { await model.rememberEvidence(evidence, via: .chat) }
+                } label: {
+                    Label("Stelle merken", systemImage: "bookmark")
+                }
+            }
+        }
     }
 }

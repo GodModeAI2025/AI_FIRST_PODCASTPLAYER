@@ -970,13 +970,12 @@ public actor LibraryStore {
         public var mediaVersionIDs: [MediaVersionID] = []
         public var evidenceIDs: [EvidenceID] = []
         public var episodeIDs: [EpisodeID] = []
-        /// Gemerkte Stellen, die mit der Folge gelöscht wurden.
-        public var highlightIDs: [String] = []
     }
 
-    /// Löscht eine Folge mit allem, was aus ihr entstanden ist: Transkript,
-    /// Belege, Fakten, Hörzustand und gemerkte Stellen. Die Zeile der Folge
-    /// bleibt als Merkzeichen, damit der Feed sie nicht wieder anlegt.
+    /// Löscht eine Folge mit dem, was aus ihr entstanden ist: Transkript,
+    /// Belege, Fakten und Hörzustand. Gemerkte Stellen bleiben, sie tragen
+    /// Zitat und Herkunft selbst. Die Zeile der Folge bleibt als
+    /// Merkzeichen, damit der Feed sie nicht wieder anlegt.
     public func removeEpisode(_ episodeID: EpisodeID) throws -> RemovalReport {
         var report = RemovalReport()
         try purgeEpisode(episodeID.rawValue, keepTombstone: true, into: &report)

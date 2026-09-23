@@ -59,6 +59,7 @@ struct PodcastAIApp: App {
                     Text(startupError ?? "")
                 }
                 .appFeedback()
+                .opensSpotlightResults()
                 // Zuletzt, damit auch appFeedback und die Alerts das Modell sehen.
                 .environment(model)
         }
