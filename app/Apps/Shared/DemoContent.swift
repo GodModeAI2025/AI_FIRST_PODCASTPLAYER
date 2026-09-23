@@ -63,7 +63,7 @@ enum DemoContent {
                 + "<li>Haftung</li></ul>")
         let second = Episode(
             id: EpisodeID(stable: "demo-folge-2"), sourceID: sourceID,
-            title: "Noch nicht erschlossen: Ausblick auf die nächste Folge",
+            title: "Ohne Transkript: Ausblick auf die nächste Folge",
             publishedAt: Date(), declaredDuration: MediaDuration(seconds: 1_200), audioURL: audio)
         do {
             try await store.upsert(source: source)
