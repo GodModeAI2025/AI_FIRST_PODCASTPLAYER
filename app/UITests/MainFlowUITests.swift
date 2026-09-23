@@ -2,9 +2,9 @@
 //  MainFlowUITests.swift
 //  PodcastAIUITests
 //
-//  Der Hauptweg auf echtem Netz: Quelle hinzufügen, sie erscheint in der
-//  Mediathek, ihre Folgen lassen sich öffnen. Dazu ein Durchgang durch
-//  alle Tabs, damit keine Ansicht beim ersten Öffnen abstürzt.
+//  Der Hauptweg auf echtem Netz: Podcast hinzufügen, er erscheint unter
+//  Meine Podcasts, seine Folgen lassen sich öffnen. Dazu ein Durchgang
+//  durch alle Tabs, damit keine Ansicht beim ersten Öffnen abstürzt.
 //
 
 import XCTest
@@ -19,11 +19,11 @@ final class MainFlowUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-skip-onboarding"]
         app.launch()
-        for tab in ["Themen", "Mediathek", "Wissen", "Für dich"] {
+        for tab in ["Themen-Updates", "Meine Podcasts", "Wissen", "Für dich"] {
             app.tabBars.buttons[tab].tap()
             XCTAssertTrue(app.state == .runningForeground, "Absturz beim Öffnen von \(tab)")
         }
-        app.tabBars.buttons["Fragen"].firstMatch.tap()
+        app.tabBars.buttons["Chat"].firstMatch.tap()
         XCTAssertTrue(app.state == .runningForeground)
     }
 
@@ -31,9 +31,9 @@ final class MainFlowUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-skip-onboarding"]
         app.launch()
-        app.tabBars.buttons["Mediathek"].tap()
+        app.tabBars.buttons["Meine Podcasts"].tap()
 
-        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
         let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
@@ -41,7 +41,7 @@ final class MainFlowUITests: XCTestCase {
         app.buttons["Hinzufügen"].tap()
 
         let row = app.staticTexts["Planet Money"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 30), "Quelle erscheint nicht in der Mediathek")
+        XCTAssertTrue(row.waitForExistence(timeout: 30), "Der Podcast erscheint nicht unter Meine Podcasts")
         row.tap()
 
         // Mindestens eine Folgenzeile muss erscheinen.
@@ -60,10 +60,10 @@ final class MainFlowUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-skip-onboarding"]
         app.launch()
-        app.tabBars.buttons["Mediathek"].tap()
+        app.tabBars.buttons["Meine Podcasts"].tap()
         let row = app.staticTexts["Planet Money"].firstMatch
         if !row.waitForExistence(timeout: 5) {
-            app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+            app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
             let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
             field.tap()
             field.typeText("https://feeds.npr.org/510289/podcast.xml")
@@ -71,15 +71,15 @@ final class MainFlowUITests: XCTestCase {
             XCTAssertTrue(row.waitForExistence(timeout: 30))
         }
         row.tap()
-        // Die Folge öffnen: Auswerten sitzt in der Folgenansicht.
+        // Die Folge öffnen: „Transkript erstellen“ sitzt in der Folgenansicht.
         let firstEpisode = app.cells.element(boundBy: 1)
         XCTAssertTrue(firstEpisode.waitForExistence(timeout: 15))
         firstEpisode.tap()
-        let analyze = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Folge auswerten'")).firstMatch
-        XCTAssertTrue(analyze.waitForExistence(timeout: 15), "Kein Knopf zum Auswerten")
+        let analyze = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Transkript erstellen'")).firstMatch
+        XCTAssertTrue(analyze.waitForExistence(timeout: 15), "Kein Knopf „Transkript erstellen“")
         analyze.tap()
 
-        let done = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'ausgewertet'")).firstMatch
+        let done = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Transkript fertig'")).firstMatch
         let failed = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'fehlgeschlagen'")).firstMatch
         let alert = app.alerts.firstMatch
         let deadline = Date().addingTimeInterval(900)
@@ -91,7 +91,7 @@ final class MainFlowUITests: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
         if alert.exists { XCTFail("Fehlermeldung: \(alert.debugDescription)") }
-        XCTAssertFalse(failed.exists, "Auswerten fehlgeschlagen: \(failed.label)")
-        XCTAssertTrue(done.exists, "Nicht in 15 Minuten ausgewertet")
+        XCTAssertFalse(failed.exists, "Transkript fehlgeschlagen: \(failed.label)")
+        XCTAssertTrue(done.exists, "Transkript nicht in 15 Minuten fertig")
     }
 }

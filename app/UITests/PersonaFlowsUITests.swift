@@ -29,8 +29,8 @@ final class PersonaFlowsUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh"]
         app.launch()
-        tab(app, "Mediathek")
-        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        tab(app, "Meine Podcasts")
+        app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
         let field = app.descendants(matching: .any)["source.input"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
@@ -44,7 +44,7 @@ final class PersonaFlowsUITests: XCTestCase {
         attach(app, "suche-abonniert")
         app.buttons["Fertig"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["AI to the DNA"].firstMatch.waitForExistence(timeout: 10),
-                      "Der abonnierte Podcast fehlt in der Mediathek")
+                      "Der abonnierte Podcast fehlt unter Meine Podcasts")
     }
 
     /// Spotify-Links bekommen einen Grund und das Blatt bleibt offen.
@@ -52,8 +52,8 @@ final class PersonaFlowsUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh"]
         app.launch()
-        tab(app, "Mediathek")
-        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        tab(app, "Meine Podcasts")
+        app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
         let field = app.descendants(matching: .any)["source.input"].firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
@@ -69,7 +69,7 @@ final class PersonaFlowsUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh", "-demo-content"]
         app.launch()
-        tab(app, "Mediathek")
+        tab(app, "Meine Podcasts")
         let source = app.staticTexts["Beispiel: Arbeit und KI"].firstMatch
         XCTAssertTrue(source.waitForExistence(timeout: 10))
         source.tap()

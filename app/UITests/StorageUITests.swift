@@ -13,8 +13,8 @@ final class StorageUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
     private func addSource(_ app: XCUIApplication, _ link: String) {
-        app.tabBars.buttons["Mediathek"].tap()
-        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        app.tabBars.buttons["Meine Podcasts"].tap()
+        app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
         let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
@@ -39,7 +39,7 @@ final class StorageUITests: XCTestCase {
         XCTAssertTrue(episode.waitForExistence(timeout: 10))
         episode.tap()
 
-        // Nur laden, ohne Auswerten.
+        // Nur laden, ohne Transkript.
         let menu = app.buttons["episode.menu"]
         XCTAssertTrue(menu.waitForExistence(timeout: 5))
         menu.tap()

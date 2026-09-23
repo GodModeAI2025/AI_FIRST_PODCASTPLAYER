@@ -3,7 +3,7 @@
 //  PodcastAIUITests
 //
 //  Ältere Folgen: Kopfzeile mit beiden Zahlen, Filter und Reihenfolge,
-//  Auswahlmodus und Suche in der Folgenliste einer Quelle. Der Test reiht
+//  Auswahlmodus und Suche in der Folgenliste eines Podcasts. Der Test reiht
 //  nichts ein, damit im Simulator keine Downloads anlaufen.
 //
 
@@ -26,9 +26,9 @@ final class ArchiveUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh"]
         app.launch()
-        let library = app.tabBars.buttons["Mediathek"]
-        (library.exists ? library : app.buttons["Mediathek"].firstMatch).tap()
-        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        let library = app.tabBars.buttons["Meine Podcasts"]
+        (library.exists ? library : app.buttons["Meine Podcasts"].firstMatch).tap()
+        app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
         let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap(); field.typeText(feed)
@@ -37,11 +37,11 @@ final class ArchiveUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 30))
         row.tap()
 
-        // Die Kopfzeile nennt gefunden und ausgewertet getrennt.
+        // Die Kopfzeile nennt gefundene Folgen und Folgen mit Transkript getrennt.
         let coverage = app.descendants(matching: .any)["episodes.coverage"]
         XCTAssertTrue(coverage.waitForExistence(timeout: 15), "Keine Kopfzeile über den Folgen")
         XCTAssertTrue(coverage.label.contains(" von "), "Kopfzeile ohne Gesamtzahl: \(coverage.label)")
-        XCTAssertTrue(coverage.label.contains("ausgewertet"), "Kopfzeile ohne ausgewertete: \(coverage.label)")
+        XCTAssertTrue(coverage.label.contains("mit Transkript"), "Kopfzeile ohne Folgen mit Transkript: \(coverage.label)")
 
         // Filter und Reihenfolge.
         app.buttons["episodes.filter"].tap()
@@ -53,7 +53,7 @@ final class ArchiveUITests: XCTestCase {
         // Auswahlmodus: ohne Auswahl ist der Knopf aus, mit Auswahl an.
         app.buttons["episodes.select"].tap()
         let analyze = app.buttons["episodes.analyzeSelection"]
-        XCTAssertTrue(analyze.waitForExistence(timeout: 5), "Kein Knopf „Auswahl auswerten“")
+        XCTAssertTrue(analyze.waitForExistence(timeout: 5), "Kein Knopf „Transkripte erstellen“")
         XCTAssertFalse(analyze.isEnabled, "Ohne Auswahl darf nichts eingereiht werden")
         app.buttons["Alle auswählen"].tap()
         let enabled = expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: analyze)
