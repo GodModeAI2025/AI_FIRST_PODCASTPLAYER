@@ -138,6 +138,18 @@ struct OnboardingView: View {
 
 struct HelpView: View {
 
+    // Wege, die auf dem Mac anders heissen. Dort gibt es eine Seitenleiste
+    // statt Reitern, und die Einstellungen liegen im Programmmenü.
+    #if os(macOS)
+    private static let queuePlace = "Die Warteschlange steht links in der Seitenleiste und in der Mediathek."
+    private static let askPlace = "links unter „Suchen und fragen“"
+    private static let settingsPath = "PodcastAI › Einstellungen"
+    #else
+    private static let queuePlace = "Die Warteschlange liegt in der Mediathek."
+    private static let askPlace = "im Reiter „Fragen“"
+    private static let settingsPath = "Wissen › Einstellungen"
+    #endif
+
     var body: some View {
         List {
             Section {
@@ -146,7 +158,7 @@ struct HelpView: View {
                     + "sucht die App den passenden Audio-Podcast.", "plus.circle")
                 tip("Hören", "Folge öffnen und abspielen. Die App merkt sich die Stelle, auch über iPhone, iPad "
                     + "und Mac hinweg. Im Player: Tempo, Kapitel, Schlaf-Timer, AirPlay.", "play.circle")
-                tip("Warteschlange", "„Als Nächstes“ reiht eine Folge ein. Die Warteschlange liegt in der Mediathek.",
+                tip("Warteschlange", "„Als Nächstes“ reiht eine Folge ein. " + Self.queuePlace,
                     "list.bullet")
                 tip("Speicher", "In einer Folge über „Mehr“: „Audio entfernen“ löscht nur den Ton, „Folge "
                     + "löschen“ löscht alles zu dieser Folge.", "internaldrive")
@@ -156,7 +168,7 @@ struct HelpView: View {
                 tip("Transkript", "Jede Folge wird auf dem Gerät mit Zeitmarken transkribiert. Im Reiter "
                     + "„Transkript“ springt ein Tipp an die Stelle; die Suche findet jedes Wort.", "text.alignleft")
                 tip("Fakten", "Überprüfbare Aussagen der Folge, jede mit Zeitmarke zum Nachhören.", "checkmark.seal")
-                tip("Fragen", "In einer Folge unter „Fragen“ oder im Reiter „Fragen“ über alles. Die Nummern in "
+                tip("Fragen", "In einer Folge unter „Fragen“ oder \(Self.askPlace) über alles. Die Nummern in "
                     + "der Antwort führen zu den Belegen.", "text.bubble")
                 tip("Interessen", "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“.",
                     "target")
@@ -170,9 +182,10 @@ struct HelpView: View {
                 tip("Export", "Folgen mit Shownotes, Kapiteln, Fakten und Transkript, Chat-Antworten mit Belegen "
                     + "und gemerkte Stellen als Markdown, etwa für Obsidian oder Notion.", "square.and.arrow.up")
                 tip("Apple Intelligence", "Auf dem Gerät oder auf Private Cloud Compute, einstellbar unter "
-                    + "Einstellungen › Intelligenz. Kein anderer KI-Anbieter.", "sparkles")
-                tip("Kurzbefehle und Mac", "Themen-Updates per Siri. Auf dem Mac dürfen andere Programme nach "
-                    + "Freigabe lesend auf dein Wissen zugreifen.", "terminal")
+                    + "\(Self.settingsPath) › Intelligenz. Kein anderer KI-Anbieter.", "sparkles")
+                tip("Kurzbefehle und Mac", "Themen-Updates per Siri. Auf dem Mac kann ein KI-Agent über MCP "
+                    + "lesend auf dein Wissen zugreifen, aber nur mit deiner Freigabe unter PodcastAI › "
+                    + "Einstellungen › Agenten. Dort steht auch der Eintrag für den Agenten.", "terminal")
             } header: { Text("Experten: mit dem Wissen arbeiten") }
         }
         .navigationTitle("So funktioniert's")

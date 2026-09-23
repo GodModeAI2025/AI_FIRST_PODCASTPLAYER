@@ -47,39 +47,74 @@ public final class SpotlightIndex {
 
     private static let domain = "com.podcastai.insights"
 
+    /// Der letzte Lauf gegen den Systemindex. Läufe warten aufeinander,
+    /// sonst könnte ein älterer Stand einen neueren überschreiben.
+    private var lastRun: Task<Void, Never>?
+
     /// Meldet gemerkte Stellen an den Systemindex.
     ///
     /// Bewusst nur Highlights und veröffentlichte Ausgaben — also das, was
     /// der Nutzer selbst angelegt hat oder was die App ihm gegenüber schon
     /// als eigenes Objekt darstellt. Rohe Transkripte gehen nicht hinein:
     /// sie sind fremder Inhalt und gehören nicht in einen Systemindex.
+    ///
+    /// Die Liste ersetzt den bisherigen Stand. Eine gelöschte Stelle
+    /// verschwindet so auch aus der Systemsuche, statt dort weiter auf
+    /// etwas zu zeigen, das es nicht mehr gibt.
     public func index(highlights: [Highlight], evidence: [EvidenceID: Evidence]) async {
         guard isEnabled else { return }
-
-        let items = highlights.compactMap { highlight -> CSSearchableItem? in
-            guard let item = evidence[highlight.evidenceID] else { return nil }
-
-            let attributes = CSSearchableItemAttributeSet(contentType: .text)
-            attributes.title = highlight.note ?? "Gemerkte Stelle"
-            // Der Originaltext, gekürzt. Der Systemindex ist kein Archiv.
-            // Die Zeitmarke steht vorn, weil das Attributset keine Start-
-            // und Endzeit für Textelemente kennt.
-            let quote = String(item.quotedText.prefix(300))
-            if let range = item.range {
-                attributes.contentDescription = "\(range.start.timecode)–\(range.end.timecode) · \(quote)"
-                attributes.duration = NSNumber(value: range.end.seconds - range.start.seconds)
-            } else {
-                attributes.contentDescription = quote
-            }
-            attributes.contentCreationDate = highlight.capturedAt
-            return CSSearchableItem(
-                uniqueIdentifier: highlight.id.rawValue,
-                domainIdentifier: Self.domain,
-                attributeSet: attributes
-            )
+        let items = highlights.compactMap { Self.item(for: $0, evidence: evidence[$0.evidenceID]) }
+        await enqueue { [weak self] in
+            let index = CSSearchableIndex.default()
+            try? await index.deleteSearchableItems(withDomainIdentifiers: [Self.domain])
+            // Inzwischen widerrufen? Dann bleibt der Index leer.
+            guard self?.isEnabled == true, !items.isEmpty else { return }
+            try? await index.indexSearchableItems(items)
         }
-        guard !items.isEmpty else { return }
-        try? await CSSearchableIndex.default().indexSearchableItems(items)
+    }
+
+    /// Ein Eintrag für eine gemerkte Stelle.
+    ///
+    /// Stellen aus dem Player haben meist keinen gespeicherten Beleg. Dann
+    /// trägt der Eintrag die Kopie, die beim Merken mitgesichert wurde:
+    /// Zitat, Zeitmarke, Folge. Ohne diesen Weg fand die Systemsuche keine
+    /// einzige Stelle, die mit „Moment merken“ entstanden war.
+    private static func item(for highlight: Highlight, evidence: Evidence?) -> CSSearchableItem? {
+        let quote = evidence?.quotedText ?? highlight.quote
+        guard quote != nil || highlight.note != nil else { return nil }
+
+        let attributes = CSSearchableItemAttributeSet(contentType: .text)
+        attributes.title = highlight.note ?? highlight.episodeTitle ?? "Gemerkte Stelle"
+        // Der Originaltext, gekürzt. Der Systemindex ist kein Archiv.
+        // Die Zeitmarke steht vorn, weil das Attributset keine Start-
+        // und Endzeit für Textelemente kennt.
+        var parts: [String] = []
+        if let range = evidence?.range {
+            parts.append("\(range.start.timecode)–\(range.end.timecode)")
+            attributes.duration = NSNumber(value: range.end.seconds - range.start.seconds)
+        } else if let ms = highlight.positionMs {
+            parts.append(MediaTime(milliseconds: Int64(ms)).timecode)
+        }
+        if let title = highlight.episodeTitle, title != attributes.title { parts.append(title) }
+        if let quote { parts.append(String(quote.prefix(300))) }
+        attributes.contentDescription = parts.joined(separator: " · ")
+        attributes.contentCreationDate = highlight.capturedAt
+        return CSSearchableItem(
+            uniqueIdentifier: highlight.id.rawValue,
+            domainIdentifier: domain,
+            attributeSet: attributes
+        )
+    }
+
+    /// Hängt einen Lauf hinter den vorigen und wartet auf ihn.
+    private func enqueue(_ work: @escaping @MainActor () async -> Void) async {
+        let previous = lastRun
+        let run = Task { @MainActor in
+            await previous?.value
+            await work()
+        }
+        lastRun = run
+        await run.value
     }
 
     /// Entfernt einen einzelnen Eintrag — beim Löschen eines Highlights.
@@ -93,8 +128,10 @@ public final class SpotlightIndex {
     /// Widerruf heisst entfernen, nicht „ab jetzt nichts Neues mehr“ —
     /// sonst bliebe alles Bisherige für immer auffindbar.
     public func removeAll() async {
-        try? await CSSearchableIndex.default()
-            .deleteSearchableItems(withDomainIdentifiers: [Self.domain])
+        await enqueue {
+            try? await CSSearchableIndex.default()
+                .deleteSearchableItems(withDomainIdentifiers: [Self.domain])
+        }
     }
 
     #else
@@ -130,5 +167,107 @@ struct SpotlightSettingsSection: View {
                  + "macht, entscheidet das System.")
         }
         .task { isEnabled = model.spotlight.isEnabled }
+    }
+}
+
+// MARK: - Aus der Systemsuche zurück
+
+/// Öffnet die gemerkte Stelle, die in der Systemsuche angetippt wurde.
+///
+/// Geöffnet heisst gezeigt, nicht abgespielt. Hören startet erst der Knopf
+/// in der Ansicht, also ein eigener Tipp.
+private struct SpotlightContinuation: ViewModifier {
+
+    @Environment(AppModel.self) private var model
+    @State private var opened: OpenedHighlight?
+
+    private struct OpenedHighlight: Identifiable {
+        let id: HighlightID
+    }
+
+    func body(content: Content) -> some View {
+        content
+            #if canImport(CoreSpotlight)
+            .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                guard let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String
+                else { return }
+                opened = OpenedHighlight(id: HighlightID(rawValue: identifier))
+            }
+            #endif
+            #if os(macOS)
+            // Ein offenes Fenster nimmt den Treffer an. Ohne das öffnet der
+            // Mac für jeden Tipp in der Systemsuche ein neues Fenster.
+            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+            #endif
+            .sheet(item: $opened) { item in
+                RememberedPassageView(highlightID: item.id)
+                    .environment(model)
+                    #if os(macOS)
+                    .frame(minWidth: 420, minHeight: 320)
+                    #endif
+            }
+    }
+}
+
+extension View {
+    /// Nimmt Treffer aus der Systemsuche entgegen.
+    func spotlightPassages() -> some View { modifier(SpotlightContinuation()) }
+}
+
+/// Eine gemerkte Stelle für sich: Kommentar, Zitat, Zeitmarke, Folge.
+struct RememberedPassageView: View {
+
+    let highlightID: HighlightID
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    private var highlight: Highlight? { model.highlights.first { $0.id == highlightID } }
+
+    /// Abspielen geht nur, solange die Folge noch da ist.
+    private func canPlay(_ highlight: Highlight) -> Bool {
+        guard let episodeID = highlight.episodeID else { return false }
+        return model.episodes.values.contains { $0.contains { $0.id == episodeID } }
+    }
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let highlight {
+                    List {
+                        Section {
+                            NoteRow(highlight: highlight)
+                        } footer: {
+                            if let source = highlight.sourceTitle {
+                                Text(source)
+                            }
+                        }
+                        if canPlay(highlight) {
+                            Section {
+                                Button {
+                                    Task { await model.playHighlight(highlight) }
+                                    dismiss()
+                                } label: {
+                                    Label("Stelle anhören", systemImage: "play.fill")
+                                }
+                            }
+                        }
+                    }
+                } else if model.isLoaded {
+                    ContentUnavailableView(
+                        "Diese Stelle gibt es nicht mehr",
+                        systemImage: "bookmark.slash",
+                        description: Text("Sie wurde gelöscht oder ist auf diesem Gerät noch nicht angekommen.")
+                    )
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Gemerkte Stelle")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Fertig") { dismiss() }
+                }
+            }
+        }
     }
 }

@@ -21,8 +21,12 @@
 //  keinen Netzwerk-Port und kein Lauschen im LAN. Der einzige Weg herein ist
 //  die Standardeingabe des Prozesses, den der Nutzer selbst gestartet hat.
 //
+//  Gestartet wird dieser Prozess mit `PodcastAI --mcp` (siehe `MCPHost`).
+//  Der Agent trägt das Programm als MCP-Server ein und startet es selbst.
+//
 
 import Foundation
+import SwiftData
 import PodcastAIKit
 
 /// JSON-RPC 2.0 über MCP, so viel wie gebraucht wird.
@@ -108,9 +112,17 @@ public final class MCPServer {
             return encode(failure: .methodNotFound,
                           message: "Unbekanntes Werkzeug „\(name)“.", id: id)
         }
-        guard access.isEnabled, let grant = access.grant, grant.permits(tool) else {
+        // Schalter und Freigabe werden bei jeder Anfrage frisch gelesen:
+        // was in den Einstellungen der App zurückgezogen wird, gilt sofort,
+        // auch in einer laufenden Verbindung.
+        guard access.isEnabled else {
             return encode(failure: .notAuthorized,
-                          message: "Für „\(name)“ liegt keine gültige Freigabe vor.", id: id)
+                          message: "Der Agentenzugang ist in PodcastAI ausgeschaltet.", id: id)
+        }
+        guard let grant = access.grant, grant.permits(tool) else {
+            return encode(failure: .notAuthorized,
+                          message: "Für „\(name)“ liegt keine gültige Freigabe vor. Freigeben lässt "
+                              + "sie sich in PodcastAI unter Einstellungen › Agenten.", id: id)
         }
 
         let arguments = params["arguments"] as? [String: Any] ?? [:]
@@ -268,6 +280,60 @@ public final class MCPServer {
         // Auf eine Anfrage ohne brauchbare `id` antwortet JSON-RPC mit `null`.
         payload["id"] = id ?? NSNull()
         return try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+    }
+}
+
+/// Der Prozess, den ein Agent startet: `PodcastAI --mcp`.
+///
+/// Er öffnet die Mediathek ohne iCloud-Abgleich und ohne Aufräumen. Er liest
+/// nur, und die App kann zur selben Zeit laufen: zwei Prozesse, die
+/// dieselbe Datei mit iCloud abgleichen, darf es nicht geben, und ein
+/// unpassender Speicher wird hier nicht beiseitegelegt, sondern gemeldet.
+/// Ob etwas herausgeht, entscheiden Schalter und Freigabe aus den
+/// Einstellungen der App, bei jeder Anfrage neu.
+@MainActor
+enum MCPHost {
+
+    static let argument = "--mcp"
+
+    static var isRequested: Bool {
+        CommandLine.arguments.dropFirst().contains(argument)
+    }
+
+    /// Kehrt nicht zurück. Am Ende der Eingabe endet der Prozess.
+    ///
+    /// `dispatchMain` statt einer Ereignisschleife von AppKit: es gibt kein
+    /// Fenster, und die Hauptwarteschlange ist alles, was der Leser braucht.
+    static func runAndExit() -> Never {
+        Task {
+            exit(await run())
+        }
+        dispatchMain()
+    }
+
+    private static func run() async -> Int32 {
+        let container: ModelContainer
+        do {
+            container = try LibraryStore.openPersistentContainer(sync: false)
+        } catch {
+            report("Die Mediathek liess sich nicht öffnen. \(error.localizedDescription)")
+            return 1
+        }
+        let access = MCPAccess(store: LibraryStore.make(container: container))
+        if !access.isEnabled {
+            // Der Prozess läuft trotzdem weiter: wer den Zugang danach in
+            // den Einstellungen einschaltet, muss den Agenten nicht neu starten.
+            report("Der Agentenzugang ist ausgeschaltet. Einschalten lässt er sich in PodcastAI "
+                   + "unter Einstellungen › Agenten.")
+        }
+        await MCPStdioTransport(server: MCPServer(access: access)).run()
+        return 0
+    }
+
+    /// Hinweise gehen auf die Fehlerausgabe. Die Standardausgabe gehört dem
+    /// Protokoll, jede andere Zeile dort brächte den Agenten durcheinander.
+    private static func report(_ message: String) {
+        try? FileHandle.standardError.write(contentsOf: Data("PodcastAI: \(message)\n".utf8))
     }
 }
 

@@ -23,21 +23,18 @@ import PodcastAIKit
 struct PodcastAIApp: App {
 
     @State private var model: AppModel
-    @State private var startupError: String?
+    @State private var startupIssue: StartupIssue?
 
     /// Muss gehalten werden: `BGTaskScheduler` behält zwar die Startblöcke,
     /// aber die Planung der nächsten Ausführung läuft über dieses Objekt.
     private let background: BackgroundWork
 
     init() {
-        let model: AppModel
-        var failure: String?
         let opened = AppBootstrap.openStore()
-        model = AppModel(store: LibraryStore.make(container: opened.container))
+        let model = AppModel(store: LibraryStore.make(container: opened.container))
         model.syncDescription = opened.description
-        failure = opened.failure
         _model = State(initialValue: model)
-        _startupError = State(initialValue: failure)
+        _startupIssue = State(initialValue: StartupIssue(opened))
         // Hier und nicht in `.task`: Intent-Abhängigkeit, Audiositzung und
         // BGTask-Registrierung müssen stehen, bevor der Start fertig ist.
         self.background = AppBootstrap.start(with: model)
@@ -51,13 +48,11 @@ struct PodcastAIApp: App {
                     await model.load()
                     model.observeRemoteChanges()
                     background.scheduleRefresh()
+                    // Erst nach dem Laden: vorher kennt das Modell keine
+                    // Quellen, und die Aktualisierung beim Start fiele aus.
+                    await AutoRefresh.run(for: model)
                 }
-                .alert("Der Speicher konnte nicht geöffnet werden",
-                       isPresented: .constant(startupError != nil)) {
-                    Button("Erneut versuchen") { startupError = nil }
-                } message: {
-                    Text(startupError ?? "")
-                }
+                .startupIssueAlert($startupIssue)
                 .appFeedback()
                 // Zuletzt, damit auch appFeedback und die Alerts das Modell sehen.
                 .environment(model)
@@ -128,6 +123,7 @@ struct RootView: View {
             .environment(model)
         }
         .autoRefresh()
+        .spotlightPassages()
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView().environment(model)
         }
@@ -189,6 +185,7 @@ private struct ActivityBannerInset: ViewModifier {
 struct MiniPlayerAccessory: View {
 
     @Environment(AppModel.self) private var model
+    @State private var showingFocusPlayer = false
 
     var body: some View {
         if let plan = model.playerPlan, !plan.isEmpty {
@@ -201,24 +198,34 @@ struct MiniPlayerAccessory: View {
     private func focusBar(_ plan: ValidatedPlaybackPlan) -> some View {
         Group {
             HStack(spacing: Design.Spacing.control) {
-                Image(systemName: "waveform")
-                    .font(.body)
-                    .foregroundStyle(.tint)
-                    .symbolEffect(.variableColor.iterative, isActive: isPlaying)
-                    .accessibilityHidden(true)
+                // Ein Tipp auf die Leiste öffnet den Fokus-Player mit
+                // Begründung, „Stelle überspringen“ und „Diese Stelle
+                // merken“. In der Leiste selbst ist dafür kein Platz.
+                Button { showingFocusPlayer = true } label: {
+                    HStack(spacing: Design.Spacing.control) {
+                        Image(systemName: "waveform")
+                            .font(.body)
+                            .foregroundStyle(.tint)
+                            .symbolEffect(.variableColor.iterative, isActive: isPlaying)
 
-                VStack(alignment: .leading, spacing: Design.Spacing.micro / 4) {
-                    Text(plan.requestSummary)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-                    Text(subtitle(for: plan))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        VStack(alignment: .leading, spacing: Design.Spacing.micro / 4) {
+                            Text(plan.requestSummary)
+                                .font(.subheadline.weight(.medium))
+                                .lineLimit(1)
+                            Text(subtitle(for: plan))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        Spacer(minLength: Design.Spacing.small)
+                    }
+                    .contentShape(.rect)
                 }
-                .accessibilityElement(children: .combine)
-
-                Spacer(minLength: Design.Spacing.small)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Wiedergabe öffnen, \(plan.requestSummary)")
+                .accessibilityValue(subtitle(for: plan))
+                .accessibilityIdentifier("focusbar.open")
 
                 Button {
                     isPlaying ? model.pausePlayback() : model.resumePlayback()
@@ -241,6 +248,17 @@ struct MiniPlayerAccessory: View {
                 .accessibilityLabel("Wiedergabe beenden")
             }
             .padding(.horizontal, Design.Spacing.control)
+            .sheet(isPresented: $showingFocusPlayer) {
+                NavigationStack {
+                    FocusPlayerView()
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Fertig") { showingFocusPlayer = false }
+                            }
+                        }
+                }
+                .environment(model)
+            }
         }
     }
 

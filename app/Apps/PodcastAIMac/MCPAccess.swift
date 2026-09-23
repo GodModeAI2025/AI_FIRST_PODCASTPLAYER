@@ -18,12 +18,18 @@
 //    kein Lauschen im LAN.
 //  - Jede Freigabe hat einen **Scope** und läuft ab.
 //
+//  Schalter, Freigabe und Protokoll liegen in den Einstellungen der App,
+//  nicht nur im Speicher eines Objekts. Die App vergibt die Freigabe; der
+//  Prozess, den ein Agent mit `--mcp` startet, liest sie bei jeder Anfrage
+//  und schreibt ins Protokoll. Beide laufen im selben App-Container und
+//  sehen deshalb dieselben Einstellungen.
+//
 
 import Foundation
 import PodcastAIKit
 
 /// Die Werkzeuge, die ein Agent bekommen kann. Vollständige Liste.
-public enum MCPTool: String, CaseIterable, Sendable {
+public enum MCPTool: String, CaseIterable, Codable, Sendable {
     case listInterests
     case searchEvidence
     case getEvidence
@@ -33,7 +39,7 @@ public enum MCPTool: String, CaseIterable, Sendable {
     public var summary: String {
         switch self {
         case .listInterests: "Bestätigte Interessen lesen"
-        case .searchEvidence: "Im erschlossenen Bestand suchen"
+        case .searchEvidence: "Im ausgewerteten Bestand suchen"
         case .getEvidence: "Eine Fundstelle mit Quelle und Timecode abrufen"
         case .listHighlights: "Gemerkte Stellen lesen"
         case .listTrails: "Geparkte Wissenslandkarten lesen"
@@ -46,7 +52,7 @@ public enum MCPTool: String, CaseIterable, Sendable {
 }
 
 /// Eine zeitlich begrenzte Freigabe für einen Agenten.
-public struct MCPGrant: Sendable {
+public struct MCPGrant: Codable, Equatable, Sendable {
 
     public let agentName: String
     public let tools: Set<MCPTool>
@@ -79,43 +85,65 @@ public struct MCPGrant: Sendable {
 @MainActor
 public final class MCPAccess {
 
-    private let enabledKey = "com.podcastai.mcp.enabled"
+    private static let enabledKey = "com.podcastai.mcp.enabled"
+    private static let grantKey = "com.podcastai.mcp.grant"
+    private static let auditKey = "com.podcastai.mcp.audit"
+    private static let auditLimit = 200
 
-    public private(set) var grant: MCPGrant?
     private let store: LibraryStore
+    private let defaults: UserDefaults
 
-    /// Was zuletzt abgefragt wurde — der Nutzer soll sehen können, was ein
-    /// Agent tatsächlich gelesen hat. Ein Zugang ohne Protokoll ist kein
-    /// kontrollierter Zugang.
-    public private(set) var auditLog: [AuditEntry] = []
-
-    public struct AuditEntry: Identifiable, Sendable {
-        public let id = UUID()
+    public struct AuditEntry: Identifiable, Codable, Equatable, Sendable {
+        public let id: UUID
         public let tool: MCPTool
         public let query: String?
         public let resultCount: Int
         public let at: Date
-    }
 
-    public var isEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: enabledKey) }
-        set {
-            UserDefaults.standard.set(newValue, forKey: enabledKey)
-            if !newValue { grant = nil }
+        init(tool: MCPTool, query: String?, resultCount: Int, at: Date) {
+            self.id = UUID()
+            self.tool = tool
+            self.query = query
+            self.resultCount = resultCount
+            self.at = at
         }
     }
 
-    public init(store: LibraryStore) {
+    public var isEnabled: Bool {
+        get { defaults.bool(forKey: Self.enabledKey) }
+        set {
+            defaults.set(newValue, forKey: Self.enabledKey)
+            if !newValue { revoke() }
+        }
+    }
+
+    /// Die geltende Freigabe, bei jedem Zugriff frisch gelesen. Ein Widerruf
+    /// in der App gilt damit auch für einen Agenten, der gerade verbunden ist.
+    public var grant: MCPGrant? {
+        guard let data = defaults.data(forKey: Self.grantKey) else { return nil }
+        return try? JSONDecoder().decode(MCPGrant.self, from: data)
+    }
+
+    /// Was zuletzt abgefragt wurde, neueste zuerst. Der Nutzer soll sehen
+    /// können, was ein Agent tatsächlich gelesen hat. Ein Zugang ohne
+    /// Protokoll ist kein kontrollierter Zugang.
+    public var auditLog: [AuditEntry] {
+        guard let data = defaults.data(forKey: Self.auditKey) else { return [] }
+        return (try? JSONDecoder().decode([AuditEntry].self, from: data)) ?? []
+    }
+
+    public init(store: LibraryStore, defaults: UserDefaults = .standard) {
         self.store = store
+        self.defaults = defaults
     }
 
     public func authorize(_ grant: MCPGrant) {
-        guard isEnabled else { return }
-        self.grant = grant
+        guard isEnabled, let data = try? JSONEncoder().encode(grant) else { return }
+        defaults.set(data, forKey: Self.grantKey)
     }
 
     public func revoke() {
-        grant = nil
+        defaults.removeObject(forKey: Self.grantKey)
     }
 
     // MARK: - Werkzeuge
@@ -130,7 +158,7 @@ public final class MCPAccess {
         return labels
     }
 
-    /// Sucht im erschlossenen Bestand, begrenzt auf freigegebene Quellen.
+    /// Sucht im ausgewerteten Bestand, begrenzt auf freigegebene Quellen.
     public func searchEvidence(_ query: String, limit: Int = 20) async -> [EvidenceSummary] {
         guard let grant, grant.permits(.searchEvidence) else { return [] }
         guard let all = try? await store.evidenceForAnalyzedEpisodes() else { return [] }
@@ -172,17 +200,36 @@ public final class MCPAccess {
         guard let all = try? await store.highlights() else { return [] }
 
         let evidenceByID = (try? await store.evidence(ids: all.map(\.evidenceID))) ?? [:]
+        // Aus dem Player Gemerktes hat meist keinen gespeicherten Beleg. Der
+        // Scope gilt dann über die Folge und ihre Quelle.
+        let withoutEvidence = all.filter { evidenceByID[$0.evidenceID] == nil }.compactMap(\.episodeID)
+        let sourceOfEpisode = withoutEvidence.isEmpty ? [:] : Dictionary(
+            ((try? await store.episodes(ids: withoutEvidence)) ?? []).map { ($0.id, $0.sourceID) },
+            uniquingKeysWith: { first, _ in first })
         let results = all.prefix(limit).compactMap { highlight -> HighlightSummary? in
-            // Ohne Beleg keine Ausgabe: eine Notiz ohne die Stelle, auf die
+            // Ohne Stelle keine Ausgabe: eine Notiz ohne die Stelle, auf die
             // sie sich bezieht, ist für einen Agenten wertlos und für den
             // Nutzer eine Preisgabe ohne Gegenwert.
-            guard let evidence = evidenceByID[highlight.evidenceID],
-                  grant.allowedSourceIDs.contains(evidence.sourceID) else { return nil }
+            if let evidence = evidenceByID[highlight.evidenceID] {
+                guard grant.allowedSourceIDs.contains(evidence.sourceID) else { return nil }
+                return HighlightSummary(
+                    id: highlight.id.rawValue,
+                    note: highlight.note,
+                    capturedAt: highlight.capturedAt,
+                    evidence: EvidenceSummary(evidence))
+            }
+            // Die Kopie von Zitat und Zeitmarke, die beim Merken mitgesichert wurde.
+            guard let episodeID = highlight.episodeID,
+                  let sourceID = sourceOfEpisode[episodeID],
+                  grant.allowedSourceIDs.contains(sourceID),
+                  let quote = highlight.quote else { return nil }
             return HighlightSummary(
                 id: highlight.id.rawValue,
                 note: highlight.note,
                 capturedAt: highlight.capturedAt,
-                evidence: EvidenceSummary(evidence))
+                evidence: EvidenceSummary(
+                    id: highlight.evidenceID.rawValue, quotedText: quote,
+                    startSeconds: highlight.positionMs.map { Double($0) / 1000 }))
         }
         log(.listHighlights, query: nil, count: results.count)
         return Array(results)
@@ -207,11 +254,11 @@ public final class MCPAccess {
     }
 
     private func log(_ tool: MCPTool, query: String?, count: Int) {
-        auditLog.insert(
-            AuditEntry(tool: tool, query: query, resultCount: count, at: Date()),
-            at: 0
-        )
-        if auditLog.count > 200 { auditLog.removeLast() }
+        var entries = auditLog
+        entries.insert(AuditEntry(tool: tool, query: query, resultCount: count, at: Date()), at: 0)
+        if entries.count > Self.auditLimit { entries.removeLast(entries.count - Self.auditLimit) }
+        guard let data = try? JSONEncoder().encode(entries) else { return }
+        defaults.set(data, forKey: Self.auditKey)
     }
 }
 
@@ -235,6 +282,15 @@ public struct EvidenceSummary: Codable, Sendable {
         self.startSeconds = evidence.range?.start.seconds
         self.endSeconds = evidence.range?.end.seconds
         self.speaker = evidence.attributedSpeaker
+    }
+
+    /// Für eine gemerkte Stelle ohne gespeicherten Beleg.
+    init(id: String, quotedText: String, startSeconds: Double?) {
+        self.id = id
+        self.quotedText = quotedText
+        self.startSeconds = startSeconds
+        self.endSeconds = nil
+        self.speaker = nil
     }
 }
 

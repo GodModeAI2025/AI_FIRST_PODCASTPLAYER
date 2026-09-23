@@ -51,6 +51,23 @@ Beide Apps nutzen den CloudKit-Container `iCloud.com.godmodeai.podcastai`. Nach 
 PodcastAI.app/Contents/MacOS/PodcastAI -initialize-cloudkit-schema
 ```
 
+## Agentenzugang auf dem Mac
+
+Ein KI-Agent kann über MCP lesend auf das Wissen zugreifen. Er startet dafür die Mac-App selbst, mit `--mcp`, und spricht über Standardein- und -ausgabe mit ihr. Einen Netzwerk-Port gibt es nicht. In diesem Modus startet keine Oberfläche; der Prozess öffnet die Mediathek ohne iCloud-Abgleich, liest nur und endet mit dem Ende der Eingabe.
+
+```json
+{
+  "mcpServers": {
+    "podcastai": {
+      "args": ["--mcp"],
+      "command": "/Applications/PodcastAI.app/Contents/MacOS/PodcastAI"
+    }
+  }
+}
+```
+
+Den Eintrag mit dem richtigen Pfad zeigt die App unter PodcastAI › Einstellungen › Agenten. Dort wird der Zugang eingeschaltet, eine Freigabe mit Quellen und Ablaufzeit vergeben und das Protokoll gelesen. Schalter, Freigabe und Protokoll liegen in den Einstellungen der App, die der Agentenprozess bei jeder Anfrage neu liest. Ohne Freigabe beantwortet er keine Werkzeuganfrage.
+
 ## TestFlight
 
 ```bash
