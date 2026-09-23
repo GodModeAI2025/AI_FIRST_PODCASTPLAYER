@@ -163,10 +163,33 @@ final class GoalFeaturesUITests: XCTestCase {
         let settings = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Einstellungen'")).firstMatch
         XCTAssertTrue(settings.waitForExistence(timeout: 5))
         settings.tap()
-        XCTAssertTrue(app.switches["Private Cloud Compute nutzen"].waitForExistence(timeout: 5))
-        for _ in 0..<4 where !app.staticTexts["Audiodateien auf diesem Gerät"].exists { app.swipeUp() }
-        XCTAssertTrue(app.staticTexts["Audiodateien auf diesem Gerät"].exists)
+        // Oben stehen Hilfe, Datenschutz und Mobilfunk, darunter der Rest.
+        XCTAssertTrue(app.switches["settings.cellular"].waitForExistence(timeout: 5))
+        let cloud = app.switches["settings.privateCloud"]
+        for _ in 0..<3 where !cloud.exists { app.swipeUp() }
+        XCTAssertTrue(cloud.exists)
+        for _ in 0..<3 where !app.staticTexts["iCloud"].exists { app.swipeUp() }
         XCTAssertTrue(app.staticTexts["iCloud"].exists)
+        for _ in 0..<3 where !app.staticTexts["Audiodateien auf diesem Gerät"].exists { app.swipeUp() }
+        XCTAssertTrue(app.staticTexts["Audiodateien auf diesem Gerät"].exists)
         attach(app, "einstellungen")
+    }
+
+    /// Das Zahnrad in „Für dich“ führt zu Einstellungen, Hilfe und Datenschutz.
+    func testSettingsHelpAndPrivacyFromForYou() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uitest-fresh"]
+        app.launch()
+        let gear = app.navigationBars.buttons["toolbar.settings"].firstMatch
+        XCTAssertTrue(gear.waitForExistence(timeout: 10), "Kein Zahnrad in „Für dich“")
+        gear.tap()
+        XCTAssertTrue(app.switches["settings.cellular"].waitForExistence(timeout: 5),
+                      "Die Einstellungen zeigen keinen Schalter für Mobilfunk")
+        app.buttons["settings.help"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["So funktioniert's"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["settings.privacy"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Datenschutz"].waitForExistence(timeout: 5))
+        attach(app, "datenschutz-aus-fuer-dich")
     }
 }

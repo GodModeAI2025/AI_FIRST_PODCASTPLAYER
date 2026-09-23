@@ -1549,9 +1549,11 @@ extension AppModel {
     }
 
     /// Lädt nur das Audio, damit die Folge auch ohne Netz spielt. Transkribiert
-    /// wird dabei nichts. Von Hand angefordert, deshalb auch im Mobilfunk.
+    /// wird dabei nichts. Von Hand angefordert, deshalb auch im Mobilfunk,
+    /// ausser er ist in den Einstellungen aus. Dann fragt die App vorher.
     public func downloadForOffline(_ episode: Episode) async {
         guard let audioURL = episode.audioURL, !downloading.contains(episode.id) else { return }
+        if askBeforeMobileData(.download(episode)) { return }
         keptOffline.insert(episode.id)
         downloading.insert(episode.id)
         defer { downloading.remove(episode.id) }

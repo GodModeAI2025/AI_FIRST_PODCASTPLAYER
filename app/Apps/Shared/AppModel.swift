@@ -88,12 +88,94 @@ public final class AppModel {
     static let automaticAnalysisKey = "automaticAnalysis"
     static let episodesPerSourceKey = "episodesPerSource"
     static let wifiOnlyKey = "preparationOnWiFiOnly"
-    /// Von selbst nur im WLAN laden. Was man selbst anfordert, lädt immer.
+    /// Von selbst nur im WLAN laden. Was man selbst anfordert, regelt
+    /// `allowsCellularLoading`.
     public var preparationOnWiFiOnly: Bool {
         didSet {
             UserDefaults.standard.set(preparationOnWiFiOnly, forKey: Self.wifiOnlyKey)
             networkChanged(networkLimit)
         }
+    }
+
+    // MARK: Mobilfunk (Rückfrage in `MobileDataQuestion`, SettingsView.swift)
+
+    static let cellularLoadingKey = "allowCellularLoading"
+    /// Was jemand selbst abspielt, für unterwegs lädt oder als Transkript
+    /// anfordert, darf über Mobilfunk laden. Aus heisst: die App fragt
+    /// vorher, statt still Daten zu verbrauchen. Transkripte für neue Folgen
+    /// regelt davon getrennt „Nur im WLAN“.
+    public var allowsCellularLoading: Bool {
+        didSet { UserDefaults.standard.set(allowsCellularLoading, forKey: Self.cellularLoadingKey) }
+    }
+    /// Mobilfunk oder Hotspot. Eigens gemerkt, weil `networkLimit` im
+    /// Datensparmodus nur diesen nennt und den Mobilfunk verdeckt.
+    @ObservationIgnored var onMobileData = false
+    /// Einmal „Laden“ gesagt: bis das Gerät wieder im WLAN ist, fragt die
+    /// App nicht noch einmal.
+    @ObservationIgnored var mobileDataApproved = false
+    /// Wartet auf die Antwort auf „Über Mobilfunk laden?“.
+    public internal(set) var pendingMobileData: MobileDataRequest?
+    /// Muss die App fragen, bevor sie etwas über das Netz holt?
+    var mobileDataNeedsConsent: Bool { !allowsCellularLoading && onMobileData && !mobileDataApproved }
+
+    /// Was nach einem Ja zur Rückfrage geladen wird.
+    public enum MobileDataRequest {
+        case play(Episode, at: Double?)
+        case plan(ValidatedPlaybackPlan, PlayTrigger)
+        case download(Episode)
+        case transcripts([Episode])
+
+        /// Was geladen würde, als Satz für die Rückfrage.
+        public var detail: String {
+            switch self {
+            case .play(let episode, _):
+                String(localized: "„\(episode.title)“ liegt nicht auf diesem Gerät. Zum Abspielen kommt der Ton über Mobilfunk.")
+            case .plan:
+                String(localized: "Diese Stellen liegen nicht auf diesem Gerät. Zum Abspielen kommt der Ton über Mobilfunk.")
+            case .download(let episode):
+                String(localized: "„\(episode.title)“ wird über Mobilfunk auf das Gerät geladen.")
+            case .transcripts(let episodes):
+                episodes.count == 1
+                    ? String(localized: "Für das Transkript lädt die App die Folge über Mobilfunk.")
+                    : String(localized: "Für die Transkripte lädt die App \(episodes.count) Folgen über Mobilfunk.")
+            }
+        }
+    }
+
+    /// Stellt die Rückfrage, wenn Mobilfunk in den Einstellungen aus ist.
+    /// `true` heisst: gefragt, der Aufrufer lädt jetzt nichts.
+    func askBeforeMobileData(_ request: MobileDataRequest) -> Bool {
+        guard mobileDataNeedsConsent else { return false }
+        // Mehrere Folgen auf einmal angefordert: eine Frage für alle.
+        if case .transcripts(let waiting)? = pendingMobileData, case .transcripts(let more) = request {
+            let known = Set(waiting.map(\.id))
+            pendingMobileData = .transcripts(waiting + more.filter { !known.contains($0.id) })
+        } else {
+            pendingMobileData = request
+        }
+        return true
+    }
+
+    /// Die Antwort auf die Rückfrage. Ein Ja gilt, bis das Gerät wieder im
+    /// WLAN ist; „immer“ schaltet Mobilfunk in den Einstellungen ein.
+    public func answerMobileData(_ request: MobileDataRequest, load: Bool, always: Bool = false) {
+        pendingMobileData = nil
+        guard load else { return }
+        if always { allowsCellularLoading = true } else { mobileDataApproved = true }
+        switch request {
+        case .play(let episode, let seconds): playEpisode(episode, at: seconds)
+        case .plan(let plan, let trigger): play(plan, from: trigger)
+        case .download(let episode): Task { await downloadForOffline(episode) }
+        case .transcripts(let episodes): for episode in episodes { enqueueAnalysis(episode) }
+        }
+    }
+
+    public func dismissMobileDataQuestion() { pendingMobileData = nil }
+
+    /// Neuer Netzpfad. Zurück im WLAN gilt ein früheres Ja nicht mehr.
+    func mobileDataChanged(_ mobile: Bool) {
+        onMobileData = mobile
+        if !mobile { mobileDataApproved = false }
     }
     /// Was das Netz gerade einschränkt: kein Netz, Datensparmodus, Hotspot
     /// oder Mobilfunk. `nil` heisst WLAN ohne Datenlimit.
@@ -312,10 +394,15 @@ public final class AppModel {
         // und die App wirkt, als könne sie nichts.
         self.automaticAnalysis = Self.storedFlag(Self.automaticAnalysisKey, default: true)
         self.automaticFacts = Self.storedFlag(Self.automaticFactsKey, default: true)
-        self.allowPrivateCloudCompute = Self.storedFlag(Self.privateCloudKey, default: true)
+        // Aus, solange dem Build die Berechtigung für Private Cloud Compute
+        // fehlt. Ohne sie ginge keine Anfrage an Apples Server, der Schalter
+        // stünde aber an.
+        self.allowPrivateCloudCompute = Self.storedFlag(
+            Self.privateCloudKey, default: KnowledgeExtractor.privateCloudEntitled)
         let perSource = UserDefaults.standard.integer(forKey: Self.episodesPerSourceKey)
         self.episodesPerSource = perSource > 0 ? perSource : 3
         self.preparationOnWiFiOnly = Self.storedFlag(Self.wifiOnlyKey, default: true)
+        self.allowsCellularLoading = Self.storedFlag(Self.cellularLoadingKey, default: true)
         // Beide an: der Text bleibt, der Ton kommt bei Bedarf aus dem Netz.
         self.removeAudioAfterAnalysis = Self.storedFlag(Self.removeAfterAnalysisKey, default: true)
         self.removeHeardAudio = Self.storedFlag(Self.removeHeardKey, default: true)
@@ -348,7 +435,11 @@ public final class AppModel {
         }
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let limit = NetworkLimit.of(path)
-            Task { @MainActor in self?.networkChanged(limit) }
+            let mobile = path.status == .satisfied && path.isExpensive
+            Task { @MainActor in
+                self?.mobileDataChanged(mobile)
+                self?.networkChanged(limit)
+            }
         }
         pathMonitor.start(queue: DispatchQueue(label: "PodcastAI.network"))
         // Eine Folge und ein Fokus-Plan klingen nie gleichzeitig. Startet die
@@ -800,6 +891,10 @@ public final class AppModel {
             guard preparationUnavailable == nil, queued == nil, analyzing?.id != episode.id else { return }
             automaticallyQueued.insert(episode.id)
         } else {
+            // Von Hand angefordert und Mobilfunk aus: erst fragen, falls
+            // der Ton dafür aus dem Netz käme.
+            if episode.audioURL != nil, analyzing?.id != episode.id, localAudioFile(for: episode) == nil,
+               askBeforeMobileData(.transcripts([episode])) { return }
             automaticallyQueued.remove(episode.id)
             dismissedFromPreparation.remove(episode.id)
             // Von Hand angefordert heisst: auch auf einem Gerät ohne
@@ -1084,6 +1179,19 @@ public final class AppModel {
 
     /// Startet einen Hörplan. Der einzige Weg von der Oberfläche zum Ton.
     public func play(_ plan: ValidatedPlaybackPlan, from trigger: PlayTrigger) {
+        // Mobilfunk aus und Stellen kämen aus dem Netz: erst fragen. Siri
+        // kann die Frage nicht zeigen und sagt stattdessen, woran es liegt.
+        let locator = LocalMediaLocator()
+        if mobileDataNeedsConsent, plan.segments.contains(where: { locator.localFile(for: $0.mediaVersionID) == nil }) {
+            if trigger == .intent {
+                lastError = String(localized: """
+                    Laden über Mobilfunk ist in den Einstellungen aus. Im WLAN oder mit \
+                    eingeschaltetem Mobilfunk spielt die App die Stellen ab.
+                    """)
+                return
+            }
+            if askBeforeMobileData(.plan(plan, trigger)) { return }
+        }
         episodePlayer.pause()
         let grant: PlaybackGrant = switch trigger {
         case .tap: policy.grantForUserTap(on: plan)
@@ -2137,6 +2245,11 @@ public final class AppModel {
             lastError = String(localized: "„\(episode.title)“ ist nicht auf diesem Gerät geladen. Ohne Netz lässt sich die Folge nicht abspielen.")
             return
         }
+        // Mobilfunk in den Einstellungen aus: fragen statt still streamen.
+        // Ein Sprung in der Folge, die schon im Player liegt, fragt nicht
+        // noch einmal. Sie läuft bereits aus dem Netz.
+        if local == nil, episodePlayer.episode?.id != episode.id,
+           askBeforeMobileData(.play(episode, at: seconds)) { return }
         if playerPlan != nil { stopPlayback() }
         let start = seconds ?? resumePosition(for: episode)
         episodePlayer.play(episode, at: start, localFile: local)
@@ -2261,10 +2374,15 @@ public final class AppModel {
         // Folgen ohne Ton (YouTube) hielten die Liste nur auf.
         if upNext.contains(where: { !canPlay($0) }) { upNext.removeAll { !canPlay($0) } }
         guard let next = upNext.first(where: canStartNow) else {
-            if !upNext.isEmpty {
+            if !upNext.isEmpty, isOffline {
                 lastError = String(localized: """
                     Ohne Netz spielt nur, was auf diesem Gerät geladen ist. \
                     Keine Folge in „Als Nächstes“ ist geladen.
+                    """)
+            } else if !upNext.isEmpty {
+                lastError = String(localized: """
+                    Laden über Mobilfunk ist in den Einstellungen aus. \
+                    Keine Folge in „Als Nächstes“ ist auf diesem Gerät geladen.
                     """)
             }
             return false
@@ -2274,9 +2392,12 @@ public final class AppModel {
     }
 
     /// Würde `playEpisode` diese Folge jetzt starten? Dieselben Bedingungen:
-    /// eine geladene Datei, oder ein Stream und Netz.
+    /// eine geladene Datei, oder ein Stream und Netz. Ist Mobilfunk in den
+    /// Einstellungen aus, zählt der Stream dort nicht. Das nächste Stück der
+    /// Liste fragt dann nicht aus der Hosentasche, sondern die nächste
+    /// geladene Folge läuft.
     private func canStartNow(_ episode: Episode) -> Bool {
-        localAudioFile(for: episode) != nil || (episode.audioURL != nil && !isOffline)
+        localAudioFile(for: episode) != nil || (episode.audioURL != nil && !isOffline && !mobileDataNeedsConsent)
     }
 
     /// Kapitel aus einer eigenen Datei nachladen, wenn der Feed nur darauf verweist.

@@ -65,8 +65,18 @@ struct OnboardingView: View {
                     step(3, "Fragen und sammeln", """
                         Im Chat fragst du alle deine Podcasts auf einmal, in einer Folge unter „Fragen“ \
                         nur diese eine. Jede Antwort zeigt die Stelle im Original. Alles lässt sich als \
-                        Markdown exportieren.
+                        Text exportieren, etwa in deine Notizen.
                         """, symbol: "text.bubble")
+
+                    // Einmal zeigen, wo Hilfe und Einstellungen liegen. Vorher
+                    // suchten Einsteiger sie in „Für dich“ und fanden nichts.
+                    Label {
+                        Text(Self.helpHint)
+                    } icon: {
+                        Image(systemName: "questionmark.circle")
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: Design.Spacing.small) {
                         Text("Oder zum Ausprobieren").font(.headline)
@@ -134,6 +144,15 @@ struct OnboardingView: View {
         dismiss()
     }
 
+    /// Wo Hilfe und Einstellungen liegen. Auf dem Mac anders als auf iOS.
+    private static var helpHint: LocalizedStringKey {
+        #if os(macOS)
+        "Die Hilfe steht links in der Seitenleiste, die Einstellungen findest du im Menü PodcastAI."
+        #else
+        "Hilfe, Einstellungen und Datenschutz findest du jederzeit über das Zahnrad oben in „Für dich“."
+        #endif
+    }
+
     static let seenKey = "onboardingSeen"
 
     /// Beim ersten Start, nicht in UI-Tests.
@@ -167,8 +186,15 @@ struct HelpView: View {
     }
     private static var intelligenceText: LocalizedStringKey {
         """
-        Auf dem Gerät oder auf Private Cloud Compute, einstellbar unter PodcastAI › Einstellungen › \
-        Intelligenz. Kein anderer KI-Anbieter.
+        Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar unter PodcastAI › \
+        Einstellungen › Intelligenz. Kein anderer KI-Anbieter.
+        """
+    }
+    private static var subscribeText: LocalizedStringKey {
+        """
+        Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im \
+        Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, \
+        einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.
         """
     }
     #else
@@ -186,8 +212,15 @@ struct HelpView: View {
     }
     private static var intelligenceText: LocalizedStringKey {
         """
-        Auf dem Gerät oder auf Private Cloud Compute, einstellbar unter Wissen › Einstellungen › \
-        Intelligenz. Kein anderer KI-Anbieter.
+        Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar über das Zahnrad \
+        › Intelligenz. Kein anderer KI-Anbieter.
+        """
+    }
+    private static var subscribeText: LocalizedStringKey {
+        """
+        Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im \
+        Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, \
+        einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.
         """
     }
     #endif
@@ -195,11 +228,7 @@ struct HelpView: View {
     var body: some View {
         List {
             Section {
-                tip("Abonnieren", """
-                    „Meine Podcasts“ › Plus. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. \
-                    Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu \
-                    YouTube-Kanälen sucht die App den passenden Audio-Podcast.
-                    """, "plus.circle")
+                tip("Abonnieren", Self.subscribeText, "plus.circle")
                 tip("Hören", """
                     Folge öffnen und abspielen. Die App merkt sich die Stelle, auch über iPhone, iPad und \
                     Mac hinweg. Im Player: Tempo, Kapitel, Schlaf-Timer, AirPlay.
@@ -211,6 +240,13 @@ struct HelpView: View {
                     Hörstand. Deine Notizen bleiben unter Wissen. Ist das Transkript fertig, entfernt die \
                     App den Ton von selbst, abschaltbar in den Einstellungen.
                     """, "internaldrive")
+                #if os(iOS)
+                tip("Mobilfunk", """
+                    Ob Folgen auch ohne WLAN laden, stellst du über das Zahnrad › Mobilfunk ein. Ist es \
+                    aus, fragt die App vorher. Transkripte für neue Folgen lädt sie mit „Nur im WLAN“ \
+                    nur im WLAN.
+                    """, "antenna.radiowaves.left.and.right")
+                #endif
             } header: { Text("Einsteiger: hören") }
 
             Section {
@@ -219,6 +255,13 @@ struct HelpView: View {
                     springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für ältere Folgen \
                     tippst du in der Folge auf „Transkript erstellen“.
                     """, "text.alignleft")
+                tip("Übersetzen", """
+                    Transkripte und Shownotes in einer anderen Sprache übersetzt die App auf dem Gerät, \
+                    wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal, danach \
+                    geht es auch ohne Netz. Beim Wortlaut eines Fakts und bei Stellen im Chat öffnet \
+                    „Übersetzen“ das Übersetzungsfenster von Apple. Merken und Kopieren nehmen immer das \
+                    Original.
+                    """, "translate")
                 tip("Fakten", "Überprüfbare Aussagen der Folge, jede mit Zeitmarke zum Nachhören.", "checkmark.seal")
                 tip("Fragen und Chat", Self.askText, "text.bubble")
                 tip("Interessen", "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“.",
@@ -261,6 +304,23 @@ struct HelpView: View {
                 term("Chat", """
                     Hier fragst du alle deine Podcasts auf einmal. Jede Antwort zeigt die Stellen, auf \
                     die sie sich stützt.
+                    """)
+                term("Shownotes", """
+                    Der Text, den der Podcast zu einer Folge mitliefert, oft mit Links. Du findest ihn \
+                    in der Folge unter „Überblick“.
+                    """)
+                term("Gesicherte Antwort", """
+                    Eine Antwort aus dem Chat, die du mit ihren Stellen aufbewahrst. Du findest sie unter \
+                    „Wissen“.
+                    """)
+                term("Gegenpositionen", """
+                    Du gibst eine Behauptung ein, die App sucht Stellen aus deinen Podcasts, die dafür \
+                    oder dagegen sprechen.
+                    """)
+                term("Apple-Server (Private Cloud Compute)", """
+                    Rechner von Apple, auf denen Apple Intelligence Fragen mit mehr Text auf einmal \
+                    bearbeitet. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus, antwortet \
+                    das Modell auf dem Gerät.
                     """)
             } header: { Text("Begriffe") }
         }

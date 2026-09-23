@@ -32,7 +32,11 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 | Fragen beantworten, Positionen vergleichen | Private Cloud Compute | Gerätemodell |
 | Fakten ziehen, Relevanz prüfen | Gerätemodell | keiner |
 
-PCC ist in den Einstellungen abschaltbar. Ohne Apple Intelligence formuliert die App nichts und zeigt die passendsten Stellen im Wortlaut.
+PCC heißt in der Oberfläche „Apple-Server“ und ist in den Einstellungen und auf der Datenschutzseite abschaltbar. Solange der Build den Info.plist-Schlüssel `PodcastAIPrivateCloudComputeEntitled` nicht trägt, steht der Schalter ab Werk aus und lässt sich nicht einschalten. Ohne Apple Intelligence formuliert die App nichts und zeigt die passendsten Stellen im Wortlaut.
+
+## Mobilfunk
+
+Was jemand selbst abspielt, mit „Laden (offline)“ holt oder als Transkript anfordert, lädt auch über Mobilfunk. Ist in den Einstellungen unter Mobilfunk „Abspielen und Laden über Mobilfunk“ aus, fragt die App im Mobilfunk oder Hotspot vorher („Über Mobilfunk laden?“). Ein Ja gilt, bis das Gerät wieder im WLAN ist. Die nächste Folge aus „Als Nächstes“ startet dann nur, wenn sie geladen ist, damit keine Frage aus der Hosentasche kommt. Siri spielt in diesem Fall nichts aus dem Netz und sagt, warum. Transkripte für neue Folgen regelt davon getrennt „Nur im WLAN“. Umgesetzt in `AppModel.askBeforeMobileData`, die Frage stellt `MobileDataQuestion`.
 
 ## Abgleich
 

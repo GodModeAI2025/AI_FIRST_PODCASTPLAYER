@@ -26,23 +26,114 @@ struct IntelligenceSettingsSection: View {
             LabeledContent("Auf diesem Gerät") {
                 Text(ModelAvailabilityText.describe(model.modelStatus.onDevice))
             }
-            Toggle("Private Cloud Compute nutzen", isOn: Binding(
-                get: { model.allowPrivateCloudCompute },
-                set: { model.allowPrivateCloudCompute = $0 }
-            ))
-            LabeledContent("Private Cloud Compute") {
+            PrivateCloudToggle()
+            LabeledContent("Apple-Server") {
                 Text(ModelAvailabilityText.describe(model.modelStatus.privateCloudCompute))
             }
         } header: {
             Text("Intelligenz")
         } footer: {
             Text("""
-                PodcastAI nutzt ausschliesslich Apple Intelligence. Antworten und Fakten entstehen \
-                auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud \
-                Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt \
+                PodcastAI nutzt nur Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät. \
+                Ist „Apple-Server nutzen“ an, gehen Fragen und Vergleiche an Apples Private Cloud \
+                Compute. Dort passt mehr Text in eine Anfrage, und Apple speichert sie nicht. Fehlt \
                 eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.
                 """)
         }
+    }
+}
+
+/// Der Schalter für Apples Server, in den Einstellungen und auf der
+/// Datenschutzseite derselbe.
+///
+/// Ohne die Berechtigung für Private Cloud Compute steht er aus und lässt
+/// sich nicht einschalten. Eine Anfrage käme ohnehin nicht an, und ein
+/// eingeschalteter Schalter verspräche etwas anderes.
+struct PrivateCloudToggle: View {
+
+    @Environment(AppModel.self) private var model
+
+    private var entitled: Bool { KnowledgeExtractor.privateCloudEntitled }
+
+    var body: some View {
+        Toggle("Apple-Server nutzen (Private Cloud Compute)", isOn: Binding(
+            get: { entitled && model.allowPrivateCloudCompute },
+            set: { model.allowPrivateCloudCompute = $0 }
+        ))
+        .disabled(!entitled)
+        .accessibilityIdentifier("settings.privateCloud")
+    }
+}
+
+/// Ob Folgen über Mobilfunk laden, wenn jemand sie selbst abspielt, lädt
+/// oder ein Transkript anfordert.
+///
+/// Vorher stand die Antwort nur im Kleingedruckten der Transkripte, und
+/// abschalten liess sich nichts. Die Zeilen sagen jetzt selbst, was gilt.
+struct MobileDataSettingsSection: View {
+
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { model.allowsCellularLoading },
+                set: { model.allowsCellularLoading = $0 }
+            )) {
+                Text("Abspielen und Laden über Mobilfunk")
+                Text(loadingRule)
+            }
+            .accessibilityIdentifier("settings.cellular")
+            LabeledContent("Transkripte für neue Folgen") {
+                Text(transcriptRule)
+            }
+        } header: {
+            Text("Mobilfunk")
+        } footer: {
+            Text("""
+                Gemeint ist, was du selbst abspielst, für unterwegs lädst oder als Transkript \
+                anforderst. Ein Hotspot zählt wie Mobilfunk. Für Transkripte neuer Folgen gilt \
+                der Schalter „Nur im WLAN“ unter Transkripte.
+                """)
+        }
+    }
+
+    private var loadingRule: LocalizedStringKey {
+        model.allowsCellularLoading
+            ? "An: Folgen laden auch ohne WLAN."
+            : "Aus: Ohne WLAN fragt die App vorher."
+    }
+
+    private var transcriptRule: LocalizedStringKey {
+        if !model.automaticAnalysis { return "aus" }
+        return model.preparationOnWiFiOnly ? "nur im WLAN" : "auch über Mobilfunk"
+    }
+}
+
+/// Die Rückfrage „Über Mobilfunk laden?“, gestellt von `AppModel`, wenn
+/// Mobilfunk in den Einstellungen aus ist. Hängt mit den anderen Meldungen
+/// an `appFeedback()`.
+struct MobileDataQuestion: ViewModifier {
+
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Über Mobilfunk laden?", isPresented: Binding(
+                get: { model.pendingMobileData != nil },
+                set: { if !$0 { model.dismissMobileDataQuestion() } }
+            ), presenting: model.pendingMobileData) { request in
+                // Die Anfrage kommt mit, damit die Reihenfolge von Knopf
+                // und Schliessen keine Rolle spielt.
+                Button("Laden") { model.answerMobileData(request, load: true) }
+                Button("Immer über Mobilfunk laden") { model.answerMobileData(request, load: true, always: true) }
+                Button("Abbrechen", role: .cancel) { model.answerMobileData(request, load: false) }
+            } message: { request in
+                Text("""
+                    \(request.detail) In den Einstellungen ist Mobilfunk dafür aus. \
+                    Bis du wieder im WLAN bist, fragt die App nach einem Ja nicht noch einmal.
+                    """)
+            }
     }
 }
 
@@ -93,9 +184,8 @@ struct AutomaticAnalysisSection: View {
                 Text("""
                     Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit \
                     Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas \
-                    darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Was du \
-                    selbst abspielst oder anforderst, lädt auch im Mobilfunk. Im Datensparmodus \
-                    erstellt die App keine Transkripte von selbst.
+                    darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Im \
+                    Datensparmodus erstellt die App keine Transkripte von selbst.
                     """)
                 Text("""
                     Fakten zieht die App nach jedem Transkript mit Apple Intelligence auf dem Gerät \
@@ -249,10 +339,18 @@ struct PrivacyOverviewView: View {
          """),
         ("sparkles", "Antworten und Fakten mit Apple Intelligence",
          """
-         Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist Private Cloud Compute \
-         eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server. \
-         Apple speichert sie nach eigenen Angaben nicht. Abschalten kannst du das in den \
-         Einstellungen unter Intelligenz.
+         Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist „Apple-Server nutzen“ \
+         eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server \
+         (Private Cloud Compute). Apple speichert sie nach eigenen Angaben nicht. Den Schalter \
+         findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz.
+         """),
+        ("translate", "Übersetzen",
+         """
+         Transkripte und Shownotes übersetzt die App auf dem Gerät mit Apples Übersetzung, nur wenn \
+         du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal von Apple, danach \
+         geht es auch ohne Netz. Einzelne Stellen übersetzt das Übersetzungsfenster des Systems. Es \
+         kann den Text dafür an Apple schicken und sagt das dort selbst. Merken und Kopieren nehmen \
+         immer den Originaltext.
          """),
         ("icloud", "Abgleich über deine iCloud",
          """
@@ -300,9 +398,17 @@ struct PrivacyOverviewView: View {
                 }
                 .padding(.vertical, Design.Spacing.micro)
             }
+            // Der Schalter gleich hier, wo steht, was er bewirkt.
+            Section {
+                PrivateCloudToggle()
+            } footer: {
+                Text("Aus heißt: Deine Fragen und die Transkriptstellen dazu bleiben auf dem Gerät.")
+            }
             Section {
                 Link("Vollständige Datenschutzerklärung", destination: LegalSettingsSection.privacyPolicy)
                 Link("Impressum", destination: LegalSettingsSection.imprint)
+            } footer: {
+                Text("Beide Links öffnen die Website des Anbieters im Browser.")
             }
             Section {
                 ForEach(Self.appleLinks, id: \.url) { link in
@@ -323,13 +429,27 @@ struct PrivacyOverviewView: View {
 }
 
 #if os(iOS)
-/// Die Einstellungen auf iOS. Erreichbar über „Wissen“.
+/// Die Einstellungen auf iOS. Erreichbar über das Zahnrad in „Für dich“ und
+/// „Meine Podcasts“ und über „Wissen“.
 struct SettingsView: View {
 
     @Environment(AppModel.self) private var model
 
     var body: some View {
         Form {
+            // Hilfe und Datenschutz zuerst. Wer hier ankommt, sucht oft genau
+            // das, und unten bei „Rechtliches“ fand es niemand.
+            Section {
+                NavigationLink { HelpView() } label: {
+                    Label("So funktioniert's", systemImage: "questionmark.circle")
+                }
+                .accessibilityIdentifier("settings.help")
+                NavigationLink { PrivacyOverviewView() } label: {
+                    Label("Datenschutz in PodcastAI", systemImage: "hand.raised")
+                }
+                .accessibilityIdentifier("settings.privacy")
+            }
+            MobileDataSettingsSection()
             IntelligenceSettingsSection()
             AutomaticAnalysisSection()
             SyncSettingsSection()
