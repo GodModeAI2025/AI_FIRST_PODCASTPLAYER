@@ -97,6 +97,7 @@ extension AppModel {
             analyzedEpisodes.remove(id)
         }
         pruneChatAnswers(removedEpisodes: Set(gone.keys))
+        pruneEditions(removedEpisodes: Set(gone.keys))
         mediaStorageChanged += 1
     }
 
@@ -1094,6 +1095,8 @@ extension AppModel {
         do {
             let report = try await store.removeSource(sourceID)
             applyRemoval(report)
+            // Auch Stellen aus Folgen, die nicht mehr an der Quelle hingen.
+            pruneEditions(removedEpisodes: [], removedSources: [sourceID])
             episodes[sourceID] = nil
             sources.removeAll { $0.id == sourceID }
         } catch {
@@ -1179,6 +1182,7 @@ extension AppModel {
         // Gemerkte Stellen bleiben als eigenes Wissen erhalten.
         pruneChatAnswers(removedEpisodes: Set(report.episodeIDs), removedEvidence: removedEvidence)
         pruneTrails(removedEvidence: removedEvidence)
+        pruneEditions(removedEpisodes: Set(report.episodeIDs))
         reindexSpotlight()
         mediaStorageChanged += 1
         Task {

@@ -31,7 +31,7 @@ struct PodcastAIMacApp: App {
             MacRootView()
                 .environment(model)
                 .task {
-                    await model.load()
+                    await model.ensureLoaded()
                     model.observeRemoteChanges()
                 }
                 .frame(minWidth: 900, minHeight: 560)

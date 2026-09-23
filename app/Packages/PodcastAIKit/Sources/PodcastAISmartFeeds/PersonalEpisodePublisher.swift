@@ -97,14 +97,26 @@ public struct PersonalEpisodePublisher: Sendable {
     /// Rein funktional: kein Store, kein Netzwerk, keine Nebenwirkung. Damit
     /// ist die Regel „zweimal derselbe Refresh ergibt eine Ausgabe“ testbar,
     /// statt von Transaktionsverhalten abzuhängen.
+    ///
+    /// `requestedByUser`: jemand hat ausdrücklich um eine Ausgabe gebeten.
+    /// Dann gilt die Mindestmenge der automatischen Regel nicht. Sie soll
+    /// verhindern, dass die App von selbst Mini-Ausgaben veröffentlicht,
+    /// nicht, dass man drei Minuten Material hören kann, wenn man sie will.
     public func makeEdition(
         feed: SmartPodcastFeed,
         candidates: [SegmentCandidate],
         ledger: ListeningLedger,
         existingBatchKeys: Set<String> = [],
+        requestedByUser: Bool = false,
         options: PublisherOptions = PublisherOptions(),
         now: Date = Date()
     ) -> PublicationOutcome {
+
+        // 0. Scope: ein Feed mit ausgewählten Quellen sieht nur diese.
+        let allowedSources = Set(feed.restrictedToSourceIDs)
+        let candidates = allowedSources.isEmpty
+            ? candidates
+            : candidates.filter { allowedSources.contains($0.sourceID) }
 
         // 1. Hörzustand anwenden: nur echt Ungehörtes bleibt Kandidat.
         let unheard = resolveUnheard(candidates, ledger: ledger, feed: feed, options: options)
@@ -128,7 +140,7 @@ public struct PersonalEpisodePublisher: Sendable {
             milliseconds: unheard.reduce(0) { $0 + $1.core.duration.milliseconds }
         )
         let required = feed.publicationPolicy.minimumMaterial
-        if feed.publicationPolicy.isAutomatic, availableCore < required {
+        if !requestedByUser, feed.publicationPolicy.isAutomatic, availableCore < required {
             return .belowThreshold(available: availableCore, required: required)
         }
 
@@ -307,6 +319,95 @@ public struct PersonalEpisodePublisher: Sendable {
             ))
         }
         return segments
+    }
+}
+
+// MARK: - Nach dem Löschen
+
+extension PersonalEpisodePublisher {
+
+    /// Nimmt Abschnitte aus einer veröffentlichten Ausgabe.
+    ///
+    /// Die einzige Ausnahme von „unveränderlich“: wird eine Folge gelöscht
+    /// oder ihre Quelle abbestellt, verschwindet auch, was aus ihr in eine
+    /// Ausgabe geraten ist. Die übrigen Abschnitte rücken in der Zeitachse
+    /// zusammen, Kapitel und Untertitel entstehen neu. Kennung und
+    /// Schlüssel des Laufs bleiben, damit der Speicher die Zeile ersetzt
+    /// statt eine zweite anzulegen.
+    ///
+    /// Gibt `nil` zurück, wenn kein Abschnitt übrig bleibt, und die Ausgabe
+    /// unverändert, wenn keiner betroffen ist.
+    public func removingSegments(
+        from episode: PersonalEpisode,
+        options: PublisherOptions = PublisherOptions(),
+        where shouldRemove: (PersonalEpisodeSegment) -> Bool
+    ) -> PersonalEpisode? {
+        let kept = episode.segments.filter { !shouldRemove($0) }
+        guard kept.count != episode.segments.count else { return episode }
+        guard !kept.isEmpty else { return nil }
+
+        var cursor: Int64 = 0
+        let segments = kept.map { segment -> PersonalEpisodeSegment in
+            let length = segment.playbackRange.duration.milliseconds
+            let virtual = MediaTimeRange(
+                start: MediaTime(milliseconds: cursor),
+                end: MediaTime(milliseconds: cursor + length)
+            )
+            cursor += length + options.transition.milliseconds
+            return PersonalEpisodeSegment(
+                id: segment.id, episodeID: segment.episodeID,
+                mediaVersionID: segment.mediaVersionID,
+                transcriptRevision: segment.transcriptRevision,
+                evidenceIDs: segment.evidenceIDs,
+                coreRange: segment.coreRange, playbackRange: segment.playbackRange,
+                virtualRange: virtual, reason: segment.reason, topicIDs: segment.topicIDs,
+                contextReplay: segment.contextReplay, sourceID: segment.sourceID,
+                sourceTitle: segment.sourceTitle, episodeTitle: segment.episodeTitle,
+                originalPublishedAt: segment.originalPublishedAt
+            )
+        }
+
+        let removedCount = episode.segments.count - kept.count
+        let liveSources = Set(segments.map(\.sourceID))
+        let coverage = EditionCoverage(
+            candidateCount: max(segments.count, episode.coverage.candidateCount - removedCount),
+            includedCount: segments.count,
+            remaining: episode.coverage.remaining,
+            partiallyAnalyzedSourceIDs: episode.coverage.partiallyAnalyzedSourceIDs
+                .filter { liveSources.contains($0) }
+        )
+
+        var pruned = PersonalEpisode(
+            id: episode.id, feedID: episode.feedID,
+            revision: episode.revision.next(), policyRevision: episode.policyRevision,
+            batchKey: episode.batchKey, title: episode.title,
+            subtitle: EditionTitleBuilder().subtitle(for: segments, coverage: coverage),
+            publishedAt: episode.publishedAt, publicationState: episode.publicationState,
+            segments: segments, shownotes: ShownotesBuilder().build(from: segments),
+            coverAssetID: episode.coverAssetID, coverage: coverage
+        )
+        pruned.consumptionState = episode.consumptionState
+        return pruned
+    }
+}
+
+extension PersonalEpisode {
+
+    /// Welcher Anteil des Neuen in dieser Ausgabe schon gehört ist, egal ob
+    /// in der Ausgabe selbst oder in der Originalfolge. Der Kontextvorlauf
+    /// zählt nicht mit, er war nie neu.
+    public func heardFraction(in ledger: ListeningLedger) -> Double {
+        var total: Int64 = 0
+        var heard: Int64 = 0
+        for segment in segments {
+            let length = segment.coreRange.duration.milliseconds
+            guard length > 0 else { continue }
+            total += length
+            let covered = ledger.heard(in: segment.mediaVersionID).coverage(of: segment.coreRange)
+            heard += Int64((Double(length) * covered).rounded())
+        }
+        guard total > 0 else { return 0 }
+        return Double(heard) / Double(total)
     }
 }
 

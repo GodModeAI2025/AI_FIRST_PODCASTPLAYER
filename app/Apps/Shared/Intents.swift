@@ -51,7 +51,10 @@ struct SmartFeedQuery: EntityQuery {
     }
 
     func suggestedEntities() async throws -> [SmartFeedEntity] {
-        await MainActor.run {
+        // Bei einem Kaltstart über Siri hat noch niemand geladen, und die
+        // Auswahl bliebe leer.
+        await model.ensureLoaded()
+        return await MainActor.run {
             model.smartFeeds.map { feed in
                 let latest = model.editions[feed.id]?.first
                 return SmartFeedEntity(
@@ -73,7 +76,7 @@ struct PlaySmartFeedIntent: AppIntent {
 
     static let title: LocalizedStringResource = "Themen-Update abspielen"
     static let description = IntentDescription(
-        "Spielt die neueste Ausgabe eines Themen-Updates ab — die Originalstellen aus deinen Quellen, die du noch nicht gehört hast."
+        "Spielt die neueste Ausgabe eines Themen-Updates ab, also Originalstellen aus deinen Quellen, die du noch nicht gehört hast. Ist sie schon gehört, entsteht vorher eine neue."
     )
     /// Die App kommt nach vorn: Wiedergabe ist etwas, das man sehen soll.
     static let openAppWhenRun = true
@@ -85,7 +88,23 @@ struct PlaySmartFeedIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        await model.ensureLoaded()
         let feedID = SmartFeedID(rawValue: feed.id)
+        guard model.smartFeeds.contains(where: { $0.id == feedID }) else {
+            return .result(dialog: "„\(feed.title)“ gibt es nicht mehr.")
+        }
+        // „Spiel mein Update“ meint das Neue. Ist die letzte Ausgabe schon
+        // gehört oder gibt es keine, wird zuerst eine neue zusammengestellt.
+        // Das hat jemand ausdrücklich verlangt, es ist keine Empfehlung.
+        // Entsteht keine, sagt Siri warum, statt Gehörtes zu wiederholen.
+        let previous = model.editions[feedID]?.first
+        if previous.map({ $0.heardFraction(in: model.ledger) >= 0.8 }) ?? true {
+            let note = await model.buildEdition(feedID: feedID)
+            let latest = model.editions[feedID]?.first
+            if latest == nil || latest?.id == previous?.id {
+                return .result(dialog: "„\(feed.title)“: \(note)")
+            }
+        }
         guard let edition = model.editions[feedID]?.first else {
             return .result(dialog: "Für „\(feed.title)“ gibt es noch keine Ausgabe.")
         }
@@ -108,6 +127,14 @@ struct PlaySmartFeedIntent: AppIntent {
         )
         // Über dieselbe Policy wie ein Fingertipp — kein Sonderweg.
         model.play(plan, from: .intent)
+        // `play` meldet einen Fehler nur über `lastError`. Läuft der Plan
+        // nicht, sagt Siri das, statt eine Ausgabe anzukündigen, die still bleibt.
+        guard model.playerPlan?.id == plan.id else {
+            model.policy.endFocusSession()
+            let reason = model.lastError ?? "Die Stellen sind gerade nicht abspielbar."
+            model.lastError = nil
+            return .result(dialog: "„\(edition.title)“ lässt sich nicht abspielen. \(reason)")
+        }
 
         return .result(dialog: "\(edition.title): \(edition.segments.count) Stellen aus \(edition.distinctSourceCount) Quellen.")
     }
@@ -135,6 +162,7 @@ struct BuildEditionIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        await model.ensureLoaded()
         let summary = await model.buildEdition(
             feedID: SmartFeedID(rawValue: feed.id),
             budget: MediaDuration(minutes: minutes)
@@ -160,6 +188,7 @@ struct RememberCurrentPassageIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        await model.ensureLoaded()
         guard let (mediaVersionID, position, episodeID) = currentPassage() else {
             return .result(dialog: "Gerade läuft nichts, das ich merken könnte.")
         }
