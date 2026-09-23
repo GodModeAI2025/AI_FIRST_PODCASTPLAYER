@@ -317,12 +317,40 @@ public actor TimedTranscriptionEngine {
     // MARK: - Sprachmodelle
 
     /// Bestimmt das tatsächlich nutzbare Sprachmodell und lädt es bei Bedarf.
+    private func ensureModel(for requested: Locale) async throws -> Locale {
+        let locale = try await Self.resolvedLocale(for: requested)
+        let identifier = locale.identifier(.bcp47)
+
+        let installed = await SpeechTranscriber.installedLocales
+        guard !installed.contains(where: { $0.identifier(.bcp47) == identifier }) else { return locale }
+
+        // Modell herunterladen. Rund 300 MB je Sprache. Das ist eine
+        // Nutzerentscheidung und wird in der Oberfläche angekündigt, nicht
+        // stillschweigend im Hintergrund erledigt. Von selbst Eingereihtes
+        // kommt deshalb nur hierher, wenn das Netz das Vorbereiten erlaubt.
+        let transcriber = makeTranscriber(locale: locale)
+        if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+            try await request.downloadAndInstall()
+        }
+        return locale
+    }
+
+    /// Liegt das Sprachmodell für diese Sprache schon auf dem Gerät? Dann
+    /// braucht ein Transkript aus einer geladenen Datei kein Netz. Lädt
+    /// nichts; dieselbe Auswahl wie beim Transkribieren.
+    public static func hasInstalledModel(for requested: Locale) async -> Bool {
+        guard let locale = try? await resolvedLocale(for: requested) else { return false }
+        let identifier = locale.identifier(.bcp47)
+        return await SpeechTranscriber.installedLocales.contains { $0.identifier(.bcp47) == identifier }
+    }
+
+    /// Das Sprachmodell, das für die angefragte Sprache in Frage kommt.
     ///
     /// Feeds geben oft nur die Sprache an („en“), das Modell braucht eine
     /// Region. Gesucht wird in dieser Reihenfolge: genau die Angabe, die
     /// Sprache mit der Region des Geräts, eine übliche Standardregion,
     /// zuletzt was das System als gleichwertig ansieht.
-    private func ensureModel(for requested: Locale) async throws -> Locale {
+    private static func resolvedLocale(for requested: Locale) async throws -> Locale {
         guard SpeechTranscriber.isAvailable else {
             throw TranscriptionError.speechUnavailableOnDevice
         }
@@ -345,18 +373,6 @@ public actor TimedTranscriptionEngine {
         }
         guard let locale = resolved else {
             throw TranscriptionError.localeNotSupported(requested.identifier(.bcp47))
-        }
-        let identifier = locale.identifier(.bcp47)
-
-        let installed = await SpeechTranscriber.installedLocales
-        guard !installed.contains(where: { $0.identifier(.bcp47) == identifier }) else { return locale }
-
-        // Modell herunterladen. Rund 300 MB je Sprache — das ist eine
-        // Nutzerentscheidung und wird in der Oberfläche angekündigt, nicht
-        // stillschweigend im Hintergrund erledigt.
-        let transcriber = makeTranscriber(locale: locale)
-        if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
-            try await request.downloadAndInstall()
         }
         return locale
     }

@@ -239,10 +239,11 @@ public enum EpisodeArchive {
 
     /// Der erste Satz der Rückfrage vor „Ältere Folgen auch vorbereiten“:
     /// wie viele Folgen noch ohne Transkript sind und, wenn die Längen
-    /// bekannt sind, wie viel das ungefähr zu laden ist.
-    public static func backCatalogSummary(_ episodes: [Episode]) -> String {
+    /// bekannt sind, wie viel das ungefähr zu laden ist. `toLoad`: die davon,
+    /// deren Ton nicht schon auf dem Gerät liegt; ohne Angabe alle.
+    public static func backCatalogSummary(_ episodes: [Episode], toLoad: [Episode]? = nil) -> String {
         let count = episodes.count
-        guard let bytes = estimatedDownloadBytes(for: episodes) else {
+        guard let bytes = estimatedDownloadBytes(for: toLoad ?? episodes) else {
             return String(AttributedString(
                 localized: "^[\(count) Folge](inflect: true) noch ohne Transkript.", bundle: .module).characters)
         }

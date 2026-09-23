@@ -84,4 +84,22 @@ public enum UserFacingError {
         if case TranscriptionError.alreadyRunning? = error as? TranscriptionError { return true }
         return error.localizedDescription.localizedCaseInsensitiveContains("recognizer")
     }
+
+    /// Fehler, die bei jedem neuen Versuch wieder kämen: keine Sprache dafür,
+    /// kein passendes Audioformat, eine Adresse, die der Server nicht (mehr)
+    /// herausgibt. Netzfehler gehören nicht dazu, die vergehen.
+    public static func isPermanent(_ error: Error) -> Bool {
+        switch error {
+        case TranscriptionError.localeNotSupported, TranscriptionError.noCompatibleAudioFormat:
+            return true
+        case HTTPTransferError.httpStatus(let code):
+            // Zu viele Anfragen und Zeitüberschreitung vergehen wieder.
+            return (400..<500).contains(code) && code != 408 && code != 429
+        case HTTPTransferError.tooLarge, HTTPTransferError.rejectedDestination,
+             HTTPTransferError.rejectedRedirect:
+            return true
+        default:
+            return false
+        }
+    }
 }

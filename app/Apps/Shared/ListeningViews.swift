@@ -249,7 +249,16 @@ struct EpisodeDetailView: View {
                     } icon: {
                         Image(systemName: wait?.symbol ?? "clock").accessibilityHidden(true)
                     }
-                    if let wait { TranscriptWaitControls(episode: episode, wait: wait) }
+                    if let wait {
+                        // Der Ton liegt da und trotzdem wartet das Transkript:
+                        // sagen, was es noch aus dem Netz braucht.
+                        if hasLocalAudio {
+                            Text(waitReasonWithLocalAudio)
+                                .font(.caption).foregroundStyle(.secondary)
+                                .accessibilityIdentifier("episode.waitReason")
+                        }
+                        TranscriptWaitControls(episode: episode, wait: wait)
+                    }
                 } header: {
                     Text("Transkript")
                 } footer: {
@@ -334,6 +343,15 @@ struct EpisodeDetailView: View {
         }
     }
 
+    /// Warum ein Transkript aufs Netz wartet, obwohl Ton auf dem Gerät liegt:
+    /// die Datei gehört zu einer früheren Audioadresse, oder die Erkennung
+    /// braucht erst das Sprachmodell.
+    private var waitReasonWithLocalAudio: LocalizedStringKey {
+        model.hasAudioForTranscript(episode)
+            ? "Der Ton liegt schon auf dem Gerät. Das Sprachmodell für die Sprache dieser Folge lädt die App noch aus dem Netz."
+            : "Der Podcast hat die Audiodatei geändert. Für das Transkript lädt die App die neue Fassung."
+    }
+
     /// Worauf das Transkript dieser Folge im Netz wartet, oder `nil`.
     private var networkWait: AppModel.NetworkLimit? {
         if case .waiting(_, _, let limit?) = model.analysisPhase(for: episode) { return limit }
@@ -389,12 +407,16 @@ struct EpisodeDetailView: View {
     private var audioVerdict: AudioRetention.Verdict { model.audioVerdict(for: episode) }
 
     /// Wann die neueste Folge aufs Gerät kommt. Sie lädt wie alles, was die
-    /// App von selbst holt, nach der Regel „Nur im WLAN“.
+    /// App von selbst holt, nach der Regel „Nur im WLAN“. Wartet ihr
+    /// Transkript, kommt der Ton erst mit ihm.
     private var prefetchNote: LocalizedStringKey {
         switch model.preparationWait {
         case .cellular?, .hotspot?: "Neueste Folge. Die App lädt sie für unterwegs, sobald WLAN da ist."
         case .offline?, .lowDataMode?: "Neueste Folge. Die App lädt sie für unterwegs, sobald das Netz es zulässt."
-        case nil: "Neueste Folge. Die App lädt sie gleich für unterwegs."
+        case nil:
+            model.analysisQueue.contains(where: { $0.id == episode.id })
+                ? "Neueste Folge. Die App lädt sie mit dem Transkript und behält sie für unterwegs."
+                : "Neueste Folge. Die App lädt sie gleich für unterwegs."
         }
     }
 
@@ -407,7 +429,7 @@ struct EpisodeDetailView: View {
     static func audioReason(_ verdict: AudioRetention.Verdict) -> LocalizedStringKey {
         switch verdict {
         case .keptByUser: "Von dir geladen, bleibt bis „Audio entfernen“."
-        case .newest: "Neueste Folge, bleibt für unterwegs."
+        case .newest: "Neueste Folge auf dem Gerät, bleibt für unterwegs, bis eine neuere geladen ist."
         case .removeAfterTranscript: "Wird nach dem Transkript entfernt, abgespielt wird dann aus dem Netz."
         case .removeAfterHeard: "Wird einen Tag nach dem Hören entfernt, abgespielt wird dann aus dem Netz."
         case .remove: "Wird bald entfernt, abgespielt wird dann aus dem Netz."

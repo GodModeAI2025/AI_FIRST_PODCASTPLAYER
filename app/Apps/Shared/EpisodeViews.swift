@@ -347,8 +347,11 @@ struct EpisodeListView: View {
     /// Die Rückfrage vor dem Einschalten: wie viele Folgen, wie viel ungefähr
     /// zu laden, und nach welchen Regeln.
     private var backCatalogQuestion: String {
+        // Nur was der Knopf hinzunimmt. Die neuesten Folgen bereitet die App
+        // ohnehin vor, und was schon auf dem Gerät liegt, wird nicht geladen.
+        let older = model.olderEpisodesToPrepare(in: sourceID)
         var sentences = [
-            EpisodeArchive.backCatalogSummary(model.backCatalogCandidates(in: sourceID)),
+            EpisodeArchive.backCatalogSummary(older, toLoad: older.filter { !model.hasAudioForTranscript($0) }),
             String(localized: "Die App erstellt die Transkripte von selbst, neueste zuerst, und reiht neue Folgen davor ein."),
         ]
         if !model.automaticAnalysis {
@@ -361,6 +364,18 @@ struct EpisodeListView: View {
             sentences.append(String(localized: "Geladen wird nur im WLAN."))
             #else
             sentences.append(String(localized: "Über einen Hotspot lädt die App dafür nichts."))
+            #endif
+        } else {
+            // Die einzige Stelle, an der man vor dem Archiv gefragt wird. Sie
+            // sagt auch, wenn es über Mobilfunk käme.
+            #if os(iOS)
+            sentences.append(String(localized: """
+                Geladen wird auch über Mobilfunk, so ist es in den Einstellungen unter Mobilfunk eingestellt.
+                """))
+            #else
+            sentences.append(String(localized: """
+                Geladen wird auch über einen Hotspot, so ist es in den Einstellungen unter Intelligenz eingestellt.
+                """))
             #endif
         }
         if model.removeAudioAfterAnalysis {

@@ -4,9 +4,10 @@
 //
 //  Welche Audiodatei auf dem Gerät bleibt und warum.
 //
-//  Die neueste Folge je Podcast bleibt für unterwegs. Alle anderen spielen
-//  nach dem Transkript aus dem Netz. Was jemand mit „Laden (offline)“ geholt
-//  hat, bleibt immer, bis „Audio entfernen“. Die Regel steht hier, ohne
+//  Die neueste Folge je Podcast bleibt für unterwegs, die bisherige, bis der
+//  Ton der neuen auf dem Gerät liegt. Alle anderen spielen nach dem
+//  Transkript aus dem Netz. Was jemand mit „Laden (offline)“ geholt hat,
+//  bleibt immer, bis „Audio entfernen“. Die Regel steht hier, ohne
 //  Dateisystem und ohne Oberfläche, damit sie sich prüfen lässt. Das
 //  Aufräumen und die Zeile unter „Audio liegt auf diesem Gerät“ lesen
 //  dasselbe Urteil und können sich deshalb nicht widersprechen.
@@ -106,5 +107,25 @@ public enum AudioRetention {
     /// Vorbereiten für „die N neuesten“.
     public static func newest(in episodes: [Episode]) -> Episode? {
         episodes.first { $0.audioURL != nil }
+    }
+
+    /// Welche Folgen einer Quelle als neueste ihren Ton behalten: die
+    /// neueste und, solange ihr Ton noch kommen soll, dazu die jüngste, deren
+    /// Ton schon auf dem Gerät liegt. Zeigt der Feed unterwegs eine neue
+    /// Folge, die noch aufs WLAN wartet, bleibt die bisherige so lange da.
+    /// Sonst hätte der Podcast gerade dann gar keinen Ton ohne Netz.
+    ///
+    /// - Parameters:
+    ///   - hasFile: Liegt der Ton dieser Folge auf dem Gerät?
+    ///   - isComing: Holt die App den Ton der neuesten Folge noch von selbst?
+    ///     Gefragt nur, wenn er fehlt.
+    public static func keptAsNewest(
+        in episodes: [Episode], hasFile: (Episode) -> Bool, isComing: (Episode) -> Bool
+    ) -> [EpisodeID] {
+        guard let newest = newest(in: episodes) else { return [] }
+        guard !hasFile(newest), isComing(newest),
+              let previous = episodes.first(where: { $0.id != newest.id && $0.audioURL != nil && hasFile($0) })
+        else { return [newest.id] }
+        return [newest.id, previous.id]
     }
 }

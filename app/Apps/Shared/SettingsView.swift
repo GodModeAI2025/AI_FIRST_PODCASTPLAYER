@@ -253,13 +253,16 @@ struct StorageSettingsSection: View {
         } header: {
             Text("Speicher")
         } footer: {
+            // Je Schalter ein Satz, was er bewirkt. So stimmt der Text, wie
+            // auch immer die Schalter darüber stehen.
             Text("""
-                Die neueste Folge jedes Podcasts bleibt auf dem Gerät und spielt ohne Netz. Sie geht, \
-                sobald eine neuere erscheint oder einen Tag, nachdem du sie gehört hast. Die anderen \
-                nimmt die App nach dem Transkript wieder vom Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, \
-                bleibt, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; \
-                Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge \
-                löschst du in der Folge selbst, dann verschwinden auch ihre Daten.
+                Mit „Neueste Folge je Podcast behalten“ bleibt die neueste Folge jedes Podcasts auf dem \
+                Gerät und spielt ohne Netz, bis eine neuere geladen ist. Mit „Audio entfernen, wenn das \
+                Transkript fertig ist“ nimmt die App die anderen Folgen nach dem Transkript wieder vom \
+                Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, \
+                bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, \
+                Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der \
+                Folge selbst, dann verschwinden auch ihre Daten.
                 """)
         }
         .task(id: model.mediaStorageChanged) { bytes = LocalMediaLocator.storedBytes() }

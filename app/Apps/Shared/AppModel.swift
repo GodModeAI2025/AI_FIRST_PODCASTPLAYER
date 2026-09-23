@@ -275,6 +275,14 @@ public final class AppModel {
     /// Aus der Warteschlange genommen. Das Vorbereiten reiht sie nicht wieder
     /// ein, erst ein ausdrückliches Anfordern.
     @ObservationIgnored private var dismissedFromPreparation = StoredEpisodeIDs(key: "dismissedFromPreparation")
+    static let failedPreparationKey = "failedInPreparation"
+    /// Von selbst eingereiht und an etwas gescheitert, das beim nächsten
+    /// Versuch wieder käme: keine Sprache dafür, eine Datei, die sich nicht
+    /// lesen lässt, eine Adresse, die es nicht mehr gibt. Das Vorbereiten
+    /// nimmt sie nicht nach jedem Start wieder, erst ein ausdrückliches
+    /// Anfordern. Die Grenze ist hoch, weil ein totes Archiv viele hat.
+    @ObservationIgnored private var failedInPreparation = StoredEpisodeIDs(
+        key: AppModel.failedPreparationKey, limit: 2_000)
 
     /// Nach dem Auswerten nur Transkript, Fakten und Notizen behalten.
     /// Abgespielt wird danach aus dem Netz.
@@ -313,8 +321,18 @@ public final class AppModel {
     @ObservationIgnored var prefetchDeclined = StoredEpisodeIDs(key: AppModel.prefetchDeclinedKey)
     /// Lädt gerade die neuesten Folgen, eine nach der anderen.
     @ObservationIgnored var prefetchTask: Task<Void, Never>?
-    /// In dieser Sitzung nicht noch einmal versuchen: das Laden ist gescheitert.
+    /// Nicht noch einmal versuchen, bis das Netz wieder von selbst laden
+    /// darf: das Laden ist gescheitert.
     @ObservationIgnored var prefetchFailed: Set<EpisodeID> = []
+    static let prefetchedFilesKey = "prefetchedNewestFiles"
+    /// Unter welcher Fassung die vorgehaltene neueste Folge liegt, Folge auf
+    /// Fassung. Manche Feeds ändern die Audioadresse bei jedem Abruf, etwa
+    /// mit einem Zeitstempel. Dann zieht die Datei zur neuen Fassung um,
+    /// statt dass die App dieselbe Folge noch einmal lädt.
+    @ObservationIgnored var prefetchedFiles: [String: String] =
+        UserDefaults.standard.dictionary(forKey: AppModel.prefetchedFilesKey) as? [String: String] ?? [:] {
+        didSet { UserDefaults.standard.set(prefetchedFiles, forKey: Self.prefetchedFilesKey) }
+    }
     /// Folgen, deren Audio gerade für unterwegs geladen wird.
     public internal(set) var downloading: Set<EpisodeID> = []
     /// Wie weit ein Download für unterwegs ist, für „23 von 70 MB“.
@@ -327,6 +345,11 @@ public final class AppModel {
     /// Kann dieses Gerät gar nicht transkribieren, hört die App von selbst
     /// auf, es zu versuchen, statt Folge um Folge zu laden.
     public internal(set) var preparationUnavailable: String?
+    /// Sprachen, deren Modell für die Spracherkennung auf dem Gerät liegt,
+    /// so wie die Folgen sie anfragen: Angabe im Feed oder Gerätesprache.
+    /// Nur dann entsteht ein Transkript aus einer geladenen Datei ganz ohne
+    /// Netz. Was nicht geprüft ist, gilt als nicht da.
+    @ObservationIgnored var installedSpeechModels: Set<String> = []
 
     /// Apples Server-Modell auf Private Cloud Compute für Antworten und
     /// Vergleiche nutzen, wenn das Gerät und die App es dürfen. Die Daten
@@ -409,6 +432,11 @@ public final class AppModel {
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
     /// danach die Größe neu.
     public internal(set) var mediaStorageChanged = 0
+    /// Die Namen der Audiodateien auf dem Gerät, je Stand von
+    /// `mediaStorageChanged` einmal gelesen. Die Warteschlange fragt für
+    /// jede Folge, ob ihr Ton schon da ist, auch aus Ansichten heraus. Ein
+    /// Blick ins Verzeichnis ersetzt so eine Dateiprüfung je Folge.
+    @ObservationIgnored var mediaFileCache: (generation: Int, names: Set<String>)?
     /// Bisherige Antworten, neueste zuerst. Bleiben beim Wechsel zwischen
     /// Ansichten erhalten.
     public var chatAnswers: [ChatAnswer] = []
@@ -590,6 +618,11 @@ public final class AppModel {
         let knownHighlights = highlights
         do {
             sources = try await store.sources()
+            // Auf einem anderen Gerät abbestellt: ein neues Abo desselben
+            // Podcasts beginnt wieder mit den neuesten Folgen, nicht still
+            // mit dem ganzen Archiv.
+            let subscribed = Set(sources.map(\.id))
+            backCatalog.removeAll { !subscribed.contains($0) }
             try await reloadProfile()
             ledger = try await store.ledger()
             // Was der Nutzer selbst angelegt hat. Bis eben lag das alles
@@ -630,6 +663,9 @@ public final class AppModel {
         // Auf einem anderen Gerät Gelöschtes auch hier entfernen: Audiodateien,
         // „Als Nächstes“, Warteschlange und gemerkte Stellen.
         await forgetEpisodesRemovedElsewhere()
+        // Wofür eine Folge mit Ton auf dem Gerät auch ohne Netz ein
+        // Transkript bekommt.
+        await refreshInstalledSpeechModels()
         restoreLastEpisode()
         await refreshRelevantToday()
         await tidyLocalAudio()
@@ -970,6 +1006,10 @@ public final class AppModel {
     /// vorbereiten“ wählt. Danach sieht die App nach, ob die neueste Folge
     /// jedes Podcasts für unterwegs auf dem Gerät liegt.
     public func prepareNewEpisodes(in sourceID: SourceID? = nil) async {
+        // Hat ein Feed die Audioadresse geändert, liegt die vorgehaltene
+        // Datei danach unter der neuen Fassung. Vor dem Einreihen, damit das
+        // Transkript sie findet.
+        adoptMovedPrefetches()
         // Auch ohne automatische Transkripte: die neueste Folge vorhalten.
         defer { prefetchNewestEpisodes() }
         guard automaticAnalysis, preparationUnavailable == nil else { return }
@@ -998,7 +1038,7 @@ public final class AppModel {
     /// der Warteschlange genommen. Was schon wartet, zählt mit.
     private func isOpenForPreparation(_ episode: Episode) -> Bool {
         !analyzedEpisodes.contains(episode.id) && stages[episode.id] == nil
-            && !dismissedFromPreparation.contains(episode.id)
+            && !dismissedFromPreparation.contains(episode.id) && !failedInPreparation.contains(episode.id)
     }
 
     // MARK: Ältere Folgen eines Podcasts
@@ -1014,12 +1054,18 @@ public final class AppModel {
         (episodes[sourceID] ?? []).filter { $0.audioURL != nil && $0.canBeAnalyzed && isOpenForPreparation($0) }
     }
 
-    /// Gibt es in diesem Podcast Folgen ohne Transkript, die das Vorbereiten
-    /// der neuesten Folgen nicht ohnehin nimmt? Nur dann lohnt der Knopf.
-    public func hasOlderEpisodesToPrepare(in sourceID: SourceID) -> Bool {
+    /// Was „Ältere Folgen auch vorbereiten“ hinzunimmt: die Folgen ohne
+    /// Transkript, die das Vorbereiten der neuesten Folgen nicht ohnehin
+    /// nimmt. Danach richten sich der Knopf und die Rückfrage.
+    public func olderEpisodesToPrepare(in sourceID: SourceID) -> [Episode] {
         let covered = automaticAnalysis
             ? Set(newestCandidates(in: episodes[sourceID] ?? []).map(\.id)) : []
-        return backCatalogCandidates(in: sourceID).contains { !covered.contains($0.id) }
+        return backCatalogCandidates(in: sourceID).filter { !covered.contains($0.id) }
+    }
+
+    /// Nur wenn es solche Folgen gibt, lohnt der Knopf.
+    public func hasOlderEpisodesToPrepare(in sourceID: SourceID) -> Bool {
+        !olderEpisodesToPrepare(in: sourceID).isEmpty
     }
 
     /// Wie viele Folgen dieses Podcasts noch auf ihr Transkript warten,
@@ -1063,6 +1109,9 @@ public final class AppModel {
     /// sonst bleibt automatisch Eingereihtes stehen und sagt, warum.
     func networkChanged(_ limit: NetworkLimit?) {
         networkLimit = limit
+        // Darf die App wieder von selbst laden, versucht sie auch, was vorher
+        // scheiterte. Meist war es die Verbindung, die gerade wegfiel.
+        if preparationWait == nil { prefetchFailed.removeAll() }
         queueConditionsChanged()
         // Darf die App wieder von selbst laden, holt sie die neuesten Folgen.
         prefetchNewestEpisodes()
@@ -1095,15 +1144,44 @@ public final class AppModel {
     ///
     /// Liegt der Ton schon auf dem Gerät, wartet nichts: das Transkript
     /// entsteht auf dem Gerät, zu laden gibt es nichts. Das gilt auch im
-    /// Hotspot, im Datensparmodus und ohne Netz. Die Datei wird erst geprüft,
-    /// wenn das Netz die Folge sonst anhielte, damit lange Warteschlangen im
-    /// WLAN keine Dateizugriffe kosten.
+    /// Hotspot, im Datensparmodus und ohne Netz. Von selbst Eingereihtes
+    /// braucht dazu auch das Sprachmodell für seine Sprache auf dem Gerät,
+    /// sonst lüde die Erkennung es still aus dem Netz, rund 300 MB. Die
+    /// Datei wird erst geprüft, wenn das Netz die Folge sonst anhielte.
     func queueWait(for episode: Episode) -> NetworkLimit? {
-        let wait = automaticallyQueued.contains(episode.id)
+        let automatic = automaticallyQueued.contains(episode.id)
+        let wait = automatic
             ? preparationWait
             : (mobileDataNeedsConsent ? networkLimit ?? .cellular : nil)
-        guard let wait, !hasAudioForTranscript(episode) else { return nil }
-        return wait
+        guard let wait, hasAudioForTranscript(episode) else { return wait }
+        return automatic && !hasSpeechModel(for: episode) ? wait : nil
+    }
+
+    /// Die Sprache, in der eine Folge transkribiert wird: die aus dem Feed,
+    /// ohne Angabe die des Geräts.
+    func transcriptionLocale(for episode: Episode) -> Locale {
+        let feedLanguage = sources.first(where: { $0.id == episode.sourceID })?.language
+        return feedLanguage.map { Locale(identifier: $0) } ?? .current
+    }
+
+    /// Liegt das Sprachmodell für diese Folge schon auf dem Gerät?
+    func hasSpeechModel(for episode: Episode) -> Bool {
+        installedSpeechModels.contains(transcriptionLocale(for: episode).identifier)
+    }
+
+    /// Fragt nach, für welche Sprachen der Abos das Sprachmodell schon auf
+    /// dem Gerät liegt. Lädt nichts.
+    func refreshInstalledSpeechModels() async {
+        // Dieselben Schlüssel wie `transcriptionLocale(for:)`.
+        let locales = sources.compactMap(\.language).map { Locale(identifier: $0) } + [.current]
+        var installed: Set<String> = []
+        for locale in locales where !installed.contains(locale.identifier) {
+            if await TimedTranscriptionEngine.hasInstalledModel(for: locale) {
+                installed.insert(locale.identifier)
+            }
+        }
+        installedSpeechModels = installed
+        queueConditionsChanged()
     }
 
     /// Hat die App diese Folge von selbst eingereiht? Dann hält sie auch die
@@ -1165,6 +1243,7 @@ public final class AppModel {
             automaticallyQueued.remove(episode.id)
             backlogQueued.remove(episode.id)
             dismissedFromPreparation.remove(episode.id)
+            failedInPreparation.remove(episode.id)
             // Von Hand angefordert heißt: auch auf einem Gerät ohne
             // Spracherkennung darf man es erneut versuchen.
             preparationUnavailable = nil
@@ -1180,16 +1259,27 @@ public final class AppModel {
         guard episode.audioURL != nil,
               analyzing?.id != episode.id,
               !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
-        if automatic, !backlog, let first = analysisQueue.firstIndex(where: { backlogQueued.contains($0.id) }) {
-            analysisQueue.insert(episode, at: first)
-        } else {
-            analysisQueue.append(episode)
-        }
+        insertIntoQueue(episode)
         stages[episode.id] = nil
         // Dieselbe Regel wie für den Worker: liegt der Ton schon da, wartet
         // die Folge nicht aufs WLAN.
         stageDetails[episode.id] = queueWait(for: episode)?.queueDetail ?? Self.waitingDetail
         startAnalysisWorker()
+    }
+
+    /// Reiht eine Folge an ihrem Platz ein: von Hand Angefordertes vor alles,
+    /// was die App von selbst eingereiht hat, neue Folgen vor die älteren aus
+    /// „Ältere Folgen auch vorbereiten“, diese ans Ende. Sonst wartete ein
+    /// angetipptes Transkript hinter einem ganzen Archiv.
+    private func insertIntoQueue(_ episode: Episode) {
+        let index: Int? = if !automaticallyQueued.contains(episode.id) {
+            analysisQueue.firstIndex { automaticallyQueued.contains($0.id) }
+        } else if !backlogQueued.contains(episode.id) {
+            analysisQueue.firstIndex { backlogQueued.contains($0.id) }
+        } else {
+            nil
+        }
+        if let index { analysisQueue.insert(episode, at: index) } else { analysisQueue.append(episode) }
     }
 
     /// „wartet“ in der Warteschlange. Der Schlüssel bleibt genau „wartet“:
@@ -1211,6 +1301,7 @@ public final class AppModel {
     /// vorbereitet. Darum fällt auch ein früheres „Entfernen“ weg.
     func dropFromAnalysisQueue(_ episodeID: EpisodeID) {
         dismissedFromPreparation.remove(episodeID)
+        failedInPreparation.remove(episodeID)
         automaticallyQueued.remove(episodeID)
         backlogQueued.remove(episodeID)
         analysisQueue.removeAll { $0.id == episodeID }
@@ -1239,7 +1330,7 @@ public final class AppModel {
                 let transientFailure = await self.runAnalysis(next, background: background)
                 if transientFailure, !retried.contains(next.id) {
                     retried.insert(next.id)
-                    self.analysisQueue.append(next)
+                    self.insertIntoQueue(next)
                     self.stageDetails[next.id] = String(localized: "wartet auf zweiten Versuch")
                     try? await Task.sleep(for: .seconds(3))
                 }
@@ -1297,8 +1388,7 @@ public final class AppModel {
         }
         // Die Folge wird in ihrer eigenen Sprache transkribiert, nicht in der
         // des Geräts. Ohne Angabe im Feed bleibt es bei der Gerätesprache.
-        let feedLanguage = sources.first(where: { $0.id == episode.sourceID })?.language
-        let locale = feedLanguage.map { Locale(identifier: $0) } ?? .current
+        let locale = transcriptionLocale(for: episode)
         stages[episode.id] = .discovered
         stageDetails[episode.id] = nil
         background.update(.discovered)
@@ -1348,6 +1438,8 @@ public final class AppModel {
                 return false
             }
             analyzedEpisodes.insert(episode.id)
+            // Das Sprachmodell dafür liegt jetzt auf dem Gerät.
+            installedSpeechModels.insert(locale.identifier)
             // Die Fakten kommen in ihre eigene Warteschlange, vor dem ersten
             // `await`: eine Löschung danach nimmt sie dort wieder heraus. Das
             // nächste Transkript wartet nicht auf sie.
@@ -1378,6 +1470,25 @@ public final class AppModel {
             let message = UserFacingError.describe(error)
             stageDetails[episode.id] = message
             let wasAutomatic = automaticallyQueued.remove(episode.id) != nil
+            backlogQueued.remove(episode.id)
+            if wasAutomatic {
+                // Käme der Fehler beim nächsten Start wieder, versucht die
+                // App es nicht von selbst noch einmal.
+                if UserFacingError.isPermanent(error) { failedInPreparation.insert(episode.id) }
+                // Der Ton war nur fürs Transkript da. Ohne Transkript bliebe
+                // er sonst für immer liegen.
+                await removeAudioAfterFailedPreparation(episode)
+                // Für diese Sprache gibt es kein Modell: die anderen Folgen
+                // des Podcasts scheiterten genauso, erst nach dem Laden. Sie
+                // gelten deshalb auch als gescheitert, sonst reihte das
+                // nächste Aktualisieren sie wieder ein.
+                if case TranscriptionError.localeNotSupported = error {
+                    failedInPreparation.insert(contentsOf: analysisQueue
+                        .filter { automaticallyQueued.contains($0.id) && $0.sourceID == episode.sourceID }
+                        .map(\.id))
+                    dropAutomaticallyQueued { $0.sourceID == episode.sourceID }
+                }
+            }
             // Kann das Gerät überhaupt nicht transkribieren, hat es keinen
             // Sinn, die nächsten Folgen trotzdem zu laden.
             if case TranscriptionError.speechUnavailableOnDevice = error {

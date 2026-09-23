@@ -92,6 +92,28 @@ struct AudioPolicyTests {
         #expect(AudioRetention.newest(in: [video]) == nil)
     }
 
+    @Test("Die bisherige neueste Folge bleibt, bis der Ton der neuen da ist")
+    func previousNewestStaysUntilNewArrives() {
+        let source = SourceID(stable: "quelle-wechsel")
+        func episode(_ name: String) -> Episode {
+            Episode(id: EpisodeID(stable: name), sourceID: source, title: name,
+                    audioURL: URL(string: "https://example.com/\(name).mp3"))
+        }
+        let new = episode("neu"), previous = episode("bisher"), old = episode("alt")
+        let list = [new, previous, old]
+        // Die neue wartet noch aufs WLAN: die bisherige bleibt.
+        #expect(AudioRetention.keptAsNewest(in: list, hasFile: { $0.id != new.id }, isComing: { _ in true })
+                == [new.id, previous.id])
+        // Die neue ist da: nur sie bleibt.
+        #expect(AudioRetention.keptAsNewest(in: list, hasFile: { _ in true }, isComing: { _ in true }) == [new.id])
+        // Die neue kommt nicht mehr, etwa abgebrochen: nichts hält die bisherige.
+        #expect(AudioRetention.keptAsNewest(in: list, hasFile: { $0.id != new.id }, isComing: { _ in false })
+                == [new.id])
+        // Liegt gar nichts auf dem Gerät, bleibt es bei der neuesten.
+        #expect(AudioRetention.keptAsNewest(in: list, hasFile: { _ in false }, isComing: { _ in true }) == [new.id])
+        #expect(AudioRetention.keptAsNewest(in: [], hasFile: { _ in true }, isComing: { _ in true }).isEmpty)
+    }
+
     // MARK: Ältere Folgen vorbereiten
 
     private func episode(_ index: Int, minutes: Int?) -> Episode {
@@ -118,6 +140,13 @@ struct AudioPolicyTests {
         #expect(withLengths.hasPrefix(TestLanguage.pick(de: "2 Folgen noch ohne Transkript, zusammen etwa ",
                                                          en: "2 episodes still without a transcript, about ")))
         #expect(EpisodeArchive.backCatalogSummary([episode(1, minutes: nil)])
+                == TestLanguage.pick(de: "1 Folge noch ohne Transkript.", en: "1 episode still without a transcript."))
+        // Liegt der Ton schon auf dem Gerät, zählt die Folge mit, geladen wird sie nicht.
+        let loaded = EpisodeArchive.backCatalogSummary([episode(1, minutes: 60), episode(2, minutes: 40)],
+                                                       toLoad: [episode(2, minutes: 40)])
+        #expect(loaded.hasPrefix(TestLanguage.pick(de: "2 Folgen", en: "2 episodes")))
+        #expect(loaded != withLengths)
+        #expect(EpisodeArchive.backCatalogSummary([episode(1, minutes: 60)], toLoad: [])
                 == TestLanguage.pick(de: "1 Folge noch ohne Transkript.", en: "1 episode still without a transcript."))
     }
 

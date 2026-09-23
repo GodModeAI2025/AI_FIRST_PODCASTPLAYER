@@ -1670,6 +1670,7 @@ extension AppModel {
         let removed = LocalMediaLocator.removeAllFiles()
         keptOffline.removeAll()
         prefetchedNewest.removeAll()
+        prefetchedFiles.removeAll()
         // Alles weg heißt auch: die neuesten Folgen nicht gleich wieder laden.
         for list in episodes.values {
             if let newest = AudioRetention.newest(in: list) { prefetchDeclined.insert(newest.id) }
@@ -1694,7 +1695,23 @@ extension AppModel {
     /// hier nicht. Danach richten sich Warteschlange und Rückfrage.
     func hasAudioForTranscript(_ episode: Episode) -> Bool {
         guard let audioURL = episode.audioURL else { return false }
-        return LocalMediaLocator().localFile(for: MediaVersionID(stable: audioURL.absoluteString)) != nil
+        return localMediaFileNames.contains(MediaVersionID(stable: audioURL.absoluteString).rawValue)
+    }
+
+    /// Die Namen der Audiodateien auf dem Gerät. Einmal gelesen je Stand von
+    /// `mediaStorageChanged`; jedes Laden und Entfernen zählt ihn hoch.
+    var localMediaFileNames: Set<String> {
+        let generation = mediaStorageChanged
+        if let cache = mediaFileCache, cache.generation == generation { return cache.names }
+        let names = Set((try? FileManager.default.contentsOfDirectory(
+            atPath: LocalMediaLocator.mediaDirectory.path)) ?? [])
+        mediaFileCache = (generation, names)
+        return names
+    }
+
+    /// Liegt irgendeine Fassung dieser Folge in `files`?
+    private func hasFile(_ episode: Episode, in files: Set<String>) -> Bool {
+        Self.localMediaIDs(of: [episode]).contains { files.contains($0.rawValue) }
     }
 
     /// Liegt das Audio auf dem Gerät? Liest den Speicherzähler und die Stufe
@@ -1804,13 +1821,57 @@ extension AppModel {
     /// behalten“ und nur, wenn das Netz das Vorbereiten erlaubt. Abgespielt
     /// wird dabei nichts.
     func prefetchNewestEpisodes() {
-        guard prefetchTask == nil, nextEpisodeToPrefetch() != nil else { return }
+        guard prefetchTask == nil else { return }
+        adoptMovedPrefetches()
+        guard nextEpisodeToPrefetch() != nil else { return }
         prefetchTask = Task { [weak self] in
             while let self, let episode = self.nextEpisodeToPrefetch() {
                 await self.prefetch(episode)
             }
+            // Die bisherige neueste Folge bleibt, bis der Ton der neuen da
+            // ist. Jetzt ist er da.
+            await self?.tidyLocalAudio()
             self?.prefetchTask = nil
         }
+    }
+
+    /// Nur Podcasts haben eine neueste Folge, die für unterwegs bleibt.
+    /// Einzelne Folgen, Dateien und YouTube-Kanäle nicht.
+    func isPodcast(_ sourceID: SourceID) -> Bool {
+        sources.first { $0.id == sourceID }?.kind == .podcastRSS
+    }
+
+    /// Hat ein Feed die Audioadresse einer vorgehaltenen Folge geändert,
+    /// etwa mit einem neuen Zeitstempel bei jedem Abruf, zieht die Datei zur
+    /// neuen Fassung um. Sonst sähe die Folge ohne Ton aus, die App lüde sie
+    /// noch einmal, und die alte Datei gehörte zu keiner Folge mehr.
+    func adoptMovedPrefetches() {
+        guard !prefetchedFiles.isEmpty else { return }
+        let directory = LocalMediaLocator.mediaDirectory
+        let manager = FileManager.default
+        var moved = false
+        for episode in episodes.values.joined() {
+            guard let old = prefetchedFiles[episode.id.rawValue] else { continue }
+            // Mit Transkript zeigt die gespeicherte Fassung auf die Datei.
+            guard prefetchedNewest.contains(episode.id), let audioURL = episode.audioURL else {
+                prefetchedFiles[episode.id.rawValue] = nil
+                continue
+            }
+            let current = MediaVersionID(stable: audioURL.absoluteString).rawValue
+            guard old != current else { continue }
+            let source = directory.appendingPathComponent(old)
+            if manager.fileExists(atPath: source.path) {
+                let target = directory.appendingPathComponent(current)
+                if manager.fileExists(atPath: target.path) {
+                    try? manager.removeItem(at: source)
+                } else {
+                    try? manager.moveItem(at: source, to: target)
+                }
+                moved = true
+            }
+            prefetchedFiles[episode.id.rawValue] = current
+        }
+        if moved { mediaStorageChanged += 1 }
     }
 
     /// Kommt diese Folge als neueste ihres Podcasts von selbst aufs Gerät?
@@ -1818,7 +1879,7 @@ extension AppModel {
     public func awaitsPrefetch(_ episode: Episode) -> Bool {
         _ = mediaStorageChanged
         _ = downloading
-        guard keepNewestAudio, episode.audioURL != nil,
+        guard keepNewestAudio, episode.audioURL != nil, isPodcast(episode.sourceID),
               AudioRetention.newest(in: episodes[episode.sourceID] ?? [])?.id == episode.id,
               !prefetchDeclined.contains(episode.id), !prefetchFailed.contains(episode.id),
               !isHeard(episode) else { return false }
@@ -1831,7 +1892,7 @@ extension AppModel {
         guard keepNewestAudio, preparationWait == nil else { return nil }
         var busy = Set(analysisQueue.map(\.id)).union(downloading)
         if let analyzing { busy.insert(analyzing.id) }
-        for source in sources {
+        for source in sources where source.kind == .podcastRSS {
             guard let episode = AudioRetention.newest(in: episodes[source.id] ?? []),
                   !busy.contains(episode.id), !prefetchFailed.contains(episode.id),
                   !prefetchDeclined.contains(episode.id), !isHeard(episode),
@@ -1845,6 +1906,7 @@ extension AppModel {
         guard let audioURL = episode.audioURL else { return }
         // Vor dem Laden vermerkt: das Aufräumen weiß so, warum die Datei da ist.
         prefetchedNewest.insert(episode.id)
+        prefetchedFiles[episode.id.rawValue] = MediaVersionID(stable: audioURL.absoluteString).rawValue
         let ticket = removalCount
         let outcome = await loadAudio(of: episode, from: audioURL)
         let loaded = localAudioFile(for: episode) != nil
@@ -1853,6 +1915,7 @@ extension AppModel {
             if wasRemoved(episode.id, since: ticket) {
                 LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
                 prefetchedNewest.remove(episode.id)
+                prefetchedFiles[episode.id.rawValue] = nil
                 keptOffline.remove(episode.id)
             }
         case .cancelled:
@@ -1860,12 +1923,15 @@ extension AppModel {
             prefetchDeclined.insert(episode.id)
             if !loaded {
                 prefetchedNewest.remove(episode.id)
+                prefetchedFiles[episode.id.rawValue] = nil
                 keptOffline.remove(episode.id)
             }
         case .failed(let error):
+            // Bis das Netz wieder von selbst laden darf, siehe `networkChanged`.
             prefetchFailed.insert(episode.id)
             if !loaded {
                 prefetchedNewest.remove(episode.id)
+                prefetchedFiles[episode.id.rawValue] = nil
                 // Hat jemand währenddessen „Laden (offline)“ gewählt, erfährt
                 // er, warum nichts kam. Sonst bleibt es still.
                 if keptOffline.contains(episode.id) {
@@ -1883,7 +1949,20 @@ extension AppModel {
     /// Folge gerade im Player, räumt `tidyLocalAudio()` sie später auf.
     func removeAudioAfterAnalysisIfWanted(_ episode: Episode) async {
         guard episodePlayer.episode?.id != episode.id,
-              audioVerdict(for: episode, newest: newestEpisodeIDs) == .remove,
+              audioVerdict(for: episode, newest: newestEpisodeIDs(files: localMediaFileNames)) == .remove,
+              !sharesAudioWithKeptEpisode(episode) else { return }
+        await deleteLocalAudio(of: episode)
+    }
+
+    /// Ein von selbst eingereihtes Transkript ist gescheitert. Den Ton hatte
+    /// die App nur dafür geladen; er geht wieder, außer jemand hat ihn selbst
+    /// geladen oder es ist die neueste Folge. Sonst sammelten sich mit
+    /// „Ältere Folgen auch vorbereiten“ Dateien an, die nie ein Transkript
+    /// bekommen.
+    func removeAudioAfterFailedPreparation(_ episode: Episode) async {
+        guard localAudioFile(for: episode) != nil else { return }
+        let verdict = audioVerdict(for: episode, newest: newestEpisodeIDs(files: localMediaFileNames))
+        guard episodePlayer.episode?.id != episode.id, verdict != .keptByUser, verdict != .newest,
               !sharesAudioWithKeptEpisode(episode) else { return }
         await deleteLocalAudio(of: episode)
     }
@@ -1893,9 +1972,9 @@ extension AppModel {
 
     /// Entfernt Audiodateien, die nach den Einstellungen nicht mehr auf das
     /// Gerät gehören: nach dem Transkript, einen Tag nach dem Hören und die
-    /// vorgehaltene Folge, sobald eine neuere erscheint. Was im Player liegt,
-    /// gerade lädt oder ausgewertet wird, bleibt. Die Regel steht in
-    /// `AudioRetention`.
+    /// vorgehaltene Folge, sobald der Ton einer neueren da ist. Was im
+    /// Player liegt, gerade lädt oder ausgewertet wird, bleibt. Die Regel
+    /// steht in `AudioRetention`.
     ///
     /// Was jemand mit „Laden (offline)“ geholt hat, bleibt immer, auch wenn
     /// er die Folge schon vor Tagen gehört hat. Wer eine gehörte Folge für
@@ -1908,7 +1987,7 @@ extension AppModel {
         var busy = Set(analysisQueue.map(\.id)).union(downloading)
         if let analyzing { busy.insert(analyzing.id) }
         if let playing = episodePlayer.episode { busy.insert(playing.id) }
-        let newest = newestEpisodeIDs
+        let newest = newestEpisodeIDs(files: files)
         // Erst urteilen, dann löschen. Teilen sich zwei Folgen eine Datei,
         // entscheidet die, die sie behalten soll.
         var removable: [Episode] = []
@@ -1933,7 +2012,7 @@ extension AppModel {
         // Nach Laden, Entfernen oder einem neuen Transkript neu lesen.
         _ = mediaStorageChanged
         _ = stages[episode.id]
-        let newest = AudioRetention.newest(in: episodes[episode.sourceID] ?? []).map { [$0.id] } ?? []
+        let newest = keptAsNewest(in: episode.sourceID, files: localMediaFileNames)
         return audioVerdict(for: episode, newest: Set(newest))
     }
 
@@ -1950,16 +2029,30 @@ extension AppModel {
                 keepNewest: keepNewestAudio))
     }
 
-    /// Die neueste Folge jedes Podcasts.
-    private var newestEpisodeIDs: Set<EpisodeID> {
-        Set(episodes.values.compactMap { AudioRetention.newest(in: $0)?.id })
+    /// Die Folgen jedes Podcasts, die als neueste ihren Ton behalten.
+    /// `files`: die Namen der Audiodateien auf dem Gerät.
+    private func newestEpisodeIDs(files: Set<String>) -> Set<EpisodeID> {
+        Set(sources.flatMap { keptAsNewest(in: $0.id, files: files) })
+    }
+
+    /// Die neueste Folge eines Podcasts und, solange ihr Ton noch kommt, die
+    /// bisherige. Die Regel steht in `AudioRetention.keptAsNewest`.
+    private func keptAsNewest(in sourceID: SourceID, files: Set<String>) -> [EpisodeID] {
+        guard isPodcast(sourceID) else { return [] }
+        return AudioRetention.keptAsNewest(
+            in: episodes[sourceID] ?? [],
+            hasFile: { hasFile($0, in: files) },
+            // Holt die App den Ton noch von selbst? Nicht nach „Laden
+            // abbrechen“ oder „Audio entfernen“ und nicht, wenn die Folge
+            // schon gehört ist.
+            isComing: { keepNewestAudio && !prefetchDeclined.contains($0.id) && !isHeard($0) })
     }
 
     /// Liegt dieselbe Datei auch unter einer Folge, die ihren Ton behalten
     /// soll? Selten, etwa bei zwei Einträgen mit derselben Audioadresse.
     private func sharesAudioWithKeptEpisode(_ episode: Episode) -> Bool {
         let ids = Set(Self.localMediaIDs(of: [episode]))
-        let newest = newestEpisodeIDs
+        let newest = newestEpisodeIDs(files: localMediaFileNames)
         return episodes.values.joined().contains { other in
             other.id != episode.id && Self.localMediaIDs(of: [other]).contains(where: ids.contains)
                 && (episodePlayer.episode?.id == other.id || audioVerdict(for: other, newest: newest) != .remove)
@@ -1985,9 +2078,11 @@ extension AppModel {
     private func deleteLocalAudio(of episode: Episode) async {
         var ids = Set(Self.localMediaIDs(of: [episode]))
         if let stored = try? await store.mediaVersionIDs(forEpisode: episode.id) { ids.formUnion(stored) }
+        if let prefetched = prefetchedFiles[episode.id.rawValue] { ids.insert(MediaVersionID(rawValue: prefetched)) }
         let list = Array(ids)
         LocalMediaLocator.removeFiles(for: list)
         prefetchedNewest.remove(episode.id)
+        prefetchedFiles[episode.id.rawValue] = nil
         try? await store.markAudioRemoved(list)
         mediaStorageChanged += 1
     }
@@ -2050,6 +2145,7 @@ extension AppModel {
             // Aufräumen sie nach einem neuen Abo für ausdrücklich geladen.
             keptOffline.remove(id)
             prefetchedNewest.remove(id)
+            prefetchedFiles[id.rawValue] = nil
             prefetchDeclined.remove(id)
         }
     }
@@ -2165,31 +2261,56 @@ struct StoredIDs<Subject> {
     let key: String
     let limit: Int
     private var ids: [TypedID<Subject>]
+    /// Dieselben Kennungen zum Nachsehen. Das Vorbereiten fragt für jede
+    /// Folge eines Archivs, ob sie hier steht.
+    private var lookup: Set<TypedID<Subject>>
 
     init(key: String, limit: Int = 500) {
         self.key = key
         self.limit = limit
         ids = (UserDefaults.standard.stringArray(forKey: key) ?? []).map(TypedID<Subject>.init(rawValue:))
+        lookup = Set(ids)
     }
 
-    func contains(_ id: TypedID<Subject>) -> Bool { ids.contains(id) }
+    func contains(_ id: TypedID<Subject>) -> Bool { lookup.contains(id) }
 
     mutating func insert(_ id: TypedID<Subject>) {
         ids.removeAll { $0 == id }
         ids.append(id)
         if ids.count > limit { ids.removeFirst(ids.count - limit) }
+        lookup = Set(ids)
+        save()
+    }
+
+    /// Mehrere auf einmal, mit einem Schreiben statt einem je Kennung.
+    mutating func insert(contentsOf new: some Sequence<TypedID<Subject>>) {
+        let added = new.filter { !lookup.contains($0) }
+        guard !added.isEmpty else { return }
+        ids.append(contentsOf: added)
+        if ids.count > limit { ids.removeFirst(ids.count - limit) }
+        lookup = Set(ids)
         save()
     }
 
     mutating func remove(_ id: TypedID<Subject>) {
-        guard ids.contains(id) else { return }
+        guard lookup.contains(id) else { return }
         ids.removeAll { $0 == id }
+        lookup.remove(id)
         save()
     }
 
     mutating func removeAll() {
         guard !ids.isEmpty else { return }
         ids.removeAll()
+        lookup.removeAll()
+        save()
+    }
+
+    mutating func removeAll(where shouldRemove: (TypedID<Subject>) -> Bool) {
+        let kept = ids.filter { !shouldRemove($0) }
+        guard kept.count != ids.count else { return }
+        ids = kept
+        lookup = Set(ids)
         save()
     }
 

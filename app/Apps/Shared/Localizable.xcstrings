@@ -4082,6 +4082,22 @@
         }
       }
     },
+    "Der Podcast hat die Audiodatei geändert. Für das Transkript lädt die App die neue Fassung." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Podcast hat die Audiodatei geändert. Für das Transkript lädt die App die neue Fassung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The podcast has changed the audio file. For the transcript, the app downloads the new version."
+          }
+        }
+      }
+    },
     "Der Podcast hat keine Beschreibung." : {
       "localizations" : {
         "de" : {
@@ -4334,6 +4350,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The text a podcast includes with an episode, often with links. You'll find it in the episode under \"Overview\"."
+          }
+        }
+      }
+    },
+    "Der Ton liegt schon auf dem Gerät. Das Sprachmodell für die Sprache dieser Folge lädt die App noch aus dem Netz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ton liegt schon auf dem Gerät. Das Sprachmodell für die Sprache dieser Folge lädt die App noch aus dem Netz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The audio is already on the device. The app still needs to download the speech model for this episode's language."
           }
         }
       }
@@ -5006,22 +5038,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The newest episode of each podcast stays on the device and plays without a connection. For the others, the app removes the audio after the transcript, and they play from the internet. In an episode, under \"More\": \"Download\" puts the audio on the device and keeps it there until you choose \"Remove Audio\". \"Remove Audio\" deletes only the audio, \"Delete Episode\" deletes the audio, transcript, facts, and listening progress. Your notes stay in Knowledge. Below \"Audio is on this device\", the episode tells you why. You can turn these rules off in Settings under Storage."
-          }
-        }
-      }
-    },
-    "Die neueste Folge jedes Podcasts bleibt auf dem Gerät und spielt ohne Netz. Sie geht, sobald eine neuere erscheint oder einen Tag, nachdem du sie gehört hast. Die anderen nimmt die App nach dem Transkript wieder vom Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der Folge selbst, dann verschwinden auch ihre Daten." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die neueste Folge jedes Podcasts bleibt auf dem Gerät und spielt ohne Netz. Sie geht, sobald eine neuere erscheint oder einen Tag, nachdem du sie gehört hast. Die anderen nimmt die App nach dem Transkript wieder vom Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der Folge selbst, dann verschwinden auch ihre Daten."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The newest episode of each podcast stays on the device and plays without a connection. It goes once a newer one comes out or one day after you listen to it. The app removes the others from the device after their transcript, and they play from the internet. Anything you get with \"Download\" stays until you choose \"Remove Audio\". \"Remove Audio\" deletes only the audio; transcripts, facts, saved moments, and your listening progress stay. To delete a single episode, do it in the episode itself. Its data goes with it."
           }
         }
       }
@@ -7134,6 +7150,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove Played Episodes from Device After One Day"
+          }
+        }
+      }
+    },
+    "Geladen wird auch über Mobilfunk, so ist es in den Einstellungen unter Mobilfunk eingestellt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geladen wird auch über Mobilfunk, so ist es in den Einstellungen unter Mobilfunk eingestellt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads also happen over cellular data, as set in Settings under Cellular Data."
+          }
+        }
+      }
+    },
+    "Geladen wird auch über einen Hotspot, so ist es in den Einstellungen unter Intelligenz eingestellt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geladen wird auch über einen Hotspot, so ist es in den Einstellungen unter Intelligenz eingestellt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads also happen over a Personal Hotspot, as set in Settings under Intelligence."
           }
         }
       }
@@ -9268,6 +9316,22 @@
         }
       }
     },
+    "Mit „Neueste Folge je Podcast behalten“ bleibt die neueste Folge jedes Podcasts auf dem Gerät und spielt ohne Netz, bis eine neuere geladen ist. Mit „Audio entfernen, wenn das Transkript fertig ist“ nimmt die App die anderen Folgen nach dem Transkript wieder vom Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der Folge selbst, dann verschwinden auch ihre Daten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit „Neueste Folge je Podcast behalten“ bleibt die neueste Folge jedes Podcasts auf dem Gerät und spielt ohne Netz, bis eine neuere geladen ist. Mit „Audio entfernen, wenn das Transkript fertig ist“ nimmt die App die anderen Folgen nach dem Transkript wieder vom Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der Folge selbst, dann verschwinden auch ihre Daten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With \"Keep Newest Episode of Each Podcast\" on, the newest episode of each podcast stays on the device and plays without a connection until a newer one is downloaded. With \"Remove Audio When Transcript Is Ready\" on, the app removes the other episodes from the device after their transcript, and they play from the internet. Anything you get with \"Download\" stays until you choose \"Remove Audio\". \"Remove Audio\" deletes only the audio; transcripts, facts, saved moments, and your listening progress stay. To delete a single episode, do it in the episode itself. Its data goes with it."
+          }
+        }
+      }
+    },
     "Mobilfunk" : {
       "localizations" : {
         "de" : {
@@ -9700,6 +9764,22 @@
         }
       }
     },
+    "Neueste Folge auf dem Gerät, bleibt für unterwegs, bis eine neuere geladen ist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge auf dem Gerät, bleibt für unterwegs, bis eine neuere geladen ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest episode on the device, stays for listening on the go until a newer one is downloaded."
+          }
+        }
+      }
+    },
     "Neueste Folge je Podcast behalten" : {
       "localizations" : {
         "de" : {
@@ -9712,22 +9792,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keep Newest Episode of Each Podcast"
-          }
-        }
-      }
-    },
-    "Neueste Folge, bleibt für unterwegs." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neueste Folge, bleibt für unterwegs."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Newest episode, stays for listening on the go."
           }
         }
       }
@@ -9792,6 +9856,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Newest episode. The app is about to download it for listening on the go."
+          }
+        }
+      }
+    },
+    "Neueste Folge. Die App lädt sie mit dem Transkript und behält sie für unterwegs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge. Die App lädt sie mit dem Transkript und behält sie für unterwegs."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest episode. The app downloads it with the transcript and keeps it for listening on the go."
           }
         }
       }
