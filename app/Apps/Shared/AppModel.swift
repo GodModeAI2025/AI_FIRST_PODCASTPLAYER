@@ -194,6 +194,13 @@ public final class AppModel {
         }
     }
     static let privateCloudKey = "allowPrivateCloudCompute"
+    static let learningEnabledKey = "suggestInterests"
+    static let rejectedSuggestionsKey = "com.podcastai.rejectedSuggestions"
+    static let dismissedRelevantKey = "com.podcastai.dismissedRelevant"
+    /// Gibt es abgelehnte Vorschläge, die „Vorschläge zurücksetzen“
+    /// vergessen kann? Gespiegelt, damit der Knopf sich aktualisiert.
+    public private(set) var hasRejectedSuggestions =
+        !(UserDefaults.standard.stringArray(forKey: AppModel.rejectedSuggestionsKey) ?? []).isEmpty
 
     /// Fakten je Folge, wie sie die Folgenansicht, der Chat und der Export zeigen.
     public internal(set) var facts: [EpisodeID: [EpisodeFact]] = [:]
@@ -247,6 +254,9 @@ public final class AppModel {
         // Beide an: der Text bleibt, der Ton kommt bei Bedarf aus dem Netz.
         self.removeAudioAfterAnalysis = UserDefaults.standard.object(forKey: Self.removeAfterAnalysisKey) as? Bool ?? true
         self.removeHeardAudio = UserDefaults.standard.object(forKey: Self.removeHeardKey) as? Bool ?? true
+        // Der Schalter „Interessen vorschlagen“ gilt über den Neustart hinaus.
+        // Jedes Neuladen des Profils reicht den Wert von hier weiter.
+        self.profile = InterestProfile(learningEnabled: UserDefaults.standard.bool(forKey: Self.learningEnabledKey))
         self.deviceID = deviceID
         self.policy = PlaybackPolicy(deviceID: deviceID)
         let locator = LocalMediaLocator()
@@ -336,7 +346,7 @@ public final class AppModel {
         }
         do {
             sources = try await store.sources()
-            profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+            try await reloadProfile()
             ledger = try await store.ledger()
             // Was der Nutzer selbst angelegt hat. Bis eben lag das alles
             // nur im Speicher und war beim nächsten Start verschwunden.
@@ -431,6 +441,9 @@ public final class AppModel {
     public func refreshRelevantToday() async {
         do {
             let evidence = try await store.evidenceForAnalyzedEpisodes()
+            // Vorschläge entstehen aus dem Gehörten, auch wenn noch kein
+            // eigenes Thema trifft. Gerade dann helfen sie am meisten.
+            refreshSuggestions(from: evidence)
             let matches = RelevanceScorer().score(evidence: evidence, profile: profile)
             guard !matches.isEmpty else {
                 relevantToday = []
@@ -441,19 +454,20 @@ public final class AppModel {
             let titles = try await store.titles(
                 forEpisodes: Array(Set(evidence.map(\.episodeID))))
 
-            var seen: Set<EvidenceID> = []
+            // Was der Nutzer als „Nicht relevant“ aussortiert hat, bleibt weg.
+            var seen = dismissedRelevant
             var items: [RelevantItem] = []
             // Der beste Treffer je Beleg gewinnt: ein Beleg, der zu drei
             // Themen passt, erscheint einmal, nicht dreimal.
             for match in matches.sorted(by: { $0.score > $1.score }) {
-                guard !seen.contains(match.evidenceID) else { continue }
+                guard !seen.contains(match.evidenceID.rawValue) else { continue }
                 guard let item = byID[match.evidenceID], let range = item.range else { continue }
                 // `unheardPortion` statt eines nackten Abdeckungsvergleichs:
                 // es berücksichtigt auch ausdrücklich Übersprungenes und
                 // verwirft Reststücke, die zu kurz für Inhalt sind.
                 guard !ledger.unheardPortion(of: range, in: item.mediaVersionID).isEmpty
                 else { continue }
-                seen.insert(match.evidenceID)
+                seen.insert(match.evidenceID.rawValue)
                 let title = titles[item.episodeID]
                 items.append(RelevantItem(
                     id: item.id,
@@ -463,11 +477,12 @@ public final class AppModel {
                     excerpt: item.quotedText,
                     relevance: match.personalRelevance(),
                     episodeID: item.episodeID,
-                    mediaVersionID: item.mediaVersionID
+                    mediaVersionID: item.mediaVersionID,
+                    publishedAt: title?.publishedAt,
+                    mentioned: match.matchedTerms
                 ))
             }
             relevantToday = items
-            refreshSuggestions(from: evidence)
         } catch {
             lastError = UserFacingError.describe(error)
         }
@@ -493,14 +508,23 @@ public final class AppModel {
 
     /// Abonniert und meldet Fehler an den Aufrufer, damit das Blatt offen
     /// bleiben und den Grund zeigen kann.
+    ///
+    /// Danach stehen die Folgen der neuen Quelle gleich im Speicher. Sonst
+    /// sähen „Neu in deinen Abos“ und das automatische Vorbereiten sie erst,
+    /// wenn jemand die Quelle öffnet oder die App neu startet.
     @discardableResult
     public func subscribe(to input: String) async throws -> AddedSource {
+        let known = Set(sources.map(\.id))
         let added = try await refresher.addSource(from: input)
         sources = try await store.sources()
         pruneSubscribedCounterparts(input: input)
         AccessibilityNotification.Announcement("Podcast abonniert: \(added.title)").post()
         for source in sources where source.kind == .youTubeChannel && podcastCounterparts[source.id] == nil {
             await findPodcastCounterparts(for: source)
+        }
+        // Neue Quellen und die, in die eine einzelne Folge gelegt wurde.
+        for source in sources where !known.contains(source.id) || source.title == added.title {
+            await loadEpisodes(for: source.id)
         }
         return added
     }
@@ -524,18 +548,33 @@ public final class AppModel {
         activity = "Feeds werden aktualisiert …"
         defer { activity = nil }
         lastRefresh = Date()
-        defer { Task { await prepareNewEpisodes() } }
         do {
             let result = try await refresher.refreshAll()
             sources = try await store.sources()
+            // Die neuen Folgen stehen jetzt in der Datenbank. Erst mit den
+            // frischen Listen sehen „Neu in deinen Abos“, die offene
+            // Folgenliste und das Vorbereiten sie.
+            await reloadEpisodeLists()
             activity = result.newEpisodes > 0
                 ? "\(result.newEpisodes) neue Folgen"
                 : "Keine neuen Folgen"
         } catch {
             lastError = UserFacingError.describe(error)
         }
+        await prepareNewEpisodes()
         await refreshRelevantToday()
         await tidyLocalAudio()
+    }
+
+    /// Liest die Folgenlisten aller Quellen neu aus der Datenbank.
+    func reloadEpisodeLists() async {
+        for id in sources.map(\.id) {
+            guard let list = try? await store.episodes(forSource: id),
+                  // Während des Lesens abbestellt: nicht wieder eintragen.
+                  sources.contains(where: { $0.id == id }) else { continue }
+            episodes[id] = list
+            RemoteMediaRegistry.shared.register(list)
+        }
     }
 
     // MARK: - Folgen erschliessen
@@ -804,24 +843,43 @@ public final class AppModel {
 
     // MARK: - Interessen
 
+    /// Lädt das Profil aus der Datenbank und behält die Vorschläge.
+    ///
+    /// Vorschläge liegen nur im Speicher. Ohne diesen Schritt verschwänden
+    /// sie, sobald jemand ein Thema anlegt, ändert oder löscht. Ein
+    /// Vorschlag, den inzwischen ein bestätigtes Interesse gleichen Namens
+    /// abdeckt, fällt weg.
+    func reloadProfile() async throws {
+        let suggested = profile.suggested
+        var reloaded = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+        let confirmedLabels = Set(reloaded.confirmed.map { $0.label.lowercased() })
+        for interest in suggested where !confirmedLabels.contains(interest.label.lowercased()) {
+            reloaded.add(interest)
+        }
+        profile = reloaded
+    }
+
+    /// Legt ein Interesse an. „Für dich“ rechnet danach gleich neu, damit
+    /// ein neues Thema sofort seine Stellen zeigt.
     @discardableResult
     public func addInterest(_ label: String, kind: InterestKind) async -> InterestID? {
         let interest = Interest(label: label, kind: kind, origin: .confirmedByUser)
         do {
             try await store.upsert(interest: interest)
-            profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
-            return interest.id
+            try await reloadProfile()
         } catch {
             lastError = UserFacingError.describe(error)
             return nil
         }
+        await refreshRelevantToday()
+        return interest.id
     }
 
     /// Bezeichnung und Stichworte ändern. „Für dich“ rechnet danach neu.
     public func updateInterest(_ interest: Interest) async {
         do {
             try await store.upsert(interest: interest)
-            profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+            try await reloadProfile()
         } catch {
             lastError = UserFacingError.describe(error)
             return
@@ -855,10 +913,11 @@ public final class AppModel {
     public func removeInterest(_ id: InterestID) async {
         do {
             try await store.removeInterest(id)
-            profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+            try await reloadProfile()
         } catch {
             lastError = UserFacingError.describe(error)
         }
+        await refreshRelevantToday()
     }
 
     // MARK: - Wiedergabe
@@ -1220,9 +1279,15 @@ public final class AppModel {
     /// stehen zu lassen wäre der unangenehmere Zustand: ein Abschnitt
     /// „Vorschläge von PodcastAI“ unter einem Schalter, der sagt, dass
     /// nichts vorgeschlagen wird.
+    ///
+    /// Der Schalter wird gespeichert. Eingeschaltet leitet die App gleich
+    /// aus dem bisher Gehörten ab, statt auf die nächste Folge zu warten.
     public func setLearningEnabled(_ enabled: Bool) {
         profile.learningEnabled = enabled
-        if !enabled {
+        UserDefaults.standard.set(enabled, forKey: Self.learningEnabledKey)
+        if enabled {
+            Task { await refreshRelevantToday() }
+        } else {
             for interest in profile.suggested { profile.remove(interest.id) }
         }
     }
@@ -1235,6 +1300,12 @@ public final class AppModel {
     public func resetSuggestions() {
         for interest in profile.suggested { profile.remove(interest.id) }
         rejectedSuggestions = []
+        if profile.learningEnabled { Task { await refreshRelevantToday() } }
+    }
+
+    /// Gibt es etwas, das „Vorschläge zurücksetzen“ verwerfen kann?
+    public var canResetSuggestions: Bool {
+        !profile.suggested.isEmpty || hasRejectedSuggestions
     }
 
     /// Übernimmt einen Vorschlag. Ab hier wirkt er.
@@ -1259,8 +1330,11 @@ public final class AppModel {
     /// Abgelehnte Vorschläge, damit derselbe Begriff nicht jede Woche
     /// erneut auftaucht.
     private var rejectedSuggestions: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: "com.podcastai.rejectedSuggestions") ?? []) }
-        set { UserDefaults.standard.set(Array(newValue).sorted(), forKey: "com.podcastai.rejectedSuggestions") }
+        get { Set(UserDefaults.standard.stringArray(forKey: Self.rejectedSuggestionsKey) ?? []) }
+        set {
+            UserDefaults.standard.set(Array(newValue).sorted(), forKey: Self.rejectedSuggestionsKey)
+            hasRejectedSuggestions = !newValue.isEmpty
+        }
     }
 
     /// Das Cover einer Ausgabe.
@@ -1433,16 +1507,27 @@ public final class AppModel {
     /// Das war die Lücke, die „Für dich" wirkungslos machte: der Bildschirm
     /// versprach „das kannst du nachhören" und bot keinen Weg dorthin.
     public func playRelevantItem(_ item: RelevantItem) {
+        playRelevantItems([item])
+    }
+
+    /// Spielt mehrere Stellen einer Karte nacheinander.
+    public func playRelevantItems(_ items: [RelevantItem]) {
+        guard let first = items.first else { return }
         Task {
-            guard let found = try? await store.evidence(ids: [item.id]),
-                  let evidence = found[item.id] else {
+            let ids = items.map(\.id)
+            guard let found = try? await store.evidence(ids: ids) else {
                 lastError = "Diese Stelle ist nicht mehr verfügbar."
                 return
             }
-            let context = await planningContext(for: [evidence])
+            let evidence = ids.compactMap { found[$0] }
+            guard !evidence.isEmpty else {
+                lastError = "Diese Stelle ist nicht mehr verfügbar."
+                return
+            }
+            let context = await planningContext(for: evidence)
             let plan = FocusPlanner(context: context).plan(
-                from: PlaylistProposal(evidenceIDs: [item.id],
-                                       requestSummary: item.episodeTitle),
+                from: PlaylistProposal(evidenceIDs: evidence.map(\.id),
+                                       requestSummary: first.episodeTitle),
                 route: .interestFocus,
                 // Ausdrücklich gewählt heisst: auch dann abspielen, wenn es
                 // schon gehört wurde.
@@ -1456,13 +1541,52 @@ public final class AppModel {
         }
     }
 
+    /// Merkt eine Stelle aus „Für dich“ unter Wissen, mit Zitat und Herkunft.
+    public func rememberRelevantItem(_ item: RelevantItem) {
+        Task {
+            var episodeID = item.episodeID
+            if episodeID == nil {
+                episodeID = (try? await store.evidence(ids: [item.id]))?[item.id]?.episodeID
+            }
+            guard let episodeID,
+                  let episode = (try? await store.episodes(ids: [episodeID]))?.first,
+                  await addNote(nil, at: item.range.start.seconds, in: episode, quote: item.excerpt) != nil
+            else {
+                lastError = "Diese Stelle lässt sich nicht mehr merken."
+                return
+            }
+        }
+    }
+
+    /// Ist diese Stelle aus „Für dich“ schon gemerkt?
+    public func isRemembered(_ item: RelevantItem) -> Bool {
+        highlights.contains { $0.episodeID == item.episodeID && $0.quote == String(item.excerpt.prefix(700)) }
+    }
+
+    /// Sortiert Stellen aus „Für dich“ aus. Sie kommen nicht wieder, auch
+    /// nicht nach einem Neustart.
+    public func dismissRelevantItems(_ items: [RelevantItem]) {
+        let ids = Set(items.map(\.id))
+        relevantToday.removeAll { ids.contains($0.id) }
+        // Die jüngsten zuletzt; bei sehr vielen fallen die ältesten heraus.
+        var stored = UserDefaults.standard.stringArray(forKey: Self.dismissedRelevantKey) ?? []
+        stored.removeAll { ids.contains(EvidenceID(rawValue: $0)) }
+        stored.append(contentsOf: ids.map(\.rawValue).sorted())
+        UserDefaults.standard.set(Array(stored.suffix(2_000)), forKey: Self.dismissedRelevantKey)
+    }
+
+    /// Stellen, die der Nutzer als „Nicht relevant“ aussortiert hat.
+    var dismissedRelevant: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: Self.dismissedRelevantKey) ?? [])
+    }
+
     /// Hebt einen Vorschlag zu einem bestätigten Interesse.
     public func confirmInterest(_ id: InterestID) async {
         profile.confirm(id)
         guard let interest = profile.interests.first(where: { $0.id == id }) else { return }
         do {
             try await store.upsert(interest: interest)
-            profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+            try await reloadProfile()
         } catch {
             lastError = UserFacingError.describe(error)
         }
@@ -1763,12 +1887,18 @@ public struct RelevantItem: Identifiable, Sendable {
     public let relevance: PersonalRelevance?
     public let episodeID: EpisodeID?
     public let mediaVersionID: MediaVersionID?
+    /// Wann die Folge erschienen ist.
+    public let publishedAt: Date?
+    /// Welche Begriffe der Stelle getroffen haben, in der Schreibweise des Nutzers.
+    public let mentioned: [String]
 
     public init(id: EvidenceID, sourceTitle: String, episodeTitle: String,
                 range: MediaTimeRange, excerpt: String, relevance: PersonalRelevance?,
-                episodeID: EpisodeID? = nil, mediaVersionID: MediaVersionID? = nil) {
+                episodeID: EpisodeID? = nil, mediaVersionID: MediaVersionID? = nil,
+                publishedAt: Date? = nil, mentioned: [String] = []) {
         self.id = id; self.sourceTitle = sourceTitle; self.episodeTitle = episodeTitle
         self.range = range; self.excerpt = excerpt; self.relevance = relevance
         self.episodeID = episodeID; self.mediaVersionID = mediaVersionID
+        self.publishedAt = publishedAt; self.mentioned = mentioned
     }
 }

@@ -158,7 +158,7 @@ struct LearningSettingsSection: View {
             Button("Vorschläge zurücksetzen", role: .destructive) {
                 model.resetSuggestions()
             }
-            .disabled(model.profile.suggested.isEmpty)
+            .disabled(!model.canResetSuggestions)
         } header: {
             Text("Lernen")
         } footer: {
