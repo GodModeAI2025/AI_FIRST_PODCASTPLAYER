@@ -54,7 +54,7 @@ struct PodcastAIMacApp: App {
                 // War ein leerer Block: ein Menüpunkt, der nichts tut, ist
                 // schlechter als keiner.
                 AddSourceMenuItem()
-                Button("Alle Feeds aktualisieren") {
+                Button("Alle Podcasts aktualisieren") {
                     Task { await model.refreshAll() }
                 }
                 .keyboardShortcut("r", modifiers: .command)
@@ -78,21 +78,21 @@ struct PodcastAIMacApp: App {
     }
 }
 
-/// „Quelle hinzufügen …“ öffnet das Blatt im Fenster, das vorn ist, nicht
+/// „Podcast hinzufügen …“ öffnet das Blatt im Fenster, das vorn ist, nicht
 /// in allen Fenstern zugleich.
 private struct AddSourceMenuItem: View {
 
     @FocusedBinding(\.isAddingSource) private var isAddingSource
 
     var body: some View {
-        Button("Quelle hinzufügen …") { isAddingSource = true }
+        Button("Podcast hinzufügen …") { isAddingSource = true }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .disabled(isAddingSource == nil)
     }
 }
 
 extension FocusedValues {
-    /// „Quelle hinzufügen“ im vorderen Fenster.
+    /// „Podcast hinzufügen“ im vorderen Fenster.
     @Entry var isAddingSource: Binding<Bool>?
 }
 
@@ -142,19 +142,21 @@ struct MacRootView: View {
         case forYou, feeds, chat, library, queue, knowledge, interests, perspective, trails, player, help
         var id: Self { self }
 
+        /// Dieselben Namen wie die Tabs auf iOS, damit Hinweise wie
+        /// „Meine Podcasts › Plus“ auf beiden Geräten stimmen.
         var label: String {
             switch self {
-            case .forYou: "Für dich"
-            case .feeds: "Themen"
-            case .chat: "Suchen und fragen"
-            case .library: "Mediathek"
-            case .queue: "Warteschlange"
-            case .knowledge: "Gemerkte Stellen"
-            case .interests: "Interessen"
-            case .perspective: "Gegenpositionen"
-            case .trails: "Wissenslandkarten"
-            case .player: "Wiedergabe"
-            case .help: "So funktioniert's"
+            case .forYou: String(localized: "Für dich")
+            case .feeds: String(localized: "Themen-Updates")
+            case .chat: String(localized: "Chat")
+            case .library: String(localized: "Meine Podcasts")
+            case .queue: String(localized: "Warteschlange")
+            case .knowledge: String(localized: "Gemerkte Stellen")
+            case .interests: String(localized: "Interessen")
+            case .perspective: String(localized: "Gegenpositionen")
+            case .trails: String(localized: "Gesicherte Antworten")
+            case .player: String(localized: "Wiedergabe")
+            case .help: String(localized: "So funktioniert's")
             }
         }
 
@@ -162,7 +164,7 @@ struct MacRootView: View {
             switch self {
             case .forYou: "sparkles"
             case .feeds: "waveform.circle"
-            case .chat: "text.bubble"
+            case .chat: "bubble.left.and.bubble.right"
             case .library: "books.vertical"
             case .queue: "list.bullet"
             case .knowledge: "bookmark"
@@ -281,7 +283,7 @@ struct MacRootView: View {
                         .frame(minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.pressable)
-                .accessibilityLabel("Alle Feeds aktualisieren")
+                .accessibilityLabel("Alle Podcasts aktualisieren")
             }
         }
     }

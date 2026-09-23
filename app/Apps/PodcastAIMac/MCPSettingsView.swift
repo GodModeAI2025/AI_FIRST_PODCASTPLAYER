@@ -49,10 +49,12 @@ struct MCPSettingsView: View {
             } header: {
                 Text("Zugang")
             } footer: {
-                Text("Nur lesend und nur auf diesem Mac. Der Agent startet PodcastAI selbst und spricht "
-                     + "über die Standardeingabe mit ihm, einen Netzwerk-Port gibt es nicht. Es gibt kein "
-                     + "Werkzeug, das schreibt, löscht oder Wiedergabe startet. Ausgeschaltet beantwortet "
-                     + "PodcastAI keine Anfrage mehr, auch nicht in einer laufenden Verbindung.")
+                Text("""
+                    Nur lesend und nur auf diesem Mac. Der Agent startet PodcastAI selbst und spricht \
+                    über die Standardeingabe mit ihm, einen Netzwerk-Port gibt es nicht. Es gibt kein \
+                    Werkzeug, das schreibt, löscht oder Wiedergabe startet. Ausgeschaltet beantwortet \
+                    PodcastAI keine Anfrage mehr, auch nicht in einer laufenden Verbindung.
+                    """)
             }
 
             if isEnabled {
@@ -64,9 +66,11 @@ struct MCPSettingsView: View {
                 } header: {
                     Text("Verbinden")
                 } footer: {
-                    Text("Diesen Eintrag in die MCP-Einstellungen deines Agenten übernehmen, etwa in die "
-                         + "Konfigurationsdatei von Claude Desktop. Der Agent startet dann PodcastAI mit "
-                         + "„\(MCPHost.argument)“. Ohne Freigabe darunter bekommt er nichts zu lesen.")
+                    Text("""
+                        Diesen Eintrag in die MCP-Einstellungen deines Agenten übernehmen, etwa in die \
+                        Konfigurationsdatei von Claude Desktop. Der Agent startet dann PodcastAI mit \
+                        „\(MCPHost.argument)“. Ohne Freigabe darunter bekommt er nichts zu lesen.
+                        """)
                 }
 
                 Section("Freigabe") {
@@ -84,11 +88,12 @@ struct MCPSettingsView: View {
                         ))
                     }
 
-                    Toggle("Gemerkte Stellen und geparkte Fragen einschliessen",
+                    Toggle("Gemerkte Stellen und gesicherte Antworten einschliessen",
                            isOn: $includesHighlights)
 
-                    Stepper("Gültig für \(hours) \(hours == 1 ? "Stunde" : "Stunden")",
-                            value: $hours, in: 1...24)
+                    Stepper(value: $hours, in: 1...24) {
+                        Text("Gültig für ^[\(hours) Stunde](inflect: true)")
+                    }
 
                     HStack {
                         Button("Freigeben") { authorize() }
@@ -104,7 +109,9 @@ struct MCPSettingsView: View {
                 if let grant {
                     Section("Aktuelle Freigabe") {
                         LabeledContent("Agent") { Text(grant.agentName) }
-                        LabeledContent("Quellen") { Text("\(grant.allowedSourceIDs.count)") }
+                        LabeledContent("Podcasts") {
+                            Text(grant.allowedSourceIDs.count, format: .number)
+                        }
                         LabeledContent("Notizen") {
                             Text(grant.includesHighlights ? "eingeschlossen" : "ausgenommen")
                         }
@@ -122,7 +129,7 @@ struct MCPSettingsView: View {
                         ForEach(entries.prefix(20)) { entry in
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text(entry.tool.summary)
+                                    Text(entry.tool.title)
                                     if let query = entry.query {
                                         Text(query)
                                             .font(.caption)
@@ -130,7 +137,7 @@ struct MCPSettingsView: View {
                                     }
                                 }
                                 Spacer()
-                                Text("\(entry.resultCount)")
+                                Text(entry.resultCount, format: .number)
                                     .font(.caption.monospacedDigit())
                                     .foregroundStyle(.secondary)
                                 Text(entry.at.formatted(date: .omitted, time: .standard))

@@ -6,14 +6,14 @@
 //
 //  Die Tab Bar verträgt drei bis fünf Einträge. Bei sieben wird jeder
 //  einzelne schmaler, die Beschriftungen brechen um, und der Nutzer muss
-//  lesen statt zu erkennen. Interessen, Gegenpositionen und
-//  Wissenslandkarten sind deshalb keine eigenen Tabs, sondern liegen unter
-//  „Wissen“ — sie gehören inhaltlich zusammen und werden seltener gebraucht
-//  als Hören und Mediathek.
+//  lesen statt zu erkennen. Interessen, Gegenpositionen und gesicherte
+//  Antworten sind deshalb keine eigenen Tabs, sondern liegen unter
+//  „Wissen“. Sie gehören inhaltlich zusammen und werden seltener gebraucht
+//  als Hören und „Meine Podcasts“.
 //
-//  „Fragen“ steht an der Stelle, an der seit WWDC25 die Suche erwartet wird:
-//  ein eigener Tab, immer erreichbar. In dieser App ist die Suche ein
-//  Gespräch — aber sie bleibt Suche.
+//  „Chat“ ist ein gewöhnlicher Tab ohne Such-Rolle. Hinter einer Lupe
+//  erwartet man ein Suchfeld, hier wartet aber ein Gespräch über die eigenen
+//  Podcasts. Sprechblasen und der Name sagen das gleich.
 //
 
 import SwiftUI
@@ -84,16 +84,16 @@ struct RootView: View {
                 NavigationStack { ForYouView() }
                     .activityBanner { showingQueue = true }
             }
-            Tab("Themen", systemImage: "waveform.circle", value: Area.feeds) {
+            Tab("Themen-Updates", systemImage: "waveform.circle", value: Area.feeds) {
                 NavigationStack { SmartFeedListView() }
                     .activityBanner { showingQueue = true }
             }
-            // Eigener Such-Tab: die Rolle, die er seit WWDC25 hat.
-            Tab("Fragen", systemImage: "magnifyingglass", value: Area.ask, role: .search) {
+            // Keine Such-Rolle: hier wird gefragt, nicht gesucht.
+            Tab("Chat", systemImage: "bubble.left.and.bubble.right", value: Area.ask) {
                 NavigationStack { ChatView() }
                     .activityBanner { showingQueue = true }
             }
-            Tab("Mediathek", systemImage: "books.vertical", value: Area.library) {
+            Tab("Meine Podcasts", systemImage: "books.vertical", value: Area.library) {
                 NavigationStack { LibraryView() }
                     .activityBanner { showingQueue = true }
             }
@@ -267,11 +267,14 @@ struct MiniPlayerAccessory: View {
 
     private var isPlaying: Bool { model.isPlaying }
 
+    /// Als String, weil Anzeige und VoiceOver-Wert denselben Text brauchen.
+    /// Einzahl und Mehrzahl regelt die Beugung, nicht der Code.
     private func subtitle(for plan: ValidatedPlaybackPlan) -> String {
-        let stellen = plan.segments.count == 1 ? "1 Stelle" : "\(plan.segments.count) Stellen"
-        let quellen = plan.distinctSourceCount == 1
-            ? "1 Quelle" : "\(plan.distinctSourceCount) Quellen"
-        return "\(stellen) · \(quellen)"
+        let passages = plan.segments.count
+        let podcasts = plan.distinctSourceCount
+        return String(AttributedString(
+            localized: "^[\(passages) Stelle](inflect: true) · ^[\(podcasts) Podcast](inflect: true)"
+        ).characters)
     }
 }
 

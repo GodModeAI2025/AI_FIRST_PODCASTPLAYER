@@ -36,6 +36,8 @@ public enum MCPTool: String, CaseIterable, Codable, Sendable {
     case listHighlights
     case listTrails
 
+    /// Die Beschreibung im Werkzeugschema für den Agenten. Bleibt deutsch
+    /// und wird nicht übersetzt.
     public var summary: String {
         switch self {
         case .listInterests: "Bestätigte Interessen lesen"
@@ -43,6 +45,18 @@ public enum MCPTool: String, CaseIterable, Codable, Sendable {
         case .getEvidence: "Eine Fundstelle mit Quelle und Timecode abrufen"
         case .listHighlights: "Gemerkte Stellen lesen"
         case .listTrails: "Geparkte Wissenslandkarten lesen"
+        }
+    }
+
+    /// Wie das Protokoll in den Einstellungen das Werkzeug nennt. In der
+    /// Sprache des Geräts und mit den Begriffen der App.
+    public var title: String {
+        switch self {
+        case .listInterests: String(localized: "Bestätigte Interessen lesen")
+        case .searchEvidence: String(localized: "In Folgen mit Transkript suchen")
+        case .getEvidence: String(localized: "Eine Fundstelle mit Quelle und Zeitmarke abrufen")
+        case .listHighlights: String(localized: "Gemerkte Stellen lesen")
+        case .listTrails: String(localized: "Gesicherte Antworten lesen")
         }
     }
 
