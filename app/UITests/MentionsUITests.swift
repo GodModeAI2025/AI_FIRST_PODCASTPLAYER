@@ -66,9 +66,11 @@ final class MentionsUITests: XCTestCase {
         input.tap()
         input.typeText("Welche Links werden genannt?")
         app.buttons["chat.send"].tap()
+        // Die Antwort steht in Punkten, jeder Link in seiner eigenen Zeile.
         let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'example.org/workshop'")).firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 20), "Die Antwort nennt den Link nicht")
-        XCTAssertTrue(answer.label.contains("example.org/ki-arbeit"), "Die Antwort nennt den Link aus den Shownotes nicht")
         attach(app, "erwaehnt-chat")
+        let shownotesLink = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'example.org/ki-arbeit'")).firstMatch
+        XCTAssertTrue(shownotesLink.exists, "Die Antwort nennt den Link aus den Shownotes nicht")
     }
 }
