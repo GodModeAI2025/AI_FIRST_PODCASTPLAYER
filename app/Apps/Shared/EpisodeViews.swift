@@ -179,6 +179,14 @@ struct EpisodeListView: View {
             Text("Transkript, Fakten, Belege und der Hörstand dieser Folge werden gelöscht. Deine Notizen bleiben unter Wissen erhalten.")
         }
         .task { await model.loadEpisodes(for: sourceID) }
+        // Was mit dieser Quelle geht und wie weit ihr Archiv zurückreicht.
+        .toolbar {
+            ToolbarItem {
+                NavigationLink { SourceDetailView(sourceID: sourceID) } label: {
+                    Label("Über diese Quelle", systemImage: "info.circle")
+                }
+            }
+        }
         .overlay {
             if episodes.isEmpty {
                 ContentUnavailableView(

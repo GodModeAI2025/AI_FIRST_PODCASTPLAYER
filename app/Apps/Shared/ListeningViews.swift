@@ -829,6 +829,11 @@ struct EpisodeArtwork: View {
 /// Der große Player für eine ganze Folge.
 struct EpisodePlayerView: View {
 
+    /// Eingebettet statt als Sheet, etwa in der Mac-Seitenleiste unter
+    /// „Wiedergabe“. Dann ohne eigenen NavigationStack und ohne „Fertig“,
+    /// denn es gibt nichts zu schliessen.
+    var isEmbedded = false
+
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var scrubbing: Double?
@@ -843,7 +848,15 @@ struct EpisodePlayerView: View {
     private var player: EpisodePlayer { model.episodePlayer }
 
     var body: some View {
-        NavigationStack {
+        if isEmbedded {
+            content
+        } else {
+            NavigationStack { content }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        Group {
             if let episode = player.episode {
                 ScrollView {
                     VStack(spacing: Design.Spacing.control) {
@@ -914,8 +927,10 @@ struct EpisodePlayerView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 #endif
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Fertig") { dismiss() }
+                    if !isEmbedded {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Fertig") { dismiss() }
+                        }
                     }
                     ToolbarItem(placement: .primaryAction) {
                         NavigationLink {
@@ -928,7 +943,9 @@ struct EpisodePlayerView: View {
             } else {
                 ContentUnavailableView("Nichts läuft", systemImage: "play.slash")
                     .toolbar {
-                        ToolbarItem(placement: .cancellationAction) { Button("Fertig") { dismiss() } }
+                        if !isEmbedded {
+                            ToolbarItem(placement: .cancellationAction) { Button("Fertig") { dismiss() } }
+                        }
                     }
             }
         }

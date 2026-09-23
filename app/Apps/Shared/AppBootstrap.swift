@@ -24,6 +24,7 @@
 
 import Foundation
 import SwiftData
+import SwiftUI
 import PodcastAIKit
 
 #if canImport(AppIntents)
@@ -51,13 +52,24 @@ public enum AppBootstrap {
         return background
     }
 
+    /// Was `openStore()` geöffnet hat, und was der Nutzer davon wissen muss.
+    public struct OpenedStore {
+        public let container: ModelContainer
+        public let description: String
+        /// Gesetzt, wenn beim Öffnen etwas schiefging.
+        public let failure: String?
+        /// Die App läuft ohne Speicher auf der Platte. Nur dann bringt ein
+        /// zweiter Versuch etwas.
+        public var isTemporary = false
+    }
+
     /// Öffnet die Datenbank, wenn möglich mit iCloud-Abgleich.
     ///
     /// UI-Tests starten mit `-uitest-fresh` und einem leeren Speicher im
     /// Arbeitsspeicher, damit Quellen aus einem früheren Test nicht mitzählen.
     /// Klappt der Abgleich nicht, bleibt der Speicher lokal; klappt auch das
     /// nicht, läuft die App mit einem flüchtigen Speicher und sagt es.
-    public static func openStore() -> (container: ModelContainer, description: String, failure: String?) {
+    public static func openStore() -> OpenedStore {
         #if DEBUG
         // Entwicklerschalter: CloudKit-Schema anlegen und beenden.
         if ProcessInfo.processInfo.arguments.contains("-initialize-cloudkit-schema") {
@@ -72,23 +84,49 @@ public enum AppBootstrap {
         }
         #endif
         if ProcessInfo.processInfo.arguments.contains("-uitest-fresh") {
-            return (try! LibraryStore.makeContainer(inMemory: true), "Test, nur im Arbeitsspeicher", nil)
+            return OpenedStore(container: try! LibraryStore.makeContainer(inMemory: true),
+                               description: "Test, nur im Arbeitsspeicher", failure: nil)
         }
         let signedIn = FileManager.default.ubiquityIdentityToken != nil
         if let container = try? LibraryStore.openPersistentContainer(sync: true) {
             let description = signedIn
                 ? "Aktiv, über deine private iCloud-Datenbank"
                 : "Nicht bei iCloud angemeldet, die Daten bleiben auf diesem Gerät"
-            return (container, description, nil)
+            return OpenedStore(container: container, description: description, failure: nil)
         }
         // Erst hier, nachdem auch der Abgleich gescheitert ist, darf ein
         // unpassender alter Speicher beiseitegelegt werden. Dann sagt die
         // App es auch.
         if let opened = try? LibraryStore.openLocalContainer() {
-            return (opened.container, "Aus, die Daten bleiben auf diesem Gerät", opened.recoveryNote)
+            return OpenedStore(container: opened.container,
+                               description: "Aus, die Daten bleiben auf diesem Gerät",
+                               failure: opened.recoveryNote)
         }
         let container = try! LibraryStore.makeContainer(inMemory: true)
-        return (container, "Aus", "Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher.")
+        return OpenedStore(container: container, description: "Aus",
+                           failure: "Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher, "
+                               + "und was du jetzt anlegst, ist beim nächsten Start weg.",
+                           isTemporary: true)
+    }
+
+    /// Der zweite Versuch aus dem Startdialog.
+    ///
+    /// Gelingt das Öffnen jetzt, bekommt das laufende Modell den neuen
+    /// Speicher und liest alles neu. Das Modell selbst bleibt dasselbe:
+    /// Kurzbefehle, Hintergrundarbeit und Player hängen an ihm. Gibt es
+    /// danach noch etwas zu sagen, kommt es als neuer Hinweis zurück.
+    public static func retryOpeningStore(for model: AppModel) async -> StartupIssue? {
+        let opened = openStore()
+        guard !opened.isTemporary else {
+            return StartupIssue(
+                title: "Der Speicher lässt sich immer noch nicht öffnen",
+                message: "Die App läuft weiter ohne Speicher, und was du jetzt anlegst, ist beim "
+                    + "nächsten Start weg.",
+                canRetry: true)
+        }
+        model.syncDescription = opened.description
+        await model.replaceStore(LibraryStore.make(container: opened.container))
+        return StartupIssue(opened)
     }
 
     private static func registerIntentDependencies(_ model: AppModel) {
@@ -116,5 +154,70 @@ public enum AppBootstrap {
                   error.localizedDescription)
         }
         #endif
+    }
+}
+
+/// Ein Hinweis beim Start, wenn der Speicher nicht wie gewohnt aufging.
+public struct StartupIssue: Equatable, Sendable {
+    public let title: String
+    public let message: String
+    /// Nur wenn die App ohne Speicher läuft, hat ein zweiter Versuch Sinn.
+    /// Ist die alte Mediathek beiseitegelegt, ist der Speicher ja offen.
+    public let canRetry: Bool
+
+    public init(title: String, message: String, canRetry: Bool) {
+        self.title = title
+        self.message = message
+        self.canRetry = canRetry
+    }
+
+    /// `nil`, wenn es nichts zu sagen gibt.
+    public init?(_ opened: AppBootstrap.OpenedStore) {
+        guard let failure = opened.failure else { return nil }
+        self.init(
+            title: opened.isTemporary
+                ? "Der Speicher konnte nicht geöffnet werden"
+                : "Die Mediathek wurde neu angelegt",
+            message: failure,
+            canRetry: opened.isTemporary)
+    }
+}
+
+/// Zeigt den Hinweis vom Start. „Erneut versuchen“ öffnet den Speicher
+/// wirklich noch einmal, statt nur den Dialog zu schliessen.
+private struct StartupIssueAlert: ViewModifier {
+
+    @Binding var issue: StartupIssue?
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        content.alert(
+            issue?.title ?? "",
+            isPresented: Binding(
+                get: { issue != nil },
+                set: { shown in if !shown { issue = nil } }
+            ),
+            presenting: issue
+        ) { current in
+            if current.canRetry {
+                Button("Erneut versuchen") { retry() }
+                Button("Ohne Speicher weiter", role: .cancel) { issue = nil }
+            } else {
+                Button("OK") { issue = nil }
+            }
+        } message: { current in
+            Text(current.message)
+        }
+    }
+
+    private func retry() {
+        issue = nil
+        Task { issue = await AppBootstrap.retryOpeningStore(for: model) }
+    }
+}
+
+extension View {
+    func startupIssueAlert(_ issue: Binding<StartupIssue?>) -> some View {
+        modifier(StartupIssueAlert(issue: issue))
     }
 }

@@ -4,10 +4,31 @@
 //
 //  Feeds aktualisieren sich von selbst: beim Start, beim Zurückkehren in die
 //  App, wenn der letzte Lauf eine Viertelstunde her ist, und alle 30 Minuten,
-//  solange die App offen ist. Ziehen zum Aktualisieren bleibt als Abkürzung.
+//  solange die App läuft. Ziehen zum Aktualisieren bleibt als Abkürzung.
+//
+//  Der Takt hängt am Start der App, nicht an einem Fenster. Auf dem Mac
+//  läuft die App weiter, wenn das letzte Fenster zu ist, und mit mehreren
+//  Fenstern gab es sonst mehrere Takte.
 //
 
 import SwiftUI
+
+@MainActor
+enum AutoRefresh {
+
+    /// Einmal gleich, danach alle 30 Minuten, bis die Aufgabe endet.
+    ///
+    /// Erst nach `load()` aufrufen. Vorher kennt das Modell keine Quellen,
+    /// und `refreshIfStale` kehrt ohne Aktualisierung zurück.
+    static func run(for model: AppModel) async {
+        await model.refreshIfStale(olderThan: 0)
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(30 * 60))
+            guard !Task.isCancelled else { break }
+            await model.refreshIfStale()
+        }
+    }
+}
 
 private struct AutoRefreshModifier: ViewModifier {
 
@@ -16,19 +37,6 @@ private struct AutoRefreshModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .task {
-                // Warten, bis die Quellen gelesen sind. Zwei feste Sekunden
-                // reichten bei einem grossen Bestand nicht, und der erste
-                // Lauf fiel dann bis zum nächsten Takt aus. Das Aktualisieren
-                // stösst auch die automatischen Themen-Updates an.
-                await model.ensureLoaded()
-                await model.refreshIfStale(olderThan: 0)
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(30 * 60))
-                    guard !Task.isCancelled else { break }
-                    await model.refreshIfStale()
-                }
-            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 Task {

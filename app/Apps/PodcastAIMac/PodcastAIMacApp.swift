@@ -10,49 +10,50 @@
 import SwiftUI
 import PodcastAIKit
 
-@main
+/// Gestartet von `MacMain`, nicht mit `@main`: mit `--mcp` startet statt
+/// der App der Agentenzugang.
 struct PodcastAIMacApp: App {
 
     @State private var model: AppModel
+    @State private var startupIssue: StartupIssue?
+    @State private var windows = MacWindows()
+    /// Ein Zugang für die ganze App. Die Einstellungen vergeben die
+    /// Freigabe, der Prozess, den ein Agent startet, liest sie.
+    private let mcpAccess: MCPAccess
 
     init() {
         let opened = AppBootstrap.openStore()
         let model = AppModel(store: LibraryStore.make(container: opened.container))
         model.syncDescription = opened.description
         _model = State(initialValue: model)
+        _startupIssue = State(initialValue: StartupIssue(opened))
+        mcpAccess = MCPAccess(store: model.store)
         // Auf dem Mac gibt es keinen BGTaskScheduler, aber die
         // Intent-Abhängigkeit muss auch hier stehen: Kurzbefehle laufen auf
         // beiden Plattformen.
         AppBootstrap.start(with: model)
+        // Laden und Takt gehören der App, nicht einem Fenster. Jedes neue
+        // Fenster lud sonst alles noch einmal, und mit dem letzten Fenster
+        // endete die automatische Aktualisierung, obwohl die App weiterlief.
+        Task {
+            await model.ensureLoaded()
+            model.observeRemoteChanges()
+            await AutoRefresh.run(for: model)
+        }
     }
 
     var body: some Scene {
         WindowGroup {
-            MacRootView()
-                .environment(model)
-                .task {
-                    await model.ensureLoaded()
-                    model.observeRemoteChanges()
-                }
+            MacRootView(startupIssue: $startupIssue)
                 .frame(minWidth: 900, minHeight: 560)
-                .sheet(isPresented: Binding(
-                    get: { model.isAddingSource },
-                    set: { model.isAddingSource = $0 }
-                )) {
-                    AddSourceSheet()
-                        .environment(model)
-                }
-                .appFeedback()
-                .opensSpotlightResults()
-                // Zuletzt, damit auch appFeedback das Modell sieht.
+                .environment(windows)
                 .environment(model)
         }
         .commands {
             CommandGroup(after: .newItem) {
                 // War ein leerer Block: ein Menüpunkt, der nichts tut, ist
                 // schlechter als keiner.
-                Button("Quelle hinzufügen …") { model.isAddingSource = true }
-                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                AddSourceMenuItem()
                 Button("Alle Feeds aktualisieren") {
                     Task { await model.refreshAll() }
                 }
@@ -73,15 +74,69 @@ struct PodcastAIMacApp: App {
 
         // Fenster schließen und App beenden sind verschiedene Zustände:
         // eine laufende Analyse überlebt das geschlossene Fenster.
-        Settings { MacSettingsView().environment(model) }
+        Settings { MacSettingsView(mcpAccess: mcpAccess).environment(model) }
+    }
+}
+
+/// „Quelle hinzufügen …“ öffnet das Blatt im Fenster, das vorn ist, nicht
+/// in allen Fenstern zugleich.
+private struct AddSourceMenuItem: View {
+
+    @FocusedBinding(\.isAddingSource) private var isAddingSource
+
+    var body: some View {
+        Button("Quelle hinzufügen …") { isAddingSource = true }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(isAddingSource == nil)
+    }
+}
+
+extension FocusedValues {
+    /// „Quelle hinzufügen“ im vorderen Fenster.
+    @Entry var isAddingSource: Binding<Bool>?
+}
+
+/// Welche Fenster offen sind.
+///
+/// Was die ganze App betrifft, zeigt nur eines davon: Fehlermeldung,
+/// Abschlusskarte, Hinweis vom Start. Hing das an jedem Fenster, erschien
+/// es in jedem, und wer es in einem schloss, schloss es in allen.
+@MainActor
+@Observable
+final class MacWindows {
+
+    private(set) var open: [UUID] = []
+
+    /// Das älteste Fenster, das noch offen ist.
+    var presenter: UUID? { open.first }
+
+    func opened(_ id: UUID) {
+        if !open.contains(id) { open.append(id) }
+    }
+
+    func closed(_ id: UUID) {
+        open.removeAll { $0 == id }
     }
 }
 
 struct MacRootView: View {
 
+    @Binding var startupIssue: StartupIssue?
     @Environment(AppModel.self) private var model
+    @Environment(MacWindows.self) private var windows
     @State private var section: Section? = .forYou
     @State private var showingOnboarding = OnboardingView.shouldShow
+    @State private var isAddingSource = false
+    @State private var windowID = UUID()
+
+    /// Zeigt dieses Fenster, was die ganze App betrifft?
+    private var isPresenter: Bool { windows.presenter == windowID }
+
+    /// Unter „Wiedergabe“ die laufende Folge, wenn kein Fokus-Plan läuft.
+    /// Der Plan hat Vorrang, wie in der Leiste auf iOS.
+    private var showsEpisodePlayer: Bool {
+        (model.playerPlan?.isEmpty ?? true) && model.episodePlayer.episode != nil
+    }
 
     enum Section: Hashable, CaseIterable, Identifiable {
         case forYou, feeds, chat, library, queue, knowledge, interests, perspective, trails, player, help
@@ -94,7 +149,7 @@ struct MacRootView: View {
             case .chat: "Suchen und fragen"
             case .library: "Mediathek"
             case .queue: "Warteschlange"
-            case .knowledge: "Wissen"
+            case .knowledge: "Gemerkte Stellen"
             case .interests: "Interessen"
             case .perspective: "Gegenpositionen"
             case .trails: "Wissenslandkarten"
@@ -110,7 +165,7 @@ struct MacRootView: View {
             case .chat: "text.bubble"
             case .library: "books.vertical"
             case .queue: "list.bullet"
-            case .knowledge: "brain"
+            case .knowledge: "bookmark"
             case .interests: "target"
             case .perspective: "arrow.left.arrow.right"
             case .trails: "map"
@@ -123,21 +178,23 @@ struct MacRootView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $section) {
-                // Gruppiert statt einer langen Liste: Hören, Sammeln,
-                // Profil. Eine Seitenleiste verträgt mehr Einträge als eine
-                // Tab Bar, aber nicht beliebig viele ohne Ordnung.
+                // Gruppiert statt einer langen Liste: Hören, Wissen, Hilfe.
+                // Eine Seitenleiste verträgt mehr Einträge als eine Tab Bar,
+                // aber nicht beliebig viele ohne Ordnung. „Wissen“ enthält
+                // dieselben Einträge wie der Reiter auf iOS, damit Hinweise
+                // wie „Wissen › Interessen“ auf beiden Geräten stimmen.
                 SwiftUI.Section("Hören") {
                     ForEach([Section.forYou, .feeds, .library, .queue, .player]) { item in
                         Label(item.label, systemImage: item.symbol).tag(item)
                     }
                 }
                 SwiftUI.Section("Wissen") {
-                    ForEach([Section.chat, .knowledge, .trails, .perspective]) { item in
+                    ForEach([Section.chat, .knowledge, .trails, .perspective, .interests]) { item in
                         Label(item.label, systemImage: item.symbol).tag(item)
                     }
                 }
-                SwiftUI.Section("Profil") {
-                    ForEach([Section.interests, .help]) { item in
+                SwiftUI.Section("Hilfe") {
+                    ForEach([Section.help]) { item in
                         Label(item.label, systemImage: item.symbol).tag(item)
                     }
                 }
@@ -157,7 +214,14 @@ struct MacRootView: View {
                 case .interests: InterestsView()
                 case .perspective: CounterpointView()
                 case .trails: TrailListView()
-                case .player, .none: FocusPlayerView()
+                case .player, .none:
+                    // Auch eine ganze Folge ist Wiedergabe. Sonst stand hier
+                    // „Nichts wird abgespielt“, während der Ton lief.
+                    if showsEpisodePlayer {
+                        EpisodePlayerView(isEmbedded: true)
+                    } else {
+                        FocusPlayerView()
+                    }
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -178,7 +242,8 @@ struct MacRootView: View {
                         .padding(.bottom, Design.Spacing.small)
                         .accessibilityHint("Öffnet die Warteschlange")
                     }
-                    if model.episodePlayer.episode != nil {
+                    if model.episodePlayer.episode != nil
+                        && !(showsEpisodePlayer && (section == .player || section == nil)) {
                         EpisodeMiniBar()
                             .padding(.vertical, Design.Spacing.small)
                             .background(.bar)
@@ -187,10 +252,28 @@ struct MacRootView: View {
             }
         }
         .autoRefresh()
+        .spotlightPassages()
         .environment(\.openQueue, { section = .queue })
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView().environment(model).frame(minWidth: 480, minHeight: 620)
         }
+        .sheet(isPresented: $isAddingSource) {
+            AddSourceSheet()
+                .environment(model)
+        }
+        .focusedSceneValue(\.isAddingSource, $isAddingSource)
+        // Nur ein Fenster meldet, was die ganze App betrifft. Die Meldungen
+        // hängen an einer leeren Ansicht im Hintergrund, damit ein Wechsel
+        // des meldenden Fensters den Inhalt nicht neu aufbaut.
+        .background {
+            if isPresenter {
+                Color.clear
+                    .startupIssueAlert($startupIssue)
+                    .appFeedback()
+            }
+        }
+        .onAppear { windows.opened(windowID) }
+        .onDisappear { windows.closed(windowID) }
         .toolbar {
             ToolbarItem {
                 Button { Task { await model.refreshAll() } } label: {
@@ -206,6 +289,7 @@ struct MacRootView: View {
 
 struct MacSettingsView: View {
 
+    let mcpAccess: MCPAccess
     @Environment(AppModel.self) private var model
 
     var body: some View {
@@ -254,7 +338,7 @@ struct MacSettingsView: View {
 
             // Der Agentenzugang hatte keinen Schalter — und damit keine
             // Möglichkeit, ihn einzuschalten oder nachzulesen.
-            MCPSettingsView()
+            MCPSettingsView(access: mcpAccess)
                 .tabItem { Label("Agenten", systemImage: "terminal") }
                 .frame(width: 480)
         }

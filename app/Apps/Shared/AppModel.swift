@@ -38,10 +38,6 @@ public final class AppModel {
     public internal(set) var activity: String?
     public internal(set) var lastError: String?
 
-    /// Offen, wenn der Nutzer eine Quelle hinzufügen will. Steht hier und
-    /// nicht in einer Ansicht, weil auf dem Mac das Menü es öffnet und das
-    /// Fenster es zeigt — zwei verschiedene Stellen.
-    public var isAddingSource = false
     /// Audio-Podcasts, die zu einem YouTube-Kanal passen, je Quelle.
     public var podcastCounterparts: [SourceID: [PodcastCounterpart]] = [:]
 
@@ -57,6 +53,9 @@ public final class AppModel {
     public internal(set) var analyzing: Episode?
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
     public internal(set) var lastRefresh: Date?
+    /// Steht, sobald `load()` einmal durch ist. Vorher heisst „nicht
+    /// gefunden“ nur „noch nicht gelesen“.
+    public internal(set) var isLoaded = false
 
     /// Neue Folgen von selbst erschliessen, damit Wissen, „Für dich“ und
     /// die Themen-Updates gefüllt sind, bevor man danach sucht. Abschaltbar,
@@ -232,14 +231,16 @@ public final class AppModel {
 
     // MARK: - Dienste
 
-    public let store: LibraryStore
+    /// Tauscht nur `replaceStore(_:)`, wenn der Speicher beim Start nicht
+    /// aufging und ein zweiter Versuch gelingt.
+    @ObservationIgnored public private(set) var store: LibraryStore
     public let policy: PlaybackPolicy
     public let player: PlaybackCoordinator
     /// Eine Instanz für die ganze App. Der Einwilligungsschalter und der
     /// Indexlauf müssen denselben Zustand sehen.
     public let spotlight = SpotlightIndex()
 
-    let refresher: FeedRefresher
+    @ObservationIgnored var refresher: FeedRefresher
     private let deviceID: String
 
     public init(store: LibraryStore, deviceID: String = AppModel.currentDeviceID()) {
@@ -404,6 +405,17 @@ public final class AppModel {
         restoreLastEpisode()
         await refreshRelevantToday()
         await tidyLocalAudio()
+        isLoaded = true
+    }
+
+    /// Wechselt auf einen Speicher, der sich erst im zweiten Versuch öffnen
+    /// liess, und liest alles neu. Was bis dahin im flüchtigen Speicher lag,
+    /// war nie gesichert und geht dabei verloren.
+    public func replaceStore(_ newStore: LibraryStore) async {
+        store = newStore
+        refresher = FeedRefresher(store: newStore)
+        episodes = [:]
+        await load()
     }
 
     /// Legt nach dem Start die zuletzt gehörte Folge pausiert in den

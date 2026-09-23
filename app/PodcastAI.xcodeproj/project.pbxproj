@@ -92,6 +92,7 @@
 		E8E84654321E4F5C320457A3 /* DemoContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A545B4AB2491EC3E25D2C03D /* DemoContent.swift */; };
 		EB196726340814512BA3A711 /* BackgroundWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7559EDE9F251C1BD2FB8E6C /* BackgroundWork.swift */; };
 		ED007FAF5D505809947A08DD /* InterestPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C51C37619544003228BF8 /* InterestPersistenceTests.swift */; };
+		EE129AC4E2EE4BAE98FF84E9 /* MacMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB32EDEA5B02F6B27DE92EB8 /* MacMain.swift */; };
 		F41F54448C1C85BAB1ED1E4A /* LateWriteAndRejectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECC7B2DA4FC79C3CA93FE3B /* LateWriteAndRejectionTests.swift */; };
 		F4C8DC8BD355AD0976F791C2 /* BetaFeedback03UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A323EEBF0E9BF5744EE4F224 /* BetaFeedback03UITests.swift */; };
 		F4EF197C7BD9E9A22E00E927 /* PersonaFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBEE768FADEADDB8A6CD8CA6 /* PersonaFlowsUITests.swift */; };
@@ -156,6 +157,7 @@
 		A323EEBF0E9BF5744EE4F224 /* BetaFeedback03UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeedback03UITests.swift; sourceTree = "<group>"; };
 		A545B4AB2491EC3E25D2C03D /* DemoContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoContent.swift; sourceTree = "<group>"; };
 		A6E3863976ED3820B7DB9368 /* PassageRankerBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassageRankerBudgetTests.swift; sourceTree = "<group>"; };
+		AB32EDEA5B02F6B27DE92EB8 /* MacMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMain.swift; sourceTree = "<group>"; };
 		ADA2CFB6537ED27DB238E866 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
 		AE3DEDB1A7C508B8E298DC2B /* SyncMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMergeTests.swift; sourceTree = "<group>"; };
 		B028E6CFAA38A2071402BF48 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -355,6 +357,7 @@
 			isa = PBXGroup;
 			children = (
 				09FF998B2941EB7102278C51 /* Info.plist */,
+				AB32EDEA5B02F6B27DE92EB8 /* MacMain.swift */,
 				5952B00EE936516C48751042 /* MCPAccess.swift */,
 				96C1EA3CDEE55B31930D6738 /* MCPServer.swift */,
 				0DC3AA40784AE6726B55B5BD /* MCPSettingsView.swift */,
@@ -593,6 +596,7 @@
 				B87F86B5341D7C9EB9F297F5 /* MCPAccess.swift in Sources */,
 				F804E75826F80089D70B5CF0 /* MCPServer.swift in Sources */,
 				57AE66E11A3EFC768094506F /* MCPSettingsView.swift in Sources */,
+				EE129AC4E2EE4BAE98FF84E9 /* MacMain.swift in Sources */,
 				57A4353E412E405AC97EBF9F /* PerspectiveViews.swift in Sources */,
 				30EF56FB0D392A4344BAE04E /* PlanningContext.swift in Sources */,
 				636AFE593D31E14C214ADD30 /* PodcastAIMacApp.swift in Sources */,
