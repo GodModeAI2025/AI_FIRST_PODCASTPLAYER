@@ -125,29 +125,24 @@ struct ExplicitBadge: View {
     }
 }
 
-/// „Katalog: Podcast Index“ mit Verweis auf die Quelle der Daten.
+/// Woher die Daten des Katalogs kommen, mit Verweisen auf beide Dienste.
 struct CatalogAttribution: View {
     var body: some View {
-        Link(destination: PodcastCatalog.website) {
-            Text("Katalog: Podcast Index")
-        }
-        .font(.footnote)
-        .accessibilityIdentifier("catalog.attribution")
+        Text("Charts und Verzeichnis: [Apple Podcasts](https://podcasts.apple.com). Die Suche fragt zusätzlich [Podcast Index](https://podcastindex.org).")
+            .font(.footnote)
+            .accessibilityIdentifier("catalog.attribution")
     }
 }
 
-/// Angesagt in der Sprache der App oder in allen Sprachen.
-struct CatalogLanguagePicker: View {
-    @Binding var allLanguages: Bool
+/// Das Land der Charts. Es folgt der Region des Geräts, nicht der Sprache
+/// der App; wer sich wundert, sieht hier, warum.
+struct CatalogRegionNote: View {
+    let country: String
 
     var body: some View {
-        Picker("Sprache", selection: $allLanguages) {
-            Text(verbatim: CatalogFormat.languageName(AppLanguage.current.rawValue) ?? AppLanguage.current.rawValue)
-                .tag(false)
-            Text("Alle Sprachen").tag(true)
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("catalog.language")
+        Text("Region der Charts: \(PodcastCatalog.regionName(country))")
+            .font(.footnote)
+            .accessibilityIdentifier("catalog.region")
     }
 }
 
@@ -163,7 +158,7 @@ enum CatalogFormat {
         return name.prefix(1).uppercased() + name.dropFirst()
     }
 
-    /// „212 Folgen · neue Folge vor 3 Tagen · Deutsch“
+    /// „212 Folgen · neue Folge vor 3 Tagen“
     static func facts(for podcast: CatalogPodcast) -> String {
         var parts: [String] = []
         if let count = podcast.episodeCount, count > 0 {
@@ -174,7 +169,6 @@ enum CatalogFormat {
             let relative = date.formatted(.relative(presentation: .named))
             parts.append(String(localized: "neue Folge \(relative)"))
         }
-        if let language = languageName(podcast.language) { parts.append(language) }
         return parts.joined(separator: " · ")
     }
 
@@ -294,21 +288,17 @@ struct CatalogPodcastRow: View {
 
 // MARK: - Angesagt
 
-/// Was gerade viel gehört wird, als Reihe von Covern. „Alle anzeigen“
-/// öffnet die ganze Liste mit Abonnieren-Knöpfen.
+/// Die Charts von Apple Podcasts im Land des Geräts, als Reihe von Covern.
+/// „Alle anzeigen“ öffnet die ganze Liste mit Abonnieren-Knöpfen.
 struct CatalogTrendingSection: View {
     @Environment(\.catalogNavigate) private var navigate
-    @AppStorage("catalog.allLanguages") private var allLanguages = false
     @State private var podcasts: [CatalogPodcast] = []
+    @State private var country: String?
     @State private var loading = false
     @State private var failure: String?
 
     var body: some View {
         Section {
-            // Geladen wird an dieser Zeile, weil sie immer dasteht. An der
-            // Section hinge die Aufgabe an jeder Zeile einzeln.
-            CatalogLanguagePicker(allLanguages: $allLanguages)
-                .task(id: allLanguages) { await load() }
             if loading && podcasts.isEmpty {
                 HStack { ProgressView(); Text("Angesagt wird geladen …").foregroundStyle(.secondary) }
             } else if let failure, podcasts.isEmpty {
@@ -319,7 +309,7 @@ struct CatalogTrendingSection: View {
             } else {
                 ScrollView(.horizontal) {
                     LazyHStack(alignment: .top, spacing: Design.Spacing.control) {
-                        ForEach(podcasts.prefix(15)) { podcast in
+                        ForEach(podcasts) { podcast in
                             Button { navigate?(.podcast(podcast)) } label: {
                                 CatalogCoverCard(podcast: podcast)
                             }
@@ -336,7 +326,17 @@ struct CatalogTrendingSection: View {
                 .accessibilityIdentifier("catalog.trending.all")
             }
         } header: {
+            // Geladen wird an der Überschrift, weil sie immer dasteht. An
+            // der Section hinge die Aufgabe an jeder Zeile einzeln.
             Text("Angesagt")
+                .task {
+                    guard podcasts.isEmpty else { return }
+                    await load()
+                }
+        } footer: {
+            if let country, !podcasts.isEmpty {
+                CatalogRegionNote(country: country)
+            }
         }
     }
 
@@ -344,7 +344,9 @@ struct CatalogTrendingSection: View {
         loading = true
         defer { loading = false }
         do {
-            podcasts = try await PodcastCatalog.shared.trending(language: allLanguages ? nil : .current, max: 30)
+            let page = try await PodcastCatalog.shared.page(of: .top, offset: 0, count: 15)
+            podcasts = page.podcasts
+            country = page.country
             failure = nil
         } catch is CancellationError {
             return
@@ -354,6 +356,7 @@ struct CatalogTrendingSection: View {
         }
     }
 }
+
 
 /// Ein Cover mit Titel und Anbieter, für die Reihe „Angesagt“.
 struct CatalogCoverCard: View {
@@ -433,33 +436,28 @@ struct CatalogCategoryTile: View {
 
 // MARK: - Liste je Rubrik
 
-/// Angesagt, ganz oder in einer Rubrik. Die API kennt kein Blättern,
-/// „Mehr laden“ fragt nach einer längeren Liste.
+/// Die Charts, ganz oder einer Rubrik. Apple liefert sie auf einmal (100
+/// Plätze, je Rubrik 200), „Mehr laden“ blättert darin und holt die
+/// Einzelheiten der nächsten Seite.
 struct CatalogListView: View {
     let category: CatalogCategory?
 
     @Environment(AppModel.self) private var model
     @Environment(CatalogSubscriptions.self) private var subscriptions
     @Environment(\.catalogNavigate) private var navigate
-    @AppStorage("catalog.allLanguages") private var allLanguages = false
     @State private var podcasts: [CatalogPodcast] = []
-    @State private var limit = Self.pageSize
+    /// Wo die nächste Seite beginnt. `nil` am Ende der Charts.
+    @State private var nextOffset: Int? = 0
+    @State private var country: String?
     @State private var loading = false
     @State private var failure: String?
-    @State private var exhausted = false
-    /// Für welche Sprachwahl die Liste steht. Zurück von der Seite eines
-    /// Podcasts startet die Aufgabe neu; was „Mehr laden“ gebracht hat,
-    /// bleibt dann stehen.
-    @State private var loadedLanguage: Bool?
 
-    private static let pageSize = 40
-    private static let maximum = 200
+    private static let pageSize = 25
+
+    private var chart: CatalogChart { category.map(CatalogChart.genre) ?? .top }
 
     var body: some View {
         List {
-            Section {
-                CatalogLanguagePicker(allLanguages: $allLanguages)
-            }
             // Nur der Fehler zu einem Podcast aus dieser Liste, nicht der
             // aus einer anderen Rubrik oder der Suche.
             if let failed = subscriptions.failure, podcasts.contains(where: { $0.feedURL == failed.podcast.feedURL }) {
@@ -481,15 +479,7 @@ struct CatalogListView: View {
                 ContentUnavailableView {
                     Label("Nichts angesagt", systemImage: category?.symbol ?? "chart.line.uptrend.xyaxis")
                 } description: {
-                    if allLanguages {
-                        Text("Gerade ist hier nichts angesagt.")
-                    } else {
-                        Text("In dieser Sprache ist hier gerade nichts angesagt.")
-                    }
-                } actions: {
-                    if !allLanguages {
-                        Button("Alle Sprachen zeigen") { allLanguages = true }
-                    }
+                    Text("Gerade ist hier nichts angesagt.")
                 }
             } else {
                 Section {
@@ -503,9 +493,9 @@ struct CatalogListView: View {
                     if let failure {
                         NoticeLabel(failure, kind: .failure)
                     }
-                    if !exhausted {
+                    if nextOffset != nil {
                         Button {
-                            Task { await loadMore() }
+                            Task { await load() }
                         } label: {
                             HStack {
                                 Label("Mehr laden", systemImage: "arrow.down.circle")
@@ -517,7 +507,10 @@ struct CatalogListView: View {
                         .accessibilityIdentifier("catalog.loadMore")
                     }
                 } footer: {
-                    CatalogAttribution()
+                    VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                        if let country { CatalogRegionNote(country: country) }
+                        CatalogAttribution()
+                    }
                 }
             }
         }
@@ -525,75 +518,58 @@ struct CatalogListView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task(id: allLanguages) {
-            guard loadedLanguage != allLanguages || podcasts.isEmpty else { return }
-            limit = Self.pageSize
+        .task {
+            // Zurück von der Seite eines Podcasts startet die Aufgabe neu.
+            // Was „Mehr laden“ gebracht hat, bleibt dann stehen.
+            guard podcasts.isEmpty else { return }
             await load()
         }
     }
 
-    private func load(previousCount: Int? = nil) async {
+    /// Die nächste Seite, beim ersten Mal die erste.
+    private func load() async {
+        guard let offset = nextOffset else { return }
         loading = true
         defer { loading = false }
         do {
-            let found = try await PodcastCatalog.shared.trending(language: allLanguages ? nil : .current,
-                                                                  category: category, max: limit)
-            podcasts = found
-            loadedLanguage = allLanguages
+            let page = try await PodcastCatalog.shared.page(of: chart, offset: offset, count: Self.pageSize)
+            // Zwei Plätze können auf denselben Feed zeigen. Die Liste zählt
+            // Podcasts, nicht Plätze.
+            let known = Set(podcasts.flatMap { $0.knownFeedURLs.map(CatalogMerge.feedKey) })
+            podcasts += page.podcasts.filter { !known.contains(CatalogMerge.feedKey($0.feedURL)) }
+            nextOffset = page.nextOffset
+            country = page.country
             failure = nil
-            // Ohne Blättern sieht man das Ende nur daran, dass nichts dazukommt.
-            if let previousCount {
-                exhausted = found.count <= previousCount || limit >= Self.maximum
-            } else {
-                exhausted = found.count < limit / 2
-            }
         } catch is CancellationError {
             return
         } catch {
             failure = UserFacingError.describe(error)
         }
     }
-
-    private func loadMore() async {
-        let before = podcasts.count
-        limit = min(limit + Self.pageSize, Self.maximum)
-        await load(previousCount: before)
-    }
 }
 
 // MARK: - Seite eines Podcasts
 
 /// Ein Blick auf den Podcast vor dem Abonnieren: großes Bild, Rubriken,
-/// Beschreibung, Website und die neuesten Folgen. Kennt der Katalog den
-/// Podcast, kommen die Angaben von dort, sonst aus dem Feed selbst.
+/// Beschreibung, Website und die neuesten Folgen. Titel, Cover und
+/// Rubriken kommen aus dem Katalog, Beschreibung und Folgen aus dem Feed.
 struct CatalogPodcastDetailView: View {
     let podcast: CatalogPodcast
 
     @Environment(AppModel.self) private var model
     @Environment(CatalogSubscriptions.self) private var subscriptions
-    @State private var details: CatalogPodcast?
     @State private var feed: PodcastPreview?
-    @State private var episodes: [Episode]?
-    @State private var summary: String?
     @State private var loadFailure: String?
-    @State private var loaded = false
-    @State private var fromCatalog = false
     @ScaledMetric(relativeTo: .title) private var artworkSize: CGFloat = 168
 
-    /// Eine Folge zum Ansehen, egal ob aus dem Katalog oder aus dem Feed.
-    struct Episode: Identifiable {
-        let id: String
-        let title: String
-        let publishedAt: Date?
-        let duration: Int?
-        let isExplicit: Bool
-    }
+    /// Aus dem Feed, sonst was die Charts einer Rubrik mitbringen.
+    private var summary: String? { feed.flatMap { ShownotesText.plain($0.summary) } ?? podcast.summary }
 
-    private var shown: CatalogPodcast { details ?? podcast }
     private var tags: [String] {
-        let categories = shown.categories.map(\.title)
+        if !podcast.genres.isEmpty { return podcast.genres }
+        let categories = podcast.categories.map(\.title)
         if !categories.isEmpty { return categories }
-        return [shown.genre].compactMap { $0?.isEmpty == false ? $0 : nil }
+        return [podcast.genre].compactMap { $0?.isEmpty == false ? $0 : nil }
     }
 
     var body: some View {
@@ -611,45 +587,43 @@ struct CatalogPodcastDetailView: View {
             Section("Beschreibung") {
                 if let summary {
                     Text(summary).textSelection(.enabled)
-                } else if loaded {
+                } else if feed != nil {
                     Text("Der Podcast hat keine Beschreibung.").foregroundStyle(.secondary)
-                } else if let loadFailure {
-                    NoticeLabel(loadFailure, kind: .failure)
-                    Button("Nochmal versuchen", systemImage: "arrow.clockwise") {
-                        self.loadFailure = nil
-                        Task { await load() }
-                    }
-                } else {
+                } else if loadFailure == nil {
                     HStack {
                         ProgressView()
                         Text("Beschreibung wird geladen …").foregroundStyle(.secondary)
                     }
                 }
+                if let loadFailure {
+                    NoticeLabel(loadFailure, kind: .failure)
+                    Button("Nochmal versuchen", systemImage: "arrow.clockwise") {
+                        self.loadFailure = nil
+                        Task { await load() }
+                    }
+                }
             }
 
-            if let episodes, !episodes.isEmpty {
+            if let episodes = feed?.latest, !episodes.isEmpty {
                 Section {
                     ForEach(episodes) { episode in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(episode.title).lineLimit(3)
-                            HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.micro) {
-                                if episode.isExplicit { ExplicitBadge() }
-                                Text(episodeLine(episode))
-                            }
-                            .font(.caption).foregroundStyle(.secondary)
+                            Text(episodeLine(episode))
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                         .accessibilityElement(children: .combine)
                     }
                 } header: {
                     Text("Neueste Folgen")
                 } footer: {
-                    if fromCatalog { CatalogAttribution() }
+                    CatalogAttribution()
                 }
-            } else if fromCatalog {
+            } else {
                 Section {} footer: { CatalogAttribution() }
             }
         }
-        .navigationTitle(shown.title)
+        .navigationTitle(podcast.title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -658,21 +632,21 @@ struct CatalogPodcastDetailView: View {
 
     private var header: some View {
         VStack(spacing: Design.Spacing.small) {
-            PodcastArtwork(url: shown.artworkURL, size: min(artworkSize, 280))
+            PodcastArtwork(url: podcast.artworkURL, size: min(artworkSize, 280))
                 .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-            Text(shown.title)
+            Text(podcast.title)
                 .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            if !shown.author.isEmpty {
-                Text(shown.author)
+            if !podcast.author.isEmpty {
+                Text(podcast.author)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
-            if !tags.isEmpty || shown.isExplicit {
+            if !tags.isEmpty || podcast.isExplicit {
                 FlowLayout(spacing: Design.Spacing.micro, lineSpacing: Design.Spacing.micro) {
-                    if shown.isExplicit {
+                    if podcast.isExplicit {
                         Label("Explizit", systemImage: "e.square.fill")
                             .font(.caption)
                             .padding(.horizontal, Design.Spacing.small)
@@ -695,10 +669,10 @@ struct CatalogPodcastDetailView: View {
     }
 
     @ViewBuilder private var facts: some View {
-        let count = shown.episodeCount ?? feed?.episodeCount
-        let newest = shown.newestEpisodeDate ?? feed?.latestDate ?? episodes?.first?.publishedAt
-        let language = CatalogFormat.languageName(shown.language ?? feed?.language)
-        let website = shown.websiteURL ?? feed?.websiteURL
+        let count = podcast.episodeCount ?? feed?.episodeCount
+        let newest = podcast.newestEpisodeDate ?? feed?.latestDate
+        let language = CatalogFormat.languageName(feed?.language)
+        let website = feed?.websiteURL
         if count != nil || newest != nil || language != nil || website != nil {
             Section {
                 if let count {
@@ -752,47 +726,20 @@ struct CatalogPodcastDetailView: View {
         }
     }
 
-    private func episodeLine(_ episode: Episode) -> String {
+    private func episodeLine(_ episode: PodcastPreview.Item) -> String {
         [episode.publishedAt.map { $0.formatted(date: .abbreviated, time: .omitted) },
          CatalogFormat.duration(episode.duration)]
             .compactMap { $0 }
             .joined(separator: " · ")
     }
 
+    /// Beschreibung, Website und neueste Folgen aus dem Feed. Abgespielt
+    /// wird davon nichts.
     private func load() async {
-        guard !loaded else { return }
-        let catalog = PodcastCatalog.shared
-        if catalog.isAvailable, let id = podcast.podcastIndexID {
-            do {
-                let found = try await catalog.episodes(feedID: id)
-                // Die Einzelheiten ergänzen, was die Trefferliste nicht
-                // mitbringt: Beschreibung in voller Länge, Website, Zahl der Folgen.
-                if let detail = try? await catalog.podcast(id: id) {
-                    details = CatalogMerge.merged([detail], [podcast]).first
-                }
-                episodes = found.map {
-                    Episode(id: "c\($0.id)", title: $0.title, publishedAt: $0.publishedAt,
-                            duration: $0.duration, isExplicit: $0.isExplicit)
-                }
-                summary = shown.summary
-                fromCatalog = true
-                loaded = true
-                return
-            } catch is CancellationError {
-                return
-            } catch {
-                // Weiter mit dem Feed selbst.
-            }
-        }
+        guard feed == nil else { return }
         do {
-            let preview = try await model.previewPodcast(podcast.feedURL)
-            feed = preview
-            summary = ShownotesText.plain(preview.summary) ?? podcast.summary
-            episodes = preview.latest.map {
-                Episode(id: "f\($0.id)", title: $0.title, publishedAt: $0.publishedAt,
-                        duration: $0.duration, isExplicit: false)
-            }
-            loaded = true
+            feed = try await PodcastCatalog.shared.preview(of: podcast.feedURL, model: model)
+            loadFailure = nil
         } catch is CancellationError {
             return
         } catch {

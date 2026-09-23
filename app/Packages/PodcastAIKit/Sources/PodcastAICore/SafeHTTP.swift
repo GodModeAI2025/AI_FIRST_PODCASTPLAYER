@@ -143,9 +143,9 @@ public enum SafeHTTP {
     }
 
     /// Wie `load`, aber ohne Urteil über den Status: Antwort und Inhalt
-    /// kommen auch bei 401 oder 429 zurück. Für Dienste, deren Fehlertext
-    /// und `Date`-Kopfzeile etwas bedeuten, etwa den Podcast-Katalog. Die
-    /// Obergrenze gilt genauso, ein leerer Inhalt ist hier kein Fehler.
+    /// kommen auch bei 403 oder 429 zurück. Für Dienste, deren Status der
+    /// Aufrufer selbst deutet, etwa den Podcast-Katalog. Die Obergrenze
+    /// gilt genauso, ein leerer Inhalt ist hier kein Fehler.
     public static func loadResponse(
         _ url: URL, using session: URLSession, limit: Int64,
         headers: [String: String] = [:]
@@ -284,9 +284,7 @@ public final class RedirectGuard: NSObject, URLSessionTaskDelegate, @unchecked S
         var sanitized = request
         sanitized.httpShouldHandleCookies = false
         if original?.host?.lowercased() != url.host?.lowercased() {
-            // Dazu die Kennung der App beim Podcast-Katalog. Sie gehört zu
-            // api.podcastindex.org und zu keinem anderen Host.
-            for field in ["Authorization", "Cookie", "X-Auth-Key", "X-Auth-Date"] {
+            for field in ["Authorization", "Cookie"] {
                 sanitized.setValue(nil, forHTTPHeaderField: field)
             }
         }

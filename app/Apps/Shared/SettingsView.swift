@@ -350,12 +350,11 @@ struct LegalSettingsSection: View {
         } footer: {
             VStack(alignment: .leading, spacing: Design.Spacing.small) {
                 Text("Anbieter: MOBILE BOX - App Consulting UG (haftungsbeschränkt), Karlsruhe.")
-                if PodcastCatalog.shared.isAvailable {
-                    Text("""
-                        Podcast-Daten: Podcast Index (podcastindex.org). Suche und Katalog fragen diesen \
-                        Dienst. Er sieht deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht.
-                        """)
-                }
+                Text("""
+                    Podcast-Daten: Charts und Kategorien kommen von Apple Podcasts, gesucht wird bei Apple \
+                    und bei Podcast Index (podcastindex.org). Beide sehen deinen Suchbegriff und deine \
+                    IP-Adresse, ein Konto gibt es bei keinem.
+                    """)
             }
         }
     }
@@ -398,17 +397,16 @@ struct PrivacyOverviewView: View {
          """),
         ("network", "Anfragen ins Netz",
          """
-         Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Die Podcastsuche \
-         und Links aus Apple Podcasts fragen Apples Podcast-Verzeichnis mit deinem Suchbegriff, \
-         YouTube-Kanäle fragen YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine \
-         IP-Adresse.
+         Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Links aus Apple \
+         Podcasts fragen Apples Podcast-Verzeichnis, YouTube-Kanäle fragen YouTube. Diese Anbieter \
+         sehen dabei, wie bei jedem Abruf, deine IP-Adresse.
          """),
-        (Self.catalogSymbol, "Podcast-Katalog",
+        ("square.grid.2x2", "Podcast-Katalog",
          """
-         Suche, Angesagt und Kategorien im Blatt „Podcast hinzufügen“ fragen Podcast Index \
-         (podcastindex.org), einen offenen Podcast-Katalog. Podcast Index sieht dabei deinen \
-         Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht. Die Cover lädt die App \
-         vom Server des jeweiligen Podcasts.
+         Angesagt und Kategorien im Blatt „Podcast hinzufügen“ kommen von Apple Podcasts. Deinen \
+         Suchbegriff schickt die App an Apple und an Podcast Index (podcastindex.org), einen \
+         offenen Podcast-Katalog. Ein Konto brauchst du bei keinem der beiden, beide sehen aber \
+         deine IP-Adresse. Die Cover kommen von Apple oder vom Server des jeweiligen Podcasts.
          """),
         ("magnifyingglass", "Spotlight nur auf Wunsch",
          """
@@ -422,10 +420,6 @@ struct PrivacyOverviewView: View {
          Systemeinstellungen unter Apple-ID › iCloud › Speicher verwalten › PodcastAI.
          """),
     ]
-
-    /// Der Punkt zum Podcast-Katalog. Ohne Zugang fragt die App Podcast
-    /// Index nie, dann fehlt er.
-    private static let catalogSymbol = "square.grid.2x2"
 
     /// Berechnet: `LocalizedStringKey` ist nicht `Sendable`, eine gespeicherte
     /// statische Eigenschaft müsste es sein.
@@ -441,8 +435,7 @@ struct PrivacyOverviewView: View {
 
     var body: some View {
         List {
-            ForEach(items.filter { $0.symbol != Self.catalogSymbol || PodcastCatalog.shared.isAvailable },
-                    id: \.symbol) { item in
+            ForEach(items, id: \.symbol) { item in
                 VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Label(item.title, systemImage: item.symbol).font(.headline)
                     Text(item.text).font(.callout).foregroundStyle(.secondary)
@@ -474,15 +467,16 @@ struct PrivacyOverviewView: View {
                     Datenschutzangaben.
                     """)
             }
-            if PodcastCatalog.shared.isAvailable {
-                Section {
-                    Link("Datenschutzerklärung von Podcast Index", destination: PodcastCatalog.privacyPolicy)
-                    Link(destination: PodcastCatalog.website) { Text(verbatim: "podcastindex.org") }
-                } header: {
-                    Text("Podcast-Katalog")
-                } footer: {
-                    Text("Podcast Index ist ein unabhängiger Dienst. Für ihn gilt seine eigene Datenschutzerklärung.")
-                }
+            Section {
+                Link("Datenschutzerklärung von Podcast Index", destination: PodcastCatalog.podcastIndexPrivacyPolicy)
+                Link(destination: PodcastCatalog.podcastIndexWebsite) { Text(verbatim: "podcastindex.org") }
+            } header: {
+                Text("Podcast-Katalog")
+            } footer: {
+                Text("""
+                    Podcast Index ist ein unabhängiger Dienst. Die App fragt ihn nur bei der Suche. Für ihn \
+                    gilt seine eigene Datenschutzerklärung.
+                    """)
             }
         }
         .navigationTitle("Datenschutz")

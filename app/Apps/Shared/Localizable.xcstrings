@@ -1569,38 +1569,6 @@
         }
       }
     },
-    "Alle Sprachen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Sprachen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All Languages"
-          }
-        }
-      }
-    },
-    "Alle Sprachen zeigen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Sprachen zeigen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show All Languages"
-          }
-        }
-      }
-    },
     "Alle Stufen zeigen" : {
       "localizations" : {
         "de" : {
@@ -1853,6 +1821,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trending and Categories"
+          }
+        }
+      }
+    },
+    "Angesagt und Kategorien im Blatt „Podcast hinzufügen“ kommen von Apple Podcasts. Deinen Suchbegriff schickt die App an Apple und an Podcast Index (podcastindex.org), einen offenen Podcast-Katalog. Ein Konto brauchst du bei keinem der beiden, beide sehen aber deine IP-Adresse. Die Cover kommen von Apple oder vom Server des jeweiligen Podcasts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angesagt und Kategorien im Blatt „Podcast hinzufügen“ kommen von Apple Podcasts. Deinen Suchbegriff schickt die App an Apple und an Podcast Index (podcastindex.org), einen offenen Podcast-Katalog. Ein Konto brauchst du bei keinem der beiden, beide sehen aber deine IP-Adresse. Die Cover kommen von Apple oder vom Server des jeweiligen Podcasts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trending and Categories in \"Add Podcast\" come from Apple Podcasts. The app sends your search term to Apple and to Podcast Index (podcastindex.org), an open podcast catalog. You don't need an account with either, but both see your IP address. Cover art comes from Apple or from each podcast's own server."
           }
         }
       }
@@ -3290,6 +3274,22 @@
         }
       }
     },
+    "Charts und Verzeichnis: [Apple Podcasts](https://podcasts.apple.com). Die Suche fragt zusätzlich [Podcast Index](https://podcastindex.org)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charts und Verzeichnis: [Apple Podcasts](https://podcasts.apple.com). Die Suche fragt zusätzlich [Podcast Index](https://podcastindex.org)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charts and directory: [Apple Podcasts](https://podcasts.apple.com). Search also queries [Podcast Index](https://podcastindex.org)."
+          }
+        }
+      }
+    },
     "Chat" : {
       "localizations" : {
         "de" : {
@@ -3466,66 +3466,34 @@
         }
       }
     },
-    "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
+    "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird bei Apple Podcasts und bei Podcast Index. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
+            "value" : "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird bei Apple Podcasts und bei Podcast Index. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The plus button in the toolbar of \"For You\" or \"My Podcasts\". Type a name and subscribe from Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
+            "value" : "The plus button in the toolbar of \"For You\" or \"My Podcasts\". Type a name to search Apple Podcasts and Podcast Index. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
           }
         }
       }
     },
-    "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
+    "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird bei Apple Podcasts und bei Podcast Index. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
+            "value" : "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird bei Apple Podcasts und bei Podcast Index. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The plus button in the toolbar of \"For You\" or \"My Podcasts\". Type a name to search the Podcast Index catalog and Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
-          }
-        }
-      }
-    },
-    "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The plus button at the top of \"For You\" or \"My Podcasts\". Type a name and subscribe from Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
-          }
-        }
-      }
-    },
-    "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The plus button at the top of \"For You\" or \"My Podcasts\". Type a name to search the Podcast Index catalog and Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
+            "value" : "The plus button at the top of \"For You\" or \"My Podcasts\". Type a name to search Apple Podcasts and Podcast Index. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
           }
         }
       }
@@ -6530,18 +6498,18 @@
         }
       }
     },
-    "Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Die Podcastsuche und Links aus Apple Podcasts fragen Apples Podcast-Verzeichnis mit deinem Suchbegriff, YouTube-Kanäle fragen YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine IP-Adresse." : {
+    "Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Links aus Apple Podcasts fragen Apples Podcast-Verzeichnis, YouTube-Kanäle fragen YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine IP-Adresse." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Die Podcastsuche und Links aus Apple Podcasts fragen Apples Podcast-Verzeichnis mit deinem Suchbegriff, YouTube-Kanäle fragen YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine IP-Adresse."
+            "value" : "Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Links aus Apple Podcasts fragen Apples Podcast-Verzeichnis, YouTube-Kanäle fragen YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine IP-Adresse."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The app downloads feeds and audio files directly from the podcast's host. Podcast search and Apple Podcasts links query Apple's podcast directory with your search term; YouTube channels query YouTube. As with any request, these providers see your IP address."
+            "value" : "The app downloads feeds and audio files directly from the podcast's host. Apple Podcasts links query Apple's podcast directory; YouTube channels query YouTube. As with any request, these providers see your IP address."
           }
         }
       }
@@ -8338,22 +8306,6 @@
         }
       }
     },
-    "In dieser Sprache ist hier gerade nichts angesagt." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In dieser Sprache ist hier gerade nichts angesagt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing is trending here in this language right now."
-          }
-        }
-      }
-    },
     "In einer Folge unter „Fragen“, über alle Podcasts im Reiter „Chat“. Die Nummern in der Antwort führen zu den Belegen." : {
       "localizations" : {
         "de" : {
@@ -8558,22 +8510,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chapters and Sources"
-          }
-        }
-      }
-    },
-    "Katalog: Podcast Index" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Katalog: Podcast Index"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Catalog: Podcast Index"
           }
         }
       }
@@ -10852,18 +10788,18 @@
         }
       }
     },
-    "Ohne Suchbegriff zeigt „Podcast hinzufügen“ den Katalog: was gerade angesagt ist, in deiner Sprache oder in allen, und Kategorien von Nachrichten bis True Crime. Ein Tipp auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, erst nach dem Abonnieren." : {
+    "Ohne Suchbegriff zeigt „Podcast hinzufügen“ den Katalog: die Charts von Apple Podcasts für die Region deines Geräts und Kategorien von Nachrichten bis Wahre Kriminalfälle. Ein Tipp auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, erst nach dem Abonnieren." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ohne Suchbegriff zeigt „Podcast hinzufügen“ den Katalog: was gerade angesagt ist, in deiner Sprache oder in allen, und Kategorien von Nachrichten bis True Crime. Ein Tipp auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, erst nach dem Abonnieren."
+            "value" : "Ohne Suchbegriff zeigt „Podcast hinzufügen“ den Katalog: die Charts von Apple Podcasts für die Region deines Geräts und Kategorien von Nachrichten bis Wahre Kriminalfälle. Ein Tipp auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, erst nach dem Abonnieren."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "With the search field empty, \"Add Podcast\" shows the catalog: what's trending right now, in your language or in all of them, and categories from News to True Crime. Tap a podcast to see its description and latest episodes. Nothing plays from there until you subscribe."
+            "value" : "With the search field empty, \"Add Podcast\" shows the catalog: the Apple Podcasts charts for your device's region and categories from News to True Crime. Tap a podcast to see its description and latest episodes. Nothing plays from there until you subscribe."
           }
         }
       }
@@ -11060,18 +10996,18 @@
         }
       }
     },
-    "Podcast Index ist ein unabhängiger Dienst. Für ihn gilt seine eigene Datenschutzerklärung." : {
+    "Podcast Index ist ein unabhängiger Dienst. Die App fragt ihn nur bei der Suche. Für ihn gilt seine eigene Datenschutzerklärung." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Podcast Index ist ein unabhängiger Dienst. Für ihn gilt seine eigene Datenschutzerklärung."
+            "value" : "Podcast Index ist ein unabhängiger Dienst. Die App fragt ihn nur bei der Suche. Für ihn gilt seine eigene Datenschutzerklärung."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Podcast Index is an independent service. Its own privacy policy applies."
+            "value" : "Podcast Index is an independent service. The app only contacts it when you search. Its own privacy policy applies."
           }
         }
       }
@@ -11172,18 +11108,18 @@
         }
       }
     },
-    "Podcast-Daten: Podcast Index (podcastindex.org). Suche und Katalog fragen diesen Dienst. Er sieht deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht." : {
+    "Podcast-Daten: Charts und Kategorien kommen von Apple Podcasts, gesucht wird bei Apple und bei Podcast Index (podcastindex.org). Beide sehen deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es bei keinem." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Podcast-Daten: Podcast Index (podcastindex.org). Suche und Katalog fragen diesen Dienst. Er sieht deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht."
+            "value" : "Podcast-Daten: Charts und Kategorien kommen von Apple Podcasts, gesucht wird bei Apple und bei Podcast Index (podcastindex.org). Beide sehen deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es bei keinem."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Podcast data: Podcast Index (podcastindex.org). Search and the catalog query this service. It sees your search term and your IP address. There's no account there."
+            "value" : "Podcast data: charts and categories come from Apple Podcasts, and search uses Apple and Podcast Index (podcastindex.org). Both see your search term and your IP address. Neither requires an account."
           }
         }
       }
@@ -11456,6 +11392,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Legal"
+          }
+        }
+      }
+    },
+    "Region der Charts: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region der Charts: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart region: %@"
           }
         }
       }
@@ -12356,18 +12308,18 @@
         }
       }
     },
-    "Suche im Podcast-Verzeichnis …" : {
+    "Suche bei Apple Podcasts und Podcast Index …" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Suche im Podcast-Verzeichnis …"
+            "value" : "Suche bei Apple Podcasts und Podcast Index …"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Searching the podcast directory…"
+            "value" : "Searching Apple Podcasts and Podcast Index…"
           }
         }
       }
@@ -12384,22 +12336,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear Search"
-          }
-        }
-      }
-    },
-    "Suche, Angesagt und Kategorien im Blatt „Podcast hinzufügen“ fragen Podcast Index (podcastindex.org), einen offenen Podcast-Katalog. Podcast Index sieht dabei deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht. Die Cover lädt die App vom Server des jeweiligen Podcasts." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suche, Angesagt und Kategorien im Blatt „Podcast hinzufügen“ fragen Podcast Index (podcastindex.org), einen offenen Podcast-Katalog. Podcast Index sieht dabei deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht. Die Cover lädt die App vom Server des jeweiligen Podcasts."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search, Trending, and Categories in \"Add Podcast\" query Podcast Index (podcastindex.org), an open podcast catalog. Podcast Index sees your search term and your IP address. There's no account there. The app loads cover art from each podcast's own server."
           }
         }
       }
@@ -13189,34 +13125,18 @@
         }
       }
     },
-    "Treffer aus Podcast Index und dem Apple-Podcast-Verzeichnis" : {
+    "Treffer aus Apple Podcasts und Podcast Index" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Treffer aus Podcast Index und dem Apple-Podcast-Verzeichnis"
+            "value" : "Treffer aus Apple Podcasts und Podcast Index"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Results from Podcast Index and Apple's Podcast Directory"
-          }
-        }
-      }
-    },
-    "Treffer im Apple-Podcast-Verzeichnis" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Treffer im Apple-Podcast-Verzeichnis"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Results from Apple's Podcast Directory"
+            "value" : "Results from Apple Podcasts and Podcast Index"
           }
         }
       }

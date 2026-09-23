@@ -2,8 +2,9 @@
 //  CatalogModels.swift
 //  PodcastAISources
 //
-//  Was der Podcast-Katalog zeigt: Podcasts, ihre neuesten Folgen und die
-//  Regeln, nach denen Treffer aus zwei Verzeichnissen zusammenkommen.
+//  Was der Podcast-Katalog zeigt: Podcasts aus Apple Podcasts und aus der
+//  Suche von Podcast Index, und die Regeln, nach denen Treffer aus beiden
+//  zusammenkommen.
 //
 //  Alles hier ist fremde Eingabe. Titel und Beschreibungen kommen als
 //  reiner Text an, ohne HTML, und gehen an kein Sprachmodell. Adressen
@@ -13,42 +14,35 @@
 import Foundation
 import PodcastAICore
 
-/// Ein Podcast aus dem Katalog, egal ob Podcast Index oder das
-/// Apple-Podcast-Verzeichnis ihn geliefert hat.
+/// Ein Podcast aus dem Katalog, egal ob aus den Charts, der Suche bei
+/// Apple oder der Suche bei Podcast Index.
 public struct CatalogPodcast: Sendable, Hashable, Identifiable {
 
     public enum Origin: String, Sendable, Hashable {
-        case podcastIndex
         case appleDirectory
+        case podcastIndex
     }
 
     public var origin: Origin
-    /// Kennung bei Podcast Index. Nur damit lassen sich Folgen und
-    /// Einzelheiten aus dem Katalog nachladen.
-    public var podcastIndexID: Int?
     /// Kennung im Apple-Podcast-Verzeichnis.
     public var itunesID: Int?
-    public var podcastGUID: String?
     public var title: String
     public var author: String
     public var feedURL: URL
-    /// Die Feed-Adresse vor einem Umzug. Wer den Podcast unter der alten
-    /// Adresse abonniert hat, hat ihn trotzdem schon.
-    public var originalFeedURL: URL?
     /// Weitere Schreibweisen des Feeds, die beim Zusammenführen aufgefallen
-    /// sind, etwa die Adresse aus dem Apple-Verzeichnis.
+    /// sind, etwa die Adresse, unter der Podcast Index ihn führt.
     public var alternateFeedURLs: [URL]
-    public var websiteURL: URL?
     /// Schon auf https gehoben und geprüft, siehe `CatalogText.safeURL`.
     public var artworkURL: URL?
-    /// Reiner Text ohne HTML.
+    /// Reiner Text ohne HTML. Die Charts einer Rubrik bringen ihn mit, die
+    /// Seite des Podcasts liest ihn sonst aus dem Feed.
     public var summary: String?
-    /// So, wie der Feed sie angibt, etwa „de“, „de-DE“ oder „en-us“.
-    public var language: String?
-    /// Kategorien von Podcast Index, aufsteigend.
-    public var categoryIDs: [Int]
-    /// Die Rubrik aus dem Apple-Verzeichnis, schon in der Sprache des Landes.
+    /// Die erste Rubrik laut Apple, schon in der Sprache des Landes.
     public var genre: String?
+    /// Alle Rubriken laut Apple, in der Sprache des Landes, ohne „Podcasts“.
+    public var genres: [String]
+    /// Apples Kennungen der Rubriken, die wichtigste zuerst.
+    public var genreIDs: [Int]
     public var isExplicit: Bool
     public var episodeCount: Int?
     public var newestEpisodeDate: Date?
@@ -56,66 +50,32 @@ public struct CatalogPodcast: Sendable, Hashable, Identifiable {
     public var id: URL { feedURL }
 
     public init(
-        origin: Origin, podcastIndexID: Int? = nil, itunesID: Int? = nil, podcastGUID: String? = nil,
-        title: String, author: String, feedURL: URL, originalFeedURL: URL? = nil,
-        alternateFeedURLs: [URL] = [], websiteURL: URL? = nil, artworkURL: URL? = nil, summary: String? = nil,
-        language: String? = nil, categoryIDs: [Int] = [], genre: String? = nil,
+        origin: Origin, itunesID: Int? = nil, title: String, author: String, feedURL: URL,
+        alternateFeedURLs: [URL] = [], artworkURL: URL? = nil, summary: String? = nil,
+        genre: String? = nil, genres: [String] = [], genreIDs: [Int] = [],
         isExplicit: Bool = false, episodeCount: Int? = nil, newestEpisodeDate: Date? = nil
     ) {
         self.origin = origin
-        self.podcastIndexID = podcastIndexID
         self.itunesID = itunesID
-        self.podcastGUID = podcastGUID
         self.title = title
         self.author = author
         self.feedURL = feedURL
-        self.originalFeedURL = originalFeedURL
         self.alternateFeedURLs = alternateFeedURLs
-        self.websiteURL = websiteURL
         self.artworkURL = artworkURL
         self.summary = summary
-        self.language = language
-        self.categoryIDs = categoryIDs
         self.genre = genre
+        self.genres = genres
+        self.genreIDs = genreIDs
         self.isExplicit = isExplicit
         self.episodeCount = episodeCount
         self.newestEpisodeDate = newestEpisodeDate
     }
 
-    /// Die Rubriken des Katalogs, zu denen der Podcast gehört.
-    public var categories: [CatalogCategory] { CatalogCategory.categories(for: categoryIDs) }
+    /// Die Kategorien des Katalogs, zu denen der Podcast gehört.
+    public var categories: [CatalogCategory] { CatalogCategory.categories(for: genreIDs) }
 
     /// Alle Feed-Adressen, unter denen jemand den Podcast abonniert haben kann.
-    public var knownFeedURLs: [URL] { [feedURL] + (originalFeedURL.map { [$0] } ?? []) + alternateFeedURLs }
-}
-
-/// Eine Folge aus dem Katalog, nur zum Ansehen vor dem Abonnieren. Eine
-/// Audio-Adresse trägt sie absichtlich nicht: aus dem Katalog wird nichts
-/// abgespielt.
-public struct CatalogEpisode: Sendable, Hashable, Identifiable {
-    public let id: Int
-    public var title: String
-    public var publishedAt: Date?
-    /// Sekunden, wie der Katalog sie schätzt. Fehlt oder 0 heißt: unbekannt.
-    public var duration: Int?
-    public var isExplicit: Bool
-    public var season: Int?
-    public var episodeNumber: Int?
-    /// `full`, `trailer` oder `bonus`.
-    public var episodeType: String?
-
-    public init(id: Int, title: String, publishedAt: Date? = nil, duration: Int? = nil,
-                isExplicit: Bool = false, season: Int? = nil, episodeNumber: Int? = nil,
-                episodeType: String? = nil) {
-        self.id = id
-        self.title = title
-        self.publishedAt = publishedAt
-        self.duration = duration
-        self.isExplicit = isExplicit
-        self.season = season
-        self.episodeNumber = episodeNumber
-        self.episodeType = episodeType
-    }
+    public var knownFeedURLs: [URL] { [feedURL] + alternateFeedURLs }
 }
 
 // MARK: - Text und Adressen
@@ -219,47 +179,22 @@ public enum CatalogText {
     }
 }
 
-// MARK: - Sprache
-
-public enum CatalogLanguage {
-
-    /// Werte für den Parameter `lang` bei den Trends. Die API nennt nicht,
-    /// ob „de“ auch „de-DE“ trifft, deshalb stehen die üblichen Schreibweisen
-    /// einzeln da.
-    public static func codes(for language: AppLanguage) -> [String] {
-        switch language {
-        case .german: ["de", "de-de", "de-at", "de-ch"]
-        case .english: ["en", "en-us", "en-gb", "en-au", "en-ca", "en-ie"]
-        }
-    }
-
-    /// Ist der Podcast in dieser Sprache? Ohne Angabe im Feed: nein.
-    public static func matches(_ feedLanguage: String?, _ language: AppLanguage) -> Bool {
-        language.matches(feedLanguage?.replacingOccurrences(of: "_", with: "-")) == true
-    }
-
-    /// Nur die Podcasts in `language`. `nil` heißt: alle Sprachen.
-    public static func filter(_ podcasts: [CatalogPodcast], language: AppLanguage?) -> [CatalogPodcast] {
-        guard let language else { return podcasts }
-        return podcasts.filter { matches($0.language, language) }
-    }
-}
-
 // MARK: - Zwei Verzeichnisse, eine Trefferliste
 
 public enum CatalogMerge {
 
-    /// Führt die Treffer von Podcast Index und dem Apple-Verzeichnis zusammen.
+    /// Führt zwei Trefferlisten zusammen, etwa die Suche bei Apple und die
+    /// bei Podcast Index.
     ///
     /// Die Listen werden im Wechsel gelesen, damit die besten Treffer beider
-    /// vorn stehen. Derselbe Podcast, erkannt an der Feed-Adresse (auch der
-    /// alten) oder an der Apple-Kennung, erscheint nur einmal; was dem ersten
-    /// Eintrag fehlt, ergänzt der zweite.
-    public static func merged(_ index: [CatalogPodcast], _ directory: [CatalogPodcast]) -> [CatalogPodcast] {
+    /// vorn stehen. Derselbe Podcast, erkannt an der Feed-Adresse oder an
+    /// der Apple-Kennung, erscheint nur einmal; was dem ersten Eintrag
+    /// fehlt, ergänzt der zweite.
+    public static func merged(_ first: [CatalogPodcast], _ second: [CatalogPodcast]) -> [CatalogPodcast] {
         var result: [CatalogPodcast] = []
         var positions: [String: Int] = [:]
-        for position in 0..<max(index.count, directory.count) {
-            for list in [index, directory] where position < list.count {
+        for position in 0..<max(first.count, second.count) {
+            for list in [first, second] where position < list.count {
                 let candidate = list[position]
                 let keys = keys(for: candidate)
                 if let existing = keys.lazy.compactMap({ positions[$0] }).first {
@@ -300,10 +235,7 @@ public enum CatalogMerge {
 
     private static func filled(_ base: CatalogPodcast, from other: CatalogPodcast) -> CatalogPodcast {
         var merged = base
-        merged.podcastIndexID = base.podcastIndexID ?? other.podcastIndexID
         merged.itunesID = base.itunesID ?? other.itunesID
-        merged.podcastGUID = base.podcastGUID ?? other.podcastGUID
-        merged.originalFeedURL = base.originalFeedURL ?? other.originalFeedURL
         // Die Schreibweisen des anderen Eintrags bleiben erhalten, damit ein
         // Abo unter seiner Adresse als Abo erkannt wird.
         for url in other.knownFeedURLs {
@@ -312,14 +244,13 @@ public enum CatalogMerge {
                 merged.alternateFeedURLs.append(url)
             }
         }
-        merged.websiteURL = base.websiteURL ?? other.websiteURL
         merged.artworkURL = base.artworkURL ?? other.artworkURL
         merged.summary = base.summary ?? other.summary
-        merged.language = base.language ?? other.language
         merged.genre = base.genre ?? other.genre
         merged.episodeCount = base.episodeCount ?? other.episodeCount
         merged.newestEpisodeDate = base.newestEpisodeDate ?? other.newestEpisodeDate
-        if merged.categoryIDs.isEmpty { merged.categoryIDs = other.categoryIDs }
+        if merged.genres.isEmpty { merged.genres = other.genres }
+        if merged.genreIDs.isEmpty { merged.genreIDs = other.genreIDs }
         if merged.author.isEmpty { merged.author = other.author }
         merged.isExplicit = base.isExplicit || other.isExplicit
         return merged

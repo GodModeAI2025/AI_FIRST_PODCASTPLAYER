@@ -1252,9 +1252,8 @@ struct SourceRow: View {
 /// „Podcast hinzufügen“: Suche, eingefügter Link, OPML-Import und der
 /// Podcast-Katalog mit Angesagt und Kategorien.
 ///
-/// Mit Zugang zum Katalog sucht das Blatt in Podcast Index und im
-/// Apple-Podcast-Verzeichnis zugleich. Ohne Zugang sucht es nur bei Apple,
-/// und Angesagt und Kategorien fehlen.
+/// Gesucht wird bei Apple Podcasts und bei Podcast Index zugleich. Angesagt
+/// und Kategorien sind die Charts von Apple Podcasts im Land des Geräts.
 struct AddSourceSheet: View {
 
     @Environment(AppModel.self) private var model
@@ -1360,7 +1359,7 @@ struct AddSourceSheet: View {
                         .accessibilityIdentifier("source.addLink")
                     }
                 } else if searching && results.isEmpty {
-                    Section { HStack { ProgressView(); Text("Suche im Podcast-Verzeichnis …").foregroundStyle(.secondary) } }
+                    Section { HStack { ProgressView(); Text("Suche bei Apple Podcasts und Podcast Index …").foregroundStyle(.secondary) } }
                 } else if !results.isEmpty {
                     Section {
                         ForEach(results) { podcast in
@@ -1377,15 +1376,11 @@ struct AddSourceSheet: View {
                                               })
                         }
                     } header: {
-                        if catalog.isAvailable {
-                            Text("Treffer aus Podcast Index und dem Apple-Podcast-Verzeichnis")
-                        } else {
-                            Text("Treffer im Apple-Podcast-Verzeichnis")
-                        }
+                        Text("Treffer aus Apple Podcasts und Podcast Index")
                     } footer: {
                         VStack(alignment: .leading, spacing: Design.Spacing.small) {
                             Text(preparationNote)
-                            if catalog.isAvailable { CatalogAttribution() }
+                            CatalogAttribution()
                         }
                     }
                 } else if let searchedTerm, searchedTerm == trimmed, !trimmed.isEmpty {
@@ -1408,17 +1403,15 @@ struct AddSourceSheet: View {
                             """)
                     }
 
-                    if catalog.isAvailable {
-                        CatalogTrendingSection()
-                        Section {
-                            CatalogCategoryGrid()
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        } header: {
-                            Text("Kategorien")
-                        } footer: {
-                            CatalogAttribution()
-                        }
+                    CatalogTrendingSection()
+                    Section {
+                        CatalogCategoryGrid()
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    } header: {
+                        Text("Kategorien")
+                    } footer: {
+                        CatalogAttribution()
                     }
                 }
             }
