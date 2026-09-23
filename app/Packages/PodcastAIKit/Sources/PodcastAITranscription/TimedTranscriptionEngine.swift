@@ -310,7 +310,7 @@ public actor TimedTranscriptionEngine {
 
     public func cancel() async {
         inputContinuation?.finish()
-        try? await analyzer?.cancelAndFinishNow()
+        await analyzer?.cancelAndFinishNow()
         markStopped()
     }
 

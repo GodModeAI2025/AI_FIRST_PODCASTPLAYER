@@ -14,6 +14,7 @@ Aus dem TestFlight-Feedback zu 0.6, 0.7 und 0.7.1, jede Änderung von zwei Prüf
 - „Kurz gesagt“ zeigt höchstens zehn Schlagworte, die umbrechen statt seitlich zu scrollen, deine Themen zuerst.
 - Kein Orange mehr: Hinweise sind grau mit „i“ und erklären auf Tipp mehr. Rot bleibt für echte Störungen.
 - Fakten tragen keine Reste wie „3 |“ oder Listenstriche mehr.
+- Voraussetzung ist jetzt iOS 27 und macOS 27. Der Code für ältere Systeme ist entfernt, Unterbrechungen durch Anrufe und Siri laufen über die neuen Meldungen der Audiositzung.
 
 ## App 0.7.1 · 2026-09-23
 - Private Cloud Compute ist freigegeben. Apple hat den Zugang für das Team erteilt, die App fragt Apples Server jetzt für Antworten im Chat, Überblicke und Gegenpositionen. Dort passt mehr Text in eine Anfrage. Abschaltbar unter Einstellungen › Intelligenz. Fakten und Relevanz entstehen weiter auf dem Gerät.

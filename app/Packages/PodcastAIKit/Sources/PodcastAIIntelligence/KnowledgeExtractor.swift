@@ -522,7 +522,7 @@ public struct KnowledgeExtractor: Sendable {
 
     /// Ein Satz für Menschen statt Fehlercode und Domäne.
     static func plainReason(_ error: any Error) -> String {
-        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *), let error = error as? LanguageModelError {
+        if let error = error as? LanguageModelError {
             switch error {
             case .contextSizeExceeded:
                 return String(localized: "Der Text ist für das Modell zu lang.", bundle: .module)
@@ -541,26 +541,22 @@ public struct KnowledgeExtractor: Sendable {
             @unknown default: break
             }
         }
-        if let error = error as? LanguageModelSession.GenerationError {
+        if let error = error as? SystemLanguageModel.Error {
             switch error {
-            case .exceededContextWindowSize:
-                return String(localized: "Der Text ist für das Modell zu lang.", bundle: .module)
-            case .guardrailViolation:
-                return String(localized: "Die Schutzregeln des Modells haben diesen Inhalt abgelehnt.", bundle: .module)
-            case .refusal:
-                return String(localized: "Das Modell wollte dazu nicht antworten.", bundle: .module)
-            case .unsupportedLanguageOrLocale:
-                return String(localized: "Diese Sprache versteht das Modell nicht.", bundle: .module)
-            case .rateLimited, .concurrentRequests:
-                return String(localized: "Das Modell ist gerade ausgelastet. Gleich noch einmal versuchen.", bundle: .module)
             case .assetsUnavailable:
                 return String(localized: "Die Dateien des Modells werden noch geladen. Später noch einmal versuchen.", bundle: .module)
-            case .decodingFailure:
-                return String(localized: "Die Antwort des Modells war unlesbar. Noch einmal versuchen.", bundle: .module)
-            case .unsupportedGuide:
-                return String(localized: "Diese Art Anfrage unterstützt das Modell nicht.", bundle: .module)
             @unknown default: break
             }
+        }
+        if let error = error as? LanguageModelSession.Error {
+            switch error {
+            case .concurrentRequests, .transcriptMutationWhileResponding:
+                return String(localized: "Das Modell ist gerade ausgelastet. Gleich noch einmal versuchen.", bundle: .module)
+            @unknown default: break
+            }
+        }
+        if error is GeneratedContent.ParsingError {
+            return String(localized: "Die Antwort des Modells war unlesbar. Noch einmal versuchen.", bundle: .module)
         }
         return String(
             localized: "Das Modell hat keine Antwort geliefert. Auf diesem Gerät ist Apple Intelligence vielleicht noch nicht bereit.",
@@ -572,26 +568,14 @@ public struct KnowledgeExtractor: Sendable {
     /// Ja bei Schutzregeln, Ablehnung, zu langem Kontext, nicht unterstützter
     /// Sprache, Vorgabe oder Fähigkeit. Nein bei Last, Kontingent,
     /// Zeitüberschreitung, fehlenden Modelldateien und unlesbarem Ergebnis,
-    /// und bei allem, was unbekannt ist. Ab OS 27 kommen die Fehler als
-    /// `LanguageModelError`, unter OS 26 als `GenerationError`.
+    /// und bei allem, was unbekannt ist.
     static func isRejection(_ error: any Error) -> Bool {
-        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *), let error = error as? LanguageModelError {
+        if let error = error as? LanguageModelError {
             switch error {
             case .contextSizeExceeded, .guardrailViolation, .refusal, .unsupportedCapability,
                  .unsupportedTranscriptContent, .unsupportedGenerationGuide, .unsupportedLanguageOrLocale:
                 return true
             case .rateLimited, .timeout:
-                return false
-            @unknown default:
-                return false
-            }
-        }
-        if let error = error as? LanguageModelSession.GenerationError {
-            switch error {
-            case .exceededContextWindowSize, .guardrailViolation, .refusal, .unsupportedGuide,
-                 .unsupportedLanguageOrLocale:
-                return true
-            case .assetsUnavailable, .decodingFailure, .rateLimited, .concurrentRequests:
                 return false
             @unknown default:
                 return false
@@ -615,12 +599,9 @@ public struct KnowledgeExtractor: Sendable {
 
     private static func privateCloudSession(instructions: String) -> LanguageModelSession? {
         guard privateCloudEntitled else { return nil }
-        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
-            let model = PrivateCloudComputeLanguageModel()
-            guard model.isAvailable else { return nil }
-            return LanguageModelSession(model: model, instructions: instructions)
-        }
-        return nil
+        let model = PrivateCloudComputeLanguageModel()
+        guard model.isAvailable else { return nil }
+        return LanguageModelSession(model: model, instructions: instructions)
     }
 
     private func makeLocalSession(instructions: String) throws -> LanguageModelSession {
@@ -655,30 +636,25 @@ public struct KnowledgeExtractor: Sendable {
                 privateCloudCompute: .unavailable(.unknown(String(
                     localized: "Die Freigabe von Apple für diese App steht noch aus", bundle: .module))))
         }
-        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
-            let model = PrivateCloudComputeLanguageModel()
-            switch model.availability {
-            case .available:
-                if case .limitReached = model.quotaUsage.status {
-                    return ModelStatus(onDevice: onDevice, privateCloudCompute: .unavailable(.quotaExhausted))
-                }
-                return ModelStatus(onDevice: onDevice, privateCloudCompute: .available)
-            case .unavailable(let reason):
-                let mapped: ModelUnavailability = switch reason {
-                case .deviceNotEligible: .deviceNotEligible
-                case .systemNotReady: .modelNotReady
-                @unknown default: .unknown(String(localized: "unbekannter Grund", bundle: .module))
-                }
-                return ModelStatus(onDevice: onDevice, privateCloudCompute: .unavailable(mapped))
-            @unknown default:
-                return ModelStatus(
-                    onDevice: onDevice,
-                    privateCloudCompute: .unavailable(.unknown(String(localized: "unbekannt", bundle: .module))))
+        let model = PrivateCloudComputeLanguageModel()
+        switch model.availability {
+        case .available:
+            if case .limitReached = model.quotaUsage.status {
+                return ModelStatus(onDevice: onDevice, privateCloudCompute: .unavailable(.quotaExhausted))
             }
+            return ModelStatus(onDevice: onDevice, privateCloudCompute: .available)
+        case .unavailable(let reason):
+            let mapped: ModelUnavailability = switch reason {
+            case .deviceNotEligible: .deviceNotEligible
+            case .systemNotReady: .modelNotReady
+            @unknown default: .unknown(String(localized: "unbekannter Grund", bundle: .module))
+            }
+            return ModelStatus(onDevice: onDevice, privateCloudCompute: .unavailable(mapped))
+        @unknown default:
+            return ModelStatus(
+                onDevice: onDevice,
+                privateCloudCompute: .unavailable(.unknown(String(localized: "unbekannt", bundle: .module))))
         }
-        return ModelStatus(
-            onDevice: onDevice,
-            privateCloudCompute: .unavailable(.unknown(String(localized: "braucht iOS 27 oder macOS 27", bundle: .module))))
     }
 
     private static func map(

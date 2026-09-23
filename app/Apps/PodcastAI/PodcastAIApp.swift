@@ -179,18 +179,12 @@ struct RootView: View {
 }
 
 /// Blendet die Zubehörleiste nur ein, wenn etwas läuft. Ohne `isEnabled`
-/// (vor iOS 26.1) bliebe eine leere Glasleiste über der Tab Bar stehen.
+/// bliebe eine leere Glasleiste über der Tab Bar stehen.
 private struct MiniPlayerAccessoryModifier: ViewModifier {
     let isVisible: Bool
 
     func body(content: Content) -> some View {
-        if #available(iOS 26.1, *) {
-            content.tabViewBottomAccessory(isEnabled: isVisible) { MiniPlayerAccessory() }
-        } else if isVisible {
-            content.tabViewBottomAccessory { MiniPlayerAccessory() }
-        } else {
-            content
-        }
+        content.tabViewBottomAccessory(isEnabled: isVisible) { MiniPlayerAccessory() }
     }
 }
 
@@ -222,7 +216,7 @@ private struct ActivityBannerInset: ViewModifier {
     func body(content: Content) -> some View {
         // Kein Streifen mehr über dem Inhalt: das Symbol sitzt in der
         // Navigationsleiste der Ansichten (siehe `activityStatusToolbar`).
-        content.environment(\.openQueue, openQueue)
+        content.environment(\.openQueue, OpenQueueAction(run: openQueue))
     }
 }
 

@@ -120,7 +120,10 @@ public final class BackgroundContinuation {
             identifier: identifier, title: Self.displayTitle, subtitle: subtitle
         )
         request.strategy = .fail
-        try? BGTaskScheduler.shared.submit(request)
+        // Das System will die Anfrage nicht vom Hauptthread.
+        Task.detached(priority: .userInitiated) {
+            try? await BGTaskScheduler.shared.submitTaskRequest(request)
+        }
     }
 
     private func attach(_ processing: BGContinuedProcessingTask) {

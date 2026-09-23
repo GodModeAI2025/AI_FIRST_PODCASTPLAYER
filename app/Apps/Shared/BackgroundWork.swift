@@ -96,12 +96,15 @@ public final class BackgroundWork {
     /// Reicht einen Auftrag ein. Ein abgelehnter Auftrag wird protokolliert,
     /// nicht verschluckt: ohne passenden Hintergrundmodus in der Info.plist
     /// lehnt iOS ihn still ab, und niemand merkt, dass nichts mehr läuft.
-    private func submit(_ request: BGTaskRequest) {
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            NSLog("Hintergrundauftrag %@ nicht eingereicht: %@",
-                  request.identifier, error.localizedDescription)
+    private func submit(_ request: sending BGTaskRequest) {
+        // Das System will die Anfrage nicht vom Hauptthread.
+        Task.detached(priority: .utility) {
+            do {
+                try await BGTaskScheduler.shared.submitTaskRequest(request)
+            } catch {
+                NSLog("Hintergrundauftrag %@ nicht eingereicht: %@",
+                      request.identifier, error.localizedDescription)
+            }
         }
     }
 

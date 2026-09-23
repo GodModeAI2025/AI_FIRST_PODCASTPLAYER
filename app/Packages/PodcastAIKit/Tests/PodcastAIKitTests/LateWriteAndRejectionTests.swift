@@ -115,31 +115,22 @@ struct RejectionClassificationTests {
 
     @Test("Schutzregeln, Ablehnung und zu langer Kontext gelten als Ablehnung")
     func rejections() {
-        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
-            #expect(KnowledgeExtractor.isRejection(
-                LanguageModelError.guardrailViolation(.init(debugDescription: "Schutzregel"))))
-            #expect(KnowledgeExtractor.isRejection(
-                LanguageModelError.refusal(.init(explanation: "nein", debugDescription: "nein"))))
-            #expect(KnowledgeExtractor.isRejection(
-                LanguageModelError.contextSizeExceeded(
-                    .init(contextSize: 4_096, tokenCount: 5_000, debugDescription: "zu lang"))))
-        }
-        let context = LanguageModelSession.GenerationError.Context(debugDescription: "alt")
-        #expect(KnowledgeExtractor.isRejection(LanguageModelSession.GenerationError.guardrailViolation(context)))
-        #expect(KnowledgeExtractor.isRejection(LanguageModelSession.GenerationError.exceededContextWindowSize(context)))
+        #expect(KnowledgeExtractor.isRejection(
+            LanguageModelError.guardrailViolation(.init(debugDescription: "Schutzregel"))))
+        #expect(KnowledgeExtractor.isRejection(
+            LanguageModelError.refusal(.init(explanation: "nein", debugDescription: "nein"))))
+        #expect(KnowledgeExtractor.isRejection(
+            LanguageModelError.contextSizeExceeded(
+                .init(contextSize: 4_096, tokenCount: 5_000, debugDescription: "zu lang"))))
     }
 
     @Test("Last, Zeitüberschreitung und Unbekanntes lassen einen zweiten Versuch zu")
     func transient() {
-        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
-            #expect(!KnowledgeExtractor.isRejection(
-                LanguageModelError.rateLimited(.init(resetDate: nil, debugDescription: "später"))))
-            #expect(!KnowledgeExtractor.isRejection(
-                LanguageModelError.timeout(.init(debugDescription: "zu langsam"))))
-        }
-        let context = LanguageModelSession.GenerationError.Context(debugDescription: "alt")
-        #expect(!KnowledgeExtractor.isRejection(LanguageModelSession.GenerationError.rateLimited(context)))
-        #expect(!KnowledgeExtractor.isRejection(LanguageModelSession.GenerationError.decodingFailure(context)))
+        #expect(!KnowledgeExtractor.isRejection(
+            LanguageModelError.rateLimited(.init(resetDate: nil, debugDescription: "später"))))
+        #expect(!KnowledgeExtractor.isRejection(
+            LanguageModelError.timeout(.init(debugDescription: "zu langsam"))))
+        #expect(!KnowledgeExtractor.isRejection(LanguageModelSession.Error.concurrentRequests))
         #expect(!KnowledgeExtractor.isRejection(URLError(.timedOut)))
         #expect(!KnowledgeExtractor.isRejection(CancellationError()))
     }

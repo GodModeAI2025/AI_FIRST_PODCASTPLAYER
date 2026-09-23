@@ -186,7 +186,7 @@ public actor LibraryStore {
         default:
             break
         }
-        if #available(iOS 27, macOS 27, *), case SwiftDataError.unknownDataStoreSchema = error {
+        if case SwiftDataError.unknownDataStoreSchema = error {
             return true
         }
         return containsIncompatibleCode(error as NSError, depth: 0)

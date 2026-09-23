@@ -236,7 +236,7 @@ public final class PlaybackCoordinator {
 
     private func installEndObserver(for item: AVPlayerItem, token: Int) {
         let registration = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
+            forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
                 guard let self, token == self.sessionToken else { return }

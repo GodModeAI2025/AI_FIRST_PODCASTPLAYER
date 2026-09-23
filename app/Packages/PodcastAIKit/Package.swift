@@ -5,8 +5,8 @@ let package = Package(
     name: "PodcastAIKit",
     defaultLocalization: "de",
     platforms: [
-        .iOS(.v26),
-        .macOS(.v26),
+        .iOS("27.0"),
+        .macOS("27.0"),
     ],
     products: [
         .library(name: "PodcastAIKit", targets: ["PodcastAIKit"]),

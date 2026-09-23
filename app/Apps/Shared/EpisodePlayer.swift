@@ -202,6 +202,7 @@ public final class EpisodePlayer {
     #endif
     #if os(iOS)
     @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
+    @ObservationIgnored private var resumptionObserver: NSObjectProtocol?
     /// Lief die Folge, als das System sie für einen Anruf oder Siri anhielt?
     @ObservationIgnored private var resumeAfterInterruption = false
     /// Wann das System die Folge zuletzt angehalten hat. Die Pause kann vor
@@ -230,14 +231,22 @@ public final class EpisodePlayer {
             Task { @MainActor in self?.controlStatusChanged() }
         }
         #if os(iOS)
+        // Ein Anruf oder Siri macht die Sitzung inaktiv, das System meldet
+        // danach, ob es weitergehen soll. Was die App selbst beendet, zählt
+        // nicht als Unterbrechung.
         interruptionObserver = NotificationCenter.default.addObserver(
-            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+            forName: AVAudioSession.didBecomeInactiveNotification, object: nil, queue: .main
         ) { [weak self] note in
-            let type = (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt)
-                .flatMap(AVAudioSession.InterruptionType.init(rawValue:))
-            let options = AVAudioSession.InterruptionOptions(
-                rawValue: note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
-            MainActor.assumeIsolated { self?.interruptionChanged(type, options: options) }
+            let context = note.userInfo?[AVAudioSession.deactivationContextKey] as? AVAudioSession.DeactivationContext
+            guard context?.source == .system else { return }
+            MainActor.assumeIsolated { self?.interruptionBegan() }
+        }
+        resumptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.resumptionRecommendationNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            let context = note.userInfo?[AVAudioSession.resumptionContextKey] as? AVAudioSession.ResumptionContext
+            let shouldResume = context?.recommendation == .shouldResume
+            MainActor.assumeIsolated { self?.interruptionEnded(shouldResume: shouldResume) }
         }
         #endif
     }
@@ -349,7 +358,7 @@ public final class EpisodePlayer {
         player.replaceCurrentItem(with: item)
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
         endObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
+            forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.finished() }
         }
@@ -462,20 +471,16 @@ public final class EpisodePlayer {
     /// Nach einem Anruf oder Siri geht die Folge weiter, wenn sie vorher lief
     /// und das System es empfiehlt. Wer in der Pause selbst angehalten hat,
     /// bleibt in der Pause.
-    private func interruptionChanged(_ type: AVAudioSession.InterruptionType?,
-                                     options: AVAudioSession.InterruptionOptions) {
-        switch type {
-        case .began:
-            let justPaused = systemPausedAt.map { Date().timeIntervalSince($0) < 2 } ?? false
-            resumeAfterInterruption = episode != nil && (isPlaying || justPaused)
-        case .ended:
-            let resume = resumeAfterInterruption && options.contains(.shouldResume)
-            resumeAfterInterruption = false
-            guard resume, episode != nil, !isPlaying, activeFocus == nil else { return }
-            self.resume()
-        default:
-            break
-        }
+    private func interruptionBegan() {
+        let justPaused = systemPausedAt.map { Date().timeIntervalSince($0) < 2 } ?? false
+        resumeAfterInterruption = episode != nil && (isPlaying || justPaused)
+    }
+
+    private func interruptionEnded(shouldResume: Bool) {
+        let resume = resumeAfterInterruption && shouldResume
+        resumeAfterInterruption = false
+        guard resume, episode != nil, !isPlaying, activeFocus == nil else { return }
+        self.resume()
     }
     #endif
 

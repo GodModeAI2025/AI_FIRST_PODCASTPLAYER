@@ -268,7 +268,7 @@ struct MacRootView: View {
         }
         .autoRefresh()
         .spotlightPassages()
-        .environment(\.openQueue, { section = .queue })
+        .environment(\.openQueue, OpenQueueAction(run: { section = .queue }))
         .environment(\.showInApp, ShowInAppAction { jump in show(jump) })
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView().sheetFeedback().environment(model).frame(minWidth: 480, minHeight: 620)

@@ -319,17 +319,11 @@ public enum TopicCoverGenerator {
         from creator: ImageCreator, concepts: [String], style: ImagePlaygroundStyle
     ) async throws -> CGImage? {
         let concepts = concepts.map { ImagePlaygroundConcept.text($0) }
-        if #available(iOS 26.4, macOS 26.4, *) {
-            var options = ImagePlaygroundOptions()
-            // Keine Gesichter aus der Fotomediathek: ein Themencover braucht sie nicht.
-            options.personalization = .disabled
-            for try await created in creator.images(for: concepts, style: style, options: options, limit: 1) {
-                return created.cgImage
-            }
-        } else {
-            for try await created in creator.images(for: concepts, style: style, limit: 1) {
-                return created.cgImage
-            }
+        var options = ImagePlaygroundOptions()
+        // Keine Gesichter aus der Fotomediathek: ein Themencover braucht sie nicht.
+        options.personalization = .disabled
+        for try await created in creator.images(for: concepts, style: style, options: options, limit: 1) {
+            return created.cgImage
         }
         return nil
     }

@@ -278,16 +278,11 @@ struct CoverPlaygroundSheet: ViewModifier {
     #if canImport(ImagePlayground)
     private struct PlaygroundOptions: ViewModifier {
         func body(content: Content) -> some View {
-            if #available(iOS 26.4, macOS 26.4, *) {
-                var options = ImagePlaygroundOptions()
-                options.personalization = .disabled
-                return AnyView(content.imagePlaygroundOptions(options))
-            } else {
-                // Vor 26.4 heißt dieselbe Sperre noch so. Ohne sie böte der
-                // Dialog Gesichter aus der Mediathek an, etwa wenn ein Thema
-                // ein Name ist.
-                return AnyView(content.imagePlaygroundPersonalizationPolicy(.disabled))
-            }
+            // Ohne diese Sperre böte der Dialog Gesichter aus der Mediathek
+            // an, etwa wenn ein Thema ein Name ist.
+            var options = ImagePlaygroundOptions()
+            options.personalization = .disabled
+            return content.imagePlaygroundOptions(options)
         }
     }
     #endif

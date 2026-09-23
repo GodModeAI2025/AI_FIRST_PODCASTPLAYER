@@ -11,9 +11,21 @@
 import SwiftUI
 import PodcastAIKit
 
+/// Öffnet die Warteschlange. Gesetzt von der Wurzelansicht.
+///
+/// Als Typ statt als nackte Closure: Closures lassen sich nicht vergleichen,
+/// jede neue würde alle Ansichten neu zeichnen, die den Wert lesen. Die
+/// Aktion bleibt für ihre Ansicht immer dieselbe.
+struct OpenQueueAction: Equatable {
+    let run: @MainActor @Sendable () -> Void
+
+    @MainActor func callAsFunction() { run() }
+
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+}
+
 extension EnvironmentValues {
-    /// Öffnet die Warteschlange. Gesetzt von der Wurzelansicht.
-    @Entry var openQueue: (@MainActor @Sendable () -> Void)? = nil
+    @Entry var openQueue: OpenQueueAction? = nil
 }
 
 struct ActivityStatusButton: View {

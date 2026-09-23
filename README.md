@@ -39,8 +39,8 @@ Transkription und Suche laufen auf dem Gerät. Private Cloud Compute verarbeitet
 
 | Plattform | Mindestversion |
 |---|---|
-| iPhone und iPad | iOS 26, Private Cloud Compute ab iOS 27 |
-| Mac | macOS 26, Private Cloud Compute ab macOS 27 |
+| iPhone und iPad | iOS 27 oder neuer |
+| Mac | macOS 27 oder neuer |
 
 Transkription braucht Apples Spracherkennung auf dem Gerät. Fragen, Fakten und Relevanz brauchen ein Gerät mit Apple Intelligence.
 

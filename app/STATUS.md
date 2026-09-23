@@ -24,7 +24,7 @@ Stand 23. September 2026, Version 0.7.2.
 | Podcastsuche nach Namen, Spotify-Hinweis, Moment merken, OPML-Import, YouTube-@-Links, Archiv, Speicher, Themen-Updates bearbeiten | UI-Tests im Simulator |
 | Erwähnt im Überblick und im Chat einer Folge, ältere Folgen vorbereiten, Netzregeln unter Mobilfunk, neueste Folge behalten | UI-Tests im Simulator |
 | Englische Oberfläche und deutsche Mehrzahl | UI-Tests mit `-AppleLanguages (en)` und `(de)` |
-| iOS 26.4 und iOS 27 | komplette UI-Suite auf beiden Simulatoren |
+| iOS 27 | komplette UI-Suite im Simulator, ab 0.7.2 die einzige unterstützte Version |
 | Bedienung durch Einsteiger bis Experten | 50 Personas mit Screenshots und Code, danach 10 Personas, die die App im Simulator selbst bedient haben, plus ein Begriffstest mit 12 Personas |
 | Jeder Knopf, jedes Menü, jeder Schalter, jeder Hinweistext | Prüfung auf Wirkung, jeder Fund von Gegenprüfern bestätigt oder verworfen |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
