@@ -229,7 +229,7 @@ extension AppModel {
             for id in ids { all += (try? await store.evidence(forEpisode: id)) ?? [] }
             pool = all
         case .smartFeed, .allAnalyzed:
-            pool = (try? await store.evidenceForAnalyzedEpisodes(limit: 20_000)) ?? []
+            pool = (try? await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)) ?? []
             libraryContext = await libraryOverview()
             let known = episodes.values.flatMap { $0 }.count
             let analyzed = analyzedEpisodes.count
@@ -1093,23 +1093,28 @@ extension AppModel {
 
     /// Entfernt Audiodateien, die nach den Einstellungen nicht mehr auf das
     /// Gerät gehören: ausgewertete Folgen und Folgen, die seit einem Tag
-    /// gehört sind. Was im Player liegt oder gerade ausgewertet wird, bleibt.
+    /// gehört sind. Was im Player liegt, gerade lädt oder ausgewertet wird,
+    /// bleibt.
+    ///
+    /// Was jemand mit „Laden (offline)“ geholt hat, bleibt immer, auch wenn
+    /// er die Folge schon vor Tagen gehört hat. Wer eine gehörte Folge für
+    /// den Flug noch einmal lädt, will sie dort hören. Solche Dateien
+    /// entfernt nur „Audio entfernen“.
     public func tidyLocalAudio() async {
         guard removeAudioAfterAnalysis || removeHeardAudio else { return }
         let files = Set((try? FileManager.default.contentsOfDirectory(
             atPath: LocalMediaLocator.mediaDirectory.path)) ?? [])
         guard !files.isEmpty else { return }
-        var busy = Set(analysisQueue.map(\.id))
+        var busy = Set(analysisQueue.map(\.id)).union(downloading)
         if let analyzing { busy.insert(analyzing.id) }
         if let playing = episodePlayer.episode { busy.insert(playing.id) }
-        for episode in episodes.values.joined() where !busy.contains(episode.id) {
+        for episode in episodes.values.joined()
+        where !busy.contains(episode.id) && !keptOffline.contains(episode.id) {
             guard Self.localMediaIDs(of: [episode]).contains(where: { files.contains($0.rawValue) })
             else { continue }
             let analyzed = removeAudioAfterAnalysis && analyzedEpisodes.contains(episode.id)
-                && !keptOffline.contains(episode.id)
             let heard = removeHeardAudio && wasHeardLongAgo(episode)
             guard analyzed || heard else { continue }
-            keptOffline.remove(episode.id)
             await deleteLocalAudio(of: episode)
         }
     }
@@ -1182,7 +1187,12 @@ extension AppModel {
         episodePlayer.forgetPositions(for: ids)
         for id in ids {
             removeFromUpNext(id)
-            removeFromAnalysisQueue(id)
+            // Nicht `removeFromAnalysisQueue`: das merkt sich ein „Entfernen“
+            // des Nutzers, und ein neues Abo bereitete nie wieder etwas vor.
+            dropFromAnalysisQueue(id)
+            // Die Datei geht mit der Folge. Bliebe der Vermerk, hielte das
+            // Aufräumen sie nach einem neuen Abo für ausdrücklich geladen.
+            keptOffline.remove(id)
         }
     }
 

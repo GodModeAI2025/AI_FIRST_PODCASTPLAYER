@@ -84,6 +84,7 @@ public enum AppBootstrap {
         }
         #endif
         if ProcessInfo.processInfo.arguments.contains("-uitest-fresh") {
+            clearDeviceStateForUITest()
             return OpenedStore(container: try! LibraryStore.makeContainer(inMemory: true),
                                description: String(localized: "Test, nur im Arbeitsspeicher"), failure: nil)
         }
@@ -110,6 +111,24 @@ public enum AppBootstrap {
                                und was du jetzt anlegst, ist beim nächsten Start weg.
                                """),
                            isTemporary: true)
+    }
+
+    /// Ein leerer Speicher reicht für einen frischen UI-Test nicht. Neben der
+    /// Datenbank merkt sich das Gerät geladene Audiodateien und Listen von
+    /// Folgen in den Benutzereinstellungen. Blieben sie stehen, fände ein
+    /// Test die Datei oder die Stelle aus dem letzten Lauf wieder.
+    ///
+    /// Läuft vor `AppModel(store:)`: Modell und Player lesen diese Listen
+    /// beim Anlegen. Die Schlüssel stehen in `AppModel` und `EpisodePlayer`.
+    private static func clearDeviceStateForUITest() {
+        _ = LocalMediaLocator.removeAllFiles()
+        let defaults = UserDefaults.standard
+        for key in [
+            "episodePlaybackPositions", "recentEpisodeIDs", "upNextEpisodeIDs",
+            "dismissedFromPreparation", "keptOfflineEpisodes", AppModel.dismissedRelevantKey,
+        ] {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     /// Der zweite Versuch aus dem Startdialog.
