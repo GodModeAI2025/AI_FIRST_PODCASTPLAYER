@@ -146,7 +146,8 @@ struct HelpView: View {
                     + "sucht die App den passenden Audio-Podcast.", "plus.circle")
                 tip("Hören", "Folge öffnen und abspielen. Die App merkt sich die Stelle, auch über iPhone, iPad "
                     + "und Mac hinweg. Im Player: Tempo, Kapitel, Schlaf-Timer, AirPlay.", "play.circle")
-                tip("Warteschlange", "„Als Nächstes“ reiht eine Folge ein. Die Warteschlange liegt in der Mediathek.",
+                tip("Warteschlange", "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, gedrückt "
+                    + "halten bietet „Ans Ende“. Die Warteschlange liegt in der Mediathek.",
                     "list.bullet")
                 tip("Speicher", "In einer Folge über „Mehr“: „Audio entfernen“ löscht nur den Ton, „Folge "
                     + "löschen“ löscht alles zu dieser Folge.", "internaldrive")

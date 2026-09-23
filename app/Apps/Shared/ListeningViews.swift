@@ -35,6 +35,7 @@ struct EpisodeDetailView: View {
     let episode: Episode
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var section: Section = .overview
     @State private var passages: [Evidence] = []
     @State private var exported: String?
@@ -259,25 +260,48 @@ struct EpisodeDetailView: View {
 
     private var playControls: some View {
         HStack(spacing: Design.Spacing.small) {
-            Button {
-                if isCurrent { player.togglePlayPause() } else { model.playEpisode(episode) }
-            } label: {
-                Label(playLabel, systemImage: isCurrent && player.isPlaying ? "pause.fill" : "play.fill")
-                    .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
-            }
-            .buttonStyle(.borderedProminent)
-            .accessibilityIdentifier("episode.play")
+            if model.canPlay(episode) {
+                Button {
+                    if isCurrent { player.togglePlayPause() } else { model.playEpisode(episode) }
+                } label: {
+                    Label(playLabel, systemImage: isCurrent && player.isPlayingOrStarting ? "pause.fill" : "play.fill")
+                        .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("episode.play")
 
-            Button {
-                model.addToUpNext(episode)
-            } label: {
-                Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
-                    .labelStyle(.iconOnly)
-                    .frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
+                // Antippen reiht die Folge direkt hinter der laufenden ein,
+                // gedrückt halten bietet auch „Ans Ende“ an.
+                Menu {
+                    Button { model.addToUpNext(episode, placement: .next) } label: {
+                        Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
+                    }
+                    Button { model.addToUpNext(episode, placement: .last) } label: {
+                        Label("Ans Ende", systemImage: "text.line.last.and.arrowtriangle.forward")
+                    }
+                } label: {
+                    Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
+                        .labelStyle(.iconOnly)
+                        .frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
+                } primaryAction: {
+                    model.addToUpNext(episode, placement: .next)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isCurrent)
+                .accessibilityLabel("Als Nächstes hören")
+                .accessibilityAction(named: "Ans Ende der Warteschlange") {
+                    model.addToUpNext(episode, placement: .last)
+                }
+            } else if let url = episode.webPageURL {
+                // Ohne Audiodatei (YouTube) gibt es hier nichts zu hören.
+                // Der Knopf führt dorthin, wo es die Folge gibt.
+                Button { openURL(url) } label: {
+                    Label(episode.webLinkTitle, systemImage: episode.webLinkSymbol)
+                        .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("episode.openWeb")
             }
-            .buttonStyle(.bordered)
-            .disabled(model.upNext.contains { $0.id == episode.id } || isCurrent)
-            .accessibilityLabel("Als Nächstes hören")
 
             if episode.audioURL != nil, stage == nil || stage == .failed {
                 Button {
@@ -297,7 +321,7 @@ struct EpisodeDetailView: View {
     }
 
     private var playLabel: String {
-        if isCurrent { return player.isPlaying ? "Pause" : "Weiter" }
+        if isCurrent { return player.isPlayingOrStarting ? "Pause" : "Weiter" }
         let resume = model.resumePosition(for: episode)
         return resume > 5 ? "Weiter ab \(MediaTime(milliseconds: Int64(resume * 1000)).timecode)" : "Abspielen"
     }
@@ -409,12 +433,15 @@ struct FactRow: View {
             model.playEpisode(episode, at: fact.range.start.seconds)
         } label: {
             HStack(alignment: .top, spacing: Design.Spacing.small) {
+                // Schmuck. VoiceOver liest nur die Aussage und die Zeitmarke.
                 Image(systemName: "checkmark.seal.fill").foregroundStyle(.tint)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Text(fact.statement).foregroundStyle(.primary).multilineTextAlignment(.leading)
                     HStack(spacing: Design.Spacing.micro) {
                         TimecodeLabel(fact.range.start)
                         Image(systemName: "play.fill").font(.caption2).foregroundStyle(.tint)
+                            .accessibilityHidden(true)
                     }
                 }
             }
@@ -692,9 +719,16 @@ struct EpisodePlayerView: View {
                         HStack(spacing: Design.Spacing.control) {
                             rateMenu
                             sleepMenu
+                            #if os(macOS)
+                            // Auf dem Mac wird ein Player umgeleitet, nicht die Audiositzung.
+                            RoutePickerButton(player: player.routingPlayer)
+                                .frame(width: 44, height: 44)
+                                .accessibilityLabel("Wiedergabe auf anderem Gerät")
+                            #else
                             RoutePickerButton()
                                 .frame(width: 44, height: 44)
                                 .accessibilityLabel("Wiedergabe auf anderem Gerät")
+                            #endif
                         }
                         if !player.chapters.isEmpty { chapterList }
                     }
@@ -750,7 +784,6 @@ struct EpisodePlayerView: View {
                     scrubbing = nil
                 }
             }
-            .accessibilityLabel("Position")
             HStack {
                 Text(Self.format(scrubbing ?? player.currentTime))
                 Spacer()
@@ -759,6 +792,31 @@ struct EpisodePlayerView: View {
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
         }
+        // Für VoiceOver ein Element mit hörbarem Wert. Wischen nach oben
+        // oder unten springt 30 Sekunden, statt um ein Zehntel der Folge.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Position")
+        .accessibilityValue(player.duration > 0
+            ? "\(Self.spoken(player.currentTime)) von \(Self.spoken(player.duration))"
+            : Self.spoken(player.currentTime))
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: player.skip(by: 30)
+            case .decrement: player.skip(by: -30)
+            @unknown default: break
+            }
+        }
+    }
+
+    /// Eine Zeitangabe zum Vorlesen, etwa „12 Minuten 30 Sekunden“.
+    static func spoken(_ seconds: Double) -> String {
+        let total = Int(max(0, seconds))
+        let hours = total / 3600, minutes = total % 3600 / 60, rest = total % 60
+        var parts: [String] = []
+        if hours > 0 { parts.append(hours == 1 ? "1 Stunde" : "\(hours) Stunden") }
+        if minutes > 0 { parts.append(minutes == 1 ? "1 Minute" : "\(minutes) Minuten") }
+        if rest > 0 || parts.isEmpty { parts.append(rest == 1 ? "1 Sekunde" : "\(rest) Sekunden") }
+        return parts.joined(separator: " ")
     }
 
     private var transport: some View {
@@ -773,13 +831,13 @@ struct EpisodePlayerView: View {
             }
             .accessibilityLabel("15 Sekunden zurück")
             Button { player.togglePlayPause() } label: {
-                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: player.isPlayingOrStarting ? "pause.fill" : "play.fill")
                     .font(.title)
                     .frame(width: 64, height: 64)
             }
             .buttonStyle(.glassProminent)
             .buttonBorderShape(.circle)
-            .accessibilityLabel(player.isPlaying ? "Pause" : "Abspielen")
+            .accessibilityLabel(player.isPlayingOrStarting ? "Pause" : "Abspielen")
             Button { player.skip(by: 30) } label: {
                 Image(systemName: "goforward.30").font(.title2).tappableArea()
             }
@@ -911,10 +969,10 @@ struct EpisodeMiniBar: View {
                 .accessibilityLabel("Player öffnen, \(episode.title)")
 
                 Button { player.togglePlayPause() } label: {
-                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill").tappableArea()
+                    Image(systemName: player.isPlayingOrStarting ? "pause.fill" : "play.fill").tappableArea()
                 }
                 .buttonStyle(.pressable)
-                .accessibilityLabel(player.isPlaying ? "Pausieren" : "Fortsetzen")
+                .accessibilityLabel(player.isPlayingOrStarting ? "Pausieren" : "Fortsetzen")
 
                 Button { player.skip(by: 30) } label: {
                     Image(systemName: "goforward.30").tappableArea()
@@ -957,6 +1015,8 @@ struct QueueView: View {
                     Text("Leer. In einer Folge „Als Nächstes“ antippen, dann startet sie, sobald die laufende endet.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                } else {
+                    playUpNextButton
                 }
                 ForEach(model.upNext) { episode in
                     NavigationLink { EpisodeDetailView(episode: episode) } label: {
@@ -965,8 +1025,15 @@ struct QueueView: View {
                     .swipeActions {
                         Button("Entfernen", role: .destructive) { model.removeFromUpNext(episode.id) }
                     }
+                    // Auf dem Mac ohne Trackpad gibt es kein Wischen.
+                    .contextMenu {
+                        Button(role: .destructive) { model.removeFromUpNext(episode.id) } label: {
+                            Label("Entfernen", systemImage: "minus.circle")
+                        }
+                    }
                 }
                 .onMove { model.moveUpNext(from: $0, to: $1) }
+                .onDelete { model.removeFromUpNext(at: $0) }
             } header: {
                 Text("Als Nächstes hören")
             }
@@ -985,8 +1052,17 @@ struct QueueView: View {
                         .swipeActions {
                             Button("Entfernen", role: .destructive) { model.removeFromAnalysisQueue(episode.id) }
                         }
+                        .contextMenu {
+                            Button(role: .destructive) { model.removeFromAnalysisQueue(episode.id) } label: {
+                                Label("Entfernen", systemImage: "minus.circle")
+                            }
+                        }
                 }
                 .onMove { model.moveAnalysisQueue(from: $0, to: $1) }
+                .onDelete { offsets in
+                    let ids = offsets.map { model.analysisQueue[$0].id }
+                    ids.forEach(model.removeFromAnalysisQueue)
+                }
                 if model.analyzing == nil && model.analysisQueue.isEmpty {
                     Text("Nichts in Arbeit. Erschliessen startest du in einer Folge.")
                         .font(.callout)
@@ -1007,6 +1083,36 @@ struct QueueView: View {
         #if os(iOS)
         .toolbar { EditButton() }
         #endif
+    }
+
+    /// Startet „Als Nächstes“ von oben, an der gemerkten Stelle der ersten Folge.
+    private var playUpNextButton: some View {
+        Button { model.playNextInQueue() } label: {
+            HStack(spacing: Design.Spacing.small) {
+                Image(systemName: "play.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Abspielen").font(.subheadline.weight(.semibold))
+                    Text(upNextSummary).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("queue.play")
+    }
+
+    /// „3 Folgen · noch 2 Std 5 Min“.
+    private var upNextSummary: String {
+        let count = model.upNext.count
+        let episodes = count == 1 ? "1 Folge" : "\(count) Folgen"
+        let remaining = model.upNextRemaining
+        guard remaining >= 60 else { return episodes }
+        return "\(episodes) · noch \(MediaDuration(seconds: remaining).shortDescription)"
     }
 }
 
@@ -1143,11 +1249,45 @@ struct RoutePickerButton: UIViewRepresentable {
 #elseif os(macOS)
 import AVKit
 
+/// Auf dem Mac gilt die Auswahl nur für den Player, den sie kennt. Ohne ihn
+/// blieb die Liste leer, oder die Folge spielte weiter über den Mac.
 struct RoutePickerButton: NSViewRepresentable {
-    func makeNSView(context: Context) -> AVRoutePickerView { AVRoutePickerView() }
-    func updateNSView(_ nsView: AVRoutePickerView, context: Context) {}
+    let player: AVPlayer
+    func makeNSView(context: Context) -> AVRoutePickerView {
+        let view = AVRoutePickerView()
+        view.player = player
+        return view
+    }
+    func updateNSView(_ nsView: AVRoutePickerView, context: Context) {
+        if nsView.player !== player { nsView.player = player }
+    }
 }
 #endif
+
+// MARK: - Folgen ohne Ton
+
+extension Episode {
+    /// Liegt die Folge bei YouTube? Dann gibt es ein Video, aber keine Audiodatei.
+    var opensInYouTube: Bool { webPageURL?.host()?.contains("youtu") ?? false }
+    /// Wie der Knopf heisst, der eine Folge ohne Audiodatei öffnet.
+    var webLinkTitle: String { opensInYouTube ? "In YouTube öffnen" : "Webseite öffnen" }
+    var webLinkSymbol: String { opensInYouTube ? "play.rectangle" : "safari" }
+}
+
+/// Steht dort, wo sonst „Abspielen“ steht, wenn die Folge keine Audiodatei
+/// hat. Ohne Webseite erscheint gar nichts.
+struct OpenEpisodeWebButton: View {
+    let episode: Episode
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        if let url = episode.webPageURL {
+            Button { openURL(url) } label: {
+                Label(episode.webLinkTitle, systemImage: episode.webLinkSymbol)
+            }
+        }
+    }
+}
 
 // MARK: - Notizen
 
@@ -1206,6 +1346,7 @@ struct NoteRow: View {
             }
             HStack(spacing: Design.Spacing.micro) {
                 Image(systemName: "bookmark.fill").foregroundStyle(.tint)
+                    .accessibilityHidden(true)
                 if let ms = highlight.positionMs {
                     TimecodeLabel(MediaTime(milliseconds: Int64(ms)))
                 }

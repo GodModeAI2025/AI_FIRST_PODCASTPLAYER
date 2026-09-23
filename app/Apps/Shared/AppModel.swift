@@ -170,8 +170,17 @@ public final class AppModel {
         episodePlayer.onHeard = { [weak self] range, mediaID in
             Task { await self?.recordHeard(range, in: mediaID, via: .originalEpisode) }
         }
-        episodePlayer.onFinished = { [weak self] episode in
-            self?.playNextInQueue(after: episode)
+        episodePlayer.onFinished = { [weak self] _ in
+            self?.playNextInQueue()
+        }
+        // Kopfhörer und Lenkrad: „Nächster Titel“ nimmt die nächste Folge
+        // aus „Als Nächstes“. Das ist ein Tastendruck, keine Empfehlung.
+        episodePlayer.onNextTrack = { [weak self] in
+            self?.playNextInQueue() ?? false
+        }
+        episodePlayer.nowPlayingDetails = { [weak self] episode in
+            let source = self?.sources.first { $0.id == episode.sourceID }
+            return (source?.title, episode.artworkURL ?? source?.artworkURL)
         }
         pathMonitor.pathUpdateHandler = { [weak self] path in
             let expensive = path.isExpensive || path.isConstrained
@@ -254,7 +263,8 @@ public final class AppModel {
                !saved.isEmpty {
                 let found = try await store.episodes(ids: saved.map(EpisodeID.init(rawValue:)))
                 let byID = Dictionary(found.map { ($0.id.rawValue, $0) }, uniquingKeysWith: { a, _ in a })
-                upNext = saved.compactMap { byID[$0] }
+                // Folgen ohne Ton (YouTube) hielten die Warteschlange nur auf.
+                upNext = saved.compactMap { byID[$0] }.filter(canPlay)
             }
             // Alle Folgen im Speicher halten: Chat, Warteschlange und das
             // Vorbereiten brauchen sie, nicht nur die gerade geöffnete Liste.
@@ -272,7 +282,22 @@ public final class AppModel {
         // Auf einem anderen Gerät Gelöschtes auch hier entfernen: Audiodateien,
         // „Als Nächstes“, Warteschlange und gemerkte Stellen.
         await forgetEpisodesRemovedElsewhere()
+        restoreLastEpisode()
         await refreshRelevantToday()
+    }
+
+    /// Legt nach dem Start die zuletzt gehörte Folge pausiert in den
+    /// Mini-Player und an den Sperrbildschirm. Es klingt nichts (Regel 1):
+    /// weiter geht es erst, wenn jemand auf Abspielen tippt oder die Taste
+    /// am Kopfhörer drückt.
+    private func restoreLastEpisode() {
+        // Ein UI-Test mit leerem Speicher beginnt ohne Reste vom letzten Lauf.
+        guard !ProcessInfo.processInfo.arguments.contains("-uitest-fresh"),
+              episodePlayer.episode == nil, playerPlan == nil,
+              let episode = continueListening.first?.episode, canPlay(episode) else { return }
+        let local = episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) }
+        episodePlayer.restore(episode, at: resumePosition(for: episode), localFile: local)
+        Task { await loadChapters(for: episode) }
     }
 
     /// Angefangene Folgen, zuletzt gestartete zuerst, mit der Stelle zum Weiterhören.
@@ -383,6 +408,7 @@ public final class AppModel {
         let added = try await refresher.addSource(from: input)
         sources = try await store.sources()
         pruneSubscribedCounterparts(input: input)
+        AccessibilityNotification.Announcement("Podcast abonniert: \(added.title)").post()
         for source in sources where source.kind == .youTubeChannel && podcastCounterparts[source.id] == nil {
             await findPodcastCounterparts(for: source)
         }
@@ -611,7 +637,11 @@ public final class AppModel {
                 return false
             }
             analyzedEpisodes.insert(episode.id)
-            automaticallyQueued.remove(episode.id)
+            // Nur was jemand selbst angefordert hat, wird angesagt. Das
+            // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
+            if automaticallyQueued.remove(episode.id) == nil {
+                AccessibilityNotification.Announcement("Folge ausgewertet: \(episode.title)").post()
+            }
             await refreshRelevantToday()
             // Fakten gleich mit ermitteln, solange die Folge frisch ist.
             await prepareFacts(for: episode, removalTicket: ticket)
@@ -1292,9 +1322,17 @@ public final class AppModel {
     /// Spielt eine ganze Folge ab einer Stelle. Liegt sie schon geladen vor,
     /// kommt der Ton aus der Datei, sonst aus dem Stream.
     public func playEpisode(_ episode: Episode, at seconds: Double? = nil) {
+        let local = episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) }
+        // Erst prüfen, dann anhalten. Sonst endete ein laufender Fokus-Plan
+        // für eine Folge, die gar nicht klingen kann.
+        guard local != nil || episode.audioURL != nil else {
+            lastError = episode.opensInYouTube
+                ? "„\(episode.title)“ hat keine Audiodatei, nur ein Video bei YouTube."
+                : "„\(episode.title)“ hat keine Audiodatei."
+            return
+        }
         if playerPlan != nil { stopPlayback() }
         let start = seconds ?? resumePosition(for: episode)
-        let local = episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) }
         episodePlayer.play(episode, at: start, localFile: local)
         upNext.removeAll { $0.id == episode.id }
         Task { await loadChapters(for: episode) }
@@ -1361,22 +1399,61 @@ public final class AppModel {
         ledger.heard(in: mediaVersionID).covers(range, threshold: 0.8)
     }
 
-    public func addToUpNext(_ episode: Episode) {
-        guard !upNext.contains(where: { $0.id == episode.id }) else { return }
-        upNext.append(episode)
+    /// Kann die App diese Folge abspielen? YouTube-Folgen haben nur eine
+    /// Webseite und keine Audiodatei.
+    public func canPlay(_ episode: Episode) -> Bool {
+        episode.audioURL != nil
+            || episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) } != nil
+    }
+
+    /// „Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein,
+    /// „Ans Ende“ hinter alles, was schon wartet.
+    public enum UpNextPlacement { case next, last }
+
+    public func addToUpNext(_ episode: Episode, placement: UpNextPlacement = .next) {
+        guard canPlay(episode), episodePlayer.episode?.id != episode.id else { return }
+        var queue = upNext
+        queue.removeAll { $0.id == episode.id }
+        switch placement {
+        case .next: queue.insert(episode, at: 0)
+        case .last: queue.append(episode)
+        }
+        upNext = queue
     }
 
     public func removeFromUpNext(_ episodeID: EpisodeID) {
         upNext.removeAll { $0.id == episodeID }
     }
 
+    public func removeFromUpNext(at offsets: IndexSet) {
+        upNext.remove(atOffsets: offsets)
+    }
+
     public func moveUpNext(from offsets: IndexSet, to destination: Int) {
         upNext.move(fromOffsets: offsets, toOffset: destination)
     }
 
-    private func playNextInQueue(after episode: Episode) {
-        guard let next = upNext.first else { return }
-        playEpisode(next, at: 0)
+    /// Wie lange „Als Nächstes“ noch dauert, ab der gemerkten Stelle jeder
+    /// Folge. Folgen ohne Längenangabe zählen nicht mit.
+    public var upNextRemaining: TimeInterval {
+        upNext.reduce(0) { total, episode in
+            guard let length = episode.declaredDuration?.seconds, length > 0 else { return total }
+            return total + max(0, length - resumePosition(for: episode))
+        }
+    }
+
+    /// Startet die erste Folge aus „Als Nächstes“ an ihrer gemerkten Stelle.
+    /// Eine halb gehörte Folge geht dort weiter, wo sie aufgehört hat.
+    @discardableResult
+    public func playNextInQueue() -> Bool {
+        while let next = upNext.first {
+            if canPlay(next) {
+                playEpisode(next)
+                return true
+            }
+            upNext.removeFirst()
+        }
+        return false
     }
 
     /// Kapitel aus einer eigenen Datei nachladen, wenn der Feed nur darauf verweist.

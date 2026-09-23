@@ -67,16 +67,24 @@ struct EpisodeListView: View {
                         EpisodeRow(episode: episode)
                     }
                     .swipeActions(edge: .leading) {
-                        Button { model.playEpisode(episode) } label: {
-                            Label("Abspielen", systemImage: "play.fill")
+                        // Folgen ohne Audiodatei (YouTube) führen zum Video.
+                        if model.canPlay(episode) {
+                            Button { model.playEpisode(episode) } label: {
+                                Label("Abspielen", systemImage: "play.fill")
+                            }
+                            .tint(.accentColor)
+                        } else {
+                            OpenEpisodeWebButton(episode: episode)
+                                .tint(.red)
                         }
-                        .tint(.accentColor)
                     }
                     .swipeActions(edge: .trailing) {
-                        Button { model.addToUpNext(episode) } label: {
-                            Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
+                        if model.canPlay(episode) {
+                            Button { model.addToUpNext(episode) } label: {
+                                Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
+                            }
+                            .tint(.indigo)
                         }
-                        .tint(.indigo)
                         Button(role: .destructive) { pendingDelete = episode } label: {
                             Label("Löschen", systemImage: "trash")
                         }
@@ -88,9 +96,16 @@ struct EpisodeListView: View {
                         }
                     }
                     .contextMenu {
-                        Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
-                        Button { model.addToUpNext(episode) } label: {
-                            Label("Als Nächstes hören", systemImage: "text.line.first.and.arrowtriangle.forward")
+                        if model.canPlay(episode) {
+                            Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
+                            Button { model.addToUpNext(episode) } label: {
+                                Label("Als Nächstes hören", systemImage: "text.line.first.and.arrowtriangle.forward")
+                            }
+                            Button { model.addToUpNext(episode, placement: .last) } label: {
+                                Label("Ans Ende der Warteschlange", systemImage: "text.line.last.and.arrowtriangle.forward")
+                            }
+                        } else {
+                            OpenEpisodeWebButton(episode: episode)
                         }
                         if episode.audioURL != nil {
                             Button { model.enqueueAnalysis(episode) } label: {
