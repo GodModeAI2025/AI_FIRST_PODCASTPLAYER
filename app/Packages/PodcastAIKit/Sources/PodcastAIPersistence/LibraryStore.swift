@@ -980,6 +980,15 @@ public actor LibraryStore {
         return Set(stored.map { EpisodeID(rawValue: $0.episodeIdentifier) })
     }
 
+    /// Die Folgen, zu denen schon Fakten gespeichert sind. Liest nur die
+    /// Kennung der Folge, nicht die Aussagen.
+    public func episodeIDsWithFacts() throws -> Set<EpisodeID> {
+        var descriptor = FetchDescriptor<StoredFact>()
+        descriptor.propertiesToFetch = [\.episodeIdentifier]
+        let stored = try modelContext.fetch(descriptor)
+        return Set(stored.map { EpisodeID(rawValue: $0.episodeIdentifier) })
+    }
+
     // MARK: - Entfernen
 
     /// Was beim Entfernen gelöscht wurde. Die Audiodateien selbst liegen

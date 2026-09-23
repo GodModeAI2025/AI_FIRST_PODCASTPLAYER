@@ -204,6 +204,52 @@ public final class AppModel {
     /// Fakten je Folge, wie sie die Folgenansicht, der Chat und der Export zeigen.
     public internal(set) var facts: [EpisodeID: [EpisodeFact]] = [:]
     public internal(set) var factsInProgress: Set<EpisodeID> = []
+
+    // MARK: Fakten im Hintergrund (Ablauf in AppModel+Knowledge.swift)
+
+    /// Folgen, deren Fakten noch gesammelt werden, eine nach der anderen.
+    /// Eine eigene Warteschlange neben der für Transkripte: das Modell
+    /// braucht je Folge eine Minute oder mehr, und das nächste Transkript
+    /// wartet nicht darauf.
+    public internal(set) var factsQueue: [Episode] = []
+    /// Die Folge, deren Fakten gerade entstehen.
+    public internal(set) var gatheringFacts: Episode?
+    /// Wie weit die laufende Folge ist, von 0 bis 1.
+    public internal(set) var factsProgress: [EpisodeID: Double] = [:]
+    /// Warum die Warteschlange der Fakten steht, oder `nil`, wenn sie läuft.
+    public internal(set) var factsWait: String?
+    /// Was beim letzten Lauf einer Folge fehlte, für den Reiter „Fakten“.
+    public internal(set) var factsIssues: [EpisodeID: String] = [:]
+    @ObservationIgnored var factsTask: Task<Void, Never>?
+    /// Von Hand angefordert. Läuft vorn, rechnet neu und meldet Fehler.
+    @ObservationIgnored var factsRequested: Set<EpisodeID> = []
+    /// Nach zwei vergeblichen Versuchen in diesem Lauf. Erst der nächste
+    /// Start oder ein wieder bereites Modell versucht es erneut.
+    @ObservationIgnored var factsDeferred: Set<EpisodeID> = []
+    /// Seit wann eine Folge mit Transkript ohne Fakten bekannt ist. Kommt
+    /// das Transkript per iCloud, sammelt meist das andere Gerät gerade.
+    @ObservationIgnored var factsMissingSince: [EpisodeID: Date] = [:]
+    /// Hat die App schon nach fehlenden Fakten gesucht? Bis dahin, und
+    /// wieder nach dem Einschalten oder wenn das Modell bereit wird, reiht
+    /// sie ohne Wartezeit ein.
+    @ObservationIgnored var factsBackfilled = false
+
+    /// Fakten nach dem Transkript von selbst sammeln, auch für ältere
+    /// Folgen, denen sie noch fehlen.
+    public var automaticFacts: Bool {
+        didSet {
+            UserDefaults.standard.set(automaticFacts, forKey: Self.automaticFactsKey)
+            if automaticFacts {
+                // Eben eingeschaltet: alles, was fehlt, gleich einreihen.
+                factsBackfilled = false
+                Task { await queueMissingFacts() }
+            } else {
+                dropAutomaticFacts()
+            }
+        }
+    }
+    static let automaticFactsKey = "automaticFacts"
+
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
     /// danach die Grösse neu.
     public internal(set) var mediaStorageChanged = 0
@@ -248,6 +294,7 @@ public final class AppModel {
         // Voreingestellt an: ohne vorbereitete Folgen bleibt „Für dich“ leer,
         // und die App wirkt, als könne sie nichts.
         self.automaticAnalysis = UserDefaults.standard.object(forKey: Self.automaticAnalysisKey) as? Bool ?? true
+        self.automaticFacts = UserDefaults.standard.object(forKey: Self.automaticFactsKey) as? Bool ?? true
         self.allowPrivateCloudCompute = UserDefaults.standard.object(forKey: Self.privateCloudKey) as? Bool ?? true
         let perSource = UserDefaults.standard.integer(forKey: Self.episodesPerSourceKey)
         self.episodesPerSource = perSource > 0 ? perSource : 3
@@ -412,6 +459,9 @@ public final class AppModel {
         await refreshRelevantToday()
         await tidyLocalAudio()
         isLoaded = true
+        // Beim Start und nach jedem Abgleich: Folgen mit Transkript, denen
+        // die Fakten fehlen, etwa weil die App beim letzten Mal beendet wurde.
+        await queueMissingFacts()
     }
 
     /// Wechselt auf einen Speicher, der sich erst im zweiten Versuch öffnen
@@ -421,8 +471,11 @@ public final class AppModel {
         store = newStore
         refresher = FeedRefresher(store: newStore)
         episodes = [:]
-        // Ein neuer Speicher ist ein neuer Start.
+        // Ein neuer Speicher ist ein neuer Start. Auch für die Fakten: was
+        // wartete, gehörte zum alten Speicher, und gesucht wird ohne Wartezeit.
         restoreAttempted = false
+        factsQueue = []
+        factsBackfilled = false
         await load()
     }
 
@@ -619,6 +672,7 @@ public final class AppModel {
             lastError = UserFacingError.describe(error)
         }
         await prepareNewEpisodes()
+        await queueMissingFacts()
         await refreshRelevantToday()
         await tidyLocalAudio()
         // Neue Folgen können ein Themen-Update füllen. Ohne zu warten: das
@@ -883,6 +937,10 @@ public final class AppModel {
                 return false
             }
             analyzedEpisodes.insert(episode.id)
+            // Die Fakten kommen in ihre eigene Warteschlange, vor dem ersten
+            // `await`: eine Löschung danach nimmt sie dort wieder heraus. Das
+            // nächste Transkript wartet nicht auf sie.
+            if automaticFacts { enqueueFacts(episode) }
             // Nur was jemand selbst angefordert hat, wird angesagt. Das
             // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
             if automaticallyQueued.remove(episode.id) == nil {
@@ -890,8 +948,6 @@ public final class AppModel {
             }
             await removeAudioAfterAnalysisIfWanted(episode)
             await refreshRelevantToday()
-            // Fakten gleich mit ermitteln, solange die Folge frisch ist.
-            await prepareFacts(for: episode, removalTicket: ticket)
             return false
         } catch {
             // Abgebrochen, weil gelöscht: kein zweiter Versuch, nur aufräumen.
