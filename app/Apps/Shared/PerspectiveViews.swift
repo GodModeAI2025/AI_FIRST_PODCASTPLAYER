@@ -38,8 +38,10 @@ struct CounterpointView: View {
             } header: {
                 Text("These")
             } footer: {
-                Text("Formuliere, was du für richtig hältst. PodcastAI sucht dazu belegte "
-                     + "Positionen aus deinen Quellen, dafür und dagegen.")
+                Text("""
+                    Formuliere, was du für richtig hältst. PodcastAI sucht dazu belegte \
+                    Positionen aus deinen Podcasts, dafür und dagegen.
+                    """)
             }
 
             if let check {
@@ -102,18 +104,23 @@ struct CounterpointView: View {
                 Button {
                     model.saveCounterpointCheck()
                 } label: {
-                    Label(check.isSaved ? "Als Wissenslandkarte gesichert" : "Als Wissenslandkarte sichern",
-                          systemImage: check.isSaved ? "checkmark" : "map")
+                    Label(saveLabel(check), systemImage: check.isSaved ? "checkmark" : "map")
                         .frame(minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.pressable)
                 .disabled(check.isSaved)
             } footer: {
-                Text("Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht "
-                     + "zusammen und spricht sie nicht nach. Eine gesicherte These ist aufbewahrt, "
-                     + "nicht als deine Meinung vermerkt.")
+                Text("""
+                    Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht \
+                    zusammen und spricht sie nicht nach. Eine gesicherte These ist aufbewahrt, \
+                    nicht als deine Meinung vermerkt.
+                    """)
             }
         }
+    }
+
+    private func saveLabel(_ check: CounterpointCheck) -> LocalizedStringKey {
+        check.isSaved ? "Antwort gesichert" : "Antwort sichern"
     }
 }
 
@@ -229,7 +236,7 @@ struct SessionClosureSheet: View {
                     } label: {
                         VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
                             Label("Parken", systemImage: "tray.and.arrow.down")
-                            Text("Frage, Belege und die Notizen dieser Session als Wissenslandkarte sichern.")
+                            Text("Frage, Belege und die Notizen dieser Session als gesicherte Antwort ablegen.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -241,8 +248,7 @@ struct SessionClosureSheet: View {
                         VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
                             Label("Verwerfen", systemImage: "xmark.circle")
                             // Die wichtigste Zeile dieser Ansicht.
-                            Text("Verwirft nur diesen Vorschlag. Gemerkte Stellen, Notizen "
-                                 + "und Belege bleiben.")
+                            Text("Verwirft nur diesen Vorschlag. Gemerkte Stellen, Notizen und Belege bleiben.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -260,7 +266,7 @@ struct SessionClosureSheet: View {
     }
 }
 
-/// Gesicherte Wissenslandkarten. Jede lässt sich öffnen und löschen.
+/// Gesicherte Antworten. Jede lässt sich öffnen und löschen.
 struct TrailListView: View {
 
     @Environment(AppModel.self) private var model
@@ -269,12 +275,14 @@ struct TrailListView: View {
         List {
             if model.trails.isEmpty {
                 ContentUnavailableView {
-                    Label("Keine Wissenslandkarten", systemImage: "map")
+                    Label("Keine gesicherten Antworten", systemImage: "map")
                 } description: {
-                    Text("Eine Wissenslandkarte hält eine Frage mit ihren Belegen und Notizen fest. "
-                         + "Unter „Fragen“ steht an jeder Antwort „Als Wissenslandkarte sichern“. "
-                         + "Hörst du Belege nacheinander und beendest die Wiedergabe nach mindestens "
-                         + "zwei Minuten, bietet die Abschlusskarte „Parken“ an.")
+                    Text("""
+                        Eine gesicherte Antwort hält eine Frage mit ihren Belegen und Notizen fest. \
+                        Im Chat steht an jeder Antwort „Antwort sichern“. \
+                        Hörst du Belege nacheinander und beendest die Wiedergabe nach mindestens \
+                        zwei Minuten, bietet die Abschlusskarte „Parken“ an.
+                        """)
                 }
             }
             ForEach(model.trails) { trail in
@@ -295,7 +303,7 @@ struct TrailListView: View {
                 }
             }
         }
-        .navigationTitle("Wissenslandkarten")
+        .navigationTitle("Gesicherte Antworten")
     }
 }
 
@@ -327,14 +335,17 @@ private struct TrailRow: View {
 
     private var details: String {
         let count = trail.evidenceIDs.count
-        var parts = [count == 1 ? "1 Beleg" : "\(count) Belege"]
-        if noteCount > 0 { parts.append(noteCount == 1 ? "1 Notiz" : "\(noteCount) Notizen") }
-        parts.append("gesichert am \(trail.parkedAt.formatted(date: .abbreviated, time: .omitted))")
+        var parts = [String(AttributedString(localized: "^[\(count) Beleg](inflect: true)").characters)]
+        if noteCount > 0 {
+            parts.append(String(AttributedString(localized: "^[\(noteCount) Notiz](inflect: true)").characters))
+        }
+        let date = trail.parkedAt.formatted(date: .abbreviated, time: .omitted)
+        parts.append(String(localized: "gesichert am \(date)"))
         return parts.joined(separator: " · ")
     }
 }
 
-/// Eine geöffnete Wissenslandkarte: Frage, Antwort, Belege zum Anhören und
+/// Eine geöffnete gesicherte Antwort: Frage, Antwort, Belege zum Anhören und
 /// die Notizen dazu. Abgespielt wird nur, was jemand antippt.
 struct TrailDetailView: View {
 
@@ -353,10 +364,10 @@ struct TrailDetailView: View {
             if let trail {
                 content(trail)
             } else {
-                ContentUnavailableView("Diese Wissenslandkarte gibt es nicht mehr", systemImage: "map")
+                ContentUnavailableView("Diese gesicherte Antwort gibt es nicht mehr", systemImage: "map")
             }
         }
-        .navigationTitle("Wissenslandkarte")
+        .navigationTitle("Gesicherte Antwort")
         .task(id: trail?.evidenceIDs) {
             guard let trail else { return }
             let found = await model.evidence(of: trail)
@@ -392,8 +403,7 @@ struct TrailDetailView: View {
                     Text(answer)
                         .textSelection(.enabled)
                 }
-                Text("Gesichert am \(trail.parkedAt.formatted(date: .long, time: .omitted)). "
-                     + "Aufbewahrt, nicht zugestimmt.")
+                Text("Gesichert am \(trail.parkedAt.formatted(date: .long, time: .omitted)). Aufbewahrt, nicht zugestimmt.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -408,9 +418,7 @@ struct TrailDetailView: View {
                         Button {
                             model.playTrail(trail)
                         } label: {
-                            Label(playable == 1 ? "Diese Stelle anhören"
-                                                : "Alle \(playable) Stellen nacheinander anhören",
-                                  systemImage: "play.circle")
+                            Label(playLabel(playable), systemImage: "play.circle")
                                 .frame(minHeight: Design.minimumTapTarget)
                         }
                         .accessibilityHint("Spielt die belegten Originalstellen nacheinander ab")
@@ -418,8 +426,10 @@ struct TrailDetailView: View {
                 } header: {
                     Text("Belege")
                 } footer: {
-                    if missing > 0 {
-                        Text(missing == 1 ? "Ein Beleg ist nicht mehr da." : "\(missing) Belege sind nicht mehr da.")
+                    if missing == 1 {
+                        Text("Ein Beleg ist nicht mehr da.")
+                    } else if missing > 1 {
+                        Text("\(missing) Belege sind nicht mehr da.")
                     }
                 }
             }
@@ -444,13 +454,13 @@ struct TrailDetailView: View {
                 Button(role: .destructive) {
                     confirmingDelete = true
                 } label: {
-                    Label("Wissenslandkarte löschen", systemImage: "trash")
+                    Label("Gesicherte Antwort löschen", systemImage: "trash")
                 }
             } footer: {
                 Text("Belege und Notizen bleiben erhalten.")
             }
         }
-        .confirmationDialog("Wissenslandkarte löschen?", isPresented: $confirmingDelete,
+        .confirmationDialog("Gesicherte Antwort löschen?", isPresented: $confirmingDelete,
                             titleVisibility: .visible) {
             Button("Löschen", role: .destructive) {
                 dismiss()
@@ -459,6 +469,11 @@ struct TrailDetailView: View {
         } message: {
             Text("Belege und Notizen bleiben erhalten.")
         }
+    }
+
+    /// Mehr als eine Stelle heisst immer mindestens zwei, daher reicht der Plural.
+    private func playLabel(_ playable: Int) -> LocalizedStringKey {
+        playable == 1 ? "Diese Stelle anhören" : "Alle \(playable) Stellen nacheinander anhören"
     }
 }
 
