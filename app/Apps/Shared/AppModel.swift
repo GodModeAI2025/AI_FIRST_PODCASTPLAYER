@@ -258,6 +258,10 @@ public final class AppModel {
     static let removeHeardKey = "removeHeardAudioAfterDay"
     /// Folgen, deren Audio gerade für unterwegs geladen wird.
     public internal(set) var downloading: Set<EpisodeID> = []
+    /// Wie weit ein Download für unterwegs ist, für „23 von 70 MB“.
+    public internal(set) var downloadProgress: [EpisodeID: DownloadProgress] = [:]
+    /// Die laufenden Downloads, damit „Laden abbrechen“ sie beenden kann.
+    @ObservationIgnored var downloadTasks: [EpisodeID: Task<DownloadResult, Error>] = [:]
     /// Ausdrücklich für unterwegs geladen. Das Aufräumen lässt diese Dateien
     /// liegen, nach dem Auswerten genauso wie nach dem Hören.
     @ObservationIgnored var keptOffline = StoredEpisodeIDs(key: "keptOfflineEpisodes")
@@ -719,6 +723,8 @@ public final class AppModel {
             // sonst Zeichen wie * oder _ aus dem Namen des Podcasts.
             let found = String(AttributedString(localized: "^[\(added.episodeCount) Folge](inflect: true) gefunden").characters)
             activity = String(localized: "„\(added.title)“ abonniert · \(found)")
+        } catch is CancellationError {
+            // Abgebrochen ist kein Fehler, den jemand lesen muss.
         } catch {
             lastError = UserFacingError.describe(error)
         }
@@ -750,6 +756,77 @@ public final class AppModel {
     /// Ist dieser Feed schon abonniert?
     public func isSubscribed(_ feed: URL) -> Bool {
         sources.contains { $0.feedURL == feed }
+    }
+
+    /// Liest einen Podcast für die Vorschau vor dem Abonnieren, ohne ihn anzulegen.
+    public func previewPodcast(_ feed: URL) async throws -> PodcastPreview {
+        try await refresher.preview(of: feed)
+    }
+
+    /// Gibt den für die Vorschau gelesenen Feed frei.
+    public func forgetPodcastPreview() async {
+        await refresher.discardPreview()
+    }
+
+    // MARK: - Laden für unterwegs
+
+    /// Stand eines Downloads für unterwegs. `expected` fehlt, wenn der
+    /// Server keine Größe nennt.
+    public struct DownloadProgress: Equatable, Sendable {
+        public var received: Int64
+        public var expected: Int64?
+        public var fraction: Double? {
+            guard let expected, expected > 0 else { return nil }
+            return min(1, Double(received) / Double(expected))
+        }
+    }
+
+    /// Bricht einen Download für unterwegs ab. Eine halbe Datei bleibt nicht liegen.
+    public func cancelDownload(_ episode: Episode) {
+        downloadTasks[episode.id]?.cancel()
+    }
+
+    func noteDownloadProgress(_ id: EpisodeID, received: Int64, expected: Int64?) {
+        // Späte Meldungen eines beendeten Downloads tragen nichts mehr ein.
+        guard downloading.contains(id) else { return }
+        downloadProgress[id] = DownloadProgress(received: received, expected: expected)
+    }
+
+    /// Ausdrücklich für unterwegs geladen? Dann nimmt das Aufräumen das
+    /// Audio nicht vom Gerät. Liest den Speicherzähler mit, damit Ansichten
+    /// nach „Laden (offline)“ neu prüfen.
+    public func isKeptOffline(_ episode: Episode) -> Bool {
+        _ = mediaStorageChanged
+        _ = downloading
+        return keptOffline.contains(episode.id)
+    }
+
+    /// Warum ein Download für unterwegs gescheitert ist, in Worten, die zum
+    /// Laden passen. Die allgemeinen Sätze sprechen vom Transkript.
+    static func downloadFailure(_ error: Error) -> String {
+        if case .tooLarge(let limit)? = error as? HTTPTransferError {
+            let size = limit.formatted(.byteCount(style: .file))
+            return String(localized: "Die Audiodatei ist größer als \(size). So große Dateien lädt die App nicht.")
+        }
+        guard let urlError = error as? URLError else { return UserFacingError.describe(error) }
+        switch urlError.code {
+        case .cannotFindHost, .dnsLookupFailed:
+            return String(localized: """
+                Den Server dieser Folge gibt es nicht mehr. Den Podcast aktualisieren und noch einmal laden.
+                """)
+        case .timedOut, .cannotConnectToHost, .networkConnectionLost:
+            return String(localized: "Der Server dieser Folge antwortet gerade nicht. Später noch einmal laden.")
+        case .notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff:
+            return String(localized: "Keine Internetverbindung. Sobald wieder Netz da ist, noch einmal laden.")
+        case .appTransportSecurityRequiresSecureConnection, .secureConnectionFailed,
+             .serverCertificateHasBadDate, .serverCertificateUntrusted,
+             .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid:
+            return String(localized: """
+                Der Server dieser Folge bietet keine sichere Verbindung an. Die App lädt nur über sichere Verbindungen.
+                """)
+        default:
+            return String(localized: "Die Folge ließ sich gerade nicht laden. Später noch einmal versuchen.")
+        }
     }
 
     /// Sucht zu einem YouTube-Kanal den Audio-Podcast desselben Anbieters.

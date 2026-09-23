@@ -427,8 +427,9 @@ struct EpisodeRow: View {
                     Label("lädt …", systemImage: "arrow.down.circle")
                         .symbolEffect(.pulse)
                 } else if model.hasLocalAudio(episode) {
-                    Image(systemName: "arrow.down.circle.fill")
-                        .accessibilityLabel("auf dem Gerät")
+                    // Als Wort, nicht nur als Symbol: ein kleiner grauer Pfeil
+                    // sagte nicht, dass die Folge ohne Netz spielt.
+                    Label("Auf dem Gerät", systemImage: "arrow.down.circle.fill")
                         .help("Auf dem Gerät, spielt auch ohne Netz")
                 }
             }

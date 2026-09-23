@@ -59,8 +59,12 @@ public actor MediaDownloader {
         }
     }
 
+    /// `progress` meldet geladene und angekündigte Byte, etwa für
+    /// „23 von 70 MB“. Abbrechen geht über die umgebende Aufgabe; eine halbe
+    /// Datei bleibt dabei nicht liegen.
     public func download(
-        from url: URL, mediaVersionID: MediaVersionID
+        from url: URL, mediaVersionID: MediaVersionID,
+        progress: (@Sendable (_ received: Int64, _ expected: Int64?) -> Void)? = nil
     ) async throws -> DownloadResult {
 
         // Eigener Zwischenort je Fassung: zwei parallele Downloads derselben
@@ -69,7 +73,7 @@ public actor MediaDownloader {
             mediaVersionID.rawValue + "." + UUID().uuidString)
 
         let saved = try await SafeHTTP.save(
-            url, to: staging, using: session, limit: Self.maximumBytes)
+            url, to: staging, using: session, limit: Self.maximumBytes, progress: progress)
 
         do {
             // Hash über die vollständige Datei, blockweise — die Datei wird

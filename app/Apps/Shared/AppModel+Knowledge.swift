@@ -1621,13 +1621,34 @@ extension AppModel {
         guard let audioURL = episode.audioURL, !downloading.contains(episode.id) else { return }
         if askBeforeMobileData(.download(episode)) { return }
         keptOffline.insert(episode.id)
-        downloading.insert(episode.id)
-        defer { downloading.remove(episode.id) }
+        // Liegt das Audio schon da, etwa für ein Transkript geladen, bleibt
+        // es ab jetzt liegen. Ein zweiter Download wäre nur Wartezeit.
+        if localAudioFile(for: episode) != nil {
+            mediaStorageChanged += 1
+            return
+        }
+        let id = episode.id
+        downloading.insert(id)
+        downloadProgress[id] = DownloadProgress(received: 0, expected: nil)
+        defer {
+            downloading.remove(id)
+            downloadProgress[id] = nil
+            downloadTasks[id] = nil
+        }
         let ticket = removalCount
-        do {
+        let report: @Sendable (Int64, Int64?) -> Void = { [weak self] received, expected in
+            Task { @MainActor in self?.noteDownloadProgress(id, received: received, expected: expected) }
+        }
+        // Als eigene Aufgabe, damit „Laden abbrechen“ genau diesen Download beendet.
+        let run = Task {
             // Derselbe Name wie beim Auswerten: die Wiedergabe findet die Datei.
-            _ = try await MediaDownloader(directory: LocalMediaLocator.mediaDirectory)
-                .download(from: audioURL, mediaVersionID: MediaVersionID(stable: audioURL.absoluteString))
+            try await MediaDownloader(directory: LocalMediaLocator.mediaDirectory)
+                .download(from: audioURL, mediaVersionID: MediaVersionID(stable: audioURL.absoluteString),
+                          progress: report)
+        }
+        downloadTasks[id] = run
+        do {
+            _ = try await run.value
             // Während des Ladens gelöscht: die Datei gehört zu keiner Folge mehr.
             if wasRemoved(episode.id, since: ticket) {
                 LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
@@ -1635,13 +1656,19 @@ extension AppModel {
             }
             mediaStorageChanged += 1
         } catch {
+            // Abgebrochen: keine Meldung, und nichts bleibt „für unterwegs“ vorgemerkt.
+            if run.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
+                keptOffline.remove(episode.id)
+                mediaStorageChanged += 1
+                return
+            }
             // Hat das Auswerten dieselbe Datei gleichzeitig fertig geladen, ist sie da.
             if localAudioFile(for: episode) != nil {
                 mediaStorageChanged += 1
                 return
             }
             keptOffline.remove(episode.id)
-            let reason = UserFacingError.describe(error)
+            let reason = Self.downloadFailure(error)
             lastError = String(localized: "„\(episode.title)“ wurde nicht geladen: \(reason)")
         }
     }

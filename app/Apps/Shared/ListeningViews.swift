@@ -51,7 +51,6 @@ struct EpisodeDetailView: View {
     @State private var passages: [Evidence] = []
     @State private var exported: String?
     @State private var confirmDelete = false
-    @State private var hasLocalAudio = false
     @State private var topicTags: [TopicTag] = []
 
     private var player: EpisodePlayer { model.episodePlayer }
@@ -67,6 +66,10 @@ struct EpisodeDetailView: View {
         return model.chapterCache[episode.id] ?? []
     }
     private var facts: [EpisodeFact] { model.facts[episode.id] ?? [] }
+    /// Der tatsächliche Dateistatus, bei jedem Zeichnen neu. Vorher galt
+    /// ein gemerkter Wert, und Menü und Überblick konnten auseinanderlaufen.
+    private var hasLocalAudio: Bool { model.hasLocalAudio(episode) }
+    private var isDownloading: Bool { model.downloading.contains(episode.id) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -104,12 +107,6 @@ struct EpisodeDetailView: View {
             passages = await model.evidence(forEpisode: episode.id)
             await model.loadFacts(for: episode.id)
         }
-        // Neu prüfen, wenn Audio entfernt wurde und wenn sich die Stufe
-        // ändert: die Erschliessung lädt die Datei, ohne `mediaStorageChanged`
-        // zu erhöhen.
-        .task(id: LocalAudioCheck(storage: model.mediaStorageChanged, stage: model.stages[episode.id])) {
-            hasLocalAudio = model.localAudioFile(for: episode) != nil
-        }
         .task { await model.loadChapters(for: episode) }
         .sheet(item: Binding(get: { exported.map(ExportPreview.init) }, set: { exported = $0?.text })) {
             ExportPreviewSheet(text: $0.text, fileName: episode.title)
@@ -130,11 +127,6 @@ struct EpisodeDetailView: View {
                 Deine Notizen bleiben unter Wissen erhalten.
                 """)
         }
-    }
-
-    private struct LocalAudioCheck: Equatable {
-        let storage: Int
-        let stage: ProcessingStage?
     }
 
     /// Im Reiter „Fragen“ ist der Bereich fest und die Bereichsauswahl
@@ -164,11 +156,19 @@ struct EpisodeDetailView: View {
             } label: { Label("Exportieren ohne Transkript", systemImage: "doc.plaintext") }
             Divider()
             if hasLocalAudio {
+                // Von selbst geladen, etwa für das Transkript: so bleibt es da.
+                if removesAudioLater {
+                    Button {
+                        Task { await model.downloadForOffline(episode) }
+                    } label: { Label("Auf dem Gerät behalten", systemImage: "pin") }
+                }
                 Button {
                     Task { await model.removeAudio(for: episode) }
                 } label: { Label("Audio entfernen, Daten behalten", systemImage: "arrow.down.circle.dotted") }
-            } else if model.downloading.contains(episode.id) {
-                Label("Wird geladen …", systemImage: "arrow.down.circle")
+            } else if isDownloading {
+                Button { model.cancelDownload(episode) } label: {
+                    Label("Laden abbrechen", systemImage: "xmark.circle")
+                }
             } else if episode.audioURL != nil {
                 Button {
                     Task { await model.downloadForOffline(episode) }
@@ -219,20 +219,13 @@ struct EpisodeDetailView: View {
                         }
                         .accessibilityIdentifier("episode.showTranscript")
                     }
-                    if hasLocalAudio {
-                        Label("Audio liegt auf diesem Gerät", systemImage: "internaldrive")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                    audioStatus
                 }
             } else if let detail = model.stageDetails[episode.id] {
                 SwiftUI.Section("Transkript") { Label(detail, systemImage: "clock") }
             }
-            if stage == nil, hasLocalAudio || model.downloading.contains(episode.id) {
-                SwiftUI.Section {
-                    Label(hasLocalAudio ? "Audio liegt auf diesem Gerät" : "Audio wird geladen …",
-                          systemImage: hasLocalAudio ? "internaldrive" : "arrow.down.circle")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+            if stage == nil, hasLocalAudio || isDownloading {
+                SwiftUI.Section { audioStatus }
             }
 
             if !facts.isEmpty {
@@ -297,6 +290,61 @@ struct EpisodeDetailView: View {
                                 interests: model.profile.confirmed.map(\.id))) {
             topicTags = TopicTagger().tags(statements: facts.map(\.statement), passages: passages,
                                            profile: model.profile)
+        }
+    }
+
+    // MARK: Audio auf dem Gerät
+
+    /// Ob das Audio da ist, wie weit es lädt und ob die App es später von
+    /// selbst wieder entfernt. Gesagt wird das dort, wo man nachsieht.
+    @ViewBuilder private var audioStatus: some View {
+        if isDownloading {
+            DownloadProgressRow(progress: model.downloadProgress[episode.id]) {
+                model.cancelDownload(episode)
+            }
+        } else if hasLocalAudio {
+            Label("Audio liegt auf diesem Gerät", systemImage: "internaldrive")
+                .font(.caption).foregroundStyle(.secondary)
+            if removesAudioLater {
+                Text(removalNote)
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        } else if stage == .evidenceExtracted, episode.audioURL != nil, model.removeAudioAfterAnalysis {
+            Label("Audio nicht auf dem Gerät", systemImage: "wifi")
+                .font(.caption).foregroundStyle(.secondary)
+            Text("""
+                Nach dem Transkript nimmt die App das Audio wieder vom Gerät, so ist es in den \
+                Einstellungen eingestellt. Abgespielt wird aus dem Netz. Für unterwegs im Menü \
+                „Laden (offline)“ wählen, das bleibt.
+                """)
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    /// Liegt das Audio nur vorübergehend da? Was jemand mit „Laden
+    /// (offline)“ geholt hat, bleibt immer.
+    private var removesAudioLater: Bool {
+        hasLocalAudio && !model.isKeptOffline(episode)
+            && (model.removeAudioAfterAnalysis || model.removeHeardAudio)
+    }
+
+    private var removalNote: LocalizedStringKey {
+        switch (model.removeAudioAfterAnalysis, model.removeHeardAudio) {
+        case (true, true):
+            """
+            Die App nimmt dieses Audio später wieder vom Gerät: nach dem Transkript oder einen Tag \
+            nach dem Hören. Mit „Auf dem Gerät behalten“ im Menü bleibt es.
+            """
+        case (true, false):
+            """
+            Ist das Transkript fertig, nimmt die App dieses Audio wieder vom Gerät. \
+            Mit „Auf dem Gerät behalten“ im Menü bleibt es.
+            """
+        default:
+            """
+            Einen Tag nach dem Hören nimmt die App dieses Audio wieder vom Gerät. \
+            Mit „Auf dem Gerät behalten“ im Menü bleibt es.
+            """
         }
     }
 
@@ -551,6 +599,48 @@ struct EpisodeDetailView: View {
 
 /// „Fakten werden gesammelt …“, solange eine Folge in der Warteschlange der
 /// Fakten steht oder gerade dran ist. Läuft sie, zeigt ein Balken, wie weit.
+/// Fortschritt eines Downloads für unterwegs: Balken, „23 von 70 MB“ und
+/// ein Knopf zum Abbrechen. Bei schlechtem Netz sieht man so, ob es läuft.
+struct DownloadProgressRow: View {
+    let progress: AppModel.DownloadProgress?
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            if let fraction = progress?.fraction {
+                ProgressView(value: fraction)
+                    .accessibilityLabel("Audio wird geladen")
+            } else {
+                ProgressView()
+                    .accessibilityLabel("Audio wird geladen")
+            }
+            HStack {
+                Text(sizeText)
+                    .font(.caption).monospacedDigit()
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Abbrechen", action: cancel)
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Laden abbrechen")
+                    .accessibilityIdentifier("episode.download.cancel")
+            }
+        }
+    }
+
+    private var sizeText: String {
+        guard let progress, progress.received > 0 || progress.expected != nil else {
+            return String(localized: "Audio wird geladen …")
+        }
+        let received = progress.received.formatted(.byteCount(style: .file))
+        guard let expected = progress.expected else {
+            return String(localized: "\(received) geladen")
+        }
+        let total = expected.formatted(.byteCount(style: .file))
+        return String(localized: "\(received) von \(total)")
+    }
+}
+
 private struct FactsGatheringRow: View {
     let title: LocalizedStringKey
     let progress: Double?

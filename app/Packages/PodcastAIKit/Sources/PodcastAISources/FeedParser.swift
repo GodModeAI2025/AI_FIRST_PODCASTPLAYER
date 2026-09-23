@@ -131,8 +131,10 @@ public enum FeedParseError: Error, LocalizedError, Equatable {
 public struct FeedParser: Sendable {
 
     /// Obergrenze für ein einzelnes Feed-Dokument. Großzügig für echte
-    /// Archive, eng genug gegen entartete Eingaben.
-    public static let maximumBytes = 32 * 1024 * 1024
+    /// Archive, eng genug gegen entartete Eingaben. Dieselbe Grenze wie
+    /// beim Laden, sonst scheitert ein Feed, der vollständig geladen wurde,
+    /// erst hier.
+    public static let maximumBytes = Int(SafeHTTP.feedLimit)
     /// Obergrenze für Einträge je Dokument.
     public static let maximumItems = 5_000
 
