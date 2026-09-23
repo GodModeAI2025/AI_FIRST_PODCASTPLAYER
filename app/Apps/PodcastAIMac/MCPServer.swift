@@ -64,10 +64,12 @@ public final class MCPServer {
     public func handle(_ data: Data) async -> Data? {
         guard let object = try? JSONSerialization.jsonObject(with: data),
               let request = object as? [String: Any] else {
-            return encode(failure: .parse, message: "Kein gültiges JSON.", id: nil)
+            return encode(failure: .parse, message: String(localized: "Kein gültiges JSON."), id: nil)
         }
         guard let method = request["method"] as? String else {
-            return encode(failure: .invalidRequest, message: "Kein `method`.",
+            return encode(failure: .invalidRequest,
+                          message: String(localized: "Kein `method`.",
+                                          comment: "`method` ist ein JSON-RPC-Feld, nicht übersetzen."),
                           id: identifier(of: request))
         }
         let id = identifier(of: request)
@@ -95,7 +97,7 @@ public final class MCPServer {
 
         default:
             return encode(failure: .methodNotFound,
-                          message: "Unbekannte Methode „\(method)“.", id: id)
+                          message: String(localized: "Unbekannte Methode „\(method)“."), id: id)
         }
     }
 
@@ -103,26 +105,32 @@ public final class MCPServer {
 
     private func handleCall(params: [String: Any], id: Any?) async -> Data? {
         guard let name = params["name"] as? String else {
-            return encode(failure: .invalidParams, message: "Kein `name`.", id: id)
+            return encode(failure: .invalidParams,
+                          message: String(localized: "Kein `name`.",
+                                          comment: "`name` ist ein MCP-Feld, nicht übersetzen."),
+                          id: id)
         }
         guard let tool = MCPTool(rawValue: name) else {
             // Absichtlich derselbe Text für „gibt es nicht“ und „darfst du
             // nicht“ wäre bequem, aber falsch: ein Tippfehler soll als
             // Tippfehler erkennbar sein.
             return encode(failure: .methodNotFound,
-                          message: "Unbekanntes Werkzeug „\(name)“.", id: id)
+                          message: String(localized: "Unbekanntes Werkzeug „\(name)“."), id: id)
         }
         // Schalter und Freigabe werden bei jeder Anfrage frisch gelesen:
         // was in den Einstellungen der App zurückgezogen wird, gilt sofort,
         // auch in einer laufenden Verbindung.
         guard access.isEnabled else {
             return encode(failure: .notAuthorized,
-                          message: "Der Agentenzugang ist in PodcastAI ausgeschaltet.", id: id)
+                          message: String(localized: "Der Agentenzugang ist in PodcastAI ausgeschaltet."),
+                          id: id)
         }
         guard let grant = access.grant, grant.permits(tool) else {
             return encode(failure: .notAuthorized,
-                          message: "Für „\(name)“ liegt keine gültige Freigabe vor. Freigeben lässt "
-                              + "sie sich in PodcastAI unter Einstellungen › Agenten.", id: id)
+                          message: String(localized: """
+                              Für „\(name)“ liegt keine gültige Freigabe vor. Freigeben lässt sie sich \
+                              in PodcastAI unter Einstellungen › Agenten.
+                              """), id: id)
         }
 
         let arguments = params["arguments"] as? [String: Any] ?? [:]
@@ -134,21 +142,26 @@ public final class MCPServer {
         case .searchEvidence:
             guard let query = arguments["query"] as? String, !query.isEmpty else {
                 return encode(failure: .invalidParams,
-                              message: "`query` fehlt oder ist leer.", id: id)
+                              message: String(localized: "`query` fehlt oder ist leer.",
+                                              comment: "`query` ist ein Werkzeugargument, nicht übersetzen."),
+                              id: id)
             }
             let limit = Self.clampedLimit(arguments["limit"])
             return encode(content: await access.searchEvidence(query, limit: limit), id: id)
 
         case .getEvidence:
             guard let identifier = arguments["id"] as? String, !identifier.isEmpty else {
-                return encode(failure: .invalidParams, message: "`id` fehlt.", id: id)
+                return encode(failure: .invalidParams,
+                              message: String(localized: "`id` fehlt.",
+                                              comment: "`id` ist ein Werkzeugargument, nicht übersetzen."),
+                              id: id)
             }
             guard let summary = await access.getEvidence(identifier) else {
                 // Nicht gefunden und nicht freigegeben sehen von aussen
                 // gleich aus. Sonst liesse sich über die Fehlermeldung
                 // herausfinden, welche Kennungen es gibt.
                 return encode(failure: .notAuthorized,
-                              message: "Zu dieser Kennung liegt nichts Freigegebenes vor.",
+                              message: String(localized: "Zu dieser Kennung liegt nichts Freigegebenes vor."),
                               id: id)
             }
             return encode(content: summary, id: id)
@@ -262,7 +275,8 @@ public final class MCPServer {
         guard let json = try? encoder.encode(content),
               let text = String(data: json, encoding: .utf8) else {
             return encode(failure: .internalError,
-                          message: "Das Ergebnis liess sich nicht darstellen.", id: id)
+                          message: String(localized: "Das Ergebnis liess sich nicht darstellen."),
+                          id: id)
         }
         let structured = (try? JSONSerialization.jsonObject(with: json)) ?? [:]
         return encode(result: [
@@ -316,15 +330,18 @@ enum MCPHost {
         do {
             container = try LibraryStore.openPersistentContainer(sync: false)
         } catch {
-            report("Die Mediathek liess sich nicht öffnen. \(error.localizedDescription)")
+            report(String(localized:
+                "Die Mediathek liess sich nicht öffnen. \(error.localizedDescription)"))
             return 1
         }
         let access = MCPAccess(store: LibraryStore.make(container: container))
         if !access.isEnabled {
             // Der Prozess läuft trotzdem weiter: wer den Zugang danach in
             // den Einstellungen einschaltet, muss den Agenten nicht neu starten.
-            report("Der Agentenzugang ist ausgeschaltet. Einschalten lässt er sich in PodcastAI "
-                   + "unter Einstellungen › Agenten.")
+            report(String(localized: """
+                Der Agentenzugang ist ausgeschaltet. Einschalten lässt er sich in PodcastAI \
+                unter Einstellungen › Agenten.
+                """))
         }
         await MCPStdioTransport(server: MCPServer(access: access)).run()
         return 0
