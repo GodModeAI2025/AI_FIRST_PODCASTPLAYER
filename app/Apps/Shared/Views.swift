@@ -1014,6 +1014,8 @@ struct AddSourceSheet: View {
     @State private var addingLink = false
     @State private var added: [URL: Int] = [:]
     @State private var failure: String?
+    /// Das Suchfeld ist beim Öffnen aktiv. Wer das Blatt öffnet, will tippen.
+    @FocusState private var fieldFocused: Bool
     @State private var importingOPML = false
 
     private var trimmed: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -1028,6 +1030,7 @@ struct AddSourceSheet: View {
                     // Einzeilig: in einem mehrzeiligen Feld fügt die
                     // Eingabetaste einen Zeilenumbruch ein, statt abzuschicken.
                     TextField("Podcast suchen oder Link einfügen", text: $input)
+                        .focused($fieldFocused)
                         .accessibilityIdentifier("source.input")
                         .onSubmit(submit)
                         .submitLabel(isLink ? .done : .search)
@@ -1097,6 +1100,11 @@ struct AddSourceSheet: View {
             }
             .opmlImport(isPresented: $importingOPML) { dismiss() }
             .navigationTitle("Podcast hinzufügen")
+            .task {
+                // Kurz warten, bis das Blatt steht. Sofort gesetzt, greift der Fokus nicht.
+                try? await Task.sleep(for: .milliseconds(450))
+                fieldFocused = true
+            }
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
