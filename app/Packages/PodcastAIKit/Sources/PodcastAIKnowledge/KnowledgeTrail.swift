@@ -164,19 +164,24 @@ public struct KnowledgeTrail: Sendable, Identifiable, Codable {
     public let answerText: String?
     /// Verweisnummern im Antworttext wie [3] → Beleg.
     public let citationNumbers: [Int: EvidenceID]?
+    /// Folgen, die der Antworttext nennt, auch ohne Beleg aus ihnen, etwa
+    /// „in den Shownotes“ bei einer Frage nach Links. Ältere Karten haben keine.
+    public let referencedEpisodeIDs: [EpisodeID]?
 
     public init(
         id: KnowledgeNodeID = KnowledgeNodeID(), question: String,
         claimIDs: [ClaimID] = [], evidenceIDs: [EvidenceID] = [],
         highlightIDs: [HighlightID] = [], counterpointEvidenceIDs: [EvidenceID] = [],
         userNote: String? = nil, parkedAt: Date = Date(),
-        answerText: String? = nil, citationNumbers: [Int: EvidenceID]? = nil
+        answerText: String? = nil, citationNumbers: [Int: EvidenceID]? = nil,
+        referencedEpisodeIDs: [EpisodeID]? = nil
     ) {
         self.id = id; self.question = question; self.claimIDs = claimIDs
         self.evidenceIDs = evidenceIDs; self.highlightIDs = highlightIDs
         self.counterpointEvidenceIDs = counterpointEvidenceIDs
         self.userNote = userNote; self.parkedAt = parkedAt
         self.answerText = answerText; self.citationNumbers = citationNumbers
+        self.referencedEpisodeIDs = referencedEpisodeIDs
     }
 
     /// Die Karte ohne diese Belege, etwa weil ihre Folge gelöscht wurde.
@@ -195,6 +200,21 @@ public struct KnowledgeTrail: Sendable, Identifiable, Codable {
         return KnowledgeTrail(
             id: id, question: question, claimIDs: claimIDs, evidenceIDs: kept,
             highlightIDs: highlightIDs, counterpointEvidenceIDs: keptCounterpoints,
+            userNote: userNote, parkedAt: parkedAt, answerText: nil, citationNumbers: nil)
+    }
+
+    /// Die Karte ohne den Text über diese Folgen.
+    ///
+    /// Nennt der Antworttext eine gelöschte Folge, etwa einen Link „in den
+    /// Shownotes“ von ihr, geht er mit, auch wenn kein Beleg aus ihr
+    /// stammt. Frage, Belege und Notizen bleiben. Die Belege der gelöschten
+    /// Folge nimmt ``removing(evidence:)``.
+    public func removing(episodes removed: Set<EpisodeID>) -> KnowledgeTrail {
+        guard answerText != nil,
+              let referenced = referencedEpisodeIDs, referenced.contains(where: removed.contains) else { return self }
+        return KnowledgeTrail(
+            id: id, question: question, claimIDs: claimIDs, evidenceIDs: evidenceIDs,
+            highlightIDs: highlightIDs, counterpointEvidenceIDs: counterpointEvidenceIDs,
             userNote: userNote, parkedAt: parkedAt, answerText: nil, citationNumbers: nil)
     }
 

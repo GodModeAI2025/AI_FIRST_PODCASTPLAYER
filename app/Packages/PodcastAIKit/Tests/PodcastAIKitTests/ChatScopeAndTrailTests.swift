@@ -135,6 +135,25 @@ struct ChatScopeAndTrailTests {
         #expect(kept.evidenceIDs == [e1])
     }
 
+    @Test("Nennt der Antworttext eine gelöschte Folge, geht er mit, auch ohne Beleg aus ihr")
+    func removingReferencedEpisodeDropsAnswerText() throws {
+        let e1 = EvidenceID(stable: "e1")
+        let folgeA = EpisodeID(rawValue: "a"), folgeC = EpisodeID(rawValue: "c")
+        let trail = KnowledgeTrail(question: "Welche Links werden genannt?", evidenceIDs: [e1],
+                                   answerText: "• a.org, „Folge A“ bei 9:20 [1]\n• c.org, „Folge C“ in den Shownotes",
+                                   citationNumbers: [1: e1], referencedEpisodeIDs: [folgeA, folgeC])
+        let pruned = trail.removing(episodes: [folgeC])
+        #expect(pruned.id == trail.id)
+        #expect(pruned.answerText == nil)
+        #expect(pruned.citationNumbers == nil)
+        #expect(pruned.evidenceIDs == [e1])
+        #expect(trail.removing(episodes: [EpisodeID(rawValue: "fremd")]).answerText == trail.answerText)
+
+        // Der Verweis übersteht Speichern und Laden.
+        let decoded = try JSONDecoder().decode(KnowledgeTrail.self, from: JSONEncoder().encode(trail))
+        #expect(decoded.referencedEpisodeIDs == [folgeA, folgeC])
+    }
+
     @Test("Ohne Beleg und ohne Notiz gibt es die Karte nicht mehr")
     func emptyTrailDisappears() {
         let e1 = EvidenceID(stable: "e1")
@@ -157,6 +176,7 @@ struct ChatScopeAndTrailTests {
         #expect(trail.question == "Alte Frage")
         #expect(trail.answerText == nil)
         #expect(trail.citationNumbers == nil)
+        #expect(trail.referencedEpisodeIDs == nil)
     }
 
     @Test("Antworttext und Verweisnummern überstehen das Speichern")

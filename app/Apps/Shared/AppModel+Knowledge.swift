@@ -94,6 +94,7 @@ extension AppModel {
         }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: removed))
         TranslationCache.remove(episodes: Array(gone.keys))
+        MentionCache.remove(episodes: Array(gone.keys))
         for id in gone.keys {
             facts[id] = nil
             stages[id] = nil
@@ -101,6 +102,7 @@ extension AppModel {
             analyzedEpisodes.remove(id)
         }
         pruneChatAnswers(removedEpisodes: Set(gone.keys))
+        pruneTrails(removedEvidence: [], removedEpisodes: Set(gone.keys))
         pruneEditions(removedEpisodes: Set(gone.keys))
         mediaStorageChanged += 1
     }
@@ -122,6 +124,9 @@ extension AppModel {
         if analyzedEpisodes.contains(id) || facts[id] != nil || stages[id] != nil { return true }
         if episodePlayer.savedPosition(for: id) != nil { return true }
         if chatAnswers.contains(where: { Self.answer($0, touches: [id]) }) { return true }
+        if trails.contains(where: { $0.answerText != nil && ($0.referencedEpisodeIDs ?? []).contains(id) }) {
+            return true
+        }
         let locator = LocalMediaLocator()
         return Self.localMediaIDs(of: [episode]).contains { locator.localFile(for: $0) != nil }
     }
@@ -215,6 +220,7 @@ extension AppModel {
     /// geladenen Liste stand und deshalb kein Merkzeichen bekam.
     private func citesRemovedContent(_ answer: ChatAnswer, since ticket: Int) -> Bool {
         if answer.citations.contains(where: { wasRemoved($0.episodeID, since: ticket) }) { return true }
+        if answer.referencedEpisodeIDs.contains(where: { wasRemoved($0, since: ticket) }) { return true }
         guard removalCount > ticket else { return false }
         // Nur Quellen, die seit Beginn der Antwort tatsächlich abbestellt
         // wurden. Belege ohne Quellenkennung zählen nicht als gelöscht.
@@ -226,9 +232,29 @@ extension AppModel {
     private func composeAnswer(_ question: String, scope: ChatScope) async -> ChatAnswer {
         activity = String(localized: "Antwort wird gesucht …")
         defer { activity = nil }
+        // Fragen nach Links, Terminen, Adressen oder Namen beantworten die
+        // erkannten Nennungen, ohne Modell und auch ohne Apple Intelligence.
+        let asked = MentionQuestion.kinds(in: question)
+        if !asked.isEmpty {
+            return await mentionAnswer(question, kinds: asked, scope: scope)
+        }
         // Seit dem Start kann das Modell bereit geworden oder das Kontingent
         // aufgebraucht sein. Die Abfrage ist billig.
         await refreshModelStatus()
+
+        // Das Gerätebudget gilt immer: direkt auf dem Gerät und ebenso, wenn
+        // eine Anfrage von Private Cloud Compute aufs Gerät zurückfällt.
+        let device = Self.answerBudget(privateCloud: false,
+                                       contextSize: Self.onDeviceContextSize,
+                                       questionLength: question.count)
+        let budget = answersUsePrivateCloud
+            ? Self.answerBudget(privateCloud: true, contextSize: Self.onDeviceContextSize,
+                                questionLength: question.count)
+            : device
+        // Die Nennungen stehen vorn und bekommen einen festen Anteil des
+        // Gerätebudgets. Gekürzt wird am Ende, also am Überblick, auch wenn
+        // eine Anfrage aufs Gerät zurückfällt.
+        let mentionShare = device.libraryContextLimit * 2 / 5
 
         let pool: [Evidence]
         var libraryContext = ""
@@ -251,6 +277,9 @@ extension AppModel {
         case .smartFeed, .allAnalyzed:
             pool = (try? await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)) ?? []
             libraryContext = await libraryOverview()
+            if let mentioned = await libraryMentionContext(filter: LibraryFilter(), limit: mentionShare) {
+                libraryContext = mentioned + "\n" + libraryContext
+            }
             let known = episodes.values.flatMap { $0 }.count
             let analyzed = analyzedEpisodes.count
             if known > analyzed {
@@ -269,6 +298,9 @@ extension AppModel {
             // Wie bei allem Ausgewerteten nur Belege mit Zeitmarke.
             pool = all.filter { $0.range != nil }
             libraryContext = await libraryOverview(filter: filter)
+            if let mentioned = await libraryMentionContext(filter: filter, limit: mentionShare) {
+                libraryContext = mentioned + "\n" + libraryContext
+            }
             let known = episodes.values.joined()
                 .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }.count
             if admitted.isEmpty && known == 0 {
@@ -302,15 +334,6 @@ extension AppModel {
                 citations: [], coverageCaveat: caveat)
         }
 
-        // Das Gerätebudget gilt immer: direkt auf dem Gerät und ebenso, wenn
-        // eine Anfrage von Private Cloud Compute aufs Gerät zurückfällt.
-        let device = Self.answerBudget(privateCloud: false,
-                                       contextSize: Self.onDeviceContextSize,
-                                       questionLength: question.count)
-        let budget = answersUsePrivateCloud
-            ? Self.answerBudget(privateCloud: true, contextSize: Self.onDeviceContextSize,
-                                questionLength: question.count)
-            : device
         let limit = budget.maximumCandidates
         let overview = Self.asksForOverview(question)
         let candidates: [Evidence]
@@ -477,6 +500,9 @@ extension AppModel {
         if let date = episode.publishedAt { lines.append("Erschienen: \(date.formatted(date: .long, time: .omitted))") }
         if let duration = episode.declaredDuration { lines.append("Länge: \(duration.shortDescription)") }
         lines.append("Gehört: \(Int(heardFraction(for: episode) * 100)) %")
+        // Gleich nach dem Knappen: Kapitel und Fakten können lang werden,
+        // und auf dem Gerät fiele der Block sonst beim Kürzen weg.
+        if let mentioned = await mentionContext(for: episode) { lines.append(mentioned) }
         let chapters = episode.publisherChapters.isEmpty ? (chapterCache[id] ?? []) : episode.publisherChapters
         if !chapters.isEmpty {
             lines.append("Kapitel: " + chapters.map { "\($0.start.timecode) \($0.title)" }.joined(separator: "; "))
@@ -1561,7 +1587,7 @@ extension AppModel {
 
     // MARK: - Export
 
-    /// Die ganze Folge als Markdown: Shownotes, Kapitel, Fakten, Transkript.
+    /// Die ganze Folge als Markdown: Shownotes, Kapitel, Fakten, Erwähntes, Transkript.
     public func exportEpisode(_ episode: Episode, includeTranscript: Bool = true) async -> String {
         let source = sources.first { $0.id == episode.sourceID }?.title ?? ""
         let chapters = episode.publisherChapters.isEmpty ? (chapterCache[episode.id] ?? []) : episode.publisherChapters
@@ -1581,7 +1607,8 @@ extension AppModel {
             shownotes: ShownotesText.plain(episode.shownotesHTML ?? episode.summary),
             chapters: chapters, facts: known,
             transcript: includeTranscript ? await transcript(for: episode) : nil,
-            factQuotes: factWording(known, passages: passages), notes: episodeNotes)
+            factQuotes: factWording(known, passages: passages), notes: episodeNotes,
+            mentions: await mentions(for: episode).mentions)
         return EpisodeDossierExporter().markdown(dossier, includeTranscript: includeTranscript)
     }
 
@@ -1875,10 +1902,11 @@ extension AppModel {
                ofEpisode: episode.id, mediaVersionID: MediaVersionID(stable: audio.absoluteString)),
            !report.evidenceIDs.isEmpty {
             pruneChatAnswers(removedEpisodes: [], removedEvidence: Set(report.evidenceIDs))
-            pruneTrails(removedEvidence: Set(report.evidenceIDs))
+            pruneTrails(removedEvidence: Set(report.evidenceIDs), removedEpisodes: [episode.id])
             await refreshRelevantToday()
         }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
+        MentionCache.remove(episodes: [episode.id])
         facts[episode.id] = nil
         stages[episode.id] = nil
         stageDetails[episode.id] = nil
@@ -1888,8 +1916,10 @@ extension AppModel {
 
     private func applyRemoval(_ report: LibraryStore.RemovalReport) {
         LocalMediaLocator.removeFiles(for: report.mediaVersionIDs)
-        // Übersetzte Transkripte sind aus der Folge entstanden und gehen mit.
+        // Übersetzte Transkripte und erkannte Nennungen sind aus der Folge
+        // entstanden und gehen mit.
         TranslationCache.remove(episodes: report.episodeIDs)
+        MentionCache.remove(episodes: report.episodeIDs)
         for id in report.episodeIDs {
             facts[id] = nil
             stages[id] = nil
@@ -1900,7 +1930,7 @@ extension AppModel {
         let removedEvidence = Set(report.evidenceIDs)
         // Gemerkte Stellen bleiben als eigenes Wissen erhalten.
         pruneChatAnswers(removedEpisodes: Set(report.episodeIDs), removedEvidence: removedEvidence)
-        pruneTrails(removedEvidence: removedEvidence)
+        pruneTrails(removedEvidence: removedEvidence, removedEpisodes: Set(report.episodeIDs))
         pruneEditions(removedEpisodes: Set(report.episodeIDs))
         reindexSpotlight()
         mediaStorageChanged += 1
@@ -1925,6 +1955,7 @@ extension AppModel {
     /// Stützt sich die Antwort auf eine dieser Folgen oder gilt ihr?
     private static func answer(_ answer: ChatAnswer, touches episodeIDs: Set<EpisodeID>) -> Bool {
         if answer.citations.contains(where: { episodeIDs.contains($0.episodeID) }) { return true }
+        if answer.referencedEpisodeIDs.contains(where: { episodeIDs.contains($0) }) { return true }
         switch answer.scope {
         case .episode(let id): return episodeIDs.contains(id)
         case .episodes(let ids): return ids.contains { episodeIDs.contains($0) }

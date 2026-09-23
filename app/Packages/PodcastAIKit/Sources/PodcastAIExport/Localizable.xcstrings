@@ -81,6 +81,22 @@
         }
       }
     },
+    "Erwähnt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erwähnt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mentioned"
+          }
+        }
+      }
+    },
     "Exportiert aus PodcastAI am %@.": {
       "localizations": {
         "de": {
@@ -461,6 +477,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "no timestamp"
+          }
+        }
+      }
+    },
+    "ungefähr, gesagt: „%@“": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ungefähr, gesagt: „%@“"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "approximate, said: \"%@\""
           }
         }
       }
