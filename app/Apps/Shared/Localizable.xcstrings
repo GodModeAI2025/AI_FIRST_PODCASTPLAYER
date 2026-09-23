@@ -33,6 +33,22 @@
         }
       }
     },
+    "%@ In den Einstellungen ist Mobilfunk dafür aus. Bis du wieder im WLAN bist, fragt die App nach einem Ja nicht noch einmal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ In den Einstellungen ist Mobilfunk dafür aus. Bis du wieder im WLAN bist, fragt die App nach einem Ja nicht noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Cellular data is turned off for this in Settings. Once you allow it, the app won't ask again until you're back on Wi-Fi."
+          }
+        }
+      }
+    },
     "%@ abbestellen": {
       "localizations": {
         "de": {
@@ -93,6 +109,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ played"
+          }
+        }
+      }
+    },
+    "%@ geladen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ geladen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ downloaded"
           }
         }
       }
@@ -205,6 +237,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@, already an interest"
+          }
+        }
+      }
+    },
+    "%@-fach": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@-fach"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@x"
           }
         }
       }
@@ -354,6 +402,7 @@
       }
     },
     "%lld Minuten": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -381,6 +430,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld Minutes per Edition"
+          }
+        }
+      }
+    },
+    "%lld Sekunden": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sekunden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld seconds"
+          }
+        }
+      }
+    },
+    "%lld Sekunden vor": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sekunden vor"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip Forward %lld Seconds"
+          }
+        }
+      }
+    },
+    "%lld Sekunden zurück": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sekunden zurück"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip Back %lld Seconds"
           }
         }
       }
@@ -418,6 +515,7 @@
       }
     },
     "%lld Stunden": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -610,6 +708,7 @@
       }
     },
     "1 Minute": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -626,6 +725,7 @@
       }
     },
     "1 Stunde": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -690,6 +790,7 @@
       }
     },
     "15 Sekunden zurück": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -706,6 +807,7 @@
       }
     },
     "30 Sekunden vor": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -717,6 +819,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skip Forward 30 Seconds"
+          }
+        }
+      }
+    },
+    "Ab %@ abspielen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ab %@ abspielen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play from %@"
           }
         }
       }
@@ -962,6 +1080,7 @@
       }
     },
     "Abos aus Datei importieren (OPML)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -973,6 +1092,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Import Subscriptions from File (OPML)"
+          }
+        }
+      }
+    },
+    "Abos aus einer anderen App übernehmen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abos aus einer anderen App übernehmen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import Subscriptions from Another App"
           }
         }
       }
@@ -1073,6 +1208,38 @@
         }
       }
     },
+    "Abspielen und Laden über Mobilfunk": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abspielen und Laden über Mobilfunk"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play and Download over Cellular Data"
+          }
+        }
+      }
+    },
+    "Abspielen, mit Quelle kopieren oder teilen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abspielen, mit Quelle kopieren oder teilen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play, copy with source, or share"
+          }
+        }
+      }
+    },
     "Abspielen/Pause": {
       "localizations": {
         "de": {
@@ -1137,6 +1304,54 @@
         }
       }
     },
+    "Aktionen zur Aussage": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktionen zur Aussage"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions for this statement"
+          }
+        }
+      }
+    },
+    "Aktionen zur Zeile ab %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktionen zur Zeile ab %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions for the line at %@"
+          }
+        }
+      }
+    },
+    "Aktionen zur gemerkten Stelle": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktionen zur gemerkten Stelle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actions for this saved moment"
+          }
+        }
+      }
+    },
     "Aktiv, über deine private iCloud-Datenbank": {
       "localizations": {
         "de": {
@@ -1170,6 +1385,7 @@
       }
     },
     "Aktuell": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1521,6 +1737,22 @@
         }
       }
     },
+    "An: Folgen laden auch ohne WLAN.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An: Folgen laden auch ohne WLAN."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On: Episodes download even without Wi-Fi."
+          }
+        }
+      }
+    },
     "Anbieter: MOBILE BOX - App Consulting UG (haftungsbeschränkt), Karlsruhe.": {
       "localizations": {
         "de": {
@@ -1601,7 +1833,24 @@
         }
       }
     },
+    "Antippen spielt ab dieser Zeile. Über „…“ merkst, kopierst oder teilst du sie.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antippen spielt ab dieser Zeile. Über „…“ merkst, kopierst oder teilst du sie."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to play from this line. Use \"…\" to save, copy, or share it."
+          }
+        }
+      }
+    },
     "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1613,6 +1862,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tap to deselect or reselect a topic. A topic you type is added when you tap Create."
+          }
+        }
+      }
+    },
+    "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen. Stichworte zu einem Thema ergänzt du unter „Wissen › Interessen“.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen. Stichworte zu einem Thema ergänzt du unter „Wissen › Interessen“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to deselect or reselect a topic. A topic you type is added when you tap Create. Add keywords to a topic under \"Knowledge › Interests\"."
           }
         }
       }
@@ -1634,6 +1899,7 @@
       }
     },
     "Antippen, um Stichworte zu ergänzen. Nur bestätigte Themen lösen persönliche Ausgaben aus.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1730,6 +1996,7 @@
       }
     },
     "Antwort teilen": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1741,6 +2008,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Share Answer"
+          }
+        }
+      }
+    },
+    "Antwort teilen oder kopieren": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antwort teilen oder kopieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share or Copy Answer"
+          }
+        }
+      }
+    },
+    "Antwort wird gesucht": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antwort wird gesucht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finding an answer"
           }
         }
       }
@@ -1873,6 +2172,54 @@
         }
       }
     },
+    "Apple-Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple-Server"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Servers"
+          }
+        }
+      }
+    },
+    "Apple-Server (Private Cloud Compute)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple-Server (Private Cloud Compute)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Servers (Private Cloud Compute)"
+          }
+        }
+      }
+    },
+    "Apple-Server nutzen (Private Cloud Compute)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple-Server nutzen (Private Cloud Compute)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Apple Servers (Private Cloud Compute)"
+          }
+        }
+      }
+    },
     "Arbeit läuft": {
       "localizations": {
         "de": {
@@ -1985,6 +2332,38 @@
         }
       }
     },
+    "Audio nicht auf dem Gerät": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio nicht auf dem Gerät"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio isn't on this device"
+          }
+        }
+      }
+    },
+    "Audio wird geladen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio wird geladen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading audio"
+          }
+        }
+      }
+    },
     "Audio wird geladen …": {
       "localizations": {
         "de": {
@@ -2033,7 +2412,56 @@
         }
       }
     },
+    "Auf dem Gerät behalten": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf dem Gerät behalten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep on Device"
+          }
+        }
+      }
+    },
+    "Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar unter PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar unter PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On device or on Apple servers (Private Cloud Compute), adjustable under PodcastAI › Settings › Intelligence. No other AI provider."
+          }
+        }
+      }
+    },
+    "Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar über das Zahnrad › Intelligenz. Kein anderer KI-Anbieter.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar über das Zahnrad › Intelligenz. Kein anderer KI-Anbieter."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On device or on Apple servers (Private Cloud Compute), adjustable via the gear button › Intelligence. No other AI provider."
+          }
+        }
+      }
+    },
     "Auf dem Gerät oder auf Private Cloud Compute, einstellbar unter PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2050,6 +2478,7 @@
       }
     },
     "Auf dem Gerät oder auf Private Cloud Compute, einstellbar unter Wissen › Einstellungen › Intelligenz. Kein anderer KI-Anbieter.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2194,6 +2623,22 @@
         }
       }
     },
+    "Aus der Warteschlange nehmen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus der Warteschlange nehmen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove from Queue"
+          }
+        }
+      }
+    },
     "Aus dieser Folge ließen sich keine Fakten ermitteln: %lld von %lld Abschnitten fehlen.": {
       "localizations": {
         "de": {
@@ -2210,6 +2655,22 @@
         }
       }
     },
+    "Aus heißt: Deine Fragen und die Transkriptstellen dazu bleiben auf dem Gerät.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus heißt: Deine Fragen und die Transkriptstellen dazu bleiben auf dem Gerät."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off means your questions and the related transcript passages stay on the device."
+          }
+        }
+      }
+    },
     "Aus, die Daten bleiben auf diesem Gerät": {
       "localizations": {
         "de": {
@@ -2222,6 +2683,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Off, data stays on this device"
+          }
+        }
+      }
+    },
+    "Aus: Ohne WLAN fragt die App vorher.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus: Ohne WLAN fragt die App vorher."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off: Without Wi-Fi, the app asks first."
           }
         }
       }
@@ -2258,7 +2735,24 @@
         }
       }
     },
+    "Ausgewählt nach deinen Interessen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgewählt nach deinen Interessen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Based on Your Interests"
+          }
+        }
+      }
+    },
     "Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Formuliert von: %@.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2270,6 +2764,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Statements from the episode, as said, not fact-checked. Tap one to play the sentence. \"Show Exact Wording\" shows exactly what was said. Written by: %@."
+          }
+        }
+      }
+    },
+    "Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Über „…“ merkst, kopierst oder teilst du eine Aussage. Formuliert von: %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Über „…“ merkst, kopierst oder teilst du eine Aussage. Formuliert von: %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statements from the episode, as said, not fact-checked. Tap one to play the sentence. \"Show Exact Wording\" shows exactly what was said. Use \"…\" to save, copy, or share a statement. Written by: %@."
           }
         }
       }
@@ -2419,6 +2929,22 @@
         }
       }
     },
+    "Beide Links öffnen die Website des Anbieters im Browser.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beide Links öffnen die Website des Anbieters im Browser."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both links open the developer's website in your browser."
+          }
+        }
+      }
+    },
     "Beim Erstellen des Transkripts ist etwas schiefgegangen (%@). Noch einmal versuchen, bei Wiederholung bitte als Feedback melden.": {
       "localizations": {
         "de": {
@@ -2531,6 +3057,38 @@
         }
       }
     },
+    "Beschreibung": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beschreibung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Description"
+          }
+        }
+      }
+    },
+    "Beschreibung wird geladen …": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beschreibung wird geladen …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading description…"
+          }
+        }
+      }
+    },
     "Bestimmt, welche Stellen dir als relevant angezeigt werden. Jederzeit einsehbar und korrigierbar.": {
       "localizations": {
         "de": {
@@ -2595,6 +3153,22 @@
         }
       }
     },
+    "Das Audio nimmt die App danach wieder vom Gerät, abgespielt wird dann aus dem Netz.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Audio nimmt die App danach wieder vom Gerät, abgespielt wird dann aus dem Netz."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After that, the app removes the audio from the device, and episodes play from the internet."
+          }
+        }
+      }
+    },
     "Das Ergebnis ließ sich nicht darstellen.": {
       "localizations": {
         "de": {
@@ -2612,6 +3186,7 @@
       }
     },
     "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist Private Cloud Compute eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server. Apple speichert sie nach eigenen Angaben nicht. Abschalten kannst du das in den Einstellungen unter Intelligenz.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2623,6 +3198,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "The on-device model writes answers and facts. If Private Cloud Compute is turned on, your question and the matching transcript passages go to Apple's servers. Apple says it doesn't store them. You can turn this off in Settings under Intelligence."
+          }
+        }
+      }
+    },
+    "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The on-device model writes answers and facts. If \"Use Apple Servers\" is turned on, your question and the matching transcript passages go to Apple's servers (Private Cloud Compute). Apple says it doesn't store them. You'll find the switch at the bottom of this page and in Settings under Intelligence."
           }
         }
       }
@@ -2655,6 +3246,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "The model didn't link any of these passages to this claim. They only match by wording."
+          }
+        }
+      }
+    },
+    "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The plus button in the toolbar of \"For You\" or \"My Podcasts\". Type a name and subscribe from Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
+          }
+        }
+      }
+    },
+    "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The plus button at the top of \"For You\" or \"My Podcasts\". Type a name and subscribe from Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
           }
         }
       }
@@ -3091,6 +3714,22 @@
         }
       }
     },
+    "Deine Themen füllen „Für dich“ und die Themen-Updates. Antippen, um Stichworte zu ergänzen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Themen füllen „Für dich“ und die Themen-Updates. Antippen, um Stichworte zu ergänzen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your topics fill \"For You\" and Topic Updates. Tap to add keywords."
+          }
+        }
+      }
+    },
     "Deine These": {
       "localizations": {
         "de": {
@@ -3135,6 +3774,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Type the name of your show and subscribe. Links from Apple Podcasts or YouTube work too."
+          }
+        }
+      }
+    },
+    "Den Server dieser Folge gibt es nicht mehr. Den Podcast aktualisieren und noch einmal laden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den Server dieser Folge gibt es nicht mehr. Den Podcast aktualisieren und noch einmal laden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This episode's server no longer exists. Refresh the podcast and try downloading again."
           }
         }
       }
@@ -3219,6 +3874,22 @@
         }
       }
     },
+    "Der Podcast hat keine Beschreibung.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Podcast hat keine Beschreibung."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This podcast has no description."
+          }
+        }
+      }
+    },
     "Der Podcast liefert für diese Folge keine Kapitelmarken.": {
       "localizations": {
         "de": {
@@ -3231,6 +3902,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "The podcast doesn't provide chapter markers for this episode."
+          }
+        }
+      }
+    },
+    "Der Podcast ließ sich gerade nicht laden. Später noch einmal versuchen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Podcast ließ sich gerade nicht laden. Später noch einmal versuchen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The podcast couldn't be loaded right now. Try again later."
           }
         }
       }
@@ -3263,6 +3950,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "The podcast's server rejected the request (status %lld)."
+          }
+        }
+      }
+    },
+    "Der Server dieser Folge antwortet gerade nicht. Später noch einmal laden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server dieser Folge antwortet gerade nicht. Später noch einmal laden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This episode's server isn't responding right now. Try downloading again later."
+          }
+        }
+      }
+    },
+    "Der Server dieser Folge bietet keine sichere Verbindung an. Die App lädt nur über sichere Verbindungen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server dieser Folge bietet keine sichere Verbindung an. Die App lädt nur über sichere Verbindungen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This episode's server doesn't offer a secure connection. The app only downloads over secure connections."
+          }
+        }
+      }
+    },
+    "Der Server dieses Podcasts bietet keine sichere Verbindung an. Die App lädt nur über sichere Verbindungen, deshalb lässt er sich nicht abonnieren.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server dieses Podcasts bietet keine sichere Verbindung an. Die App lädt nur über sichere Verbindungen, deshalb lässt er sich nicht abonnieren."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This podcast's server doesn't offer a secure connection. The app only uses secure connections, so you can't subscribe to this podcast."
           }
         }
       }
@@ -3347,6 +4082,22 @@
         }
       }
     },
+    "Der Text, den der Podcast zu einer Folge mitliefert, oft mit Links. Du findest ihn in der Folge unter „Überblick“.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Text, den der Podcast zu einer Folge mitliefert, oft mit Links. Du findest ihn in der Folge unter „Überblick“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The text a podcast includes with an episode, often with links. You'll find it in the episode under \"Overview\"."
+          }
+        }
+      }
+    },
     "Der mitgeschriebene Text einer Folge. Erst damit kannst du in der Folge suchen und Fragen stellen.": {
       "localizations": {
         "de": {
@@ -3359,6 +4110,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "The transcribed text of an episode. Only with it can you search the episode and ask questions about it."
+          }
+        }
+      }
+    },
+    "Der neue Lauf fand keine überprüfbaren Aussagen. Die bisherigen Fakten bleiben.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der neue Lauf fand keine überprüfbaren Aussagen. Die bisherigen Fakten bleiben."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The new run found no verifiable statements. The previous facts are kept."
+          }
+        }
+      }
+    },
+    "Der neue Lauf fand nur %@ statt %lld. Die bisherigen Fakten bleiben.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Der neue Lauf fand nur %1$@ statt %2$lld. Die bisherigen Fakten bleiben."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The new run found only %1$@ instead of %2$lld. The previous facts are kept."
           }
         }
       }
@@ -3443,6 +4226,22 @@
         }
       }
     },
+    "Die App nimmt dieses Audio später wieder vom Gerät: nach dem Transkript oder einen Tag nach dem Hören. Mit „Auf dem Gerät behalten“ im Menü bleibt es.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App nimmt dieses Audio später wieder vom Gerät: nach dem Transkript oder einen Tag nach dem Hören. Mit „Auf dem Gerät behalten“ im Menü bleibt es."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app will remove this audio from the device later: after the transcript or one day after you listen. Choose \"Keep on Device\" in the menu to keep it."
+          }
+        }
+      }
+    },
     "Die App schreibt Folgen auf dem Gerät mit Zeitmarken mit. Im Reiter „Transkript“ springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für ältere Folgen tippst du in der Folge auf „Transkript erstellen“.": {
       "localizations": {
         "de": {
@@ -3471,6 +4270,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "The audio file for this episode can't be read. This is usually a problem with the file itself, not the app."
+          }
+        }
+      }
+    },
+    "Die Audiodatei ist größer als %@. So große Dateien lädt die App nicht.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Audiodatei ist größer als %@. So große Dateien lädt die App nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The audio file is larger than %@. The app doesn't download files that large."
           }
         }
       }
@@ -3619,6 +4434,22 @@
         }
       }
     },
+    "Die Folge ließ sich gerade nicht laden. Später noch einmal versuchen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Folge ließ sich gerade nicht laden. Später noch einmal versuchen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The episode couldn't be downloaded right now. Try again later."
+          }
+        }
+      }
+    },
     "Die Folge ließ sich nicht laden: %@": {
       "localizations": {
         "de": {
@@ -3699,6 +4530,22 @@
         }
       }
     },
+    "Die Hilfe steht links in der Seitenleiste, die Einstellungen findest du im Menü PodcastAI.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Hilfe steht links in der Seitenleiste, die Einstellungen findest du im Menü PodcastAI."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Help is in the sidebar on the left, and you'll find Settings in the PodcastAI menu."
+          }
+        }
+      }
+    },
     "Die Notiz hängt an dieser Stelle. Du findest sie in der Folge und unter Wissen › Gemerkte Stellen. Sie bleibt auch, wenn du die Folge löschst.": {
       "localizations": {
         "de": {
@@ -3727,6 +4574,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "You've unsubscribed from the podcasts this Topic Update is limited to. Choose others when editing, or subscribe to them again."
+          }
+        }
+      }
+    },
+    "Die Seite hinter diesem Link ist größer, als die App liest. Such den Podcast oben nach seinem Namen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Seite hinter diesem Link ist größer, als die App liest. Such den Podcast oben nach seinem Namen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The page behind this link is larger than the app can read. Search for the podcast by name above."
           }
         }
       }
@@ -3827,6 +4690,70 @@
         }
       }
     },
+    "Die nächste Ausgabe entsteht, wenn du sie zusammenstellst.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die nächste Ausgabe entsteht, wenn du sie zusammenstellst."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You create the next edition yourself."
+          }
+        }
+      }
+    },
+    "Die nächste Ausgabe kommt frühestens %@ oder sobald du diese gehört hast, wenn dann mindestens %@ neues Material da ist.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Die nächste Ausgabe kommt frühestens %1$@ oder sobald du diese gehört hast, wenn dann mindestens %2$@ neues Material da ist."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The next edition comes %1$@ at the earliest, or once you've listened to this one, as long as there's at least %2$@ of new material by then."
+          }
+        }
+      }
+    },
+    "Die nächste Ausgabe kommt, sobald %@ neues Material da ist.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die nächste Ausgabe kommt, sobald %@ neues Material da ist."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The next edition comes as soon as there's %@ of new material."
+          }
+        }
+      }
+    },
+    "Die nächste Ausgabe kommt, sobald %@ neues Material da ist. Zurzeit sind es %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Die nächste Ausgabe kommt, sobald %1$@ neues Material da ist. Zurzeit sind es %2$@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The next edition comes as soon as there's %1$@ of new material. Right now there's %2$@."
+          }
+        }
+      }
+    },
     "Die weiteren Stellen sind inzwischen gehört oder nicht mehr da.": {
       "localizations": {
         "de": {
@@ -3891,7 +4818,24 @@
         }
       }
     },
+    "Diese Sprache kann die App hier nicht selbst übersetzen. Versuch es im Übersetzungsfenster des Systems, dort lassen sich auch Sprachen laden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Sprache kann die App hier nicht selbst übersetzen. Versuch es im Übersetzungsfenster des Systems, dort lassen sich auch Sprachen laden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app can't translate this language here on its own. Try the system translation window, where you can also download languages."
+          }
+        }
+      }
+    },
     "Diese Sprache kann dieses Gerät nicht übersetzen.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4019,6 +4963,22 @@
         }
       }
     },
+    "Diese Stellen liegen nicht auf diesem Gerät. Zum Abspielen kommt der Ton über Mobilfunk.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Stellen liegen nicht auf diesem Gerät. Zum Abspielen kommt der Ton über Mobilfunk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These passages aren't on this device. Playing them streams the audio over cellular data."
+          }
+        }
+      }
+    },
     "Diese gesicherte Antwort gibt es nicht mehr": {
       "localizations": {
         "de": {
@@ -4047,6 +5007,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Subscribe to This Link"
+          }
+        }
+      }
+    },
+    "Diesen Podcast gibt es unter seiner Adresse nicht mehr. Vermutlich wurde er eingestellt oder ist umgezogen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Podcast gibt es unter seiner Adresse nicht mehr. Vermutlich wurde er eingestellt oder ist umgezogen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This podcast no longer exists at its address. It was probably discontinued or has moved."
+          }
+        }
+      }
+    },
+    "Dieser Podcast antwortet gerade nicht. Später noch einmal versuchen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Podcast antwortet gerade nicht. Später noch einmal versuchen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This podcast isn't responding right now. Try again later."
           }
         }
       }
@@ -4083,6 +5075,22 @@
         }
       }
     },
+    "Du gibst eine Behauptung ein, die App sucht Stellen aus deinen Podcasts, die dafür oder dagegen sprechen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du gibst eine Behauptung ein, die App sucht Stellen aus deinen Podcasts, die dafür oder dagegen sprechen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You enter a claim, and the app finds passages in your podcasts that support or contradict it."
+          }
+        }
+      }
+    },
     "Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht zusammen und spricht sie nicht nach. Eine gesicherte These ist aufbewahrt, nicht als deine Meinung vermerkt.": {
       "localizations": {
         "de": {
@@ -4095,6 +5103,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "You hear the original passages in context. PodcastAI doesn't summarize them or read them out in another voice. A saved claim is kept, not recorded as your opinion."
+          }
+        }
+      }
+    },
+    "Du kannst jetzt in der Folge suchen und Fragen stellen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Du kannst jetzt in der Folge suchen und Fragen stellen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can now search the episode and ask questions about it."
           }
         }
       }
@@ -4163,6 +5187,22 @@
         }
       }
     },
+    "Ein Thema findet Stellen, in denen seine Bezeichnung oder eines seiner Stichworte vorkommt, und nur in Folgen mit Transkript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Thema findet Stellen, in denen seine Bezeichnung oder eines seiner Stichworte vorkommt, und nur in Folgen mit Transkript."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A topic finds passages where its name or one of its keywords appears, and only in episodes with a transcript."
+          }
+        }
+      }
+    },
     "Ein Tipp auf ein Thema mit Plus legt es als Interesse an.": {
       "localizations": {
         "de": {
@@ -4191,6 +5231,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Access without a log isn't controlled access."
+          }
+        }
+      }
+    },
+    "Eine Antwort aus dem Chat, die du mit ihren Stellen aufbewahrst. Du findest sie unter „Wissen“.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Antwort aus dem Chat, die du mit ihren Stellen aufbewahrst. Du findest sie unter „Wissen“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An answer from Chat that you keep along with its passages. You can find saved answers under \"Knowledge\"."
           }
         }
       }
@@ -4367,6 +5423,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "A specific question you want answered. \"For You\" shows passages that contain important words from the question, at least two for longer questions."
+          }
+        }
+      }
+    },
+    "Eine neue Ausgabe entsteht von selbst, sobald mindestens %@ neues Material zu den Themen da ist und du die letzte Ausgabe gehört hast oder sie älter als %lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Eine neue Ausgabe entsteht von selbst, sobald mindestens %1$@ neues Material zu den Themen da ist und du die letzte Ausgabe gehört hast oder sie älter als %2$lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new edition is created automatically once there's at least %1$@ of new material on the topics and you've listened to the last edition or it's older than %2$lld hours. The app checks this when it refreshes podcasts or when transcripts are ready. \"Create New Edition\" works at any time, even with less material."
+          }
+        }
+      }
+    },
+    "Einen Tag nach dem Hören nimmt die App dieses Audio wieder vom Gerät. Mit „Auf dem Gerät behalten“ im Menü bleibt es.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einen Tag nach dem Hören nimmt die App dieses Audio wieder vom Gerät. Mit „Auf dem Gerät behalten“ im Menü bleibt es."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app removes this audio from the device one day after you listen to it. To keep it, choose \"Keep on Device\" in the menu."
+          }
+        }
+      }
+    },
+    "Eingabe löschen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingabe löschen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Text"
           }
         }
       }
@@ -4575,6 +5679,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Only %1$@ of new material so far, but %2$@ is needed."
+          }
+        }
+      }
+    },
+    "Erstellt %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erstellt %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Created %@"
           }
         }
       }
@@ -5317,6 +6437,22 @@
         }
       }
     },
+    "Für das Transkript lädt die App die Folge über Mobilfunk.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für das Transkript lädt die App die Folge über Mobilfunk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For the transcript, the app downloads the episode over cellular data."
+          }
+        }
+      }
+    },
     "Für dich": {
       "localizations": {
         "de": {
@@ -5345,6 +6481,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "This device doesn't have a speech model for %@. You can add the language in Settings under General > Language & Region."
+          }
+        }
+      }
+    },
+    "Für die Transkripte lädt die App %lld Folgen über Mobilfunk.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für die Transkripte lädt die App %lld Folgen über Mobilfunk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For the transcripts, the app downloads %lld episodes over cellular data."
           }
         }
       }
@@ -5429,7 +6581,24 @@
         }
       }
     },
+    "Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Im Datensparmodus erstellt die App keine Transkripte von selbst.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Im Datensparmodus erstellt die App keine Transkripte von selbst."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To create a transcript, the app downloads the episode and transcribes it on the device with timestamps. Only then can \"For You\", Chat, and Topic Updates find anything in it. For older episodes, create the transcript one at a time when you need it. In Low Data Mode, the app doesn't create transcripts on its own."
+          }
+        }
+      }
+    },
     "Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Was du selbst abspielst oder anforderst, lädt auch im Mobilfunk. Im Datensparmodus erstellt die App keine Transkripte von selbst.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -5601,6 +6770,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Downloads for this only happen on Wi-Fi. A Personal Hotspot doesn't count, so the app waits."
+          }
+        }
+      }
+    },
+    "Gemeint ist, was du selbst abspielst, für unterwegs lädst oder als Transkript anforderst. Ein Hotspot zählt wie Mobilfunk. Für Transkripte neuer Folgen gilt der Schalter „Nur im WLAN“ unter Transkripte.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemeint ist, was du selbst abspielst, für unterwegs lädst oder als Transkript anforderst. Ein Hotspot zählt wie Mobilfunk. Für Transkripte neuer Folgen gilt der Schalter „Nur im WLAN“ unter Transkripte."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This covers what you play yourself, download for offline listening, or request as a transcript. A Personal Hotspot counts as cellular data. For transcripts of new episodes, the \"Wi-Fi Only\" setting under Transcripts applies."
+          }
+        }
+      }
+    },
+    "Gemerkt bei %@. Du findest die Stelle unter Gemerkte Stellen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemerkt bei %@. Du findest die Stelle unter Gemerkte Stellen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved at %@. You'll find it under Saved Moments."
+          }
+        }
+      }
+    },
+    "Gemerkt bei %@. Du findest die Stelle unter Wissen › Gemerkte Stellen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemerkt bei %@. Du findest die Stelle unter Wissen › Gemerkte Stellen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved at %@. You'll find it under Knowledge › Saved Moments."
           }
         }
       }
@@ -5797,6 +7014,22 @@
         }
       }
     },
+    "Geprüft %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geprüft %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checked %@"
+          }
+        }
+      }
+    },
     "Gerade ist kein Netz da. Die App fängt an, sobald wieder eines da ist.": {
       "localizations": {
         "de": {
@@ -5878,6 +7111,7 @@
       }
     },
     "Gesamtes Archiv": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6069,6 +7303,22 @@
         }
       }
     },
+    "Hilfe, Einstellungen und Datenschutz findest du jederzeit über das Zahnrad oben in „Für dich“.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hilfe, Einstellungen und Datenschutz findest du jederzeit über das Zahnrad oben in „Für dich“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Help, Settings, and Privacy are always available from the gear button at the top of \"For You\"."
+          }
+        }
+      }
+    },
     "Hinzufügen": {
       "localizations": {
         "de": {
@@ -6086,6 +7336,7 @@
       }
     },
     "Historie": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6134,6 +7385,7 @@
       }
     },
     "Im Chat fragst du alle deine Podcasts auf einmal, in einer Folge unter „Fragen“ nur diese eine. Jede Antwort zeigt die Stelle im Original. Alles lässt sich als Markdown exportieren.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6145,6 +7397,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "In Chat, you ask all your podcasts at once. In an episode, \"Ask\" asks just that one. Every answer shows the passage in the original. You can export everything as Markdown."
+          }
+        }
+      }
+    },
+    "Im Chat fragst du alle deine Podcasts auf einmal, in einer Folge unter „Fragen“ nur diese eine. Jede Antwort zeigt die Stelle im Original. Alles lässt sich als Text exportieren, etwa in deine Notizen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Chat fragst du alle deine Podcasts auf einmal, in einer Folge unter „Fragen“ nur diese eine. Jede Antwort zeigt die Stelle im Original. Alles lässt sich als Text exportieren, etwa in deine Notizen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Chat, you ask all your podcasts at once. In an episode, \"Ask\" asks just that one. Every answer shows the passage in the original. You can export everything as text, for example to your notes."
           }
         }
       }
@@ -6209,6 +7477,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "In the selected scope: %1$lld of ^[%2$lld episode](inflect: true) with a transcript. Only these were searched."
+          }
+        }
+      }
+    },
+    "Im Übersetzungsfenster öffnen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Übersetzungsfenster öffnen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Translation Window"
+          }
+        }
+      }
+    },
+    "Immer über Mobilfunk laden": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Immer über Mobilfunk laden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Always Allow"
           }
         }
       }
@@ -6289,6 +7589,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Show in System Search"
+          }
+        }
+      }
+    },
+    "In der Warteschlange": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In der Warteschlange"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Queue"
           }
         }
       }
@@ -6433,6 +7749,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Suggest Interests"
+          }
+        }
+      }
+    },
+    "Ist das Transkript fertig, nimmt die App dieses Audio wieder vom Gerät. Mit „Auf dem Gerät behalten“ im Menü bleibt es.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ist das Transkript fertig, nimmt die App dieses Audio wieder vom Gerät. Mit „Auf dem Gerät behalten“ im Menü bleibt es."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Once the transcript is ready, the app removes this audio from the device. To keep it, choose \"Keep on Device\" in the menu."
           }
         }
       }
@@ -6711,6 +8043,38 @@
         }
       }
     },
+    "Keine Internetverbindung. Sobald wieder Netz da ist, noch einmal laden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Internetverbindung. Sobald wieder Netz da ist, noch einmal laden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No internet connection. When you're back online, try downloading again."
+          }
+        }
+      }
+    },
+    "Keine Internetverbindung. Sobald wieder Netz da ist, noch einmal versuchen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Internetverbindung. Sobald wieder Netz da ist, noch einmal versuchen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No internet connection. When you're back online, try again."
+          }
+        }
+      }
+    },
     "Keine Kapitel": {
       "localizations": {
         "de": {
@@ -6839,6 +8203,22 @@
         }
       }
     },
+    "Kommt als Nächstes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kommt als Nächstes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up Next"
+          }
+        }
+      }
+    },
     "Konnte nicht gesichert werden: %@": {
       "localizations": {
         "de": {
@@ -6867,6 +8247,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copied"
+          }
+        }
+      }
+    },
+    "Kopiert den Wortlaut mit Folge, Podcast, Zeitmarke und Erscheinungsdatum": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopiert den Wortlaut mit Folge, Podcast, Zeitmarke und Erscheinungsdatum"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copies the exact wording with episode, podcast, timestamp, and release date"
           }
         }
       }
@@ -6903,6 +8299,22 @@
         }
       }
     },
+    "Laden": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow"
+          }
+        }
+      }
+    },
     "Laden (offline)": {
       "localizations": {
         "de": {
@@ -6915,6 +8327,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Download"
+          }
+        }
+      }
+    },
+    "Laden abbrechen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laden abbrechen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel Download"
+          }
+        }
+      }
+    },
+    "Laden über Mobilfunk ist in den Einstellungen aus. Im WLAN oder mit eingeschaltetem Mobilfunk spielt die App die Stellen ab.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laden über Mobilfunk ist in den Einstellungen aus. Im WLAN oder mit eingeschaltetem Mobilfunk spielt die App die Stellen ab."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading over cellular data is turned off in Settings. The app plays the passages once you're on Wi-Fi or cellular data is turned on."
+          }
+        }
+      }
+    },
+    "Laden über Mobilfunk ist in den Einstellungen aus. Keine Folge in „Als Nächstes“ ist auf diesem Gerät geladen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Laden über Mobilfunk ist in den Einstellungen aus. Keine Folge in „Als Nächstes“ ist auf diesem Gerät geladen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading over cellular data is turned off in Settings. None of the episodes queued with \"Play Next\" are downloaded to this device."
           }
         }
       }
@@ -6952,6 +8412,7 @@
       }
     },
     "Leg ein oder zwei Themen an, etwa „Datenschutz“ oder „Ernährung“. Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -6963,6 +8424,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Add one or two topics, like \"Privacy\" or \"Nutrition\". Then PodcastAI gathers the matching passages from your episodes here."
+          }
+        }
+      }
+    },
+    "Leg ein oder zwei Themen an, etwa „Fußball“, „Kochen“ oder „Datenschutz“. Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leg ein oder zwei Themen an, etwa „Fußball“, „Kochen“ oder „Datenschutz“. Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add one or two topics, like \"Soccer\", \"Cooking\", or \"Privacy\". Then PodcastAI gathers the matching passages from your episodes here."
           }
         }
       }
@@ -7175,7 +8652,40 @@
         }
       }
     },
+    "Merken, mit Quelle kopieren oder teilen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merken, mit Quelle kopieren oder teilen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save, copy with source, or share"
+          }
+        }
+      }
+    },
+    "Merkt den Satz, der gerade läuft, auf Wunsch mit Kommentar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merkt den Satz, der gerade läuft, auf Wunsch mit Kommentar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saves the sentence that's playing, with an optional comment"
+          }
+        }
+      }
+    },
     "Merkt die aktuelle Stelle, auf Wunsch mit Kommentar": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -7219,6 +8729,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Copy with Source"
+          }
+        }
+      }
+    },
+    "Mit Quelle kopiert.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Quelle kopiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied with source."
+          }
+        }
+      }
+    },
+    "Mobilfunk": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mobilfunk"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cellular Data"
+          }
+        }
+      }
+    },
+    "Mobilfunk, Speicher, Datenschutz": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mobilfunk, Speicher, Datenschutz"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cellular Data, Storage, Privacy"
           }
         }
       }
@@ -7283,6 +8841,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "After you subscribe, the app prepares the latest episode: downloading, creating a transcript, finding facts."
+          }
+        }
+      }
+    },
+    "Nach dem Transkript nimmt die App das Audio wieder vom Gerät, so ist es in den Einstellungen eingestellt. Abgespielt wird aus dem Netz. Für unterwegs im Menü „Laden (offline)“ wählen, das bleibt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach dem Transkript nimmt die App das Audio wieder vom Gerät, so ist es in den Einstellungen eingestellt. Abgespielt wird aus dem Netz. Für unterwegs im Menü „Laden (offline)“ wählen, das bleibt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After the transcript, the app removes the audio from the device, as set in Settings. The episode then plays from the internet. To listen on the go, choose \"Download\" in the menu. That audio stays on the device."
           }
         }
       }
@@ -7399,6 +8973,22 @@
         }
       }
     },
+    "Neue Ausgabe nur auf Knopfdruck": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Ausgabe nur auf Knopfdruck"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New editions only on request"
+          }
+        }
+      }
+    },
     "Neue Ausgabe zusammenstellen": {
       "localizations": {
         "de": {
@@ -7411,6 +9001,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Create New Edition"
+          }
+        }
+      }
+    },
+    "Neue Ausgaben entstehen nur, wenn du „Neue Ausgabe zusammenstellen“ antippst.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Ausgaben entstehen nur, wenn du „Neue Ausgabe zusammenstellen“ antippst."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New editions are only created when you tap \"Create New Edition\"."
           }
         }
       }
@@ -7459,6 +9065,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Share Latest Edition as Text"
+          }
+        }
+      }
+    },
+    "Neueste Folge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neueste Folge"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latest Episode"
+          }
+        }
+      }
+    },
+    "Neueste Folgen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neueste Folgen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latest Episodes"
           }
         }
       }
@@ -7560,6 +9198,7 @@
       }
     },
     "Nichts in Arbeit. Das Transkript einer Folge erstellst du in der Folge selbst. Für mehrere Folgen tippst du in der Folgenliste eines Podcasts auf „Auswählen“.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -7619,6 +9258,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nothing Playing"
+          }
+        }
+      }
+    },
+    "Noch hat keine Folge ein Transkript. Sobald Transkripte fertig sind, sucht das Update darin.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch hat keine Folge ein Transkript. Sobald Transkripte fertig sind, sucht das Update darin."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No episode has a transcript yet. Once transcripts are ready, the update searches them."
           }
         }
       }
@@ -7783,6 +9438,22 @@
         }
       }
     },
+    "Nochmal versuchen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nochmal versuchen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Again"
+          }
+        }
+      }
+    },
     "Notiz": {
       "localizations": {
         "de": {
@@ -7927,6 +9598,38 @@
         }
       }
     },
+    "Nächste Ausgabe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Ausgabe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Edition"
+          }
+        }
+      }
+    },
+    "Nächste Folge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste Folge"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next Episode"
+          }
+        }
+      }
+    },
     "Nächste Stelle: %@, aus %@": {
       "localizations": {
         "de": {
@@ -7939,6 +9642,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Next passage: %1$@, from %2$@"
+          }
+        }
+      }
+    },
+    "Nächste ab %@ neuem Material": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste ab %@ neuem Material"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next edition once there's %@ of new material"
+          }
+        }
+      }
+    },
+    "Nächste frühestens %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nächste frühestens %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next edition %@ at the earliest"
           }
         }
       }
@@ -7971,6 +9706,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "OK"
+          }
+        }
+      }
+    },
+    "Ob Folgen auch ohne WLAN laden, stellst du über das Zahnrad › Mobilfunk ein. Ist es aus, fragt die App vorher. Transkripte für neue Folgen lädt sie mit „Nur im WLAN“ nur im WLAN.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ob Folgen auch ohne WLAN laden, stellst du über das Zahnrad › Mobilfunk ein. Ist es aus, fragt die App vorher. Transkripte für neue Folgen lädt sie mit „Nur im WLAN“ nur im WLAN."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose whether episodes also download without Wi-Fi under the gear button › Cellular Data. If it's off, the app asks first. With \"Wi-Fi Only\" on, transcripts for new episodes download only on Wi-Fi."
           }
         }
       }
@@ -8120,6 +9871,7 @@
       }
     },
     "Overcast, Pocket Casts und die meisten anderen Podcast-Apps exportieren ihre Abos als OPML-Datei. So kommen alle auf einmal herüber.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -8131,6 +9883,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Overcast, Pocket Casts, and most other podcast apps export their subscriptions as an OPML file. That brings them all over at once."
+          }
+        }
+      }
+    },
+    "Overcast, Pocket Casts und die meisten anderen Podcast-Apps sichern ihre Abos in einer Datei (OPML). Die wählst du hier aus, dann kommen alle auf einmal herüber.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overcast, Pocket Casts und die meisten anderen Podcast-Apps sichern ihre Abos in einer Datei (OPML). Die wählst du hier aus, dann kommen alle auf einmal herüber."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overcast, Pocket Casts, and most other podcast apps save their subscriptions in a file (OPML). Choose that file here to bring them all over at once."
           }
         }
       }
@@ -8147,6 +9915,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save for Later"
+          }
+        }
+      }
+    },
+    "Passende Podcasts suchen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passende Podcasts suchen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find Matching Podcasts"
           }
         }
       }
@@ -8360,6 +10144,7 @@
       }
     },
     "PodcastAI nutzt ausschließlich Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -8371,6 +10156,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "PodcastAI uses Apple Intelligence exclusively. Answers and facts are generated on device or, when turned on and available, on Apple's Private Cloud Compute. More context is possible there, and Apple doesn't store the requests. If a tier isn't available, the app says so instead of using another provider."
+          }
+        }
+      }
+    },
+    "PodcastAI nutzt nur Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät. Ist „Apple-Server nutzen“ an, gehen Fragen und Vergleiche an Apples Private Cloud Compute. Dort passt mehr Text in eine Anfrage, und Apple speichert sie nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PodcastAI nutzt nur Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät. Ist „Apple-Server nutzen“ an, gehen Fragen und Vergleiche an Apples Private Cloud Compute. Dort passt mehr Text in eine Anfrage, und Apple speichert sie nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PodcastAI uses only Apple Intelligence. Answers and facts are generated on device. If \"Use Apple Servers\" is on, questions and comparisons go to Apple's Private Cloud Compute. More text fits into a single request there, and Apple doesn't store the requests. If a tier isn't available, the app says so instead of using another provider."
           }
         }
       }
@@ -8488,6 +10289,7 @@
       }
     },
     "Private Cloud Compute nutzen": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -8551,6 +10353,22 @@
         }
       }
     },
+    "Rechner von Apple, auf denen Apple Intelligence Fragen mit mehr Text auf einmal bearbeitet. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus, antwortet das Modell auf dem Gerät.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechner von Apple, auf denen Apple Intelligence Fragen mit mehr Text auf einmal bearbeitet. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus, antwortet das Modell auf dem Gerät."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple's servers, where Apple Intelligence handles questions with more text at once. Apple doesn't store the requests. If that setting is off, the on-device model answers."
+          }
+        }
+      }
+    },
     "Rechtliches": {
       "localizations": {
         "de": {
@@ -8600,6 +10418,7 @@
       }
     },
     "Schlaf-Timer aus": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -8824,6 +10643,7 @@
       }
     },
     "Sobald genug ungehörtes Material zu deinen Themen vorliegt, entsteht daraus von selbst eine Ausgabe.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -8903,6 +10723,22 @@
         }
       }
     },
+    "Spielt ab %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielt ab %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Playing from %@."
+          }
+        }
+      }
+    },
     "Spielt ab der Stelle weiter, an der du aufgehört hast": {
       "localizations": {
         "de": {
@@ -8915,6 +10751,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Resumes from where you left off"
+          }
+        }
+      }
+    },
+    "Spielt ab dieser Zeile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spielt ab dieser Zeile"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plays from this line"
           }
         }
       }
@@ -9031,6 +10883,38 @@
         }
       }
     },
+    "Sprungweite vor": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprungweite vor"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip Forward Interval"
+          }
+        }
+      }
+    },
+    "Sprungweite zurück": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sprungweite zurück"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip Back Interval"
+          }
+        }
+      }
+    },
     "Später": {
       "localizations": {
         "de": {
@@ -9059,6 +10943,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Start an edition or a passage from \"For You\"."
+          }
+        }
+      }
+    },
+    "Steht am Ende der Warteschlange": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steht am Ende der Warteschlange"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At the end of the queue"
           }
         }
       }
@@ -9203,6 +11103,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keywords"
+          }
+        }
+      }
+    },
+    "Stichworte ergänzen, etwa %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stichworte ergänzen, etwa %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add keywords, like %@"
+          }
+        }
+      }
+    },
+    "Stichworte ergänzen, etwa englische Begriffe oder Abkürzungen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stichworte ergänzen, etwa englische Begriffe oder Abkürzungen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add keywords, like abbreviations or terms in other languages"
           }
         }
       }
@@ -9367,6 +11299,38 @@
         }
       }
     },
+    "Text kopieren": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text kopieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Text"
+          }
+        }
+      }
+    },
+    "Text kopiert": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text kopiert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text copied"
+          }
+        }
+      }
+    },
     "Thema": {
       "localizations": {
         "de": {
@@ -9459,6 +11423,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Episode Topics"
+          }
+        }
+      }
+    },
+    "Themen ohne Treffer": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Themen ohne Treffer"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Topics Without Matches"
           }
         }
       }
@@ -9655,7 +11635,24 @@
         }
       }
     },
+    "Tippe den Namen der Sendung ein. Ein Link aus Apple Podcasts oder von YouTube geht auch.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippe den Namen der Sendung ein. Ein Link aus Apple Podcasts oder von YouTube geht auch."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type the name of the show. A link from Apple Podcasts or YouTube works too."
+          }
+        }
+      }
+    },
     "Tippe den Namen eines Podcasts, eines Anbieters oder ein Thema. Links gehen auch: Apple Podcasts, eine Feed-Adresse, eine einzelne Folge oder ein YouTube-Kanal.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -9715,6 +11712,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Transcript"
+          }
+        }
+      }
+    },
+    "Transkript ansehen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkript ansehen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View Transcript"
           }
         }
       }
@@ -9912,6 +11925,22 @@
         }
       }
     },
+    "Transkripte für neue Folgen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkripte für neue Folgen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcripts for New Episodes"
+          }
+        }
+      }
+    },
     "Transkripte für neue Folgen erstellen": {
       "localizations": {
         "de": {
@@ -9960,7 +11989,40 @@
         }
       }
     },
+    "Transkripte und Shownotes in einer anderen Sprache übersetzt die App auf dem Gerät, wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal, danach geht es auch ohne Netz. Beim Wortlaut eines Fakts und bei Stellen im Chat öffnet „Übersetzen“ das Übersetzungsfenster von Apple. Merken und Kopieren nehmen immer das Original.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkripte und Shownotes in einer anderen Sprache übersetzt die App auf dem Gerät, wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal, danach geht es auch ohne Netz. Beim Wortlaut eines Fakts und bei Stellen im Chat öffnet „Übersetzen“ das Übersetzungsfenster von Apple. Merken und Kopieren nehmen immer das Original."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you tap \"Translate\", the app translates transcripts and show notes from other languages on the device. The system downloads the languages the first time, and after that it works offline too. For the exact wording of a fact and for passages in Chat, \"Translate\" opens Apple's translation window. Saving and copying always use the original."
+          }
+        }
+      }
+    },
+    "Transkripte und Shownotes übersetzt die App auf dem Gerät mit Apples Übersetzung, nur wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal von Apple, danach geht es auch ohne Netz. Einzelne Stellen übersetzt das Übersetzungsfenster des Systems. Es kann den Text dafür an Apple schicken und sagt das dort selbst. Merken und Kopieren nehmen immer den Originaltext.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkripte und Shownotes übersetzt die App auf dem Gerät mit Apples Übersetzung, nur wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal von Apple, danach geht es auch ohne Netz. Einzelne Stellen übersetzt das Übersetzungsfenster des Systems. Es kann den Text dafür an Apple schicken und sagt das dort selbst. Merken und Kopieren nehmen immer den Originaltext."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app translates transcripts and show notes on the device using Apple's translation feature, and only when you tap \"Translate\". The system downloads the languages from Apple the first time, and after that it works offline too. Individual passages are translated in the system translation window. It may send the text to Apple for this, and it tells you so in the window itself. Saving and copying always use the original text."
+          }
+        }
+      }
+    },
     "Transkripte, Intelligenz, Lernen, Systemsuche": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -10100,6 +12162,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Untitled Podcast"
+          }
+        }
+      }
+    },
+    "Unter dieser Adresse gibt es den Podcast nicht mehr. Vermutlich ist er umgezogen oder wurde eingestellt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter dieser Adresse gibt es den Podcast nicht mehr. Vermutlich ist er umgezogen oder wurde eingestellt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This podcast is no longer available at this address. It has probably moved or been discontinued."
           }
         }
       }
@@ -10264,7 +12342,24 @@
         }
       }
     },
+    "Von %@ nach %@ kann die App hier nicht selbst übersetzen. Versuch es im Übersetzungsfenster des Systems, dort lassen sich auch Sprachen laden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Von %1$@ nach %2$@ kann die App hier nicht selbst übersetzen. Versuch es im Übersetzungsfenster des Systems, dort lassen sich auch Sprachen laden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app can't translate from %1$@ to %2$@ here on its own. Try the system translation window, where you can also download languages."
+          }
+        }
+      }
+    },
     "Von %@ nach %@ kann dieses Gerät nicht übersetzen.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -10356,6 +12451,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Queue"
+          }
+        }
+      }
+    },
+    "Wartet auf Material: %@ von %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Wartet auf Material: %1$@ von %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for material: %1$@ of %2$@"
           }
         }
       }
@@ -10761,6 +12872,7 @@
       }
     },
     "Wird geladen …": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -10968,6 +13080,38 @@
         }
       }
     },
+    "Zeigt Beschreibung und neueste Folgen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt Beschreibung und neueste Folgen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows the description and latest episodes"
+          }
+        }
+      }
+    },
+    "Zeigt den Anfang des Textes im Übersetzungsfenster des Systems": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt den Anfang des Textes im Übersetzungsfenster des Systems"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows the beginning of the text in the system translation window"
+          }
+        }
+      }
+    },
     "Zeigt eine Übersetzung in die Sprache der App": {
       "localizations": {
         "de": {
@@ -11032,6 +13176,54 @@
         }
       }
     },
+    "Zitat kopieren": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zitat kopieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Quote"
+          }
+        }
+      }
+    },
+    "Zu %@ noch keine passende Stelle": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu %@ noch keine passende Stelle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching passage for %@ yet"
+          }
+        }
+      }
+    },
+    "Zu %@ passt noch keine Stelle in deinen Folgen mit Transkript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu %@ passt noch keine Stelle in deinen Folgen mit Transkript."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No passage in your episodes with a transcript matches %@ yet."
+          }
+        }
+      }
+    },
     "Zu deinen Themen": {
       "localizations": {
         "de": {
@@ -11081,6 +13273,7 @@
       }
     },
     "Zu diesen Themen gibt es noch keine Folge mit Transkript.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -11092,6 +13285,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "There are no episodes with transcripts on these topics yet."
+          }
+        }
+      }
+    },
+    "Zu diesen Themen passt noch keine Stelle in deinen Folgen mit Transkript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu diesen Themen passt noch keine Stelle in deinen Folgen mit Transkript."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No passage in your episodes with a transcript matches these topics yet."
           }
         }
       }
@@ -11284,6 +13493,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "^[%lld source passage](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Fakt](inflect: true)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld Fakt](inflect: true)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld fact](inflect: true)"
           }
         }
       }
@@ -11530,7 +13755,40 @@
         }
       }
     },
+    "am %@ um %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "am %1$@ um %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "on %1$@ at %2$@"
+          }
+        }
+      }
+    },
+    "auch über Mobilfunk": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "auch über Mobilfunk"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi and Cellular Data"
+          }
+        }
+      }
+    },
     "auf dem Gerät": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -11542,6 +13800,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "downloaded"
+          }
+        }
+      }
+    },
+    "aus": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aus"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off"
           }
         }
       }
@@ -11690,6 +13964,22 @@
         }
       }
     },
+    "heute um %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "heute um %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "today at %@"
+          }
+        }
+      }
+    },
     "iCloud": {
       "localizations": {
         "de": {
@@ -11738,6 +14028,38 @@
         }
       }
     },
+    "morgen um %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "morgen um %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tomorrow at %@"
+          }
+        }
+      }
+    },
+    "noch %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "noch %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ left"
+          }
+        }
+      }
+    },
     "noch %lld Min.": {
       "localizations": {
         "de": {
@@ -11782,6 +14104,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Latest Only"
+          }
+        }
+      }
+    },
+    "nur im WLAN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nur im WLAN"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi Only"
           }
         }
       }
@@ -12139,6 +14477,38 @@
         }
       }
     },
+    "Öffnet die Folge. Abspielen und Kopieren unter Aktionen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet die Folge. Abspielen und Kopieren unter Aktionen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the episode. To play or copy, use Actions."
+          }
+        }
+      }
+    },
+    "Öffnet die Folge. Abspielen unter Aktionen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet die Folge. Abspielen unter Aktionen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the episode. To play, use Actions."
+          }
+        }
+      }
+    },
     "Öffnet die Warteschlange": {
       "localizations": {
         "de": {
@@ -12151,6 +14521,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Opens the queue"
+          }
+        }
+      }
+    },
+    "Über Mobilfunk laden?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Über Mobilfunk laden?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Cellular Data?"
           }
         }
       }
@@ -12204,6 +14590,7 @@
       }
     },
     "Überprüfbare Aussagen der Folge, jede mit Zeitmarke zum Nachhören.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -12269,6 +14656,7 @@
     },
     "„%@“\n(%@)": {
       "comment": "Zitat mit Herkunft zum Kopieren",
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -12286,6 +14674,7 @@
     },
     "„%@“\n(%@)\n\n%@": {
       "comment": "Fakt mit wörtlichem Beleg zum Kopieren",
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -12381,6 +14770,22 @@
         }
       }
     },
+    "„%@“ liegt nicht auf diesem Gerät. Zum Abspielen kommt der Ton über Mobilfunk.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ liegt nicht auf diesem Gerät. Zum Abspielen kommt der Ton über Mobilfunk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" isn't on this device. To play it, the audio will stream over cellular data."
+          }
+        }
+      }
+    },
     "„%@“ lässt sich nicht abspielen. %@": {
       "localizations": {
         "de": {
@@ -12409,6 +14814,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete \"%@\""
+          }
+        }
+      }
+    },
+    "„%@“ wird über Mobilfunk auf das Gerät geladen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ wird über Mobilfunk auf das Gerät geladen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" will be downloaded to this device over cellular data."
           }
         }
       }
@@ -12494,6 +14915,7 @@
       }
     },
     "„Meine Podcasts“ › Plus. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
