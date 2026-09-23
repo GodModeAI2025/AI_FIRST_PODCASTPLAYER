@@ -58,27 +58,33 @@ public struct EpisodeDossierExporter: Sendable {
         var lines: [String] = []
         lines.append("# " + MarkdownExporter.escapeInline(dossier.title))
         lines.append("")
-        var meta = ["**Quelle:** " + MarkdownExporter.escapeInline(dossier.sourceTitle)]
+        var meta = [Self.field(String(localized: "Quelle:", bundle: .module),
+                               MarkdownExporter.escapeInline(dossier.sourceTitle))]
         if let date = dossier.publishedAt {
-            meta.append("**Erschienen:** " + date.formatted(date: .long, time: .omitted))
+            meta.append(Self.field(String(localized: "Erschienen:", bundle: .module),
+                                   date.formatted(date: .long, time: .omitted)))
         }
-        if let duration = dossier.duration { meta.append("**Länge:** " + duration.shortDescription) }
+        if let duration = dossier.duration {
+            meta.append(Self.field(String(localized: "Länge:", bundle: .module), duration.shortDescription))
+        }
         if let link = SafeSourceLink(publicURL: dossier.webPageURL) {
-            meta.append("**Link:** <\(link.url.absoluteString)>")
+            meta.append(Self.field(String(localized: "Link:", bundle: .module), "<\(link.url.absoluteString)>"))
         }
         lines.append(meta.joined(separator: "  \n"))
 
         if let notes = dossier.shownotes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
-            lines += ["", "## Shownotes", "", MarkdownExporter.escapeBlock(notes)]
+            lines += ["", "## " + String(localized: "Shownotes", bundle: .module), "",
+                      MarkdownExporter.escapeBlock(notes)]
         }
         if !dossier.chapters.isEmpty {
-            lines += ["", "## Kapitel", ""]
+            lines += ["", "## " + String(localized: "Kapitel", bundle: .module), ""]
             for chapter in dossier.chapters {
                 lines.append("- `\(chapter.start.timecode)` " + MarkdownExporter.escapeInline(chapter.title))
             }
         }
         if !dossier.facts.isEmpty {
-            lines += ["", "## Fakten", "", "Aussagen aus der Folge, gesagt, nicht geprüft.", ""]
+            lines += ["", "## " + String(localized: "Fakten", bundle: .module), "",
+                      String(localized: "Aussagen aus der Folge, gesagt, nicht geprüft.", bundle: .module), ""]
             for fact in dossier.facts {
                 lines.append("- " + MarkdownExporter.escapeInline(fact.statement)
                              + " (`\(fact.range.start.timecode)–\(fact.range.end.timecode)`)")
@@ -89,23 +95,28 @@ public struct EpisodeDossierExporter: Sendable {
             }
         }
         if includeTranscript, let transcript = dossier.transcript, !transcript.segments.isEmpty {
-            lines += ["", "## Transkript", ""]
+            lines += ["", "## " + String(localized: "Transkript", bundle: .module), ""]
             for paragraph in Self.paragraphs(transcript.segments) {
                 lines.append("`\(paragraph.start.timecode)` " + MarkdownExporter.escapeInline(paragraph.text))
                 lines.append("")
             }
         }
-        lines += ["", "---", "Exportiert aus PodcastAI am " + Date().formatted(date: .long, time: .shortened) + "."]
+        let exported = Date().formatted(date: .long, time: .shortened)
+        lines += ["", "---", String(localized: "Exportiert aus PodcastAI am \(exported).", bundle: .module)]
         return lines.joined(separator: "\n")
     }
 
     public func markdown(_ answer: ExportedAnswer) -> String {
         var lines = ["# " + MarkdownExporter.escapeInline(answer.question), ""]
-        var meta = "**Bereich:** " + MarkdownExporter.escapeInline(answer.scopeLabel)
-        if let model = answer.modelLabel { meta += "  \n**Formuliert von:** " + MarkdownExporter.escapeInline(model) }
+        var meta = Self.field(String(localized: "Bereich:", bundle: .module),
+                              MarkdownExporter.escapeInline(answer.scopeLabel))
+        if let model = answer.modelLabel {
+            meta += "  \n" + Self.field(String(localized: "Formuliert von:", bundle: .module),
+                                        MarkdownExporter.escapeInline(model))
+        }
         lines += [meta, "", MarkdownExporter.escapeBlock(answer.text)]
         if !answer.citations.isEmpty {
-            lines += ["", "## Belege", ""]
+            lines += ["", "## " + String(localized: "Belege", bundle: .module), ""]
             for citation in answer.citations {
                 let time = citation.range.map { " `\($0.start.timecode)–\($0.end.timecode)`" } ?? ""
                 lines.append("\(citation.number). " + MarkdownExporter.escapeInline(citation.episode)
@@ -114,6 +125,13 @@ public struct EpisodeDossierExporter: Sendable {
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Eine Kopfzeile wie „**Quelle:** Titel“. Die Bezeichnung kommt
+    /// übersetzt aus dem Katalog, der Doppelpunkt gehört zu ihr, weil
+    /// manche Sprachen davor ein Leerzeichen setzen.
+    private static func field(_ name: String, _ value: String) -> String {
+        "**\(name)** \(value)"
     }
 
     /// Fasst Segmente zu Absätzen von etwa einer Minute zusammen. Ein Absatz

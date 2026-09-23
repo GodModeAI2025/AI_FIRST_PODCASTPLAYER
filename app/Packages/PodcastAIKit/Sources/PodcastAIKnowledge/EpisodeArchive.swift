@@ -166,7 +166,7 @@ public enum EpisodeArchive {
 
     // MARK: - Kopfzeile
 
-    /// Was die App von selbst auswertet.
+    /// Wofür die App von selbst ein Transkript erstellt.
     public enum Automatic: Equatable, Sendable {
         /// Die neuesten Folgen je Quelle, so viele.
         case newest(Int)
@@ -176,34 +176,61 @@ public enum EpisodeArchive {
         case paused
     }
 
-    /// Die Kopfzeile der Folgenliste, etwa „3 von 412 Folgen ausgewertet,
+    /// Die Kopfzeile der Folgenliste, etwa „3 von 412 Folgen mit Transkript,
     /// automatisch die 3 neuesten“.
     ///
-    /// Gefunden und ausgewertet sind getrennte Zahlen. Nur eine davon zu
+    /// Gefunden und mit Transkript sind getrennte Zahlen. Nur eine davon zu
     /// nennen würde behaupten, alles sei durchsuchbar.
+    ///
+    /// Jede Zeile ist ein ganzer Satz im String-Katalog und wird nicht aus
+    /// Teilen zusammengesetzt, damit eine Übersetzung die Wortstellung
+    /// selbst bestimmen kann.
     public static func coverage(total: Int, analyzed: Int, analyzable: Bool, automatic: Automatic) -> String {
-        let episodes = total == 1 ? "1 Folge" : "\(total) Folgen"
         guard analyzable else {
-            return total == 1 ? "1 Folge, nicht auswertbar" : "\(episodes), keine davon auswertbar"
+            return String(AttributedString(
+                localized: "^[\(total) Folge](inflect: true), kein Transkript möglich", bundle: .module).characters)
         }
-        let head = "\(analyzed) von \(episodes) ausgewertet"
         switch automatic {
-        case .newest(let count) where count == 1: return head + ", automatisch die neueste"
-        case .newest(let count) where count > 1: return head + ", automatisch die \(count) neuesten"
-        case .newest, .off: return head + ", automatisches Auswerten ist aus"
-        case .paused: return head + ", automatisch gerade keine"
+        case .newest(let count) where count == 1:
+            return String(AttributedString(localized: """
+                \(analyzed) von ^[\(total) Folge](inflect: true) mit Transkript, automatisch die neueste
+                """, bundle: .module).characters)
+        case .newest(let count) where count > 1:
+            return String(AttributedString(localized: """
+                \(analyzed) von ^[\(total) Folge](inflect: true) mit Transkript, automatisch die \(count) neuesten
+                """, bundle: .module).characters)
+        case .newest, .off:
+            return String(AttributedString(localized: """
+                \(analyzed) von ^[\(total) Folge](inflect: true) mit Transkript, keine automatischen Transkripte
+                """, bundle: .module).characters)
+        case .paused:
+            return String(AttributedString(localized: """
+                \(analyzed) von ^[\(total) Folge](inflect: true) mit Transkript, automatisch gerade keine
+                """, bundle: .module).characters)
         }
     }
 
-    /// Die Zeile über „Auswahl auswerten“: wie viele Folgen und wie viel Ton.
+    /// Die Zeile über „Transkripte erstellen“: wie viele Folgen und wie viel Ton.
     public static func selectionSummary(_ selected: [Episode]) -> String {
-        guard !selected.isEmpty else { return "Tippe die Folgen an, die ausgewertet werden sollen." }
-        let count = selected.count == 1 ? "1 Folge ausgewählt" : "\(selected.count) Folgen ausgewählt"
+        guard !selected.isEmpty else {
+            return String(localized: "Tippe die Folgen an, für die ein Transkript erstellt werden soll.",
+                          bundle: .module)
+        }
+        let count = selected.count
         let durations = selected.compactMap(\.declaredDuration)
-        guard !durations.isEmpty else { return count }
-        let total = durations.reduce(MediaDuration.zero, +)
+        guard !durations.isEmpty else {
+            return String(AttributedString(
+                localized: "^[\(count) Folge](inflect: true) ausgewählt", bundle: .module).characters)
+        }
+        let total = durations.reduce(MediaDuration.zero, +).shortDescription
         // Fehlt bei einer Folge die Länge, ist die Summe eine Untergrenze.
-        let prefix = durations.count == selected.count ? "zusammen" : "zusammen mindestens"
-        return "\(count), \(prefix) \(total.shortDescription) Ton"
+        if durations.count == selected.count {
+            return String(AttributedString(localized: """
+                ^[\(count) Folge](inflect: true) ausgewählt, zusammen \(total) Ton
+                """, bundle: .module).characters)
+        }
+        return String(AttributedString(localized: """
+            ^[\(count) Folge](inflect: true) ausgewählt, zusammen mindestens \(total) Ton
+            """, bundle: .module).characters)
     }
 }

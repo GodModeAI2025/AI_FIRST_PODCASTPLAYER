@@ -1,6 +1,140 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "%lld von ^[%lld Folge](inflect: true) mit Transkript, automatisch die %lld neuesten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, automatisch die %3$lld neuesten"
+          }
+        }
+      }
+    },
+    "%lld von ^[%lld Folge](inflect: true) mit Transkript, automatisch die neueste" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, automatisch die neueste"
+          }
+        }
+      }
+    },
+    "%lld von ^[%lld Folge](inflect: true) mit Transkript, automatisch gerade keine" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, automatisch gerade keine"
+          }
+        }
+      }
+    },
+    "%lld von ^[%lld Folge](inflect: true) mit Transkript, keine automatischen Transkripte" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, keine automatischen Transkripte"
+          }
+        }
+      }
+    },
+    "Alle Folgen mit Transkript" : {},
+    "Alle Podcasts" : {},
+    "Alles" : {},
+    "Andere Voraussetzung" : {},
+    "Bei %lld Quellen im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben." : {},
+    "Bei einer Quelle im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben." : {},
+    "Dazu gibt es keine weitere Stelle mit Transkript." : {},
+    "Der gewählte Bereich ist %@. Diese Antwort deckt nur den Teil mit Transkript ab." : {},
+    "Diese Folge" : {},
+    "Dieses Themen-Update" : {},
+    "Ein Podcast" : {},
+    "Gegenposition" : {},
+    "Im gewählten Bereich gibt es keine Folge mit Transkript, auf die sich eine Antwort stützen könnte." : {},
+    "In deinen Folgen mit Transkript findet sich keine Gegenposition. Das heißt nicht, dass es keine gibt." : {},
+    "In deinen Folgen mit Transkript findet sich nur die Gegenseite. Das ist keine ausgewogene Prüfung." : {},
+    "Könnte deine Frage „%@“ berühren" : {},
+    "Letzte 30 Tage" : {},
+    "Letzte 7 Tage" : {},
+    "Parken" : {},
+    "Passt zu deinem Thema „%@“" : {},
+    "Passt zu deinem Vorhaben „%@“" : {},
+    "Schränkt ein" : {},
+    "Stützt die These" : {},
+    "Tippe die Folgen an, für die ein Transkript erstellt werden soll." : {},
+    "Vertiefen" : {},
+    "Verwerfen" : {},
+    "Wort kommt vor" : {},
+    "Zu dieser These passt nichts aus deinen Folgen mit Transkript." : {},
+    "Zum Thema, nicht eingeordnet" : {},
+    "^[%lld Folge](inflect: true) ausgewählt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Folge](inflect: true) ausgewählt"
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true) ausgewählt, zusammen %@ Ton" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld Folge](inflect: true) ausgewählt, zusammen %2$@ Ton"
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true) ausgewählt, zusammen mindestens %@ Ton" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld Folge](inflect: true) ausgewählt, zusammen mindestens %2$@ Ton"
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true), kein Transkript möglich" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Folge](inflect: true), kein Transkript möglich"
+          }
+        }
+      }
+    },
+    "^[%lld ausgewählte Folge](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld ausgewählte Folge](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld weitere Stelle](inflect: true) dazu, höchstens ^[%lld Minute](inflect: true)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld weitere Stelle](inflect: true) dazu, höchstens ^[%2$lld Minute](inflect: true)."
+          }
+        }
+      }
+    },
+    "aus dem Chat" : {},
+    "aus dem Player" : {},
+    "aus dem Transkript" : {},
+    "erwähnt: %@" : {},
+    "per Kurzbefehl" : {}
   },
   "version" : "1.0"
 }

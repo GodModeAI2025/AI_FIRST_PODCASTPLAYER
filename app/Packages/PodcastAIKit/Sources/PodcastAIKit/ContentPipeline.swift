@@ -32,8 +32,8 @@ import PodcastAITranscription
 /// Welche Stufe eine Folge erreicht hat.
 ///
 /// Die Zustände sind getrennt, weil sie für den Nutzer Verschiedenes
-/// bedeuten: „gefunden“ ist nicht „analysierbar“, und „erschlossen“ ist
-/// nicht „gehört“. Das Paket verlangt diese Trennung ausdrücklich.
+/// bedeuten: „gefunden“ ist nicht „analysierbar“, und „Transkript fertig“
+/// ist nicht „gehört“. Das Paket verlangt diese Trennung ausdrücklich.
 public enum ProcessingStage: String, Sendable, Codable, CaseIterable {
     case discovered
     case mediaDownloaded
@@ -43,11 +43,11 @@ public enum ProcessingStage: String, Sendable, Codable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .discovered: "gefunden"
-        case .mediaDownloaded: "geladen"
-        case .transcribed: "transkribiert"
-        case .evidenceExtracted: "ausgewertet"
-        case .failed: "fehlgeschlagen"
+        case .discovered: String(localized: "gefunden", bundle: .module)
+        case .mediaDownloaded: String(localized: "geladen", bundle: .module)
+        case .transcribed: String(localized: "transkribiert", bundle: .module)
+        case .evidenceExtracted: String(localized: "Transkript fertig", bundle: .module)
+        case .failed: String(localized: "fehlgeschlagen", bundle: .module)
         }
     }
 }
@@ -128,7 +128,7 @@ public actor ContentPipeline {
         self.onProgress = onProgress
     }
 
-    /// Erschließt eine Folge vollständig.
+    /// Erstellt das Transkript einer Folge und daraus die Fundstellen.
     ///
     /// `locale` wird ausdrücklich übergeben und nicht aus dem Gerät geraten:
     /// ein deutschsprachiger Nutzer hört englische Podcasts, und ein Lauf in
@@ -220,7 +220,8 @@ public actor ContentPipeline {
         try await store.store(evidence: evidence)
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .evidenceExtracted,
-            detail: "\(evidence.count) Fundstellen"
+            detail: String(AttributedString(
+                localized: "^[\(evidence.count) Fundstelle](inflect: true)", bundle: .module).characters)
         ))
         return evidence
     }
@@ -276,8 +277,8 @@ public actor ContentPipeline {
                 // „Unbekannte Quelle“ statt „Quelle“: falls es doch einmal
                 // erscheint, soll es als fehlende Angabe lesbar sein und
                 // nicht als Titel.
-                sourceTitle: title?.source ?? "Unbekannte Quelle",
-                episodeTitle: title?.episode ?? "Unbekannte Folge",
+                sourceTitle: title?.source ?? String(localized: "Unbekannte Quelle", bundle: .module),
+                episodeTitle: title?.episode ?? String(localized: "Unbekannte Folge", bundle: .module),
                 originalPublishedAt: title?.published,
                 transcriptRevision: item.transcriptRevision,
                 topicIDs: [match.interestID],

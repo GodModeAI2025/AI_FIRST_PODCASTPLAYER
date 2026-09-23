@@ -22,8 +22,8 @@ public enum UnheardFilter: String, Codable, Sendable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .unheardSegments: "Alles Ungehörte, auch aus angefangenen Folgen"
-        case .neverStartedEpisodes: "Nur noch nicht begonnene Folgen"
+        case .unheardSegments: String(localized: "Alles Ungehörte, auch aus angefangenen Folgen", bundle: .module)
+        case .neverStartedEpisodes: String(localized: "Nur noch nicht begonnene Folgen", bundle: .module)
         }
     }
 }
@@ -44,8 +44,8 @@ public enum EditionMode: Codable, Sendable, Hashable {
 
     public var label: String {
         switch self {
-        case .allUnheard: "Alles Ungehörte"
-        case .budgeted(let d): "\(d.shortDescription)"
+        case .allUnheard: String(localized: "Alles Ungehörte", bundle: .module)
+        case .budgeted(let d): d.shortDescription
         }
     }
 }
@@ -303,9 +303,16 @@ public struct EditionCoverage: Codable, Sendable, Hashable {
     }
 
     public var label: String {
-        if isExhaustive { return "Enthält alles Ungehörte zu diesen Themen." }
-        if remaining.isZero { return "Enthält \(includedCount) von \(candidateCount) Stellen." }
-        return "Enthält \(includedCount) von \(candidateCount) Stellen. Es bleiben \(remaining.shortDescription)."
+        if isExhaustive { return String(localized: "Enthält alles Ungehörte zu diesen Themen.", bundle: .module) }
+        if remaining.isZero {
+            return String(AttributedString(localized: """
+                Enthält \(includedCount) von ^[\(candidateCount) Stelle](inflect: true).
+                """, bundle: .module).characters)
+        }
+        return String(AttributedString(localized: """
+            Enthält \(includedCount) von ^[\(candidateCount) Stelle](inflect: true). \
+            Es bleiben \(remaining.shortDescription).
+            """, bundle: .module).characters)
     }
 }
 

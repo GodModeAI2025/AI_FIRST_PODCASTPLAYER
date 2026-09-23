@@ -104,14 +104,14 @@ public enum PlanExclusion: Error, Hashable, Codable, Sendable {
 
     public var reason: String {
         switch self {
-        case .unknownEvidence: "Fundstelle nicht im freigegebenen Bestand"
-        case .outOfScope: "Außerhalb des gewählten Bereichs"
-        case .noTimingAvailable: "Für diese Stelle liegt kein Zeitbezug vor"
-        case .mediaUnavailable: "Medium derzeit nicht verfügbar"
-        case .staleMediaVersion: "Bezieht sich auf eine veraltete Fassung"
-        case .notSeekable: "Diese Fassung erlaubt keine exakten Sprünge"
-        case .alreadyHeard: "Bereits gehört"
-        case .budgetExhausted: "Passt nicht mehr ins Zeitbudget"
+        case .unknownEvidence: String(localized: "Fundstelle nicht im freigegebenen Bestand", bundle: .module)
+        case .outOfScope: String(localized: "Außerhalb des gewählten Bereichs", bundle: .module)
+        case .noTimingAvailable: String(localized: "Für diese Stelle liegt kein Zeitbezug vor", bundle: .module)
+        case .mediaUnavailable: String(localized: "Medium derzeit nicht verfügbar", bundle: .module)
+        case .staleMediaVersion: String(localized: "Bezieht sich auf eine veraltete Fassung", bundle: .module)
+        case .notSeekable: String(localized: "Diese Fassung erlaubt keine exakten Sprünge", bundle: .module)
+        case .alreadyHeard: String(localized: "Bereits gehört", bundle: .module)
+        case .budgetExhausted: String(localized: "Passt nicht mehr ins Zeitbudget", bundle: .module)
         }
     }
 }

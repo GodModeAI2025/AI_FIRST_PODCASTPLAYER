@@ -21,9 +21,10 @@ public final class BufferConverter: @unchecked Sendable {
 
         public var errorDescription: String? {
             switch self {
-            case .formatMismatch: "Das Audioformat ist nicht umwandelbar."
-            case .allocationFailed: "Der Zielpuffer konnte nicht angelegt werden."
-            case .failed(let message): "Die Umwandlung ist fehlgeschlagen: \(message)"
+            case .formatMismatch: String(localized: "Das Audioformat ist nicht umwandelbar.", bundle: .module)
+            case .allocationFailed: String(localized: "Der Zielpuffer konnte nicht angelegt werden.", bundle: .module)
+            case .failed(let message):
+                String(localized: "Die Umwandlung ist fehlgeschlagen: \(message)", bundle: .module)
             }
         }
     }
@@ -64,7 +65,8 @@ public final class BufferConverter: @unchecked Sendable {
         }
 
         if status == .error {
-            throw ConversionError.failed(conversionError?.localizedDescription ?? "unbekannt")
+            throw ConversionError.failed(conversionError?.localizedDescription
+                                         ?? String(localized: "unbekannt", bundle: .module))
         }
         return output
     }

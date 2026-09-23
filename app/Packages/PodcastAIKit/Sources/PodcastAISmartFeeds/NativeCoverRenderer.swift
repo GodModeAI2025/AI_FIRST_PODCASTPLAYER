@@ -32,9 +32,9 @@ public enum CoverOrigin: String, Codable, Sendable {
 
     public var label: String {
         switch self {
-        case .nativeLayout: "Automatisch gestaltet"
-        case .imagePlaygroundConfirmed: "Mit Image Playground erstellt"
-        case .reusedFeedArtwork: "Motiv des Feeds"
+        case .nativeLayout: String(localized: "Automatisch gestaltet", bundle: .module)
+        case .imagePlaygroundConfirmed: String(localized: "Mit Image Playground erstellt", bundle: .module)
+        case .reusedFeedArtwork: String(localized: "Motiv des Podcasts", bundle: .module)
         }
     }
 
@@ -107,9 +107,13 @@ public struct NativeCoverRenderer: Sendable {
     /// Die Bildbeschreibung. Beschreibt, was die Ausgabe **ist**, nicht wie
     /// sie aussieht — „blauer Farbverlauf“ hilft niemandem weiter.
     static func altText(feedTitle: String, segments: Int, sources: Int, topics: Int) -> String {
-        let stellen = segments == 1 ? "eine Stelle" : "\(segments) Stellen"
-        let quellen = sources == 1 ? "einer Quelle" : "\(sources) Quellen"
-        return "Cover für \(feedTitle): \(stellen) aus \(quellen)."
+        // Die Zahlen werden für sich gebeugt, der Titel bleibt ausserhalb:
+        // er ist fremder Text und darf nicht als Markdown gelesen werden.
+        let stellen = String(AttributedString(
+            localized: "^[\(segments) Stelle](inflect: true)", bundle: .module).characters)
+        let quellen = String(AttributedString(
+            localized: "^[\(sources) Quelle](inflect: true)", bundle: .module).characters)
+        return String(localized: "Cover für \(feedTitle): \(stellen) aus \(quellen).", bundle: .module)
     }
 }
 
@@ -174,7 +178,7 @@ public struct CoverArtworkCoordinator: Sendable {
         return CoverAsset(
             id: filename, origin: .imagePlaygroundConfirmed,
             title: feed.title, paletteIndex: NativeCoverRenderer.paletteIndex(for: feed.title),
-            altText: "Vom Nutzer bestätigtes Cover für \(feed.title).",
+            altText: String(localized: "Vom Nutzer bestätigtes Cover für \(feed.title).", bundle: .module),
             assetRelativePath: filename, userConfirmed: true
         )
     }
@@ -183,7 +187,7 @@ public struct CoverArtworkCoordinator: Sendable {
         case emptyResult
 
         public var errorDescription: String? {
-            "Das Bild konnte nicht übernommen werden."
+            String(localized: "Das Bild konnte nicht übernommen werden.", bundle: .module)
         }
     }
 }

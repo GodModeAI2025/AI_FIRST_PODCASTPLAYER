@@ -1,6 +1,8 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "Deine gespeicherten Daten passen nicht zu dieser Version der App und liessen sich nicht übernehmen. Die alte Datei liegt unverändert als %@ im App-Ordner. Die App beginnt mit einem leeren Speicher." : {},
+    "Unbekannte Quelle" : {}
   },
   "version" : "1.0"
 }

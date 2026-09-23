@@ -84,13 +84,19 @@ public enum TranscriptionError: Error, LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .alreadyRunning: "Es läuft bereits eine Analyse."
-        case .localeNotSupported(let locale): "Für \(locale) ist kein Sprachmodell verfügbar."
+        case .alreadyRunning: String(localized: "Es wird bereits ein Transkript erstellt.", bundle: .module)
+        case .localeNotSupported(let locale):
+            String(localized: "Für \(locale) ist kein Sprachmodell verfügbar.", bundle: .module)
         case .speechUnavailableOnDevice:
-            "Auf diesem Gerät gibt es keine Spracherkennung. Im Simulator ist das normal; auf einem iPhone, iPad oder Mac mit aktueller Software funktioniert es."
-        case .modelUnavailable(let reason): "Das Sprachmodell ist nicht bereit: \(reason)"
-        case .noCompatibleAudioFormat: "Kein kompatibles Audioformat gefunden."
-        case .fileUnreadable(let path): "Die Datei konnte nicht gelesen werden: \(path)"
+            String(localized: """
+                Auf diesem Gerät gibt es keine Spracherkennung. Im Simulator ist das normal. \
+                Auf einem iPhone, iPad oder Mac mit aktueller Software funktioniert es.
+                """, bundle: .module)
+        case .modelUnavailable(let reason):
+            String(localized: "Das Sprachmodell ist nicht bereit: \(reason)", bundle: .module)
+        case .noCompatibleAudioFormat: String(localized: "Kein kompatibles Audioformat gefunden.", bundle: .module)
+        case .fileUnreadable(let path):
+            String(localized: "Die Datei konnte nicht gelesen werden: \(path)", bundle: .module)
         }
     }
 }

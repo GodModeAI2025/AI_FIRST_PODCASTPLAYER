@@ -138,9 +138,11 @@ public actor LibraryStore {
             let container = try open()
             return LocalContainer(
                 container: container,
-                recoveryNote: "Die gespeicherte Mediathek passt nicht zu dieser Version der App "
-                    + "und liess sich nicht übernehmen. Die alte Datei liegt unverändert als "
-                    + "\(backup.lastPathComponent) im App-Ordner. Die App beginnt mit einem leeren Speicher.")
+                recoveryNote: String(localized: """
+                    Deine gespeicherten Daten passen nicht zu dieser Version der App \
+                    und liessen sich nicht übernehmen. Die alte Datei liegt unverändert als \
+                    \(backup.lastPathComponent) im App-Ordner. Die App beginnt mit einem leeren Speicher.
+                    """, bundle: .module))
         }
     }
 
@@ -1358,7 +1360,7 @@ public actor LibraryStore {
         for episode in stored {
             result[EpisodeID(rawValue: episode.identifier)] = EpisodeTitles(
                 episode: episode.title,
-                source: episode.source?.title ?? "Unbekannte Quelle",
+                source: episode.source?.title ?? String(localized: "Unbekannte Quelle", bundle: .module),
                 publishedAt: episode.publishedAt
             )
         }

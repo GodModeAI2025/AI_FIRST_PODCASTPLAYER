@@ -37,10 +37,10 @@ public enum Provenance: String, Codable, Sendable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .original: "Originaltext"
-        case .derived:  "KI-Ableitung"
-        case .user:     "Eigene Notiz"
-        case .metadata: "Quellenangabe"
+        case .original: String(localized: "Originaltext", bundle: .module)
+        case .derived:  String(localized: "KI-Ableitung", bundle: .module)
+        case .user:     String(localized: "Eigene Notiz", bundle: .module)
+        case .metadata: String(localized: "Quellenangabe", bundle: .module)
         }
     }
 }
@@ -71,9 +71,11 @@ public enum AnalysisCoverage: Hashable, Codable, Sendable {
 
     public var label: String {
         switch self {
-        case .none: "nicht analysiert"
-        case .partial(let f, _): "teilweise analysiert (\(Int((f * 100).rounded())) %)"
-        case .complete: "vollständig analysiert"
+        case .none: String(localized: "ohne Transkript", bundle: .module)
+        case .partial:
+            String(localized: "teilweise transkribiert (\(fraction.formatted(.percent.precision(.fractionLength(0)))))",
+                   bundle: .module)
+        case .complete: String(localized: "vollständig transkribiert", bundle: .module)
         }
     }
 }

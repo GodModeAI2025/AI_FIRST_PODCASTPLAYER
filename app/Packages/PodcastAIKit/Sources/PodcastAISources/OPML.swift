@@ -36,11 +36,14 @@ public enum OPMLError: Error, LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .notOPML:
-            "Diese Datei ist keine OPML-Liste. Exportiere die Abos in deiner bisherigen App als OPML und wähle diese Datei."
+            String(localized: """
+                Diese Datei ist keine OPML-Liste. Exportiere die Abos in deiner bisherigen App \
+                als OPML und wähle diese Datei.
+                """, bundle: .module)
         case .noFeeds:
-            "In dieser Datei steht kein Podcast-Feed."
+            String(localized: "In dieser Datei steht kein Podcast.", bundle: .module)
         case .tooLarge:
-            "Die Datei ist zu groß für eine Abo-Liste."
+            String(localized: "Die Datei ist zu groß für eine Abo-Liste.", bundle: .module)
         }
     }
 }

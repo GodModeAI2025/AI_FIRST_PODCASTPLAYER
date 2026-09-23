@@ -65,7 +65,9 @@ public struct SourceCapabilities: Hashable, Codable, Sendable {
         audioDownload: false,
         embeddedPlayerOnly: true,
         historicalCatalog: true,
-        limitationReason: "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes."
+        limitationReason: String(
+            localized: "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes.",
+            bundle: .module)
     )
 }
 
@@ -117,11 +119,19 @@ public enum BackfillPolicy: Hashable, Codable, Sendable {
 
     public var label: String {
         switch self {
-        case .newEpisodesOnly: "Nur neue Folgen"
-        case .since(let d): "Ab \(DateFormatter.localizedString(from: d, dateStyle: .medium, timeStyle: .none))"
-        case .lastN(let n): "Letzte \(n) Folgen"
-        case .selectedEpisodes(let ids): "\(ids.count) ausgewählte Folgen"
-        case .entireAvailableArchive: "Gesamtes verfügbares Archiv"
+        case .newEpisodesOnly: String(localized: "Nur neue Folgen", bundle: .module)
+        case .since(let d):
+            String(localized: "Ab \(DateFormatter.localizedString(from: d, dateStyle: .medium, timeStyle: .none))",
+                   bundle: .module)
+        case .lastN(let n):
+            n == 1
+                ? String(localized: "Letzte Folge", bundle: .module)
+                : String(localized: "Letzte \(n) Folgen", bundle: .module)
+        case .selectedEpisodes(let ids):
+            ids.count == 1
+                ? String(localized: "1 ausgewählte Folge", bundle: .module)
+                : String(localized: "\(ids.count) ausgewählte Folgen", bundle: .module)
+        case .entireAvailableArchive: String(localized: "Gesamtes verfügbares Archiv", bundle: .module)
         }
     }
 }

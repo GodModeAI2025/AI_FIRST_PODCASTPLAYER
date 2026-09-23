@@ -35,16 +35,21 @@ public enum HTTPTransferError: Error, LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .rejectedDestination(let reason):
-            "Diese Adresse wird nicht abgerufen: \(reason.errorDescription ?? "unzulässig")"
+            String(localized: "Diese Adresse wird nicht abgerufen: \(Self.detail(reason))", bundle: .module)
         case .rejectedRedirect(let reason):
-            "Die Weiterleitung wurde abgelehnt: \(reason.errorDescription ?? "unzulässig")"
+            String(localized: "Die Weiterleitung wurde abgelehnt: \(Self.detail(reason))", bundle: .module)
         case .httpStatus(let code):
-            "Der Server hat mit Status \(code) geantwortet."
+            String(localized: "Der Server hat mit Status \(String(code)) geantwortet.", bundle: .module)
         case .tooLarge(let limit):
-            "Die Antwort überschreitet die Obergrenze von \(limit) Bytes."
+            String(localized: "Die Antwort überschreitet die Obergrenze von \(limit.formatted(.byteCount(style: .file))).",
+                   bundle: .module)
         case .emptyResponse:
-            "Die Antwort war leer."
+            String(localized: "Die Antwort war leer.", bundle: .module)
         }
+    }
+
+    private static func detail(_ reason: NetworkDestination.Rejection) -> String {
+        reason.errorDescription ?? String(localized: "unzulässig", bundle: .module)
     }
 }
 

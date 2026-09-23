@@ -28,8 +28,9 @@ public enum AudioFileReader {
 
         public var errorDescription: String? {
             switch self {
-            case .unreadable(let path): "Die Audiodatei konnte nicht geöffnet werden: \(path)"
-            case .allocationFailed: "Der Audiopuffer konnte nicht angelegt werden."
+            case .unreadable(let path):
+                String(localized: "Die Audiodatei konnte nicht geöffnet werden: \(path)", bundle: .module)
+            case .allocationFailed: String(localized: "Der Audiopuffer konnte nicht angelegt werden.", bundle: .module)
             }
         }
     }

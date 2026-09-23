@@ -1,6 +1,11 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "Das Medium ist derzeit nicht verfügbar." : {},
+    "Der Hörplan enthält keine abspielbaren Stellen." : {},
+    "Der Sprung zur Stelle ist fehlgeschlagen." : {},
+    "Die Wiedergabefreigabe ist nicht mehr gültig." : {},
+    "Diese Wiedergabefreigabe wurde bereits verwendet." : {}
   },
   "version" : "1.0"
 }

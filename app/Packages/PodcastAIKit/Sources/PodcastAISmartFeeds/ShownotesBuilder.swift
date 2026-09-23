@@ -56,13 +56,15 @@ public struct ShownotesBuilder: Sendable {
         lines.append("")
         lines.append(episode.coverage.label)
         lines.append("")
-        lines.append("### Kapitel")
+        lines.append("### " + String(localized: "Kapitel", bundle: .module))
 
         for entry in episode.shownotes {
+            let original = String(
+                localized: "Original \(entry.originalRange.start.timecode)–\(entry.originalRange.end.timecode)",
+                bundle: .module)
             lines.append(
                 "- **\(entry.virtualStart.timecode)** \(entry.title)  \n"
-                + "  \(entry.sourceTitle) · \(entry.episodeTitle) · "
-                + "Original \(entry.originalRange.start.timecode)–\(entry.originalRange.end.timecode)"
+                + "  \(entry.sourceTitle) · \(entry.episodeTitle) · \(original)"
             )
         }
 
@@ -70,8 +72,10 @@ public struct ShownotesBuilder: Sendable {
         // neuen Inhalt hält.
         if episode.segments.contains(where: \.contextReplay) {
             lines.append("")
-            lines.append("_Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, "
-                         + "die du eventuell schon gehört hast._")
+            let note = String(
+                localized: "Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, die du eventuell schon gehört hast.",
+                bundle: .module)
+            lines.append("_\(note)_")
         }
         return lines.joined(separator: "\n")
     }
@@ -109,8 +113,9 @@ public struct EditionTitleBuilder: Sendable {
         guard !segments.isEmpty else { return nil }
 
         let sourceCount = Set(segments.map(\.sourceID)).count
-        let sourceWord = sourceCount == 1 ? "Quelle" : "Quellen"
-        var parts = ["\(segments.count) Stellen aus \(sourceCount) \(sourceWord)"]
+        var parts = [String(AttributedString(localized: """
+            ^[\(segments.count) Stelle](inflect: true) aus ^[\(sourceCount) Quelle](inflect: true)
+            """, bundle: .module).characters)]
 
         // Enthält die Ausgabe älteres Material? Dann sagen wir das.
         let cutoff = Date().addingTimeInterval(-60 * 60 * 24 * 30)
@@ -118,7 +123,9 @@ public struct EditionTitleBuilder: Sendable {
             guard let published = $0.originalPublishedAt else { return false }
             return published < cutoff
         }
-        if hasOlderMaterial { parts.append("neu für dich, nicht neu veröffentlicht") }
+        if hasOlderMaterial {
+            parts.append(String(localized: "neu für dich, nicht neu veröffentlicht", bundle: .module))
+        }
 
         return parts.joined(separator: " · ")
     }

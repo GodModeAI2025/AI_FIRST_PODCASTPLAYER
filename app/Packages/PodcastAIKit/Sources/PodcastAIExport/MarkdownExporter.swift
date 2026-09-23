@@ -115,17 +115,18 @@ public struct MarkdownExporter: Sendable {
         lines.append("")
 
         if scope.includeModelDerivations {
-            lines.append("## Erkenntnis")
+            lines.append("## " + String(localized: "Erkenntnis", bundle: .module))
             lines.append(Self.escapeBlock(insight.claim.statement))
             lines.append("")
             if let relevance = insight.claim.personalRelevance {
-                lines.append("_Relevant für: \(Self.escapeInline(relevance.interestLabel)) — "
-                             + "\(Self.escapeInline(relevance.explanation))_")
+                let interest = Self.escapeInline(relevance.interestLabel)
+                let explanation = Self.escapeInline(relevance.explanation)
+                lines.append("_" + String(localized: "Relevant für \(interest): \(explanation)", bundle: .module) + "_")
                 lines.append("")
             }
         }
 
-        lines.append("## Quellen")
+        lines.append("## " + String(localized: "Quellen", bundle: .module))
         lines.append("")
         for item in insight.evidence {
             lines.append(contentsOf: quoteBlock(for: item, in: insight, scope: scope))
@@ -133,21 +134,23 @@ public struct MarkdownExporter: Sendable {
 
         if let note = insight.userNote, scope.includeUserNotes,
            !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            lines.append("## Meine Notiz")
+            lines.append("## " + String(localized: "Meine Notiz", bundle: .module))
             lines.append(Self.escapeBlock(note))
             lines.append("")
         }
 
         if let question = insight.claim.openQuestion {
-            lines.append("## Offene Frage")
+            lines.append("## " + String(localized: "Offene Frage", bundle: .module))
             lines.append(Self.escapeBlock(question))
             lines.append("")
         }
 
         lines.append("---")
         lines.append("")
-        lines.append("_Exportiert aus PodcastAI. Originalton und Originalrechte liegen "
-                     + "bei den jeweiligen Anbietern._")
+        let footer = String(
+            localized: "Exportiert aus PodcastAI. Originalton und Originalrechte liegen bei den jeweiligen Anbietern.",
+            bundle: .module)
+        lines.append("_\(footer)_")
 
         return lines.joined(separator: "\n")
     }
@@ -157,8 +160,8 @@ public struct MarkdownExporter: Sendable {
     ) -> [String] {
         var lines: [String] = []
 
-        let source = insight.sourceTitles[evidence.id] ?? "Unbekannte Quelle"
-        let episode = insight.episodeTitles[evidence.id] ?? "Unbekannte Folge"
+        let source = insight.sourceTitles[evidence.id] ?? String(localized: "Unbekannte Quelle", bundle: .module)
+        let episode = insight.episodeTitles[evidence.id] ?? String(localized: "Unbekannte Folge", bundle: .module)
         lines.append("### \(Self.escapeInline(source))")
 
         var reference = Self.escapeInline(episode)
@@ -166,7 +169,7 @@ public struct MarkdownExporter: Sendable {
             reference += " · \(range.start.preciseTimecode)–\(range.end.preciseTimecode)"
         } else {
             // Ehrlich benennen, statt eine Zeit zu erfinden.
-            reference += " · ohne Zeitbezug"
+            reference += " · " + String(localized: "ohne Zeitbezug", bundle: .module)
         }
         lines.append(reference)
 

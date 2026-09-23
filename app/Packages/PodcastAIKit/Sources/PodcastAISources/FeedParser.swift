@@ -118,10 +118,12 @@ public enum FeedParseError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .empty: "Der Feed ist leer."
-        case .tooLarge(let bytes): "Der Feed ist zu groß (\(bytes) Bytes)."
-        case .malformed(let detail): "Der Feed konnte nicht gelesen werden: \(detail)"
-        case .unsupportedFormat: "Dieses Format wird nicht unterstützt."
+        case .empty: String(localized: "Der Feed ist leer.", bundle: .module)
+        case .tooLarge(let bytes):
+            String(localized: "Der Feed ist zu groß (\(Int64(bytes).formatted(.byteCount(style: .file)))).",
+                   bundle: .module)
+        case .malformed(let detail): String(localized: "Der Feed konnte nicht gelesen werden: \(detail)", bundle: .module)
+        case .unsupportedFormat: String(localized: "Dieses Format wird nicht unterstützt.", bundle: .module)
         }
     }
 }
@@ -151,7 +153,8 @@ public struct FeedParser: Sendable {
         parser.shouldReportNamespacePrefixes = false
 
         guard parser.parse() else {
-            let message = parser.parserError?.localizedDescription ?? "unbekannter Fehler"
+            let message = parser.parserError?.localizedDescription
+                ?? String(localized: "unbekannter Fehler", bundle: .module)
             // Ein abgebrochener Parse kann trotzdem brauchbare Einträge geliefert
             // haben — ein einzelner kaputter Eintrag am Ende darf nicht das
             // ganze Archiv wertlos machen.

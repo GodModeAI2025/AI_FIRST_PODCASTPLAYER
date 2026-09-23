@@ -51,13 +51,13 @@ public struct RelevanceMatch: Sendable, Hashable {
     public func explanation() -> String {
         let terms = matchedTerms.prefix(3).joined(separator: ", ")
         let base: String = switch kind {
-        case .topic: "Passt zu deinem Thema „\(interestLabel)“"
-        case .activeProject: "Passt zu deinem Vorhaben „\(interestLabel)“"
-        case .openQuestion: "Könnte deine Frage „\(interestLabel)“ berühren"
+        case .topic: String(localized: "Passt zu deinem Thema „\(interestLabel)“", bundle: .module)
+        case .activeProject: String(localized: "Passt zu deinem Vorhaben „\(interestLabel)“", bundle: .module)
+        case .openQuestion: String(localized: "Könnte deine Frage „\(interestLabel)“ berühren", bundle: .module)
         }
-        let suffix = terms.isEmpty ? "" : " · erwähnt: \(terms)"
+        let suffix = terms.isEmpty ? "" : " · " + String(localized: "erwähnt: \(terms)", bundle: .module)
         // Ohne Modellbestätigung wird das ausdrücklich gesagt.
-        let qualifier = isModelConfirmed ? "" : " · nur Stichworttreffer"
+        let qualifier = isModelConfirmed ? "" : " · " + String(localized: "Wort kommt vor", bundle: .module)
         return base + suffix + qualifier
     }
 

@@ -44,9 +44,9 @@ public enum TrailDecision: String, Sendable, Codable {
 
     public var label: String {
         switch self {
-        case .deepen: "Vertiefen"
-        case .park: "Parken"
-        case .discard: "Verwerfen"
+        case .deepen: String(localized: "Vertiefen", bundle: .module)
+        case .park: String(localized: "Parken", bundle: .module)
+        case .discard: String(localized: "Verwerfen", bundle: .module)
         }
     }
 }
@@ -106,9 +106,12 @@ public struct SessionClosure: Sendable {
     public var followUpLabel: String {
         let minutes = Int((suggestedBudget.seconds / 60).rounded())
         return switch availableFollowUpCount {
-        case 0: "Dazu ist nichts weiter ausgewertet."
-        case 1: "Eine weitere Stelle dazu, höchstens \(minutes) Minuten."
-        default: "\(availableFollowUpCount) weitere Stellen dazu, höchstens \(minutes) Minuten."
+        case 0: String(localized: "Dazu gibt es keine weitere Stelle mit Transkript.", bundle: .module)
+        default:
+            String(AttributedString(localized: """
+                ^[\(availableFollowUpCount) weitere Stelle](inflect: true) dazu, \
+                höchstens ^[\(minutes) Minute](inflect: true).
+                """, bundle: .module).characters)
         }
     }
 }

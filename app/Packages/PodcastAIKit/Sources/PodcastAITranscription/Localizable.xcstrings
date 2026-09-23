@@ -1,6 +1,12 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "Auf diesem Gerät gibt es keine Spracherkennung. Im Simulator ist das normal. Auf einem iPhone, iPad oder Mac mit aktueller Software funktioniert es." : {},
+    "Das Sprachmodell ist nicht bereit: %@" : {},
+    "Die Datei konnte nicht gelesen werden: %@" : {},
+    "Es wird bereits ein Transkript erstellt." : {},
+    "Für %@ ist kein Sprachmodell verfügbar." : {},
+    "Kein kompatibles Audioformat gefunden." : {}
   },
   "version" : "1.0"
 }

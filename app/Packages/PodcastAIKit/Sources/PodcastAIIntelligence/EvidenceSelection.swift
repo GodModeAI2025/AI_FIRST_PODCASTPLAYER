@@ -252,16 +252,38 @@ public struct ExtractorConfiguration: Sendable {
     /// ``candidateBuilder(for:)``.
     public var candidateBuilder: CandidateListBuilder
     public var validator: EvidenceSelectionValidator
-    /// Sprache der Ausgabe. Wird ausdrücklich gesetzt, sonst wechselt das
-    /// Modell mitten in einer Liste die Sprache.
+    /// Sprache der Ausgabe als deutscher Name, etwa „Englisch“. Wird
+    /// ausdrücklich gesetzt, sonst wechselt das Modell mitten in einer Liste
+    /// die Sprache. Ohne Angabe ist es die Sprache des Geräts, siehe
+    /// ``answerLanguage(for:)``.
     public var outputLanguage: String
     public var onDeviceBudget: ContextBudget
     public var privateCloudBudget: ContextBudget
 
+    /// Die Sprache, in der das Modell antwortet: die des Geräts.
+    ///
+    /// Die Anweisungen an Apple Intelligence bleiben deutsch. Deshalb kommt
+    /// der Name der Sprache auf Deutsch hinein, und aus „en“ wird
+    /// „Englisch“, sodass es in den Anweisungen „Antworte auf Englisch.“
+    /// heisst. Auf einem deutschen Gerät bleibt es bei „Deutsch“.
+    public static func answerLanguage(for locale: Locale = .current) -> String {
+        guard let code = locale.language.languageCode?.identifier, code != "de" else { return "Deutsch" }
+        return Locale(identifier: "de").localizedString(forLanguageCode: code) ?? "Englisch"
+    }
+
+    /// Antwortet das Modell in einer anderen Sprache als Deutsch, bleiben
+    /// wörtliche Zitate trotzdem, wie sie gesagt wurden. `nil` auf Deutsch,
+    /// dort ändert sich an den Anweisungen nichts.
+    var quoteRule: String? {
+        outputLanguage == "Deutsch"
+            ? nil
+            : "Wörtliche Zitate aus den Abschnitten bleiben in ihrer Originalsprache."
+    }
+
     public init(
         candidateBuilder: CandidateListBuilder = CandidateListBuilder(),
         validator: EvidenceSelectionValidator = EvidenceSelectionValidator(),
-        outputLanguage: String = "Deutsch",
+        outputLanguage: String = ExtractorConfiguration.answerLanguage(),
         onDeviceBudget: ContextBudget = .onDevice,
         privateCloudBudget: ContextBudget = .privateCloudCompute
     ) {
