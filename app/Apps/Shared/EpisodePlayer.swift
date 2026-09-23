@@ -267,6 +267,8 @@ public final class EpisodePlayer {
     private func itemStatusChanged(_ status: AVPlayerItem.Status, message: String?, item: AVPlayerItem) {
         guard item === player.currentItem else { return }
         if status == .readyToPlay {
+            // Kommt ein langsamer Stream doch noch, gilt die Meldung des Wächters nicht mehr.
+            playbackError = nil
             if let start = pendingStart {
                 pendingStart = nil
                 seek(to: start)

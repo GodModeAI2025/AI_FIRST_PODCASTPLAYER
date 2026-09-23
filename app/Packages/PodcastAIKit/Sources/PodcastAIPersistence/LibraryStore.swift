@@ -372,6 +372,9 @@ public actor LibraryStore {
         for episode in orphans where !episode.identifier.isEmpty {
             guard let key = try sourceIdentifier(ofEpisode: episode.identifier),
                   let source = sourceRows[key] else { continue }
+            // Ein Merkzeichen aus einem früheren Abo gehört nicht zur neu
+            // abonnierten Quelle. Sonst bliebe die Folge dort für immer versteckt.
+            if let removedAt = episode.removedAt, source.addedAt > removedAt { continue }
             episode.source = source
         }
         try modelContext.save()
@@ -1048,9 +1051,15 @@ public actor LibraryStore {
         }
         // Hörzustand aller Geräte und im alten Format. Der Schlüssel beginnt
         // mit der Fassung, das Gerät steht dahinter.
-        for state in try modelContext.fetch(FetchDescriptor<StoredListeningState>())
-        where !state.mediaKey.isEmpty && mediaKeys.contains(state.mediaKey) {
-            modelContext.delete(state)
+        // Gefiltert in der Datenbank, nicht über die ganze Tabelle.
+        for mediaKey in mediaKeys where !mediaKey.isEmpty {
+            let prefix = mediaKey + "#"
+            for state in try modelContext.fetch(FetchDescriptor<StoredListeningState>(
+                predicate: #Predicate {
+                    $0.mediaVersionIdentifier == mediaKey || $0.mediaVersionIdentifier.starts(with: prefix)
+                })) {
+                modelContext.delete(state)
+            }
         }
         for mediaKey in mediaKeys where !mediaKey.isEmpty {
             for transcript in try modelContext.fetch(FetchDescriptor<StoredTranscript>(

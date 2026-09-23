@@ -193,8 +193,11 @@ extension AppModel {
     private func citesRemovedContent(_ answer: ChatAnswer, since ticket: Int) -> Bool {
         if answer.citations.contains(where: { wasRemoved($0.episodeID, since: ticket) }) { return true }
         guard removalCount > ticket else { return false }
-        let live = Set(sources.map(\.id))
-        return answer.citations.contains { !live.contains($0.sourceID) }
+        // Nur Quellen, die seit Beginn der Antwort tatsächlich abbestellt
+        // wurden. Belege ohne Quellenkennung zählen nicht als gelöscht.
+        return answer.citations.contains {
+            !$0.sourceID.rawValue.isEmpty && (removedSourceTickets[$0.sourceID] ?? 0) > ticket
+        }
     }
 
     private func composeAnswer(_ question: String, scope: ChatScope) async -> ChatAnswer {
@@ -757,6 +760,9 @@ extension AppModel {
             affected.append(episode)
         }
         prepareRemoval(affected)
+        // Auch ohne geladene Folgen zählt die Abbestellung als neuer Stand.
+        if affected.isEmpty { removalCount += 1 }
+        removedSourceTickets[sourceID] = removalCount
         do {
             let report = try await store.removeSource(sourceID)
             applyRemoval(report)

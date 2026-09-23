@@ -106,6 +106,8 @@ public final class AppModel {
     /// Arbeit, die erst nach dem Löschen beginnt (etwa nach erneutem
     /// Abonnieren), ist davon nicht betroffen.
     @ObservationIgnored var removalCount = 0
+    /// Wann eine Quelle abbestellt wurde, als Stand von `removalCount`.
+    @ObservationIgnored var removedSourceTickets: [SourceID: Int] = [:]
     /// Gelöschte Folge und Stand des Zählers bei ihrer Löschung.
     @ObservationIgnored var removalTickets: [EpisodeID: Int] = [:]
     /// Die laufende Erschliessung einer einzelnen Folge. Löschen bricht nur

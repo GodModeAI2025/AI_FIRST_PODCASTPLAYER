@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 22. September 2026, Version 0.6.
+Stand 22. September 2026, Version 0.6.1.
 
 ## Geprüft
 
@@ -17,8 +17,10 @@ Stand 22. September 2026, Version 0.6.
 | Folge laden, transkribieren, Belege mit Zeitmarken | Ende-zu-Ende-Test auf dem Mac mit echter englischer Folge |
 | Folge mit Reitern, Fragen an eine Folge, Export, Folge löschen, Einstellungen | UI-Tests im Simulator |
 | Löschregeln: Audio entfernen behält Daten, Folge löschen entfernt alles und bleibt gelöscht, Quelle abbestellen, Doppelte aus dem Abgleich | Swift-Tests mit Speicher im Arbeitsspeicher |
-| CloudKit-Schema für alle 13 Datentypen | in der Entwicklungsumgebung des Containers angelegt |
-| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben | 52 Swift-Tests im Paket |
+| CloudKit-Schema für alle 13 Datentypen | angelegt und nach Production übertragen |
+| Zusammenführen doppelter Datensätze, Hörstand je Gerät, verwaiste Zeilen | Swift-Tests, zuerst rot gegen den alten Stand |
+| Code-Prüfung | mehrstufig: Funde je Bereich, jeder von zwei Prüfern gegengeprüft, jede Korrektur einzeln nachgeprüft |
+| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben | 104 Swift-Tests im Paket |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
 
 ## Noch auf einem Gerät zu prüfen

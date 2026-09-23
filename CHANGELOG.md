@@ -1,5 +1,16 @@
 # Änderungsverlauf
 
+## App 0.6.1 · 2026-09-23
+Nach einer gründlichen Prüfung von 0.6 mit 60 gemeldeten und 22 nachträglich gefundenen Fehlern, alle behoben und einzeln nachgeprüft:
+- Abgleich: Legen zwei Geräte dieselbe Quelle oder Folge an, bevor iCloud abgeglichen hat, werden die Doppelten jetzt zusammengeführt statt gelöscht. Vorher konnte dabei das Transkript des anderen Geräts verloren gehen. Der Hörstand liegt je Gerät in einer eigenen Zeile und wird beim Lesen vereinigt, damit gleichzeitiges Hören auf zwei Geräten nichts überschreibt.
+- Fortsetzen: Die Stelle, an der eine Folge weitergeht, blieb nach den ersten Sekunden stehen und wurde auch vom Anhören einzelner Stellen verstellt. Beides ist behoben, die Stelle reist über iCloud mit.
+- Löschen: Eine gelöschte Folge kommt nicht mehr zurück, auch nicht, wenn sie gerade erschlossen wurde oder auf einem anderen Gerät noch in der Warteschlange stand. Aus dem Player gemerkte Stellen gehen mit ihrer Folge.
+- Private Cloud Compute: Scheitert PCC, beantwortet das Gerätemodell die Frage mit einer passend kleinen Auswahl. Fragen über die Mediathek selbst erreichen das Modell. Verweise wie [3, 5] werden erkannt.
+- Fakten: laufen auf dem Gerät in passenden Portionen, tragen die richtige Herkunft und melden, wenn Apple Intelligence fehlt.
+- Player: Es besitzt immer nur ein Player den Sperrbildschirm. Der Schlaf-Timer am Kapitelende funktioniert auch im letzten Kapitel und hält die nächste Folge an. Systempausen durch Anrufe oder gezogene Kopfhörer werden erkannt. Hängt die Wiedergabe, wechselt die App nach zehn Sekunden auf den Stream oder sagt, was los ist.
+- YouTube: Fällt der Feed-Dienst von YouTube aus, wird der Kanal trotzdem angelegt und der passende Audio-Podcast angeboten.
+- iPhone: Die Statuszeile verdeckt keine Knöpfe mehr.
+
 ## App 0.6 · 2026-09-22
 - Abgleich über iCloud: Abos, Folgen, Transkripte, Belege, Fakten, Hörstand mit Fortsetzungsstelle, Interessen, Themen-Updates und gemerkte Stellen gleichen sich zwischen iPhone, iPad und Mac ab. Audiodateien lädt jedes Gerät selbst. Ein Speicher aus einer früheren Testversion wird beim ersten Start beiseitegelegt und neu angelegt.
 - Löschen: „Audio entfernen“ löscht nur den Ton, Transkript, Fakten und Hörstand bleiben, gespielt wird dann aus dem Netz. „Folge löschen“ entfernt die Folge mit allem, was aus ihr entstanden ist, und der Feed legt sie nicht wieder an. Quellen lassen sich abbestellen.

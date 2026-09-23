@@ -176,3 +176,21 @@ struct PlayerHighlightRemovalTests {
         #expect(left.map(\.id) == [unrelated.id])
     }
 }
+
+@Suite("Merkzeichen aus früheren Abos")
+struct OldTombstoneTests {
+    @Test("Ein Merkzeichen von vor dem erneuten Abo versteckt die Folge nicht")
+    func oldTombstoneDoesNotHideResubscribedEpisode() async throws {
+        let base = RemovalAndSyncTests()
+        let store = try await base.seededStore()
+        _ = try await store.removeEpisode(base.episodeID)
+        // Quelle abbestellen und später neu abonnieren.
+        _ = try await store.removeSource(base.sourceID)
+        try await Task.sleep(for: .milliseconds(20))
+        try await store.upsert(source: Source(id: base.sourceID, kind: .podcastRSS, title: "Quelle"))
+        let again = Episode(id: base.episodeID, sourceID: base.sourceID, title: "Folge", audioURL: base.audio)
+        _ = try await store.upsert(episodes: [again], forSource: base.sourceID)
+        try await store.removeDuplicates()
+        #expect(try await store.episodes(forSource: base.sourceID).map(\.id) == [base.episodeID])
+    }
+}
