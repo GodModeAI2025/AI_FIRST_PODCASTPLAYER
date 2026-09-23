@@ -18,7 +18,7 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 | Hören | Tempo, ±15/30 Sekunden, Kapitel aus dem Feed, Schlaf-Timer, AirPlay, Sperrbildschirm, Warteschlange, Fortsetzung über Geräte hinweg |
 | Transkript | auf dem Gerät mit Apples Spracherkennung, mit Zeitmarken, durchsuchbar, Tipp springt an die Stelle |
 | Fakten | überprüfbare Aussagen je Folge, jede mit Zeitmarke |
-| Fragen | an eine Folge oder an alle erschlossenen Folgen; die Antwort nennt ihre Belege mit Nummer und spielt sie auf Wunsch ab |
+| Fragen | an eine Folge oder an alle ausgewerteten Folgen, eingrenzbar auf einen Podcast und die letzten 7 oder 30 Tage; jeder Beleg nennt Podcast, Folge und Zeitmarke und spielt auf Wunsch ab; jede Antwort lässt sich als Wissenslandkarte sichern |
 | Themen-Updates | eine eigene Folge je Thema mit Kapiteln, Shownotes und Cover, gebaut aus Originalstellen |
 | Export | Folge mit Shownotes, Kapiteln, Fakten und Transkript; Chat-Antworten mit Belegen; gemerkte Stellen |
 | Abgleich | über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac |

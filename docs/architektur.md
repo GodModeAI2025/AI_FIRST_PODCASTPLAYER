@@ -23,7 +23,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 2. Die App lädt die jüngsten Folgen und transkribiert sie auf dem Gerät. Jedes Wort trägt seine Zeit im Ton.
 3. Das Transkript wird in Passagen von etwa einer Minute geschnitten. Jede Passage ist ein Beleg mit Zeitbereich.
 4. Apple Intelligence zieht daraus Fakten. Jede Aussage zeigt auf ihren Beleg.
-5. Eine Frage sucht zuerst auf dem Gerät die passenden Belege: Stichworte gewichtet nach Seltenheit und semantische Nähe über Apples NaturalLanguage-Einbettungen. Nur diese Belege sieht das Sprachmodell. Die Antwort verweist mit Nummern auf sie.
+5. Eine Frage sucht zuerst auf dem Gerät die passenden Belege: Stichworte gewichtet nach Seltenheit und semantische Nähe über Apples NaturalLanguage-Einbettungen. Nur diese Belege sieht das Sprachmodell. Die Antwort verweist mit Nummern auf sie. Ist die Frage auf einen Podcast oder einen Zeitraum eingegrenzt, nimmt der Code die übrigen Folgen vorher heraus; das Modell wählt nur unter dem, was bleibt.
 
 ## Welches Modell wann
 
@@ -45,7 +45,7 @@ CloudKit kennt keine eindeutigen Schlüssel. Treffen zwei Geräte denselben Date
 | Aktion | Was verschwindet | Was bleibt |
 |---|---|---|
 | Audio entfernen | die Audiodatei | Transkript, Belege, Fakten, Hörzustand, gemerkte Stellen; abgespielt wird aus dem Netz |
-| Folge löschen | Audiodatei, Transkript, Belege, Fakten, Hörzustand dieser Folge | ein Merkzeichen, damit der Feed die Folge nicht wieder anlegt; deine Notizen, denn sie tragen Zitat, Folge, Quelle und Zeitmarke selbst |
+| Folge löschen | Audiodatei, Transkript, Belege, Fakten, Hörzustand dieser Folge; Chat-Antworten, die sie zitieren; in Wissenslandkarten ihre Belege und ein daraus formulierter Antworttext, leere Karten ganz | ein Merkzeichen, damit der Feed die Folge nicht wieder anlegt; deine Notizen, denn sie tragen Zitat, Folge, Quelle und Zeitmarke selbst |
 | Quelle abbestellen | die Quelle mit allen Folgen und deren Daten | deine Notizen |
 
 Beides ist in `LibraryStore.removeEpisode`, `removeSource` und `markAudioRemoved` umgesetzt und durch Tests abgesichert.

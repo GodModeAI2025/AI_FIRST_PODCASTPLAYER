@@ -233,6 +233,31 @@ extension AppModel {
             if known > analyzed {
                 caveat = "Durchsucht wurden \(analyzed) erschlossene von \(known) bekannten Folgen."
             }
+        case .library(let filter):
+            // Der Code grenzt ein, bevor gesucht wird. Das Modell bekommt nur
+            // Stellen aus Folgen, die Podcast und Zeitraum erfüllen.
+            let now = Date()
+            let admitted = ((try? await store.episodes(ids: Array(analyzedEpisodes))) ?? [])
+                .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }
+            var all: [Evidence] = []
+            for episode in admitted { all += (try? await store.evidence(forEpisode: episode.id)) ?? [] }
+            // Wie bei allem Ausgewerteten nur Belege mit Zeitmarke.
+            pool = all.filter { $0.range != nil }
+            libraryContext = await libraryOverview(filter: filter)
+            let known = episodes.values.joined()
+                .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }.count
+            if admitted.isEmpty && known == 0 {
+                return ChatAnswer(
+                    question: question, scope: scope,
+                    text: "Im gewählten Bereich gibt es keine Folge. Wähle oben einen anderen Podcast "
+                        + "oder einen längeren Zeitraum.",
+                    citations: [])
+            }
+            if admitted.isEmpty {
+                caveat = "Im gewählten Bereich ist noch keine Folge ausgewertet. Die Antwort kennt nur die Folgenliste."
+            } else if known > admitted.count {
+                caveat = "Durchsucht wurden \(admitted.count) ausgewertete von \(known) Folgen im gewählten Bereich."
+            }
         }
 
         guard !pool.isEmpty || !libraryContext.isEmpty else {
@@ -433,10 +458,18 @@ extension AppModel {
     /// Ein Überblick über die ganze Mediathek, damit auch Fragen wie „Welche
     /// Folgen habe ich zu KI?“ oder „Was habe ich diese Woche gehört?“
     /// eine Antwort finden.
-    func libraryOverview() async -> String {
+    ///
+    /// Mit Eingrenzung stehen nur der gewählte Podcast und die Folgen aus dem
+    /// Zeitraum darin, sonst antwortete das Modell aus dem Überblick über
+    /// alles andere.
+    func libraryOverview(filter: LibraryFilter = LibraryFilter()) async -> String {
         var lines: [String] = []
-        for source in sources {
-            let list = episodes[source.id] ?? []
+        let now = Date()
+        var admittedIDs: Set<EpisodeID> = []
+        for source in sources where filter.sourceID == nil || filter.sourceID == source.id {
+            let list = (episodes[source.id] ?? [])
+                .filter { filter.admits(sourceID: source.id, publishedAt: $0.publishedAt, now: now) }
+            admittedIDs.formUnion(list.map(\.id))
             lines.append("Podcast: \(source.title) (\(list.count) Folgen)")
             for episode in list.prefix(12) {
                 var entry = "- \(episode.title)"
@@ -450,9 +483,59 @@ extension AppModel {
         if !profile.confirmed.isEmpty {
             lines.append("Interessen: " + profile.confirmed.map(\.label).joined(separator: ", "))
         }
-        let notes = highlights.compactMap(\.note).prefix(10)
+        let ownNotes = filter.isUnrestricted
+            ? highlights
+            : highlights.filter { $0.episodeID.map(admittedIDs.contains) ?? false }
+        let notes = ownNotes.compactMap(\.note).prefix(10)
         if !notes.isEmpty { lines.append("Eigene Notizen: " + notes.joined(separator: " | ")) }
         return lines.joined(separator: "\n")
+    }
+
+    /// Wie der Bereich einer Antwort heisst, mit dem Namen des gewählten Podcasts.
+    func scopeLabel(_ scope: ChatScope) -> String {
+        guard case .library(let filter) = scope else { return scope.label }
+        var parts: [String] = []
+        if let id = filter.sourceID {
+            parts.append(sources.first { $0.id == id }?.title ?? "Ein Podcast")
+        } else {
+            parts.append("Alle Podcasts")
+        }
+        if filter.period != .all { parts.append(filter.period.label) }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Woher Belege stammen, je Folge: „Podcast · Folge · Datum“.
+    public func citationOrigins(for evidence: [Evidence]) async -> [EpisodeID: String] {
+        let ids = Array(Set(evidence.map(\.episodeID)))
+        guard !ids.isEmpty, let titles = try? await store.titles(forEpisodes: ids) else { return [:] }
+        return titles.mapValues { titles in
+            var parts = [titles.source, titles.episode]
+            if let date = titles.publishedAt { parts.append(date.formatted(date: .abbreviated, time: .omitted)) }
+            return parts.joined(separator: " · ")
+        }
+    }
+
+    // MARK: - Wissenslandkarten
+
+    /// Die Belege einer Karte, die es noch gibt, in ihrer Reihenfolge.
+    public func evidence(of trail: KnowledgeTrail) async -> [Evidence] {
+        let found = (try? await store.evidence(ids: trail.evidenceIDs)) ?? [:]
+        return trail.evidenceIDs.compactMap { found[$0] }
+    }
+
+    /// Die Notizen einer Karte, soweit sie nicht gelöscht wurden.
+    public func notes(of trail: KnowledgeTrail) -> [Highlight] {
+        let ids = Set(trail.highlightIDs)
+        return highlights.filter { ids.contains($0.id) }
+    }
+
+    /// Spielt die Belege einer Karte nacheinander. Nur auf Tippen.
+    public func playTrail(_ trail: KnowledgeTrail) {
+        Task {
+            let found = await evidence(of: trail)
+            playAnswer(ChatAnswer(question: trail.question, scope: .allAnalyzed,
+                                  text: trail.answerText ?? "", citations: found))
+        }
     }
 
     /// Spielt die Folge eines Belegs ab der Stelle.
@@ -776,7 +859,7 @@ extension AppModel {
              range: evidence.range, quote: evidence.quotedText)
         }
         return EpisodeDossierExporter().markdown(ExportedAnswer(
-            question: answer.question, scopeLabel: answer.scope.label, text: answer.text,
+            question: answer.question, scopeLabel: scopeLabel(answer.scope), text: answer.text,
             modelLabel: answer.modelLabel, citations: citations))
     }
 
@@ -901,6 +984,7 @@ extension AppModel {
                ofEpisode: episode.id, mediaVersionID: MediaVersionID(stable: audio.absoluteString)),
            !report.evidenceIDs.isEmpty {
             pruneChatAnswers(removedEpisodes: [], removedEvidence: Set(report.evidenceIDs))
+            pruneTrails(removedEvidence: Set(report.evidenceIDs))
             await refreshRelevantToday()
         }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
@@ -923,6 +1007,7 @@ extension AppModel {
         let removedEvidence = Set(report.evidenceIDs)
         // Gemerkte Stellen bleiben als eigenes Wissen erhalten.
         pruneChatAnswers(removedEpisodes: Set(report.episodeIDs), removedEvidence: removedEvidence)
+        pruneTrails(removedEvidence: removedEvidence)
         reindexSpotlight()
         mediaStorageChanged += 1
         Task {
@@ -949,7 +1034,7 @@ extension AppModel {
         switch answer.scope {
         case .episode(let id): return episodeIDs.contains(id)
         case .episodes(let ids): return ids.contains { episodeIDs.contains($0) }
-        case .smartFeed, .allAnalyzed: return false
+        case .smartFeed, .allAnalyzed, .library: return false
         }
     }
 }

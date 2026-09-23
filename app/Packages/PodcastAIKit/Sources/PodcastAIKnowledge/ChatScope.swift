@@ -20,14 +20,74 @@ public enum ChatScope: Sendable, Hashable {
     case smartFeed(SmartFeedID)
     /// Alles, was erschlossen ist. Ausdrücklich nicht „alles, was existiert“.
     case allAnalyzed
+    /// Das Ausgewertete, eingegrenzt auf einen Podcast, einen Zeitraum oder beides.
+    case library(LibraryFilter)
 
     public var label: String {
         switch self {
         case .episode: "Diese Folge"
         case .episodes(let ids): "\(ids.count) ausgewählte Folgen"
         case .smartFeed: "Dieser Themenfeed"
-        case .allAnalyzed: "Alle erschlossenen Inhalte"
+        case .allAnalyzed: "Alle ausgewerteten Inhalte"
+        case .library(let filter):
+            [filter.sourceID == nil ? "Alle Podcasts" : "Ein Podcast",
+             filter.period == .all ? nil : filter.period.label].compactMap { $0 }.joined(separator: " · ")
         }
+    }
+}
+
+/// Eingrenzung einer Frage an die Mediathek.
+///
+/// Der Code wählt damit die Folgen aus, bevor gesucht wird. Das Modell
+/// sieht nur die Stellen, die übrig bleiben, und wählt unter ihnen aus.
+/// Der Zeitraum ist eine Wahl und kein Datum: sonst hätte jede Frage einen
+/// eigenen Bereich, und frühere Antworten fänden nicht mehr zusammen.
+public struct LibraryFilter: Sendable, Hashable {
+
+    public var sourceID: SourceID?
+    public var period: Period
+
+    public enum Period: String, Sendable, Hashable, CaseIterable {
+        case all, lastWeek, lastMonth
+
+        public var label: String {
+            switch self {
+            case .all: "Alles"
+            case .lastWeek: "Letzte 7 Tage"
+            case .lastMonth: "Letzte 30 Tage"
+            }
+        }
+
+        var days: Int? {
+            switch self {
+            case .all: nil
+            case .lastWeek: 7
+            case .lastMonth: 30
+            }
+        }
+    }
+
+    public init(sourceID: SourceID? = nil, period: Period = .all) {
+        self.sourceID = sourceID
+        self.period = period
+    }
+
+    /// Ohne Podcast und ohne Zeitraum ist nichts eingegrenzt.
+    public var isUnrestricted: Bool { sourceID == nil && period == .all }
+
+    /// Das früheste Erscheinungsdatum, das noch zählt.
+    public func earliest(now: Date = Date()) -> Date? {
+        period.days.map { now.addingTimeInterval(-Double($0) * 86_400) }
+    }
+
+    /// Gehört eine Folge in den Bereich? Ohne Erscheinungsdatum lässt sich
+    /// ein Zeitraum nicht prüfen. Dann zählt die Folge nur, wenn keiner
+    /// gewählt ist.
+    public func admits(sourceID: SourceID, publishedAt: Date?, now: Date = Date()) -> Bool {
+        if let wanted = self.sourceID, wanted != sourceID { return false }
+        guard let earliest = earliest(now: now) else { return true }
+        guard let publishedAt else { return false }
+        return publishedAt >= earliest
     }
 }
 
