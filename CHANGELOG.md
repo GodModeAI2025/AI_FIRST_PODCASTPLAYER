@@ -1,10 +1,17 @@
 # Änderungsverlauf
 
 ## App 0.7 · 2026-09-23
-Aus dem TestFlight-Feedback, einem Test mit 50 Personas, einem Begriffstest mit 12 Personas und einer Prüfung jedes Bedienelements:
+Aus dem TestFlight-Feedback, einem Test mit 50 Personas, einer Runde mit 10 Personas, die die App im Simulator selbst bedient haben, einem Begriffstest mit 12 Personas und einer Prüfung jedes Bedienelements:
 - Podcast finden: Das Blatt „Podcast hinzufügen“ sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema und abonniert mit einem Tipp. Links aus Apple Podcasts funktionieren, YouTube-Links mit @-Namen auch. Bei Spotify-Links sagt die App, warum es nicht geht. Abos lassen sich als OPML-Datei übernehmen und sichern. Die Einführung beginnt mit der Suche.
 - Begriffe, die Einsteiger verstehen: „Transkript erstellen“ und „Transkript fertig“ statt „erschließen“, Reiter „Meine Podcasts“, „Themen-Updates“ und „Chat“ mit Sprechblase statt Lupe, „Gesicherte Antworten“ statt „Wissenslandkarten“. Die Hilfe hat ein kleines Glossar.
 - Englisch: Die ganze Oberfläche gibt es auf Englisch, samt Siri-Kurzbefehlen.
+- Deine Sprache: Was Apple Intelligence neu formuliert, Fakten, Antworten und Zusammenfassungen, kommt in der Sprache der App, auch bei Podcasts in einer anderen Sprache. Zitate bleiben im Original. Transkripte und Shownotes fremdsprachiger Folgen lassen sich auf dem Gerät übersetzen.
+- Fakten von selbst: Nach jedem Transkript sammelt die App die Fakten im Hintergrund, holt fehlende nach und versucht es erneut, sobald Apple Intelligence bereit ist.
+- Einstellungen, Hilfe und Datenschutz sind über das Zahnrad oben in „Für dich“ und „Meine Podcasts“ erreichbar. Ein eigener Schalter regelt, ob Abspielen und Laden über Mobilfunk dürfen; ist er aus, fragt die App vorher.
+- Vor dem Abonnieren zeigt ein Tipp auf den Treffer Beschreibung und neueste Folgen. Abonnieren bricht nach einer Weile mit einer klaren Meldung ab, statt ewig zu warten, und große Feeds mit Hunderten Folgen gehen jetzt. Laden zeigt Fortschritt und Größe.
+- Große Schrift: Der Player bricht die Knopfreihe um, Tempo und Schlaf-Timer öffnen ein Blatt, nichts läuft mehr über den Rand. VoiceOver kennt Namen für Regler und Symbolknöpfe.
+- Export: eine echte Markdown-Datei mit Angaben zu Folge, Podcast, Datum und Link, samt deinen Notizen.
+- Rechtschreibung mit ß.
 - Moment merken: Im Player hält „Moment merken“ die Stelle mit Zitat, Zeitmarke und eigenem Kommentar fest. Merken geht auch im Transkript, bei Fakten, in Chat-Antworten und auf den Karten in „Für dich“. Notizen bleiben, wenn die Folge gelöscht wird.
 - Für dich: Weiterhören nach einem Neustart, neue Folgen aus den Abos, Treffer nach Thema gruppiert, mit Datum und „Nicht relevant“. Themen treffen ganze Wörter statt Wortteile („KI“ findet keine Kinder mehr) und haben eigene Stichworte mit Vorschlägen.
 - Speicher und unterwegs: „Laden (offline)“ holt nur den Ton. Nach dem Transkript und einen Tag nach dem Hören räumt die App den Ton von selbst weg, beides abschaltbar. Transkripte für neue Folgen entstehen nur im WLAN, für die gewählte Zahl neuester Folgen je Podcast. Im Hotspot oder Datensparmodus sagt die App, worauf sie wartet.
@@ -13,6 +20,7 @@ Aus dem TestFlight-Feedback, einem Test mit 50 Personas, einem Begriffstest mit 
 - Themen-Updates: neue Ausgabe auf Knopfdruck, frühere Ausgaben, bearbeiten und löschen. Automatische Ausgaben entstehen jetzt wirklich, auf dem iPhone auch im Hintergrund.
 - Player: Die Warteschlange hat einen Abspielknopf und setzt dort fort, wo man war. „Als Nächstes“ reiht vorne ein. Das Tempo bleibt gespeichert. Folgen ohne Ton öffnen YouTube.
 - Fakten: Die Zeitmarke zeigt auf den Satz, der Wortlaut lässt sich einblenden, und Fakten tragen kein Prüfsiegel mehr, weil sie gesagt und nicht geprüft sind. Gegenpositionen durchsuchen den ganzen Bestand und sagen ehrlich, wenn etwas nicht eingeordnet werden konnte.
+- Stabilität: Unter iOS 27 beendete eine Frage an Apple Intelligence die App, weil der Zugang zu Private Cloud Compute noch nicht freigegeben ist. Bis zur Freigabe antwortet das Gerätemodell.
 - Mac: Der Agentenzugang (MCP) startet über `--mcp`. Die Seitenleiste zeigt, was läuft. Mehrere Fenster doppeln keine Meldungen mehr.
 - Rechtliches: Impressum, Datenschutzerklärung, eine Seite „Datenschutz in PodcastAI“ und Verweise auf Apples eigene Erklärungen.
 
