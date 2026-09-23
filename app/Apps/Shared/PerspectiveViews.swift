@@ -196,7 +196,7 @@ struct SessionClosureSheet: View {
                     } label: {
                         VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
                             Label("Parken", systemImage: "tray.and.arrow.down")
-                            Text("Frage, Belege und Notizen als Wissenslandkarte sichern.")
+                            Text("Frage, Belege und die Notizen dieser Session als Wissenslandkarte sichern.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -227,7 +227,7 @@ struct SessionClosureSheet: View {
     }
 }
 
-/// Geparkte Wissenslandkarten.
+/// Gesicherte Wissenslandkarten. Jede lässt sich öffnen und löschen.
 struct TrailListView: View {
 
     @Environment(AppModel.self) private var model
@@ -238,25 +238,194 @@ struct TrailListView: View {
                 ContentUnavailableView {
                     Label("Keine Wissenslandkarten", systemImage: "map")
                 } description: {
-                    Text("Am Ende einer Hörsession kannst du eine Frage samt Belegen parken. "
-                         + "Sie landet hier.")
+                    Text("Eine Wissenslandkarte hält eine Frage mit ihren Belegen und Notizen fest. "
+                         + "Unter „Fragen“ steht an jeder Antwort „Als Wissenslandkarte sichern“. "
+                         + "Hörst du Belege nacheinander und beendest die Wiedergabe nach mindestens "
+                         + "zwei Minuten, bietet die Abschlusskarte „Parken“ an.")
                 }
             }
             ForEach(model.trails) { trail in
-                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                    Text(trail.question).font(.headline)
-                    Text("\(trail.evidenceIDs.count) Belege · geparkt \(trail.parkedAt, style: .date)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    // Aufbewahren ist keine Zustimmung — und das steht da.
-                    Text("Aufbewahrt, nicht zugestimmt.")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                NavigationLink {
+                    TrailDetailView(trailID: trail.id)
+                } label: {
+                    TrailRow(trail: trail, noteCount: model.notes(of: trail).count)
                 }
-                .padding(.vertical, Design.Spacing.micro / 2)
+                .swipeActions {
+                    Button(role: .destructive) { model.removeTrail(trail.id) } label: {
+                        Label("Löschen", systemImage: "trash")
+                    }
+                }
+                .contextMenu {
+                    Button(role: .destructive) { model.removeTrail(trail.id) } label: {
+                        Label("Löschen", systemImage: "trash")
+                    }
+                }
             }
         }
         .navigationTitle("Wissenslandkarten")
+    }
+}
+
+/// Eine Zeile der Liste: Frage, Anfang der Antwort, was dazugehört.
+private struct TrailRow: View {
+
+    let trail: KnowledgeTrail
+    let noteCount: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+            Text(trail.question).font(.headline).lineLimit(3)
+            if let answer = trail.answerText {
+                Text(answer)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Text(details)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            // Aufbewahren ist keine Zustimmung, und das steht da.
+            Text("Aufbewahrt, nicht zugestimmt.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, Design.Spacing.micro / 2)
+    }
+
+    private var details: String {
+        let count = trail.evidenceIDs.count
+        var parts = [count == 1 ? "1 Beleg" : "\(count) Belege"]
+        if noteCount > 0 { parts.append(noteCount == 1 ? "1 Notiz" : "\(noteCount) Notizen") }
+        parts.append("gesichert am \(trail.parkedAt.formatted(date: .abbreviated, time: .omitted))")
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// Eine geöffnete Wissenslandkarte: Frage, Antwort, Belege zum Anhören und
+/// die Notizen dazu. Abgespielt wird nur, was jemand antippt.
+struct TrailDetailView: View {
+
+    let trailID: KnowledgeNodeID
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var evidence: [Evidence] = []
+    @State private var origins: [EpisodeID: String] = [:]
+    @State private var loaded = false
+    @State private var confirmingDelete = false
+
+    private var trail: KnowledgeTrail? { model.trails.first { $0.id == trailID } }
+
+    var body: some View {
+        Group {
+            if let trail {
+                content(trail)
+            } else {
+                ContentUnavailableView("Diese Wissenslandkarte gibt es nicht mehr", systemImage: "map")
+            }
+        }
+        .navigationTitle("Wissenslandkarte")
+        .task(id: trail?.evidenceIDs) {
+            guard let trail else { return }
+            let found = await model.evidence(of: trail)
+            origins = await model.citationOrigins(for: found)
+            evidence = found
+            loaded = true
+        }
+    }
+
+    /// Die Belege mit den Nummern, auf die der Antworttext verweist.
+    private func numbered(_ trail: KnowledgeTrail) -> [(number: Int, evidence: Evidence)] {
+        let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        if let numbers = trail.citationNumbers {
+            let pairs = numbers.sorted { $0.key < $1.key }.compactMap { number, id in
+                byID[id].map { (number: number, evidence: $0) }
+            }
+            if !pairs.isEmpty { return pairs }
+        }
+        return evidence.enumerated().map { (number: $0.offset + 1, evidence: $0.element) }
+    }
+
+    private func content(_ trail: KnowledgeTrail) -> some View {
+        let items = numbered(trail)
+        let playable = items.filter { $0.evidence.isPlayable }.count
+        let missing = loaded ? trail.evidenceIDs.count - evidence.count : 0
+        let notes = model.notes(of: trail)
+        return List {
+            Section {
+                Text(trail.question)
+                    .font(.title3.weight(.semibold))
+                    .textSelection(.enabled)
+                if let answer = trail.answerText {
+                    Text(answer)
+                        .textSelection(.enabled)
+                }
+                Text("Gesichert am \(trail.parkedAt.formatted(date: .long, time: .omitted)). "
+                     + "Aufbewahrt, nicht zugestimmt.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !items.isEmpty || missing > 0 {
+                Section {
+                    ForEach(items, id: \.number) { item in
+                        CitationRow(number: item.number, evidence: item.evidence,
+                                    origin: origins[item.evidence.episodeID])
+                    }
+                    if playable > 0 {
+                        Button {
+                            model.playTrail(trail)
+                        } label: {
+                            Label(playable == 1 ? "Diese Stelle anhören"
+                                                : "Alle \(playable) Stellen nacheinander anhören",
+                                  systemImage: "play.circle")
+                                .frame(minHeight: Design.minimumTapTarget)
+                        }
+                        .accessibilityHint("Spielt die belegten Originalstellen nacheinander ab")
+                    }
+                } header: {
+                    Text("Belege")
+                } footer: {
+                    if missing > 0 {
+                        Text(missing == 1 ? "Ein Beleg ist nicht mehr da." : "\(missing) Belege sind nicht mehr da.")
+                    }
+                }
+            }
+
+            if !notes.isEmpty {
+                Section("Notizen") {
+                    ForEach(notes) { note in
+                        if note.episodeID != nil {
+                            Button { Task { await model.playHighlight(note) } } label: {
+                                NoteRow(highlight: note).contentShape(.rect)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Spielt die Folge ab dieser Stelle")
+                        } else {
+                            NoteRow(highlight: note)
+                        }
+                    }
+                }
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    confirmingDelete = true
+                } label: {
+                    Label("Wissenslandkarte löschen", systemImage: "trash")
+                }
+            } footer: {
+                Text("Belege und Notizen bleiben erhalten.")
+            }
+        }
+        .confirmationDialog("Wissenslandkarte löschen?", isPresented: $confirmingDelete,
+                            titleVisibility: .visible) {
+            Button("Löschen", role: .destructive) {
+                dismiss()
+                model.removeTrail(trail.id)
+            }
+        } message: {
+            Text("Belege und Notizen bleiben erhalten.")
+        }
     }
 }
 

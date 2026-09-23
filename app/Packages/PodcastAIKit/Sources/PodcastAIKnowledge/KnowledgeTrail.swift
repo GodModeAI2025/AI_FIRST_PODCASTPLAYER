@@ -65,15 +65,31 @@ public struct SessionClosure: Sendable {
     public let availableFollowUpCount: Int
     /// Vorgeschlagenes Zeitbudget für die Vertiefung.
     public let suggestedBudget: MediaDuration
+    /// Wann die Session begann. Notizen, die seitdem entstanden sind,
+    /// gehören zu ihr. Ältere Notizen der Mediathek nicht.
+    public let startedAt: Date?
 
     public init(
         question: String, supportingEvidenceIDs: [EvidenceID],
-        availableFollowUpCount: Int, suggestedBudget: MediaDuration = MediaDuration(minutes: 10)
+        availableFollowUpCount: Int, suggestedBudget: MediaDuration = MediaDuration(minutes: 10),
+        startedAt: Date? = nil
     ) {
         self.question = question
         self.supportingEvidenceIDs = supportingEvidenceIDs
         self.availableFollowUpCount = availableFollowUpCount
         self.suggestedBudget = suggestedBudget
+        self.startedAt = startedAt
+    }
+
+    /// Die Notizen dieser Session: an einem ihrer Belege gemerkt oder
+    /// während sie lief.
+    public func noteIDs(in highlights: [Highlight]) -> [HighlightID] {
+        let supporting = Set(supportingEvidenceIDs)
+        return highlights.filter { note in
+            if supporting.contains(note.evidenceID) { return true }
+            guard let startedAt else { return false }
+            return note.capturedAt >= startedAt
+        }.map(\.id)
     }
 
     /// „Vertiefen“ wird nur angeboten, wenn es etwas zu vertiefen gibt.
@@ -123,17 +139,65 @@ public struct KnowledgeTrail: Sendable, Identifiable, Codable {
     public let counterpointEvidenceIDs: [EvidenceID]
     public var userNote: String?
     public let parkedAt: Date
+    /// Der Antworttext, wenn die Karte aus einer Chat-Antwort stammt.
+    /// Ältere Karten haben keinen.
+    public let answerText: String?
+    /// Verweisnummern im Antworttext wie [3] → Beleg.
+    public let citationNumbers: [Int: EvidenceID]?
 
     public init(
         id: KnowledgeNodeID = KnowledgeNodeID(), question: String,
         claimIDs: [ClaimID] = [], evidenceIDs: [EvidenceID] = [],
         highlightIDs: [HighlightID] = [], counterpointEvidenceIDs: [EvidenceID] = [],
-        userNote: String? = nil, parkedAt: Date = Date()
+        userNote: String? = nil, parkedAt: Date = Date(),
+        answerText: String? = nil, citationNumbers: [Int: EvidenceID]? = nil
     ) {
         self.id = id; self.question = question; self.claimIDs = claimIDs
         self.evidenceIDs = evidenceIDs; self.highlightIDs = highlightIDs
         self.counterpointEvidenceIDs = counterpointEvidenceIDs
         self.userNote = userNote; self.parkedAt = parkedAt
+        self.answerText = answerText; self.citationNumbers = citationNumbers
+    }
+
+    /// Die Karte ohne diese Belege, etwa weil ihre Folge gelöscht wurde.
+    ///
+    /// Der Antworttext ist aus den Belegen formuliert und gibt sie ohne
+    /// Modell sogar wörtlich wieder. Fällt ein zitierter Beleg weg, geht der
+    /// Text deshalb mit. Frage, übrige Belege und Notizen bleiben. Bleibt
+    /// weder ein Beleg noch eine Notiz, gibt es die Karte nicht mehr (`nil`).
+    public func removing(evidence removed: Set<EvidenceID>) -> KnowledgeTrail? {
+        let kept = evidenceIDs.filter { !removed.contains($0) }
+        let keptCounterpoints = counterpointEvidenceIDs.filter { !removed.contains($0) }
+        let numbersHit = citationNumbers?.values.contains { removed.contains($0) } ?? false
+        guard kept.count < evidenceIDs.count || keptCounterpoints.count < counterpointEvidenceIDs.count
+                || numbersHit else { return self }
+        if kept.isEmpty && keptCounterpoints.isEmpty && highlightIDs.isEmpty { return nil }
+        return KnowledgeTrail(
+            id: id, question: question, claimIDs: claimIDs, evidenceIDs: kept,
+            highlightIDs: highlightIDs, counterpointEvidenceIDs: keptCounterpoints,
+            userNote: userNote, parkedAt: parkedAt, answerText: nil, citationNumbers: nil)
+    }
+
+    /// Die Notizen, die zu diesen Belegen gehören: an derselben Stelle
+    /// gemerkt oder an einem Moment derselben Folge, dessen gemerkter
+    /// Bereich den Beleg überlappt. Alle anderen Notizen der Mediathek
+    /// gehören nicht dazu.
+    public static func noteIDs(
+        in highlights: [Highlight], matching evidence: [Evidence],
+        capture: HighlightCapture = HighlightCapture()
+    ) -> [HighlightID] {
+        let ids = Set(evidence.map(\.id))
+        return highlights.filter { note in
+            if ids.contains(note.evidenceID) { return true }
+            guard let ms = note.positionMs else { return false }
+            let noted = capture.range(around: MediaTime(milliseconds: Int64(ms)), limit: nil)
+            return evidence.contains { item in
+                guard let range = item.range else { return false }
+                let sameEpisode = note.episodeID.map { $0 == item.episodeID }
+                    ?? (note.mediaVersionID == item.mediaVersionID)
+                return sameEpisode && noted.touchesOrOverlaps(range)
+            }
+        }.map(\.id)
     }
 
     /// Parken heißt aufbewahren, nicht zustimmen.

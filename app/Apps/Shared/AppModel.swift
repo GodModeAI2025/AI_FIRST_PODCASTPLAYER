@@ -1013,7 +1013,8 @@ public final class AppModel {
         pendingClosure = SessionClosure(
             question: plan.requestSummary,
             supportingEvidenceIDs: Array(heardEvidence),
-            availableFollowUpCount: followUps.count
+            availableFollowUpCount: followUps.count,
+            startedAt: plan.createdAt
         )
     }
 
@@ -1467,14 +1468,67 @@ public final class AppModel {
         }
     }
 
-    /// Parken: sichert Frage, Belege und Notizen. Ohne Zustimmung zu irgendetwas.
+    /// Parken: sichert Frage, Belege und die Notizen dieser Session. Ohne
+    /// Zustimmung zu irgendetwas. Notizen aus anderen Sessions gehören nicht
+    /// dazu, sonst trüge jede Karte die ganze Mediathek mit sich.
     public func park(_ closure: SessionClosure) {
         pendingClosure = nil
         trails.insert(KnowledgeTrail(
             question: closure.question,
             evidenceIDs: closure.supportingEvidenceIDs,
-            highlightIDs: highlights.map(\.id)
+            highlightIDs: closure.noteIDs(in: highlights)
         ), at: 0)
+        persistTrails()
+    }
+
+    /// Sichert eine Chat-Antwort als Wissenslandkarte: Frage, Antworttext,
+    /// ihre Belege in der Reihenfolge der Verweisnummern und die Notizen zu
+    /// genau diesen Stellen. Zweimal sichern legt keine zweite Karte an.
+    public func park(_ answer: ChatAnswer) {
+        let id = Self.trailID(for: answer)
+        guard !trails.contains(where: { $0.id == id }) else { return }
+        let cited = Set(answer.citations.map(\.id))
+        let numbers = answer.citationNumbers.filter { cited.contains($0.value) }
+        trails.insert(KnowledgeTrail(
+            id: id,
+            question: answer.question,
+            evidenceIDs: answer.citations.map(\.id),
+            highlightIDs: KnowledgeTrail.noteIDs(in: highlights, matching: answer.citations),
+            parkedAt: Date(),
+            answerText: answer.text,
+            citationNumbers: numbers.isEmpty ? nil : numbers
+        ), at: 0)
+        persistTrails()
+    }
+
+    /// Die Karte einer Antwort trägt deren Kennung. So sieht die Antwort,
+    /// ob sie schon gesichert ist.
+    static func trailID(for answer: ChatAnswer) -> KnowledgeNodeID {
+        KnowledgeNodeID(rawValue: "answer-\(answer.id.uuidString)")
+    }
+
+    public func isParked(_ answer: ChatAnswer) -> Bool {
+        let id = Self.trailID(for: answer)
+        return trails.contains { $0.id == id }
+    }
+
+    /// Löscht eine Wissenslandkarte. Belege und Notizen bleiben.
+    public func removeTrail(_ id: KnowledgeNodeID) {
+        trails.removeAll { $0.id == id }
+        persistTrails()
+    }
+
+    /// Nimmt gelöschte Belege aus den Karten. Was aus ihnen formuliert war,
+    /// geht mit, leere Karten verschwinden (`KnowledgeTrail.removing`).
+    func pruneTrails(removedEvidence: Set<EvidenceID>) {
+        guard !removedEvidence.isEmpty else { return }
+        let pruned = trails.compactMap { $0.removing(evidence: removedEvidence) }
+        let changed = pruned.count != trails.count || zip(pruned, trails).contains {
+            $0.evidenceIDs != $1.evidenceIDs || $0.counterpointEvidenceIDs != $1.counterpointEvidenceIDs
+                || $0.answerText != $1.answerText
+        }
+        guard changed else { return }
+        trails = pruned
         persistTrails()
     }
 

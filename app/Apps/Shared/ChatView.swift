@@ -19,6 +19,8 @@ struct ChatView: View {
     @State private var isAsking = false
     /// Im eigenständigen Chat: gilt die Frage der Folge, die gerade läuft?
     @State private var followsPlayer = false
+    /// Eingrenzung der Mediathek auf einen Podcast und einen Zeitraum.
+    @State private var filter = LibraryFilter()
     /// Innerhalb einer Folge ist der Bereich fest.
     private let pinnedScope: ChatScope?
     private var fixedScope: Bool { pinnedScope != nil }
@@ -35,8 +37,8 @@ struct ChatView: View {
     /// stets auf dieselbe Folge.
     private var scope: ChatScope {
         if let pinnedScope { return pinnedScope }
-        guard followsPlayer, let playing = model.episodePlayer.episode else { return .allAnalyzed }
-        return .episode(playing.id)
+        if followsPlayer, let playing = model.episodePlayer.episode { return .episode(playing.id) }
+        return filter.isUnrestricted ? .allAnalyzed : .library(filter)
     }
 
     private var answers: [ChatAnswer] {
@@ -46,7 +48,7 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: Design.Spacing.none) {
             if !fixedScope {
-                ScopeBar(followsPlayer: $followsPlayer)
+                ScopeBar(followsPlayer: $followsPlayer, filter: $filter)
                 Divider()
             }
 
@@ -75,15 +77,17 @@ struct ChatView: View {
             // und springt nicht mit der nächsten Folge von selbst zurück.
             if playing == nil { followsPlayer = false }
         }
+        .onChange(of: model.sources.map(\.id)) { _, sources in
+            // Ein abbestellter Podcast kann nicht mehr Bereich sein.
+            if let id = filter.sourceID, !sources.contains(id) { filter.sourceID = nil }
+        }
     }
 
     /// Das Eingabefeld schwebt als Bedienelement über dem Inhalt.
     private var askField: some View {
         HStack(spacing: Design.Spacing.small) {
-            TextField(fixedScope ? "Frage zu dieser Folge …" : "Frage stellen …",
-                      text: $question, axis: .vertical)
+            inputField
                 .textFieldStyle(.plain)
-                .lineLimit(1...4)
                 .onSubmit(ask)
                 .accessibilityLabel("Frage")
                 .accessibilityIdentifier("chat.input")
@@ -103,6 +107,19 @@ struct ChatView: View {
         .padding(.vertical, Design.Spacing.small)
         .glassEffect(.regular, in: .capsule)
         .padding(Design.Spacing.control)
+    }
+
+    @ViewBuilder private var inputField: some View {
+        let prompt = fixedScope ? "Frage zu dieser Folge …" : "Frage stellen …"
+        #if os(iOS)
+        // Einzeilig: in einem mitwachsenden Feld schreibt Return auf dem
+        // iPhone eine neue Zeile, statt die Frage zu senden.
+        TextField(prompt, text: $question)
+            .submitLabel(.send)
+        #else
+        TextField(prompt, text: $question, axis: .vertical)
+            .lineLimit(1...4)
+        #endif
     }
 
     private func ask() {
@@ -135,28 +152,59 @@ private struct ChatTitle: ViewModifier {
     }
 }
 
-/// Der Bereich steht oben und ist jederzeit änderbar.
+/// Der Bereich steht oben und ist jederzeit änderbar: die ganze Mediathek,
+/// ein Podcast, ein Zeitraum oder die laufende Folge.
 struct ScopeBar: View {
 
     @Binding var followsPlayer: Bool
+    @Binding var filter: LibraryFilter
     @Environment(AppModel.self) private var model
 
     var body: some View {
         HStack {
-            Image(systemName: "scope").foregroundStyle(.secondary)
-            // Die Auswahl zeigt „Laufende Folge“ nur, solange eine läuft.
-            // Sonst gäbe es keinen passenden Eintrag, und das Menü stünde leer.
-            Picker("Bereich", selection: Binding(
-                get: { followsPlayer && currentTitle != nil ? ScopeChoice.currentEpisode : .allAnalyzed },
-                set: { followsPlayer = $0 == .currentEpisode }
-            )) {
-                Text("Alle erschlossenen Inhalte").tag(ScopeChoice.allAnalyzed)
-                if let title = currentTitle {
-                    Text("Laufende Folge: \(title)").tag(ScopeChoice.currentEpisode)
+            Menu {
+                // Die Auswahl zeigt „Laufende Folge“ nur, solange eine läuft.
+                // Sonst gäbe es keinen passenden Eintrag.
+                Picker("Bereich", selection: Binding(
+                    get: { followsPlayer && currentTitle != nil ? ScopeChoice.currentEpisode : .allAnalyzed },
+                    set: { followsPlayer = $0 == .currentEpisode }
+                )) {
+                    Text("Mediathek").tag(ScopeChoice.allAnalyzed)
+                    if let title = currentTitle {
+                        Text("Laufende Folge: \(title)").tag(ScopeChoice.currentEpisode)
+                    }
                 }
+                .pickerStyle(.inline)
+
+                // Podcast und Zeitraum gelten für die Mediathek. Wer sie
+                // wählt, fragt nicht mehr die laufende Folge.
+                if !model.sources.isEmpty {
+                    Picker("Podcast", selection: Binding(
+                        get: { filter.sourceID },
+                        set: { filter.sourceID = $0; followsPlayer = false }
+                    )) {
+                        Text("Alle Podcasts").tag(SourceID?.none)
+                        ForEach(model.sources) { source in
+                            Text(source.title).tag(SourceID?.some(source.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+                Picker("Zeitraum", selection: Binding(
+                    get: { filter.period },
+                    set: { filter.period = $0; followsPlayer = false }
+                )) {
+                    ForEach(LibraryFilter.Period.allCases, id: \.self) { period in
+                        Text(period.label).tag(period)
+                    }
+                }
+                .pickerStyle(.menu)
+            } label: {
+                Label(summary, systemImage: "scope")
+                    .lineLimit(1)
             }
-            .pickerStyle(.menu)
-            .labelsHidden()
+            .accessibilityLabel("Bereich: \(summary)")
+            .accessibilityIdentifier("chat.scope")
             Spacer()
             if let label = model.modelStatus.resolveLabel {
                 Label(label, systemImage: "sparkles")
@@ -171,6 +219,13 @@ struct ScopeBar: View {
 
     private var currentTitle: String? {
         model.episodePlayer.episode.map { String($0.title.prefix(40)) }
+    }
+
+    /// Was gerade gefragt wird, in einer Zeile.
+    private var summary: String {
+        if followsPlayer, let title = currentTitle { return "Laufende Folge: \(title)" }
+        if filter.isUnrestricted { return ChatScope.allAnalyzed.label }
+        return model.scopeLabel(.library(filter))
     }
 
     enum ScopeChoice: Hashable {
@@ -249,6 +304,8 @@ struct AnswerCard: View {
     let answer: ChatAnswer
     @Environment(AppModel.self) private var model
     @State private var exported: String?
+    /// „Podcast · Folge · Datum“ je Folge. Innerhalb einer Folge leer.
+    @State private var origins: [EpisodeID: String] = [:]
 
     private var numbered: [(number: Int, evidence: Evidence)] {
         let byID = Dictionary(answer.citations.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
@@ -288,7 +345,7 @@ struct AnswerCard: View {
                     Label(label, systemImage: "sparkles")
                 }
                 if !answer.scope.isEpisode {
-                    Label(answer.scope.label, systemImage: "scope")
+                    Label(model.scopeLabel(answer.scope), systemImage: "scope")
                 }
             }
             .font(.caption2)
@@ -303,7 +360,8 @@ struct AnswerCard: View {
             if !numbered.isEmpty {
                 VStack(alignment: .leading, spacing: Design.Spacing.small) {
                     ForEach(numbered, id: \.number) { item in
-                        CitationRow(number: item.number, evidence: item.evidence)
+                        CitationRow(number: item.number, evidence: item.evidence,
+                                    origin: origins[item.evidence.episodeID])
                     }
                 }
                 .padding(.top, Design.Spacing.micro / 2)
@@ -325,8 +383,29 @@ struct AnswerCard: View {
                 .buttonBorderShape(.capsule)
                 .accessibilityHint("Spielt die belegten Originalstellen nacheinander ab")
             }
+
+            // Jede echte Antwort lässt sich sichern. Ein reiner Hinweis ohne
+            // Beleg und ohne Modell („noch nichts ausgewertet“) nicht.
+            if !answer.citations.isEmpty || answer.modelLabel != nil {
+                Button {
+                    model.park(answer)
+                } label: {
+                    Label(isParked ? "Als Wissenslandkarte gesichert" : "Als Wissenslandkarte sichern",
+                          systemImage: isParked ? "checkmark.circle" : "map")
+                        .frame(minHeight: Design.minimumTapTarget)
+                }
+                .buttonStyle(.borderless)
+                .disabled(isParked)
+                .accessibilityHint("Legt Frage, Antwort, Belege und die Notizen zu diesen Stellen unter Wissen ab")
+                .accessibilityIdentifier("chat.saveTrail")
+            }
         }
         .contentCard()
+        .task(id: answer.id) {
+            // Innerhalb einer Folge ist die Herkunft klar.
+            guard !answer.scope.isEpisode else { return }
+            origins = await model.citationOrigins(for: answer.citations)
+        }
         .sheet(item: Binding(
             get: { exported.map(ExportPreview.init) },
             set: { exported = $0?.text }
@@ -334,6 +413,8 @@ struct AnswerCard: View {
             ExportPreviewSheet(text: preview.text)
         }
     }
+
+    private var isParked: Bool { model.isParked(answer) }
 
     private func copy(_ text: String) {
         #if os(iOS)
@@ -345,45 +426,32 @@ struct AnswerCard: View {
     }
 }
 
+/// Ein Beleg mit Nummer, Herkunft, Zitat und Zeitmarke.
+///
+/// Nur ein Beleg mit Zeitbereich ist ein Knopf. Ohne Zeitmarke gibt es
+/// nichts abzuspielen, und die Zeile tut auch nicht so.
 struct CitationRow: View {
 
     var number: Int = 0
     let evidence: Evidence
+    /// „Podcast · Folge · Datum“. Fehlt innerhalb einer Folge.
+    var origin: String?
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        Button {
-            guard let range = evidence.range else { return }
-            Task { await model.playEvidenceInEpisode(evidence, at: range.start.seconds) }
-        } label: {
-            HStack(alignment: .top, spacing: Design.Spacing.small) {
-                Text(number > 0 ? "\(number)" : "")
-                    .font(.caption2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(.white)
-                    .frame(minWidth: 20, minHeight: 20)
-                    .background(.tint, in: .circle)
-                VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
-                    Text(evidence.quotedText)
-                        .font(.caption)
-                        .foregroundStyle(.primary)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
-                    if let range = evidence.range {
-                        HStack(spacing: Design.Spacing.micro) {
-                            TimecodeLabel(range)
-                            Image(systemName: "play.fill").font(.caption2).foregroundStyle(.tint)
-                        }
-                    } else {
-                        Text("ohne Zeitbezug, nicht anhörbar")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+        Group {
+            if evidence.isPlayable, let range = evidence.range {
+                Button {
+                    Task { await model.playEvidenceInEpisode(evidence, at: range.start.seconds) }
+                } label: {
+                    content
                 }
+                .buttonStyle(.plain)
+                .accessibilityHint("Spielt die Folge ab dieser Stelle")
+            } else {
+                content.accessibilityElement(children: .combine)
             }
-            .contentShape(.rect)
         }
-        .buttonStyle(.plain)
-        .accessibilityHint("Spielt die Folge ab dieser Stelle")
         .contextMenu {
             // Gemerkt wird genau dieser Beleg: sein Wortlaut, seine Zeit.
             if evidence.range != nil {
@@ -394,5 +462,47 @@ struct CitationRow: View {
                 }
             }
         }
+    }
+
+    private var content: some View {
+        HStack(alignment: .top, spacing: Design.Spacing.small) {
+            Text(number > 0 ? "\(number)" : "")
+                .font(.caption2.weight(.bold).monospacedDigit())
+                .foregroundStyle(.white)
+                .frame(minWidth: 20, minHeight: 20)
+                .background(evidence.isPlayable ? AnyShapeStyle(.tint) : AnyShapeStyle(.gray), in: .circle)
+            VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                if let origin {
+                    Text(origin)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Text(evidence.quotedText)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+                if let range = evidence.range, evidence.isPlayable {
+                    HStack(spacing: Design.Spacing.micro) {
+                        TimecodeLabel(range)
+                        Image(systemName: "play.fill").font(.caption2).foregroundStyle(.tint)
+                    }
+                } else if let range = evidence.range {
+                    HStack(spacing: Design.Spacing.micro) {
+                        TimecodeLabel(range.start)
+                        Text("· nicht abspielbar")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                } else {
+                    Text("Ohne Zeitmarke, nicht abspielbar")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .contentShape(.rect)
     }
 }

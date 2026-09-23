@@ -33,7 +33,7 @@ struct KnowledgeHubView: View {
                 NavigationLink(value: HubDestination.trails) {
                     HubRow(
                         title: "Wissenslandkarten",
-                        detail: model.trails.isEmpty ? "Keine geparkt" : "\(model.trails.count)",
+                        detail: model.trails.isEmpty ? "Noch keine" : "\(model.trails.count)",
                         symbol: "map",
                         tint: .green
                     )
