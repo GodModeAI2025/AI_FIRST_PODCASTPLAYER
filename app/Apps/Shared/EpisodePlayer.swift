@@ -133,9 +133,13 @@ public final class EpisodePlayer {
     @ObservationIgnored private var nowPlayingChapterStart: Double?
     @ObservationIgnored private let positionsKey = "episodePlaybackPositions"
     @ObservationIgnored private var positions: [String: Double]
+    /// Zuletzt gestartete Folgen, neueste zuerst. Daraus entsteht „Weiterhören“.
+    public private(set) var recentEpisodeIDs: [EpisodeID]
+    @ObservationIgnored private let recentKey = "recentEpisodeIDs"
 
     public init() {
         positions = (UserDefaults.standard.dictionary(forKey: "episodePlaybackPositions") as? [String: Double]) ?? [:]
+        recentEpisodeIDs = (UserDefaults.standard.stringArray(forKey: "recentEpisodeIDs") ?? []).map(EpisodeID.init(rawValue:))
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main
         ) { [weak self] time in
@@ -177,6 +181,10 @@ public final class EpisodePlayer {
             // Das Kapitelende gehörte zur alten Folge.
             if sleepTimer == .endOfChapter { setSleepTimer(nil) }
             self.episode = episode
+            recentEpisodeIDs.removeAll { $0 == episode.id }
+            recentEpisodeIDs.insert(episode.id, at: 0)
+            if recentEpisodeIDs.count > 20 { recentEpisodeIDs.removeLast(recentEpisodeIDs.count - 20) }
+            UserDefaults.standard.set(recentEpisodeIDs.map(\.rawValue), forKey: recentKey)
             chapters = episode.publisherChapters
             duration = episode.declaredDuration?.seconds ?? 0
         }
@@ -198,6 +206,11 @@ public final class EpisodePlayer {
         var changed = false
         for id in episodeIDs where positions.removeValue(forKey: id.rawValue) != nil { changed = true }
         if changed { UserDefaults.standard.set(positions, forKey: positionsKey) }
+        let removed = Set(episodeIDs)
+        if recentEpisodeIDs.contains(where: removed.contains) {
+            recentEpisodeIDs.removeAll { removed.contains($0) }
+            UserDefaults.standard.set(recentEpisodeIDs.map(\.rawValue), forKey: recentKey)
+        }
     }
 
     private func savePosition() {

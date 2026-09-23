@@ -275,6 +275,28 @@ public final class AppModel {
         await refreshRelevantToday()
     }
 
+    /// Angefangene Folgen, zuletzt gestartete zuerst, mit der Stelle zum Weiterhören.
+    public var continueListening: [(episode: Episode, position: Double)] {
+        let byID = Dictionary(episodes.values.joined().map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let entries: [(episode: Episode, position: Double)] = episodePlayer.recentEpisodeIDs.compactMap { id in
+            guard let episode = byID[id], let position = episodePlayer.savedPosition(for: id),
+                  position > 5 else { return nil }
+            return (episode, position)
+        }
+        return Array(entries.prefix(3))
+    }
+
+    /// Neue Folgen der letzten sieben Tage über alle Abos, noch nicht angefangen.
+    public var freshEpisodes: [Episode] {
+        let since = Date().addingTimeInterval(-7 * 86_400)
+        let started = Set(episodePlayer.recentEpisodeIDs)
+        return episodes.values.joined()
+            .filter { ($0.publishedAt ?? .distantPast) > since && !started.contains($0.id) }
+            .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
+            .prefix(5)
+            .map { $0 }
+    }
+
     /// Stellt „Für dich“ zusammen.
     ///
     /// Diese Methode fehlte. `relevantToday` war deklariert, wurde gelesen

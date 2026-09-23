@@ -16,36 +16,74 @@ struct ForYouView: View {
 
     @Environment(AppModel.self) private var model
 
+    @State private var addingSource = false
+
     var body: some View {
         List {
-            if model.profile.confirmed.isEmpty {
+            let resume = model.continueListening
+            if !resume.isEmpty {
+                Section("Weiterhören") {
+                    ForEach(resume, id: \.episode.id) { entry in
+                        ResumeRow(episode: entry.episode, position: entry.position)
+                    }
+                }
+            }
+
+            let fresh = model.freshEpisodes
+            if !fresh.isEmpty {
+                Section("Neu in deinen Abos") {
+                    ForEach(fresh) { episode in
+                        NavigationLink { EpisodeDetailView(episode: episode) } label: {
+                            FreshEpisodeRow(episode: episode)
+                        }
+                    }
+                }
+            }
+
+            if model.sources.isEmpty {
                 ContentUnavailableView {
-                    Label("Noch keine Interessen", systemImage: "sparkles")
+                    Label("Noch keine Podcasts", systemImage: "mic")
                 } description: {
-                    Text("PodcastAI zeigt dir erst dann relevante Stellen, wenn es weiß, "
-                         + "wonach du suchst.")
+                    Text("Such deine Lieblingssendungen nach Namen und abonniere sie. "
+                         + "Danach stehen hier neue Folgen und die Stellen zu deinen Themen.")
                 } actions: {
-                    NavigationLink("Interessen anlegen") { InterestsView() }
+                    Button("Podcast suchen") { addingSource = true }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else if model.profile.confirmed.isEmpty {
+                ContentUnavailableView {
+                    Label("Wonach suchst du?", systemImage: "sparkles")
+                } description: {
+                    Text("Leg ein oder zwei Themen an, etwa „Datenschutz“ oder „Ernährung“. "
+                         + "Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen.")
+                } actions: {
+                    NavigationLink("Themen anlegen") { InterestsView() }
                         .buttonStyle(.borderedProminent)
                 }
             } else if model.relevantToday.isEmpty {
-                ContentUnavailableView {
-                    Label("Nichts Neues", systemImage: "checkmark.circle")
-                } description: {
-                    Text("Zu deinen Themen gibt es gerade keine ungehörten Stellen.")
+                Section("Zu deinen Themen") {
+                    Text("Gerade keine ungehörten Stellen. Neue kommen, sobald die App weitere Folgen vorbereitet hat.")
+                        .foregroundStyle(.secondary)
                 }
             } else {
-                ForEach(model.relevantToday) { item in
-                    RelevantItemRow(item: item)
-                        .listRowInsets(EdgeInsets(top: Design.Spacing.small,
-                                                  leading: Design.Spacing.standard,
-                                                  bottom: Design.Spacing.small,
-                                                  trailing: Design.Spacing.standard))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                ForEach(groupedRelevant, id: \.label) { group in
+                    Section {
+                        ForEach(group.items) { item in
+                            RelevantItemRow(item: item)
+                                .listRowInsets(EdgeInsets(top: Design.Spacing.small,
+                                                          leading: Design.Spacing.standard,
+                                                          bottom: Design.Spacing.small,
+                                                          trailing: Design.Spacing.standard))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
+                    } header: {
+                        Label(group.label, systemImage: "tag")
+                    }
                 }
             }
         }
+        .sheet(isPresented: $addingSource) { AddSourceSheet() }
         .listStyle(.plain)
         .navigationTitle("Für dich")
         .activityStatusToolbar()
@@ -54,6 +92,87 @@ struct ForYouView: View {
             NavigationLink { QueueView() } label: {
                 Label("Warteschlange", systemImage: "list.bullet")
             }
+        }
+    }
+}
+
+extension ForYouView {
+    /// Treffer nach Interesse, in der Reihenfolge des besten Treffers je Gruppe.
+    var groupedRelevant: [(label: String, items: [RelevantItem])] {
+        var order: [String] = []
+        var groups: [String: [RelevantItem]] = [:]
+        for item in model.relevantToday {
+            let label = item.relevance?.interestLabel ?? "Weitere Treffer"
+            if groups[label] == nil { order.append(label) }
+            groups[label, default: []].append(item)
+        }
+        return order.map { ($0, groups[$0] ?? []) }
+    }
+}
+
+/// Eine angefangene Folge. Ein Tipp spielt ab der gemerkten Stelle weiter.
+struct ResumeRow: View {
+    let episode: Episode
+    let position: Double
+    @Environment(AppModel.self) private var model
+
+    private var duration: Double { episode.declaredDuration?.seconds ?? 0 }
+
+    var body: some View {
+        Button { model.playEpisode(episode, at: position) } label: {
+            HStack(spacing: Design.Spacing.control) {
+                EpisodeArtwork(url: episode.artworkURL
+                               ?? model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                               size: 48)
+                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                    Text(episode.title).font(.headline).lineLimit(2)
+                    if duration > 0 {
+                        ProgressView(value: min(position, duration), total: duration)
+                        Text("noch \(max(1, Int((duration - position) / 60))) Min.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text("weiter ab \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "play.circle.fill").font(.title2).foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Spielt ab der Stelle weiter, an der du aufgehört hast")
+    }
+}
+
+/// Eine neue Folge aus den Abos.
+struct FreshEpisodeRow: View {
+    let episode: Episode
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        HStack(spacing: Design.Spacing.control) {
+            EpisodeArtwork(url: episode.artworkURL
+                           ?? model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                           size: 48)
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                Text(episode.title).font(.headline).lineLimit(2)
+                HStack(spacing: Design.Spacing.micro) {
+                    if let source = model.sources.first(where: { $0.id == episode.sourceID }) {
+                        Text(source.title).lineLimit(1)
+                    }
+                    if let published = episode.publishedAt {
+                        Text("·")
+                        Text(published, format: .relative(presentation: .named))
+                    }
+                }
+                .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .swipeActions(edge: .leading) {
+            Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
+                .tint(.accentColor)
         }
     }
 }
