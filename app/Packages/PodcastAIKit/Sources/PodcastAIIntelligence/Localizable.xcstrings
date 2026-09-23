@@ -209,6 +209,22 @@
         }
       }
     },
+    "Die Freigabe von Apple für diese App steht noch aus": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Freigabe von Apple für diese App steht noch aus"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple hasn't approved this app for it yet"
+          }
+        }
+      }
+    },
     "Die Schutzregeln des Modells haben diesen Inhalt abgelehnt.": {
       "localizations": {
         "de": {

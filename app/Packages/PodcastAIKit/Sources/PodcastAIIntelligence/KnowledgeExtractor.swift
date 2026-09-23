@@ -608,7 +608,21 @@ public struct KnowledgeExtractor: Sendable {
         return false
     }
 
+    /// Hat dieser Build die Berechtigung für Private Cloud Compute?
+    ///
+    /// Ohne `com.apple.developer.private-cloud-compute` beendet FoundationModels
+    /// die App hart, sobald eine Anfrage an PCC scheitert („Missing
+    /// entitlement“), auch wenn `isAvailable` vorher ja gesagt hat. Die
+    /// Berechtigung lässt sich zur Laufzeit nicht zuverlässig lesen. Deshalb
+    /// trägt der Build sie zusätzlich als Info.plist-Schlüssel
+    /// `PodcastAIPrivateCloudComputeEntitled` ein, zusammen mit der
+    /// Berechtigung selbst. Fehlt der Schlüssel, bleibt PCC aus.
+    public static var privateCloudEntitled: Bool {
+        Bundle.main.object(forInfoDictionaryKey: "PodcastAIPrivateCloudComputeEntitled") as? Bool == true
+    }
+
     private static func privateCloudSession(instructions: String) -> LanguageModelSession? {
+        guard privateCloudEntitled else { return nil }
         if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
             let model = PrivateCloudComputeLanguageModel()
             guard model.isAvailable else { return nil }
@@ -642,6 +656,12 @@ public struct KnowledgeExtractor: Sendable {
         }
         guard allowPrivateCloud else {
             return ModelStatus(onDevice: onDevice, privateCloudCompute: .unavailable(.userConsentMissing))
+        }
+        guard privateCloudEntitled else {
+            return ModelStatus(
+                onDevice: onDevice,
+                privateCloudCompute: .unavailable(.unknown(String(
+                    localized: "Die Freigabe von Apple für diese App steht noch aus", bundle: .module))))
         }
         if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *) {
             let model = PrivateCloudComputeLanguageModel()
