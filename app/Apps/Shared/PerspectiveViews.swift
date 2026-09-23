@@ -93,6 +93,9 @@ struct CounterpointView: View {
         }
 
         if !check.candidates.isEmpty {
+            // Aus den Karten, nicht aus einem Merker: ist die Karte gelöscht,
+            // lässt sich die Prüfung wieder sichern.
+            let saved = check.isSaved(in: model.trails)
             Section {
                 Button {
                     model.playCounterpoints(check.candidates, thesis: check.thesis)
@@ -104,11 +107,12 @@ struct CounterpointView: View {
                 Button {
                     model.saveCounterpointCheck()
                 } label: {
-                    Label(saveLabel(check), systemImage: check.isSaved ? "checkmark" : "map")
+                    Label(saved ? "Antwort gesichert" : "Antwort sichern",
+                          systemImage: saved ? "checkmark" : "map")
                         .frame(minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.pressable)
-                .disabled(check.isSaved)
+                .disabled(saved)
             } footer: {
                 Text("""
                     Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht \
@@ -117,10 +121,6 @@ struct CounterpointView: View {
                     """)
             }
         }
-    }
-
-    private func saveLabel(_ check: CounterpointCheck) -> LocalizedStringKey {
-        check.isSaved ? "Antwort gesichert" : "Antwort sichern"
     }
 }
 
@@ -335,7 +335,19 @@ private struct TrailRow: View {
 
     private var details: String {
         let count = trail.evidenceIDs.count
-        var parts = [String(AttributedString(localized: "^[\(count) Beleg](inflect: true)").characters)]
+        var parts: [String] = []
+        if trail.isThesisCheck {
+            // Die Stellen einer geprüften These sind keine Belege, ein Teil
+            // widerspricht ihr.
+            parts.append(String(AttributedString(localized: "^[\(count) Stelle](inflect: true)").characters))
+            let against = trail.counterpointEvidenceIDs.count
+            if against > 0 {
+                parts.append(String(AttributedString(
+                    localized: "davon ^[\(against) Gegenposition](inflect: true)").characters))
+            }
+        } else {
+            parts.append(String(AttributedString(localized: "^[\(count) Beleg](inflect: true)").characters))
+        }
         if noteCount > 0 {
             parts.append(String(AttributedString(localized: "^[\(noteCount) Notiz](inflect: true)").characters))
         }
@@ -356,6 +368,9 @@ struct TrailDetailView: View {
     @State private var origins: [EpisodeID: String] = [:]
     @State private var loaded = false
     @State private var confirmingDelete = false
+    /// Folgen der Notizen, die es noch gibt. `nil`, solange das nicht
+    /// geladen ist.
+    @State private var availableEpisodes: Set<EpisodeID>?
 
     private var trail: KnowledgeTrail? { model.trails.first { $0.id == trailID } }
 
@@ -374,6 +389,10 @@ struct TrailDetailView: View {
             origins = await model.citationOrigins(for: found)
             evidence = found
             loaded = true
+        }
+        .task(id: trail.map { model.notes(of: $0).compactMap(\.episodeID) }) {
+            guard let trail else { return }
+            availableEpisodes = await model.availableEpisodeIDs(for: model.notes(of: trail))
         }
     }
 
@@ -408,21 +427,15 @@ struct TrailDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if !items.isEmpty || missing > 0 {
+            if trail.isThesisCheck {
+                thesisSections(trail, playable: playable, missing: missing)
+            } else if !items.isEmpty || missing > 0 {
                 Section {
                     ForEach(items, id: \.number) { item in
                         CitationRow(number: item.number, evidence: item.evidence,
                                     origin: origins[item.evidence.episodeID])
                     }
-                    if playable > 0 {
-                        Button {
-                            model.playTrail(trail)
-                        } label: {
-                            Label(playLabel(playable), systemImage: "play.circle")
-                                .frame(minHeight: Design.minimumTapTarget)
-                        }
-                        .accessibilityHint("Spielt die belegten Originalstellen nacheinander ab")
-                    }
+                    playButton(trail, playable: playable)
                 } header: {
                     Text("Belege")
                 } footer: {
@@ -437,15 +450,7 @@ struct TrailDetailView: View {
             if !notes.isEmpty {
                 Section("Notizen") {
                     ForEach(notes) { note in
-                        if note.episodeID != nil {
-                            Button { Task { await model.playHighlight(note) } } label: {
-                                NoteRow(highlight: note).contentShape(.rect)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityHint("Spielt die Folge ab dieser Stelle")
-                        } else {
-                            NoteRow(highlight: note)
-                        }
+                        noteRow(note)
                     }
                 }
             }
@@ -468,6 +473,73 @@ struct TrailDetailView: View {
             }
         } message: {
             Text("Belege und Notizen bleiben erhalten.")
+        }
+    }
+
+    /// Die Stellen einer geprüften These. Was ihr widerspricht, steht für
+    /// sich unter „Gegenpositionen“, nach den übrigen Stellen wie in der
+    /// Prüfung selbst. Belege für die These sind beide nicht: die übrigen
+    /// stützen sie, setzen anders an oder sind nicht eingeordnet.
+    @ViewBuilder
+    private func thesisSections(_ trail: KnowledgeTrail, playable: Int, missing: Int) -> some View {
+        let against = Set(trail.counterpointEvidenceIDs)
+        let others = evidence.filter { !against.contains($0.id) }
+        let contra = evidence.filter { against.contains($0.id) }
+        if !others.isEmpty {
+            Section("Stellen zur These") {
+                ForEach(Array(others.enumerated()), id: \.element.id) { offset, item in
+                    CitationRow(number: offset + 1, evidence: item, origin: origins[item.episodeID])
+                }
+            }
+        }
+        if !contra.isEmpty {
+            Section("Gegenpositionen") {
+                ForEach(Array(contra.enumerated()), id: \.element.id) { offset, item in
+                    CitationRow(number: others.count + offset + 1, evidence: item,
+                                origin: origins[item.episodeID])
+                }
+            }
+        }
+        if playable > 0 || missing > 0 {
+            Section {
+                playButton(trail, playable: playable)
+            } footer: {
+                if missing == 1 {
+                    Text("Eine Stelle ist nicht mehr da.")
+                } else if missing > 1 {
+                    Text("\(missing) Stellen sind nicht mehr da.")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func playButton(_ trail: KnowledgeTrail, playable: Int) -> some View {
+        if playable > 0 {
+            Button {
+                model.playTrail(trail)
+            } label: {
+                Label(playLabel(playable), systemImage: "play.circle")
+                    .frame(minHeight: Design.minimumTapTarget)
+            }
+            .accessibilityHint("Spielt die belegten Originalstellen nacheinander ab")
+        }
+    }
+
+    /// Abspielbar ist eine Notiz nur mit Folge und Zeitmarke, und nur,
+    /// solange die Folge noch da ist. Sonst ist sie eine Zeile zum Lesen und
+    /// sieht auch so aus, wie unter „Gemerkte Stellen“.
+    @ViewBuilder
+    private func noteRow(_ note: Highlight) -> some View {
+        let gone = note.episodeID.map { id in availableEpisodes.map { !$0.contains(id) } ?? false } ?? false
+        if note.episodeID != nil, note.positionMs != nil, !gone {
+            Button { Task { await model.playHighlight(note) } } label: {
+                NoteRow(highlight: note).contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Spielt die Folge ab dieser Stelle")
+        } else {
+            NoteRow(highlight: note, episodeGone: gone)
         }
     }
 

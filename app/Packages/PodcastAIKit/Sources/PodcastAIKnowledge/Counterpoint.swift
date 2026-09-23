@@ -154,17 +154,38 @@ public struct CounterpointCheck: Sendable, Identifiable {
     /// Schon ausgewogen zusammengestellt, siehe ``CounterpointMixer/balance(_:)``.
     public var candidates: [CounterpointCandidate]
     public var classificationProblem: String?
-    /// Als Wissenslandkarte gesichert.
-    public var isSaved: Bool
 
     public init(
         id: UUID = UUID(), thesis: String, isRunning: Bool = true,
-        candidates: [CounterpointCandidate] = [], classificationProblem: String? = nil,
-        isSaved: Bool = false
+        candidates: [CounterpointCandidate] = [], classificationProblem: String? = nil
     ) {
         self.id = id; self.thesis = thesis; self.isRunning = isRunning
         self.candidates = candidates; self.classificationProblem = classificationProblem
-        self.isSaved = isSaved
+    }
+
+    /// Die Kennung der gesicherten Antwort zu dieser Prüfung.
+    ///
+    /// Ob die Prüfung gesichert ist, steht in keinem Merker an ihr, sondern
+    /// ergibt sich aus den Karten. Ein Merker blieb nach dem Löschen der
+    /// Karte stehen, und „Antwort gesichert“ liess sich nicht mehr sichern.
+    public var trailID: KnowledgeNodeID {
+        KnowledgeNodeID(rawValue: KnowledgeTrail.thesisPrefix + id.uuidString)
+    }
+
+    /// Gibt es die Karte zu dieser Prüfung noch?
+    public func isSaved(in trails: [KnowledgeTrail]) -> Bool {
+        trails.contains { $0.id == trailID }
+    }
+
+    /// Die Karte, die „Antwort sichern“ anlegt: alle Stellen, und die
+    /// widersprechenden zusätzlich als Gegenpositionen. Aufbewahren heisst
+    /// nicht zustimmen.
+    public func trail(question: String, parkedAt: Date = Date()) -> KnowledgeTrail {
+        KnowledgeTrail(
+            id: trailID, question: question,
+            evidenceIDs: candidates.map(\.evidenceID),
+            counterpointEvidenceIDs: candidates.filter { $0.relation == .contradicts }.map(\.evidenceID),
+            parkedAt: parkedAt)
     }
 }
 
@@ -231,10 +252,26 @@ public struct CounterpointMixer: Sendable {
         // Grund nennt die App an anderer Stelle, hier wird nichts behauptet.
         let relations = Set(selection.map(\.relation)).subtracting([.unclassified])
         guard !relations.isEmpty else { return nil }
+        // Ist nur ein Teil eingeordnet, gilt eine Aussage über die fehlende
+        // Seite nur für diesen Teil. Das Modell lässt Stellen aus, ohne dass
+        // ein Fehler entsteht, und unter den übrigen kann die Seite sein.
+        let partly = selection.contains { $0.relation == .unclassified }
         if !relations.contains(.contradicts) {
+            if partly {
+                return String(localized: """
+                    Unter den eingeordneten Stellen ist keine Gegenposition. Die übrigen \
+                    sind nicht eingeordnet, darunter kann eine sein.
+                    """, bundle: .module)
+            }
             return String(localized: """
                 In deinen Folgen mit Transkript findet sich keine Gegenposition. \
                 Das heißt nicht, dass es keine gibt.
+                """, bundle: .module)
+        }
+        if partly {
+            return String(localized: """
+                Unter den eingeordneten Stellen ist nur die Gegenseite. Die übrigen \
+                sind nicht eingeordnet, darunter kann auch Stützendes sein.
                 """, bundle: .module)
         }
         return String(localized: """

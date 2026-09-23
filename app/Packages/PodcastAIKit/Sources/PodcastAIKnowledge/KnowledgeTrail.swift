@@ -69,18 +69,25 @@ public struct SessionClosure: Sendable {
     /// Wann die Session begann. Notizen, die seitdem entstanden sind,
     /// gehören zu ihr. Ältere Notizen der Mediathek nicht.
     public let startedAt: Date?
+    /// Wann die Session endete. Die Karte entsteht in diesem Moment, daher
+    /// der Standardwert. Was danach gemerkt wird, etwa per Kurzbefehl in
+    /// einer anderen Folge, solange die Karte noch offen ist, gehört nicht
+    /// mehr zu ihr.
+    public let endedAt: Date
 
     public init(
         question: String, supportingEvidenceIDs: [EvidenceID],
         followUpEvidenceIDs: [EvidenceID] = [],
         suggestedBudget: MediaDuration = MediaDuration(minutes: 10),
-        startedAt: Date? = nil
+        startedAt: Date? = nil,
+        endedAt: Date = Date()
     ) {
         self.question = question
         self.supportingEvidenceIDs = supportingEvidenceIDs
         self.followUpEvidenceIDs = followUpEvidenceIDs
         self.suggestedBudget = suggestedBudget
         self.startedAt = startedAt
+        self.endedAt = endedAt
     }
 
     /// Die Notizen dieser Session: an einem ihrer Belege gemerkt oder
@@ -90,7 +97,7 @@ public struct SessionClosure: Sendable {
         return highlights.filter { note in
             if supporting.contains(note.evidenceID) { return true }
             guard let startedAt else { return false }
-            return note.capturedAt >= startedAt
+            return note.capturedAt >= startedAt && note.capturedAt <= endedAt
         }.map(\.id)
     }
 
@@ -139,7 +146,8 @@ public struct SessionBoundaryPolicy: Sendable {
     }
 }
 
-/// Eine geparkte Wissenslandkarte.
+/// Eine gesicherte Antwort: aus dem Chat, aus einer geprüften These oder
+/// von der Abschlusskarte geparkt.
 public struct KnowledgeTrail: Sendable, Identifiable, Codable {
 
     public let id: KnowledgeNodeID
@@ -210,6 +218,19 @@ public struct KnowledgeTrail: Sendable, Identifiable, Codable {
                 return sameEpisode && noted.touchesOrOverlaps(range)
             }
         }.map(\.id)
+    }
+
+    /// Karten aus „Gegenpositionen“ tragen diesen Anfang in ihrer Kennung,
+    /// siehe ``CounterpointCheck/trailID``.
+    static let thesisPrefix = "thesis-"
+
+    /// Stammt die Karte aus einer geprüften These?
+    ///
+    /// Dann sind ihre Stellen keine Belege für eine Antwort. Ein Teil
+    /// widerspricht der These, und die Karte muss das zeigen. Ältere Karten
+    /// erkennt man nur an ihren Gegenpositionen.
+    public var isThesisCheck: Bool {
+        id.rawValue.hasPrefix(Self.thesisPrefix) || !counterpointEvidenceIDs.isEmpty
     }
 
     /// Parken heißt aufbewahren, nicht zustimmen.

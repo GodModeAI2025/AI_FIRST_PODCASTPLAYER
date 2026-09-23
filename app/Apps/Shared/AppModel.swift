@@ -1802,19 +1802,14 @@ public final class AppModel {
         }
     }
 
-    /// Sichert die geprüfte These als Wissenslandkarte. Aufbewahren heisst
-    /// nicht zustimmen, die Landkarte sagt das auch.
+    /// Sichert die geprüfte These als gesicherte Antwort. Aufbewahren heisst
+    /// nicht zustimmen, die Karte sagt das auch. Ob sie gesichert ist, zeigen
+    /// die Karten selbst: nach dem Löschen lässt sie sich wieder sichern.
     public func saveCounterpointCheck() {
-        guard var check = counterpointCheck, !check.isRunning, !check.isSaved,
+        guard let check = counterpointCheck, !check.isRunning, !check.isSaved(in: trails),
               !check.candidates.isEmpty else { return }
-        trails.insert(KnowledgeTrail(
-            question: String(localized: "These: \(check.thesis)"),
-            evidenceIDs: check.candidates.map(\.evidenceID),
-            counterpointEvidenceIDs: check.candidates.filter { $0.relation == .contradicts }.map(\.evidenceID)
-        ), at: 0)
+        trails.insert(check.trail(question: String(localized: "These: \(check.thesis)")), at: 0)
         persistTrails()
-        check.isSaved = true
-        counterpointCheck = check
     }
 
     /// Spielt die Folge einer Gegenposition ab ihrer Stelle. Nur auf Tipp.

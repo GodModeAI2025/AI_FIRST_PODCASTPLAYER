@@ -507,8 +507,9 @@ struct FactRow: View {
     let fact: EpisodeFact
     let episode: Episode
     @Environment(AppModel.self) private var model
-    /// Der Wortlaut des Belegs. Nur er wird wörtlich zitiert.
-    @State private var evidenceText: String?
+    /// Was in der Folge gesagt wurde: der Satz aus dem Beleg, an dem die
+    /// Zeitmarke steht. Nur er wird wörtlich zitiert.
+    @State private var quote: String?
 
     var body: some View {
         Button {
@@ -533,19 +534,21 @@ struct FactRow: View {
         }
         .accessibilityHint("Spielt die Stelle, aus der die Aussage stammt")
         .contextMenu {
-            FactActions(fact: fact, episode: episode, evidenceText: evidenceText)
+            FactActions(fact: fact, episode: episode, quote: quote)
         }
-        .task(id: fact.evidenceID) { evidenceText = await model.evidence(fact.evidenceID)?.quotedText }
+        .task(id: fact) { quote = await model.factQuote(fact) }
     }
 }
 
 /// Merken, Kopieren und Teilen für einen Fakt. Die Aussage hat das Modell
-/// formuliert. Wörtlich zitiert und gemerkt wird deshalb der Beleg, die
-/// Aussage steht beim Kopieren als Zusammenfassung daneben.
+/// formuliert. Wörtlich zitiert und gemerkt wird deshalb, was in der Folge
+/// gesagt wurde: der Satz aus dem Beleg, an dem die Zeitmarke steht, wie
+/// unter „Wortlaut zeigen“. Die Aussage steht beim Kopieren als
+/// Zusammenfassung daneben.
 struct FactActions: View {
     let fact: EpisodeFact
     let episode: Episode
-    let evidenceText: String?
+    let quote: String?
     @Environment(AppModel.self) private var model
 
     var body: some View {
@@ -557,19 +560,19 @@ struct FactActions: View {
         Button {
             // Ohne Beleg füllt addNote das Zitat aus dem Transkript.
             Task {
-                await model.addNote(nil, at: fact.range.start.seconds, in: episode, quote: evidenceText,
-                                    evidenceID: evidenceText == nil ? nil : fact.evidenceID,
+                await model.addNote(nil, at: fact.range.start.seconds, in: episode, quote: quote,
+                                    evidenceID: quote == nil ? nil : fact.evidenceID,
                                     mediaVersionID: fact.mediaVersionID, via: .transcript)
             }
         } label: {
             Label("Stelle merken", systemImage: "bookmark")
         }
         Button {
-            Clipboard.copy(model.factCitation(fact, evidenceText: evidenceText, in: episode))
+            Clipboard.copy(model.factCitation(fact, quote: quote, in: episode))
         } label: {
             Label("Mit Quelle kopieren", systemImage: "doc.on.doc")
         }
-        ShareLink(item: model.factCitation(fact, evidenceText: evidenceText, in: episode)) {
+        ShareLink(item: model.factCitation(fact, quote: quote, in: episode)) {
             Label("Teilen", systemImage: "square.and.arrow.up")
         }
     }

@@ -99,13 +99,16 @@ struct ChatScopeAndTrailTests {
     @Test("Eine Session behält nur Notizen, die während ihr entstanden sind")
     func sessionNotes() {
         let start = now
+        let end = start.addingTimeInterval(1_800)
         let before = Highlight(evidenceID: EvidenceID(stable: "alt"), capturedAt: start.addingTimeInterval(-3_600))
         let during = Highlight(evidenceID: EvidenceID(stable: "neu"), capturedAt: start.addingTimeInterval(120))
+        // Gemerkt, während die Karte noch offen war, in einer anderen Folge.
+        let after = Highlight(evidenceID: EvidenceID(stable: "später"), capturedAt: end.addingTimeInterval(600))
         let supporting = EvidenceID(stable: "beleg")
         let atEvidence = Highlight(evidenceID: supporting, capturedAt: start.addingTimeInterval(-86_400))
         let closure = SessionClosure(question: "Frage", supportingEvidenceIDs: [supporting],
-                                     startedAt: start)
-        #expect(Set(closure.noteIDs(in: [before, during, atEvidence])) == [during.id, atEvidence.id])
+                                     startedAt: start, endedAt: end)
+        #expect(Set(closure.noteIDs(in: [before, during, after, atEvidence])) == [during.id, atEvidence.id])
     }
 
     @Test("Wird ein zitierter Beleg gelöscht, geht der Antworttext mit")

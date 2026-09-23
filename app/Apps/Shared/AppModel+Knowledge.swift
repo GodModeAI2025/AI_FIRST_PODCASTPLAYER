@@ -636,16 +636,29 @@ extension AppModel {
         return String(localized: "„\(text)“\n(\(place))", comment: "Zitat mit Herkunft zum Kopieren")
     }
 
-    /// Ein Fakt zum Kopieren oder Teilen. Wörtlich zitiert wird nur der
-    /// Beleg. Die Aussage hat das Modell formuliert, sie steht deshalb als
-    /// Zusammenfassung da und nie in Anführungszeichen.
-    public func factCitation(_ fact: EpisodeFact, evidenceText: String?, in episode: Episode) -> String {
+    /// Was zu einem Fakt wörtlich gesagt wurde: der Satz aus seinem Beleg,
+    /// an dem auch die Zeitmarke des Fakts steht. Derselbe Text, den
+    /// „Wortlaut zeigen“ anzeigt (``factWording(_:passages:)``).
+    ///
+    /// Nicht der ganze Beleg. Der dauert ein, zwei Minuten und fängt weit
+    /// vor der Zeitmarke an. Gemerkt, kopiert oder geteilt stand sonst ein
+    /// Zitat da, das zu einer anderen Stelle gehört als seine Zeitmarke.
+    public func factQuote(_ fact: EpisodeFact) async -> String? {
+        guard let passage = await evidence(fact.evidenceID) else { return nil }
+        return FactAnchor.wording(for: fact.statement, in: passage.quotedText)
+    }
+
+    /// Ein Fakt zum Kopieren oder Teilen. Wörtlich zitiert wird nur, was in
+    /// der Folge gesagt wurde (``factQuote(_:)``). Die Aussage hat das
+    /// Modell formuliert, sie steht deshalb als Zusammenfassung da und nie in
+    /// Anführungszeichen.
+    public func factCitation(_ fact: EpisodeFact, quote: String?, in episode: Episode) -> String {
         let summary = String(localized: "Zusammenfassung: \(fact.statement)")
         let place = self.origin(at: fact.range.start, in: episode)
-        guard let evidenceText, !evidenceText.isEmpty else {
+        guard let quote, !quote.isEmpty else {
             return "\(summary)\n(\(place))"
         }
-        return String(localized: "„\(evidenceText)“\n(\(place))\n\n\(summary)", comment: "Fakt mit wörtlichem Beleg zum Kopieren")
+        return String(localized: "„\(quote)“\n(\(place))\n\n\(summary)", comment: "Fakt mit wörtlichem Beleg zum Kopieren")
     }
 
     private func origin(at start: MediaTime, in episode: Episode) -> String {

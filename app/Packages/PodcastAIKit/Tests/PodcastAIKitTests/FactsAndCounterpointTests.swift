@@ -117,11 +117,72 @@ struct FactAnchorTests {
         #expect(tags.first?.isInterest == true)
         #expect(!tags.contains { $0.label == "Gartenbau" })
         #expect(tags.contains { $0.label == "Regeln" && !$0.isInterest })
-        #expect(tags.contains { $0.label == "Sprachmodellen" })
+        // Die Aussagen sagen „bei Sprachmodellen“, ein Beleg „Sprachmodelle“.
+        // Das Schlagwort steht in der kürzeren Form.
+        #expect(tags.contains { $0.label == "Sprachmodelle" })
+        #expect(!tags.contains { $0.label == "Sprachmodellen" })
         // Satzanfänge sind keine Hauptwörter, „Teams“ steht nur dort.
         #expect(!tags.contains { $0.label == "Teams" })
         // Nur einmal gesagt und kaum im Transkript: kein Schlagwort.
         #expect(!tags.contains { $0.label == "Schattenlösungen" })
+    }
+
+    @Test("Ein Schlagwort steht in der Grundform, die die Folge belegt, und trifft als Interesse alle Formen")
+    func topicTagUsesBaseForm() throws {
+        let statements = [
+            "Firmen setzen bei Sprachmodellen auf eigene Daten.",
+            "Der Bericht warnt vor Fehlern bei Sprachmodellen.",
+        ]
+        let passages = [
+            passage("p1", "Ein Sprachmodell rechnet auf dem Gerät."),
+            passage("p2", "Die Sprachmodelle werden kleiner."),
+            passage("p3", "Bei Sprachmodellen hilft das."),
+        ]
+        let tags = TopicTagger().tags(statements: statements, passages: passages, profile: InterestProfile())
+        let tag = try #require(tags.first { $0.label.hasPrefix("Sprachmodell") })
+        #expect(tag.label == "Sprachmodell")
+
+        // Getippt wird daraus ein Interesse mit genau dieser Bezeichnung.
+        let interest = Interest(label: tag.label, kind: .topic, origin: .confirmedByUser)
+        let matched = Set(RelevanceScorer().score(evidence: passages, profile: InterestProfile(interests: [interest]))
+            .map(\.evidenceID))
+        #expect(matched == Set(passages.map(\.id)))
+    }
+
+    @Test("Gekürzt wird nur auf eine Form, die vorkommt")
+    func topicTagKeepsUnattestedForms() {
+        let statements = [
+            "Viele Unternehmen testen neue Werkzeuge.",
+            "Kleine Unternehmen zögern noch, sagt ein Unternehmer.",
+        ]
+        let passages = [passage("p1", "Der Unternehmer spricht über Unternehmen und Regeln.")]
+        let tags = TopicTagger().tags(statements: statements, passages: passages, profile: InterestProfile())
+        #expect(tags.contains { $0.label == "Unternehmen" })
+        #expect(!tags.contains { $0.label == "Unternehm" })
+        #expect(TopicTagger.baseForm(of: "batterien") { $0 == "batterie" } == "batterie")
+        #expect(TopicTagger.baseForm(of: "regeln") { _ in false } == "regeln")
+        // Unter fünf Buchstaben wird nicht gekürzt.
+        #expect(TopicTagger.baseForm(of: "daten") { $0 == "date" } == "daten")
+    }
+
+    @Test("Offene Fragen und Vorhaben werden keine Schlagworte")
+    func questionsAndProjectsAreNoTags() {
+        let passages = [
+            passage("p1", "Agentische Apps nutzen in iOS 27 neue Schnittstellen."),
+            passage("p2", "Für agentische Apps öffnet Apple weitere Möglichkeiten."),
+        ]
+        let profile = InterestProfile(interests: [
+            Interest(label: "Welche Möglichkeiten bietet iOS 27 für agentische Apps?",
+                     kind: .openQuestion, origin: .confirmedByUser),
+            Interest(label: "Agentische Apps bauen", kind: .activeProject, origin: .confirmedByUser),
+            Interest(label: "Schnittstellen", kind: .topic, origin: .confirmedByUser),
+        ])
+        // Die Frage und das Vorhaben treffen beide Stellen.
+        let kinds = Set(RelevanceScorer().score(evidence: passages, profile: profile).map(\.kind))
+        #expect(kinds.contains(.openQuestion) && kinds.contains(.activeProject))
+
+        let tags = TopicTagger().tags(statements: [], passages: passages, profile: profile)
+        #expect(tags.map(\.label) == ["Schnittstellen"])
     }
 
     @Test("Zu Wahlen und Parteien schlägt die App kein Schlagwort vor")
@@ -168,10 +229,48 @@ struct CounterpointAndClosureTests {
         #expect(picked.first?.evidenceID.rawValue == "u1")
         #expect(mixer.imbalanceNotice(picked) == nil)
 
+        // Nur ein Teil eingeordnet: keine Behauptung über die fehlende Seite,
+        // denn unter den übrigen kann sie sein.
         let mixed = mixer.balance([candidate("u", .unclassified, confirmed: false), candidate("s", .supports)])
         #expect(mixed.map(\.relation) == [.supports, .unclassified])
-        #expect(mixer.imbalanceNotice(mixed)?.contains("keine Gegenposition") == true)
+        let notice = mixer.imbalanceNotice(mixed)
+        #expect(notice?.contains("nicht eingeordnet") == true)
+        #expect(notice?.contains("findet sich keine Gegenposition") == false)
+
+        let against = mixer.balance([candidate("u", .unclassified, confirmed: false), candidate("c", .contradicts)])
+        #expect(mixer.imbalanceNotice(against)?.contains("nicht eingeordnet") == true)
+        #expect(mixer.imbalanceNotice(against)?.contains("findet sich nur die Gegenseite") == false)
+
+        // Alles eingeordnet und keine Gegenposition: das darf die App sagen.
+        let classified = mixer.balance([candidate("s", .supports), candidate("d", .differentPremise)])
+        #expect(mixer.imbalanceNotice(classified)?.contains("findet sich keine Gegenposition") == true)
         #expect(mixer.imbalanceNotice([])?.contains("Folgen mit Transkript") == true)
+    }
+
+    @Test("Ob eine These gesichert ist, ergibt sich aus den Karten")
+    func savedThesisFollowsTrails() {
+        let check = CounterpointCheck(
+            thesis: "Kernkraft ist klimafreundlich", isRunning: false,
+            candidates: [candidate("s", .supports), candidate("c", .contradicts),
+                         candidate("u", .unclassified, confirmed: false)])
+        #expect(!check.isSaved(in: []))
+
+        let trail = check.trail(question: "These: Kernkraft ist klimafreundlich")
+        #expect(trail.id == check.trailID)
+        #expect(trail.evidenceIDs.map(\.rawValue) == ["s", "c", "u"])
+        #expect(trail.counterpointEvidenceIDs.map(\.rawValue) == ["c"])
+        #expect(trail.isThesisCheck)
+        #expect(check.isSaved(in: [trail]))
+
+        // Karte gelöscht: die Prüfung lässt sich wieder sichern.
+        #expect(!check.isSaved(in: []))
+        // Eine neue Prüfung derselben These ist eine eigene Karte.
+        let again = CounterpointCheck(thesis: check.thesis, isRunning: false, candidates: check.candidates)
+        #expect(again.trailID != check.trailID)
+        #expect(!again.isSaved(in: [trail]))
+
+        // Eine Karte aus dem Chat ist keine geprüfte These.
+        #expect(!KnowledgeTrail(question: "Was sagt A?", evidenceIDs: [EvidenceID(rawValue: "s")]).isThesisCheck)
     }
 
     @Test("Das Modell wählt nie „nicht eingeordnet“")
