@@ -176,8 +176,8 @@ public final class AppModel {
     static let removeHeardKey = "removeHeardAudioAfterDay"
     /// Folgen, deren Audio gerade für unterwegs geladen wird.
     public internal(set) var downloading: Set<EpisodeID> = []
-    /// Ausdrücklich für unterwegs geladen. Das Aufräumen nach dem Auswerten
-    /// lässt diese Dateien liegen.
+    /// Ausdrücklich für unterwegs geladen. Das Aufräumen lässt diese Dateien
+    /// liegen, nach dem Auswerten genauso wie nach dem Hören.
     @ObservationIgnored var keptOffline = StoredEpisodeIDs(key: "keptOfflineEpisodes")
     /// Kann dieses Gerät gar nicht transkribieren, hört die App von selbst
     /// auf, es zu versuchen, statt Folge um Folge zu laden.
@@ -365,6 +365,7 @@ public final class AppModel {
             LocalMediaLocator.removeFiles(for: report.mediaVersionIDs)
             mediaStorageChanged += 1
         }
+        let knownHighlights = highlights
         do {
             sources = try await store.sources()
             try await reloadProfile()
@@ -374,6 +375,11 @@ public final class AppModel {
             smartFeeds = try await store.smartFeeds()
             editions = try await store.editions()
             highlights = try await store.highlights()
+            // Die Systemsuche zeigt den Stand der Datenbank, auch für Notizen,
+            // die ein anderes Gerät angelegt, geändert oder gelöscht hat. Beim
+            // Start immer: was sich getan hat, während die App zu war, weiss
+            // sonst niemand.
+            if !isLoaded || highlights != knownHighlights { reindexSpotlight() }
             trails = try await store.trails()
             modelStatus = ModelStatusProbe.current(allowPrivateCloud: allowPrivateCloudCompute)
             // Was schon erschlossen ist, steht in der Datenbank. Ohne diesen
@@ -415,20 +421,29 @@ public final class AppModel {
         store = newStore
         refresher = FeedRefresher(store: newStore)
         episodes = [:]
+        // Ein neuer Speicher ist ein neuer Start.
+        restoreAttempted = false
         await load()
     }
+
+    /// Hat der Start die letzte Folge schon einmal bereitgelegt? `load()`
+    /// läuft auch nach jedem iCloud-Abgleich. Ohne diese Sperre käme eine
+    /// Folge, die jemand gerade gestoppt hat, von selbst zurück in den
+    /// Mini-Player und an den Sperrbildschirm.
+    @ObservationIgnored private var restoreAttempted = false
 
     /// Legt nach dem Start die zuletzt gehörte Folge pausiert in den
     /// Mini-Player und an den Sperrbildschirm. Es klingt nichts (Regel 1):
     /// weiter geht es erst, wenn jemand auf Abspielen tippt oder die Taste
-    /// am Kopfhörer drückt.
+    /// am Kopfhörer drückt. Einmal je Start, nicht nach jedem Abgleich.
     private func restoreLastEpisode() {
+        guard !restoreAttempted else { return }
+        restoreAttempted = true
         // Ein UI-Test mit leerem Speicher beginnt ohne Reste vom letzten Lauf.
         guard !ProcessInfo.processInfo.arguments.contains("-uitest-fresh"),
               episodePlayer.episode == nil, playerPlan == nil,
               let episode = continueListening.first?.episode, canPlay(episode) else { return }
-        let local = episode.streamMediaVersionID.flatMap { LocalMediaLocator().localFile(for: $0) }
-        episodePlayer.restore(episode, at: resumePosition(for: episode), localFile: local)
+        episodePlayer.restore(episode, at: resumePosition(for: episode), localFile: localAudioFile(for: episode))
         Task { await loadChapters(for: episode) }
     }
 
@@ -454,6 +469,12 @@ public final class AppModel {
             .map { $0 }
     }
 
+    /// So viele Stellen mit Zeitmarke lesen „Für dich“, die Vorschläge, der
+    /// Chat und die Gegenpositionen. Die Voreinstellung des Speichers liefert
+    /// nur 500, und zwar die ältesten. Nach gut einem Dutzend Folgen mit
+    /// Transkript fiele alles Neue heraus.
+    static let evidencePoolLimit = 20_000
+
     /// Stellt „Für dich“ zusammen.
     ///
     /// Diese Methode fehlte. `relevantToday` war deklariert, wurde gelesen
@@ -472,7 +493,7 @@ public final class AppModel {
     ///   kann, gehört nicht auf eine Liste, deren Versprechen das Nachhören ist.
     public func refreshRelevantToday() async {
         do {
-            let evidence = try await store.evidenceForAnalyzedEpisodes()
+            let evidence = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
             // Vorschläge entstehen aus dem Gehörten, auch wenn noch kein
             // eigenes Thema trifft. Gerade dann helfen sie am meisten.
             refreshSuggestions(from: evidence)
@@ -735,10 +756,21 @@ public final class AppModel {
     /// Ansichten vergleichen die Angabe damit.
     static var waitingDetail: String { String(localized: "wartet", comment: "Zustand einer Folge in der Warteschlange") }
 
+    /// „Entfernen“ in der Warteschlange, also eine Entscheidung des Nutzers.
     public func removeFromAnalysisQueue(_ episodeID: EpisodeID) {
         // Wer eine Folge herausnimmt, will sie nicht beim nächsten
         // Aktualisieren wieder in der Warteschlange sehen.
-        if analysisQueue.contains(where: { $0.id == episodeID }) { dismissedFromPreparation.insert(episodeID) }
+        let wasQueued = analysisQueue.contains { $0.id == episodeID }
+        dropFromAnalysisQueue(episodeID)
+        if wasQueued { dismissedFromPreparation.insert(episodeID) }
+    }
+
+    /// Nimmt eine Folge aus der Warteschlange, ohne sich das als Wunsch zu
+    /// merken. Für Löschen und Abbestellen: die Folge ist weg, und wer die
+    /// Quelle später wieder abonniert, bekommt ihre neuesten Folgen wieder
+    /// vorbereitet. Darum fällt auch ein früheres „Entfernen“ weg.
+    func dropFromAnalysisQueue(_ episodeID: EpisodeID) {
+        dismissedFromPreparation.remove(episodeID)
         automaticallyQueued.remove(episodeID)
         analysisQueue.removeAll { $0.id == episodeID }
         stageDetails[episodeID] = nil
@@ -1166,15 +1198,38 @@ public final class AppModel {
             editions[feedID] = kept
             persistEditions(for: feedID)
         }
-        // Eine abbestellte Quelle kann kein Themenfeed mehr eingrenzen.
+        // Eine abbestellte Quelle grenzt kein Themen-Update mehr ein. War sie
+        // die letzte gewählte, bleibt die Auswahl aber stehen: leer hiesse
+        // „alle Podcasts“, und das Update holte sich still Stellen von
+        // überall. So entsteht keine Ausgabe, bis jemand andere Podcasts
+        // wählt oder die alten wieder abonniert.
         guard !removedSources.isEmpty else { return }
         var feedsChanged = false
         for index in smartFeeds.indices
         where smartFeeds[index].restrictedToSourceIDs.contains(where: removedSources.contains) {
-            smartFeeds[index].restrictedToSourceIDs.removeAll(where: removedSources.contains)
+            let remaining = smartFeeds[index].restrictedToSourceIDs.filter { !removedSources.contains($0) }
+            guard !remaining.isEmpty else {
+                editionNotes[smartFeeds[index].id] = Self.unsubscribedScopeNote
+                continue
+            }
+            smartFeeds[index].restrictedToSourceIDs = remaining
             feedsChanged = true
         }
         if feedsChanged { persistSmartFeeds() }
+    }
+
+    /// Ist das Themen-Update auf Podcasts beschränkt, von denen keiner mehr
+    /// abonniert ist?
+    private func hasOnlyUnsubscribedSources(_ feed: SmartPodcastFeed) -> Bool {
+        let live = Set(sources.map(\.id))
+        return !feed.restrictedToSourceIDs.isEmpty && !feed.restrictedToSourceIDs.contains(where: live.contains)
+    }
+
+    static var unsubscribedScopeNote: String {
+        String(localized: """
+            Die Podcasts, auf die dieses Themen-Update beschränkt ist, sind abbestellt. \
+            Wähle beim Bearbeiten andere aus oder abonniere sie wieder.
+            """)
     }
 
     /// Sichert die selbst angelegten Bestände.
@@ -1207,6 +1262,8 @@ public final class AppModel {
     /// in dieser App gemerkt wurde — der Schalter in den Einstellungen war
     /// ein Schalter ohne Wirkung. Der Index selbst prüft die Einwilligung.
     public func reindexSpotlight() {
+        // Ohne Einwilligung gibt es nichts zu melden und nichts zu lesen.
+        guard spotlight.isEnabled else { return }
         let list = highlights
         Task {
             let evidence = (try? await store.evidence(ids: list.map(\.evidenceID))) ?? [:]
@@ -1252,6 +1309,15 @@ public final class AppModel {
         guard !buildingFeeds.contains(feedID) else {
             return String(localized: "Die Ausgabe wird gerade zusammengestellt.")
         }
+        // Sonst stünde hier „noch keine Folge mit Transkript“, und niemand
+        // wüsste, dass nur die Auswahl der Podcasts fehlt. Auch beim
+        // automatischen Lauf: nach einem Neustart oder auf einem anderen
+        // Gerät ist das der einzige Weg, auf dem der Hinweis erscheint.
+        guard !hasOnlyUnsubscribedSources(feed) else {
+            let note = Self.unsubscribedScopeNote
+            editionNotes[feedID] = note
+            return note
+        }
         if let budget { feed.editionMode = .budgeted(budget) }
 
         buildingFeeds.insert(feedID)
@@ -1279,7 +1345,7 @@ public final class AppModel {
             // „Folge“ zu ersetzen. Eine Ausgabe, die ihre eigenen
             // Bestandteile nicht benennen kann, ist kein Podcast — und die
             // Shownotes sind die Stelle, an der das auffällt.
-            let known = try await store.evidenceForAnalyzedEpisodes()
+            let known = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
             let titles = try await store.titles(
                 forEpisodes: Array(Set(known.map(\.episodeID))))
             let candidates = try await pipeline.candidates(
@@ -1634,7 +1700,7 @@ public final class AppModel {
     /// konnte, bleibt sichtbar „nicht eingeordnet“, und der Grund steht
     /// dabei. Ohne Einordnung sagt die App nichts über Gegenpositionen.
     public func findCounterpoints(for thesis: String) async -> CounterpointSearch {
-        let pool = (try? await store.evidenceForAnalyzedEpisodes(limit: 20_000)) ?? []
+        let pool = (try? await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)) ?? []
         guard !pool.isEmpty else {
             return CounterpointSearch(candidates: [], classificationProblem: String(localized:
                 "Noch hat keine Folge ein Transkript. Sobald das erste fertig ist, sucht die App darin."))
@@ -2113,16 +2179,31 @@ public final class AppModel {
 
     /// Startet die erste Folge aus „Als Nächstes“ an ihrer gemerkten Stelle.
     /// Eine halb gehörte Folge geht dort weiter, wo sie aufgehört hat.
+    ///
+    /// Ohne Netz kommt die erste Folge dran, die auf dem Gerät liegt. Die
+    /// anderen bleiben in der Liste, bis wieder Netz da ist. `false` heisst:
+    /// es startet nichts. Die Kopfhörertaste springt dann 30 s vor.
     @discardableResult
     public func playNextInQueue() -> Bool {
-        while let next = upNext.first {
-            if canPlay(next) {
-                playEpisode(next)
-                return true
+        // Folgen ohne Ton (YouTube) hielten die Liste nur auf.
+        if upNext.contains(where: { !canPlay($0) }) { upNext.removeAll { !canPlay($0) } }
+        guard let next = upNext.first(where: canStartNow) else {
+            if !upNext.isEmpty {
+                lastError = String(localized: """
+                    Ohne Netz spielt nur, was auf diesem Gerät geladen ist. \
+                    Keine Folge in „Als Nächstes“ ist geladen.
+                    """)
             }
-            upNext.removeFirst()
+            return false
         }
-        return false
+        playEpisode(next)
+        return true
+    }
+
+    /// Würde `playEpisode` diese Folge jetzt starten? Dieselben Bedingungen:
+    /// eine geladene Datei, oder ein Stream und Netz.
+    private func canStartNow(_ episode: Episode) -> Bool {
+        localAudioFile(for: episode) != nil || (episode.audioURL != nil && !isOffline)
     }
 
     /// Kapitel aus einer eigenen Datei nachladen, wenn der Feed nur darauf verweist.
