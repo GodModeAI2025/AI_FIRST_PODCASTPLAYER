@@ -85,13 +85,13 @@ public enum AppBootstrap {
         #endif
         if ProcessInfo.processInfo.arguments.contains("-uitest-fresh") {
             return OpenedStore(container: try! LibraryStore.makeContainer(inMemory: true),
-                               description: "Test, nur im Arbeitsspeicher", failure: nil)
+                               description: String(localized: "Test, nur im Arbeitsspeicher"), failure: nil)
         }
         let signedIn = FileManager.default.ubiquityIdentityToken != nil
         if let container = try? LibraryStore.openPersistentContainer(sync: true) {
             let description = signedIn
-                ? "Aktiv, über deine private iCloud-Datenbank"
-                : "Nicht bei iCloud angemeldet, die Daten bleiben auf diesem Gerät"
+                ? String(localized: "Aktiv, über deine private iCloud-Datenbank")
+                : String(localized: "Nicht bei iCloud angemeldet, die Daten bleiben auf diesem Gerät")
             return OpenedStore(container: container, description: description, failure: nil)
         }
         // Erst hier, nachdem auch der Abgleich gescheitert ist, darf ein
@@ -99,13 +99,16 @@ public enum AppBootstrap {
         // App es auch.
         if let opened = try? LibraryStore.openLocalContainer() {
             return OpenedStore(container: opened.container,
-                               description: "Aus, die Daten bleiben auf diesem Gerät",
+                               description: String(localized: "Aus, die Daten bleiben auf diesem Gerät"),
                                failure: opened.recoveryNote)
         }
         let container = try! LibraryStore.makeContainer(inMemory: true)
-        return OpenedStore(container: container, description: "Aus",
-                           failure: "Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher, "
-                               + "und was du jetzt anlegst, ist beim nächsten Start weg.",
+        return OpenedStore(container: container,
+                           description: String(localized: "Aus", comment: "iCloud-Abgleich in den Einstellungen"),
+                           failure: String(localized: """
+                               Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher, \
+                               und was du jetzt anlegst, ist beim nächsten Start weg.
+                               """),
                            isTemporary: true)
     }
 
@@ -119,9 +122,11 @@ public enum AppBootstrap {
         let opened = openStore()
         guard !opened.isTemporary else {
             return StartupIssue(
-                title: "Der Speicher lässt sich immer noch nicht öffnen",
-                message: "Die App läuft weiter ohne Speicher, und was du jetzt anlegst, ist beim "
-                    + "nächsten Start weg.",
+                title: String(localized: "Der Speicher lässt sich immer noch nicht öffnen"),
+                message: String(localized: """
+                    Die App läuft weiter ohne Speicher, und was du jetzt anlegst, ist beim \
+                    nächsten Start weg.
+                    """),
                 canRetry: true)
         }
         model.syncDescription = opened.description
@@ -176,8 +181,8 @@ public struct StartupIssue: Equatable, Sendable {
         guard let failure = opened.failure else { return nil }
         self.init(
             title: opened.isTemporary
-                ? "Der Speicher konnte nicht geöffnet werden"
-                : "Die Mediathek wurde neu angelegt",
+                ? String(localized: "Der Speicher konnte nicht geöffnet werden")
+                : String(localized: "Der Speicher wurde neu angelegt"),
             message: failure,
             canRetry: opened.isTemporary)
     }
