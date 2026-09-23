@@ -210,7 +210,9 @@ public final class EpisodePlayer {
 
     /// Das geladene Element ist unbrauchbar und muss neu geladen werden.
     private var needsReload: Bool {
-        player.currentItem == nil || player.currentItem?.status == .failed
+        // Nach einer Meldung (auch vom Wächter für hängende Wiedergabe) lädt
+        // erneutes Abspielen neu, statt das hängende Element weiter zu nutzen.
+        player.currentItem == nil || player.currentItem?.status == .failed || playbackError != nil
     }
 
     private func load(_ url: URL, isLocal: Bool) {

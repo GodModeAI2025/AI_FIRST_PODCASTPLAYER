@@ -98,9 +98,11 @@ public enum SafeHTTP {
     /// ein Byte gelesen wird, und am tatsächlich Gelesenen, falls die
     /// Ankündigung log oder fehlte.
     public static func load(
-        _ url: URL, using session: URLSession, limit: Int64 = textLimit
+        _ url: URL, using session: URLSession, limit: Int64 = textLimit,
+        headers: [String: String] = [:]
     ) async throws -> Data {
-        let request = try request(for: url)
+        var request = try request(for: url)
+        for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
         let (stream, response) = try await session.bytes(for: request)
 
         if let http = response as? HTTPURLResponse,

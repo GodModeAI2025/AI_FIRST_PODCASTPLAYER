@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import Security
 import Observation
 import SwiftUI
 import PodcastAIKit
@@ -1337,14 +1338,41 @@ extension AppModel: PlaybackObserver {
         ).post()
     }
 
+    /// Eine zufällige Kennung je Gerät, ohne Hardwarekennung zu erheben.
+    ///
+    /// Sie liegt im Schlüsselbund mit „nur dieses Gerät“. Ein Backup nimmt
+    /// sie deshalb nicht auf ein anderes Gerät mit. In den Einstellungen
+    /// würde sie mitreisen, und zwei Geräte schrieben dann in dieselbe
+    /// Hörstand-Zeile, von der CloudKit nur die letzte Änderung behält.
     public static func currentDeviceID() -> String {
-        // Stabil je Installation, ohne Gerätekennung zu erheben.
-        let key = "com.podcastai.deviceID"
-        if let existing = UserDefaults.standard.string(forKey: key) { return existing }
+        let service = "com.godmodeai.podcastai.device"
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecUseDataProtectionKeychain as String: true,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var item: CFTypeRef?
+        if SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+           let data = item as? Data, let existing = String(data: data, encoding: .utf8) {
+            return existing
+        }
         let generated = UUID().uuidString
-        UserDefaults.standard.set(generated, forKey: key)
-        return generated
+        let add: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecUseDataProtectionKeychain as String: true,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            kSecValueData as String: Data(generated.utf8),
+        ]
+        if SecItemAdd(add as CFDictionary, nil) == errSecSuccess { return generated }
+        // Ohne Schlüsselbund (etwa in einer ungewöhnlichen Umgebung) bleibt die
+        // Kennung für diesen Start stabil, gilt aber nicht dauerhaft.
+        return fallbackDeviceID
     }
+
+    private static let fallbackDeviceID = UUID().uuidString
 }
 
 /// Ein für den Nutzer relevanter Abschnitt, wie er auf „Für dich“ erscheint.

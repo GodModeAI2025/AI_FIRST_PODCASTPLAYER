@@ -30,7 +30,7 @@ public enum UserFacingError {
         if let http = error as? HTTPTransferError {
             switch http {
             case .httpStatus(404), .httpStatus(410):
-                return "Die Audiodatei gibt es beim Anbieter nicht mehr. Feed aktualisieren und die neue Fassung erschliessen."
+                return "Der Anbieter meldet diese Adresse als nicht vorhanden (Status 404). Oft hat sich nur die Adresse geändert. Feed aktualisieren und noch einmal versuchen."
             case .httpStatus(let code) where code >= 500:
                 return "Der Server des Podcasts antwortet gerade nicht (Status \(code)). Später noch einmal versuchen."
             case .httpStatus(let code):

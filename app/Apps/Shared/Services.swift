@@ -85,7 +85,17 @@ public actor FeedRefresher {
             throw FeedRefreshError.needsDiscovery
         }
 
-        let (resolvedFeedURL, parsed) = try await fetchFeed(linkFeedURL, allowDiscovery: kind == .podcastRSS)
+        let resolvedFeedURL: URL
+        let parsed: ParsedFeed
+        do {
+            (resolvedFeedURL, parsed) = try await fetchFeed(linkFeedURL, allowDiscovery: kind == .podcastRSS)
+        } catch where kind == .youTubeChannel {
+            // Der Feed-Dienst von YouTube fällt immer wieder aus und antwortet
+            // dann mit 404. Der Kanal wird trotzdem angelegt, mit Name und
+            // Bild von der Kanalseite. Der passende Audio-Podcast lässt sich
+            // so weiter finden, die Videoliste kommt beim nächsten Abgleich.
+            return try await addYouTubeChannelWithoutFeed(feedURL: linkFeedURL, capabilities: capabilities)
+        }
         let feedURL = resolvedFeedURL
 
         // Stabile Kennung aus der Feed-Adresse: dieselbe Quelle zweimal
@@ -109,6 +119,50 @@ public actor FeedRefresher {
         _ = try await store.upsert(episodes: episodes, forSource: sourceID)
 
         return AddedSource(title: source.title, episodeCount: episodes.count)
+    }
+
+    private func addYouTubeChannelWithoutFeed(
+        feedURL: URL, capabilities: SourceCapabilities
+    ) async throws -> AddedSource {
+        guard let channelID = URLComponents(url: feedURL, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "channel_id" })?.value,
+              let pageURL = URL(string: "https://www.youtube.com/channel/\(channelID)") else {
+            throw FeedRefreshError.youTubeFeedUnavailable
+        }
+        // Ohne diese Angabe leitet YouTube in der EU auf eine Einwilligungsseite um.
+        let html: String
+        do {
+            let data = try await SafeHTTP.load(pageURL, using: session, limit: Self.pageLimit,
+                                               headers: ["Cookie": "SOCS=CAI", "Accept-Language": "de"])
+            html = String(decoding: data, as: UTF8.self)
+        } catch {
+            throw FeedRefreshError.youTubeFeedUnavailable
+        }
+        guard let title = Self.metaContent("og:title", in: html), !title.isEmpty else {
+            throw FeedRefreshError.youTubeFeedUnavailable
+        }
+        var limited = capabilities
+        limited.limitationReason = "YouTube liefert die Videoliste gerade nicht. Der Kanal ist angelegt, "
+            + "die Videos erscheinen beim nächsten Abgleich. Den passenden Audio-Podcast kannst du schon abonnieren."
+        let source = Source(
+            id: SourceID(stable: feedURL.absoluteString), kind: .youTubeChannel,
+            title: title, author: title, feedURL: feedURL, websiteURL: pageURL,
+            artworkURL: Self.metaContent("og:image", in: html).flatMap(URL.init(string:)),
+            capabilities: limited
+        )
+        try await store.upsert(source: source)
+        return AddedSource(title: title, episodeCount: 0)
+    }
+
+    /// Liest `<meta property="…" content="…">` aus einer Seite.
+    static func metaContent(_ property: String, in html: String) -> String? {
+        guard let range = html.range(of: "<meta property=\"\(property)\" content=\"") else { return nil }
+        let rest = html[range.upperBound...]
+        guard let end = rest.firstIndex(of: "\"") else { return nil }
+        return String(rest[..<end])
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
     }
 
     /// Holt und liest einen Feed. Liefert die Adresse statt eines Feeds eine
@@ -271,6 +325,7 @@ public enum FeedRefreshError: Error, LocalizedError {
     case noFeedOnPage(String)
     case noChannelForVideo
     case notAFeed(String)
+    case youTubeFeedUnavailable
 
     public var errorDescription: String? {
         switch self {
@@ -283,6 +338,9 @@ public enum FeedRefreshError: Error, LocalizedError {
         case .notAFeed(let host):
             "Unter dieser Adresse liegt kein Feed, und \(host) verlinkt auch keinen. "
             + "Prüfe die Adresse oder füge den Link der Podcast-Seite ein."
+        case .youTubeFeedUnavailable:
+            "YouTube liefert für diesen Kanal gerade keine Daten. Das kommt bei YouTube immer wieder vor. "
+            + "Später noch einmal versuchen oder direkt den Audio-Podcast des Kanals hinzufügen."
         case .noChannelForVideo:
             "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert "
             + "Kanäle, keine einzelnen Videos."
