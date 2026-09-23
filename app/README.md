@@ -39,6 +39,7 @@ app/verification/run_all.sh
 |---|---|---|
 | `intervalset_reference.py` | 210 003 | Intervall-Algebra gegen ein Millisekunden-Mengenmodell; Normalform, Idempotenz |
 | `selection_reference.py` | 180 004 | Modellantworten: erfundene Verweise werden verworfen, nicht korrigiert |
+| `analysisqueue_reference.py` | 168 772 | Erschliessen über viele Hintergrundfenster: Fortschritt, kein Rückschritt, keine Blockade |
 | `suggester_reference.py` | 156 033 | Vermutete Interessen nur aus mehrfach Gehörtem; nie automatisch wirksam |
 | `ledger_reference.py` | 140 005 | Gehört bleibt gehört, feedübergreifend; Zusammenführen kommutativ und idempotent |
 | `export_reference.py` | 120 016 | Kein Token im Export, fremder Text zerlegt die Struktur nicht |

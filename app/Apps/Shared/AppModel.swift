@@ -270,25 +270,130 @@ public final class AppModel {
     /// Ausdrücklich eine Nutzeraktion. Abonnieren allein lädt und analysiert
     /// nichts — das kostet Daten, Akku und Zeit, und die Entscheidung
     /// darüber gehört dem Nutzer.
-    /// Startet die Analyse und **behält den Vorgang**.
+    /// Nimmt eine Folge in die Warteschlange und macht sich an die Arbeit.
     ///
-    /// Bisher warf die Oberfläche einen losgelösten `Task` an und vergaß
-    /// ihn. Damit gab es keinen Abbruch: wer die falsche Folge erwischt
-    /// hatte, konnte nur die App beenden — und wusste nicht, was dann mit
-    /// dem halben Ergebnis passiert. Die Pipeline war längst darauf
-    /// vorbereitet (`Task.checkCancellation` im Transkriptionslauf), es
-    /// fehlte nur der Griff daran.
-    public func startAnalysis(_ episode: Episode, audioURL: URL, locale: Locale = .current) {
-        guard analyses[episode.id] == nil else { return }
-        let task = Task { [weak self] in
-            await self?.analyze(episode, audioURL: audioURL, locale: locale)
+    /// **Der einzige Weg zum Erschliessen.** Vorher startete die Oberfläche
+    /// die Analyse direkt, und damit war sie an die Lebensdauer des
+    /// Bildschirms gebunden: wer die App verliess, verlor den Lauf.
+    ///
+    /// Jetzt ist der Auftrag zuerst in der Datenbank und der Lauf zweitens.
+    /// Das ist der ganze Unterschied zwischen „läuft, solange du zusiehst“
+    /// und „wird erledigt“.
+    public func requestAnalysis(_ episode: Episode, audioURL: URL, locale: Locale = .current) {
+        Task {
+            await persist {
+                try await $0.enqueueAnalysis(
+                    episodeID: episode.id, audioURL: audioURL,
+                    localeIdentifier: locale.identifier)
+            }
+            await loadQueue()
+            workQueue()
+            // Auch ein Hintergrundfenster anfragen: die Oberfläche kann
+            // jederzeit verschwinden, und dann ist das hier der einzige
+            // Weg, wie die Folge je fertig wird.
+            onAnalysisRequested?()
         }
-        analyses[episode.id] = task
     }
 
-    /// Bricht eine laufende Analyse ab.
+    /// Nimmt eine Folge wieder aus der Warteschlange und hält einen
+    /// laufenden Vorgang an.
     public func cancelAnalysis(_ episodeID: EpisodeID) {
         analyses[episodeID]?.cancel()
+        Task {
+            await persist { try await $0.dequeueAnalysis(episodeID: episodeID) }
+            await loadQueue()
+        }
+    }
+
+    /// Wird gerufen, sobald ein Auftrag hinzukommt.
+    ///
+    /// Ein Haken statt einer Abhängigkeit: `AppModel` soll nichts von
+    /// `BGTaskScheduler` wissen müssen, und `BackgroundWork` nichts von der
+    /// Warteschlange. `AppBootstrap` verbindet beide.
+    public var onAnalysisRequested: (@MainActor () -> Void)?
+
+    /// Die offenen Aufträge, für die Oberfläche.
+    public private(set) var analysisQueue: [LibraryStore.AnalysisRequest] = []
+
+    public func loadQueue() async {
+        analysisQueue = (try? await store.pendingAnalyses(includingFailed: true)) ?? []
+    }
+
+    public func isQueued(_ episodeID: EpisodeID) -> Bool {
+        analysisQueue.contains { $0.episodeID == episodeID }
+    }
+
+    /// Arbeitet die Warteschlange ab, bis sie leer ist oder abgebrochen wird.
+    ///
+    /// Höchstens eine Folge gleichzeitig. Zwei parallele Transkriptionen
+    /// teilen sich denselben Prozessor und dasselbe Wärmebudget — sie wären
+    /// zusammen nicht schneller, aber beide auffällig langsamer, und im
+    /// Hintergrund drosselt das System dann beide.
+    @discardableResult
+    public func workQueue() -> Task<Void, Never>? {
+        guard queueWorker == nil else { return queueWorker }
+        let worker = Task { [weak self] in
+            await self?.drainQueue()
+            await MainActor.run { self?.queueWorker = nil }
+        }
+        queueWorker = worker
+        return worker
+    }
+
+    /// Hält den laufenden Durchlauf an. Der Zwischenstand bleibt gesichert.
+    public func pauseQueue() {
+        queueWorker?.cancel()
+        for task in analyses.values { task.cancel() }
+    }
+
+    public var isWorkingQueue: Bool { queueWorker != nil }
+
+    private var queueWorker: Task<Void, Never>?
+
+    private func drainQueue() async {
+        await loadQueue()
+        while !Task.isCancelled {
+            let open = (try? await store.pendingAnalyses()) ?? []
+            guard let next = open.first else { break }
+            guard let episode = await episode(for: next.episodeID) else {
+                // Die Folge gibt es nicht mehr. Der Auftrag auch nicht.
+                await persist { try await $0.dequeueAnalysis(episodeID: next.episodeID) }
+                continue
+            }
+
+            let outcome = await analyze(
+                episode, audioURL: next.audioURL,
+                locale: Locale(identifier: next.localeIdentifier))
+
+            switch outcome {
+            case .completed:
+                await persist { try await $0.dequeueAnalysis(episodeID: next.episodeID) }
+            case .checkpointed(let reached):
+                // Bleibt in der Warteschlange und wird beim nächsten Fenster
+                // fortgesetzt. Genau dafür ist sie da.
+                await persist {
+                    try await $0.recordAnalysisProgress(
+                        episodeID: next.episodeID, reached: reached)
+                }
+                await loadQueue()
+                return
+            case .failed(let reason):
+                await persist {
+                    try await $0.recordAnalysisFailure(
+                        episodeID: next.episodeID, reason: reason)
+                }
+            }
+            await loadQueue()
+        }
+        await loadQueue()
+        await refreshRelevantToday()
+    }
+
+    private func episode(for id: EpisodeID) async -> Episode? {
+        if let known = episodes.values.flatMap({ $0 }).first(where: { $0.id == id }) {
+            return known
+        }
+        return (try? await store.episodes(ids: [id]))?.first
     }
 
     public func isAnalyzing(_ episodeID: EpisodeID) -> Bool {
@@ -298,13 +403,26 @@ public final class AppModel {
     /// Die laufenden Analysen. Je Folge höchstens eine.
     private var analyses: [EpisodeID: Task<Void, Never>] = [:]
 
-    func analyze(_ episode: Episode, audioURL: URL, locale: Locale = .current) async {
+    /// Wie ein einzelner Lauf für das Modell geendet hat.
+    enum AnalysisResult {
+        case completed
+        case checkpointed(MediaTime)
+        case failed(String)
+    }
+
+    /// Führt einen Lauf aus — bis zum Ende oder bis zum nächsten Prüfpunkt.
+    ///
+    /// Gibt zurück, was passiert ist, statt es nur in `stages` zu hinterlegen:
+    /// der Aufrufer muss entscheiden können, ob der Auftrag erledigt ist oder
+    /// in der Warteschlange bleibt. Aus einem Zustandsfeld lässt sich das
+    /// nicht zuverlässig ablesen.
+    @discardableResult
+    func analyze(
+        _ episode: Episode, audioURL: URL, locale: Locale = .current
+    ) async -> AnalysisResult {
+
         stages[episode.id] = .discovered
         activity = "„\(episode.title)“ wird erschlossen …"
-        defer {
-            analyses[episode.id] = nil
-            activity = nil
-        }
 
         let pipeline = ContentPipeline(
             store: store,
@@ -318,28 +436,40 @@ public final class AppModel {
                 }
             }
         )
-        do {
-            _ = try await pipeline.process(
+
+        let run = Task {
+            try await pipeline.process(
                 episode: episode, audioURL: audioURL,
                 sourceID: episode.sourceID, locale: locale
             )
-        } catch is CancellationError {
-            // Kein Fehler und keine Meldung: der Nutzer hat es so gewollt.
-            // Die angefangene Datei hat `SafeHTTP.save` bereits entfernt.
-            stages[episode.id] = .cancelled
-            stageDetails[episode.id] = nil
-        } catch {
-            // Ein Abbruch kann auch als `URLError.cancelled` ankommen, wenn
-            // er die Netzschicht zuerst erwischt. Für den Nutzer ist das
-            // derselbe Vorgang.
-            if Task.isCancelled {
+        }
+        analyses[episode.id] = Task { _ = await run.result }
+        defer {
+            analyses[episode.id] = nil
+            activity = nil
+        }
+
+        do {
+            switch try await run.value {
+            case .completed:
+                stages[episode.id] = .evidenceExtracted
+                return .completed
+            case .checkpointed(let reached):
+                // Kein Fehler: angehalten heisst gesichert. Was erarbeitet
+                // wurde, liegt in der Datenbank.
                 stages[episode.id] = .cancelled
-                stageDetails[episode.id] = nil
-            } else {
-                stages[episode.id] = .failed
-                stageDetails[episode.id] = error.localizedDescription
-                lastError = error.localizedDescription
+                stageDetails[episode.id] = "gesichert bis \(reached.timecode)"
+                return .checkpointed(reached)
             }
+        } catch {
+            if Task.isCancelled || error is CancellationError {
+                stages[episode.id] = .cancelled
+                return .checkpointed(.zero)
+            }
+            stages[episode.id] = .failed
+            stageDetails[episode.id] = error.localizedDescription
+            lastError = error.localizedDescription
+            return .failed(error.localizedDescription)
         }
     }
 

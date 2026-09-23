@@ -24,6 +24,10 @@ struct PodcastAIApp: App {
 
     @State private var model: AppModel
     @State private var startupError: String?
+    @Environment(\.scenePhase) private var scenePhase
+
+    /// Hält die geliehene Zeit beim Wechsel in den Hintergrund.
+    private let continuation = BackgroundContinuation()
 
     /// Muss gehalten werden: `BGTaskScheduler` behält zwar die Startblöcke,
     /// aber die Planung der nächsten Ausführung läuft über dieses Objekt.
@@ -56,6 +60,19 @@ struct PodcastAIApp: App {
                 .task {
                     await model.load()
                     background.scheduleRefresh()
+                    // Was beim letzten Mal offen blieb, wird jetzt
+                    // weitergeführt — ohne dass jemand nochmal drücken muss.
+                    model.workQueue()
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    switch phase {
+                    case .background:
+                        continuation.appDidEnterBackground(model: model)
+                    case .active:
+                        continuation.appWillEnterForeground(model: model)
+                    default:
+                        break
+                    }
                 }
                 .alert("Der Speicher konnte nicht geöffnet werden",
                        isPresented: .constant(startupError != nil)) {

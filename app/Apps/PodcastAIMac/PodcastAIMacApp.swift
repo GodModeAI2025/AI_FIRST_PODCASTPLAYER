@@ -30,7 +30,11 @@ struct PodcastAIMacApp: App {
         WindowGroup {
             MacRootView()
                 .environment(model)
-                .task { await model.load() }
+                .task {
+                    await model.load()
+                    // Offene Aufträge aus der letzten Sitzung fortsetzen.
+                    model.workQueue()
+                }
                 .frame(minWidth: 900, minHeight: 560)
                 .sheet(isPresented: Binding(
                     get: { model.isAddingSource },

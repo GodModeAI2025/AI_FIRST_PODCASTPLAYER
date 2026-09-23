@@ -85,16 +85,44 @@ public struct Transcript: Hashable, Codable, Sendable, Identifiable {
 
     public let createdAt: Date
 
+    /// Ist das ein **Zwischenstand**, der fortgesetzt werden soll?
+    ///
+    /// Ausdrücklich gespeichert und nicht aus `analyzedRanges` abgeleitet:
+    /// das Transkript kennt die Länge des Mediums nicht. „Bis Minute 40
+    /// analysiert“ ist ohne die Gesamtlänge weder vollständig noch
+    /// unvollständig — es ist nur eine Zahl.
+    ///
+    /// Wer den Unterschied trotzdem ableiten will, braucht `coverage(mediaDuration:)`.
+    /// Dieses Merkmal sagt etwas anderes: ob der Lauf **abgebrochen wurde und
+    /// fortgesetzt werden kann**. Eine Folge, die nur in der ersten Hälfte
+    /// Sprache enthält, ist vollständig analysiert und trotzdem nur zur
+    /// Hälfte abgedeckt.
+    public let isPartial: Bool
+
     public init(
         id: TranscriptID, mediaVersionID: MediaVersionID, revision: Revision,
         origin: TranscriptOrigin, locale: String, segments: [TranscriptSegment],
-        untimedText: String? = nil, analyzedRanges: IntervalSet, createdAt: Date = Date()
+        untimedText: String? = nil, analyzedRanges: IntervalSet,
+        createdAt: Date = Date(), isPartial: Bool = false
     ) {
         self.id = id; self.mediaVersionID = mediaVersionID; self.revision = revision
         self.origin = origin; self.locale = locale
         self.segments = segments.sorted { $0.range < $1.range }
         self.untimedText = untimedText; self.analyzedRanges = analyzedRanges
         self.createdAt = createdAt
+        self.isPartial = isPartial
+    }
+
+    /// Ab wo eine Fortsetzung ansetzen muss.
+    ///
+    /// Das Ende des zusammenhängenden analysierten Bereichs ab Null — nicht
+    /// das Ende des letzten Segments. Der Unterschied zählt bei einer Folge,
+    /// die mit Musik beginnt: dort liegt das erste Segment spät, analysiert
+    /// ist aber alles davor.
+    public var resumePoint: MediaTime {
+        analyzedRanges.ranges.first.map { first in
+            first.start == .zero ? first.end : .zero
+        } ?? .zero
     }
 
     /// Darf aus diesem Transkript ein Hörplan gebaut werden?

@@ -105,7 +105,7 @@ abbricht. Das behält die Grenze *während* der Übertragung und überlässt
 das Schreiben dem System. Es ist umständlicher — aber wenn die Messung
 schlecht ausfällt, ist es die richtige Umständlichkeit.
 
-## 5. Eine laufende Analyse lässt sich nicht abbrechen · belegt · behoben
+## 5. Analyse: kein Abbruch, kein Hintergrund · belegt · behoben
 
 Nach „Erschliessen" gibt es keinen Abbruch. Das Transkribieren einer
 90-Minuten-Folge dauert; wer versehentlich die falsche Folge erwischt hat
@@ -117,15 +117,13 @@ Transkriptionslauf), es fehlte nur der Knopf und das Festhalten der Task —
 die Oberfläche warf einen losgelösten `Task` an und vergaß ihn.
 
 **Behoben,** mit einer eigenen Stufe „abgebrochen" statt „fehlgeschlagen":
-es ist nichts kaputt, es wurde gewollt. Ein Warndreieck für eine eigene
-Entscheidung wäre eine Belehrung.
+es ist nichts kaputt, es wurde gewollt.
 
-Der Knopf danach heißt **„Von vorn erschliessen"** und nicht „Weiter".
-Fortgesetzt wird nämlich nichts: die angefangene Mediendatei ist gelöscht,
-ein Teiltranskript wird nirgends gesichert. Die Bausteine für echtes
-Fortsetzen liegen da (`transcribeFile` nimmt ein `startingAt`, der
-`TranscriptAssembler` kann zusammenführen) — was fehlt, ist das Sichern des
-Zwischenstands. Bis dahin sagt der Knopf, was tatsächlich passiert.
+**Und danach nachgezogen** (Rückmeldung: „Erschliessen muss auch im
+Hintergrund klappen"). Der Knopf hieß erst „Von vorn erschliessen", weil
+das die Wahrheit war. Jetzt heißt er **„Weiter erschliessen"**, weil die
+Pipeline tatsächlich fortsetzt — siehe Abschnitt „Erschliessen im
+Hintergrund" unten.
 
 ## 6. Der Startbildschirm schickt in die falsche Richtung · belegt · behoben
 
@@ -167,6 +165,56 @@ die eigentliche Frage ist eine andere: **ein Band für die ganze App ist
 für nebenläufige Vorgänge die falsche Form.** Das ist ein Umbau, keine
 Zeile — und er gehört erst gemacht, wenn aus Befund 4 feststeht, wie lange
 eine Analyse überhaupt dauert.
+
+---
+
+## Erschliessen im Hintergrund
+
+Rückmeldung nach der ersten Runde: *„Erschliessen der Folgen muss auch im
+Hintergrund klappen."* Richtig — und es tat es an keiner Stelle.
+
+**Was tatsächlich fehlte,** war mehr als ein Schalter:
+
+- Der Analyse-Hintergrundtask war registriert und baute persönliche
+  Ausgaben. Erschlossen hat er nie etwas.
+- Die Analyse hing an der Oberfläche: wer die App verliess, verlor den Lauf.
+- Ein abgebrochener Lauf fing von vorn an. Bei einer 90-Minuten-Folge und
+  Fenstern von Minuten heisst das: sie wird **nie** fertig.
+
+**Die Ursache lag tiefer als erwartet.** `LibraryStore.save(transcript:)`
+liess ein vorhandenes Transkript unangetastet, mit der Begründung, eine
+Neuanalyse bekomme eine neue Kennung. Das stimmte nicht:
+`TranscriptAssembler.finish` bildet sie als `"<mediaVersionID>|<locale>"` —
+ohne Revision. **Jede Neuanalyse wurde still verworfen.** Ein Zwischenstand
+liess sich damit gar nicht speichern.
+
+**Gebaut:**
+
+| Stück | Warum |
+|---|---|
+| Prüfpunkte alle 5 Minuten Medienzeit | Ein Abbruch kostet höchstens diesen Abstand |
+| Fortsetzen ab dem gesicherten Stand | Ohne das kommt eine lange Folge nie an |
+| Mediendatei wird nicht erneut geladen | Sonst kostet jede Fortsetzung einen zweiten Download |
+| Persistente Warteschlange | Ein Hintergrundlauf startet in einem frischen Prozess und muss erfahren, was offen ist |
+| `beginBackgroundTask` beim Verlassen | Kauft ~30 s, um den nächsten Prüfpunkt zu erreichen — **nicht**, um fertig zu werden |
+| `BGProcessingTask` arbeitet die Schlange ab | Das Fenster, in dem lange Arbeit erlaubt ist |
+| Fehlerzähler je Auftrag | Eine kaputte Folge blockiert sonst jedes Fenster |
+
+**Was ausdrücklich nicht gebaut ist:** Weiterrechnen im
+Audio-Hintergrundmodus. Der ist für Wiedergabe da. Ihn für Dauerarbeit zu
+benutzen ist der klassische Weg aus dem App Store — und unredlich gegenüber
+dem Akku.
+
+`analysisqueue_reference.py` prüft die Eigenschaft über 5 000 Zufallsfälle
+mit zufälligen Fensterlängen: jede Folge wird fertig, nichts geht zurück,
+die Reihenfolge hält, eine kaputte Folge blockiert nicht. Mit Gegenbeweis —
+ohne Prüfpunkte wird eine 90-Minuten-Folge in 20-Minuten-Fenstern nie fertig.
+
+**Die bekannte Grenze, ausdrücklich:** ein Fenster, das kürzer ist als der
+Prüfpunktabstand, bringt nichts voran. Das ist der Grund, warum der Abstand
+nicht grösser sein darf — und eine Zahl, die erst ein Gerätelauf bestätigen
+kann. Sie hängt an Befund 4: wenn der Download tatsächlich so langsam ist
+wie befürchtet, ist der erste Prüfpunkt unerreichbar weit weg.
 
 ---
 

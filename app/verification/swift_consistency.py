@@ -59,7 +59,7 @@ KNOWN = {
     "Announcement","AccessibilityNotification","URLSessionDownloadDelegate",
     "AppDependencyManager","NSLock","NSLog","AVAudioSession",
     "AsyncIteratorProtocol","AVAudioTime","JSONEncoder","JSONDecoder",
-    "ViewModifier","Content","Substring","UTF8","NSRegularExpression","NSRange","JSONSerialization","FileHandle","URLResourceValues","Duration","URLResourceKey",
+    "ViewModifier","Content","Substring","UTF8","NSRegularExpression","NSRange","JSONSerialization","FileHandle","URLResourceValues","Duration","URLResourceKey","UIApplication","UIBackgroundTaskIdentifier",
 }
 
 def lift_interpolations(text):
@@ -117,17 +117,49 @@ def enclosing_condition(text, offset):
     return stack[0] if stack else None
 
 
+def normalize_condition(text):
+    """Leerzeichen weg und eine umschliessende Klammer aufloesen.
+
+    Noetig, weil ein `#else` die Bedingung als `!(A && B)` notiert, die
+    Gegenseite aber als `A && B`. Ohne diese Normalisierung galten die
+    beiden Haelften einer Datei als Doppeldeklaration -- ein Fehlalarm, der
+    die Pruefung wertlos macht, weil man ihn wegschauen lernt.
+    """
+    value = text.replace(" ", "")
+    while value.startswith("(") and value.endswith(")"):
+        # Nur aufloesen, wenn die aeussere Klammer wirklich das Ganze
+        # umschliesst -- "(A)&&(B)" darf nicht zu "A)&&(B" werden.
+        depth = 0
+        wraps = True
+        for index, char in enumerate(value):
+            if char == "(":
+                depth += 1
+            elif char == ")":
+                depth -= 1
+                if depth == 0 and index != len(value) - 1:
+                    wraps = False
+                    break
+        if not wraps:
+            break
+        value = value[1:-1]
+    return value
+
+
 def mutually_exclusive(entries):
     """Schliessen sich die Bedingungen paarweise aus?
 
-    Erkannt wird genau der Fall, der hier vorkommt: `X` gegen `!X`.
-    Alles andere gilt als nicht ausschliessend -- im Zweifel melden.
+    Erkannt wird genau der Fall, der hier vorkommt: `X` gegen `!X`, auch
+    wenn eine Seite geklammert ist. Alles andere gilt als nicht
+    ausschliessend -- im Zweifel melden.
     """
     conditions = [condition for _, condition in entries]
     if len(conditions) != 2 or any(c is None for c in conditions):
         return False
-    first, second = (c.replace(" ", "") for c in conditions)
-    return first == "!" + second or second == "!" + first
+    first, second = (normalize_condition(c) for c in conditions)
+    for a, b in ((first, second), (second, first)):
+        if a.startswith("!") and normalize_condition(a[1:]) == b:
+            return True
+    return False
 
 
 declared, extended, referenced, problems = {}, {}, {}, []

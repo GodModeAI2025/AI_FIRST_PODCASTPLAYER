@@ -47,6 +47,12 @@ public enum AppBootstrap {
 
         let background = BackgroundWork(model: model)
         background.register()
+        // Ein neuer Auftrag fragt sofort ein Hintergrundfenster an, statt
+        // auf das nächste reguläre zu warten. Ohne das läge eine Folge, die
+        // der Nutzer gerade angestossen hat, im Zweifel Stunden herum.
+        model.onAnalysisRequested = { [weak background] in
+            background?.scheduleAnalysisSoon()
+        }
         return background
     }
 

@@ -98,7 +98,8 @@ public struct TranscriptAssembler: Sendable {
         locale: String,
         origin: TranscriptOrigin,
         previousRevision: Revision? = nil,
-        analyzedThrough: MediaTime? = nil
+        analyzedThrough: MediaTime? = nil,
+        isPartial: Bool = false
     ) -> Transcript {
 
         let sorted = segments.sorted { $0.range < $1.range }
@@ -120,7 +121,8 @@ public struct TranscriptAssembler: Sendable {
             origin: origin,
             locale: locale,
             segments: sorted,
-            analyzedRanges: analyzed
+            analyzedRanges: analyzed,
+            isPartial: isPartial
         )
     }
 

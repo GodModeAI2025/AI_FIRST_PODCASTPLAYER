@@ -95,25 +95,33 @@ struct EpisodeRow: View {
                 .foregroundStyle(stage == .failed ? .orange : .secondary)
             }
 
-            if model.isAnalyzing(episode.id) {
-                // Solange es läuft, ist Abbrechen die einzige sinnvolle
-                // Handlung. Ein zweites „Erschliessen“ danebenzustellen
-                // hiesse, einen Knopf anzubieten, der nichts tut.
-                Button(role: .destructive) {
-                    model.cancelAnalysis(episode.id)
-                } label: {
-                    Label("Abbrechen", systemImage: "stop.circle")
-                        .frame(minHeight: Design.minimumTapTarget)
+            if model.isQueued(episode.id) {
+                // Steht in der Warteschlange — ob gerade gearbeitet wird
+                // oder gewartet, sagt die Zeile darüber. Die Handlung ist
+                // dieselbe: herausnehmen.
+                HStack(spacing: Design.Spacing.small) {
+                    Image(systemName: model.isAnalyzing(episode.id)
+                          ? "waveform.badge.magnifyingglass" : "clock")
+                        .accessibilityHidden(true)
+                    Text(model.isAnalyzing(episode.id)
+                         ? "wird erschlossen" : "wartet auf einen freien Moment")
+                    Spacer(minLength: Design.Spacing.small)
+                    Button(role: .destructive) {
+                        model.cancelAnalysis(episode.id)
+                    } label: {
+                        Text("Herausnehmen")
+                            .frame(minHeight: Design.minimumTapTarget)
+                    }
+                    .buttonStyle(.pressable)
                 }
-                .buttonStyle(.pressable)
-                .buttonBorderShape(.capsule)
+                .font(.caption)
                 .padding(.top, Design.Spacing.micro)
-                .accessibilityHint("Beendet das Laden und Auswerten. "
-                                   + "Bereits Erschlossenes bleibt erhalten.")
+                .accessibilityElement(children: .combine)
+                .accessibilityHint("Der bereits gesicherte Zwischenstand bleibt erhalten.")
             } else if let audioURL = episode.audioURL,
                       stage == nil || stage == .failed || stage == .cancelled {
                 Button {
-                    model.startAnalysis(episode, audioURL: audioURL)
+                    model.requestAnalysis(episode, audioURL: audioURL)
                 } label: {
                     Label(startLabel(for: stage),
                           systemImage: "waveform.badge.magnifyingglass")
@@ -122,8 +130,8 @@ struct EpisodeRow: View {
                 .buttonStyle(.pressable)
                 .buttonBorderShape(.capsule)
                 .padding(.top, Design.Spacing.micro)
-                .accessibilityHint("Lädt die Folge und wertet sie aus. "
-                                   + "Das kann einige Minuten dauern.")
+                .accessibilityHint("Nimmt die Folge in die Warteschlange. Die Arbeit "
+                                   + "läuft weiter, auch wenn du die App verlässt.")
             } else if !episode.canBeAnalyzed {
                 // Ehrlich statt stiller Fehlschlag: ohne Audio und ohne
                 // getaktetes Transkript gibt es keinen Weg zu Timecodes.
@@ -140,19 +148,18 @@ struct EpisodeRow: View {
 
 /// Die Beschriftung des Startknopfes hängt davon ab, was vorher war.
 ///
-/// Nach einem Abbruch steht dort **nicht** „Weiter erschliessen“. Das wäre
-/// ein Versprechen, das der Code nicht hält: ein abgebrochener Lauf wird
-/// nicht fortgesetzt, er beginnt von vorn — die angefangene Mediendatei ist
-/// gelöscht, und ein Teiltranskript wird nirgends gesichert.
+/// Nach einem Abbruch steht dort **„Weiter erschliessen“** — und das ist
+/// jetzt die Wahrheit.
 ///
-/// (Die Bausteine für echtes Fortsetzen sind da: `transcribeFile` nimmt ein
-/// `startingAt`, und der `TranscriptAssembler` kann zusammenführen. Was
-/// fehlt, ist das Sichern des Zwischenstands. Bis dahin sagt der Knopf, was
-/// tatsächlich passiert.)
+/// In der vorigen Fassung stand hier „Von vorn erschliessen“, weil genau
+/// das passierte: ein abgebrochener Lauf begann wieder bei null. Mit den
+/// Prüfpunkten in `ContentPipeline` liegt der Zwischenstand in der
+/// Datenbank, die Mediendatei bleibt liegen, und der nächste Lauf setzt an
+/// der gesicherten Stelle an.
 private func startLabel(for stage: ProcessingStage?) -> String {
     switch stage {
     case .failed: "Erneut versuchen"
-    case .cancelled: "Von vorn erschliessen"
+    case .cancelled: "Weiter erschliessen"
     default: "Erschliessen"
     }
 }

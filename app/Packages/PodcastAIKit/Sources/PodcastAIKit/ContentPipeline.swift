@@ -58,6 +58,24 @@ public enum ProcessingStage: String, Sendable, Codable, CaseIterable {
     }
 }
 
+/// Wie ein Analyselauf geendet hat.
+///
+/// Ein eigener Typ statt eines Booleschen: „fertig“ und „angehalten“ führen
+/// zu verschiedenen nächsten Schritten, und ein `Bool` an dieser Stelle
+/// hiesse, dass jeder Aufrufer sich merken muss, welcher Wert was bedeutet.
+public enum AnalysisOutcome: Sendable {
+    /// Durchgelaufen. Die Belege stehen in der Datenbank.
+    case completed(evidence: [Evidence])
+    /// An einem Prüfpunkt angehalten. Der Stand ist gesichert, der nächste
+    /// Lauf setzt hier an.
+    case checkpointed(resumePoint: MediaTime)
+
+    public var isComplete: Bool {
+        if case .completed = self { return true }
+        return false
+    }
+}
+
 public struct PipelineProgress: Sendable {
     public let episodeID: EpisodeID
     public let stage: ProcessingStage
@@ -134,84 +152,128 @@ public actor ContentPipeline {
         self.onProgress = onProgress
     }
 
-    /// Erschließt eine Folge vollständig.
+    /// Erschließt eine Folge — ganz oder bis zum nächsten Prüfpunkt.
     ///
     /// `locale` wird ausdrücklich übergeben und nicht aus dem Gerät geraten:
     /// ein deutschsprachiger Nutzer hört englische Podcasts, und ein Lauf in
     /// der falschen Sprache liefert Text, der wie ein Transkript aussieht,
     /// aber keiner ist.
+    ///
+    /// **Unterbrechbar und fortsetzbar.** Das ist keine Bequemlichkeit,
+    /// sondern die Voraussetzung dafür, dass Erschliessen im Hintergrund
+    /// überhaupt möglich ist: iOS gibt einer App beim Wechsel in den
+    /// Hintergrund Sekunden und einem `BGProcessingTask` Minuten — beides
+    /// reicht nicht für eine 90-Minuten-Folge. Wer nicht anhalten und
+    /// weitermachen kann, fängt jedes Mal von vorn an und kommt nie an.
+    ///
+    /// Angehalten wird an einem Prüfpunkt: der Zwischenstand liegt dann in
+    /// der Datenbank, und der nächste Lauf setzt dort an. Verloren geht
+    /// höchstens der Abstand zum letzten Prüfpunkt.
+    ///
+    /// Der Audio-Hintergrundmodus wird dafür ausdrücklich **nicht** benutzt.
+    /// Er ist für Wiedergabe da, nicht als Schlupfloch für Dauerarbeit.
     @discardableResult
     public func process(
         episode: Episode,
         audioURL: URL,
         sourceID: SourceID,
         locale: Locale
-    ) async throws -> [Evidence] {
+    ) async throws -> AnalysisOutcome {
 
         let mediaVersionID = MediaVersionID(stable: audioURL.absoluteString)
 
         onProgress(PipelineProgress(episodeID: episode.id, stage: .discovered))
-        let download = try await downloader.download(from: audioURL, mediaVersionID: mediaVersionID)
+        let media = try await obtainMedia(
+            from: audioURL, mediaVersionID: mediaVersionID, episodeID: episode.id)
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .mediaDownloaded,
-            detail: download.duration?.shortDescription
+            detail: media.duration?.shortDescription
         ))
+
+        // Zwischenstand aufnehmen, falls es einen gibt.
+        let previous = try? await store.partialTranscript(forMedia: mediaVersionID)
+        var segments = previous?.segments ?? []
+        var analyzedThrough = previous?.resumePoint ?? .zero
+        let startAt = analyzedThrough
+        if startAt > .zero {
+            onProgress(PipelineProgress(
+                episodeID: episode.id, stage: .mediaDownloaded,
+                detail: "Fortsetzung ab \(startAt.timecode)"))
+        }
 
         let mediaURL = mediaDirectory.appendingPathComponent(mediaVersionID.rawValue)
-        var segments: [TranscriptSegment] = []
-        var analyzedThrough = MediaTime.zero
         var batch: [(range: MediaTimeRange, text: String, isFinal: Bool)] = []
+        var lastCheckpoint = analyzedThrough
+        var stoppedEarly = false
 
-        for try await result in try await engine.transcribeFile(
-            at: mediaURL, mediaVersionID: mediaVersionID, locale: locale
-        ) {
-            guard result.isFinal, let range = result.range else { continue }
-            batch.append((range: range, text: result.text, isFinal: true))
-            if range.end > analyzedThrough { analyzedThrough = range.end }
-
-            // In Schüben zusammenführen statt je Ergebnis: das hält die
-            // Deduplizierung billig und schafft einen sicheren Punkt zum
-            // Anhalten.
-            if batch.count >= 50 {
-                segments = assembler.merge(existing: segments, incoming: batch,
-                                           mediaVersionID: mediaVersionID)
-                batch.removeAll(keepingCapacity: true)
-                try Task.checkCancellation()
-            }
-        }
-        if !batch.isEmpty {
+        /// Schreibt den Stand weg. Der Rückgabewert sagt, ob es geklappt hat —
+        /// ein misslungener Prüfpunkt darf nicht so aussehen wie ein
+        /// gelungener, sonst geht beim nächsten Lauf mehr verloren als gedacht.
+        @discardableResult
+        func checkpoint(partial: Bool) async throws -> Transcript {
             segments = assembler.merge(existing: segments, incoming: batch,
                                        mediaVersionID: mediaVersionID)
+            batch.removeAll(keepingCapacity: true)
+
+            let transcript = assembler.finish(
+                segments: segments, mediaVersionID: mediaVersionID,
+                locale: locale.identifier, origin: .speechAnalysis,
+                previousRevision: previous?.revision,
+                analyzedThrough: analyzedThrough,
+                isPartial: partial
+            )
+            try await store.save(transcript: transcript, media: media, forEpisode: episode.id)
+            lastCheckpoint = analyzedThrough
+            return transcript
         }
 
-        let transcript = assembler.finish(
-            segments: segments, mediaVersionID: mediaVersionID,
-            locale: locale.identifier, origin: .speechAnalysis,
-            analyzedThrough: analyzedThrough
-        )
+        do {
+            for try await result in try await engine.transcribeFile(
+                at: mediaURL, mediaVersionID: mediaVersionID,
+                locale: locale, startingAt: startAt
+            ) {
+                guard result.isFinal, let range = result.range else { continue }
+                batch.append((range: range, text: result.text, isFinal: true))
+                if range.end > analyzedThrough { analyzedThrough = range.end }
+
+                // Prüfpunkt nach Medienzeit, nicht nach Anzahl Ergebnisse:
+                // eine schweigsame Folge liefert wenige Ergebnisse über eine
+                // lange Strecke, eine dichte viele über eine kurze. Nach
+                // Anzahl gemessen wäre der Abstand zwischen zwei Prüfpunkten
+                // beliebig — und genau der ist es, was ein Abbruch kostet.
+                if analyzedThrough - lastCheckpoint >= Self.checkpointInterval {
+                    try await checkpoint(partial: true)
+                    onProgress(PipelineProgress(
+                        episodeID: episode.id, stage: .transcribed,
+                        detail: "gesichert bis \(analyzedThrough.timecode)"))
+                }
+                try Task.checkCancellation()
+            }
+        } catch is CancellationError {
+            stoppedEarly = true
+        } catch {
+            // Auch ein Netz- oder Dateifehler mitten im Lauf darf das
+            // bisher Erarbeitete nicht wegwerfen.
+            try? await checkpoint(partial: true)
+            throw error
+        }
+
+        if stoppedEarly {
+            try await checkpoint(partial: true)
+            onProgress(PipelineProgress(
+                episodeID: episode.id, stage: .transcribed,
+                detail: "angehalten bei \(analyzedThrough.timecode)"))
+            return .checkpointed(resumePoint: analyzedThrough)
+        }
+
+        // Derselbe Stand, der gerade gespeichert wurde -- nicht ein zweiter,
+        // gleich aussehender. Zwei getrennt berechnete Transkripte wären
+        // zwei Stellen, an denen sich ein Unterschied einschleichen kann.
+        let transcript = try await checkpoint(partial: false)
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .transcribed,
-            detail: transcript.coverage(mediaDuration: download.duration).label
+            detail: transcript.coverage(mediaDuration: media.duration).label
         ))
-
-        // Erst Fassung und Transkript, dann die Belege. Die Reihenfolge ist
-        // kein Zufall: ein Beleg verweist auf Fassung und Transkriptrevision,
-        // und ein Verweis auf etwas, das noch nicht da ist, wäre genau die
-        // Art von halber Herkunft, die diese Kette verhindern soll.
-        try await store.save(
-            transcript: transcript,
-            media: MediaVersion(
-                id: mediaVersionID,
-                episodeID: episode.id,
-                remoteURL: audioURL,
-                localRelativePath: download.localRelativePath,
-                byteCount: download.byteCount,
-                contentHash: download.contentHash,
-                duration: download.duration,
-                mimeType: download.mimeType
-            ),
-            forEpisode: episode.id
-        )
 
         let evidence = assembler.evidence(
             from: transcript, episodeID: episode.id, sourceID: sourceID,
@@ -222,7 +284,53 @@ public actor ContentPipeline {
             episodeID: episode.id, stage: .evidenceExtracted,
             detail: "\(evidence.count) Fundstellen"
         ))
-        return evidence
+        return .completed(evidence: evidence)
+    }
+
+    /// Wie viel Medienzeit höchstens zwischen zwei Prüfpunkten liegt.
+    ///
+    /// Fünf Minuten ist der Kompromiss: ein Abbruch kostet nie mehr als das,
+    /// und bei einer 90-Minuten-Folge entstehen achtzehn Schreibvorgänge
+    /// statt einem. Kleiner gewählt würde die Datenbank zur Bremse, grösser
+    /// würde ein Abbruch teuer — und Abbrüche sind im Hintergrund der
+    /// Normalfall, nicht die Ausnahme.
+    static let checkpointInterval = MediaDuration(minutes: 5)
+
+    /// Besorgt die Mediendatei — und lädt sie **nicht** erneut, wenn sie
+    /// schon da ist.
+    ///
+    /// Ohne diese Prüfung kostete jede Fortsetzung einen vollständigen
+    /// zweiten Download. Bei einer Analyse, die über mehrere
+    /// Hintergrundfenster läuft, wäre das der teuerste Teil der ganzen
+    /// Übung — und der sinnloseste.
+    private func obtainMedia(
+        from audioURL: URL, mediaVersionID: MediaVersionID, episodeID: EpisodeID
+    ) async throws -> MediaVersion {
+
+        let local = mediaDirectory.appendingPathComponent(mediaVersionID.rawValue)
+        if FileManager.default.fileExists(atPath: local.path),
+           let size = try? local.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+           size > 0 {
+            return MediaVersion(
+                id: mediaVersionID, episodeID: episodeID, remoteURL: audioURL,
+                localRelativePath: mediaVersionID.rawValue,
+                byteCount: Int64(size),
+                // Der Hash wird hier bewusst nicht neu gebildet: er steht
+                // bereits in der Datenbank, und eine 200-MB-Datei erneut zu
+                // lesen, nur um dasselbe herauszubekommen, ist bei jeder
+                // Fortsetzung dieselbe verschenkte Minute.
+                contentHash: nil,
+                duration: try? AudioFileReader.duration(of: local)
+            )
+        }
+
+        let download = try await downloader.download(from: audioURL, mediaVersionID: mediaVersionID)
+        return MediaVersion(
+            id: mediaVersionID, episodeID: episodeID, remoteURL: audioURL,
+            localRelativePath: download.localRelativePath,
+            byteCount: download.byteCount, contentHash: download.contentHash,
+            duration: download.duration, mimeType: download.mimeType
+        )
     }
 
     /// Baut Kandidaten für eine persönliche Ausgabe.

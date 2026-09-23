@@ -164,6 +164,16 @@ public final class StoredTranscript {
     /// SwiftData sie ohne eigenen Objekttyp mitführen kann.
     public var analyzedRangesFlat: [Int] = []
     public var untimedText: String?
+    /// Ist die Analyse durchgelaufen?
+    ///
+    /// Ein unfertiges Transkript ist ein **Zwischenstand**: es darf
+    /// fortgeschrieben werden, und die nächste Analyse setzt dort an, statt
+    /// von vorn zu beginnen. Ein fertiges ist abgeschlossen.
+    ///
+    /// Voreinstellung `true`, damit vorhandene Datensätze aus der Zeit vor
+    /// dieser Spalte nicht plötzlich als halbfertig gelten und erneut
+    /// analysiert werden.
+    public var isComplete: Bool = true
 
     public var mediaVersion: StoredMediaVersion?
 
@@ -364,6 +374,38 @@ public final class StoredHighlight {
 //  denen tatsächlich gesucht wird, zusätzlich als eigene Spalten daneben.
 //  Reicht das eines Tages nicht mehr, ist das der Anlass zu zerlegen — bis
 //  dahin wäre es Arbeit ohne Nutzen.
+
+//  Die Warteschlange fuer das Erschliessen.
+//
+//  Sie ist persistent und nicht bloss eine Liste im Speicher, weil ihr
+//  ganzer Zweck ist, einen App-Start zu ueberleben: ein Hintergrundlauf
+//  beginnt in einem frischen Prozess und muss dort erfahren, was noch
+//  offen ist.
+
+@Model
+public final class StoredAnalysisRequest {
+    #Index<StoredAnalysisRequest>([\.episodeIdentifier], [\.requestedAt])
+    @Attribute(.unique) public var episodeIdentifier: String = ""
+    public var audioURLString: String = ""
+    public var localeIdentifier: String = "de_DE"
+    public var requestedAt: Date = Date()
+    /// Wie weit der letzte Lauf gekommen ist, in Millisekunden Medienzeit.
+    /// Nur zur Anzeige — die Wahrheit steht im Zwischenstand des Transkripts.
+    public var progressMs: Int = 0
+    /// Wie oft ein Lauf mit einem Fehler endete.
+    ///
+    /// Ohne diese Zahl versucht der Hintergrundlauf eine kaputte Folge bei
+    /// jedem Fenster erneut und kommt nie zur naechsten. Ein Zaehler ist
+    /// billiger als eine Zustandsmaschine und reicht dafuer.
+    public var failureCount: Int = 0
+    public var lastError: String?
+
+    public init(episodeIdentifier: String, audioURLString: String, localeIdentifier: String) {
+        self.episodeIdentifier = episodeIdentifier
+        self.audioURLString = audioURLString
+        self.localeIdentifier = localeIdentifier
+    }
+}
 
 @Model
 public final class StoredSmartFeed {

@@ -102,15 +102,56 @@ public final class BackgroundWork {
         }
     }
 
+    /// Das Fenster, in dem lange Arbeit tatsächlich erlaubt ist.
+    ///
+    /// Hier wird erschlossen — nicht im Audio-Hintergrundmodus. Der ist für
+    /// Wiedergabe da, und ihn für Dauerarbeit zu benutzen wäre genau der
+    /// Missbrauch, den die Systemvorgaben verbieten und den dieses Projekt
+    /// ausdrücklich ausgeschlossen hat.
+    ///
+    /// `expirationHandler` bricht ab, wenn das Fenster zugeht. Das ist kein
+    /// Verlust: die Pipeline hält am nächsten Prüfpunkt an und der Stand
+    /// liegt in der Datenbank. Beim nächsten Fenster geht es dort weiter.
     private func handleAnalysis(_ task: BGProcessingTask) {
         scheduleAnalysis()
 
-        let work = Task { @MainActor in await model.processPendingEditions() }
-        task.expirationHandler = { work.cancel() }
+        let work = Task { @MainActor [model] in
+            // Erst erschliessen, dann Ausgaben bauen. Die Reihenfolge ist
+            // wichtig: eine Ausgabe entsteht aus Belegen, und die entstehen
+            // beim Erschliessen. Andersherum bliebe die erste Ausgabe nach
+            // jedem Hintergrundlauf eine Runde hinterher.
+            await model.workQueue()?.value
+            await model.processPendingEditions()
+        }
+        task.expirationHandler = {
+            work.cancel()
+            // Der Warteschlangenarbeiter hält seine laufende Analyse selbst
+            // an; `work.cancel()` allein erreicht sie nicht, weil sie in
+            // einem eigenen Vorgang läuft.
+            Task { @MainActor in model.pauseQueue() }
+        }
         Task { @MainActor in
             _ = await work.result
             task.setTaskCompleted(success: !work.isCancelled)
         }
+    }
+
+    /// Meldet an, sobald überhaupt etwas zu tun ist.
+    ///
+    /// Ohne diesen Aufruf käme der erste Analyselauf erst nach dem
+    /// Zeitfenster, das beim App-Start angefragt wurde — im Zweifel Stunden
+    /// später, obwohl der Nutzer gerade eben auf „Erschliessen“ gedrückt hat.
+    public func scheduleAnalysisSoon() {
+        let request = BGProcessingTaskRequest(identifier: Self.analysisIdentifier)
+        request.requiresNetworkConnectivity = true
+        // **Kein** `requiresExternalPower` hier. Die reguläre Anfrage
+        // verlangt Strom, weil Transkription teuer ist; diese hier soll
+        // aber zeitnah drankommen, und am Ladekabel hängt ein Telefon
+        // tagsüber selten. Der Unterschied entscheidet darüber, ob aus
+        // „im Hintergrund“ Minuten oder Stunden werden.
+        request.requiresExternalPower = false
+        request.earliestBeginDate = nil
+        try? BGTaskScheduler.shared.submit(request)
     }
 
     #else
@@ -121,6 +162,7 @@ public final class BackgroundWork {
     public func register() {}
     public func scheduleRefresh() {}
     public func scheduleAnalysis() {}
+    public func scheduleAnalysisSoon() {}
 
     #endif
 }

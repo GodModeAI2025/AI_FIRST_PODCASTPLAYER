@@ -37,6 +37,7 @@ public actor LibraryStore {
         StoredTranscript.self, StoredSegment.self, StoredListeningState.self,
         StoredInterest.self, StoredEvidence.self, StoredHighlight.self,
         StoredSmartFeed.self, StoredPersonalEpisode.self, StoredKnowledgeTrail.self,
+        StoredAnalysisRequest.self,
     ])
 
     /// Baut den Container.
@@ -257,7 +258,12 @@ public actor LibraryStore {
         stored.remoteURLString = media.remoteURL?.absoluteString
         stored.localRelativePath = media.localRelativePath
         stored.byteCount = Int(media.byteCount ?? 0)
-        stored.contentHash = media.contentHash
+        // Nur überschreiben, wenn tatsächlich einer mitkommt. Ein Aufrufer,
+        // der die vorhandene Datei wiederverwendet, bildet den Hash nicht
+        // neu — ihn dann auf `nil` zu setzen hiesse, die einmal bewiesene
+        // Identität der Medienfassung zu verlieren, und daran hängen alle
+        // Belege.
+        if let hash = media.contentHash { stored.contentHash = hash }
         stored.durationMs = Int(media.duration?.milliseconds ?? 0)
         stored.mimeType = media.mimeType
         stored.supportsExactSeeking = media.supportsExactSeeking
@@ -278,11 +284,35 @@ public actor LibraryStore {
                 predicate: #Predicate { $0.identifier == transcriptKey }
             )
         ).first
-        // Ein Transkript ist wie ein Beleg unveränderlich: eine Neuanalyse
-        // erzeugt eine neue Revision und damit eine neue Kennung. Dasselbe
-        // noch einmal zu schreiben hiesse, Segmente zu verdoppeln.
+        // **Hier stand ein falscher Kommentar.** Er behauptete, eine
+        // Neuanalyse erzeuge eine neue Kennung, und leitete daraus ab, ein
+        // vorhandenes Transkript dürfe unangetastet bleiben.
+        //
+        // `TranscriptAssembler.finish` bildet die Kennung aber als
+        // `"<mediaVersionID>|<locale>"` — **ohne Revision**. Dieselbe
+        // Fassung in derselben Sprache ergibt also immer dieselbe Kennung,
+        // und jede Neuanalyse wurde still verworfen. Ein Zwischenstand
+        // fortzuschreiben wäre damit unmöglich gewesen.
+        //
+        // Richtig ist: die Kennung benennt *welches* Transkript, die
+        // Revision *welcher Stand*. Ein neuerer Stand ersetzt den älteren,
+        // ein älterer wird abgelehnt statt still zu gewinnen.
         if let existing {
             existing.mediaVersion = stored
+            guard transcript.revision.value >= existing.revisionValue else {
+                // Kein stiller Fehlschlag: wer einen veralteten Stand
+                // schreiben will, hat ein Problem, das er kennen soll.
+                try modelContext.save()
+                throw StoreError.staleTranscript(
+                    have: existing.revisionValue, offered: transcript.revision.value)
+            }
+            guard !existing.isComplete || !transcript.isPartial else {
+                // Ein fertiges Transkript durch einen Zwischenstand zu
+                // ersetzen wäre ein Rückschritt.
+                try modelContext.save()
+                throw StoreError.wouldReplaceCompleteWithPartial
+            }
+            try replaceSegments(of: existing, with: transcript)
             try modelContext.save()
             return
         }
@@ -295,8 +325,29 @@ public actor LibraryStore {
         row.analyzedRangesFlat = StoredTranscript.flat(from: transcript.analyzedRanges)
         row.untimedText = transcript.untimedText
         row.mediaVersion = stored
+        row.isComplete = !transcript.isPartial
         modelContext.insert(row)
+        insertSegments(of: transcript, into: row)
+        try modelContext.save()
+    }
 
+    /// Schreibt einen Zwischenstand fort.
+    ///
+    /// Die alten Segmente werden entfernt, nicht ergänzt: der Assembler hat
+    /// bereits zusammengeführt und dedupliziert, und was er liefert, ist der
+    /// vollständige Stand. Sie zu ergänzen hiesse, seine Arbeit ein zweites
+    /// Mal zu tun — und diesmal falsch.
+    private func replaceSegments(of row: StoredTranscript, with transcript: Transcript) throws {
+        for segment in row.segments { modelContext.delete(segment) }
+        row.segments = []
+        row.revisionValue = transcript.revision.value
+        row.analyzedRangesFlat = StoredTranscript.flat(from: transcript.analyzedRanges)
+        row.untimedText = transcript.untimedText
+        row.isComplete = !transcript.isPartial
+        insertSegments(of: transcript, into: row)
+    }
+
+    private func insertSegments(of transcript: Transcript, into row: StoredTranscript) {
         for segment in transcript.segments {
             let piece = StoredSegment(
                 identifier: segment.id.rawValue,
@@ -307,7 +358,149 @@ public actor LibraryStore {
             piece.transcript = row
             modelContext.insert(piece)
         }
+    }
+
+    // MARK: - Warteschlange fürs Erschliessen
+
+    /// Ein Auftrag, eine Folge zu erschliessen.
+    public struct AnalysisRequest: Sendable, Identifiable, Hashable {
+        public let episodeID: EpisodeID
+        public let audioURL: URL
+        public let localeIdentifier: String
+        public let requestedAt: Date
+        public let progress: MediaTime
+        public let failureCount: Int
+        public let lastError: String?
+
+        public var id: EpisodeID { episodeID }
+    }
+
+    /// Wie oft ein Auftrag scheitern darf, bevor er liegen bleibt.
+    ///
+    /// Ohne Grenze blockiert eine dauerhaft kaputte Folge jedes
+    /// Hintergrundfenster und alle anderen kommen nie dran. Drei Versuche
+    /// unterscheiden einen Netzaussetzer von einem echten Problem.
+    public static let maximumAnalysisFailures = 3
+
+    public func enqueueAnalysis(
+        episodeID: EpisodeID, audioURL: URL, localeIdentifier: String
+    ) throws {
+        let key = episodeID.rawValue
+        let existing = try modelContext.fetch(
+            FetchDescriptor<StoredAnalysisRequest>(
+                predicate: #Predicate { $0.episodeIdentifier == key }
+            )
+        ).first
+
+        if let existing {
+            // Erneut anfragen heisst: nochmal versuchen. Der Fehlerzähler
+            // geht zurück auf null, sonst bliebe eine einmal gescheiterte
+            // Folge für immer liegen, obwohl der Nutzer sie erneut will.
+            existing.audioURLString = audioURL.absoluteString
+            existing.localeIdentifier = localeIdentifier
+            existing.failureCount = 0
+            existing.lastError = nil
+        } else {
+            modelContext.insert(StoredAnalysisRequest(
+                episodeIdentifier: key,
+                audioURLString: audioURL.absoluteString,
+                localeIdentifier: localeIdentifier))
+        }
         try modelContext.save()
+    }
+
+    public func dequeueAnalysis(episodeID: EpisodeID) throws {
+        let key = episodeID.rawValue
+        for row in try modelContext.fetch(
+            FetchDescriptor<StoredAnalysisRequest>(
+                predicate: #Predicate { $0.episodeIdentifier == key }
+            )
+        ) {
+            modelContext.delete(row)
+        }
+        try modelContext.save()
+    }
+
+    /// Die offenen Aufträge, älteste zuerst.
+    ///
+    /// Älteste zuerst und nicht nach Fortschritt: wer zuerst gewartet hat,
+    /// kommt zuerst dran. Nach Fortschritt zu sortieren würde eine fast
+    /// fertige Folge bevorzugen und eine lange immer weiter nach hinten
+    /// schieben.
+    public func pendingAnalyses(includingFailed: Bool = false) throws -> [AnalysisRequest] {
+        let limit = Self.maximumAnalysisFailures
+        var descriptor = FetchDescriptor<StoredAnalysisRequest>(
+            predicate: includingFailed
+                ? nil
+                : #Predicate { $0.failureCount < limit }
+        )
+        descriptor.sortBy = [SortDescriptor(\.requestedAt)]
+        return try modelContext.fetch(descriptor).compactMap { row in
+            guard let url = URL(string: row.audioURLString) else { return nil }
+            return AnalysisRequest(
+                episodeID: EpisodeID(rawValue: row.episodeIdentifier),
+                audioURL: url,
+                localeIdentifier: row.localeIdentifier,
+                requestedAt: row.requestedAt,
+                progress: MediaTime(milliseconds: Int64(row.progressMs)),
+                failureCount: row.failureCount,
+                lastError: row.lastError)
+        }
+    }
+
+    public func recordAnalysisProgress(episodeID: EpisodeID, reached: MediaTime) throws {
+        try updateRequest(episodeID) { row in
+            row.progressMs = Int(reached.milliseconds)
+            row.lastError = nil
+        }
+    }
+
+    public func recordAnalysisFailure(episodeID: EpisodeID, reason: String) throws {
+        try updateRequest(episodeID) { row in
+            row.failureCount += 1
+            row.lastError = reason
+        }
+    }
+
+    private func updateRequest(
+        _ episodeID: EpisodeID, _ change: (StoredAnalysisRequest) -> Void
+    ) throws {
+        let key = episodeID.rawValue
+        guard let row = try modelContext.fetch(
+            FetchDescriptor<StoredAnalysisRequest>(
+                predicate: #Predicate { $0.episodeIdentifier == key }
+            )
+        ).first else { return }
+        change(row)
+        try modelContext.save()
+    }
+
+    public enum StoreError: Error, LocalizedError {
+        case staleTranscript(have: Int, offered: Int)
+        case wouldReplaceCompleteWithPartial
+
+        public var errorDescription: String? {
+            switch self {
+            case .staleTranscript(let have, let offered):
+                "Gespeichert ist Revision \(have), angeboten wurde \(offered)."
+            case .wouldReplaceCompleteWithPartial:
+                "Ein fertiges Transkript wird nicht durch einen Zwischenstand ersetzt."
+            }
+        }
+    }
+
+    /// Der gespeicherte Zwischenstand einer Medienfassung, falls es einen gibt.
+    ///
+    /// Nur unfertige: ein abgeschlossenes Transkript ist kein Anlass, die
+    /// Analyse fortzusetzen.
+    public func partialTranscript(forMedia mediaVersionID: MediaVersionID) throws -> Transcript? {
+        let key = mediaVersionID.rawValue
+        var descriptor = FetchDescriptor<StoredTranscript>(
+            predicate: #Predicate { $0.mediaVersion?.identifier == key && $0.isComplete == false }
+        )
+        descriptor.sortBy = [SortDescriptor(\.revisionValue, order: .reverse)]
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first?.snapshot
     }
 
     /// Das Transkript einer Medienfassung, mit Segmenten.
