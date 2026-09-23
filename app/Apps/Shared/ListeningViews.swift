@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import Translation
 import PodcastAIKit
 
 // MARK: - Folge
@@ -263,9 +264,9 @@ struct EpisodeDetailView: View {
 
             if let notes = ShownotesText.render(episode.shownotesHTML ?? episode.summary) {
                 SwiftUI.Section("Shownotes") {
-                    Text(notes)
-                        .font(.callout)
-                        .textSelection(.enabled)
+                    ShownotesContent(
+                        notes: notes, plain: String(notes.characters),
+                        feedLanguage: model.sources.first(where: { $0.id == episode.sourceID })?.language)
                 }
             }
         }
@@ -579,22 +580,34 @@ struct FactActions: View {
 }
 
 /// Was in der Folge zu einer Aussage wörtlich gesagt wurde, auf Wunsch.
+/// Ist der Wortlaut in einer anderen Sprache als die App, zeigt
+/// „Übersetzen“ eine Übersetzung darüber. Der Wortlaut selbst bleibt.
 struct FactWording: View {
     let text: String
     @State private var shown = false
+    @State private var foreign = false
+    @State private var translating = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-            Button {
-                withAnimation { shown.toggle() }
-            } label: {
-                Label(shown ? "Wortlaut ausblenden" : "Wortlaut zeigen",
-                      systemImage: shown ? "chevron.up" : "text.quote")
-                    .font(.caption)
-                    .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
-                    .contentShape(.rect)
+            HStack(spacing: Design.Spacing.standard) {
+                Button {
+                    withAnimation { shown.toggle() }
+                } label: {
+                    Label(shown ? "Wortlaut ausblenden" : "Wortlaut zeigen",
+                          systemImage: shown ? "chevron.up" : "text.quote")
+                        .font(.caption)
+                        .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.borderless)
+                if shown, foreign {
+                    TranslateTextButton(isPresented: $translating)
+                        .font(.caption)
+                        .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+                        .buttonStyle(.borderless)
+                }
             }
-            .buttonStyle(.borderless)
             if shown {
                 Text("„\(text)“")
                     .font(.callout)
@@ -602,10 +615,12 @@ struct FactWording: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, Design.Spacing.small)
+                    .translationPresentation(isPresented: $translating, text: text)
             }
         }
         // Eingerückt unter den Text der Aussage, neben dem Symbol.
         .padding(.leading, 28)
+        .task(id: text) { foreign = AppLanguage.current.isForeign(text) }
     }
 }
 
@@ -685,17 +700,40 @@ enum Clipboard {
 
 /// Das Transkript mit Zeitmarken. Antippen springt an die Stelle, die
 /// laufende Stelle ist hervorgehoben, Gehörtes ist abgeblendet.
+///
+/// Ist das Transkript in einer anderen Sprache als die App, lässt es sich
+/// auf dem Gerät übersetzen. Merken, Kopieren und Teilen nehmen trotzdem
+/// den Originaltext: zitiert wird, was gesagt wurde.
 struct TranscriptSection: View {
     let episode: Episode
     @Environment(AppModel.self) private var model
     @State private var paragraphs: [(start: MediaTime, text: String)] = []
     @State private var loaded = false
     @State private var query = ""
+    @State private var translation = ParagraphTranslation()
+    /// Die Sprache des Transkripts, wenn sie nicht die der App ist.
+    @State private var foreignSource: Locale.Language?
 
     private var filtered: [(start: MediaTime, text: String)] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return paragraphs }
-        return paragraphs.filter { $0.text.localizedCaseInsensitiveContains(trimmed) }
+        // Mit sichtbarer Übersetzung sucht die Suche auch in ihr.
+        return paragraphs.filter { paragraph in
+            paragraph.text.localizedCaseInsensitiveContains(trimmed)
+                || (translation.isShown
+                    && translation.texts[paragraph.start.milliseconds]?.localizedCaseInsensitiveContains(trimmed) == true)
+        }
+    }
+
+    private var keyedParagraphs: [(key: Int64, text: String)] {
+        paragraphs.map { (key: $0.start.milliseconds, text: $0.text) }
+    }
+
+    /// Was in der Zeile steht: die Übersetzung, sobald es sie gibt und sie
+    /// gezeigt wird, sonst das Original.
+    private func shownText(_ paragraph: (start: MediaTime, text: String)) -> String {
+        guard translation.isShown else { return paragraph.text }
+        return translation.texts[paragraph.start.milliseconds] ?? paragraph.text
     }
 
     var body: some View {
@@ -715,6 +753,15 @@ struct TranscriptSection: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Suche leeren")
+                        }
+                    }
+                    if foreignSource != nil {
+                        TranslationControl(
+                            translation: translation, identifier: "transcript.translate",
+                            note: "Auf dem Gerät übersetzt. Merken und Kopieren nehmen den Originaltext."
+                        ) {
+                            let list = keyedParagraphs
+                            Task { await translation.toggle(list) }
                         }
                     }
                 }
@@ -739,7 +786,7 @@ struct TranscriptSection: View {
                     } label: {
                         VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                             TimecodeLabel(paragraph.start, emphasis: isCurrent(paragraph.start) ? .bold : .regular)
-                            Text(paragraph.text)
+                            Text(shownText(paragraph))
                                 .font(.callout)
                                 .foregroundStyle(isHeard(paragraph.start) ? .secondary : .primary)
                                 .multilineTextAlignment(.leading)
@@ -771,8 +818,21 @@ struct TranscriptSection: View {
         .task(id: model.stages[episode.id]) {
             if let transcript = await model.transcript(for: episode) {
                 paragraphs = EpisodeDossierExporter.paragraphs(transcript.segments, seconds: 30)
+                let language = AppLanguage.current
+                foreignSource = language.matches(transcript.locale) == false
+                    ? AppLanguage.translationSource(transcript.locale) : nil
+                if foreignSource != nil {
+                    await translation.prepare(
+                        source: foreignSource,
+                        cacheKey: TranslationCache.Key(
+                            episodeID: episode.id, transcriptID: transcript.id, target: language),
+                        paragraphs: keyedParagraphs)
+                }
             }
             loaded = true
+        }
+        .translationTask(translation.configuration) { @Sendable [translation] session in
+            await ParagraphTranslation.run(session, for: translation)
         }
     }
 
