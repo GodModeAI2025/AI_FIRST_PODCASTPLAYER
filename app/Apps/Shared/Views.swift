@@ -2334,7 +2334,7 @@ struct FocusPlayerView: View {
                     .multilineTextAlignment(.center)
             }
 
-            // „Merken“ gab es bisher nur als Kurzbefehl — in der App
+            // „Merken“ gab es bisher nur als Kurzbefehl, in der App
             // selbst führte kein Weg dorthin. Das Kapitel „Highlights
             // und Wissen“ beginnt aber hier, beim Hören.
             Button {
