@@ -1,6 +1,2446 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "· %@" : {
+
+    },
+    "· Folge gelöscht" : {
+
+    },
+    "· nicht abspielbar" : {
+
+    },
+    "„%@“" : {
+
+    },
+    "„%@“\n(%@)" : {
+      "comment" : "Zitat mit Herkunft zum Kopieren",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "„%1$@“\n(%2$@)"
+          }
+        }
+      }
+    },
+    "„%@“\n(%@)\n\n%@" : {
+      "comment" : "Fakt mit wörtlichem Beleg zum Kopieren",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "„%1$@“\n(%2$@)\n\n%3$@"
+          }
+        }
+      }
+    },
+    "„%@“ abonniert · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "„%1$@“ abonniert · %2$@"
+          }
+        }
+      }
+    },
+    "„%@“ gibt es nicht mehr." : {
+
+    },
+    "„%@“ hat keine Audiodatei, nur ein Video bei YouTube." : {
+
+    },
+    "„%@“ hat keine Audiodatei." : {
+
+    },
+    "„%@“ ist nicht auf diesem Gerät geladen. Ohne Netz lässt sich die Folge nicht abspielen." : {
+
+    },
+    "„%@“ lässt sich nicht abspielen. %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "„%1$@“ lässt sich nicht abspielen. %2$@"
+          }
+        }
+      }
+    },
+    "„%@“ löschen" : {
+
+    },
+    "„%@“ wurde nicht geladen: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "„%1$@“ wurde nicht geladen: %2$@"
+          }
+        }
+      }
+    },
+    "„%@“: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "„%1$@“: %2$@"
+          }
+        }
+      }
+    },
+    "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, gedrückt halten bietet „Ans Ende“. Die Warteschlange liegt in „Meine Podcasts“." : {
+
+    },
+    "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, gedrückt halten bietet „Ans Ende“. Die Warteschlange steht links in der Seitenleiste und in „Meine Podcasts“." : {
+
+    },
+    "„Audio entfernen“ löscht nur den Ton. Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt auch mit fertigem Transkript auf dem Gerät. Eine einzelne Folge löschst du in der Folge selbst; dann verschwinden auch ihre Daten." : {
+
+    },
+    "„Meine Podcasts“ › Plus. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
+
+    },
+    "„Transkripte für neue Folgen erstellen“ ist in den Einstellungen aus. Das Transkript einer Folge erstellst du dann selbst, wenn du es brauchst." : {
+
+    },
+    "%@" : {
+
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ · noch %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · noch %2$@"
+          }
+        }
+      }
+    },
+    "%@ abbestellen" : {
+
+    },
+    "%@ abonnieren" : {
+
+    },
+    "%@ bietet keinen Feed an. Manche Seiten verlinken ihn nur auf einer Unterseite. Dann hilft die Adresse des Feeds selbst." : {
+
+    },
+    "%@ Deshalb habe ich keine Belege, mit denen ich antworten kann." : {
+
+    },
+    "%@ gehört" : {
+
+    },
+    "%@ und %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ und %2$@"
+          }
+        }
+      }
+    },
+    "%@ von %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ von %2$@"
+          }
+        }
+      }
+    },
+    "%@, %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@"
+          }
+        }
+      }
+    },
+    "%@, %@, aus %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@, aus %3$@"
+          }
+        }
+      }
+    },
+    "%@, schon ein Interesse" : {
+
+    },
+    "%@: %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@."
+          }
+        }
+      }
+    },
+    "%@." : {
+
+    },
+    "%@. %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@. %2$@"
+          }
+        }
+      }
+    },
+    "%@. Den Grund siehst du beim jeweiligen Podcast." : {
+
+    },
+    "%@×" : {
+
+    },
+    "%lld abonnieren" : {
+
+    },
+    "%lld Belege sind nicht mehr da." : {
+
+    },
+    "%lld bestätigt" : {
+
+    },
+    "%lld davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. Diese versucht die App nicht noch einmal." : {
+
+    },
+    "%lld Folgen angezeigt" : {
+
+    },
+    "%lld Folgen warten" : {
+
+    },
+    "%lld gingen nicht" : {
+
+    },
+    "%lld Min" : {
+
+    },
+    "%lld Minuten" : {
+
+    },
+    "%lld Minuten je Ausgabe" : {
+
+    },
+    "%lld nach dem Stoppen ausgelassen" : {
+
+    },
+    "%lld Stellen in dieser Folge" : {
+
+    },
+    "%lld Stunden" : {
+
+    },
+    "%lld Transkripte werden erstellt" : {
+
+    },
+    "%lld von %lld erledigt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld von %2$lld erledigt"
+          }
+        }
+      }
+    },
+    "%lld von %lld Stellen liessen sich nicht einordnen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld von %2$lld Stellen liessen sich nicht einordnen."
+          }
+        }
+      }
+    },
+    "%lld von ^[%lld Folge](inflect: true) mit Transkript. Nur diese wurden durchsucht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript. Nur diese wurden durchsucht."
+          }
+        }
+      }
+    },
+    "%lld. %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld. %2$@"
+          }
+        }
+      }
+    },
+    "`id` fehlt." : {
+      "comment" : "`id` ist ein Werkzeugargument, nicht übersetzen."
+    },
+    "`query` fehlt oder ist leer." : {
+      "comment" : "`query` ist ein Werkzeugargument, nicht übersetzen."
+    },
+    "^[%lld Beleg](inflect: true)" : {
+
+    },
+    "^[%lld Folge](inflect: true)" : {
+
+    },
+    "^[%lld Folge](inflect: true) gefunden" : {
+
+    },
+    "^[%lld Folge](inflect: true) zum Hören" : {
+
+    },
+    "^[%lld Minute](inflect: true)" : {
+
+    },
+    "^[%lld neue Folge](inflect: true)" : {
+
+    },
+    "^[%lld Notiz](inflect: true)" : {
+
+    },
+    "^[%lld Podcast](inflect: true) abonniert" : {
+
+    },
+    "^[%lld Podcast](inflect: true) in „%@“" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "^[%1$lld Podcast](inflect: true) in „%2$@“"
+          }
+        }
+      }
+    },
+    "^[%lld Stelle](inflect: true)" : {
+
+    },
+    "^[%lld Stelle](inflect: true) · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "^[%1$lld Stelle](inflect: true) · %2$@"
+          }
+        }
+      }
+    },
+    "^[%lld Stelle](inflect: true) · ^[%lld Podcast](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "^[%1$lld Stelle](inflect: true) · ^[%2$lld Podcast](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Stelle](inflect: true) · ^[%lld Quelle](inflect: true) · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "^[%1$lld Stelle](inflect: true) · ^[%2$lld Quelle](inflect: true) · %3$@"
+          }
+        }
+      }
+    },
+    "^[%lld Stelle](inflect: true) aus ^[%lld Podcast](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "^[%1$lld Stelle](inflect: true) aus ^[%2$lld Podcast](inflect: true)"
+          }
+        }
+      }
+    },
+    "1 abonnieren" : {
+
+    },
+    "1 Folge angezeigt" : {
+
+    },
+    "1 ging nicht" : {
+
+    },
+    "1 Minute" : {
+
+    },
+    "1 Stunde" : {
+
+    },
+    "1 Transkript wird erstellt" : {
+
+    },
+    "15 Sekunden zurück" : {
+
+    },
+    "30 Sekunden vor" : {
+
+    },
+    "Ab %@ hören" : {
+
+    },
+    "Ab hier abspielen" : {
+
+    },
+    "Abbestellen" : {
+
+    },
+    "Abbestellen und Daten löschen" : {
+
+    },
+    "Abbestellen?" : {
+
+    },
+    "Abbrechen" : {
+
+    },
+    "Abgelaufen" : {
+
+    },
+    "Abgleich über deine iCloud" : {
+
+    },
+    "Ablehnen" : {
+
+    },
+    "Abonnieren" : {
+
+    },
+    "Abonnieren holt nur die Folgenlisten. Transkripte entstehen dabei noch keine." : {
+
+    },
+    "Abonniert" : {
+
+    },
+    "Abonniert · ^[%lld Folge](inflect: true)" : {
+
+    },
+    "Abonniert · ^[%lld Folge](inflect: true) gefunden" : {
+
+    },
+    "Abos aus Datei importieren" : {
+
+    },
+    "Abos aus Datei importieren (OPML)" : {
+
+    },
+    "Abos exportieren (OPML)" : {
+
+    },
+    "Abos importieren" : {
+
+    },
+    "Abos importieren oder exportieren" : {
+
+    },
+    "Abos, Transkripte, Fakten, Hörstand, Interessen, Themen-Updates und gemerkte Stellen gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. Audiodateien lädt jedes Gerät selbst." : {
+
+    },
+    "Abos, Transkripte, Fakten, Notizen, Interessen und Hörstand liegen in deiner privaten iCloud-Datenbank. Nur deine Geräte mit derselben Apple-ID lesen sie." : {
+
+    },
+    "Abspielen" : {
+
+    },
+    "Abspielen/Pause" : {
+
+    },
+    "Agent" : {
+
+    },
+    "Agenten" : {
+
+    },
+    "Agentenzugang erlauben" : {
+
+    },
+    "Aktiv, über deine private iCloud-Datenbank" : {
+
+    },
+    "Aktualisieren" : {
+
+    },
+    "Aktuell" : {
+
+    },
+    "Aktuelle Freigabe" : {
+
+    },
+    "Aktuelles Vorhaben" : {
+
+    },
+    "Alle %lld Fakten" : {
+
+    },
+    "Alle %lld Kapitel" : {
+
+    },
+    "Alle %lld Stellen nacheinander anhören" : {
+
+    },
+    "Alle abwählen" : {
+
+    },
+    "Alle Audiodateien entfernen" : {
+
+    },
+    "Alle Audiodateien entfernen?" : {
+
+    },
+    "Alle Ausgaben dieses Updates werden gelöscht. Folgen, Transkripte und Hörstand bleiben." : {
+
+    },
+    "Alle auswählen" : {
+
+    },
+    "Alle Folgen dieses Podcasts werden mit Transkripten, Fakten und Hörstand gelöscht." : {
+
+    },
+    "Alle Podcasts" : {
+
+    },
+    "Alle Podcasts aktualisieren" : {
+
+    },
+    "Alle Transkripte fertig" : {
+
+    },
+    "Als Audio-Podcast verfügbar" : {
+
+    },
+    "Als Markdown exportieren" : {
+
+    },
+    "Als Nächstes" : {
+
+    },
+    "Als Nächstes hören" : {
+
+    },
+    "Als Text teilen" : {
+
+    },
+    "Älteste zuerst" : {
+
+    },
+    "Anbieter: MOBILE BOX - App Consulting UG (haftungsbeschränkt), Karlsruhe." : {
+
+    },
+    "Anfragen ins Netz" : {
+
+    },
+    "Anlegen" : {
+
+    },
+    "Ans Ende" : {
+
+    },
+    "Ans Ende der Warteschlange" : {
+
+    },
+    "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen." : {
+
+    },
+    "Antippen, um Stichworte zu ergänzen. Nur bestätigte Themen lösen persönliche Ausgaben aus." : {
+
+    },
+    "Antwort da" : {
+
+    },
+    "Antwort da, ^[%lld Beleg](inflect: true)" : {
+
+    },
+    "Antwort gesichert" : {
+
+    },
+    "Antwort kopieren" : {
+
+    },
+    "Antwort sichern" : {
+
+    },
+    "Antwort teilen" : {
+
+    },
+    "Antwort wird gesucht …" : {
+
+    },
+    "Antworten und Fakten mit Apple Intelligence" : {
+
+    },
+    "Apple Intelligence" : {
+
+    },
+    "Apple Intelligence und Datenschutz" : {
+
+    },
+    "Apple Podcasts nennt zu diesem Link keinen offenen Feed. Such den Podcast oben nach seinem Namen." : {
+
+    },
+    "Apple Podcasts und Datenschutz" : {
+
+    },
+    "Arbeit läuft" : {
+
+    },
+    "Art" : {
+
+    },
+    "Audio" : {
+
+    },
+    "Audio abrufbar" : {
+
+    },
+    "Audio entfernen, Daten behalten" : {
+
+    },
+    "Audio entfernen, wenn das Transkript fertig ist" : {
+
+    },
+    "Audio liegt auf diesem Gerät" : {
+
+    },
+    "Audio wird geladen …" : {
+
+    },
+    "Audiodateien auf diesem Gerät" : {
+
+    },
+    "auf dem Gerät" : {
+
+    },
+    "Auf dem Gerät" : {
+
+    },
+    "Auf dem Gerät oder auf Private Cloud Compute, einstellbar unter PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter." : {
+
+    },
+    "Auf dem Gerät oder auf Private Cloud Compute, einstellbar unter Wissen › Einstellungen › Intelligenz. Kein anderer KI-Anbieter." : {
+
+    },
+    "Auf dem Gerät, spielt auch ohne Netz" : {
+
+    },
+    "Auf diesem Gerät" : {
+
+    },
+    "Aufbewahrt, nicht zugestimmt." : {
+
+    },
+    "Aus" : {
+      "comment" : "iCloud-Abgleich in den Einstellungen"
+    },
+    "aus %@" : {
+
+    },
+    "Aus deinen Interessen baut PodcastAI einen eigenen Podcast. Er besteht aus Originalstellen, die du noch nicht gehört hast." : {
+
+    },
+    "Aus dem Wortschatz des Systems, auf diesem Gerät berechnet. Nur übernehmen, was passt." : {
+
+    },
+    "Aus dieser Folge liessen sich keine Fakten ermitteln: %lld von %lld Abschnitten fehlen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Aus dieser Folge liessen sich keine Fakten ermitteln: %1$lld von %2$lld Abschnitten fehlen."
+          }
+        }
+      }
+    },
+    "Aus, die Daten bleiben auf diesem Gerät" : {
+
+    },
+    "Ausgabe löschen" : {
+
+    },
+    "Ausgabe wird zusammengestellt …" : {
+
+    },
+    "ausgenommen" : {
+
+    },
+    "Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Formuliert von: %@." : {
+
+    },
+    "Auswahl aufheben" : {
+
+    },
+    "Auswählen" : {
+
+    },
+    "Bearbeiten" : {
+
+    },
+    "Begriffe" : {
+
+    },
+    "Bei %lld davon ging aus einem anderen Grund etwas schief. „Neu ermitteln“ versucht es dort noch einmal." : {
+
+    },
+    "Beim Erstellen des Transkripts ist etwas schiefgegangen (%@). Noch einmal versuchen, bei Wiederholung bitte als Feedback melden." : {
+
+    },
+    "Belege" : {
+
+    },
+    "Belege und Notizen bleiben erhalten." : {
+
+    },
+    "Bereich" : {
+
+    },
+    "Bereich: %@" : {
+
+    },
+    "Bereit seit %@" : {
+
+    },
+    "Bestätigte Interessen lesen" : {
+
+    },
+    "Bestimmt, welche Stellen dir als relevant angezeigt werden. Jederzeit einsehbar und korrigierbar." : {
+
+    },
+    "Bezeichnung" : {
+
+    },
+    "Chat" : {
+
+    },
+    "Das Ergebnis liess sich nicht darstellen." : {
+
+    },
+    "Das hat nicht geklappt" : {
+
+    },
+    "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist Private Cloud Compute eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server. Apple speichert sie nach eigenen Angaben nicht. Abschalten kannst du das in den Einstellungen unter Intelligenz." : {
+
+    },
+    "Das Modell hat keine Antwort geliefert." : {
+
+    },
+    "Das Modell hat keine der Stellen dieser These zugeordnet. Sie passen nur dem Wortlaut nach." : {
+
+    },
+    "Das Podcast-Verzeichnis hat gerade keine lesbare Antwort geschickt. Versuch es gleich noch einmal." : {
+
+    },
+    "Das Sprachmodell wird noch geladen. Das Transkript später noch einmal erstellen, am besten im WLAN." : {
+
+    },
+    "Das Transkript dieser Folge ist fertig, aber es steht kein Text darin, also habe ich keine Belege. Meist enthält die Folge dann kaum Sprache. Im Reiter „Transkript“ kannst du es mit „Erneut versuchen“ noch einmal erstellen." : {
+
+    },
+    "Das Transkript dieser Folge konnte nicht erstellt werden: %@ Tippe in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten." : {
+
+    },
+    "Das Transkript dieser Folge konnte nicht erstellt werden. Tippe in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten." : {
+
+    },
+    "Das Transkript dieser Folge steht in der Warteschlange (%@). Tippe in der Folge auf „Transkript jetzt erstellen“, danach kann ich mit Belegen aus dem Transkript antworten." : {
+
+    },
+    "Das Transkript dieser Folge steht in der Warteschlange und wartet auf Netz. Sobald es fertig ist, kann ich mit Belegen aus dem Transkript antworten." : {
+
+    },
+    "Das Transkript dieser Folge steht in der Warteschlange. Sobald es fertig ist, kann ich mit Belegen aus dem Transkript antworten." : {
+
+    },
+    "Das Transkript dieser Folge wird gerade erstellt. Sobald es fertig ist, kann ich mit Belegen aus dem Transkript antworten." : {
+
+    },
+    "Das Transkript ist fertig, aber es steht kein Text darin. Meist enthält die Folge dann kaum Sprache, zum Beispiel nur Musik." : {
+
+    },
+    "Das Transkript konnte nicht erstellt werden." : {
+
+    },
+    "Das Update sucht nur in den ausgewählten Podcasts." : {
+
+    },
+    "Datei lässt sich nicht einlesen" : {
+
+    },
+    "Daten" : {
+
+    },
+    "Datenschutz" : {
+
+    },
+    "Datenschutz in PodcastAI" : {
+
+    },
+    "Datenschutzerklärung" : {
+
+    },
+    "Datenschutzrichtlinie von Apple" : {
+
+    },
+    "Datensicherheit in iCloud" : {
+
+    },
+    "Datensparmodus ist an, Laden und Transkripte warten" : {
+
+    },
+    "Dauer in Minuten" : {
+
+    },
+    "Dazu finde ich keine passende Stelle. %@" : {
+
+    },
+    "Dazu gibt es noch keine Folge mit Transkript. Füge einen Podcast hinzu. Die App lädt die neuesten Folgen und erstellt ihre Transkripte von selbst, danach antworte ich mit Belegen." : {
+
+    },
+    "Dazu steht in den Transkripten nichts Belegtes." : {
+
+    },
+    "Deine Notizen" : {
+
+    },
+    "Deine These" : {
+
+    },
+    "Den Namen deiner Sendung eintippen und abonnieren. Links aus Apple Podcasts oder von YouTube gehen auch." : {
+
+    },
+    "Der Agentenzugang ist ausgeschaltet. Einschalten lässt er sich in PodcastAI unter Einstellungen › Agenten." : {
+
+    },
+    "Der Agentenzugang ist in PodcastAI ausgeschaltet." : {
+
+    },
+    "Der Anbieter meldet diese Adresse als nicht vorhanden (Status 404). Oft hat sich nur die Adresse geändert. Den Podcast aktualisieren und noch einmal versuchen." : {
+
+    },
+    "Der Audio-Podcast liefert die Tonspur, die PodcastAI transkribieren darf. Das Audio der YouTube-Videos selbst lädt die App nicht." : {
+
+    },
+    "Der Download hat zu lange gedauert. Im WLAN noch einmal versuchen." : {
+
+    },
+    "Der mitgeschriebene Text einer Folge. Erst damit kannst du in der Folge suchen und Fragen stellen." : {
+
+    },
+    "Der Podcast liefert für diese Folge keine Kapitelmarken." : {
+
+    },
+    "Der Server des Podcasts antwortet gerade nicht (Status %lld). Später noch einmal versuchen." : {
+
+    },
+    "Der Server des Podcasts hat die Anfrage abgelehnt (Status %lld)." : {
+
+    },
+    "Der Server hat nichts geliefert. Später noch einmal versuchen." : {
+
+    },
+    "Der Server ist nicht erreichbar." : {
+
+    },
+    "Der Speicher konnte nicht geöffnet werden" : {
+
+    },
+    "Der Speicher lässt sich immer noch nicht öffnen" : {
+
+    },
+    "Der Speicher wurde neu angelegt" : {
+
+    },
+    "Der übersprungene Teil zählt nicht als gehört" : {
+
+    },
+    "Deutsch · KI in Wissenschaft und Praxis" : {
+
+    },
+    "die %lld neuesten" : {
+
+    },
+    "Die App erstellt das Transkript auf dem Gerät, mit Zeitmarken." : {
+
+    },
+    "Die App erstellt ein Transkript nach dem anderen. Auf dem iPhone geht die Arbeit im Hintergrund weiter, solange die Fortschrittsanzeige des Systems zu sehen ist." : {
+
+    },
+    "Die App läuft weiter ohne Speicher, und was du jetzt anlegst, ist beim nächsten Start weg." : {
+
+    },
+    "Die App schreibt Folgen auf dem Gerät mit Zeitmarken mit. Im Reiter „Transkript“ springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für ältere Folgen tippst du in der Folge auf „Transkript erstellen“." : {
+
+    },
+    "Die Audiodatei dieser Folge lässt sich nicht lesen. Das liegt meist an der Datei selbst, nicht an der App." : {
+
+    },
+    "Die Ausgabe konnte nicht erstellt werden." : {
+
+    },
+    "Die Ausgabe wird gerade zusammengestellt." : {
+
+    },
+    "Die Ausgabe wird zusammengestellt …" : {
+
+    },
+    "Die Datei ist größer, als die App lädt. Für sehr lange Folgen lässt sich im Moment kein Transkript erstellen." : {
+
+    },
+    "Die Datenbank liess sich nicht öffnen. Die App läuft ohne Speicher, und was du jetzt anlegst, ist beim nächsten Start weg." : {
+
+    },
+    "Die Datenbank von PodcastAI liess sich nicht öffnen. %@" : {
+
+    },
+    "Die Fakten konnten nicht ermittelt werden. %@" : {
+
+    },
+    "Die Fakten sind unvollständig: %lld von %lld Abschnitten der Folge fehlen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Die Fakten sind unvollständig: %1$lld von %2$lld Abschnitten der Folge fehlen."
+          }
+        }
+      }
+    },
+    "Die Folge lässt sich nicht abspielen. Der Server liefert kein abspielbares Audio." : {
+
+    },
+    "Die Folge lässt sich nicht abspielen. Grund: %@" : {
+
+    },
+    "Die Folge ließ sich nicht laden: %@" : {
+
+    },
+    "Die Folge zu dieser Notiz ist gelöscht. Die Notiz selbst bleibt." : {
+
+    },
+    "Die Folge zu dieser Stelle ist gelöscht. Merken geht deshalb nicht mehr." : {
+
+    },
+    "Die Notiz hängt an dieser Stelle. Du findest sie in der Folge und unter Wissen › Gemerkte Stellen. Sie bleibt auch, wenn du die Folge löschst." : {
+
+    },
+    "Die Podcasts, auf die dieses Themen-Update beschränkt ist, sind abbestellt. Wähle beim Bearbeiten andere aus oder abonniere sie wieder." : {
+
+    },
+    "Die Spracherkennung von Apple läuft auf deinem iPhone, iPad oder Mac. Der Ton verlässt dafür das Gerät nicht." : {
+
+    },
+    "Die Spracherkennung war belegt. Die Folge wurde neu eingereiht und startet gleich noch einmal." : {
+
+    },
+    "Die Stellen sind gerade nicht abspielbar." : {
+
+    },
+    "Die Stellen sind nicht eingeordnet." : {
+
+    },
+    "Die weiteren Stellen sind inzwischen gehört oder nicht mehr da." : {
+
+    },
+    "Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, dann tippe erneut auf Abspielen." : {
+
+    },
+    "Diese Adresse wird nicht abgerufen." : {
+
+    },
+    "Diese Folge ist nicht mehr in „Meine Podcasts“. Ohne Transkript habe ich keine Belege, mit denen ich antworten kann." : {
+
+    },
+    "Diese gesicherte Antwort gibt es nicht mehr" : {
+
+    },
+    "Diese Stelle anhören" : {
+
+    },
+    "Diese Stelle gibt es nicht mehr" : {
+
+    },
+    "Diese Stelle ist nicht mehr verfügbar." : {
+
+    },
+    "Diese Stelle lässt sich nicht abspielen." : {
+
+    },
+    "Diese Stelle lässt sich nicht mehr merken." : {
+
+    },
+    "Diese Stelle merken" : {
+
+    },
+    "Diese Stelle überspringen" : {
+
+    },
+    "Diesen Eintrag in die MCP-Einstellungen deines Agenten übernehmen, etwa in die Konfigurationsdatei von Claude Desktop. Der Agent startet dann PodcastAI mit „%@“. Ohne Freigabe darunter bekommt er nichts zu lesen." : {
+
+    },
+    "Diesen Link abonnieren" : {
+
+    },
+    "Dieses Themen-Update gibt es nicht mehr." : {
+
+    },
+    "Dieses Themen-Update gibt es nicht." : {
+
+    },
+    "Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht zusammen und spricht sie nicht nach. Eine gesicherte These ist aufbewahrt, nicht als deine Meinung vermerkt." : {
+
+    },
+    "Ein Ausschnitt aus einer Folge, den du dir mit Zeitmarke gemerkt hast, auf Wunsch mit Notiz. Du findest sie unter „Gemerkte Stellen“." : {
+
+    },
+    "Ein Beleg ist nicht mehr da." : {
+
+    },
+    "Ein Gebiet, das dich dauerhaft interessiert. Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates." : {
+
+    },
+    "Ein Podcast" : {
+
+    },
+    "Ein Tipp auf ein Thema mit Plus legt es als Interesse an." : {
+
+    },
+    "Ein Zugang ohne Protokoll ist kein kontrollierter Zugang." : {
+
+    },
+    "Eine Antwort formulieren kann ich gerade nicht. %@\n\nDiese Stellen passen am besten:" : {
+
+    },
+    "Eine eigene Folge je Thema aus ungehörten Originalstellen mehrerer Podcasts, mit Kapiteln, Shownotes und Cover." : {
+
+    },
+    "Eine eigene Folge zu einem Thema. Die App stellt sie aus Stellen deiner Podcasts zusammen, die du noch nicht gehört hast." : {
+
+    },
+    "Eine Folge wartet" : {
+
+    },
+    "Eine Fundstelle mit Quelle und Zeitmarke abrufen" : {
+
+    },
+    "Eine gelöschte Folge verschwindet mit Transkript, Fakten und Hörstand auf allen Geräten. Deine Notizen bleiben, bis du sie selbst löschst. Alles in iCloud entfernst du in den Systemeinstellungen unter Apple-ID › iCloud › Speicher verwalten › PodcastAI." : {
+
+    },
+    "Eine gesicherte Antwort hält eine Frage mit ihren Belegen und Notizen fest. Im Chat steht an jeder Antwort „Antwort sichern“. Hörst du Belege nacheinander und beendest die Wiedergabe nach mindestens zwei Minuten, bietet die Abschlusskarte „Parken“ an." : {
+
+    },
+    "Eine konkrete Frage, auf die du eine Antwort suchst. „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, bei längeren Fragen mindestens zwei." : {
+
+    },
+    "Eine Stelle passt, wenn die Bezeichnung oder eines dieser Stichworte am Wortanfang vorkommt: „daten“ trifft „Datenschutz“, „schutz“ trifft es nicht. Begriffe mit bis zu drei Buchstaben wie KI zählen nur als ganzes Wort. Bei mehreren Wörtern braucht es den ganzen Ausdruck oder zwei der wichtigen Wörter daraus, Füllwörter zählen nicht. Englische Fachbegriffe und Abkürzungen hier ergänzen." : {
+
+    },
+    "Eine These prüfen" : {
+
+    },
+    "eingeschlossen" : {
+
+    },
+    "Einsteiger bis Experten" : {
+
+    },
+    "Einsteiger: hören" : {
+
+    },
+    "Einstellungen" : {
+
+    },
+    "Eintrag kopieren" : {
+
+    },
+    "Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, die du eventuell schon gehört hast." : {
+
+    },
+    "Einzelne Folgen" : {
+
+    },
+    "Ende der Folge" : {
+
+    },
+    "Ende des Kapitels" : {
+
+    },
+    "Englisch · Wirtschaft verständlich erklärt" : {
+
+    },
+    "Entfernen" : {
+
+    },
+    "Erklärungen von Apple" : {
+
+    },
+    "Erneut versuchen" : {
+
+    },
+    "Erst %@ neues Material, nötig sind %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Erst %1$@ neues Material, nötig sind %2$@."
+          }
+        }
+      }
+    },
+    "erwähnt: %@" : {
+
+    },
+    "Etwas, woran du gerade arbeitest. Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen." : {
+
+    },
+    "Experten: mit dem Wissen arbeiten" : {
+
+    },
+    "Export" : {
+
+    },
+    "Exportieren mit Transkript" : {
+
+    },
+    "Exportieren ohne Transkript" : {
+
+    },
+    "Fakten" : {
+
+    },
+    "Fakten ermitteln" : {
+
+    },
+    "Fakten lassen sich gerade nicht ermitteln. %@" : {
+
+    },
+    "Fakten werden ermittelt …" : {
+
+    },
+    "Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Die Podcastsuche und Links aus Apple Podcasts fragen Apples Podcast-Verzeichnis mit deinem Suchbegriff, YouTube-Kanäle fragen YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine IP-Adresse." : {
+
+    },
+    "Fertig" : {
+
+    },
+    "Filtern und sortieren" : {
+
+    },
+    "Folge löschen" : {
+
+    },
+    "Folge löschen?" : {
+
+    },
+    "Folge öffnen und abspielen. Die App merkt sich die Stelle, auch über iPhone, iPad und Mac hinweg. Im Player: Tempo, Kapitel, Schlaf-Timer, AirPlay." : {
+
+    },
+    "Folge und alle Daten löschen" : {
+
+    },
+    "Folgen" : {
+
+    },
+    "Folgen je Podcast" : {
+
+    },
+    "Folgen mit Shownotes, Kapiteln, Fakten und Transkript, Chat-Antworten mit Belegen und gemerkte Stellen als Markdown, etwa für Obsidian oder Notion." : {
+
+    },
+    "Formuliere, was du für richtig hältst. PodcastAI sucht dazu belegte Positionen aus deinen Podcasts, dafür und dagegen." : {
+
+    },
+    "Fortgeschrittene: verstehen" : {
+
+    },
+    "Fortschritt der Stelle" : {
+
+    },
+    "Fortsetzen" : {
+
+    },
+    "Frag deine Podcasts" : {
+
+    },
+    "Frag diese Folge" : {
+
+    },
+    "Frage" : {
+
+    },
+    "Frage senden" : {
+
+    },
+    "Frage stellen …" : {
+
+    },
+    "Frage zu dieser Folge …" : {
+
+    },
+    "Frage, Belege und die Notizen dieser Session als gesicherte Antwort ablegen." : {
+
+    },
+    "Frage: %@" : {
+
+    },
+    "Fragen" : {
+
+    },
+    "Fragen an diese Folge: %@" : {
+
+    },
+    "Fragen und Chat" : {
+
+    },
+    "Fragen und sammeln" : {
+
+    },
+    "Freigabe" : {
+
+    },
+    "Freigeben" : {
+
+    },
+    "Frühere Ausgaben" : {
+
+    },
+    "Füge einen Podcast, eine einzelne Folge oder einen YouTube-Kanal hinzu." : {
+
+    },
+    "Für „%@“ gibt es noch keine Ausgabe." : {
+
+    },
+    "Für „%@“ liegt keine gültige Freigabe vor. Freigeben lässt sie sich in PodcastAI unter Einstellungen › Agenten." : {
+
+    },
+    "Für %lld Folgen werden Transkripte erstellt" : {
+
+    },
+    "Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln." : {
+
+    },
+    "Für dich" : {
+
+    },
+    "Für die neuesten Folgen erstellt die App im WLAN von selbst ein Transkript. Kapitel, Shownotes und Transkript findest du dann in der Folge." : {
+
+    },
+    "Für die Sprache %@ hat dieses Gerät kein Sprachmodell. In den Einstellungen unter Allgemein > Sprache & Region lässt sich die Sprache hinzufügen." : {
+
+    },
+    "Für diese Folge lässt sich kein Transkript erstellen, weil der Podcast zu ihr keine Audiodatei anbietet. Ohne Ton gibt es kein Transkript." : {
+
+    },
+    "Für diese Folge lässt sich kein Transkript erstellen." : {
+
+    },
+    "Für diese Folge lässt sich kein Transkript erstellen. %@" : {
+
+    },
+    "Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Was du selbst abspielst oder anforderst, lädt auch im Mobilfunk. Im Datensparmodus erstellt die App keine Transkripte von selbst." : {
+
+    },
+    "Für eine Folge wird das Transkript erstellt" : {
+
+    },
+    "Gegenpositionen" : {
+
+    },
+    "Gegenpositionen zu: %@" : {
+
+    },
+    "gehört" : {
+
+    },
+    "Gehörte Folgen nach einem Tag vom Gerät entfernen" : {
+
+    },
+    "Geladen wird dafür nur im WLAN." : {
+
+    },
+    "Geladen wird dafür nur im WLAN. Die App wartet, bis eines da ist." : {
+
+    },
+    "Geladen wird dafür nur im WLAN. Ein Hotspot zählt nicht dazu, die App wartet also." : {
+
+    },
+    "gemerkt" : {
+
+    },
+    "Gemerkt wird die Stelle, die beim Antippen lief, mit Folge, Quelle und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu. Deine Notiz bleibt davon getrennt und wird nie überschrieben." : {
+
+    },
+    "Gemerkt: %@ in „%@“." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Gemerkt: %1$@ in „%2$@“."
+          }
+        }
+      }
+    },
+    "Gemerkt: %@." : {
+
+    },
+    "Gemerkte Stelle" : {
+
+    },
+    "Gemerkte Stelle %@" : {
+
+    },
+    "Gemerkte Stellen" : {
+
+    },
+    "Gemerkte Stellen erscheinen in der Systemsuche nur, wenn du das einschaltest. Der Index bleibt auf dem Gerät." : {
+
+    },
+    "Gemerkte Stellen lesen" : {
+
+    },
+    "Gemerkte Stellen und gesicherte Antworten einschliessen" : {
+
+    },
+    "Gemerkte Stellen werden dann auch ausserhalb von PodcastAI gefunden. Ausgeschaltet werden vorhandene Einträge wieder entfernt.\n\nPodcastAI stellt Relevanz bereit. Ob das System daraus einen Vorschlag macht, entscheidet das System." : {
+
+    },
+    "Geprüft" : {
+
+    },
+    "Gerade ist kein Netz da. Die App fängt an, sobald wieder eines da ist." : {
+
+    },
+    "Gerade keine ungehörten Stellen. Neue kommen dazu, sobald weitere Transkripte fertig sind." : {
+
+    },
+    "Gerade läuft nichts, das ich merken könnte." : {
+
+    },
+    "Gerade wird schon ein Transkript erstellt. Die Folge ist vorgemerkt und kommt danach dran." : {
+
+    },
+    "Gesammelt" : {
+
+    },
+    "Gesamtes Archiv" : {
+
+    },
+    "Geschwindigkeit" : {
+
+    },
+    "gesichert am %@" : {
+
+    },
+    "Gesichert am %@. Aufbewahrt, nicht zugestimmt." : {
+
+    },
+    "Gesicherte Antwort" : {
+
+    },
+    "Gesicherte Antwort löschen" : {
+
+    },
+    "Gesicherte Antwort löschen?" : {
+
+    },
+    "Gesicherte Antworten" : {
+
+    },
+    "Gesicherte Antworten lesen" : {
+
+    },
+    "Gültig für ^[%lld Stunde](inflect: true)" : {
+
+    },
+    "Herausgeber" : {
+
+    },
+    "Hier fragst du alle deine Podcasts auf einmal. Jede Antwort zeigt die Stellen, auf die sie sich stützt." : {
+
+    },
+    "Hilfe" : {
+
+    },
+    "Hinzufügen" : {
+
+    },
+    "Historie" : {
+
+    },
+    "Hören" : {
+
+    },
+    "Hotspot erkannt, wartet auf WLAN ohne Datenlimit" : {
+
+    },
+    "iCloud" : {
+
+    },
+    "Im Chat fragst du alle deine Podcasts auf einmal, in einer Folge unter „Fragen“ nur diese eine. Jede Antwort zeigt die Stelle im Original. Alles lässt sich als Markdown exportieren." : {
+
+    },
+    "Im gewählten Bereich gibt es keine Folge. Wähle oben einen anderen Podcast oder einen längeren Zeitraum." : {
+
+    },
+    "Im gewählten Bereich hat noch keine Folge ein Transkript. Die Antwort kennt nur die Folgenliste." : {
+
+    },
+    "Im gewählten Bereich: %lld von ^[%lld Folge](inflect: true) mit Transkript. Nur diese wurden durchsucht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Im gewählten Bereich: %1$lld von ^[%2$lld Folge](inflect: true) mit Transkript. Nur diese wurden durchsucht."
+          }
+        }
+      }
+    },
+    "Im Transkript suchen" : {
+
+    },
+    "Impressum" : {
+
+    },
+    "In der Folge ab hier hören" : {
+
+    },
+    "In der Systemsuche auffindbar" : {
+
+    },
+    "In diesem Podcast wurden keine Folgen gefunden." : {
+
+    },
+    "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden." : {
+
+    },
+    "In einer Folge über „Mehr“: „Laden (offline)“ holt den Ton aufs Gerät, „Audio entfernen“ löscht nur den Ton, „Folge löschen“ löscht Ton, Transkript, Fakten und Hörstand. Deine Notizen bleiben unter Wissen. Ist das Transkript fertig, entfernt die App den Ton von selbst, abschaltbar in den Einstellungen." : {
+
+    },
+    "In einer Folge unter „Fragen“, über alle Podcasts im Reiter „Chat“. Die Nummern in der Antwort führen zu den Belegen." : {
+
+    },
+    "In einer Folge unter „Fragen“, über alle Podcasts links unter „Chat“. Die Nummern in der Antwort führen zu den Belegen." : {
+
+    },
+    "In Folgen mit Transkript suchen" : {
+
+    },
+    "In YouTube öffnen" : {
+
+    },
+    "Intelligenz" : {
+
+    },
+    "Interesse" : {
+
+    },
+    "Interessen" : {
+
+    },
+    "Interessen vorschlagen" : {
+
+    },
+    "Jede Antwort nennt die Stellen, aus denen sie stammt. Ein Tipp auf einen Beleg spielt die Stelle im Original." : {
+
+    },
+    "Jede Folge dieser Quelle hat ein Transkript. Ohne den Filter siehst du alle." : {
+
+    },
+    "Jetzt läuft" : {
+
+    },
+    "Kapitel" : {
+
+    },
+    "Kapitel und Quellen" : {
+
+    },
+    "Kein `method`." : {
+      "comment" : "`method` ist ein JSON-RPC-Feld, nicht übersetzen."
+    },
+    "Kein `name`." : {
+      "comment" : "`name` ist ein MCP-Feld, nicht übersetzen."
+    },
+    "Kein Audio, deshalb kein Transkript mit Zeitmarken" : {
+
+    },
+    "Kein gültiges JSON." : {
+
+    },
+    "Kein Konto, kein eigener Server" : {
+
+    },
+    "Kein Netz, Laden und Transkripte warten" : {
+
+    },
+    "Kein Transkript" : {
+
+    },
+    "Keine Folge enthält „%@“ in Titel oder Shownotes." : {
+
+    },
+    "Keine Folgen" : {
+
+    },
+    "Keine gesicherten Antworten" : {
+
+    },
+    "Keine Internetverbindung" : {
+
+    },
+    "Keine Internetverbindung. Die Folge bleibt vorgemerkt. Sobald wieder Netz da ist, das Transkript noch einmal erstellen." : {
+
+    },
+    "Keine Kapitel" : {
+
+    },
+    "Keine neuen Folgen" : {
+
+    },
+    "Keine passende Stelle ist kurz genug für %@." : {
+
+    },
+    "Keine Treffer" : {
+
+    },
+    "Keine Verbindung zum Podcast-Verzeichnis. Prüf die Internetverbindung und versuch es noch einmal." : {
+
+    },
+    "Kommentar" : {
+
+    },
+    "Kommentar bearbeiten" : {
+
+    },
+    "Konnte nicht gesichert werden: %@" : {
+
+    },
+    "Kopiert" : {
+
+    },
+    "Kurz gesagt" : {
+
+    },
+    "Kurzbefehle und Mac" : {
+
+    },
+    "Laden (offline)" : {
+
+    },
+    "lädt …" : {
+
+    },
+    "Lädt die Folge über die Verbindung, die gerade besteht" : {
+
+    },
+    "Laufende Folge: %@" : {
+
+    },
+    "Läuft ab" : {
+
+    },
+    "läuft gerade" : {
+
+    },
+    "Leer. In einer Folge „Als Nächstes“ antippen, dann startet sie, sobald die laufende endet." : {
+
+    },
+    "Leg ein oder zwei Themen an, etwa „Datenschutz“ oder „Ernährung“. Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen." : {
+
+    },
+    "Lege mindestens ein Thema an. Es wird auch unter „Wissen › Interessen“ gespeichert." : {
+
+    },
+    "Legt das Thema als Interesse an" : {
+
+    },
+    "Legt Frage, Antwort, Belege und die Notizen zu diesen Stellen unter „Gesicherte Antworten“ ab" : {
+
+    },
+    "Lernen" : {
+
+    },
+    "Link wird geprüft …" : {
+
+    },
+    "Los geht's" : {
+
+    },
+    "Löschen" : {
+
+    },
+    "Mehr" : {
+
+    },
+    "Mein Update" : {
+
+    },
+    "Meine Podcasts" : {
+
+    },
+    "Merken" : {
+
+    },
+    "Merkt die aktuelle Stelle, auf Wunsch mit Kommentar" : {
+
+    },
+    "Merkt sich die Stelle, die gerade läuft, mit Folge, Podcast und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu." : {
+
+    },
+    "Mit Quelle kopieren" : {
+
+    },
+    "Moment bei %@" : {
+
+    },
+    "Moment merken" : {
+
+    },
+    "Nach dem Abonnieren bereitet die App die %lld neuesten Folgen vor: laden, Transkript erstellen, Fakten finden." : {
+
+    },
+    "Nach dem Abonnieren bereitet die App die neueste Folge vor: laden, Transkript erstellen, Fakten finden." : {
+
+    },
+    "Nacheinander anhören" : {
+
+    },
+    "Nächste Stelle: %@, aus %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Nächste Stelle: %1$@, aus %2$@"
+          }
+        }
+      }
+    },
+    "Nächstes Kapitel" : {
+
+    },
+    "Name" : {
+
+    },
+    "Name des Agenten" : {
+
+    },
+    "Neu" : {
+
+    },
+    "Neu ermitteln" : {
+
+    },
+    "Neu in deinen Abos" : {
+
+    },
+    "Neue Ausgabe zusammenstellen" : {
+
+    },
+    "Neues Thema, z. B. KI-Modelle" : {
+
+    },
+    "Neueste Ausgabe" : {
+
+    },
+    "Neueste Ausgabe als Text teilen" : {
+
+    },
+    "Neueste zuerst" : {
+
+    },
+    "Nicht abonniert" : {
+
+    },
+    "Nicht abspielbar" : {
+
+    },
+    "Nicht bei iCloud angemeldet, die Daten bleiben auf diesem Gerät" : {
+
+    },
+    "Nicht relevant" : {
+
+    },
+    "Nichts in Arbeit. Das Transkript einer Folge erstellst du in der Folge selbst. Für mehrere Folgen tippst du in der Folgenliste eines Podcasts auf „Auswählen“." : {
+
+    },
+    "Nichts läuft" : {
+
+    },
+    "Nichts Neues. Alle passenden Stellen hast du schon gehört." : {
+
+    },
+    "Nichts vorgemerkt" : {
+
+    },
+    "Nichts wird abgespielt" : {
+
+    },
+    "noch %lld Min." : {
+
+    },
+    "Noch hat keine Folge ein Transkript. Sobald das erste fertig ist, sucht die App darin." : {
+
+    },
+    "Noch kein Themen-Update" : {
+
+    },
+    "Noch kein Transkript" : {
+
+    },
+    "Noch keine" : {
+
+    },
+    "Noch keine Ausgabe" : {
+
+    },
+    "Noch keine Podcasts" : {
+
+    },
+    "noch nicht gehört" : {
+
+    },
+    "Noch nichts abgefragt." : {
+
+    },
+    "Noch nichts gemerkt" : {
+
+    },
+    "Noch ohne Transkript. Antworten mit Belegen gibt es erst, wenn es fertig ist." : {
+
+    },
+    "Notiz" : {
+
+    },
+    "Notiz (optional)" : {
+
+    },
+    "Notizen" : {
+
+    },
+    "Nur auf diesem Gerät" : {
+
+    },
+    "nur die neueste" : {
+
+    },
+    "Nur diese %lld Stellen hören" : {
+
+    },
+    "Nur diese Stelle hören" : {
+
+    },
+    "Nur im WLAN" : {
+
+    },
+    "Nur lesend und nur auf diesem Mac. Der Agent startet PodcastAI selbst und spricht über die Standardeingabe mit ihm, einen Netzwerk-Port gibt es nicht. Es gibt kein Werkzeug, das schreibt, löscht oder Wiedergabe startet. Ausgeschaltet beantwortet PodcastAI keine Anfrage mehr, auch nicht in einer laufenden Verbindung." : {
+
+    },
+    "Nur ohne Transkript" : {
+
+    },
+    "Oder zum Ausprobieren" : {
+
+    },
+    "Offene Frage" : {
+
+    },
+    "Offene Fragen" : {
+
+    },
+    "Öffnet die Warteschlange" : {
+
+    },
+    "Ohne Auswahl sucht das Update in allen abonnierten Podcasts." : {
+
+    },
+    "Ohne Netz spielt nur, was auf diesem Gerät geladen ist. Keine Folge in „Als Nächstes“ ist geladen." : {
+
+    },
+    "Ohne Speicher weiter" : {
+
+    },
+    "Ohne Zeitmarke, nicht abspielbar" : {
+
+    },
+    "OK" : {
+
+    },
+    "Original %@" : {
+
+    },
+    "Overcast, Pocket Casts und die meisten anderen Podcast-Apps exportieren ihre Abos als OPML-Datei. So kommen alle auf einmal herüber." : {
+
+    },
+    "Parken" : {
+
+    },
+    "Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. Der Rest rückt nach, sobald du sie gehört hast." : {
+
+    },
+    "Pause" : {
+
+    },
+    "Pausieren" : {
+
+    },
+    "pausiert" : {
+
+    },
+    "Player öffnen, %@" : {
+
+    },
+    "Podcast" : {
+
+    },
+    "Podcast abonniert: %@" : {
+
+    },
+    "Podcast finden" : {
+
+    },
+    "Podcast hinzufügen" : {
+
+    },
+    "Podcast hinzufügen …" : {
+
+    },
+    "Podcast suchen" : {
+
+    },
+    "Podcast suchen oder Link einfügen" : {
+
+    },
+    "PodcastAI hat keine Anmeldung, keine Werbung und keine Analyse- oder Tracking-Dienste. Der Anbieter der App bekommt keine deiner Daten." : {
+
+    },
+    "PodcastAI leitet Themen aus dem ab, was du tatsächlich gehört hast. Vorschläge wirken erst, wenn du sie übernimmst. Ausgeschaltet entstehen keine neuen." : {
+
+    },
+    "PodcastAI nutzt ausschliesslich Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen." : {
+
+    },
+    "PodcastAI spielt deine Podcasts wie ein normaler Player. Nebenbei erstellt es auf dem Gerät Transkripte der neuesten Folgen, mit Zeitmarken. Damit kannst du Fragen stellen, Fakten nachlesen und dir aus den Originalstellen Themen-Updates zusammenstellen lassen." : {
+
+    },
+    "PodcastAI sucht belegte Positionen zu deiner These, dafür und dagegen. Ziel ist dein eigenes Urteil, nicht eine bestimmte Meinung." : {
+
+    },
+    "Podcasts" : {
+
+    },
+    "Podcasts hören und verstehen" : {
+
+    },
+    "Podcasts werden aktualisiert …" : {
+
+    },
+    "Position" : {
+
+    },
+    "Private Cloud Compute" : {
+
+    },
+    "Private Cloud Compute nutzen" : {
+
+    },
+    "Profil" : {
+
+    },
+    "Prüfen" : {
+
+    },
+    "Quelle" : {
+
+    },
+    "Rechtliches" : {
+
+    },
+    "Reihenfolge" : {
+
+    },
+    "Schlaf-Timer" : {
+
+    },
+    "Schlaf-Timer aus" : {
+
+    },
+    "Schon abonniert" : {
+
+    },
+    "Schritt 1 von 3: Der Ton wird geladen" : {
+
+    },
+    "Schritt 2 von 3: Das Transkript wird erstellt" : {
+
+    },
+    "Schritt 3 von 3: Fundstellen werden gebildet" : {
+
+    },
+    "Seit der letzten Ausgabe ist nichts dazugekommen." : {
+
+    },
+    "Session beenden" : {
+
+    },
+    "Shownotes" : {
+
+    },
+    "Sichern" : {
+
+    },
+    "Sie passen zum Thema der These. Ob sie dafür oder dagegen sprechen, lässt sich so nicht sagen." : {
+
+    },
+    "Sie wurde gelöscht oder ist auf diesem Gerät noch nicht angekommen." : {
+
+    },
+    "So funktioniert's" : {
+
+    },
+    "Sobald das Transkript fertig ist, zieht die App überprüfbare Aussagen mit Zeitmarke heraus." : {
+
+    },
+    "Sobald genug ungehörtes Material zu deinen Themen vorliegt, entsteht daraus von selbst eine Ausgabe." : {
+
+    },
+    "Solange der Datensparmodus an ist, wartet die App damit." : {
+
+    },
+    "Später" : {
+
+    },
+    "Speicher" : {
+
+    },
+    "Spielt %lld Originalstellen nacheinander ab" : {
+
+    },
+    "Spielt 1 Originalstelle ab" : {
+
+    },
+    "Spielt ab der Stelle weiter, an der du aufgehört hast" : {
+
+    },
+    "Spielt die belegten Originalstellen nacheinander ab" : {
+
+    },
+    "Spielt die Folge ab dieser Stelle" : {
+
+    },
+    "Spielt die neueste Ausgabe eines Themen-Updates ab, also Originalstellen aus deinen Podcasts, die du noch nicht gehört hast. Ist sie schon gehört, entsteht vorher eine neue." : {
+
+    },
+    "Spielt die Stelle, aus der die Aussage stammt" : {
+
+    },
+    "Spotify gibt keine Feed-Adressen heraus. Such den Podcast oben nach seinem Namen, fast alle Sendungen gibt es auch als offenen Feed." : {
+
+    },
+    "Spotlight nur auf Wunsch" : {
+
+    },
+    "Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und das Podcast-Verzeichnis sind Dienste von Apple. Für sie gelten Apples eigene Datenschutzangaben." : {
+
+    },
+    "Starte eine Ausgabe oder eine Stelle aus „Für dich“." : {
+
+    },
+    "startet" : {
+
+    },
+    "Stelle %lld von %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stelle %1$lld von %2$lld"
+          }
+        }
+      }
+    },
+    "Stelle anhören" : {
+
+    },
+    "Stelle merken" : {
+
+    },
+    "Stellen werden gesucht und eingeordnet …" : {
+
+    },
+    "Stellt aus deinen ungehörten Originalstellen eine neue Ausgabe zusammen. Startet keine Wiedergabe." : {
+
+    },
+    "Stellt diese Frage" : {
+
+    },
+    "Stichwort hinzufügen" : {
+
+    },
+    "Stichworte" : {
+
+    },
+    "Stichworte: %@" : {
+
+    },
+    "Stoppen" : {
+
+    },
+    "Such deine Lieblingssendungen nach Namen und abonniere sie. Danach stehen hier neue Folgen und die Stellen zu deinen Themen." : {
+
+    },
+    "Suche im Podcast-Verzeichnis …" : {
+
+    },
+    "Suche leeren" : {
+
+    },
+    "Suchen" : {
+
+    },
+    "Synchronisation" : {
+
+    },
+    "Systemsuche" : {
+
+    },
+    "Teilen" : {
+
+    },
+    "teilweise gehört" : {
+
+    },
+    "Test, nur im Arbeitsspeicher" : {
+
+    },
+    "Thema" : {
+
+    },
+    "Thema %@" : {
+
+    },
+    "Thema: %@" : {
+
+    },
+    "Themen" : {
+
+    },
+    "Themen anlegen" : {
+
+    },
+    "Themen der Folge" : {
+
+    },
+    "Themen-Update" : {
+
+    },
+    "Themen-Update abspielen" : {
+
+    },
+    "Themen-Update anlegen" : {
+
+    },
+    "Themen-Update bearbeiten" : {
+
+    },
+    "Themen-Update erstellen" : {
+
+    },
+    "Themen-Update löschen?" : {
+
+    },
+    "Themen-Updates" : {
+
+    },
+    "Themen-Updates per Siri. Auf dem Mac kann ein KI-Agent über MCP lesend auf dein Wissen zugreifen, aber nur mit deiner Freigabe unter PodcastAI › Einstellungen › Agenten. Dort steht auch der Eintrag für den Agenten." : {
+
+    },
+    "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“." : {
+
+    },
+    "These" : {
+
+    },
+    "These: %@" : {
+
+    },
+    "Tippe beim Hören im Player auf „Moment merken“. Die Stelle wird mit Zeitmarke, Zitat und deinem Kommentar gespeichert." : {
+
+    },
+    "Tippe den Namen eines Podcasts, eines Anbieters oder ein Thema. Links gehen auch: Apple Podcasts, eine Feed-Adresse, eine einzelne Folge oder ein YouTube-Kanal." : {
+
+    },
+    "Titel" : {
+
+    },
+    "Titel und Shownotes durchsuchen" : {
+
+    },
+    "Transkript" : {
+
+    },
+    "Transkript erneut erstellen" : {
+
+    },
+    "Transkript erstellen" : {
+
+    },
+    "Transkript fertig: %@" : {
+
+    },
+    "Transkript für „%@“ wird erstellt …" : {
+
+    },
+    "Transkript für „%@“ wird erstellt, danach noch %@ …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Transkript für „%1$@“ wird erstellt, danach noch %2$@ …"
+          }
+        }
+      }
+    },
+    "Transkript jetzt erstellen" : {
+
+    },
+    "Transkript vom Anbieter" : {
+
+    },
+    "Transkript, Fakten, Belege und der Hörstand dieser Folge werden auf allen Geräten gelöscht. Die Folge kommt auch beim Aktualisieren des Podcasts nicht zurück. Deine Notizen bleiben unter Wissen erhalten." : {
+
+    },
+    "Transkript, Fakten, Belege und der Hörstand dieser Folge werden gelöscht. Deine Notizen bleiben unter Wissen erhalten." : {
+
+    },
+    "Transkripte" : {
+
+    },
+    "Transkripte entstehen auf dem Gerät" : {
+
+    },
+    "Transkripte erstellen" : {
+      "comment" : "Titel der Fortschrittsanzeige im Hintergrund"
+    },
+    "Transkripte für neue Folgen erstellen" : {
+
+    },
+    "Transkripte für neue Folgen erstellt die App gerade nicht. %@" : {
+
+    },
+    "Transkripte für neue Folgen erstellt die App gerade nicht. %@ Das Transkript einer Folge kannst du trotzdem selbst anfordern." : {
+
+    },
+    "Transkripte, Intelligenz, Lernen, Systemsuche" : {
+
+    },
+    "Treffer im Apple-Podcast-Verzeichnis" : {
+
+    },
+    "Über diese Quelle" : {
+
+    },
+    "Überblick" : {
+
+    },
+    "Übernehmen" : {
+
+    },
+    "Überprüfbare Aussagen der Folge, jede mit Zeitmarke zum Nachhören." : {
+
+    },
+    "Umfang" : {
+
+    },
+    "Unbekannte Folge" : {
+
+    },
+    "Unbekannte Methode „%@“." : {
+
+    },
+    "Unbekannte Quelle" : {
+
+    },
+    "Unbekannter Podcast" : {
+
+    },
+    "Unbekanntes Werkzeug „%@“." : {
+
+    },
+    "Unbenannter Podcast" : {
+
+    },
+    "Unter dieser Adresse liegt kein Feed, und %@ verlinkt auch keinen. Prüfe die Adresse oder füge den Link der Podcast-Seite ein." : {
+
+    },
+    "Update abspielen" : {
+
+    },
+    "Verbinden" : {
+
+    },
+    "Verfügbar" : {
+
+    },
+    "Vermutet, nicht bestätigt. Sie wirken erst, wenn du sie übernimmst." : {
+
+    },
+    "Vertiefen" : {
+
+    },
+    "Verwandte Wörter" : {
+
+    },
+    "Verwerfen" : {
+
+    },
+    "Verwirft nur diesen Vorschlag. Gemerkte Stellen, Notizen und Belege bleiben." : {
+
+    },
+    "Vollständige Datenschutzerklärung" : {
+
+    },
+    "von %@ bis %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "von %1$@ bis %2$@"
+          }
+        }
+      }
+    },
+    "Vorhaben: %@" : {
+
+    },
+    "Vorheriges Kapitel" : {
+
+    },
+    "Vorschläge von PodcastAI" : {
+
+    },
+    "Vorschläge zurücksetzen" : {
+
+    },
+    "Während der Suche wurde eine Folge gelöscht, auf die sich die Antwort gestützt hätte. Stell die Frage bitte noch einmal." : {
+
+    },
+    "Warteschlange" : {
+
+    },
+    "wartet" : {
+      "comment" : "Zustand einer Folge in der Warteschlange"
+    },
+    "wartet auf Netz" : {
+
+    },
+    "wartet auf WLAN" : {
+
+    },
+    "Wartet auf WLAN" : {
+
+    },
+    "wartet auf zweiten Versuch" : {
+
+    },
+    "wartet, Datensparmodus ist an" : {
+
+    },
+    "Wartet, davor ist noch 1 Folge dran" : {
+
+    },
+    "Wartet, davor sind noch %lld Folgen dran" : {
+
+    },
+    "Wartet, kommt als Nächstes dran" : {
+
+    },
+    "Was gelesen wurde" : {
+
+    },
+    "Was ist dir hier wichtig? (freiwillig)" : {
+
+    },
+    "Was mit dieser Quelle geht" : {
+
+    },
+    "Was nimmst du daraus mit?" : {
+
+    },
+    "Was sind die wichtigsten Aussagen?" : {
+
+    },
+    "Was wurde zuletzt über Datenschutz gesagt?" : {
+
+    },
+    "Webseite öffnen" : {
+
+    },
+    "Weiter" : {
+
+    },
+    "weiter ab %@" : {
+
+    },
+    "Weiter ab %@" : {
+
+    },
+    "Weitere Stellen in dieser Folge" : {
+
+    },
+    "Weitere Treffer" : {
+
+    },
+    "Weiterhören" : {
+
+    },
+    "Welche Folgen behandeln künstliche Intelligenz?" : {
+
+    },
+    "Welche Folgen mit Transkript habe ich noch nicht gehört?" : {
+
+    },
+    "Welche Zahlen und Namen werden genannt?" : {
+
+    },
+    "Wiedergabe" : {
+
+    },
+    "Wiedergabe auf anderem Gerät" : {
+
+    },
+    "Wiedergabe beenden" : {
+
+    },
+    "Wiedergabe öffnen, %@" : {
+
+    },
+    "Wiedergabe stoppen" : {
+
+    },
+    "wird abonniert …" : {
+
+    },
+    "Wird geladen …" : {
+
+    },
+    "Wird zusammengestellt …" : {
+
+    },
+    "Wissen" : {
+
+    },
+    "Wo sind sich die Gesprächspartner uneinig?" : {
+
+    },
+    "Wo widersprechen sich zwei Podcasts?" : {
+
+    },
+    "Wonach suchst du?" : {
+
+    },
+    "Wortlaut ausblenden" : {
+
+    },
+    "Wortlaut zeigen" : {
+
+    },
+    "Worum geht es in dieser Folge?" : {
+
+    },
+    "YouTube liefert die Videoliste gerade nicht. Der Kanal ist angelegt, die Videos erscheinen beim nächsten Abgleich. Den passenden Audio-Podcast kannst du schon abonnieren." : {
+
+    },
+    "YouTube liefert für diesen Kanal gerade keine Daten. Das kommt bei YouTube immer wieder vor. Später noch einmal versuchen oder direkt den Audio-Podcast des Kanals hinzufügen." : {
+
+    },
+    "z. B. Datenschutz" : {
+
+    },
+    "z. B. Lokale KI-Modelle bewerten" : {
+
+    },
+    "z. B. Mein KI Update" : {
+
+    },
+    "z. B. Was bietet iOS 27 für agentische Apps?" : {
+
+    },
+    "Zeitraum" : {
+
+    },
+    "Zitat" : {
+
+    },
+    "Zu „%@“ liess sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge den Link zu einem Video des Kanals ein." : {
+
+    },
+    "Zu deinen Themen" : {
+
+    },
+    "Zu diesem Link lässt sich keine Feed-Adresse ermitteln. Füge die Feed-Adresse direkt ein." : {
+
+    },
+    "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine einzelnen Videos." : {
+
+    },
+    "Zu diesen Themen gibt es noch keine Folge mit Transkript." : {
+
+    },
+    "Zu dieser Antwort lässt sich nichts abspielen." : {
+
+    },
+    "Zu dieser Folge gibt es keine Audiodatei." : {
+
+    },
+    "Zu dieser Folge gibt es noch kein Transkript. Tippe in der Folge auf „Transkript erstellen“, danach kann ich mit Belegen aus dem Transkript antworten." : {
+
+    },
+    "Zu dieser Kennung liegt nichts Freigegebenes vor." : {
+
+    },
+    "Zu dieser These lässt sich nichts abspielen." : {
+
+    },
+    "Zu einer These zeigt die App belegte Stimmen dafür und dagegen." : {
+
+    },
+    "Zugang" : {
+
+    },
+    "Zuordnung vermutet, nicht geprüft" : {
+
+    },
+    "Zurückziehen" : {
+
+    },
+    "Zusammenfassung: %@" : {
+
+    }
   },
   "version" : "1.0"
 }

@@ -1308,7 +1308,9 @@ public actor LibraryStore {
     }
 
     /// Belege aller Quellen, die für einen Themenfeed infrage kommen.
-    public func evidenceForAnalyzedEpisodes(limit: Int = 500) throws -> [Evidence] {
+    /// Die Grenze schützt nur vor einem Ausreisser. 500 schnitten schon bei
+    /// einem mittleren Bestand neue Folgen ab, und Themen-Updates sahen sie nie.
+    public func evidenceForAnalyzedEpisodes(limit: Int = 20_000) throws -> [Evidence] {
         var descriptor = FetchDescriptor<StoredEvidence>(
             predicate: #Predicate { $0.hasTiming == true }
         )
