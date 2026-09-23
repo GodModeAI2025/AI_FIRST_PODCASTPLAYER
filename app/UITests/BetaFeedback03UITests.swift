@@ -13,8 +13,8 @@ final class BetaFeedback03UITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
     private func addSource(_ app: XCUIApplication, _ link: String) {
-        app.tabBars.buttons["Mediathek"].tap()
-        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        app.tabBars.buttons["Meine Podcasts"].tap()
+        app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
         let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
@@ -34,11 +34,11 @@ final class BetaFeedback03UITests: XCTestCase {
     func testTransistorFeedEpisodeDetailAndPlayback() {
         let app = XCUIApplication(); app.launchArguments = ["-skip-onboarding"]; app.launch()
         let row = app.staticTexts["AI to the DNA"].firstMatch
-        app.tabBars.buttons["Mediathek"].tap()
+        app.tabBars.buttons["Meine Podcasts"].tap()
         if !row.waitForExistence(timeout: 3) {
             addSource(app, "https://feeds.transistor.fm/ai-to-the-dna")
         }
-        XCTAssertTrue(row.waitForExistence(timeout: 30), "Transistor-Feed wurde nicht abonniert")
+        XCTAssertTrue(row.waitForExistence(timeout: 30), "Der Transistor-Podcast wurde nicht abonniert")
         XCTAssertFalse(app.alerts.firstMatch.exists)
         row.tap()
 
@@ -74,7 +74,7 @@ final class BetaFeedback03UITests: XCTestCase {
     /// „Es braucht einen zentralen Platz für Wartelisten“.
     func testQueueIsReachableFromLibrary() {
         let app = XCUIApplication(); app.launchArguments = ["-skip-onboarding"]; app.launch()
-        app.tabBars.buttons["Mediathek"].tap()
+        app.tabBars.buttons["Meine Podcasts"].tap()
         let queue = app.staticTexts["Warteschlange"].firstMatch
         if !queue.waitForExistence(timeout: 3) {
             addSource(app, "https://feeds.transistor.fm/ai-to-the-dna")
@@ -112,13 +112,13 @@ final class BetaFeedback03UITests: XCTestCase {
         XCTAssertTrue(episode.waitForExistence(timeout: 10))
         episode.tap()
 
-        // Die App bereitet neue Folgen von selbst vor und lädt die Datei
-        // dabei. Im Simulator scheitert danach die Transkription, die Datei
-        // bleibt aber liegen. Genau dieser Zustand machte die Wiedergabe stumm.
-        let analyze = app.buttons["Folge auswerten"].firstMatch
+        // Die App erstellt für neue Folgen von selbst das Transkript und lädt
+        // dafür die Datei. Im Simulator scheitert danach die Transkription, die
+        // Datei bleibt aber liegen. Genau dieser Zustand machte die Wiedergabe stumm.
+        let analyze = app.buttons["Transkript erstellen"].firstMatch
         if analyze.waitForExistence(timeout: 5) { analyze.tap() }
         let loaded = app.staticTexts.matching(NSPredicate(
-            format: "label BEGINSWITH 'fehlgeschlagen' OR label BEGINSWITH 'transkribiert' OR label BEGINSWITH 'ausgewertet' OR label BEGINSWITH 'geladen'")).firstMatch
+            format: "label BEGINSWITH 'fehlgeschlagen' OR label BEGINSWITH 'transkribiert' OR label BEGINSWITH 'Transkript fertig' OR label BEGINSWITH 'geladen'")).firstMatch
         XCTAssertTrue(loaded.waitForExistence(timeout: 300), "Folge wurde nicht geladen")
         attach(app, "geladen")
 

@@ -46,20 +46,20 @@ final class AtlasUITests: XCTestCase {
         sleep(3)
         snap(app, "01-fuer-dich")
 
-        app.tabBars.buttons["Themen"].tap()
-        snap(app, "02-meine-feeds")
+        app.tabBars.buttons["Themen-Updates"].tap()
+        snap(app, "02-themen-updates")
         tapIfExists(app.navigationBars.buttons["Neu"].firstMatch)
         snap(app, "03-themen-update-anlegen")
         tapIfExists(app.buttons["Abbrechen"].firstMatch)
 
-        app.tabBars.buttons["Fragen"].firstMatch.tap()
-        snap(app, "04-fragen")
+        app.tabBars.buttons["Chat"].firstMatch.tap()
+        snap(app, "04-chat")
         tapIfExists(app.buttons["Welche Folgen behandeln künstliche Intelligenz?"])
         sleep(4)
-        snap(app, "05-fragen-antwort")
+        snap(app, "05-chat-antwort")
 
-        app.tabBars.buttons["Mediathek"].tap()
-        snap(app, "06-mediathek")
+        app.tabBars.buttons["Meine Podcasts"].tap()
+        snap(app, "06-meine-podcasts")
         tapIfExists(app.staticTexts["Warteschlange"].firstMatch)
         snap(app, "07-warteschlange")
         app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -91,15 +91,15 @@ final class AtlasUITests: XCTestCase {
         snap(app, "16-player")
         tapIfExists(app.buttons["Fertig"].firstMatch)
 
-        app.tabBars.buttons["Mediathek"].tap()
-        app.tabBars.buttons["Mediathek"].tap()
-        tapIfExists(app.navigationBars.buttons["Quelle hinzufügen"].firstMatch)
-        snap(app, "17-quelle-hinzufuegen")
+        app.tabBars.buttons["Meine Podcasts"].tap()
+        app.tabBars.buttons["Meine Podcasts"].tap()
+        tapIfExists(app.navigationBars.buttons["Podcast hinzufügen"].firstMatch)
+        snap(app, "17-podcast-hinzufuegen")
         tapIfExists(app.buttons["Abbrechen"].firstMatch)
 
         app.tabBars.buttons["Wissen"].tap()
         snap(app, "18-wissen")
-        for (label, file) in [("Gemerkte Stellen", "19-gemerkte-stellen"), ("Wissenslandkarten", "20-wissenslandkarten"),
+        for (label, file) in [("Gemerkte Stellen", "19-gemerkte-stellen"), ("Gesicherte Antworten", "20-gesicherte-antworten"),
                               ("Gegenpositionen", "21-gegenpositionen"), ("Interessen", "22-interessen"),
                               ("Einstellungen", "23-einstellungen"), ("So funktioniert", "24-hilfe")] {
             let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", label)).firstMatch

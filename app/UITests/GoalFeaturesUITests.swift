@@ -19,9 +19,9 @@ final class GoalFeaturesUITests: XCTestCase {
         app.launchArguments = ["-uitest-fresh"]
         app.launch()
         // Auf dem iPad liegen die Tabs oben und erscheinen nicht unter `tabBars`.
-        let library = app.tabBars.buttons["Mediathek"]
-        (library.exists ? library : app.buttons["Mediathek"].firstMatch).tap()
-        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        let library = app.tabBars.buttons["Meine Podcasts"]
+        (library.exists ? library : app.buttons["Meine Podcasts"].firstMatch).tap()
+        app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
         let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap(); field.typeText(feed)
@@ -65,14 +65,13 @@ final class GoalFeaturesUITests: XCTestCase {
         let suggestion = app.buttons["Worum geht es in dieser Folge?"]
         XCTAssertTrue(suggestion.waitForExistence(timeout: 5), "Keine Vorschlagsfragen")
         suggestion.tap()
-        // Im Simulator ist die Folge nicht ausgewertet. Die Antwort sagt das,
+        // Im Simulator hat die Folge kein Transkript. Die Antwort sagt das,
         // je nach Zustand anders, aber immer mit dem Hinweis auf die Belege.
-        let answer = app.staticTexts.matching(NSPredicate(
-            format: "label CONTAINS 'Belegen aus dem Transkript' OR label CONTAINS 'keine Belege'")).firstMatch
+        let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Beleg'")).firstMatch
         XCTAssertTrue(answer.waitForExistence(timeout: 20), "Keine Antwort im Folgen-Chat")
         attach(app, "folgen-chat")
 
-        // Zurück muss zur Liste führen, auch während Folgen vorbereitet
+        // Zurück muss zur Liste führen, auch während Transkripte erstellt
         // werden. Früher lag die Aktivitätszeile auf dem Zurück-Knopf.
         bar.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(sections.waitForNonExistence(timeout: 5), "Zurück hat die Folge nicht verlassen")
@@ -85,12 +84,12 @@ final class GoalFeaturesUITests: XCTestCase {
     @MainActor
     func testActivityBannerLeavesNavigationFree() throws {
         let app = launchWithFeed()
-        // Nach dem Abonnieren bereitet die App Folgen vor. Das zeigt ein
+        // Nach dem Abonnieren erstellt die App Transkripte. Das zeigt ein
         // Symbol in der Navigationsleiste, kein Streifen über dem Inhalt.
         app.navigationBars.buttons.element(boundBy: 0).tap()
         let status = app.buttons["activity.status"].firstMatch
         guard status.waitForExistence(timeout: 20) else {
-            throw XCTSkip("Keine Vorbereitung aktiv, das Symbol erscheint nicht")
+            throw XCTSkip("Es wird gerade kein Transkript erstellt, das Symbol erscheint nicht")
         }
         attach(app, "aktivitaet")
         let bar = app.navigationBars.firstMatch
@@ -98,7 +97,7 @@ final class GoalFeaturesUITests: XCTestCase {
                       "Das Symbol sitzt nicht in der Navigationsleiste")
         status.tap()
         if !app.navigationBars["Warteschlange"].waitForExistence(timeout: 5) {
-            if !status.exists { throw XCTSkip("Die Vorbereitung endete während des Tipps") }
+            if !status.exists { throw XCTSkip("Das Transkript war während des Tipps fertig") }
             XCTFail("Das Symbol öffnet die Warteschlange nicht")
             return
         }
@@ -141,7 +140,7 @@ final class GoalFeaturesUITests: XCTestCase {
         let confirm = app.buttons["Folge und alle Daten löschen"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()
-        // Die Folgenansicht schliesst sich, zurück in der Liste des Feeds.
+        // Die Folgenansicht schliesst sich, zurück in der Folgenliste des Podcasts.
         XCTAssertTrue(app.segmentedControls["episode.sections"].waitForNonExistence(timeout: 10),
                       "Die gelöschte Folge ist noch geöffnet")
         XCTAssertFalse(menu.exists, "Das Menü der gelöschten Folge ist noch da")

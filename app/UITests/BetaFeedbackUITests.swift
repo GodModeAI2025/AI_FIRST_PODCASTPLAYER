@@ -13,8 +13,8 @@ final class BetaFeedbackUITests: XCTestCase {
     override func setUp() { continueAfterFailure = false }
 
     private func addSource(_ app: XCUIApplication, _ link: String) {
-        app.tabBars.buttons["Mediathek"].tap()
-        app.navigationBars.buttons["Quelle hinzufügen"].firstMatch.tap()
+        app.tabBars.buttons["Meine Podcasts"].tap()
+        app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
         let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
@@ -33,7 +33,7 @@ final class BetaFeedbackUITests: XCTestCase {
         let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
         addSource(app, "https://think-ai.podigee.io/rssfeed")
         let row = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Think'")).firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 30), "Podigee-Feed nicht gefunden")
+        XCTAssertTrue(row.waitForExistence(timeout: 30), "Podigee-Podcast nicht gefunden")
         XCTAssertFalse(app.alerts.firstMatch.exists)
         attach(app, "podigee")
     }
@@ -48,7 +48,7 @@ final class BetaFeedbackUITests: XCTestCase {
         let episode = app.cells.element(boundBy: 1)
         XCTAssertTrue(episode.waitForExistence(timeout: 10))
         episode.tap()
-        // Die Folge ist spielbar. Erschlossen wird sie von selbst, deshalb
+        // Die Folge ist spielbar. Das Transkript entsteht von selbst, deshalb
         // steht der Knopf dafür nicht mehr zwingend in der Ansicht.
         XCTAssertTrue(app.buttons["episode.play"].waitForExistence(timeout: 10))
         attach(app, "mp3")
@@ -68,7 +68,7 @@ final class BetaFeedbackUITests: XCTestCase {
 
     func testTopicCanBeCreatedInsideTopicUpdate() {
         let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
-        app.tabBars.buttons["Themen"].tap()
+        app.tabBars.buttons["Themen-Updates"].tap()
         app.navigationBars.buttons["Neu"].firstMatch.tap()
         let name = app.textFields["z. B. Mein KI Update"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
@@ -87,10 +87,10 @@ final class BetaFeedbackUITests: XCTestCase {
     }
 
     /// Ein Themen-Update lässt sich öffnen, neu zusammenstellen, bearbeiten
-    /// und löschen. Vorher führte der Feed nur in seine erste Ausgabe.
+    /// und löschen. Vorher führte es nur in seine erste Ausgabe.
     func testTopicUpdateCanBeRebuiltEditedAndDeleted() {
         let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
-        app.tabBars.buttons["Themen"].tap()
+        app.tabBars.buttons["Themen-Updates"].tap()
         app.navigationBars.buttons["Neu"].firstMatch.tap()
         let name = app.textFields["z. B. Mein KI Update"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
