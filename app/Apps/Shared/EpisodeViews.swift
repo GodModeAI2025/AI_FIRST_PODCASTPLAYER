@@ -239,18 +239,19 @@ struct EpisodeListView: View {
     }
 
     /// Lässt sich die Folge jetzt einreihen? Nicht ohne Ton, nicht wenn sie
-    /// schon ausgewertet ist, gerade läuft oder schon wartet.
+    /// schon ausgewertet ist oder gerade läuft. Wartet sie schon, etwa von
+    /// selbst eingereiht aufs WLAN, rückt sie beim Anfordern nach vorn.
     private func canQueue(_ episode: Episode) -> Bool {
         guard episode.audioURL != nil else { return false }
         let stage = model.stages[episode.id]
         guard stage == nil || stage == .failed else { return false }
-        return model.analyzing?.id != episode.id && !model.analysisQueue.contains { $0.id == episode.id }
+        return model.analyzing?.id != episode.id
     }
 
     private func coverage(analyzed: Int) -> String {
         let automatic: EpisodeArchive.Automatic = !model.automaticAnalysis ? .off
             : model.preparationUnavailable != nil ? .paused
-            : .newest(AppModel.automaticAnalysisPerSource)
+            : .newest(model.episodesPerSource)
         return EpisodeArchive.coverage(
             total: episodes.count, analyzed: analyzed,
             analyzable: episodes.contains { $0.audioURL != nil }, automatic: automatic)
