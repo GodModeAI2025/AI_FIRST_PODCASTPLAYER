@@ -103,4 +103,26 @@ public struct HighlightCapture: Sendable {
     public func snapped(_ range: MediaTimeRange, in transcript: Transcript) -> MediaTimeRange {
         transcript.snappedToSegmentBounds(range)
     }
+
+    /// Der Satz, der beim Merken gerade läuft: das Segment, in dem die
+    /// Position liegt. Sein Anfang wird die Zeitmarke, sein Text das Zitat.
+    ///
+    /// Ein fester Bereich um die Position nahm den Satz davor mit, und die
+    /// Zeitmarke passte weder zum Anfang des Zitats noch zum gemeinten Satz.
+    /// Liegt die Position in einer Pause, gilt der Satz, der gerade zu Ende
+    /// ging, solange er höchstens `lookBehind` zurückliegt. Vor dem ersten
+    /// Satz gilt der erste, wenn er innerhalb von `lookAhead` beginnt.
+    public func segment(at position: MediaTime, in transcript: Transcript) -> TranscriptSegment? {
+        guard let current = transcript.segments.last(where: { $0.range.start <= position }) else {
+            guard let first = transcript.segments.first,
+                  first.range.start.milliseconds - position.milliseconds <= lookAhead.milliseconds
+            else { return nil }
+            return first
+        }
+        if current.range.end < position,
+           position.milliseconds - current.range.end.milliseconds > lookBehind.milliseconds {
+            return nil
+        }
+        return current
+    }
 }

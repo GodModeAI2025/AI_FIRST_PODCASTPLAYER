@@ -2,10 +2,11 @@
 //  EpisodeDossierExporter.swift
 //  PodcastAIExport
 //
-//  Alles zu einer Folge in einer Markdown-Datei: Kopf, Shownotes, Kapitel,
-//  Fakten mit Zeitmarke, Transkript mit Zeitmarken. Dazu der Export einer
-//  Chat-Antwort mit ihren Belegen. Beides ist für Menschen lesbar und lässt
-//  sich in Notizprogramme wie Obsidian oder Notion übernehmen.
+//  Alles zu einer Folge in einer Markdown-Datei: Kopfdaten, Shownotes,
+//  Kapitel, Fakten mit Zeitmarke, eigene Notizen, Transkript mit
+//  Zeitmarken. Dazu der Export einer Chat-Antwort mit ihren Belegen. Beides
+//  ist für Menschen lesbar und lässt sich in Notizprogramme wie Obsidian
+//  oder Notion übernehmen.
 //
 
 import Foundation
@@ -23,15 +24,17 @@ public struct EpisodeDossier: Sendable {
     public var transcript: Transcript?
     /// Fakt-Kennung → was in der Folge dazu wörtlich gesagt wurde.
     public var factQuotes: [String: String]
+    /// Die eigenen Notizen zu dieser Folge.
+    public var notes: [ExportedNote]
 
     public init(title: String, sourceTitle: String, publishedAt: Date? = nil,
                 duration: MediaDuration? = nil, webPageURL: URL? = nil, shownotes: String? = nil,
                 chapters: [Chapter] = [], facts: [EpisodeFact] = [], transcript: Transcript? = nil,
-                factQuotes: [String: String] = [:]) {
+                factQuotes: [String: String] = [:], notes: [ExportedNote] = []) {
         self.title = title; self.sourceTitle = sourceTitle; self.publishedAt = publishedAt
         self.duration = duration; self.webPageURL = webPageURL; self.shownotes = shownotes
         self.chapters = chapters; self.facts = facts; self.transcript = transcript
-        self.factQuotes = factQuotes
+        self.factQuotes = factQuotes; self.notes = notes
     }
 }
 
@@ -55,7 +58,16 @@ public struct EpisodeDossierExporter: Sendable {
     public init() {}
 
     public func markdown(_ dossier: EpisodeDossier, includeTranscript: Bool = true) -> String {
-        var lines: [String] = []
+        let link = SafeSourceLink(publicURL: dossier.webPageURL)
+        // Kopfdaten für Notizprogramme wie Obsidian. Die Länge in
+        // Anführungszeichen: „10:00“ wäre für YAML sonst eine Zahl.
+        var lines = FrontMatter.lines([
+            ("title", FrontMatter.quoted(dossier.title)),
+            ("podcast", dossier.sourceTitle.isEmpty ? nil : FrontMatter.quoted(dossier.sourceTitle)),
+            ("published", dossier.publishedAt.map(FrontMatter.day)),
+            ("duration", dossier.duration.map { FrontMatter.quoted(MediaTime(milliseconds: $0.milliseconds).timecode) }),
+            ("link", link.map { FrontMatter.quoted($0.url.absoluteString) }),
+        ])
         lines.append("# " + MarkdownExporter.escapeInline(dossier.title))
         lines.append("")
         var meta = [Self.field(String(localized: "Quelle:", bundle: .module),
@@ -67,14 +79,14 @@ public struct EpisodeDossierExporter: Sendable {
         if let duration = dossier.duration {
             meta.append(Self.field(String(localized: "Länge:", bundle: .module), duration.shortDescription))
         }
-        if let link = SafeSourceLink(publicURL: dossier.webPageURL) {
+        if let link {
             meta.append(Self.field(String(localized: "Link:", bundle: .module), "<\(link.url.absoluteString)>"))
         }
         lines.append(meta.joined(separator: "  \n"))
 
         if let notes = dossier.shownotes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
             lines += ["", "## " + String(localized: "Shownotes", bundle: .module), "",
-                      MarkdownExporter.escapeBlock(notes)]
+                      Self.shownotesMarkdown(notes)]
         }
         if !dossier.chapters.isEmpty {
             lines += ["", "## " + String(localized: "Kapitel", bundle: .module), ""]
@@ -94,10 +106,27 @@ public struct EpisodeDossierExporter: Sendable {
                 }
             }
         }
+        if !dossier.notes.isEmpty {
+            lines += ["", "## " + String(localized: "Meine Notizen", bundle: .module), ""]
+            for note in dossier.notes {
+                let comment = note.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let heading = comment.isEmpty ? String(localized: "Gemerkte Stelle", bundle: .module) : comment
+                let time = note.position.map { "`\($0.timecode)` " } ?? ""
+                lines.append("- " + time + MarkdownExporter.escapeInline(heading))
+                if let quote = note.quote?.trimmingCharacters(in: .whitespacesAndNewlines), !quote.isEmpty {
+                    lines.append("  > " + MarkdownExporter.escapeInline(quote))
+                }
+            }
+        }
         if includeTranscript, let transcript = dossier.transcript, !transcript.segments.isEmpty {
             lines += ["", "## " + String(localized: "Transkript", bundle: .module), ""]
-            for paragraph in Self.paragraphs(transcript.segments) {
-                lines.append("`\(paragraph.start.timecode)` " + MarkdownExporter.escapeInline(paragraph.text))
+            // Jeder Satz mit seiner eigenen Zeitmarke, wie in der App. Ein
+            // Absatz über eine Minute hätte spätere Sätze unter einer früheren
+            // Zeit versteckt, und genau zitieren ginge nicht mehr.
+            for segment in transcript.segments {
+                let text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else { continue }
+                lines.append("`\(segment.range.start.timecode)` " + MarkdownExporter.escapeInline(text))
                 lines.append("")
             }
         }
@@ -125,6 +154,22 @@ public struct EpisodeDossierExporter: Sendable {
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Shownotes als Markdown. Aufzählungspunkte aus dem HTML („• “) werden
+    /// zu „- “, sonst erkennt kein Markdown-Programm die Liste.
+    static func shownotesMarkdown(_ text: String) -> String {
+        let bullets: Set<Character> = ["•", "◦", "▪", "‣"]
+        return text.replacingOccurrences(of: "\r\n", with: "\n")
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> String in
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if let first = trimmed.first, bullets.contains(first) {
+                    return "- " + MarkdownExporter.escapeInline(String(trimmed.dropFirst()))
+                }
+                return MarkdownExporter.escapeBlock(String(line))
+            }
+            .joined(separator: "\n")
     }
 
     /// Eine Kopfzeile wie „**Quelle:** Titel“. Die Bezeichnung kommt

@@ -269,13 +269,25 @@ struct RelevantItemRow: View {
     private var others: [RelevantItem] { bundle.hits.filter { $0.id != item.id } }
 
     var body: some View {
-        Button {
-            model.playRelevantItemInEpisode(item)
-        } label: {
-            content.contentShape(.rect)
+        // Ein Tipp auf die Karte öffnet die Folge. Abgespielt wird nur über
+        // den Knopf mit der Zeitmarke, damit kein Ton unerwartet startet.
+        Group {
+            if let episode = model.loadedEpisode(item.episodeID) {
+                NavigationLink {
+                    EpisodeDetailView(episode: episode)
+                } label: {
+                    content.contentShape(.rect)
+                }
+                .navigationLinkIndicatorVisibility(.hidden)
+                .accessibilityHint("Öffnet die Folge. Abspielen unter Aktionen.")
+            } else {
+                content
+            }
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Spielt die Folge ab dieser Stelle")
+        .accessibilityAction(named: "Ab \(TimecodeLabel.spokenSingle(item.range.start.timecode)) abspielen") {
+            model.playRelevantItemInEpisode(item)
+        }
         .accessibilityAction(named: "Stelle merken") { model.rememberRelevantItem(item) }
         .accessibilityAction(named: "Nicht relevant") { model.dismissRelevantItems(bundle.hits) }
         .contextMenu {
@@ -384,7 +396,23 @@ struct RelevantItemRow: View {
             HStack(spacing: Design.Spacing.micro) {
                 // Der Timecode steht sichtbar dabei. Er ist kein technisches
                 // Detail, sondern das Versprechen: das hier kannst du nachhören.
-                TimecodeLabel(item.range, emphasis: .medium)
+                // Als eigener Knopf: nur er spielt ab, ein Tipp auf die Karte
+                // öffnet die Folge.
+                Button {
+                    model.playRelevantItemInEpisode(item)
+                } label: {
+                    Label {
+                        TimecodeLabel(item.range, emphasis: .medium)
+                    } icon: {
+                        Image(systemName: "play.fill").font(.caption2)
+                    }
+                    .padding(.horizontal, Design.Spacing.small)
+                    .padding(.vertical, Design.Spacing.micro)
+                    .background(.tint.opacity(0.12), in: .capsule)
+                    .frame(minHeight: Design.minimumTapTarget)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.borderless)
                 if bundle.hits.count > 1 {
                     Text(verbatim: "·").foregroundStyle(.tertiary)
                     Text("\(bundle.hits.count) Stellen in dieser Folge")

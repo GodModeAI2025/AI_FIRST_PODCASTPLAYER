@@ -91,6 +91,9 @@ final class PersonaFlowsUITests: XCTestCase {
         text.typeText("Wichtig für unser Team")
         attach(app, "notiz-blatt")
         app.buttons["note.save"].tap()
+        // Nach „Merken“ sagt der Player kurz, bei welcher Zeit und wo die Notiz liegt.
+        let confirmation = app.descendants(matching: .any)["confirmation"].firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5), "Keine Bestätigung nach „Merken“")
         app.buttons["Fertig"].firstMatch.tap()
 
         // In der Folge unter „Deine Notizen“, weiter unten im Überblick.

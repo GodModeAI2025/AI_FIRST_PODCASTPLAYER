@@ -112,8 +112,10 @@ struct EpisodeDetailView: View {
         }
         .task { await model.loadChapters(for: episode) }
         .sheet(item: Binding(get: { exported.map(ExportPreview.init) }, set: { exported = $0?.text })) {
-            ExportPreviewSheet(text: $0.text)
+            ExportPreviewSheet(text: $0.text, fileName: episode.title)
         }
+        // „Gemerkt bei 4:00“ und „Kopiert“ aus Transkript, Fakten und Notizen.
+        .confirmationBanner()
         .confirmationDialog("Folge löschen?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Folge und alle Daten löschen", role: .destructive) {
                 Task {
@@ -203,6 +205,20 @@ struct EpisodeDetailView: View {
                             .symbolEffect(.pulse, isActive: stage.isRunning)
                     }
                     .foregroundStyle(stage == .failed ? .orange : .primary)
+                    if stage == .evidenceExtracted {
+                        // „Transkript fertig“ allein führte nirgendwohin.
+                        Button { section = .transcript } label: {
+                            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                                Label("Transkript ansehen", systemImage: "text.alignleft")
+                                Text("Du kannst jetzt in der Folge suchen und Fragen stellen.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget, alignment: .leading)
+                            .contentShape(.rect)
+                        }
+                        .accessibilityIdentifier("episode.showTranscript")
+                    }
                     if hasLocalAudio {
                         Label("Audio liegt auf diesem Gerät", systemImage: "internaldrive")
                             .font(.caption).foregroundStyle(.secondary)
@@ -242,11 +258,16 @@ struct EpisodeDetailView: View {
             let episodeNotes = model.notes(for: episode.id)
             if !episodeNotes.isEmpty {
                 SwiftUI.Section("Deine Notizen") {
+                    // Antippen der Zeile spielt nichts. Abgespielt wird über
+                    // den eigenen Knopf, der die Zeitmarke nennt.
                     ForEach(episodeNotes) { note in
-                        Button { Task { await model.playHighlight(note) } } label: {
-                            NoteRow(highlight: note, showsEpisode: false).contentShape(.rect)
+                        HStack(alignment: .top, spacing: Design.Spacing.small) {
+                            NoteRow(highlight: note, showsEpisode: false)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            NotePlayButton(highlight: note)
+                            NoteActionsMenu(highlight: note)
                         }
-                        .buttonStyle(.plain)
+                        .contextMenu { NoteActions(highlight: note) }
                     }
                 }
             }
@@ -458,15 +479,15 @@ struct EpisodeDetailView: View {
                         VStack(alignment: .leading, spacing: Design.Spacing.none) {
                             FactRow(fact: fact, episode: episode)
                                 .buttonStyle(.borderless)
-                            if let text = wording[fact.id] { FactWording(text: text) }
+                            if let text = wording[fact.id] { FactWording(text: text, fact: fact, episode: episode) }
                         }
                     }
                 } footer: {
                     let tier = Self.factAuthor(facts.first?.modelTier)
                     Text("""
                         Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. \
-                        Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. \
-                        Formuliert von: \(tier).
+                        Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Über „…“ merkst, \
+                        kopierst oder teilst du eine Aussage. Formuliert von: \(tier).
                         """)
                 }
                 SwiftUI.Section {
@@ -610,27 +631,49 @@ struct FactRow: View {
     @State private var quote: String?
 
     var body: some View {
-        Button {
-            model.playEpisode(episode, at: fact.range.start.seconds)
-        } label: {
-            HStack(alignment: .top, spacing: Design.Spacing.small) {
-                // Eine Aussage aus der Folge, kein geprüfter Fakt. Ein Siegel
-                // hätte das Gegenteil behauptet. VoiceOver liest nur Aussage und Zeitmarke.
-                Image(systemName: "quote.bubble").foregroundStyle(.tint)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                    Text(fact.statement).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                    HStack(spacing: Design.Spacing.micro) {
-                        TimecodeLabel(fact.range.start)
-                        Image(systemName: "play.fill").font(.caption2).foregroundStyle(.tint)
-                            .accessibilityHidden(true)
+        // Zwei Knöpfe nebeneinander, beide mit eigenem Stil: in einer Liste
+        // löste ein Tipp sonst beide zugleich aus.
+        HStack(alignment: .top, spacing: Design.Spacing.small) {
+            Button {
+                model.playEpisode(episode, at: fact.range.start.seconds)
+            } label: {
+                HStack(alignment: .top, spacing: Design.Spacing.small) {
+                    // Eine Aussage aus der Folge, kein geprüfter Fakt. Ein Siegel
+                    // hätte das Gegenteil behauptet. VoiceOver liest nur Aussage und Zeitmarke.
+                    Image(systemName: "quote.bubble").foregroundStyle(.tint)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                        Text(fact.statement).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                        HStack(spacing: Design.Spacing.micro) {
+                            TimecodeLabel(fact.range.start)
+                            Image(systemName: "play.fill").font(.caption2).foregroundStyle(.tint)
+                                .accessibilityHidden(true)
+                            if model.hasNote(in: episode.id, at: fact.range.start) {
+                                Image(systemName: "bookmark.fill").font(.caption2).foregroundStyle(.tint)
+                                    .accessibilityLabel("gemerkt")
+                            }
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(.rect)
+            .buttonStyle(.borderless)
+            .accessibilityHint("Spielt die Stelle, aus der die Aussage stammt")
+
+            Menu {
+                FactActions(fact: fact, episode: episode, quote: quote)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .imageScale(.large)
+                    .tappableArea()
+                    .contentShape(.rect)
+            }
+            .menuIndicator(.hidden)
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Aktionen zur Aussage")
+            .accessibilityHint("Merken, mit Quelle kopieren oder teilen")
         }
-        .accessibilityHint("Spielt die Stelle, aus der die Aussage stammt")
         .contextMenu {
             FactActions(fact: fact, episode: episode, quote: quote)
         }
@@ -648,6 +691,7 @@ struct FactActions: View {
     let episode: Episode
     let quote: String?
     @Environment(AppModel.self) private var model
+    @Environment(\.confirm) private var confirm
 
     var body: some View {
         Button {
@@ -656,23 +700,36 @@ struct FactActions: View {
             Label("Ab hier abspielen", systemImage: "play.fill")
         }
         Button {
-            // Ohne Beleg füllt addNote das Zitat aus dem Transkript.
-            Task {
-                await model.addNote(nil, at: fact.range.start.seconds, in: episode, quote: quote,
-                                    evidenceID: quote == nil ? nil : fact.evidenceID,
-                                    mediaVersionID: fact.mediaVersionID, via: .transcript)
-            }
+            Self.remember(fact, quote: quote, in: episode, model: model, confirm: confirm)
         } label: {
             Label("Stelle merken", systemImage: "bookmark")
         }
         Button {
-            Clipboard.copy(model.factCitation(fact, quote: quote, in: episode))
+            Self.copy(fact, quote: quote, in: episode, model: model, confirm: confirm)
         } label: {
             Label("Mit Quelle kopieren", systemImage: "doc.on.doc")
         }
         ShareLink(item: model.factCitation(fact, quote: quote, in: episode)) {
             Label("Teilen", systemImage: "square.and.arrow.up")
         }
+    }
+
+    /// Merkt die Stelle mit ihrem Wortlaut und sagt, wo die Notiz liegt.
+    /// Ohne Beleg füllt addNote das Zitat aus dem Transkript.
+    static func remember(_ fact: EpisodeFact, quote: String?, in episode: Episode,
+                         model: AppModel, confirm: ConfirmAction) {
+        Task {
+            let saved = await model.addNote(nil, at: fact.range.start.seconds, in: episode, quote: quote,
+                                            evidenceID: quote == nil ? nil : fact.evidenceID,
+                                            mediaVersionID: fact.mediaVersionID, via: .transcript)
+            if let saved { confirm(NoteFeedback.saved(saved), symbol: "bookmark.fill") }
+        }
+    }
+
+    static func copy(_ fact: EpisodeFact, quote: String?, in episode: Episode,
+                     model: AppModel, confirm: ConfirmAction) {
+        Clipboard.copy(model.factCitation(fact, quote: quote, in: episode))
+        confirm(NoteFeedback.copied)
     }
 }
 
@@ -681,6 +738,12 @@ struct FactActions: View {
 /// „Übersetzen“ eine Übersetzung darüber. Der Wortlaut selbst bleibt.
 struct FactWording: View {
     let text: String
+    /// Mit Aussage und Folge stehen unter dem Wortlaut „Zitat kopieren“ und
+    /// „Merken“, sichtbar statt nur über langes Drücken.
+    var fact: EpisodeFact? = nil
+    var episode: Episode? = nil
+    @Environment(AppModel.self) private var model
+    @Environment(\.confirm) private var confirm
     @State private var shown = false
     @State private var foreign = false
     @State private var translating = false
@@ -711,8 +774,27 @@ struct FactWording: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, Design.Spacing.small)
+                    .padding(.bottom, fact == nil ? Design.Spacing.small : Design.Spacing.none)
                     .translationPresentation(isPresented: $translating, text: text)
+                if let fact, let episode {
+                    HStack(spacing: Design.Spacing.standard) {
+                        Button {
+                            FactActions.copy(fact, quote: text, in: episode, model: model, confirm: confirm)
+                        } label: {
+                            Label("Zitat kopieren", systemImage: "doc.on.doc")
+                        }
+                        .accessibilityHint("Kopiert den Wortlaut mit Folge, Podcast, Zeitmarke und Erscheinungsdatum")
+                        Button {
+                            FactActions.remember(fact, quote: text, in: episode, model: model, confirm: confirm)
+                        } label: {
+                            Label("Merken", systemImage: "bookmark")
+                        }
+                    }
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+                    .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+                    .padding(.bottom, Design.Spacing.small)
+                }
             }
         }
         // Eingerückt unter den Text der Aussage, neben dem Symbol.
@@ -761,6 +843,7 @@ struct PassageActions: View {
     let start: MediaTime
     let episode: Episode
     @Environment(AppModel.self) private var model
+    @Environment(\.confirm) private var confirm
 
     var body: some View {
         Button {
@@ -769,17 +852,28 @@ struct PassageActions: View {
             Label("Ab hier abspielen", systemImage: "play.fill")
         }
         Button {
-            Task { await model.addNote(nil, at: start.seconds, in: episode, quote: text) }
+            Self.remember(text, at: start, in: episode, model: model, confirm: confirm)
         } label: {
             Label("Stelle merken", systemImage: "bookmark")
         }
         Button {
             Clipboard.copy(model.citation(text, at: start, in: episode))
+            confirm(NoteFeedback.copied)
         } label: {
             Label("Mit Quelle kopieren", systemImage: "doc.on.doc")
         }
         ShareLink(item: model.citation(text, at: start, in: episode)) {
             Label("Teilen", systemImage: "square.and.arrow.up")
+        }
+    }
+
+    /// Merkt genau diese Zeile: ihren Text und ihren Anfang als Zeitmarke.
+    static func remember(_ text: String, at start: MediaTime, in episode: Episode,
+                         model: AppModel, confirm: ConfirmAction) {
+        Task {
+            if let saved = await model.addNote(nil, at: start.seconds, in: episode, quote: text) {
+                confirm(NoteFeedback.saved(saved), symbol: "bookmark.fill")
+            }
         }
     }
 }
@@ -804,6 +898,7 @@ enum Clipboard {
 struct TranscriptSection: View {
     let episode: Episode
     @Environment(AppModel.self) private var model
+    @Environment(\.confirm) private var confirm
     @State private var paragraphs: [(start: MediaTime, text: String)] = []
     @State private var loaded = false
     @State private var query = ""
@@ -875,23 +970,56 @@ struct TranscriptSection: View {
                         EpisodeAnalysisPrompt(episode: episode)
                     }
                 }
+                if !paragraphs.isEmpty {
+                    Text("Antippen spielt ab dieser Zeile. Über „…“ merkst, kopierst oder teilst du sie.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 ForEach(Array(filtered.enumerated()), id: \.element.start) { _, paragraph in
-                    Button {
-                        model.playEpisode(episode, at: paragraph.start.seconds)
-                    } label: {
-                        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                            TimecodeLabel(paragraph.start, emphasis: isCurrent(paragraph.start) ? .bold : .regular)
-                            Text(shownText(paragraph))
-                                .font(.callout)
-                                .foregroundStyle(isHeard(paragraph.start) ? .secondary : .primary)
-                                .multilineTextAlignment(.leading)
+                    HStack(alignment: .top, spacing: Design.Spacing.small) {
+                        Button {
+                            model.playEpisode(episode, at: paragraph.start.seconds)
+                        } label: {
+                            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                                HStack(spacing: Design.Spacing.micro) {
+                                    TimecodeLabel(paragraph.start,
+                                                  emphasis: isCurrent(paragraph.start) ? .bold : .regular)
+                                    if model.hasNote(in: episode.id, at: paragraph.start) {
+                                        Image(systemName: "bookmark.fill")
+                                            .font(.caption2)
+                                            .foregroundStyle(.tint)
+                                            .accessibilityLabel("gemerkt")
+                                    }
+                                }
+                                Text(shownText(paragraph))
+                                    .font(.callout)
+                                    .foregroundStyle(isHeard(paragraph.start) ? .secondary : .primary)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .padding(.vertical, Design.Spacing.micro)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
                         }
-                        .padding(.vertical, Design.Spacing.micro)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(.rect)
+                        // Schlicht, damit der Text schwarz bleibt und nicht als Link blau erscheint.
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Spielt ab dieser Zeile")
+
+                        // Sichtbar an jeder Zeile, nicht nur über langes
+                        // Drücken oder Wischen, die niemand errät.
+                        Menu {
+                            PassageActions(text: paragraph.text, start: paragraph.start, episode: episode)
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .imageScale(.large)
+                                .foregroundStyle(.tint)
+                                .tappableArea()
+                                .contentShape(.rect)
+                        }
+                        .menuIndicator(.hidden)
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("Aktionen zur Zeile ab \(TimecodeLabel.spoken(paragraph.start.timecode))")
+                        .accessibilityHint("Merken, mit Quelle kopieren oder teilen")
                     }
-                    // Schlicht, damit der Text schwarz bleibt und nicht als Link blau erscheint.
-                    .buttonStyle(.plain)
                     .listRowBackground(isCurrent(paragraph.start) ? Color.accentColor.opacity(0.1) : nil)
                     .swipeActions(edge: .leading) {
                         Button { remember(paragraph) } label: { Label("Merken", systemImage: "bookmark") }
@@ -944,7 +1072,7 @@ struct TranscriptSection: View {
     private func isCurrent(_ start: MediaTime) -> Bool { currentStart == start.milliseconds }
 
     private func remember(_ paragraph: (start: MediaTime, text: String)) {
-        Task { await model.addNote(nil, at: paragraph.start.seconds, in: episode, quote: paragraph.text) }
+        PassageActions.remember(paragraph.text, at: paragraph.start, in: episode, model: model, confirm: confirm)
     }
 
     private func isHeard(_ start: MediaTime) -> Bool {
@@ -1037,11 +1165,15 @@ struct EpisodePlayerView: View {
     private var player: EpisodePlayer { model.episodePlayer }
 
     var body: some View {
-        if isEmbedded {
-            content
-        } else {
-            NavigationStack { content }
+        Group {
+            if isEmbedded {
+                content
+            } else {
+                NavigationStack { content }
+            }
         }
+        // Nach „Merken“ steht kurz da, bei welcher Zeit und wo die Notiz liegt.
+        .confirmationBanner()
     }
 
     @ViewBuilder private var content: some View {
@@ -1089,7 +1221,7 @@ struct EpisodePlayerView: View {
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.capsule)
                         .accessibilityIdentifier("player.note")
-                        .accessibilityHint("Merkt die aktuelle Stelle, auf Wunsch mit Kommentar")
+                        .accessibilityHint("Merkt den Satz, der gerade läuft, auf Wunsch mit Kommentar")
                         HStack(spacing: Design.Spacing.control) {
                             rateMenu
                             sleepMenu
@@ -1149,13 +1281,10 @@ struct EpisodePlayerView: View {
             // dann ist der Player womöglich schon abgebaut.
             let draft = note
             let appModel = model
-            if let episode = draft.episode {
-                NoteSheet(position: draft.position, quote: draft.quote, text: Bindable(draft).text,
-                          save: { draft.save(with: appModel) },
-                          cancel: { draft.discard() })
+            if draft.episode != nil {
+                MomentNoteSheet(draft: draft, model: appModel)
                     .presentationDetents([.medium, .large])
                     .interactiveDismissDisabled()
-                    .task { draft.quote = await appModel.noteQuote(at: draft.position, in: episode) }
                     .onDisappear { draft.save(with: appModel) }
             }
         }
@@ -1758,6 +1887,8 @@ final class MomentNoteDraft {
     /// begonnen.
     private var isSettled = true
 
+    /// Hält die Position beim Tippen fest. Was danach läuft, während der
+    /// Kommentar entsteht, zählt nicht mehr.
     func begin(in episode: Episode, at position: Double) {
         self.episode = episode
         self.position = position
@@ -1766,16 +1897,137 @@ final class MomentNoteDraft {
         isSettled = false
     }
 
-    func save(with model: AppModel) {
+    /// Sucht den Satz, der beim Tippen lief, und legt die Zeitmarke auf
+    /// seinen Anfang. Wer schneller auf „Merken“ tippt, bekommt dasselbe:
+    /// `addNote` sucht ihn dann selbst.
+    func locate(with model: AppModel) async {
+        guard !isSettled, let episode,
+              let passage = await model.notePassage(at: position, in: episode),
+              !isSettled, self.episode?.id == episode.id else { return }
+        position = passage.start.seconds
+        quote = passage.text
+    }
+
+    func save(with model: AppModel, confirm: ConfirmAction? = nil) {
         guard !isSettled, let episode else { return }
         isSettled = true
         let text = text, position = position, quote = quote
-        Task { await model.addNote(text, at: position, in: episode, quote: quote) }
+        Task {
+            let saved = await model.addNote(text, at: position, in: episode, quote: quote)
+            if let saved, let confirm { confirm(NoteFeedback.saved(saved), symbol: "bookmark.fill") }
+        }
     }
 
     func discard() {
         isSettled = true
     }
+}
+
+/// „Moment merken“ im Player. Nach „Merken“ sagt der Player kurz, bei
+/// welcher Zeit die Stelle gemerkt ist und wo sie liegt.
+private struct MomentNoteSheet: View {
+    @Bindable var draft: MomentNoteDraft
+    let model: AppModel
+    @Environment(\.confirm) private var confirm
+
+    var body: some View {
+        NoteSheet(position: draft.position, quote: draft.quote, text: $draft.text,
+                  save: { draft.save(with: model, confirm: confirm) },
+                  cancel: { draft.discard() })
+            .task { await draft.locate(with: model) }
+    }
+}
+
+/// Was nach Merken, Kopieren und Abspielen kurz eingeblendet wird.
+enum NoteFeedback {
+
+    static func saved(_ highlight: Highlight) -> String {
+        let time = MediaTime(milliseconds: Int64(highlight.positionMs ?? 0)).timecode
+        #if os(macOS)
+        return String(localized: "Gemerkt bei \(time). Du findest die Stelle unter Gemerkte Stellen.")
+        #else
+        return String(localized: "Gemerkt bei \(time). Du findest die Stelle unter Wissen › Gemerkte Stellen.")
+        #endif
+    }
+
+    static var copied: String { String(localized: "Mit Quelle kopiert.") }
+
+    static func playing(from highlight: Highlight) -> String {
+        let time = MediaTime(milliseconds: Int64(highlight.positionMs ?? 0)).timecode
+        return String(localized: "Spielt ab \(time).")
+    }
+}
+
+// MARK: - Bestätigung
+
+/// Zeigt kurz eine Bestätigung, etwa „Gemerkt bei 4:00“, und sagt sie für
+/// VoiceOver an. Ohne ``ConfirmationBanner`` darüber bleibt die Ansage.
+struct ConfirmAction: Sendable {
+    let show: @MainActor @Sendable (String, String) -> Void
+
+    @MainActor func callAsFunction(_ message: String, symbol: String = "checkmark.circle.fill") {
+        show(message, symbol)
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var confirm: ConfirmAction = ConfirmAction { message, _ in
+        AccessibilityNotification.Announcement(message).post()
+    }
+}
+
+@MainActor
+@Observable
+private final class ConfirmationState {
+    private(set) var message: String?
+    private(set) var symbol = "checkmark.circle.fill"
+    private var serial = 0
+
+    func show(_ text: String, symbol: String) {
+        message = text
+        self.symbol = symbol
+        serial += 1
+        let current = serial
+        AccessibilityNotification.Announcement(text).post()
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            guard let self, self.serial == current else { return }
+            self.message = nil
+        }
+    }
+}
+
+/// Die Fläche für ``ConfirmAction``: eine Zeile am unteren Rand, die nach
+/// ein paar Sekunden von selbst verschwindet und nichts verdeckt, was man
+/// antippen will.
+private struct ConfirmationBanner: ViewModifier {
+    @State private var state = ConfirmationState()
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.confirm, ConfirmAction { [state] message, symbol in
+                state.show(message, symbol: symbol)
+            })
+            .overlay(alignment: .bottom) {
+                if let message = state.message {
+                    Label(message, systemImage: state.symbol)
+                        .font(.callout)
+                        .multilineTextAlignment(.leading)
+                        .padding(.horizontal, Design.Spacing.standard)
+                        .padding(.vertical, Design.Spacing.small)
+                        .glassEffect(.regular, in: .rect(cornerRadius: Design.Radius.card))
+                        .padding(Design.Spacing.standard)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .allowsHitTesting(false)
+                        .accessibilityIdentifier("confirmation")
+                }
+            }
+            .animation(.default, value: state.message)
+    }
+}
+
+extension View {
+    func confirmationBanner() -> some View { modifier(ConfirmationBanner()) }
 }
 
 /// Kommentar zu einem Moment. Die Stelle ist schon gemerkt, der Text ist freiwillig.
@@ -1874,5 +2126,109 @@ struct NoteRow: View {
             .foregroundStyle(.secondary)
         }
         .padding(.vertical, Design.Spacing.micro)
+    }
+}
+
+/// Spielt eine gemerkte Stelle ab ihrer Zeitmarke. Ein eigener Knopf, der
+/// die Zeit nennt: ein Tipp auf die Zeile selbst startet keinen Ton.
+struct NotePlayButton: View {
+    let highlight: Highlight
+    @Environment(AppModel.self) private var model
+    @Environment(\.confirm) private var confirm
+
+    var body: some View {
+        if let ms = highlight.positionMs, highlight.episodeID != nil {
+            let time = MediaTime(milliseconds: Int64(ms)).timecode
+            Button {
+                NoteActions.play(highlight, model: model, confirm: confirm)
+            } label: {
+                Image(systemName: "play.circle")
+                    .imageScale(.large)
+                    .foregroundStyle(.tint)
+                    .tappableArea()
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.borderless)
+            .help("Ab \(time) abspielen")
+            .accessibilityLabel("Ab \(TimecodeLabel.spoken(time)) abspielen")
+        }
+    }
+}
+
+/// Das Menü „…“ an einer gemerkten Stelle, sichtbar statt nur über langes
+/// Drücken.
+struct NoteActionsMenu: View {
+    let highlight: Highlight
+    var playable = true
+    var edit: (() -> Void)? = nil
+    var deletable = false
+
+    var body: some View {
+        Menu {
+            NoteActions(highlight: highlight, playable: playable, edit: edit, deletable: deletable)
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .imageScale(.large)
+                .foregroundStyle(.tint)
+                .tappableArea()
+                .contentShape(.rect)
+        }
+        .menuIndicator(.hidden)
+        .buttonStyle(.borderless)
+        .accessibilityLabel("Aktionen zur gemerkten Stelle")
+        .accessibilityHint("Abspielen, mit Quelle kopieren oder teilen")
+    }
+}
+
+/// Abspielen, Kopieren und Teilen für eine gemerkte Stelle. Kopiert wird
+/// Klartext mit Zitat, Folge, Podcast, Zeitmarke, Erscheinungsdatum, Link
+/// und Kommentar. Bearbeiten und Löschen gibt es dort, wo die Liste sie
+/// anbietet.
+struct NoteActions: View {
+    let highlight: Highlight
+    var playable = true
+    var edit: (() -> Void)? = nil
+    var deletable = false
+    @Environment(AppModel.self) private var model
+    @Environment(\.confirm) private var confirm
+
+    var body: some View {
+        if playable, highlight.episodeID != nil, let ms = highlight.positionMs {
+            Button {
+                Self.play(highlight, model: model, confirm: confirm)
+            } label: {
+                Label("Ab \(MediaTime(milliseconds: Int64(ms)).timecode) abspielen", systemImage: "play.fill")
+            }
+        }
+        Button {
+            Clipboard.copy(model.noteCitation(highlight))
+            confirm(NoteFeedback.copied)
+        } label: {
+            Label("Mit Quelle kopieren", systemImage: "doc.on.doc")
+        }
+        ShareLink(item: model.noteCitation(highlight)) {
+            Label("Teilen", systemImage: "square.and.arrow.up")
+        }
+        if let edit {
+            Button(action: edit) {
+                Label("Kommentar bearbeiten", systemImage: "square.and.pencil")
+            }
+        }
+        if deletable {
+            Button(role: .destructive) { model.removeHighlight(highlight.id) } label: {
+                Label("Löschen", systemImage: "trash")
+            }
+        }
+    }
+
+    /// Spielt ab der Zeitmarke und sagt es, damit der Sprung nicht still
+    /// passiert. Scheitert das Abspielen, meldet sich stattdessen der Fehler.
+    static func play(_ highlight: Highlight, model: AppModel, confirm: ConfirmAction) {
+        Task {
+            await model.playHighlight(highlight)
+            if model.episodePlayer.episode?.id == highlight.episodeID {
+                confirm(NoteFeedback.playing(from: highlight), symbol: "play.fill")
+            }
+        }
     }
 }

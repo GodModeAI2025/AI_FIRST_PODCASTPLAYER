@@ -145,6 +145,54 @@
         }
       }
     },
+    "Gemerkt am %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemerkt am %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved on %@"
+          }
+        }
+      }
+    },
+    "Gemerkte Stelle": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemerkte Stelle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved Moment"
+          }
+        }
+      }
+    },
+    "Gemerkte Stellen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemerkte Stellen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved Moments"
+          }
+        }
+      }
+    },
     "Kapitel": {
       "localizations": {
         "de": {
@@ -209,6 +257,38 @@
         }
       }
     },
+    "Meine Notiz: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meine Notiz: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My note: %@"
+          }
+        }
+      }
+    },
+    "Meine Notizen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meine Notizen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My Notes"
+          }
+        }
+      }
+    },
     "Offene Frage": {
       "localizations": {
         "de": {
@@ -237,6 +317,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Source:"
+          }
+        }
+      }
+    },
+    "Quelle: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quelle: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source: %@"
           }
         }
       }
@@ -333,6 +429,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unknown Source"
+          }
+        }
+      }
+    },
+    "erschienen am %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "erschienen am %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "published %@"
           }
         }
       }
