@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 23. September 2026, Version 0.7.1.
+Stand 23. September 2026, Version 0.7.2.
 
 ## Geprüft
 
@@ -11,7 +11,7 @@ Stand 23. September 2026, Version 0.7.1.
 | Alle fünf Tabs öffnen | UI-Test im Simulator |
 | Feed hinzufügen, Folgen anzeigen | UI-Test mit echtem Feed |
 | MP3-Link, Podigee-Adresse ohne Feed, YouTube-Kanal mit Audio-Podcast, Thema im Themen-Update | UI-Tests mit den Links aus dem TestFlight-Feedback |
-| Transistor-Feed abonnieren, Folge mit Kapiteln und Shownotes öffnen, abspielen, Player, Warteschlange, Erklärung der Interessenarten | UI-Tests mit den Links aus dem Feedback zu 0.2 |
+| Transistor-Feed abonnieren, Folge mit Kapiteln und Shownotes öffnen, abspielen, Player, Warteschlange, Thema ohne Wahl einer Art | UI-Tests mit den Links aus dem Feedback zu 0.2 |
 | Geladene Folge abspielen, Zeit läuft | UI-Test mit der MP3 aus dem Feedback, erst laden, dann abspielen |
 | Themen-Update anlegen mit eingetipptem Thema | UI-Test, „Anlegen“ bleibt nicht gesperrt |
 | Folge laden, transkribieren, Belege mit Zeitmarken | Ende-zu-Ende-Test auf dem Mac mit echter englischer Folge |
@@ -20,8 +20,9 @@ Stand 23. September 2026, Version 0.7.1.
 | CloudKit-Schema für alle 13 Datentypen | angelegt und nach Production übertragen |
 | Zusammenführen doppelter Datensätze, Hörstand je Gerät, verwaiste Zeilen | Swift-Tests, zuerst rot gegen den alten Stand |
 | Code-Prüfung | mehrstufig: Funde je Bereich, jeder von zwei Prüfern gegengeprüft, jede Korrektur einzeln nachgeprüft |
-| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben, Sprache der Modelltexte, Archiv, Gegenpositionen | 174 Swift-Tests im Paket |
+| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben, Sprache der Modelltexte, Archiv, Gegenpositionen, Nennungen, Kapitelschnitt, Behalten des Tons | 271 Swift-Tests im Paket |
 | Podcastsuche nach Namen, Spotify-Hinweis, Moment merken, OPML-Import, YouTube-@-Links, Archiv, Speicher, Themen-Updates bearbeiten | UI-Tests im Simulator |
+| Erwähnt im Überblick und im Chat einer Folge, ältere Folgen vorbereiten, Netzregeln unter Mobilfunk, neueste Folge behalten | UI-Tests im Simulator |
 | Englische Oberfläche und deutsche Mehrzahl | UI-Tests mit `-AppleLanguages (en)` und `(de)` |
 | iOS 26.4 und iOS 27 | komplette UI-Suite auf beiden Simulatoren |
 | Bedienung durch Einsteiger bis Experten | 50 Personas mit Screenshots und Code, danach 10 Personas, die die App im Simulator selbst bedient haben, plus ein Begriffstest mit 12 Personas |

@@ -1,5 +1,20 @@
 # Änderungsverlauf
 
+## App 0.7.2 · 2026-09-23
+Aus dem TestFlight-Feedback zu 0.6, 0.7 und 0.7.1, jede Änderung von zwei Prüfern gegengelesen und nachgebessert:
+- Erwähnt: Jede Folge zeigt im Überblick, welche Links, Termine, Adressen, Telefonnummern, E-Mail-Adressen, Personen, Organisationen und Orte in Shownotes und Transkript vorkommen, mit Zeitmarke zum Nachhören. Links öffnen im Browser, Adressen in Karten, Termine landen im Kalender. Im Chat fragst du „Welche Links werden genannt?“ für eine Folge oder über alle, auch ohne Apple Intelligence.
+- Ton auf dem Gerät: Die neueste Folge jedes Podcasts bleibt zum Hören unterwegs auf dem Gerät. Alle anderen verlieren den Ton nach dem Transkript und laufen als Stream, außer du hast sie mit „Laden (offline)“ geholt. Eine Folge, deren Ton schon auf dem Gerät liegt, wartet für ihr Transkript nicht mehr aufs WLAN. In einer wartenden Folge gibt es „Jetzt erstellen“ und den Schalter für Mobilfunk direkt dort. Die beiden Netzregeln stehen in den Einstellungen unter Mobilfunk zusammen.
+- Ältere Folgen: Im Podcast selbst bereitet „Ältere Folgen auch vorbereiten“ das ganze Archiv vor, neueste zuerst, nach einer Rückfrage mit Anzahl und Größe. Was du selbst anforderst, läuft vor diesem Archiv.
+- Cover: Themen-Updates bekommen ein Bild aus Image Playground, abstrakt und ohne Schrift, aus ihren Themen. „Neues Cover erzeugen“ macht ein anderes. Ohne Image Playground bleibt ein ruhiges Layoutcover, dessen Titel nicht mehr mitten im Wort bricht.
+- Player: Oben steht groß das Cover des Themen-Updates oder des Podcasts, darunter klein die Quelle der laufenden Stelle mit Podcast, Folge, Zeitbereich und „Stelle x von y“.
+- Interessen sind nur noch Themen. Die Wahl zwischen Thema, Vorhaben und Frage ist weg, vorhandene Vorhaben und Fragen werden zu Themen.
+- Themen-Updates schneiden an Kapiteln: Liegt eine Stelle in einem Kapitel bis zehn Minuten, das ins Zeitbudget passt, kommt das ganze Kapitel. Stellen einer Folge laufen am Stück und in der Reihenfolge des Originals.
+- Chat: Die Antwort beginnt mit dem Kern in kräftiger Schrift, danach Punkte. Jeder Verweis wie [4] springt zum Beleg. Belege stehen je Folge in einer Karte mit Cover, Titel und Datum.
+- Hilfe: zehn Themenkarten statt einer langen Liste, mit Stufen von Einsteiger bis Experte, Suche und „Zeig es mir“, das an die passende Stelle der App springt.
+- „Kurz gesagt“ zeigt höchstens zehn Schlagworte, die umbrechen statt seitlich zu scrollen, deine Themen zuerst.
+- Kein Orange mehr: Hinweise sind grau mit „i“ und erklären auf Tipp mehr. Rot bleibt für echte Störungen.
+- Fakten tragen keine Reste wie „3 |“ oder Listenstriche mehr.
+
 ## App 0.7.1 · 2026-09-23
 - Private Cloud Compute ist freigegeben. Apple hat den Zugang für das Team erteilt, die App fragt Apples Server jetzt für Antworten im Chat, Überblicke und Gegenpositionen. Dort passt mehr Text in eine Anfrage. Abschaltbar unter Einstellungen › Intelligenz. Fakten und Relevanz entstehen weiter auf dem Gerät.
 
