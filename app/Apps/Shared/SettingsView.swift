@@ -319,7 +319,15 @@ struct LegalSettingsSection: View {
         } header: {
             Text("Rechtliches")
         } footer: {
-            Text("Anbieter: MOBILE BOX - App Consulting UG (haftungsbeschränkt), Karlsruhe.")
+            VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                Text("Anbieter: MOBILE BOX - App Consulting UG (haftungsbeschränkt), Karlsruhe.")
+                if PodcastCatalog.shared.isAvailable {
+                    Text("""
+                        Podcast-Daten: Podcast Index (podcastindex.org). Suche und Katalog fragen diesen \
+                        Dienst. Er sieht deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht.
+                        """)
+                }
+            }
         }
     }
 }
@@ -366,6 +374,13 @@ struct PrivacyOverviewView: View {
          YouTube-Kanäle fragen YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine \
          IP-Adresse.
          """),
+        (Self.catalogSymbol, "Podcast-Katalog",
+         """
+         Suche, Angesagt und Kategorien im Blatt „Podcast hinzufügen“ fragen Podcast Index \
+         (podcastindex.org), einen offenen Podcast-Katalog. Podcast Index sieht dabei deinen \
+         Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht. Die Cover lädt die App \
+         vom Server des jeweiligen Podcasts.
+         """),
         ("magnifyingglass", "Spotlight nur auf Wunsch",
          """
          Gemerkte Stellen erscheinen in der Systemsuche nur, wenn du das einschaltest. Der Index \
@@ -378,6 +393,10 @@ struct PrivacyOverviewView: View {
          Systemeinstellungen unter Apple-ID › iCloud › Speicher verwalten › PodcastAI.
          """),
     ]
+
+    /// Der Punkt zum Podcast-Katalog. Ohne Zugang fragt die App Podcast
+    /// Index nie, dann fehlt er.
+    private static let catalogSymbol = "square.grid.2x2"
 
     /// Berechnet: `LocalizedStringKey` ist nicht `Sendable`, eine gespeicherte
     /// statische Eigenschaft müsste es sein.
@@ -393,7 +412,8 @@ struct PrivacyOverviewView: View {
 
     var body: some View {
         List {
-            ForEach(items, id: \.symbol) { item in
+            ForEach(items.filter { $0.symbol != Self.catalogSymbol || PodcastCatalog.shared.isAvailable },
+                    id: \.symbol) { item in
                 VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Label(item.title, systemImage: item.symbol).font(.headline)
                     Text(item.text).font(.callout).foregroundStyle(.secondary)
@@ -420,10 +440,20 @@ struct PrivacyOverviewView: View {
                 Text("Erklärungen von Apple")
             } footer: {
                 Text("""
-                    Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und das \
+                    Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und Apples \
                     Podcast-Verzeichnis sind Dienste von Apple. Für sie gelten Apples eigene \
                     Datenschutzangaben.
                     """)
+            }
+            if PodcastCatalog.shared.isAvailable {
+                Section {
+                    Link("Datenschutzerklärung von Podcast Index", destination: PodcastCatalog.privacyPolicy)
+                    Link(destination: PodcastCatalog.website) { Text(verbatim: "podcastindex.org") }
+                } header: {
+                    Text("Podcast-Katalog")
+                } footer: {
+                    Text("Podcast Index ist ein unabhängiger Dienst. Für ihn gilt seine eigene Datenschutzerklärung.")
+                }
             }
         }
         .navigationTitle("Datenschutz")

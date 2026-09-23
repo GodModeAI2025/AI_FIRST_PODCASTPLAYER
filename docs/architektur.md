@@ -7,7 +7,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 | Modul | Aufgabe |
 |---|---|
 | PodcastAICore | Domäne: Quellen, Folgen, Zeitbereiche, Belege, Fakten, Hörzustand |
-| PodcastAISources | RSS, Atom, OPML, Podlove- und Podcasting-2.0-Kapitel, Feed-Suche, YouTube |
+| PodcastAISources | RSS, Atom, OPML, Podlove- und Podcasting-2.0-Kapitel, Feed-Suche, YouTube, Podcast-Katalog über Podcast Index |
 | PodcastAIMedia | Download, Audio lesen, Formaterkennung für Dateien ohne Endung |
 | PodcastAITranscription | SpeechAnalyzer mit Zeitmarken |
 | PodcastAIIntelligence | Apple Intelligence auf dem Gerät und auf Private Cloud Compute |
@@ -24,6 +24,32 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 3. Das Transkript wird in Passagen von etwa einer Minute geschnitten. Jede Passage ist ein Beleg mit Zeitbereich.
 4. Apple Intelligence zieht daraus Fakten. Jede Aussage zeigt auf ihren Beleg. Das läuft in einer eigenen Warteschlange neben den Transkripten, eine Folge nach der anderen und ohne das nächste Transkript aufzuhalten. Beim Start, nach Abgleich und Aktualisieren reiht die App Folgen mit Transkript ohne Fakten nach, neueste zuerst. Kam das Transkript von einem anderen Gerät, wartet dieses Gerät 20 Minuten auf dessen Fakten. Auf dem iPhone und iPad arbeitet die Warteschlange, solange die App vorn ist. Im Hintergrund arbeitet sie nur mit Zeit vom System: in der Hintergrundaufgabe `com.podcastai.analysis` oder solange Transkripte unter der fortgesetzten Verarbeitung entstehen. Der Ton im Hintergrund zählt nicht. Geht die App in den Hintergrund, hält die laufende Folge an und bleibt vorn in der Warteschlange. Scheitern einzelne Abschnitte einer Folge an Last oder Zeitüberschreitung, speichert die App, was da ist, merkt sich die fehlenden Abschnitte auf diesem Gerät und holt nur sie später nach.
 5. Eine Frage sucht zuerst auf dem Gerät die passenden Belege: Stichworte gewichtet nach Seltenheit und semantische Nähe über Apples NaturalLanguage-Einbettungen. Nur diese Belege sieht das Sprachmodell. Die Antwort verweist mit Nummern auf sie. Ist die Frage auf einen Podcast oder einen Zeitraum eingegrenzt, nimmt der Code die übrigen Folgen vorher heraus; das Modell wählt nur unter dem, was bleibt.
+
+## Podcast-Katalog
+
+Das Blatt „Podcast hinzufügen“ ist zugleich der Katalog. Die Daten kommen von Podcast Index (podcastindex.org), einem offenen Verzeichnis mit gut vier Millionen Feeds. Der Client steht in `PodcastIndexClient`, die Ansichten in `CatalogViews.swift`, Zugang und Zwischenspeicher in `PodcastCatalog.swift`.
+
+| Teil | Endpunkt | Was die App daraus macht |
+|---|---|---|
+| Suche | `search/byterm` und Apples `itunes.apple.com/search` zugleich | `CatalogMerge` legt Treffer mit gleicher Feed-Adresse (auch der alten vor einem Umzug) oder gleicher Apple-Kennung zusammen. Antwortet nur einer der beiden Dienste, zählt dessen Liste. |
+| Angesagt | `podcasts/trending?lang=de,de-de,de-at,de-ch` | In der Sprache der App, mit Schalter für alle Sprachen. `lang` trifft die Schreibweise im Feed, deshalb filtert die App die Antwort noch einmal nach `language`. |
+| Kategorien | `podcasts/trending?cat=…` | Podcast Index kennt 112 Wörter ohne Hierarchie, nur auf Englisch. `CatalogCategory` fasst sie zu 19 Rubriken mit Namen auf Deutsch und Englisch, SF Symbol und Farbe zusammen. Oberbegriffe entscheiden, Unterbegriffe zählen nur, wenn kein Oberbegriff passt. Die API blättert nicht, „Mehr laden“ fragt eine längere Liste, höchstens 200. |
+| Seite eines Podcasts | `podcasts/byfeedid`, `episodes/byfeedid` (10 Folgen) | Großes Cover, Kategorien, Beschreibung, Website, neueste Folgen mit Datum und Länge. Ohne Kennung bei Podcast Index liest die App den Feed selbst. |
+
+Regeln:
+
+- Aus dem Katalog wird nichts abgespielt. `CatalogEpisode` trägt nicht einmal eine Audio-Adresse. Abonniert wird über `AppModel.subscribe(to:)`, denselben Weg wie ein eingefügter Link.
+- Texte aus dem Katalog sind fremde Daten. `CatalogText` macht aus HTML reinen Text, Adressen gehen durch `NetworkDestination` und werden auf https gehoben. Nichts davon geht an ein Sprachmodell.
+- Aufgegebene Feeds (`dead`) und Feeds, die kein Podcast sind (`medium` Musik, Film, Blog, Newsletter), zeigt der Katalog nicht.
+- Jede Anfrage trägt `User-Agent: PodcastAI/<Version>`, `X-Auth-Key`, `X-Auth-Date` (Unixzeit in ganzen Sekunden) und `Authorization`, den SHA-1 über Schlüssel, Geheimnis und Zeit in kleinen Hexziffern. `PodcastIndexSignature` rechnet ihn, ein Test prüft ihn am Rechenbeispiel der Dokumentation. Der Server nimmt nur Zeiten an, die höchstens drei Minuten abweichen. Nach einem 401 rechnet der Client deshalb einmal mit der Zeit aus der Kopfzeile `Date` nach, wenn die Uhr des Geräts mehr als eine Minute danebenliegt.
+- `RedirectGuard` entfernt bei einem Wechsel des Hosts auch `X-Auth-Key` und `X-Auth-Date`.
+- Fehler des Katalogs (`PodcastIndexError`) haben eigene Sätze. Ein 429 heißt „zu viele Anfragen“ und nicht „der Server des Podcasts“.
+- Angesagt, Einzelheiten und Folgen hält die App 15 Minuten im Speicher. Die Betreiber erlauben das für Daten, die jemand öffnet, nicht aber, den Index abzugrasen. Die Suche wartet wie bisher 450 ms nach dem letzten Tastendruck.
+- Cover lädt `AsyncImage` direkt vom Server des Podcasts über den gemeinsamen `URLCache` (32 MB Speicher, 256 MB Platte).
+
+Zugang: Schlüssel und Geheimnis stehen in `app/Config/PodcastIndex/PodcastIndexCredentials.plist`. Die Datei ist in `.gitignore`, denn das Repository ist öffentlich. Wie man sie anlegt, steht in `app/README.md`. Der Ordner ist in `project.yml` als Ordnerreferenz eingebunden, kopiert wird also, was beim Bauen darin liegt. Eine einzelne Datei mit `optional: true` ließ den Build scheitern, wenn sie fehlte. Fehlt die Datei oder ist ein Feld leer, ist der Katalog aus: Die Suche fragt nur Apple, Angesagt, Kategorien und der Absatz zu Podcast Index in den Datenschutzangaben fehlen, und nichts geht an Podcast Index.
+
+UI-Tests starten mit `-catalog-fixtures`. Dann antwortet der Katalog in Debug-Builds aus `PodcastIndexFixtures`, ohne Netz und ohne Zugang.
 
 ## Welches Modell wann
 

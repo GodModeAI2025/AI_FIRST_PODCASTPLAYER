@@ -4,6 +4,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Ohne Zugang zum Podcast-Katalog baut die App trotzdem, zeigt aber weder
+# Angesagt noch Kategorien. Das soll beim Hochladen niemand übersehen.
+CREDS=Config/PodcastIndex/PodcastIndexCredentials.plist
+if ! /usr/libexec/PlistBuddy -c "Print :APIKey" "$CREDS" 2>/dev/null | grep -q . \
+   || ! /usr/libexec/PlistBuddy -c "Print :APISecret" "$CREDS" 2>/dev/null | grep -q .; then
+  echo "Achtung: $CREDS fehlt oder ist unvollständig. Dieser Build kommt ohne Podcast-Katalog." >&2
+fi
+
 BUILD=$(date +%Y%m%d%H%M)
 sed -i '' "s/CURRENT_PROJECT_VERSION: \".*\"/CURRENT_PROJECT_VERSION: \"$BUILD\"/" project.yml
 xcodegen generate >/dev/null

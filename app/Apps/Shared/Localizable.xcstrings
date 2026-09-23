@@ -1569,6 +1569,38 @@
         }
       }
     },
+    "Alle Sprachen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Sprachen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Languages"
+          }
+        }
+      }
+    },
+    "Alle Sprachen zeigen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Sprachen zeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show All Languages"
+          }
+        }
+      }
+    },
     "Alle Stufen zeigen" : {
       "localizations" : {
         "de" : {
@@ -1613,6 +1645,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deselect All"
+          }
+        }
+      }
+    },
+    "Alle angesagten Podcasts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle angesagten Podcasts"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Trending Podcasts"
           }
         }
       }
@@ -1757,6 +1805,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Network Requests"
+          }
+        }
+      }
+    },
+    "Angesagt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angesagt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trending"
+          }
+        }
+      }
+    },
+    "Angesagt und Kategorien" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angesagt und Kategorien"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trending and Categories"
+          }
+        }
+      }
+    },
+    "Angesagt wird geladen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angesagt wird geladen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading trending podcasts…"
           }
         }
       }
@@ -3258,34 +3354,34 @@
         }
       }
     },
-    "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
+    "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
+            "value" : "Das Plus in der Symbolleiste von „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The plus button in the toolbar of \"For You\" or \"My Podcasts\". Type a name and subscribe from Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
+            "value" : "The plus button in the toolbar of \"For You\" or \"My Podcasts\". Type a name to search the Podcast Index catalog and Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
           }
         }
       }
     },
-    "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
+    "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
+            "value" : "Das Plus oben in „Für dich“ oder „Meine Podcasts“. Namen eintippen, gesucht wird im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis. Links gehen auch: Apple Podcasts, Feed-Adresse, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The plus button at the top of \"For You\" or \"My Podcasts\". Type a name and subscribe from Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
+            "value" : "The plus button at the top of \"For You\" or \"My Podcasts\". Type a name to search the Podcast Index catalog and Apple's podcast directory. Links work too: Apple Podcasts, a feed URL, a single MP3, or a YouTube channel. For YouTube channels, the app looks for the matching audio podcast."
           }
         }
       }
@@ -3590,6 +3686,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Privacy Policy"
+          }
+        }
+      }
+    },
+    "Datenschutzerklärung von Podcast Index" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutzerklärung von Podcast Index"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast Index Privacy Policy"
           }
         }
       }
@@ -5938,6 +6050,22 @@
         }
       }
     },
+    "Explizit" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explizit"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explicit"
+          }
+        }
+      }
+    },
     "Export" : {
       "localizations" : {
         "de" : {
@@ -7218,6 +7346,22 @@
         }
       }
     },
+    "Gerade ist hier nichts angesagt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerade ist hier nichts angesagt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is trending here right now."
+          }
+        }
+      }
+    },
     "Gerade ist kein Netz da. Die App fängt an, sobald wieder eines da ist." : {
       "localizations" : {
         "de" : {
@@ -7874,6 +8018,22 @@
         }
       }
     },
+    "In dieser Sprache ist hier gerade nichts angesagt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In dieser Sprache ist hier gerade nichts angesagt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is trending here in this language right now."
+          }
+        }
+      }
+    },
     "In einer Folge unter „Fragen“, über alle Podcasts im Reiter „Chat“. Die Nummern in der Antwort führen zu den Belegen." : {
       "localizations" : {
         "de" : {
@@ -8094,6 +8254,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chapters and Sources"
+          }
+        }
+      }
+    },
+    "Katalog: Podcast Index" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Katalog: Podcast Index"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catalog: Podcast Index"
+          }
+        }
+      }
+    },
+    "Kategorien" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kategorien"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Categories"
           }
         }
       }
@@ -8884,6 +9076,22 @@
         }
       }
     },
+    "Mehr laden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehr laden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load More"
+          }
+        }
+      }
+    },
     "Mein Update" : {
       "localizations" : {
         "de" : {
@@ -9524,6 +9732,22 @@
         }
       }
     },
+    "Nichts angesagt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nichts angesagt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing Trending"
+          }
+        }
+      }
+    },
     "Nichts gefunden, was die These stützt." : {
       "localizations" : {
         "de" : {
@@ -10116,6 +10340,22 @@
         }
       }
     },
+    "Ohne Suchbegriff zeigt „Podcast hinzufügen“ den Katalog: was gerade angesagt ist, in deiner Sprache oder in allen, und Kategorien von Nachrichten bis True Crime. Ein Tipp auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, erst nach dem Abonnieren." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne Suchbegriff zeigt „Podcast hinzufügen“ den Katalog: was gerade angesagt ist, in deiner Sprache oder in allen, und Kategorien von Nachrichten bis True Crime. Ein Tipp auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, erst nach dem Abonnieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With the search field empty, \"Add Podcast\" shows the catalog: what's trending right now, in your language or in all of them, and categories from News to True Crime. Tap a podcast to see its description and latest episodes. Nothing plays from there until you subscribe."
+          }
+        }
+      }
+    },
     "Ohne Zeitmarke, nicht abspielbar" : {
       "localizations" : {
         "de" : {
@@ -10308,6 +10548,22 @@
         }
       }
     },
+    "Podcast Index ist ein unabhängiger Dienst. Für ihn gilt seine eigene Datenschutzerklärung." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast Index ist ein unabhängiger Dienst. Für ihn gilt seine eigene Datenschutzerklärung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast Index is an independent service. Its own privacy policy applies."
+          }
+        }
+      }
+    },
     "Podcast abonniert: %@" : {
       "localizations" : {
         "de" : {
@@ -10400,6 +10656,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search podcasts or paste a link"
+          }
+        }
+      }
+    },
+    "Podcast-Daten: Podcast Index (podcastindex.org). Suche und Katalog fragen diesen Dienst. Er sieht deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast-Daten: Podcast Index (podcastindex.org). Suche und Katalog fragen diesen Dienst. Er sieht deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast data: Podcast Index (podcastindex.org). Search and the catalog query this service. It sees your search term and your IP address. There's no account there."
+          }
+        }
+      }
+    },
+    "Podcast-Katalog" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast-Katalog"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast Catalog"
           }
         }
       }
@@ -11140,18 +11428,34 @@
         }
       }
     },
-    "Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und das Podcast-Verzeichnis sind Dienste von Apple. Für sie gelten Apples eigene Datenschutzangaben." : {
+    "Sprache" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und das Podcast-Verzeichnis sind Dienste von Apple. Für sie gelten Apples eigene Datenschutzangaben."
+            "value" : "Sprache"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Speech recognition, Apple Intelligence, Private Cloud Compute, iCloud, and the podcast directory are Apple services. Apple's own privacy terms apply to them."
+            "value" : "Language"
+          }
+        }
+      }
+    },
+    "Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und Apples Podcast-Verzeichnis sind Dienste von Apple. Für sie gelten Apples eigene Datenschutzangaben." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und Apples Podcast-Verzeichnis sind Dienste von Apple. Für sie gelten Apples eigene Datenschutzangaben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speech recognition, Apple Intelligence, Private Cloud Compute, iCloud, and Apple's podcast directory are Apple services. Apple's own privacy terms apply to them."
           }
         }
       }
@@ -11568,6 +11872,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear Search"
+          }
+        }
+      }
+    },
+    "Suche, Angesagt und Kategorien im Blatt „Podcast hinzufügen“ fragen Podcast Index (podcastindex.org), einen offenen Podcast-Katalog. Podcast Index sieht dabei deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht. Die Cover lädt die App vom Server des jeweiligen Podcasts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche, Angesagt und Kategorien im Blatt „Podcast hinzufügen“ fragen Podcast Index (podcastindex.org), einen offenen Podcast-Katalog. Podcast Index sieht dabei deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es dort nicht. Die Cover lädt die App vom Server des jeweiligen Podcasts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search, Trending, and Categories in \"Add Podcast\" query Podcast Index (podcastindex.org), an open podcast catalog. Podcast Index sees your search term and your IP address. There's no account there. The app loads cover art from each podcast's own server."
           }
         }
       }
@@ -12373,6 +12693,22 @@
         }
       }
     },
+    "Treffer aus Podcast Index und dem Apple-Podcast-Verzeichnis" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Treffer aus Podcast Index und dem Apple-Podcast-Verzeichnis"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Results from Podcast Index and Apple's Podcast Directory"
+          }
+        }
+      }
+    },
     "Treffer im Apple-Podcast-Verzeichnis" : {
       "localizations" : {
         "de" : {
@@ -13045,6 +13381,22 @@
         }
       }
     },
+    "Website" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
+          }
+        }
+      }
+    },
     "Weiter" : {
       "localizations" : {
         "de" : {
@@ -13649,6 +14001,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Shows the original text again"
+          }
+        }
+      }
+    },
+    "Zeigt, was in dieser Kategorie angesagt ist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt, was in dieser Kategorie angesagt ist"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shows what's trending in this category"
           }
         }
       }
@@ -14603,6 +14971,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "tomorrow at %@"
+          }
+        }
+      }
+    },
+    "neue Folge %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "neue Folge %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "new episode %@"
           }
         }
       }

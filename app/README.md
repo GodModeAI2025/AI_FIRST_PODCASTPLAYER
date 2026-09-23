@@ -68,6 +68,26 @@ Ein KI-Agent kann über MCP lesend auf das Wissen zugreifen. Er startet dafür d
 
 Den Eintrag mit dem richtigen Pfad zeigt die App unter PodcastAI › Einstellungen › Agenten. Dort wird der Zugang eingeschaltet, eine Freigabe mit Quellen und Ablaufzeit vergeben und das Protokoll gelesen. Schalter, Freigabe und Protokoll liegen in den Einstellungen der App, die der Agentenprozess bei jeder Anfrage neu liest. Ohne Freigabe beantwortet er keine Werkzeuganfrage.
 
+## Podcast-Katalog (Podcast Index)
+
+Suche, Angesagt und Kategorien im Blatt „Podcast hinzufügen“ kommen von [Podcast Index](https://podcastindex.org). Dafür braucht die App einen Schlüssel mit Leserecht und das Geheimnis dazu, beides von [api.podcastindex.org](https://api.podcastindex.org). Sie stehen in einer Datei, die **nie ins Repository kommt**, denn es ist öffentlich:
+
+```bash
+cd app/Config/PodcastIndex
+cp PodcastIndexCredentials.example.plist PodcastIndexCredentials.plist
+plutil -replace APIKey -string 'SCHLÜSSEL' PodcastIndexCredentials.plist
+plutil -replace APISecret -string 'GEHEIMNIS' PodcastIndexCredentials.plist
+git check-ignore -v PodcastIndexCredentials.plist   # muss die Regel aus .gitignore zeigen
+```
+
+Die einfachen Anführungszeichen sind wichtig, Geheimnisse enthalten Zeichen wie `$` oder `|`. Beim Bauen kommt der Ordner als `PodcastIndex/` ins App-Bundle. Ob der Zugang drin ist, zeigt `plutil -p PodcastAI.app/PodcastIndex/PodcastIndexCredentials.plist`.
+
+Fehlt die Datei oder ist ein Feld leer, baut die App trotzdem. Sie sucht dann nur im Apple-Podcast-Verzeichnis und zeigt weder Angesagt noch Kategorien. Frische Worktrees haben die Datei nicht, sie muss dort bei Bedarf hineinkopiert werden. `scripts/upload-testflight.sh` warnt, wenn sie fehlt oder ein Feld leer ist.
+
+Schlüssel und Geheimnis stehen danach lesbar im App-Bundle. Für einen Schlüssel mit Leserecht nimmt Podcast Index das in Kauf. Wird er missbraucht, sperrt der Betreiber ihn, und es braucht einen neuen.
+
+Für UI-Tests gibt es `-catalog-fixtures`: Der Katalog antwortet dann in Debug-Builds aus festen Daten, ohne Netz und ohne Zugang.
+
 ## TestFlight
 
 ```bash
@@ -81,7 +101,7 @@ Das Skript erhöht die Buildnummer, archiviert iOS und macOS und lädt beide üb
 ```
 Packages/PodcastAIKit/Sources/
   PodcastAICore          Domäne, nur Foundation
-  PodcastAISources       RSS und Atom, Linkauflösung, YouTube, Feed-Erkennung
+  PodcastAISources       RSS und Atom, Linkauflösung, YouTube, Feed-Erkennung, Podcast-Katalog
   PodcastAIMedia         Download, Audio lesen und wandeln
   PodcastAITranscription SpeechAnalyzer mit Medienzeit
   PodcastAIIntelligence  Apple Intelligence, Gerät und Private Cloud Compute
@@ -96,6 +116,7 @@ Apps/
   PodcastAI/             iOS: fünf Tabs, Mini-Player
   PodcastAIMac/          macOS: Seitenleiste, Menübefehle, MCP-Server
 
+Config/PodcastIndex/     Zugang zum Podcast-Katalog, im Repository nur die Vorlage
 UITests/                 UI-Tests für iOS
 ```
 
