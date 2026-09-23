@@ -138,22 +138,33 @@ struct EpisodeDetailView: View {
     /// Im Reiter „Fragen“ ist der Bereich fest und die Bereichsauswahl
     /// fehlt. Diese Zeile sagt, an welche Folge die Fragen gehen.
     private var askScopeHeader: some View {
-        Label(episode.title, systemImage: "scope")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Design.Spacing.standard)
-            .padding(.bottom, Design.Spacing.small)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Fragen an diese Folge: \(episode.title)")
-            .accessibilityIdentifier("episode.ask.scope")
+        Label {
+            Text(episode.title)
+        } icon: {
+            Image(systemName: "scope").accessibilityHidden(true)
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Spacing.standard)
+        .padding(.bottom, Design.Spacing.small)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Fragen an diese Folge: \(episode.title)")
+        .accessibilityIdentifier("episode.ask.scope")
     }
 
     // MARK: Menü
 
     private var actionsMenu: some View {
         Menu {
+            // Auch hier, nicht nur beim Gedrückthalten von „Als Nächstes“.
+            if model.canPlay(episode), !isCurrent {
+                Button { queue(.last) } label: {
+                    Label("Ans Ende der Warteschlange", systemImage: "text.line.last.and.arrowtriangle.forward")
+                }
+                Divider()
+            }
             Button {
                 Task { exported = await model.exportEpisode(episode) }
             } label: { Label("Exportieren mit Transkript", systemImage: "square.and.arrow.up") }
@@ -199,23 +210,40 @@ struct EpisodeDetailView: View {
                             Text(stage.label)
                         }
                     } icon: {
+                        // Das Symbol wiederholt nur den Text. VoiceOver las
+                        // beim Häkchen „Ausgewählt“.
                         Image(systemName: stage.symbol)
                             .symbolEffect(.pulse, isActive: stage.isRunning)
+                            .accessibilityHidden(true)
                     }
                     .foregroundStyle(stage == .failed ? .orange : .primary)
                     if hasLocalAudio {
-                        Label("Audio liegt auf diesem Gerät", systemImage: "internaldrive")
-                            .font(.caption).foregroundStyle(.secondary)
+                        Label {
+                            Text("Audio liegt auf diesem Gerät")
+                        } icon: {
+                            Image(systemName: "internaldrive").accessibilityHidden(true)
+                        }
+                        .font(.caption).foregroundStyle(.secondary)
                     }
                 }
             } else if let detail = model.stageDetails[episode.id] {
-                SwiftUI.Section("Transkript") { Label(detail, systemImage: "clock") }
+                SwiftUI.Section("Transkript") {
+                    Label {
+                        Text(detail)
+                    } icon: {
+                        Image(systemName: "clock").accessibilityHidden(true)
+                    }
+                }
             }
             if stage == nil, hasLocalAudio || model.downloading.contains(episode.id) {
                 SwiftUI.Section {
-                    Label(hasLocalAudio ? "Audio liegt auf diesem Gerät" : "Audio wird geladen …",
-                          systemImage: hasLocalAudio ? "internaldrive" : "arrow.down.circle")
-                        .font(.caption).foregroundStyle(.secondary)
+                    Label {
+                        Text(hasLocalAudio ? "Audio liegt auf diesem Gerät" : "Audio wird geladen …")
+                    } icon: {
+                        Image(systemName: hasLocalAudio ? "internaldrive" : "arrow.down.circle")
+                            .accessibilityHidden(true)
+                    }
+                    .font(.caption).foregroundStyle(.secondary)
                 }
             }
 
@@ -323,8 +351,11 @@ struct EpisodeDetailView: View {
         model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL
     }
 
+    /// Der Hauptknopf steht allein über die ganze Breite. Neben zwei
+    /// Symbolknöpfen wurde „Pause“ bei großer Schrift mitten im Wort
+    /// getrennt. Die Nebenknöpfe darunter tragen ein Wort.
     private var playControls: some View {
-        HStack(spacing: Design.Spacing.small) {
+        VStack(spacing: Design.Spacing.small) {
             if model.canPlay(episode) {
                 Button {
                     if isCurrent { player.togglePlayPause() } else { model.playEpisode(episode) }
@@ -333,30 +364,8 @@ struct EpisodeDetailView: View {
                         .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
                 .accessibilityIdentifier("episode.play")
-
-                // Antippen reiht die Folge direkt hinter der laufenden ein,
-                // gedrückt halten bietet auch „Ans Ende“ an.
-                Menu {
-                    Button { model.addToUpNext(episode, placement: .next) } label: {
-                        Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
-                    }
-                    Button { model.addToUpNext(episode, placement: .last) } label: {
-                        Label("Ans Ende", systemImage: "text.line.last.and.arrowtriangle.forward")
-                    }
-                } label: {
-                    Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
-                        .labelStyle(.iconOnly)
-                        .frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
-                } primaryAction: {
-                    model.addToUpNext(episode, placement: .next)
-                }
-                .buttonStyle(.bordered)
-                .disabled(isCurrent)
-                .accessibilityLabel("Als Nächstes hören")
-                .accessibilityAction(named: "Ans Ende der Warteschlange") {
-                    model.addToUpNext(episode, placement: .last)
-                }
             } else if let url = episode.webPageURL {
                 // Ohne Audiodatei (YouTube) gibt es hier nichts zu hören.
                 // Der Knopf führt dorthin, wo es die Folge gibt.
@@ -365,27 +374,102 @@ struct EpisodeDetailView: View {
                         .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
                 .accessibilityIdentifier("episode.openWeb")
             }
 
-            if episode.audioURL != nil, stage == nil || stage == .failed {
-                Button {
-                    model.enqueueAnalysis(episode)
-                } label: {
-                    Label(stage == .failed ? "Erneut versuchen" : "Transkript erstellen",
-                          systemImage: "waveform.badge.magnifyingglass")
-                        .labelStyle(.iconOnly)
-                        .frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
+            if showsUpNextMenu || showsTranscriptButton {
+                // Nebeneinander mit dem Wort unter dem Symbol. Passt das nicht
+                // mehr, etwa bei großer Schrift, untereinander über die ganze
+                // Breite, Symbol und Wort in einer Zeile.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: Design.Spacing.small) { secondaryControls }
+                        .labelStyle(IconAboveTitleLabelStyle())
+                        .buttonBorderShape(.roundedRectangle(radius: Design.Radius.card))
+                    VStack(spacing: Design.Spacing.small) { secondaryControls }
+                        .labelStyle(.titleAndIcon)
+                        .buttonBorderShape(.capsule)
                 }
-                .buttonStyle(.bordered)
-                // Derselbe Schlüssel wie im AppModel, damit der Vergleich auch
-                // in einer Übersetzung trifft.
-                .disabled(model.stageDetails[episode.id] == String(localized: "wartet"))
-                .help(stage == .failed ? "Transkript erneut erstellen" : "Transkript erstellen")
-                .accessibilityLabel(stage == .failed ? "Erneut versuchen" : "Transkript erstellen")
             }
         }
-        .buttonBorderShape(.capsule)
+    }
+
+    /// Die laufende Folge lässt sich nicht einreihen. Statt eines grauen
+    /// Knopfs ohne Erklärung fehlt er dann.
+    private var showsUpNextMenu: Bool { model.canPlay(episode) && !isCurrent }
+
+    private var showsTranscriptButton: Bool {
+        episode.audioURL != nil && (stage == nil || stage == .failed)
+    }
+
+    @ViewBuilder private var secondaryControls: some View {
+        if showsUpNextMenu { upNextMenu }
+        if showsTranscriptButton { transcriptButton }
+    }
+
+    /// Antippen reiht die Folge direkt hinter der laufenden ein, gedrückt
+    /// halten bietet auch „Ans Ende“ an. Steht sie schon in der
+    /// Warteschlange, sagt der Knopf das und trägt ein Häkchen.
+    private var upNextMenu: some View {
+        let position = model.upNext.firstIndex { $0.id == episode.id }
+        let title: LocalizedStringKey = switch position {
+        case nil: "Als Nächstes"
+        case 0: "Kommt als Nächstes"
+        default: "In der Warteschlange"
+        }
+        let symbol = position == nil ? "text.line.first.and.arrowtriangle.forward" : "checkmark"
+        let value = position == nil ? Text(verbatim: "") : Text(title)
+        return Menu {
+            Button { queue(.next) } label: {
+                Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
+            }
+            Button { queue(.last) } label: {
+                Label("Ans Ende", systemImage: "text.line.last.and.arrowtriangle.forward")
+            }
+            if position != nil {
+                Button(role: .destructive) { model.removeFromUpNext(episode.id) } label: {
+                    Label("Aus der Warteschlange nehmen", systemImage: "minus.circle")
+                }
+            }
+        } label: {
+            // Name und Wert auch innen: ein Menü im Inhalt bringt einen
+            // eigenen Knopf für seine Beschriftung mit, der sonst leer blieb.
+            Label(title, systemImage: symbol)
+                .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Als Nächstes hören")
+                .accessibilityValue(value)
+        } primaryAction: {
+            queue(.next)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityLabel("Als Nächstes hören")
+        .accessibilityValue(value)
+        .accessibilityAction(named: "Ans Ende der Warteschlange") { queue(.last) }
+    }
+
+    private var transcriptButton: some View {
+        Button {
+            model.enqueueAnalysis(episode)
+        } label: {
+            Label(stage == .failed ? "Transkript erneut erstellen" : "Transkript erstellen",
+                  systemImage: "waveform.badge.magnifyingglass")
+                .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
+        }
+        .buttonStyle(.bordered)
+        // Derselbe Schlüssel wie im AppModel, damit der Vergleich auch
+        // in einer Übersetzung trifft.
+        .disabled(model.stageDetails[episode.id] == String(localized: "wartet"))
+        .accessibilityLabel(stage == .failed ? "Transkript erneut erstellen" : "Transkript erstellen")
+    }
+
+    /// Reiht die Folge ein und sagt es VoiceOver, denn sonst ändert sich
+    /// auf der Seite nur die Beschriftung des Knopfs.
+    private func queue(_ placement: AppModel.UpNextPlacement) {
+        model.addToUpNext(episode, placement: placement)
+        AccessibilityNotification.Announcement(placement == .next
+            ? AttributedString(localized: "Kommt als Nächstes")
+            : AttributedString(localized: "Steht am Ende der Warteschlange")).post()
     }
 
     private var playLabel: LocalizedStringKey {
@@ -524,6 +608,30 @@ struct EpisodeDetailView: View {
         case .onDevice: return String(localized: "Apple Intelligence auf dem Gerät")
         case .privateCloudCompute: return String(localized: "Apple Intelligence über Private Cloud Compute")
         case nil: return stored.isEmpty ? "Apple Intelligence" : stored
+        }
+    }
+}
+
+private extension View {
+    /// Beschriftung von Tempo und Schlaf-Timer: eine Zeile, notfalls etwas
+    /// kleiner, nie mitten im Wort getrennt („Schla / f- / Timer“).
+    func optionLabel() -> some View {
+        font(.footnote)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, Design.Spacing.control)
+            .padding(.vertical, Design.Spacing.small)
+    }
+}
+
+/// Symbol über dem Wort, für die Nebenknöpfe unter „Abspielen“.
+private struct IconAboveTitleLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(spacing: Design.Spacing.micro) {
+            configuration.icon
+            configuration.title
+                .font(.footnote)
+                .multilineTextAlignment(.center)
         }
     }
 }
@@ -691,11 +799,15 @@ struct FactWording: View {
                 Button {
                     withAnimation { shown.toggle() }
                 } label: {
-                    Label(shown ? "Wortlaut ausblenden" : "Wortlaut zeigen",
-                          systemImage: shown ? "chevron.up" : "text.quote")
-                        .font(.caption)
-                        .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
-                        .contentShape(.rect)
+                    // Das Symbol ist Schmuck. VoiceOver las „Liedtext“.
+                    Label {
+                        Text(shown ? "Wortlaut ausblenden" : "Wortlaut zeigen")
+                    } icon: {
+                        Image(systemName: shown ? "chevron.up" : "text.quote").accessibilityHidden(true)
+                    }
+                    .font(.caption)
+                    .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+                    .contentShape(.rect)
                 }
                 .buttonStyle(.borderless)
                 if shown, foreign {
@@ -1027,8 +1139,23 @@ struct EpisodePlayerView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var scrubbing: Double?
     @State private var showingNote = false
+    /// Tempo oder Schlaf-Timer als Blatt mit scrollbarer Liste. Nur bei
+    /// großer Schrift: dort passte das Menü nicht auf den Bildschirm.
+    @State private var choosing: PlayerChoice?
+
+    private enum PlayerChoice: Identifiable {
+        case rate, sleep
+        var id: Self { self }
+        var title: LocalizedStringKey {
+            switch self {
+            case .rate: "Geschwindigkeit"
+            case .sleep: "Schlaf-Timer"
+            }
+        }
+    }
     /// Folge, Stelle, Zitat und Text aus „Moment merken“. Endet die Folge,
     /// während der Kommentar entsteht, und die nächste beginnt, bleibt die
     /// Notiz bei der Folge, in der sie begonnen wurde.
@@ -1056,6 +1183,12 @@ struct EpisodePlayerView: View {
                             Text(episode.title)
                                 .font(.headline)
                                 .multilineTextAlignment(.center)
+                            if let podcast = model.sources.first(where: { $0.id == episode.sourceID })?.title {
+                                Text(podcast)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
                             if let chapter = player.currentChapter {
                                 Text(chapter.title)
                                     .font(.subheadline)
@@ -1090,20 +1223,7 @@ struct EpisodePlayerView: View {
                         .buttonBorderShape(.capsule)
                         .accessibilityIdentifier("player.note")
                         .accessibilityHint("Merkt die aktuelle Stelle, auf Wunsch mit Kommentar")
-                        HStack(spacing: Design.Spacing.control) {
-                            rateMenu
-                            sleepMenu
-                            #if os(macOS)
-                            // Auf dem Mac wird ein Player umgeleitet, nicht die Audiositzung.
-                            RoutePickerButton(player: player.routingPlayer)
-                                .frame(width: 44, height: 44)
-                                .accessibilityLabel("Wiedergabe auf anderem Gerät")
-                            #else
-                            RoutePickerButton()
-                                .frame(width: 44, height: 44)
-                                .accessibilityLabel("Wiedergabe auf anderem Gerät")
-                            #endif
-                        }
+                        optionsRow
                         if !player.chapters.isEmpty { chapterList }
                     }
                     .padding(.horizontal)
@@ -1180,6 +1300,12 @@ struct EpisodePlayerView: View {
                     scrubbing = nil
                 }
             }
+            // Name, Wert und Schritte auch am Regler selbst. Erscheint er
+            // trotz der Zusammenfassung unten als eigenes Element, hiess er
+            // sonst nur „3 %“, und der Wert blieb über Minuten gleich.
+            .accessibilityLabel("Position")
+            .accessibilityValue(positionValue)
+            .accessibilityAdjustableAction(adjustPosition)
             HStack {
                 Text(Self.format(scrubbing ?? player.currentTime))
                 Spacer()
@@ -1189,18 +1315,28 @@ struct EpisodePlayerView: View {
             .foregroundStyle(.secondary)
         }
         // Für VoiceOver ein Element mit hörbarem Wert. Wischen nach oben
-        // oder unten springt 30 Sekunden, statt um ein Zehntel der Folge.
+        // oder unten springt wie die Sprungknöpfe, statt um ein Zehntel der Folge.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Position")
-        .accessibilityValue(player.duration > 0
-            ? Text("\(Self.spoken(player.currentTime)) von \(Self.spoken(player.duration))")
-            : Text(Self.spoken(player.currentTime)))
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment: player.skip(by: 30)
-            case .decrement: player.skip(by: -30)
-            @unknown default: break
-            }
+        .accessibilityValue(positionValue)
+        .accessibilityAdjustableAction(adjustPosition)
+    }
+
+    /// „12 Minuten und 5 Sekunden von 53 Minuten“. Die Stelle genau, damit
+    /// jeder Sprung hörbar etwas ändert, die Länge in vollen Minuten.
+    private var positionValue: Text {
+        let now = Self.spoken(scrubbing ?? player.currentTime)
+        guard player.duration > 0 else { return Text(now) }
+        let total = player.duration < 60 ? Self.spoken(player.duration)
+            : Duration.seconds(Int(player.duration)).formatted(.units(allowed: [.hours, .minutes], width: .wide))
+        return Text("\(now) von \(total)")
+    }
+
+    private func adjustPosition(_ direction: AccessibilityAdjustmentDirection) {
+        switch direction {
+        case .increment: player.skipAhead()
+        case .decrement: player.skipBack()
+        @unknown default: break
         }
     }
 
@@ -1212,16 +1348,23 @@ struct EpisodePlayerView: View {
     }
 
     private var transport: some View {
-        HStack(spacing: Design.Spacing.control * 1.5) {
+        // ⏭ springt zum nächsten Kapitel. Kommt keins mehr, startet die
+        // nächste Folge aus der Warteschlange, wie mit der Kopfhörertaste.
+        // Gibt es beides nicht, ist der Knopf gesperrt und sieht auch so aus.
+        let hasNextChapter = player.nextChapterStart != nil
+        let hasNextEpisode = !model.upNext.isEmpty
+        return HStack(spacing: Design.Spacing.control * 1.5) {
             Button { player.previousChapter() } label: {
                 Image(systemName: "backward.end.fill").tappableArea()
             }
             .accessibilityLabel("Vorheriges Kapitel")
             .disabled(player.chapters.isEmpty)
-            Button { player.skip(by: -15) } label: {
-                Image(systemName: "gobackward.15").font(.title2).tappableArea()
+            // Gedrückt halten wählt die Sprungweite.
+            Button { player.skipBack() } label: {
+                Image(systemName: "gobackward.\(player.skipBackward)").font(.title2).tappableArea()
             }
-            .accessibilityLabel("15 Sekunden zurück")
+            .accessibilityLabel("\(player.skipBackward) Sekunden zurück")
+            .contextMenu { skipPicker("Sprungweite zurück", value: \.skipBackward) }
             Button { player.togglePlayPause() } label: {
                 Image(systemName: player.isPlayingOrStarting ? "pause.fill" : "play.fill")
                     .font(.title)
@@ -1230,62 +1373,183 @@ struct EpisodePlayerView: View {
             .buttonStyle(.glassProminent)
             .buttonBorderShape(.circle)
             .accessibilityLabel(player.isPlayingOrStarting ? "Pause" : "Abspielen")
-            Button { player.skip(by: 30) } label: {
-                Image(systemName: "goforward.30").font(.title2).tappableArea()
+            Button { player.skipAhead() } label: {
+                Image(systemName: "goforward.\(player.skipForward)").font(.title2).tappableArea()
             }
-            .accessibilityLabel("30 Sekunden vor")
-            Button { player.nextChapter() } label: {
+            .accessibilityLabel("\(player.skipForward) Sekunden vor")
+            .contextMenu { skipPicker("Sprungweite vor", value: \.skipForward) }
+            Button {
+                if hasNextChapter { player.nextChapter() } else { model.playNextInQueue() }
+            } label: {
                 Image(systemName: "forward.end.fill").tappableArea()
             }
-            .accessibilityLabel("Nächstes Kapitel")
-            .disabled(player.chapters.isEmpty)
+            .accessibilityLabel(hasNextChapter ? "Nächstes Kapitel" : "Nächste Folge")
+            .disabled(!hasNextChapter && !hasNextEpisode)
         }
         .buttonStyle(.pressable)
         .padding(.vertical, Design.Spacing.small)
     }
 
-    private var rateMenu: some View {
-        Menu {
-            ForEach([0.8, 1.0, 1.2, 1.5, 1.8, 2.0], id: \.self) { rate in
-                Button("\(rate.formatted(.number.precision(.fractionLength(1))))×") {
-                    player.rate = Float(rate)
+    /// Die Sprungweiten zur Auswahl, mit Häkchen bei der eingestellten.
+    private func skipPicker(_ title: LocalizedStringKey,
+                            value: ReferenceWritableKeyPath<EpisodePlayer, Int>) -> some View {
+        Picker(title, selection: Binding(get: { player[keyPath: value] },
+                                         set: { player[keyPath: value] = $0 })) {
+            ForEach(EpisodePlayer.skipChoices, id: \.self) { seconds in
+                Text("\(seconds) Sekunden").tag(seconds)
+            }
+        }
+        .pickerStyle(.inline)
+    }
+
+    // MARK: Tempo, Schlaf-Timer, AirPlay
+
+    /// Nebeneinander, bei großer Schrift untereinander über die ganze
+    /// Breite. Dort öffnen Tempo und Schlaf-Timer ein Blatt statt eines
+    /// Menüs, denn das Menü lief über den Bildschirmrand und liess sich
+    /// nicht scrollen.
+    @ViewBuilder private var optionsRow: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: Design.Spacing.small) {
+                Button { choosing = .rate } label: { rateLabel.frame(maxWidth: .infinity) }
+                    .accessibilityLabel("Geschwindigkeit")
+                    .accessibilityValue(rateValue)
+                Button { choosing = .sleep } label: { sleepLabelView.frame(maxWidth: .infinity) }
+                    .accessibilityLabel("Schlaf-Timer")
+                    .accessibilityValue(sleepValue)
+                routePicker
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
+            .sheet(item: $choosing) { choice in
+                NavigationStack {
+                    List {
+                        switch choice {
+                        case .rate: ratePicker.labelsHidden()
+                        case .sleep: sleepPicker.labelsHidden()
+                        }
+                    }
+                    .navigationTitle(choice.title)
+                    #if os(iOS)
+                    .navigationBarTitleDisplayMode(.inline)
+                    #endif
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Fertig") { choosing = nil }
+                        }
+                    }
                 }
             }
-        } label: {
-            Label("\(Double(player.rate).formatted(.number.precision(.fractionLength(1))))×",
-                  systemImage: "speedometer")
-                .font(.footnote)
-                .padding(.horizontal, Design.Spacing.control)
-                .padding(.vertical, Design.Spacing.small)
+        } else {
+            HStack(spacing: Design.Spacing.control) {
+                rateMenu
+                sleepMenu
+                routePicker
+            }
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.capsule)
-        .accessibilityLabel("Geschwindigkeit")
+    }
+
+    @ViewBuilder private var routePicker: some View {
+        let size: CGFloat = dynamicTypeSize.isAccessibilitySize ? 64 : 44
+        #if os(macOS)
+        // Auf dem Mac wird ein Player umgeleitet, nicht die Audiositzung.
+        RoutePickerButton(player: player.routingPlayer)
+            .frame(width: size, height: size)
+            .accessibilityLabel("Wiedergabe auf anderem Gerät")
+        #else
+        RoutePickerButton()
+            .frame(width: size, height: size)
+            .accessibilityLabel("Wiedergabe auf anderem Gerät")
+        #endif
+    }
+
+    private static let rates: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
+
+    /// Als Auswahl mit Häkchen und dem Merkmal „ausgewählt“ für VoiceOver.
+    private var ratePicker: some View {
+        Picker("Geschwindigkeit", selection: Binding(get: { player.rate },
+                                                     set: { player.rate = $0; choosing = nil })) {
+            ForEach(Self.rates, id: \.self) { rate in
+                Text("\(Double(rate).formatted(.number.precision(.fractionLength(1))))×").tag(rate)
+            }
+        }
+        .pickerStyle(.inline)
+    }
+
+    /// „Aus“ steht oben und trägt das Häkchen, solange kein Timer läuft.
+    /// „Ende des Kapitels“ gibt es nur in Folgen mit Kapiteln. Grau und
+    /// ohne Grund verwirrte der Eintrag.
+    private var sleepPicker: some View {
+        Picker("Schlaf-Timer", selection: Binding(get: { player.sleepTimer },
+                                                  set: { player.setSleepTimer($0); choosing = nil })) {
+            Text("Aus").tag(EpisodePlayer.SleepTimer?.none)
+            ForEach([5, 15, 30, 45, 60], id: \.self) { minutes in
+                Text(Duration.seconds(minutes * 60), format: .units(allowed: [.minutes], width: .wide))
+                    .tag(EpisodePlayer.SleepTimer?.some(.minutes(minutes)))
+            }
+            if !player.chapters.isEmpty {
+                Text("Ende des Kapitels").tag(EpisodePlayer.SleepTimer?.some(.endOfChapter))
+            }
+            Text("Ende der Folge").tag(EpisodePlayer.SleepTimer?.some(.endOfEpisode))
+        }
+        .pickerStyle(.inline)
+    }
+
+    private var rateMenu: some View {
+        Menu { ratePicker } label: { rateLabel }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
+            .accessibilityLabel("Geschwindigkeit")
+            .accessibilityValue(rateValue)
     }
 
     private var sleepMenu: some View {
-        Menu {
-            ForEach([5, 15, 30, 45, 60], id: \.self) { minutes in
-                Button { player.setSleepTimer(.minutes(minutes)) } label: {
-                    Text(Duration.seconds(minutes * 60), format: .units(allowed: [.minutes], width: .wide))
-                }
-            }
-            Button("Ende des Kapitels") { player.setSleepTimer(.endOfChapter) }
-                .disabled(player.chapters.isEmpty)
-            Button("Ende der Folge") { player.setSleepTimer(.endOfEpisode) }
-            if player.sleepTimer != nil {
-                Divider()
-                Button("Schlaf-Timer aus", role: .destructive) { player.setSleepTimer(nil) }
-            }
-        } label: {
-            Label(sleepLabel, systemImage: player.sleepTimer == nil ? "moon" : "moon.fill")
-                .font(.footnote)
-                .padding(.horizontal, Design.Spacing.control)
-                .padding(.vertical, Design.Spacing.small)
+        Menu { sleepPicker } label: { sleepLabelView }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
+            .accessibilityLabel("Schlaf-Timer")
+            .accessibilityValue(sleepValue)
+    }
+
+    /// Name und Wert stehen auch an der Beschriftung. Ein Menü im Inhalt
+    /// bringt dafür einen eigenen Knopf mit, der sonst leer blieb.
+    private var rateLabel: some View {
+        Label {
+            Text("\(Double(player.rate).formatted(.number.precision(.fractionLength(1))))×")
+        } icon: {
+            Image(systemName: "speedometer").accessibilityHidden(true)
         }
-        .buttonStyle(.glass)
-        .buttonBorderShape(.capsule)
+        .optionLabel()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Geschwindigkeit")
+        .accessibilityValue(rateValue)
+    }
+
+    private var sleepLabelView: some View {
+        Label {
+            Text(sleepLabel)
+        } icon: {
+            Image(systemName: player.sleepTimer == nil ? "moon" : "moon.fill").accessibilityHidden(true)
+        }
+        .optionLabel()
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Schlaf-Timer")
+        .accessibilityValue(sleepValue)
+    }
+
+    /// „1,0-fach“.
+    private var rateValue: Text {
+        Text("\(Double(player.rate).formatted(.number.precision(.fractionLength(1))))-fach")
+    }
+
+    /// „Aus“, „noch 26 Minuten“ oder „Ende der Folge“.
+    private var sleepValue: Text {
+        guard let timer = player.sleepTimer else { return Text("Aus") }
+        if case .minutes = timer, let remaining = player.sleepRemaining {
+            let minutes = max(1, Int(remaining / 60 + 0.5))
+            return Text("noch \(Duration.seconds(minutes * 60).formatted(.units(allowed: [.minutes], width: .wide)))")
+        }
+        return Text(timer.label)
     }
 
     private var sleepLabel: String {
@@ -1310,6 +1574,14 @@ struct EpisodePlayerView: View {
                             .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                             .multilineTextAlignment(.leading)
                         Spacer()
+                        // Nicht nur Farbe: das laufende Kapitel trägt ein Zeichen,
+                        // und VoiceOver sagt „läuft gerade“.
+                        if isCurrent {
+                            Image(systemName: "speaker.wave.2.fill")
+                                .font(.caption)
+                                .foregroundStyle(.tint)
+                                .accessibilityHidden(true)
+                        }
                     }
                     .padding(.vertical, Design.Spacing.control)
                     .padding(.horizontal, Design.Spacing.control)
@@ -1318,6 +1590,8 @@ struct EpisodePlayerView: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
+                .accessibilityValue(isCurrent ? Text("läuft gerade") : Text(verbatim: ""))
+                .accessibilityAddTraits(isCurrent ? .isSelected : [])
                 if !isCurrent { Divider() }
             }
         }
@@ -1365,14 +1639,22 @@ struct EpisodeMiniBar: View {
                 }
                 .buttonStyle(.pressable)
                 .accessibilityLabel(player.isPlayingOrStarting ? "Pausieren" : "Fortsetzen")
+                .accessibilityShowsLargeContentViewer()
 
-                Button { player.skip(by: 30) } label: {
-                    Image(systemName: "goforward.30").tappableArea()
+                // Zurück statt vor: wer etwas verpasst hat, will es noch einmal hören.
+                Button { player.skipBack() } label: {
+                    Image(systemName: "gobackward.\(player.skipBackward)").tappableArea()
                 }
                 .buttonStyle(.pressable)
-                .accessibilityLabel("30 Sekunden vor")
+                .accessibilityLabel("\(player.skipBackward) Sekunden zurück")
+                .accessibilityShowsLargeContentViewer()
             }
             .padding(.horizontal, Design.Spacing.control)
+            // Die Leiste über der Tab Bar hat eine feste Höhe. Mit sehr großer
+            // Schrift ragte sie über den Inhalt, verdeckte dort „Pause“ und
+            // schnitt die eigene Zeit ab. Größer als hier wird sie nicht,
+            // die Knöpfe zeigen dann beim Gedrückthalten die große Ansicht.
+            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .sheet(isPresented: $showingPlayer) {
                 EpisodePlayerView()
                     .environment(model)
@@ -1437,52 +1719,10 @@ struct QueueView: View {
                 Text("Als Nächstes hören")
             }
 
-            Section {
-                if let current = model.analyzing {
-                    NavigationLink { EpisodeDetailView(episode: current) } label: {
-                        QueueRow(episode: current,
-                                 detail: model.stages[current.id].map { stage in
-                                     model.stageDetails[current.id].map { String(localized: "\(stage.label) · \($0)") }
-                                         ?? stage.label
-                                 } ?? String(localized: "startet"))
-                    }
-                }
-                ForEach(model.analysisQueue) { episode in
-                    // Der echte Grund: auf WLAN, auf einen zweiten Versuch oder einfach der Reihe nach.
-                    QueueRow(episode: episode, detail: model.stageDetails[episode.id] ?? String(localized: "wartet"))
-                        .swipeActions {
-                            Button("Entfernen", role: .destructive) { model.removeFromAnalysisQueue(episode.id) }
-                        }
-                        .contextMenu {
-                            Button(role: .destructive) { model.removeFromAnalysisQueue(episode.id) } label: {
-                                Label("Entfernen", systemImage: "minus.circle")
-                            }
-                        }
-                }
-                .onMove { model.moveAnalysisQueue(from: $0, to: $1) }
-                .onDelete { offsets in
-                    let ids = offsets.map { model.analysisQueue[$0].id }
-                    ids.forEach(model.removeFromAnalysisQueue)
-                }
-                if model.analyzing == nil && model.analysisQueue.isEmpty {
-                    Text("""
-                        Nichts in Arbeit. Das Transkript einer Folge erstellst du in der Folge selbst. \
-                        Für mehrere Folgen tippst du in der Folgenliste eines Podcasts auf „Auswählen“.
-                        """)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("Transkripte erstellen")
-            } footer: {
-                if let unavailable = model.preparationUnavailable {
-                    Text("Transkripte für neue Folgen erstellt die App gerade nicht. \(unavailable)")
-                } else {
-                    Text("""
-                        Die App erstellt ein Transkript nach dem anderen. Auf dem iPhone geht die Arbeit \
-                        im Hintergrund weiter, solange die Fortschrittsanzeige des Systems zu sehen ist.
-                        """)
-                }
+            // Transkripte erscheinen hier nur, solange welche entstehen. Sonst
+            // stand unter den Folgen ein Block, der mit dem Hören nichts zu tun hat.
+            if model.analyzing != nil || !model.analysisQueue.isEmpty {
+                transcriptSection
             }
 
             if model.gatheringFacts != nil || !model.factsQueue.isEmpty {
@@ -1493,6 +1733,48 @@ struct QueueView: View {
         #if os(iOS)
         .toolbar { EditButton() }
         #endif
+    }
+
+    private var transcriptSection: some View {
+        Section {
+            if let current = model.analyzing {
+                NavigationLink { EpisodeDetailView(episode: current) } label: {
+                    QueueRow(episode: current,
+                             detail: model.stages[current.id].map { stage in
+                                 model.stageDetails[current.id].map { String(localized: "\(stage.label) · \($0)") }
+                                     ?? stage.label
+                             } ?? String(localized: "startet"))
+                }
+            }
+            ForEach(model.analysisQueue) { episode in
+                // Der echte Grund: auf WLAN, auf einen zweiten Versuch oder einfach der Reihe nach.
+                QueueRow(episode: episode, detail: model.stageDetails[episode.id] ?? String(localized: "wartet"))
+                    .swipeActions {
+                        Button("Entfernen", role: .destructive) { model.removeFromAnalysisQueue(episode.id) }
+                    }
+                    .contextMenu {
+                        Button(role: .destructive) { model.removeFromAnalysisQueue(episode.id) } label: {
+                            Label("Entfernen", systemImage: "minus.circle")
+                        }
+                    }
+            }
+            .onMove { model.moveAnalysisQueue(from: $0, to: $1) }
+            .onDelete { offsets in
+                let ids = offsets.map { model.analysisQueue[$0].id }
+                ids.forEach(model.removeFromAnalysisQueue)
+            }
+        } header: {
+            Text("Transkripte erstellen")
+        } footer: {
+            if let unavailable = model.preparationUnavailable {
+                Text("Transkripte für neue Folgen erstellt die App gerade nicht. \(unavailable)")
+            } else {
+                Text("""
+                    Die App erstellt ein Transkript nach dem anderen. Auf dem iPhone geht die Arbeit \
+                    im Hintergrund weiter, solange die Fortschrittsanzeige des Systems zu sehen ist.
+                    """)
+            }
+        }
     }
 
     /// Was nach dem Transkript noch Fakten bekommt. Läuft neben den
@@ -1797,6 +2079,8 @@ struct NoteSheet: View {
                 Section {
                     TextField("Was ist dir hier wichtig? (freiwillig)", text: $text, axis: .vertical)
                         .lineLimit(3...8)
+                        // Der Platzhalter verschwindet beim Tippen. Der Name bleibt.
+                        .accessibilityLabel("Notiz")
                         .accessibilityIdentifier("note.text")
                 } header: {
                     if let position {

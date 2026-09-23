@@ -101,7 +101,7 @@ struct ChatView: View {
             }
             .buttonStyle(.pressable)
             .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || isAsking)
-            .accessibilityLabel("Frage senden")
+            .accessibilityLabel(isAsking ? "Antwort wird gesucht …" : "Frage senden")
             .accessibilityIdentifier("chat.send")
         }
         .padding(.horizontal, Design.Spacing.standard)
@@ -203,8 +203,16 @@ struct ScopeBar: View {
                 }
                 .pickerStyle(.menu)
             } label: {
-                Label(summary, systemImage: "scope")
-                    .lineLimit(1)
+                // Name auch an der Beschriftung: ein Menü im Inhalt bringt
+                // einen eigenen Knopf dafür mit, der sonst leer blieb.
+                Label {
+                    Text(summary)
+                } icon: {
+                    Image(systemName: "scope").accessibilityHidden(true)
+                }
+                .lineLimit(1)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Bereich: \(summary)")
             }
             .accessibilityLabel("Bereich: \(summary)")
             .accessibilityIdentifier("chat.scope")
@@ -343,9 +351,13 @@ struct AnswerCard: View {
                         copy(answer.text)
                     } label: { Label("Antwort kopieren", systemImage: "doc.on.doc") }
                 } label: {
-                    Image(systemName: "ellipsis.circle").tappableArea()
+                    // Das Symbol hiess für VoiceOver nur „Weitere“.
+                    Image(systemName: "ellipsis.circle")
+                        .tappableArea()
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Antwort teilen oder kopieren")
                 }
-                .accessibilityLabel("Antwort teilen")
+                .accessibilityLabel("Antwort teilen oder kopieren")
             }
 
             Text(answer.text)
@@ -397,8 +409,13 @@ struct AnswerCard: View {
                 Button {
                     model.park(answer)
                 } label: {
-                    Label(saveLabel, systemImage: isParked ? "checkmark.circle" : "map")
-                        .frame(minHeight: Design.minimumTapTarget)
+                    // Das Symbol ist Schmuck. VoiceOver las „Karte einblenden“.
+                    Label {
+                        Text(saveLabel)
+                    } icon: {
+                        Image(systemName: isParked ? "checkmark.circle" : "map").accessibilityHidden(true)
+                    }
+                    .frame(minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.borderless)
                 .disabled(isParked)
