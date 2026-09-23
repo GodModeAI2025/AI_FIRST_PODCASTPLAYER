@@ -22,6 +22,7 @@
 		2114FC258323A34C2765D0D7 /* MediaReuseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90521683E4277BA42BBC35C4 /* MediaReuseTests.swift */; };
 		242A24F2E5A7F70C80ABF39A /* PerspectiveViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 836837907B235F34C0D7B37A /* PerspectiveViews.swift */; };
 		2690DE20EFA1D8D94C42ED4D /* HelpViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 531481C01390313A3628023E /* HelpViews.swift */; };
+		281E073128C76F345B4DD128 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B8BCDAB85486C1F8AA3B42EA /* Localizable.xcstrings */; };
 		2A4A0EBF4403FC44F664DE0E /* AppBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948480C17E0B8900F3A54E83 /* AppBootstrap.swift */; };
 		2F42E6086EA3CFAFA1AD80F5 /* BackgroundContinuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25D580C4FDDA033A4D36B09 /* BackgroundContinuation.swift */; };
 		30EF56FB0D392A4344BAE04E /* PlanningContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56ED3EE14562899B30A5330 /* PlanningContext.swift */; };
@@ -93,6 +94,7 @@
 		EB196726340814512BA3A711 /* BackgroundWork.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7559EDE9F251C1BD2FB8E6C /* BackgroundWork.swift */; };
 		ED007FAF5D505809947A08DD /* InterestPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C51C37619544003228BF8 /* InterestPersistenceTests.swift */; };
 		EE129AC4E2EE4BAE98FF84E9 /* MacMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB32EDEA5B02F6B27DE92EB8 /* MacMain.swift */; };
+		F29E12F83AC2656BA0D19A3E /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B8BCDAB85486C1F8AA3B42EA /* Localizable.xcstrings */; };
 		F41F54448C1C85BAB1ED1E4A /* LateWriteAndRejectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECC7B2DA4FC79C3CA93FE3B /* LateWriteAndRejectionTests.swift */; };
 		F4C8DC8BD355AD0976F791C2 /* BetaFeedback03UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A323EEBF0E9BF5744EE4F224 /* BetaFeedback03UITests.swift */; };
 		F4EF197C7BD9E9A22E00E927 /* PersonaFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBEE768FADEADDB8A6CD8CA6 /* PersonaFlowsUITests.swift */; };
@@ -162,6 +164,7 @@
 		AE3DEDB1A7C508B8E298DC2B /* SyncMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMergeTests.swift; sourceTree = "<group>"; };
 		B028E6CFAA38A2071402BF48 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B56ED3EE14562899B30A5330 /* PlanningContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningContext.swift; sourceTree = "<group>"; };
+		B8BCDAB85486C1F8AA3B42EA /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		BB35B8C91F743C491DA753DE /* PodcastAIMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PodcastAIMac.entitlements; sourceTree = "<group>"; };
 		BF72E0A8E0D7DD1DE3249856 /* PodcastAI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PodcastAI.entitlements; sourceTree = "<group>"; };
 		C1CB73B1C68359276B4EFE5E /* PodcastAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodcastAIApp.swift; sourceTree = "<group>"; };
@@ -276,6 +279,7 @@
 				ADA2CFB6537ED27DB238E866 /* Intents.swift */,
 				F8E1E18C611EA7BA5BC5A810 /* KnowledgeHubView.swift */,
 				40D86CC1E395802F6CBB0634 /* ListeningViews.swift */,
+				B8BCDAB85486C1F8AA3B42EA /* Localizable.xcstrings */,
 				836837907B235F34C0D7B37A /* PerspectiveViews.swift */,
 				B56ED3EE14562899B30A5330 /* PlanningContext.swift */,
 				145839AE5F835BA91C11390C /* PrivacyInfo.xcprivacy */,
@@ -476,11 +480,11 @@
 				};
 			};
 			buildConfigurationList = 1949C8FA4C63AB3D33970AF1 /* Build configuration list for PBXProject "PodcastAI" */;
-			developmentRegion = en;
+			developmentRegion = de;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
-				en,
+				de,
 			);
 			mainGroup = 068AFF34461F9495F5BB41F6;
 			minimizedProjectReferenceProxies = 1;
@@ -506,6 +510,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				193AB6EAD7B8FB5062925FD3 /* Assets.xcassets in Resources */,
+				F29E12F83AC2656BA0D19A3E /* Localizable.xcstrings in Resources */,
 				498182154F103090A7040E0E /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -515,6 +520,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				03BBF69F1144971BFADEB132 /* Assets.xcassets in Resources */,
+				281E073128C76F345B4DD128 /* Localizable.xcstrings in Resources */,
 				8ED10D317026F8F52AEB9125 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -719,6 +725,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.6.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -726,6 +733,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;
@@ -853,12 +861,14 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.6.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_TREAT_WARNINGS_AS_ERRORS = NO;

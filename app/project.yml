@@ -19,6 +19,7 @@ options:
     macOS: "26.0"
   createIntermediateGroups: true
   defaultConfig: Release
+  developmentLanguage: de
 
 settings:
   base:
@@ -32,6 +33,8 @@ settings:
     ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    SWIFT_EMIT_LOC_STRINGS: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
 
 packages:
   PodcastAIKit:
