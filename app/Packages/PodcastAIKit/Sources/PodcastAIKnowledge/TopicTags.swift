@@ -46,7 +46,7 @@ public struct TopicTagger: Sendable {
     /// - Parameters:
     ///   - statements: die Aussagen der Folge, also die Fakten.
     ///   - passages: die Belege der Folge.
-    ///   - profile: das Interessenprofil. Nur bestätigte Interessen zählen.
+    ///   - profile: das Interessenprofil. Nur bestätigte Themen zählen.
     public func tags(statements: [String], passages: [Evidence], profile: InterestProfile) -> [TopicTag] {
         let interests = interestTags(passages: passages, profile: profile)
         let covered = Set(interests.flatMap { tag in
@@ -59,15 +59,19 @@ public struct TopicTagger: Sendable {
 
     // MARK: - Eigene Interessen
 
-    /// Interessen, zu denen die Folge etwas sagt. Bei kurzen Folgen genügt
+    /// Themen, zu denen die Folge etwas sagt. Bei kurzen Folgen genügt
     /// eine Stelle, sonst braucht es zwei, damit ein Nebensatz kein Thema macht.
+    ///
+    /// Nur Interessen der Art Thema. Offene Fragen und Vorhaben sind ganze
+    /// Sätze wie „Welche Möglichkeiten bietet iOS 27 für agentische Apps?“
+    /// und taugen nicht als Schlagwort.
     func interestTags(passages: [Evidence], profile: InterestProfile) -> [TopicTag] {
         let needed = passages.count < 8 ? 1 : 2
         var hits: [InterestID: Set<EvidenceID>] = [:]
         for match in RelevanceScorer().score(evidence: passages, profile: profile) {
             hits[match.interestID, default: []].insert(match.evidenceID)
         }
-        return profile.confirmed
+        return profile.topics
             .filter { (hits[$0.id]?.count ?? 0) >= needed }
             .sorted { lhs, rhs in
                 let left = hits[lhs.id]?.count ?? 0, right = hits[rhs.id]?.count ?? 0
@@ -82,6 +86,13 @@ public struct TopicTagger: Sendable {
     /// Hauptwörter aus den Aussagen. Erkannt am grossen Anfangsbuchstaben
     /// mitten im Satz; das trägt im Deutschen weit, im Englischen bleiben
     /// Namen übrig, und auch die sind brauchbare Schlagworte.
+    ///
+    /// Ein Schlagwort steht in der kürzesten Form, die die Folge belegt:
+    /// „Sprachmodell“, wenn irgendwo „Sprachmodell“ fällt, auch wenn die
+    /// Aussagen nur „bei Sprachmodellen“ sagen. Wer darauf tippt, legt diese
+    /// Form als Interesse an, und die trifft am Wortanfang alle längeren
+    /// Formen. Mit „Sprachmodellen“ als Interesse blieben „Sprachmodell“
+    /// und „Sprachmodelle“ ohne Treffer.
     func nounTags(statements: [String], passages: [Evidence]) -> [TopicTag] {
         // Normalisierter Begriff → wie er zuerst geschrieben stand, und in
         // welchen Aussagen er vorkommt.
@@ -96,24 +107,40 @@ public struct TopicTagger: Sendable {
             }
         }
 
-        // Einzahl und Mehrzahl zusammenlegen: „Batterie“ und „Batterien“
-        // sind ein Thema. Es bleibt die kürzere Form.
-        let keys = inStatements.keys.sorted { $0.count != $1.count ? $0.count < $1.count : $0 < $1 }
-        var root: [String: String] = [:]
-        for key in keys {
-            root[key] = keys.first { Self.isVariant(key, of: $0) } ?? key
-        }
-        var grouped: [String: Set<Int>] = [:]
-        for (key, indices) in inStatements { grouped[root[key] ?? key, default: []].formUnion(indices) }
-
+        // Was in Aussagen und Belegen steht, normalisiert und mit Leerzeichen
+        // an beiden Enden, dazu die einzelnen Wörter.
         let padded = passages.map { " " + RelevanceScorer.normalize($0.quotedText) + " " }
+        let texts = statements.map { " " + RelevanceScorer.normalize($0) + " " } + padded
+        let words = Set(texts.flatMap { $0.split(separator: " ").map(String.init) })
+        let occurs: (String) -> Bool = { form in
+            form.contains(" ") ? texts.contains { $0.contains(" \(form) ") } : words.contains(form)
+        }
+
+        // Einzahl, Mehrzahl und Fälle zusammenlegen: „Batterie“ und
+        // „Batterien“ sind ein Thema. Kürzere Schlüssel zuerst, damit die
+        // Schreibweise möglichst schon die Grundform ist.
+        let keys = inStatements.keys.sorted { $0.count != $1.count ? $0.count < $1.count : $0 < $1 }
+        var grouped: [String: Set<Int>] = [:]
+        var label: [String: String] = [:]
+        for key in keys {
+            let base = Self.baseForm(of: key, occurs: occurs)
+            // Ist die Grundform ein Allerweltswort („Punkt“ zu „Punkten“),
+            // ist es auch die gebeugte Form.
+            guard Self.isUsable(base) else { continue }
+            grouped[base, default: []].formUnion(inStatements[key] ?? [])
+            if label[base] == nil {
+                let written = spelling[key] ?? key
+                label[base] = String(written.dropLast(key.count - base.count))
+            }
+        }
+
         var scored: [(label: String, facts: Int, passages: Int)] = []
-        for (key, indices) in grouped {
+        for (base, indices) in grouped {
             let inPassages = padded.filter { text in
-                Self.suffixes.contains { text.contains(" \(key)\($0) ") }
+                Self.suffixes.contains { text.contains(" \(base)\($0) ") }
             }.count
             guard indices.count >= 2 || inPassages >= 3 else { continue }
-            scored.append((spelling[key] ?? key, indices.count, inPassages))
+            scored.append((label[base] ?? base, indices.count, inPassages))
         }
         return scored
             .sorted { lhs, rhs in
@@ -121,6 +148,23 @@ public struct TopicTagger: Sendable {
                 return left != right ? left > right : lhs.label < rhs.label
             }
             .map { TopicTag(label: $0.label) }
+    }
+
+    /// Die kürzeste Form eines Begriffs, die entsteht, wenn eine Endung aus
+    /// ``suffixes`` wegfällt, und die selbst in der Folge vorkommt. Sonst der
+    /// Begriff, wie er ist.
+    ///
+    /// Nur belegte Formen, nichts Erfundenes: aus „Batterien“ wird
+    /// „Batterie“, aber nie „Batteri“, und „Unternehmen“ bleibt, auch wenn
+    /// „Unternehmer“ vorkommt. Eine Form unter fünf Buchstaben zählt nicht,
+    /// sonst würde aus „Daten“ ein „Date“.
+    static func baseForm(of key: String, occurs: (String) -> Bool) -> String {
+        suffixes
+            .filter { !$0.isEmpty && key.hasSuffix($0) }
+            .map { String(key.dropLast($0.count)) }
+            .filter { $0.filter(\.isLetter).count >= 5 && occurs($0) }
+            .min { $0.count != $1.count ? $0.count < $1.count : $0 < $1 }
+            ?? key
     }
 
     /// Wörter mit grossem Anfangsbuchstaben, die nicht am Satzanfang stehen.
@@ -149,11 +193,6 @@ public struct TopicTagger: Sendable {
     }
 
     static let suffixes = ["", "n", "en", "e", "s", "es", "er"]
-
-    static func isVariant(_ key: String, of base: String) -> Bool {
-        guard key != base, key.hasPrefix(base) else { return false }
-        return suffixes.contains(String(key.dropFirst(base.count)))
-    }
 
     static func isCovered(_ key: String, by words: Set<String>) -> Bool {
         key.split(separator: " ").contains { part in
