@@ -77,6 +77,10 @@ struct RootView: View {
     @State private var selection: Area = .forYou
     @State private var showingQueue = false
     @State private var showingOnboarding = OnboardingView.shouldShow
+    /// „Zeig es mir“ aus der Hilfe: je Tab ein Zähler. Steigt er, baut der
+    /// Tab seine Navigation neu auf und zeigt sich von vorn. Nur nötig, wenn
+    /// die Hilfe im Ziel-Tab selbst liegt, sonst bliebe sie offen.
+    @State private var stackResets: [Area: Int] = [:]
 
     /// Nicht `Tab` genannt: das verdeckte `SwiftUI.Tab` im eigenen
     /// Gültigkeitsbereich, und die Aufrufe darunter hätten versucht, das
@@ -93,10 +97,12 @@ struct RootView: View {
             }
             Tab("Themen-Updates", systemImage: "waveform.circle", value: Area.feeds) {
                 NavigationStack { SmartFeedListView() }
+                    .id(stackResets[.feeds, default: 0])
                     .activityBanner { showingQueue = true }
             }
             Tab("Meine Podcasts", systemImage: "books.vertical", value: Area.library) {
                 NavigationStack { LibraryView() }
+                    .id(stackResets[.library, default: 0])
                     .activityBanner { showingQueue = true }
             }
             Tab("Wissen", systemImage: "brain", value: Area.knowledge) {
@@ -107,6 +113,7 @@ struct RootView: View {
             // bleibt ganz rechts, wo früher die Lupe stand.
             Tab("Chat", systemImage: "bubble.left.and.bubble.right", value: Area.ask) {
                 NavigationStack { ChatView() }
+                    .id(stackResets[.ask, default: 0])
                     .activityBanner { showingQueue = true }
             }
         }
@@ -143,6 +150,28 @@ struct RootView: View {
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView().sheetFeedback().environment(model)
         }
+        .environment(\.showInApp, ShowInAppAction { jump in show(jump) })
+    }
+
+    // MARK: „Zeig es mir“ aus der Hilfe
+
+    /// Wechselt in den Tab, den die Hilfe zeigen will. Was unter „Wissen“
+    /// oder in den Einstellungen liegt, öffnet die Hilfe selbst.
+    private func show(_ jump: HelpJump) {
+        let area: Area
+        switch jump {
+        case .library: area = .library
+        case .chat: area = .ask
+        case .topicUpdates: area = .feeds
+        case .queue:
+            showingQueue = true
+            return
+        case .highlights, .trails, .counterpoints, .interests, .addPodcast, .settings, .privacy:
+            return
+        }
+        // Andere Tabs bleiben, wie sie waren, etwa mit einer Frage im Chat.
+        if selection == area { stackResets[area, default: 0] += 1 }
+        selection = area
     }
 }
 

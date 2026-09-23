@@ -1015,6 +1015,22 @@
         }
       }
     },
+    "Abonnieren, auch per Link": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abonnieren, auch per Link"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe, also by link"
+          }
+        }
+      }
+    },
     "Abonniert": {
       "localizations": {
         "de": {
@@ -1417,6 +1433,54 @@
         }
       }
     },
+    "Aktuelle Vorhaben": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuelle Vorhaben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Projects"
+          }
+        }
+      }
+    },
+    "Aktuelles Vorhaben": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuelles Vorhaben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Project"
+          }
+        }
+      }
+    },
+    "Alle": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
     "Alle %lld Fakten": {
       "localizations": {
         "de": {
@@ -1573,6 +1637,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Refresh All Podcasts"
+          }
+        }
+      }
+    },
+    "Alle Stufen zeigen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Stufen zeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show All Levels"
           }
         }
       }
@@ -2028,6 +2108,22 @@
         }
       }
     },
+    "Antworten sichern": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antworten sichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Answers"
+          }
+        }
+      }
+    },
     "Antworten und Fakten mit Apple Intelligence": {
       "localizations": {
         "de": {
@@ -2200,6 +2296,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Working"
+          }
+        }
+      }
+    },
+    "Art": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Art"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type"
           }
         }
       }
@@ -3810,6 +3922,22 @@
         }
       }
     },
+    "Den Text zur Folge nutzen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Den Text zur Folge nutzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use an episode's text"
+          }
+        }
+      }
+    },
     "Der Agentenzugang ist ausgeschaltet. Einschalten lässt er sich in PodcastAI unter Einstellungen › Agenten.": {
       "localizations": {
         "de": {
@@ -5155,6 +5283,22 @@
         }
       }
     },
+    "Eigene Folgen aus deinen Interessen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eigene Folgen aus deinen Interessen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Episodes built from your interests"
+          }
+        }
+      }
+    },
     "Ein Ausschnitt aus einer Folge, den du dir mit Zeitmarke gemerkt hast, auf Wunsch mit Notiz. Du findest sie unter „Gemerkte Stellen“.": {
       "localizations": {
         "de": {
@@ -5183,6 +5327,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "One source passage is no longer available."
+          }
+        }
+      }
+    },
+    "Ein Gebiet, das dich dauerhaft interessiert. Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Gebiet, das dich dauerhaft interessiert. Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A subject you're interested in over the long term. Topics fill \"For You\" and are the basis for Topic Updates."
           }
         }
       }
@@ -5443,6 +5603,22 @@
         }
       }
     },
+    "Eine konkrete Frage, auf die du eine Antwort suchst. „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, bei längeren Fragen mindestens zwei.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine konkrete Frage, auf die du eine Antwort suchst. „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, bei längeren Fragen mindestens zwei."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A specific question you want answered. \"For You\" shows passages that contain important words from the question, at least two for longer questions."
+          }
+        }
+      }
+    },
     "Eine neue Ausgabe entsteht von selbst, sobald mindestens %@ neues Material zu den Themen da ist und du die letzte Ausgabe gehört hast oder sie älter als %lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material.": {
       "localizations": {
         "de": {
@@ -5487,6 +5663,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Clear Text"
+          }
+        }
+      }
+    },
+    "Einsteiger": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einsteiger"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beginner"
           }
         }
       }
@@ -5727,6 +5919,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Created %@"
+          }
+        }
+      }
+    },
+    "Etwas, woran du gerade arbeitest. Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etwas, woran du gerade arbeitest. Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something you're working on right now. Matching passages appear in \"For You\" ahead of equally good matches for your topics."
+          }
+        }
+      }
+    },
+    "Experten": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Experten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expert"
           }
         }
       }
@@ -6133,6 +6357,22 @@
         }
       }
     },
+    "Fortgeschrittene": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortgeschrittene"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Advanced"
+          }
+        }
+      }
+    },
     "Fortgeschrittene: verstehen": {
       "localizations": {
         "de": {
@@ -6321,6 +6561,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ask"
+          }
+        }
+      }
+    },
+    "Fragen an deine Podcasts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragen an deine Podcasts"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questions for your podcasts"
           }
         }
       }
@@ -7429,6 +7685,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "In Chat, you ask all your podcasts at once. In an episode, \"Ask\" asks just that one. Every answer shows the passage in the original. You can export everything as text, for example to your notes."
+          }
+        }
+      }
+    },
+    "Im Player tippst du auf „Moment merken“ und schreibst auf Wunsch eine Notiz dazu. Im Transkript, bei Fakten und im Chat heißt der Befehl „Stelle merken“. Alles liegt dann mit Zeitmarke unter Wissen › Gemerkte Stellen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Player tippst du auf „Moment merken“ und schreibst auf Wunsch eine Notiz dazu. Im Transkript, bei Fakten und im Chat heißt der Befehl „Stelle merken“. Alles liegt dann mit Zeitmarke unter Wissen › Gemerkte Stellen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the player, tap \"Save Moment\" and add a note if you like. In transcripts, facts, and Chat the command is \"Save Passage\". Everything then sits with its timestamp under Knowledge › Saved Moments."
           }
         }
       }
@@ -8620,6 +8892,22 @@
         }
       }
     },
+    "Mac und Agenten": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac und Agenten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac and Agents"
+          }
+        }
+      }
+    },
     "Mehr": {
       "localizations": {
         "de": {
@@ -8680,6 +8968,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save"
+          }
+        }
+      }
+    },
+    "Merken und sichern": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merken und sichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save and Keep"
           }
         }
       }
@@ -9822,6 +10126,38 @@
         }
       }
     },
+    "Offene Frage": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offene Frage"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Question"
+          }
+        }
+      }
+    },
+    "Offene Fragen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offene Fragen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Questions"
+          }
+        }
+      }
+    },
     "Ohne Auswahl sucht das Update in allen abonnierten Podcasts.": {
       "localizations": {
         "de": {
@@ -10027,6 +10363,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pause"
+          }
+        }
+      }
+    },
+    "Player und Warteschlange": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Player und Warteschlange"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Player and queue"
           }
         }
       }
@@ -10268,6 +10620,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Podcasts"
+          }
+        }
+      }
+    },
+    "Podcasts finden": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Podcasts finden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find Podcasts"
           }
         }
       }
@@ -10642,6 +11010,22 @@
         }
       }
     },
+    "Siri, Kurzbefehle und MCP": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siri, Kurzbefehle und MCP"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siri, Shortcuts, and MCP"
+          }
+        }
+      }
+    },
     "So funktioniert's": {
       "localizations": {
         "de": {
@@ -10735,6 +11119,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Storage"
+          }
+        }
+      }
+    },
+    "Speicher und Mobilfunk": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speicher und Mobilfunk"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Storage and Cellular Data"
           }
         }
       }
@@ -10931,6 +11331,22 @@
         }
       }
     },
+    "Springt in diesen Bereich der App": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Springt in diesen Bereich der App"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jumps to this part of the app"
+          }
+        }
+      }
+    },
     "Sprungweite vor": {
       "localizations": {
         "de": {
@@ -11055,6 +11471,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save Passage"
+          }
+        }
+      }
+    },
+    "Stellen merken": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stellen merken"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Moments"
           }
         }
       }
@@ -11219,6 +11651,22 @@
         }
       }
     },
+    "Stufe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stufe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Level"
+          }
+        }
+      }
+    },
     "Such deine Lieblingssendungen nach Namen und abonniere sie. Danach stehen hier neue Folgen und die Stellen zu deinen Themen.": {
       "localizations": {
         "de": {
@@ -11231,6 +11679,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search for shows you like by name and subscribe to them. New episodes and passages on your topics will then show up here."
+          }
+        }
+      }
+    },
+    "Such dir ein Thema aus. Mit den Stufen blendest du aus, was du noch nicht brauchst. „Zeig es mir“ bringt dich direkt dorthin.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Such dir ein Thema aus. Mit den Stufen blendest du aus, was du noch nicht brauchst. „Zeig es mir“ bringt dich direkt dorthin."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a topic. The levels hide what you don't need yet. \"Show Me\" takes you straight there."
           }
         }
       }
@@ -11379,6 +11843,22 @@
         }
       }
     },
+    "Thema": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thema"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Topic"
+          }
+        }
+      }
+    },
     "Thema %@": {
       "localizations": {
         "de": {
@@ -11487,6 +11967,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Topics Without Matches"
+          }
+        }
+      }
+    },
+    "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Topics, current projects, and open questions. \"For You\" is built from these."
           }
         }
       }
@@ -11700,6 +12196,22 @@
         }
       }
     },
+    "Tipps durchsuchen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tipps durchsuchen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search Tips"
+          }
+        }
+      }
+    },
     "Titel": {
       "localizations": {
         "de": {
@@ -11856,6 +12368,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Create Transcript Now"
+          }
+        }
+      }
+    },
+    "Transkript und Fakten": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkript und Fakten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcripts and Facts"
           }
         }
       }
@@ -12230,6 +12758,22 @@
         }
       }
     },
+    "Unter einer Antwort im Chat tippst du auf „Antwort sichern“. Sie liegt dann mit ihren Belegen unter Wissen › Gesicherte Antworten.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter einer Antwort im Chat tippst du auf „Antwort sichern“. Sie liegt dann mit ihren Belegen unter Wissen › Gesicherte Antworten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Below an answer in Chat, tap \"Save Answer\". It then sits with its source passages under Knowledge › Saved Answers."
+          }
+        }
+      }
+    },
     "Update abspielen": {
       "localizations": {
         "de": {
@@ -12579,6 +13123,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Why Only Episodes with a Transcript?"
+          }
+        }
+      }
+    },
+    "Was auf dem Gerät liegt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was auf dem Gerät liegt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's stored on your device"
+          }
+        }
+      }
+    },
+    "Was du behalten willst": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was du behalten willst"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What you want to keep"
           }
         }
       }
@@ -13000,6 +13576,22 @@
         }
       }
     },
+    "Wo deine Daten bleiben": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wo deine Daten bleiben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Where your data stays"
+          }
+        }
+      }
+    },
     "Wo sind sich die Gesprächspartner uneinig?": {
       "localizations": {
         "de": {
@@ -13112,6 +13704,22 @@
         }
       }
     },
+    "Wörter aus der App erklärt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wörter aus der App erklärt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Words from the app, explained"
+          }
+        }
+      }
+    },
     "YouTube liefert die Videoliste gerade nicht. Der Kanal ist angelegt, die Videos erscheinen beim nächsten Abgleich. Den passenden Audio-Podcast kannst du schon abonnieren.": {
       "localizations": {
         "de": {
@@ -13140,6 +13748,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "YouTube isn't returning any data for this channel right now. This happens with YouTube from time to time. Try again later or add the channel's audio podcast directly."
+          }
+        }
+      }
+    },
+    "Zeig es mir": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeig es mir"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Me"
           }
         }
       }
@@ -14445,6 +15069,22 @@
         }
       }
     },
+    "z. B. Lokale KI-Modelle bewerten": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "z. B. Lokale KI-Modelle bewerten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., Evaluate local AI models"
+          }
+        }
+      }
+    },
     "z. B. Mein KI Update": {
       "localizations": {
         "de": {
@@ -14457,6 +15097,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "e.g., My AI Update"
+          }
+        }
+      }
+    },
+    "z. B. Was bietet iOS 27 für agentische Apps?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "z. B. Was bietet iOS 27 für agentische Apps?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g., What does iOS 27 offer for agentic apps?"
           }
         }
       }

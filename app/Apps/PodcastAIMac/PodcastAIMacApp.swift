@@ -128,6 +128,9 @@ struct MacRootView: View {
     @State private var showingOnboarding = OnboardingView.shouldShow
     @State private var isAddingSource = false
     @State private var windowID = UUID()
+    /// „Zeig es mir“ aus der Hilfe: steigt die Zahl, baut der Inhalt seinen
+    /// Stapel neu auf. Sonst läge die Seite aus der Hilfe über dem Ziel.
+    @State private var helpJumps = 0
 
     /// Zeigt dieses Fenster, was die ganze App betrifft?
     private var isPresenter: Bool { windows.presenter == windowID }
@@ -226,6 +229,7 @@ struct MacRootView: View {
                     }
                 }
             }
+            .id(helpJumps)
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 0) {
                     // Über dem Mini-Player statt als Overlay darauf, sonst
@@ -256,6 +260,7 @@ struct MacRootView: View {
         .autoRefresh()
         .spotlightPassages()
         .environment(\.openQueue, { section = .queue })
+        .environment(\.showInApp, ShowInAppAction { jump in show(jump) })
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView().sheetFeedback().environment(model).frame(minWidth: 480, minHeight: 620)
         }
@@ -287,6 +292,27 @@ struct MacRootView: View {
                 .accessibilityLabel("Alle Podcasts aktualisieren")
             }
         }
+    }
+
+    // MARK: „Zeig es mir“ aus der Hilfe
+
+    /// Wählt den Eintrag in der Seitenleiste, den die Hilfe zeigen will.
+    /// Blatt, Einstellungsfenster und Datenschutz öffnet die Hilfe selbst.
+    private func show(_ jump: HelpJump) {
+        let target: Section
+        switch jump {
+        case .library: target = .library
+        case .queue: target = .queue
+        case .chat: target = .chat
+        case .topicUpdates: target = .feeds
+        case .highlights: target = .knowledge
+        case .trails: target = .trails
+        case .counterpoints: target = .perspective
+        case .interests: target = .interests
+        case .addPodcast, .settings, .privacy: return
+        }
+        helpJumps += 1
+        section = target
     }
 }
 
