@@ -146,7 +146,7 @@ public final class AppModel {
     /// Indexlauf müssen denselben Zustand sehen.
     public let spotlight = SpotlightIndex()
 
-    private let refresher: FeedRefresher
+    let refresher: FeedRefresher
     private let deviceID: String
 
     public init(store: LibraryStore, deviceID: String = AppModel.currentDeviceID()) {
@@ -382,6 +382,7 @@ public final class AppModel {
     public func subscribe(to input: String) async throws -> AddedSource {
         let added = try await refresher.addSource(from: input)
         sources = try await store.sources()
+        pruneSubscribedCounterparts(input: input)
         for source in sources where source.kind == .youTubeChannel && podcastCounterparts[source.id] == nil {
             await findPodcastCounterparts(for: source)
         }

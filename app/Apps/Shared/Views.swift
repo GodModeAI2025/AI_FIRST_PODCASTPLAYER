@@ -460,6 +460,7 @@ struct LibraryView: View {
 
     @Environment(AppModel.self) private var model
     @State private var showingAdd = false
+    @State private var importingOPML = false
     @State private var pendingRemoval: Source?
 
     var body: some View {
@@ -513,11 +514,25 @@ struct LibraryView: View {
             EpisodeListView(sourceID: sourceID)
         }
         .toolbar {
+            // Abos aus einer anderen App übernehmen oder mitnehmen.
+            Menu {
+                Button { importingOPML = true } label: {
+                    Label("Abos aus Datei importieren", systemImage: "square.and.arrow.down")
+                }
+                ShareLink(item: SubscriptionsExport(feeds: model.exportableFeeds),
+                          preview: SharePreview(SubscriptionsExport.fileName)) {
+                    Label("Abos exportieren (OPML)", systemImage: "square.and.arrow.up")
+                }
+                .disabled(model.exportableFeeds.isEmpty)
+            } label: {
+                Label("Abos importieren oder exportieren", systemImage: "arrow.up.arrow.down.circle")
+            }
             Button { showingAdd = true } label: {
                 Label("Quelle hinzufügen", systemImage: "plus")
             }
         }
         .sheet(isPresented: $showingAdd) { AddSourceSheet() }
+        .opmlImport(isPresented: $importingOPML)
         .overlay {
             if model.sources.isEmpty {
                 ContentUnavailableView {
@@ -527,6 +542,7 @@ struct LibraryView: View {
                          + "YouTube-Kanal hinzu.")
                 } actions: {
                     Button("Quelle hinzufügen") { showingAdd = true }
+                    Button("Abos aus Datei importieren") { importingOPML = true }
                 }
             }
         }
@@ -582,6 +598,7 @@ struct AddSourceSheet: View {
     @State private var addingLink = false
     @State private var added: [URL: Int] = [:]
     @State private var failure: String?
+    @State private var importingOPML = false
 
     private var trimmed: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isLink: Bool {
@@ -643,7 +660,21 @@ struct AddSourceSheet: View {
                 } else if let searchedTerm, searchedTerm == trimmed, !trimmed.isEmpty {
                     ContentUnavailableView.search(text: trimmed)
                 }
+
+                // Viele Abos auf einmal, aus der bisherigen Podcast-App.
+                if trimmed.isEmpty {
+                    Section {
+                        Button { importingOPML = true } label: {
+                            Label("Abos aus Datei importieren (OPML)", systemImage: "square.and.arrow.down")
+                        }
+                        .accessibilityIdentifier("source.importOPML")
+                    } footer: {
+                        Text("Overcast, Pocket Casts und die meisten anderen Podcast-Apps exportieren "
+                             + "ihre Abos als OPML-Datei. So kommen alle auf einmal herüber.")
+                    }
+                }
             }
+            .opmlImport(isPresented: $importingOPML) { dismiss() }
             .navigationTitle("Podcast hinzufügen")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -692,10 +723,20 @@ struct AddSourceSheet: View {
     private func search(_ term: String) async {
         searching = true
         defer { searching = false }
-        let found = await PodcastDirectory.search(term)
-        guard term == trimmed else { return }
-        results = found
-        searchedTerm = term
+        do {
+            let found = try await PodcastDirectory.search(term)
+            guard term == trimmed else { return }
+            results = found
+            searchedTerm = term
+        } catch is CancellationError {
+            return
+        } catch {
+            // Kein „Keine Ergebnisse“, wenn gar nicht gesucht werden konnte.
+            guard term == trimmed else { return }
+            results = []
+            searchedTerm = nil
+            failure = UserFacingError.describe(error)
+        }
     }
 
     private func subscribeLink() async {

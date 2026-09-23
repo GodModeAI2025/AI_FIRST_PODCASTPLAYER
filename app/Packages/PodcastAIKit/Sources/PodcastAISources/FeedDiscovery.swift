@@ -43,7 +43,7 @@ public enum FeedDiscovery {
             // `channel_id`. Eine öffentliche Playlist hat sie immer.
             return URL(string:
                 "https://www.youtube.com/feeds/videos.xml?playlist_id=\(playlistID)")
-        case .youTubeVideo, .webPageNeedingDiscovery, .localFile, .audioFile:
+        case .youTubeVideo, .youTubeChannelPage, .webPageNeedingDiscovery, .localFile, .audioFile:
             return nil
         }
     }
@@ -59,6 +59,8 @@ public enum FeedDiscovery {
         // Kanal — und der wird abonniert, nicht das einzelne Video. Das
         // steht auch so in der Oberfläche.
         case .youTubeVideo(_, let watchURL, _): watchURL
+        // Auf der Kanalseite steht die Kennung des Kanals.
+        case .youTubeChannelPage(_, let pageURL): pageURL
         case .podcastFeed, .youTubeChannel, .youTubePlaylist, .localFile, .audioFile: nil
         }
     }
@@ -100,8 +102,19 @@ public enum FeedDiscovery {
     /// erste, die eine gültige Kennung ergibt. Eine YouTube-Kanalkennung
     /// beginnt mit `UC` und ist 24 Zeichen lang — das wird geprüft, statt
     /// irgendeine Zeichenfolge zu übernehmen.
+    ///
+    /// Zuerst die Angaben, mit denen eine Kanalseite (`/@name`) sich selbst
+    /// benennt: kanonische Adresse, `og:url`, `identifier`, `externalId`.
+    /// Ein `"channelId"` im Seitenskript gehört dort oft einem empfohlenen
+    /// Kanal. Auf einer Videoseite zeigen kanonische Adresse und `og:url`
+    /// auf das Video, und `identifier` ist die Videokennung; diese Muster
+    /// greifen dort nicht.
     public static func youTubeChannelID(inHTML html: String) -> String? {
         let patterns = [
+            #"<link[^>]+rel=["']canonical["'][^>]+href=["'][^"']*/channel/(UC[A-Za-z0-9_-]{22})["']"#,
+            #"<meta[^>]+property=["']og:url["'][^>]+content=["'][^"']*/channel/(UC[A-Za-z0-9_-]{22})["']"#,
+            #"<meta[^>]+itemprop=["']identifier["'][^>]+content=["']([^"']+)["']"#,
+            #"["']externalId["']\s*:\s*["']([^"']+)["']"#,
             #"<meta[^>]+itemprop=["']channelId["'][^>]+content=["']([^"']+)["']"#,
             #"<meta[^>]+content=["']([^"']+)["'][^>]+itemprop=["']channelId["']"#,
             #"["']channelId["']\s*:\s*["']([^"']+)["']"#,

@@ -27,6 +27,9 @@ public enum ResolvedLink: Sendable, Equatable {
     case youTubeVideo(videoID: String, watchURL: URL, startTime: MediaTime?)
     /// Eine YouTube-Playlist.
     case youTubePlaylist(playlistID: String, url: URL)
+    /// Ein YouTube-Kanal über seinen Namen (`/@name`, `/c/name`, `/user/name`).
+    /// Die Kanalkennung steht nicht im Link, sie steht auf der Kanalseite.
+    case youTubeChannelPage(handle: String, pageURL: URL)
     /// Eine Webseite, hinter der ein Feed vermutet wird — muss abgerufen werden.
     case webPageNeedingDiscovery(URL)
     /// Eine lokale Datei.
@@ -36,7 +39,7 @@ public enum ResolvedLink: Sendable, Equatable {
 
     public var requiresNetworkDiscovery: Bool {
         switch self {
-        case .webPageNeedingDiscovery, .youTubeVideo, .youTubePlaylist: true
+        case .webPageNeedingDiscovery, .youTubeVideo, .youTubePlaylist, .youTubeChannelPage: true
         default: false
         }
     }
@@ -45,7 +48,6 @@ public enum ResolvedLink: Sendable, Equatable {
 public enum SourceResolutionError: Error, LocalizedError, Equatable {
     case unsupportedScheme(String)
     case notAURL
-    case youTubeHandleNeedsLookup(String)
 
     public var errorDescription: String? {
         switch self {
@@ -53,8 +55,6 @@ public enum SourceResolutionError: Error, LocalizedError, Equatable {
             "Links vom Typ „\(scheme)“ können nicht aufgenommen werden."
         case .notAURL:
             "Das ist keine gültige Adresse."
-        case .youTubeHandleNeedsLookup(let handle):
-            "Für „\(handle)“ muss die Kanalkennung erst abgerufen werden."
         }
     }
 }
@@ -158,14 +158,33 @@ public struct SourceResolver: Sendable {
         // /@handle, /c/<name>, /user/<name> — die Kanalkennung steht nicht im
         // Link. Sie wird über einen regulären Abruf der Kanalseite ermittelt,
         // nicht über einen fremden Auflösungsdienst.
-        if let first = segments.first, first.hasPrefix("@") {
-            throw SourceResolutionError.youTubeHandleNeedsLookup(first)
+        if let first = segments.first, first.hasPrefix("@"), isValidHandle(first.dropFirst()),
+           let page = channelPageURL(path: [first]) {
+            return .youTubeChannelPage(handle: first, pageURL: page)
         }
-        if segments.count >= 2, ["c", "user"].contains(segments[0]) {
-            throw SourceResolutionError.youTubeHandleNeedsLookup(segments[1])
+        if segments.count >= 2, ["c", "user"].contains(segments[0]), isValidHandle(segments[1][...]),
+           let page = channelPageURL(path: [segments[0], segments[1]]) {
+            return .youTubeChannelPage(handle: segments[1], pageURL: page)
         }
 
         return .webPageNeedingDiscovery(url)
+    }
+
+    /// Die Kanalseite ohne Anhängsel. Geteilte Links tragen `?si=…` oder
+    /// `?feature=…` und oft einen Reiter wie `/videos`; abgerufen wird nur
+    /// die Seite des Kanals selbst.
+    static func channelPageURL(path: [String]) -> URL? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "www.youtube.com"
+        components.path = "/" + path.joined(separator: "/")
+        return components.url
+    }
+
+    /// Kanalnamen bestehen aus Buchstaben, Ziffern, `_`, `-` und `.`.
+    static func isValidHandle(_ name: Substring) -> Bool {
+        (1...100).contains(name.count)
+            && name.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" || $0 == "." }
     }
 
     /// Kanalkennungen beginnen mit `UC` und sind 24 Zeichen lang.

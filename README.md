@@ -14,7 +14,7 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 
 | Bereich | Umfang |
 |---|---|
-| Abonnieren | Podcast-Feeds, Webseiten mit Feed, einzelne MP3-Links, YouTube-Kanäle über ihren Feed; zu YouTube-Kanälen findet die App den passenden Audio-Podcast |
+| Abonnieren | Podcast-Feeds, Webseiten mit Feed, einzelne MP3-Links, YouTube-Kanäle über ihren Feed oder einen @-Link; zu YouTube-Kanälen findet die App den passenden Audio-Podcast. Abos aus anderen Apps kommen per OPML-Datei herüber und lassen sich als OPML exportieren |
 | Hören | Tempo, ±15/30 Sekunden, Kapitel aus dem Feed, Schlaf-Timer, AirPlay, Sperrbildschirm, Warteschlange, Fortsetzung über Geräte hinweg |
 | Transkript | auf dem Gerät mit Apples Spracherkennung, mit Zeitmarken, durchsuchbar, Tipp springt an die Stelle |
 | Fakten | überprüfbare Aussagen je Folge, jede mit Zeitmarke |
