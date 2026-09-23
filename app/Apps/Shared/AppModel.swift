@@ -1102,26 +1102,53 @@ public final class AppModel {
 
     // MARK: - Wissen
 
-    /// Merkt sich die gerade laufende Stelle.
+    /// Merkt sich die gerade laufende Stelle, für Kurzbefehl und Fokus-Player.
     ///
-    /// Der Bereich entsteht rückwärts ab der aktuellen Position: wer
-    /// „merken“ drückt, hat das Interessante gerade gehört.
+    /// Derselbe Weg wie „Moment merken“ im Player: die Folge wird aus der
+    /// Medienfassung aufgelöst, und die Notiz trägt Zitat, Folge, Quelle und
+    /// Zeitmarke selbst. Wer die Folge schon kennt, etwa aus dem laufenden
+    /// Plan-Abschnitt, gibt `episodeID` mit.
     @discardableResult
     public func rememberPassage(
         at position: MediaTime, in mediaVersionID: MediaVersionID,
-        note: String?, via route: Highlight.CaptureRoute
+        episodeID: EpisodeID? = nil, note: String?, via route: Highlight.CaptureRoute
     ) async -> String {
-        let capture = HighlightCapture()
-        let range = capture.range(around: position, limit: nil)
+        let segment = playerPlan?.segments.first { $0.mediaVersionID == mediaVersionID && $0.range.contains(position) }
+            ?? playerPlan?.segments.first { $0.mediaVersionID == mediaVersionID }
+        if let episode = await episode(playing: mediaVersionID, id: episodeID ?? segment?.episodeID),
+           let highlight = await addNote(note, at: position.seconds, in: episode,
+                                         mediaVersionID: mediaVersionID, via: route) {
+            let time = MediaTime(milliseconds: Int64(highlight.positionMs ?? 0)).timecode
+            return "Gemerkt: \(time) in „\(episode.title)“."
+        }
+        // Die Folge ist nicht mehr da. Was der Plan über sie weiss, bleibt
+        // als Kopie, damit die Notiz nicht leer ist.
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let range = HighlightCapture().range(around: position, limit: nil)
         let highlight = Highlight(
             evidenceID: Evidence.stableID(
                 mediaVersionID: mediaVersionID, transcriptRevision: .initial, range: range
             ),
-            note: note, capturedVia: route, mediaVersionID: mediaVersionID
+            note: (trimmed?.isEmpty ?? true) ? nil : trimmed, capturedVia: route,
+            mediaVersionID: mediaVersionID, episodeID: episodeID ?? segment?.episodeID,
+            episodeTitle: segment?.episodeTitle, sourceTitle: segment?.sourceTitle,
+            positionMs: Int(max(0, position.milliseconds))
         )
         highlights.insert(highlight, at: 0)
         persistHighlights()
-        return "Gemerkt: \(range.start.timecode)–\(range.end.timecode)"
+        return "Gemerkt: \(position.timecode)."
+    }
+
+    /// Die Folge zu einer Medienfassung, die gerade klingt: über die
+    /// bekannte Kennung, den Folgen-Player oder die geladenen Folgen.
+    private func episode(playing mediaVersionID: MediaVersionID, id: EpisodeID?) async -> Episode? {
+        if let playing = episodePlayer.episode,
+           playing.id == id || (id == nil && playing.streamMediaVersionID == mediaVersionID) {
+            return playing
+        }
+        let known = id ?? episodes.values.joined().first { $0.streamMediaVersionID == mediaVersionID }?.id
+        guard let known else { return nil }
+        return (try? await store.episodes(ids: [known]))?.first
     }
 
     // MARK: - Chat

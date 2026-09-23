@@ -53,23 +53,32 @@ public final class SpotlightIndex {
     /// der Nutzer selbst angelegt hat oder was die App ihm gegenüber schon
     /// als eigenes Objekt darstellt. Rohe Transkripte gehen nicht hinein:
     /// sie sind fremder Inhalt und gehören nicht in einen Systemindex.
+    ///
+    /// Gespeist wird aus der Kopie, die jede Notiz selbst trägt (Kommentar,
+    /// Zitat, Folge, Quelle, Zeitmarke). Ein gespeicherter Beleg ergänzt
+    /// nur. Notizen aus dem Player haben keinen, und früher fiel hier
+    /// deshalb jede einzelne heraus.
     public func index(highlights: [Highlight], evidence: [EvidenceID: Evidence]) async {
         guard isEnabled else { return }
 
         let items = highlights.compactMap { highlight -> CSSearchableItem? in
-            guard let item = evidence[highlight.evidenceID] else { return nil }
+            let item = evidence[highlight.evidenceID]
+            // Der Originaltext, gekürzt. Der Systemindex ist kein Archiv.
+            let quote = (highlight.quote ?? item?.quotedText).map { String($0.prefix(300)) }
+            guard highlight.note != nil || quote != nil || highlight.episodeTitle != nil else { return nil }
 
             let attributes = CSSearchableItemAttributeSet(contentType: .text)
-            attributes.title = highlight.note ?? "Gemerkte Stelle"
-            // Der Originaltext, gekürzt. Der Systemindex ist kein Archiv.
+            attributes.title = highlight.note ?? highlight.episodeTitle ?? "Gemerkte Stelle"
             // Die Zeitmarke steht vorn, weil das Attributset keine Start-
             // und Endzeit für Textelemente kennt.
-            let quote = String(item.quotedText.prefix(300))
-            if let range = item.range {
-                attributes.contentDescription = "\(range.start.timecode)–\(range.end.timecode) · \(quote)"
+            let time = highlight.positionMs.map { MediaTime(milliseconds: Int64($0)).timecode }
+                ?? item?.range.map { "\($0.start.timecode)–\($0.end.timecode)" }
+            let origin = [highlight.episodeTitle, highlight.sourceTitle].compactMap { $0 }
+                .joined(separator: " · ")
+            attributes.contentDescription = [time, origin.isEmpty ? nil : origin, quote]
+                .compactMap { $0 }.joined(separator: " · ")
+            if let range = item?.range {
                 attributes.duration = NSNumber(value: range.end.seconds - range.start.seconds)
-            } else {
-                attributes.contentDescription = quote
             }
             attributes.contentCreationDate = highlight.capturedAt
             return CSSearchableItem(
@@ -130,5 +139,85 @@ struct SpotlightSettingsSection: View {
                  + "macht, entscheidet das System.")
         }
         .task { isEnabled = model.spotlight.isEnabled }
+    }
+}
+
+/// Öffnet eine gemerkte Stelle, die in der Systemsuche angetippt wurde.
+///
+/// Der Treffer zeigt die Notiz und spielt nichts ab. Ton gibt es erst, wenn
+/// jemand in der Notiz auf „Ab dieser Stelle hören“ tippt.
+struct SpotlightContinuation: ViewModifier {
+
+    @Environment(AppModel.self) private var model
+    @State private var pendingID: String?
+    @State private var opened: Highlight?
+
+    func body(content: Content) -> some View {
+        content
+            #if canImport(CoreSpotlight)
+            .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                pendingID = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String
+                resolve()
+            }
+            #endif
+            // Beim Kaltstart sind die Notizen noch nicht geladen, wenn der
+            // Treffer ankommt.
+            .onChange(of: model.highlights) { resolve() }
+            .sheet(item: $opened) { highlight in
+                HighlightDetailSheet(highlight: highlight)
+                    .environment(model)
+            }
+    }
+
+    private func resolve() {
+        guard let id = pendingID,
+              let highlight = model.highlights.first(where: { $0.id.rawValue == id }) else { return }
+        pendingID = nil
+        opened = highlight
+    }
+}
+
+extension View {
+    /// Treffer aus der Systemsuche öffnen ihre gemerkte Stelle.
+    func opensSpotlightResults() -> some View { modifier(SpotlightContinuation()) }
+}
+
+/// Eine gemerkte Stelle für sich, geöffnet aus der Systemsuche.
+struct HighlightDetailSheet: View {
+
+    let highlight: Highlight
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    /// Ob die Folge noch da ist. `nil`, solange das nicht geprüft ist oder
+    /// die Notiz keine Folge kennt.
+    @State private var episodeAvailable: Bool?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                NoteRow(highlight: highlight, episodeGone: episodeAvailable == false)
+                if highlight.positionMs != nil, episodeAvailable == true {
+                    Button {
+                        Task { await model.playHighlight(highlight) }
+                        dismiss()
+                    } label: {
+                        Label("Ab dieser Stelle hören", systemImage: "play.fill")
+                    }
+                }
+            }
+            .navigationTitle("Gemerkte Stelle")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fertig") { dismiss() }
+                }
+            }
+            .task {
+                guard highlight.episodeID != nil else { return }
+                episodeAvailable = await !model.availableEpisodeIDs(for: [highlight]).isEmpty
+            }
+        }
     }
 }

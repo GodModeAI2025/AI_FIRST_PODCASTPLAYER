@@ -290,6 +290,8 @@ struct KnowledgeView: View {
     @State private var exported: String?
     @State private var editing: Highlight?
     @State private var editText = ""
+    /// Folgen, die noch da sind. `nil`, solange das noch nicht geprüft ist.
+    @State private var availableEpisodes: Set<EpisodeID>?
 
     var body: some View {
         List {
@@ -302,10 +304,7 @@ struct KnowledgeView: View {
                 }
             }
             ForEach(model.highlights) { highlight in
-                Button { Task { await model.playHighlight(highlight) } } label: {
-                    NoteRow(highlight: highlight).contentShape(.rect)
-                }
-                .buttonStyle(.plain)
+                noteRow(highlight)
                 .swipeActions {
                     Button(role: .destructive) { model.removeHighlight(highlight.id) } label: {
                         Label("Löschen", systemImage: "trash")
@@ -326,8 +325,13 @@ struct KnowledgeView: View {
             }
         }
         .navigationTitle("Gemerkte Stellen")
+        .task(id: model.highlights.compactMap(\.episodeID)) {
+            model.fillMissingNoteTitles()
+            availableEpisodes = await model.availableEpisodeIDs(for: model.highlights)
+        }
         .sheet(item: $editing) { highlight in
-            NoteSheet(position: Double(highlight.positionMs ?? 0) / 1000, text: $editText) {
+            NoteSheet(position: highlight.positionMs.map { Double($0) / 1000 }, quote: highlight.quote,
+                      text: $editText) {
                 model.updateNote(highlight.id, text: editText)
             }
             .presentationDetents([.medium])
@@ -346,6 +350,22 @@ struct KnowledgeView: View {
             set: { exported = $0?.text }
         )) { preview in
             ExportPreviewSheet(text: preview.text)
+        }
+    }
+
+    /// Abspielbar ist eine Notiz nur mit Folge und Zeitmarke. Alles andere
+    /// ist eine Zeile zum Lesen und sieht auch so aus.
+    @ViewBuilder
+    private func noteRow(_ highlight: Highlight) -> some View {
+        let gone = highlight.episodeID.map { id in availableEpisodes.map { !$0.contains(id) } ?? false } ?? false
+        if highlight.episodeID != nil, highlight.positionMs != nil, !gone {
+            Button { Task { await model.playHighlight(highlight) } } label: {
+                NoteRow(highlight: highlight).contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Spielt die Folge ab dieser Stelle")
+        } else {
+            NoteRow(highlight: highlight, episodeGone: gone)
         }
     }
 }

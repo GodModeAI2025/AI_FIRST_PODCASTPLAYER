@@ -150,8 +150,9 @@ struct HelpView: View {
                     + "halten bietet „Ans Ende“. Die Warteschlange liegt in der Mediathek.",
                     "list.bullet")
                 tip("Speicher", "In einer Folge über „Mehr“: „Laden (offline)“ holt den Ton aufs Gerät, "
-                    + "„Audio entfernen“ löscht nur den Ton, „Folge löschen“ löscht alles zu dieser Folge. "
-                    + "Nach dem Auswerten entfernt die App den Ton von selbst, abschaltbar in den Einstellungen.",
+                    + "„Audio entfernen“ löscht nur den Ton, „Folge löschen“ löscht Ton, Transkript, Fakten und "
+                    + "Hörstand. Deine Notizen bleiben unter Wissen. Nach dem Auswerten entfernt die App den Ton "
+                    + "von selbst, abschaltbar in den Einstellungen.",
                     "internaldrive")
             } header: { Text("Einsteiger: hören") }
 
