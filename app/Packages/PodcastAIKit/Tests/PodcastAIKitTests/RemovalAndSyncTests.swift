@@ -65,6 +65,18 @@ struct RemovalAndSyncTests {
         #expect(try await store.episodes(forSource: sourceID).count == 1)
     }
 
+    @Test("Folgen mit Fakten: nur die mit gespeicherten Aussagen")
+    func episodesWithFacts() async throws {
+        let store = try await seededStore()
+        #expect(try await store.episodeIDsWithFacts() == [episodeID])
+        // Ohne Fakten fehlt sie, das Transkript bleibt.
+        try await store.save(facts: [], forEpisode: episodeID)
+        #expect(try await store.episodeIDsWithFacts().isEmpty)
+        #expect(try await store.analyzedEpisodeIDs() == [episodeID])
+        _ = try await store.removeEpisode(episodeID)
+        #expect(try await store.episodeIDsWithFacts().isEmpty)
+    }
+
     @Test("Folge löschen entfernt alle Daten und bleibt gelöscht")
     func removingEpisodeDeletesEverything() async throws {
         let store = try await seededStore()

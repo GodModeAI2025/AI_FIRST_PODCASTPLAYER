@@ -104,8 +104,9 @@ extension AppModel {
 
     /// Folgen, mit denen dieses Gerät gerade etwas vorhat.
     private var episodesInUse: [Episode] {
-        var list = upNext + analysisQueue
+        var list = upNext + analysisQueue + factsQueue
         if let analyzing { list.append(analyzing) }
+        if let gatheringFacts { list.append(gatheringFacts) }
         if let playing = episodePlayer.episode { list.append(playing) }
         return list
     }
@@ -135,7 +136,21 @@ extension AppModel {
     // MARK: - Modellzustand
 
     public func refreshModelStatus() async {
+        let wasReady = factsModelReady
         modelStatus = ModelStatusProbe.current(allowPrivateCloud: allowPrivateCloudCompute)
+        guard isLoaded, factsModelReady else { return }
+        // Das Modell ist bereit: was auf Fakten wartet, läuft weiter, auch
+        // nach abgelaufener Hintergrundzeit. Läuft die Arbeit schon, tut
+        // der Aufruf nichts.
+        if factsTask == nil { factsWait = nil }
+        startFactsWorker()
+        // Eben erst bereit geworden: auch Zurückgestelltes und alles, was
+        // bisher gar nicht eingereiht war, bekommt eine Gelegenheit.
+        if !wasReady {
+            factsDeferred.removeAll()
+            factsBackfilled = false
+            await queueMissingFacts()
+        }
     }
 
     /// Wie viele Token das Gerätemodell für Anweisungen, Prompt und Antwort
@@ -736,22 +751,27 @@ extension AppModel {
     /// endet der Lauf ohne zu speichern, und der nächste beginnt von vorn.
     /// Hat der Nutzer selbst gefragt (`force`), erfährt er, was gefehlt hat.
     ///
-    /// `removalTicket` reicht die Erschliessung weiter, die die Fakten
-    /// anstösst. So zählt auch eine Löschung, die zwischen dem Ende der
-    /// Erschliessung und dem Start der Fakten kam.
-    public func prepareFacts(for episode: Episode, force: Bool = false, removalTicket: Int? = nil) async {
-        guard !factsInProgress.contains(episode.id) else { return }
+    /// `removalTicket` gibt den Stand der Löschungen mit, ab dem eine
+    /// Löschung zählt. Ohne Angabe gilt der Stand beim Aufruf.
+    ///
+    /// Das Ergebnis sagt der Warteschlange, ob sich ein späterer Versuch lohnt.
+    @discardableResult
+    func prepareFacts(for episode: Episode, force: Bool = false, removalTicket: Int? = nil) async -> FactsOutcome {
+        guard !factsInProgress.contains(episode.id) else { return .nothingToDo }
         // Gleich vormerken, vor dem ersten `await`: sonst liefen zwei Aufrufe
         // für dieselbe Folge nebeneinander.
         factsInProgress.insert(episode.id)
-        defer { factsInProgress.remove(episode.id) }
+        defer {
+            factsInProgress.remove(episode.id)
+            factsProgress[episode.id] = nil
+        }
         let ticket = removalTicket ?? removalCount
         if !force, let cached = try? await store.facts(forEpisode: episode.id), !cached.isEmpty {
             facts[episode.id] = await anchoredFacts(cached, episodeID: episode.id)
-            return
+            return .stored
         }
         let evidence = ((try? await store.evidence(forEpisode: episode.id)) ?? []).filter { $0.range != nil }
-        guard !evidence.isEmpty, !wasRemoved(episode.id, since: ticket) else { return }
+        guard !evidence.isEmpty, !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
 
         await refreshModelStatus()
         // Fakten laufen über das Profil `.extract`. Dafür wählt der Router nur
@@ -764,7 +784,7 @@ extension AppModel {
             tier = resolved
         case .failure(let reason):
             if force { lastError = String(localized: "Fakten lassen sich gerade nicht ermitteln. \(reason.message)") }
-            return
+            return .modelUnavailable(reason)
         }
 
         let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -787,7 +807,11 @@ extension AppModel {
         var rejected = 0
         var failed = 0
         var reason: String?
-        for slice in slices {
+        factsProgress[episode.id] = 0
+        for (index, slice) in slices.enumerated() {
+            // Die Hintergrundzeit ist um: nichts speichern, die Folge bleibt vorn.
+            if Task.isCancelled { return .cancelled }
+            defer { factsProgress[episode.id] = Double(index + 1) / Double(slices.count) }
             let key = Self.factSliceKey(episode.id, slice)
             if knownRejections.contains(key) {
                 rejected += 1
@@ -807,22 +831,22 @@ extension AppModel {
                     failed += 1
                     reason = error.errorDescription
                     continue
-                case .modelUnavailable:
+                case .modelUnavailable(let unavailable):
                     await refreshModelStatus()
                     if force {
                         let detail = error.errorDescription ?? ""
                         lastError = String(localized: "Die Fakten konnten nicht ermittelt werden. \(detail)")
                     }
-                    return
+                    return .modelUnavailable(unavailable)
                 }
             } catch {
                 // Abgebrochen: nichts speichern, nichts melden.
-                if error is CancellationError || Task.isCancelled { return }
+                if error is CancellationError || Task.isCancelled { return .cancelled }
                 failed += 1
                 reason = error.localizedDescription
                 continue
             }
-            guard !wasRemoved(episode.id, since: ticket) else { return }
+            guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
             for claim in Self.evenlySpaced(claims, count: quota) {
                 guard let evidenceID = claim.evidenceIDs.first, let source = byID[evidenceID],
                       let range = source.range else { continue }
@@ -837,27 +861,31 @@ extension AppModel {
                     statement: claim.statement, range: sentence ?? range, modelTier: tier.label))
             }
         }
-        guard !wasRemoved(episode.id, since: ticket) else { return }
+        guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
         // Das Kontingent oder die Bereitschaft des Modells kann sich geändert haben.
         if failed > 0 { await refreshModelStatus() }
-        if force, rejected + failed > 0 {
-            lastError = Self.factGapMessage(
-                rejected: rejected, failed: failed, total: slices.count, saved: !result.isEmpty, reason: reason)
-        }
+        let gap = rejected + failed > 0
+            ? Self.factGapMessage(rejected: rejected, failed: failed, total: slices.count,
+                                  saved: !result.isEmpty, reason: reason)
+            : nil
+        if force, let gap { lastError = gap }
         guard !result.isEmpty else {
-            if force, rejected + failed == 0 {
-                lastError = String(localized: "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden.")
-            }
-            return
+            let nothingFound = String(localized: "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden.")
+            if force, gap == nil { lastError = nothingFound }
+            // Ist etwas nur gescheitert, lohnt ein späterer Versuch. Hat das
+            // Modell alles abgelehnt oder nichts gefunden, nicht.
+            return failed > 0 ? .failed(gap) : .noFacts(gap ?? nothingFound)
         }
         let unique = Dictionary(result.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
             .sorted { $0.range.start.milliseconds < $1.range.start.milliseconds }
         let kept = Self.evenlySpaced(unique, count: Self.factLimit)
         facts[episode.id] = kept
+        var saveFailure: String?
         do {
             try await store.save(facts: kept, forEpisode: episode.id)
         } catch {
-            if force { lastError = UserFacingError.describe(error) }
+            saveFailure = UserFacingError.describe(error)
+            if force { lastError = saveFailure }
         }
         // Während des Speicherns gelöscht: die Fakten gleich wieder entfernen.
         // Nur sie, ohne neues Merkzeichen. Wurde die Quelle inzwischen neu
@@ -865,7 +893,31 @@ extension AppModel {
         if wasRemoved(episode.id, since: ticket) {
             facts[episode.id] = nil
             try? await store.save(facts: [], forEpisode: episode.id)
+            return .nothingToDo
         }
+        // Nicht gespeichert: sichtbar sind sie jetzt, beim nächsten Start fehlen sie.
+        if let saveFailure { return .failed(saveFailure) }
+        return .stored
+    }
+
+    /// Wie ein Lauf von ``prepareFacts(for:force:removalTicket:)`` ausging.
+    enum FactsOutcome: Equatable {
+        /// Die Fakten liegen vor, frisch gespeichert oder schon vorhanden.
+        case stored
+        /// Nichts zu tun: keine Stellen mit Zeitmarke, die Folge ist gelöscht,
+        /// oder für sie läuft schon ein Lauf.
+        case nothingToDo
+        /// Durchgelaufen, aber ohne Fakten: das Modell hat alles abgelehnt
+        /// oder keine überprüfbare Aussage gefunden. Mit demselben Modell
+        /// käme wieder dasselbe heraus.
+        case noFacts(String)
+        /// Gescheitert aus einem Grund, der vorbeigeht: Last,
+        /// Zeitüberschreitung, Speichern.
+        case failed(String?)
+        /// Das Gerätemodell steht gerade nicht bereit.
+        case modelUnavailable(ModelUnavailability)
+        /// Abgebrochen, etwa weil die Hintergrundzeit endet.
+        case cancelled
     }
 
     /// Was der Nutzer erfährt, wenn Abschnitte einer Folge fehlen.
@@ -885,7 +937,7 @@ extension AppModel {
         if failed > 0 {
             // Ohne Verb, das sich nach der Zahl richten müsste: „1 sind gescheitert“ wäre falsch.
             parts.append(String(localized: """
-                Bei \(failed) davon ging aus einem anderen Grund etwas schief. „Neu ermitteln“ versucht es dort noch einmal.
+                Bei \(failed) davon ging aus einem anderen Grund etwas schief. Ein neuer Versuch kann sie nachholen.
                 """))
         }
         if let reason { parts.append(reason) }
@@ -949,6 +1001,224 @@ extension AppModel {
             guard case .generationFailed = error else { throw error }
             return try await extractor.extractClaims(from: slice, availability: availability)
         }
+    }
+
+    // MARK: Fakten im Hintergrund
+
+    /// Wie lange eine Folge, deren Transkript per iCloud kam, auf ihre
+    /// Fakten vom anderen Gerät wartet, bevor dieses Gerät sie selbst sammelt.
+    static let factsSyncGrace: TimeInterval = 20 * 60
+
+    /// Kann das Gerätemodell jetzt Fakten ziehen? Fakten laufen über das
+    /// Profil `.extract`, und dafür wählt der Router nur das Gerät. Ein Netz
+    /// braucht es deshalb nicht, und „Nur im WLAN“ gilt hier nicht.
+    var factsModelReady: Bool {
+        if case .success = modelStatus.resolve(.extract) { return true }
+        return false
+    }
+
+    /// Lohnt es, Folgen einzureihen? Wird das Modell nur noch vorbereitet,
+    /// warten sie darauf. Fehlt es ganz, etwa weil Apple Intelligence aus
+    /// ist, reiht die App nichts ein und sagt im Reiter „Fakten“, warum.
+    private var factsModelExpected: Bool {
+        switch modelStatus.resolve(.extract) {
+        case .success: true
+        case .failure(let reason): reason == .modelNotReady
+        }
+    }
+
+    /// Wie viele Folgen gerade Fakten bekommen oder gleich drankommen. Steht
+    /// die Warteschlange, weil das Modell fehlt, zählt nur, was läuft.
+    public var factsPendingCount: Int {
+        (gatheringFacts == nil ? 0 : 1) + (factsWait == nil ? factsQueue.count : 0)
+    }
+
+    /// Der Platz einer Folge in der Warteschlange der Fakten, 0 ist vorn.
+    public func factsQueuePosition(of id: EpisodeID) -> Int? {
+        factsQueue.firstIndex { $0.id == id }
+    }
+
+    /// „Jetzt ermitteln“ und „Neu ermitteln“: die Folge kommt als Nächste
+    /// dran, rechnet neu und meldet, was fehlt.
+    public func requestFacts(for episode: Episode) {
+        var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
+        settled.remove(episode.id)
+        factsIssues[episode.id] = nil
+        enqueueFacts(episode, requested: true)
+    }
+
+    /// Stellt eine Folge in die Warteschlange der Fakten. Angefordert kommt
+    /// sie ganz nach vorn, sonst vor die älteren Folgen, hinter das
+    /// Angeforderte.
+    func enqueueFacts(_ episode: Episode, requested: Bool = false) {
+        guard gatheringFacts?.id != episode.id, requested || factsModelExpected else { return }
+        if let index = factsQueuePosition(of: episode.id) {
+            guard requested else { return }
+            factsQueue.remove(at: index)
+        }
+        if requested {
+            factsRequested.insert(episode.id)
+            factsDeferred.remove(episode.id)
+            factsQueue.insert(episode, at: 0)
+        } else {
+            let date = episode.publishedAt ?? .distantPast
+            let index = factsQueue.firstIndex {
+                !factsRequested.contains($0.id) && ($0.publishedAt ?? .distantPast) < date
+            } ?? factsQueue.count
+            factsQueue.insert(episode, at: index)
+        }
+        startFactsWorker()
+    }
+
+    /// Reiht Folgen ein, die ein Transkript haben, aber keine Fakten. Beim
+    /// Start, nach einem Abgleich, nach dem Aktualisieren und wenn das
+    /// Modell bereit wird. Neueste zuerst.
+    ///
+    /// Was ein anderes Gerät transkribiert hat, bekommt dort gleich seine
+    /// Fakten, und die kommen per iCloud nach. Solche Folgen nimmt dieses
+    /// Gerät erst, wenn nach `factsSyncGrace` noch immer keine da sind.
+    /// Beim Start gilt das nicht: was dann fehlt, fehlt schon länger.
+    func queueMissingFacts() async {
+        guard automaticFacts, isLoaded, factsModelExpected,
+              let withFacts = try? await store.episodeIDsWithFacts() else { return }
+        let immediately = !factsBackfilled
+        factsBackfilled = true
+        let settled = StoredEpisodeIDs(key: Self.factsSettledKey)
+        var busy = Set(factsQueue.map(\.id))
+        if let gatheringFacts { busy.insert(gatheringFacts.id) }
+        let now = Date()
+        var missing: [EpisodeID] = []
+        for id in analyzedEpisodes where !withFacts.contains(id) && !busy.contains(id) {
+            guard !settled.contains(id), !factsDeferred.contains(id) else { continue }
+            let since = factsMissingSince[id] ?? now
+            factsMissingSince[id] = since
+            if immediately || now.timeIntervalSince(since) >= Self.factsSyncGrace { missing.append(id) }
+        }
+        // Was inzwischen Fakten hat oder gelöscht ist, braucht keine Zeit mehr.
+        factsMissingSince = factsMissingSince.filter {
+            analyzedEpisodes.contains($0.key) && !withFacts.contains($0.key)
+        }
+        if !missing.isEmpty, let found = try? await store.episodes(ids: missing) {
+            for episode in found.sorted(by: { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) })
+            where automaticFacts && analyzedEpisodes.contains(episode.id) {
+                enqueueFacts(episode)
+            }
+        }
+        // Auch was schon wartete, etwa nach abgelaufener Hintergrundzeit.
+        startFactsWorker()
+    }
+
+    /// „Fakten automatisch sammeln“ ist aus: was von selbst wartet, fällt
+    /// heraus. Angefordertes und was gerade läuft, bleibt.
+    func dropAutomaticFacts() {
+        factsQueue.removeAll { !factsRequested.contains($0.id) }
+    }
+
+    /// Nimmt eine gelöschte Folge aus der Warteschlange der Fakten.
+    func dropFromFactsQueue(_ id: EpisodeID) {
+        factsQueue.removeAll { $0.id == id }
+        factsRequested.remove(id)
+        factsDeferred.remove(id)
+        factsIssues[id] = nil
+        factsMissingSince[id] = nil
+    }
+
+    /// Startet die Arbeit an den Fakten, wenn sie nicht schon läuft. Sie
+    /// läuft neben den Transkripten, mit niedrigerer Priorität, und hält
+    /// keines auf.
+    func startFactsWorker() {
+        guard factsTask == nil, !factsQueue.isEmpty else { return }
+        factsTask = Task(priority: .utility) { [weak self] in
+            await self?.runFactsQueue()
+        }
+    }
+
+    /// Für die Hintergrundaufgabe: fehlende Fakten suchen und die
+    /// Warteschlange abarbeiten, bis sie leer ist, das Modell fehlt oder die
+    /// Zeit endet. Endet die Zeit, bleibt die Folge vorn stehen und läuft
+    /// beim nächsten Mal zuerst.
+    public func processPendingFacts() async {
+        await refreshModelStatus()
+        await queueMissingFacts()
+        guard let task = factsTask else { return }
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func runFactsQueue() async {
+        defer {
+            factsTask = nil
+            gatheringFacts = nil
+        }
+        // Ein zweiter Versuch je Folge und Lauf, danach erst beim nächsten Start.
+        var retried: Set<EpisodeID> = []
+        while !Task.isCancelled, !factsQueue.isEmpty {
+            // Vor jeder Folge: das Modell kann bereit geworden oder weggefallen sein.
+            await refreshModelStatus()
+            if case .failure(let reason) = modelStatus.resolve(.extract) {
+                factsWait = String(localized: "wartet: \(reason.message)")
+                return
+            }
+            factsWait = nil
+            // Während der Prüfung kann die Folge gelöscht worden sein.
+            guard !Task.isCancelled, !factsQueue.isEmpty else { break }
+            let next = factsQueue.removeFirst()
+            let requested = factsRequested.remove(next.id) != nil
+            gatheringFacts = next
+            let outcome = await prepareFacts(for: next, force: requested)
+            gatheringFacts = nil
+            switch outcome {
+            case .stored, .nothingToDo:
+                factsIssues[next.id] = nil
+                factsMissingSince[next.id] = nil
+            case .noFacts(let note):
+                factsIssues[next.id] = note
+                var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
+                settled.insert(next.id)
+            case .failed(let note):
+                factsIssues[next.id] = note ?? String(localized: "Die Fakten konnten nicht ermittelt werden.")
+                // Wer selbst gefragt hat, hat den Grund gesehen und entscheidet selbst.
+                guard !requested else { continue }
+                if retried.insert(next.id).inserted {
+                    factsQueue.append(next)
+                } else {
+                    factsDeferred.insert(next.id)
+                }
+                // Meist ist das Modell ausgelastet. Etwas Luft lassen.
+                await pauseBetweenFactRuns()
+            case .modelUnavailable(let reason):
+                factsQueue.insert(next, at: 0)
+                if requested { factsRequested.insert(next.id) }
+                factsWait = String(localized: "wartet: \(reason.message)")
+                return
+            case .cancelled:
+                factsQueue.insert(next, at: 0)
+                if requested { factsRequested.insert(next.id) }
+                return
+            }
+        }
+    }
+
+    /// Eine Minute Pause nach einem Fehlschlag. Wer inzwischen selbst eine
+    /// Folge anfordert, wartet nicht darauf.
+    private func pauseBetweenFactRuns() async {
+        for _ in 0..<12 {
+            if Task.isCancelled { return }
+            if let first = factsQueue.first, factsRequested.contains(first.id) { return }
+            try? await Task.sleep(for: .seconds(5))
+        }
+    }
+
+    /// Folgen, bei denen ein Lauf ohne Fakten endete: alles abgelehnt oder
+    /// keine überprüfbare Aussage. Das Einreihen lässt sie aus, „Jetzt
+    /// ermitteln“ nicht. Je Systemversion, wie die abgelehnten Abschnitte:
+    /// ein neues Modell bekommt eine neue Gelegenheit. Nur auf diesem Gerät.
+    static var factsSettledKey: String {
+        let system = ProcessInfo.processInfo.operatingSystemVersion
+        return "factsSettled-\(system.majorVersion).\(system.minorVersion)"
     }
 
     public func loadFacts(for episodeID: EpisodeID) async {
@@ -1204,6 +1474,7 @@ extension AppModel {
             // Nicht `removeFromAnalysisQueue`: das merkt sich ein „Entfernen“
             // des Nutzers, und ein neues Abo bereitete nie wieder etwas vor.
             dropFromAnalysisQueue(id)
+            dropFromFactsQueue(id)
             // Die Datei geht mit der Folge. Bliebe der Vermerk, hielte das
             // Aufräumen sie nach einem neuen Abo für ausdrücklich geladen.
             keptOffline.remove(id)

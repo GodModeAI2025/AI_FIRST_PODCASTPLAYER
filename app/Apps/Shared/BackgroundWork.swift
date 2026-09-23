@@ -124,6 +124,10 @@ public final class BackgroundWork {
         let work = Task { @MainActor in
             await model.ensureLoaded()
             await model.processPendingEditions()
+            // Fakten, die noch fehlen: nach einem Abbruch, einem Fehlschlag
+            // oder für Folgen, die ein anderes Gerät transkribiert hat. Endet
+            // die Zeit, bricht die laufende Folge ab und bleibt vorn stehen.
+            await model.processPendingFacts()
         }
         task.expirationHandler = { work.cancel() }
         Task { @MainActor in
@@ -136,7 +140,8 @@ public final class BackgroundWork {
 
     /// Auf dem Mac gibt es keinen BGTaskScheduler — dort läuft die App als
     /// Prozess weiter, solange sie nicht beendet wird. Fenster schliessen
-    /// und App beenden sind verschiedene Zustände.
+    /// und App beenden sind verschiedene Zustände. Die Fakten sammelt dort
+    /// die Warteschlange im Modell, solange die App läuft.
     public func register() {}
     public func scheduleRefresh() {}
     public func scheduleAnalysis() {}

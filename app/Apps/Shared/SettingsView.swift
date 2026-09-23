@@ -79,16 +79,30 @@ struct AutomaticAnalysisSection: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            // Auch ohne automatische Transkripte: selbst angeforderte Folgen
+            // bekommen ihre Fakten dann ebenfalls von selbst.
+            Toggle("Fakten automatisch sammeln", isOn: Binding(
+                get: { model.automaticFacts },
+                set: { model.automaticFacts = $0 }
+            ))
+            .accessibilityIdentifier("settings.automaticFacts")
         } header: {
             Text("Transkripte")
         } footer: {
-            Text("""
-                Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit \
-                Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas \
-                darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Was du \
-                selbst abspielst oder anforderst, lädt auch im Mobilfunk. Im Datensparmodus \
-                erstellt die App keine Transkripte von selbst.
-                """)
+            VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                Text("""
+                    Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit \
+                    Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas \
+                    darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Was du \
+                    selbst abspielst oder anforderst, lädt auch im Mobilfunk. Im Datensparmodus \
+                    erstellt die App keine Transkripte von selbst.
+                    """)
+                Text("""
+                    Fakten zieht die App nach jedem Transkript mit Apple Intelligence auf dem Gerät \
+                    heraus, auch im Hintergrund und für ältere Folgen mit Transkript. Dafür braucht es \
+                    kein Netz.
+                    """)
+            }
         }
     }
 

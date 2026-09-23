@@ -416,21 +416,32 @@ struct EpisodeDetailView: View {
             if facts.isEmpty {
                 SwiftUI.Section {
                     if model.factsInProgress.contains(episode.id) {
-                        HStack { ProgressView(); Text("Fakten werden ermittelt …") }
+                        FactsGatheringRow(title: "Fakten werden gesammelt …",
+                                          progress: model.factsProgress[episode.id], detail: nil)
                     } else if passages.isEmpty {
                         EpisodeAnalysisPrompt(episode: episode, style: .inline(String(localized: """
                             Sobald das Transkript fertig ist, zieht die App überprüfbare Aussagen \
                             mit Zeitmarke heraus.
                             """)))
+                    } else if let position = model.factsQueuePosition(of: episode.id) {
+                        // Wartet in der Warteschlange. Der Knopf holt die Folge nur nach vorn.
+                        FactsGatheringRow(title: "Fakten werden gesammelt …", progress: nil,
+                                          detail: factsQueueDetail(position: position),
+                                          paused: model.factsWait != nil)
+                        if position > 0, model.factsWait == nil {
+                            requestFactsButton
+                        }
                     } else if case .failure(let reason) = model.modelStatus.resolve(.extract) {
                         // Ohne Apple Intelligence gibt es keine Fakten. Das steht hier,
                         // statt dass ein Knopf ohne Wirkung angeboten wird.
                         Label(reason.message, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.secondary)
                     } else {
-                        Button {
-                            Task { await model.prepareFacts(for: episode, force: true) }
-                        } label: { Label("Fakten ermitteln", systemImage: "checkmark.seal") }
+                        // Nicht eingereiht: ausgeschaltet, gescheitert oder ohne Ergebnis.
+                        if let issue = model.factsIssues[episode.id] {
+                            Text(issue).font(.callout).foregroundStyle(.secondary)
+                        }
+                        requestFactsButton
                     }
                 }
             } else {
@@ -452,13 +463,68 @@ struct EpisodeDetailView: View {
                         """)
                 }
                 SwiftUI.Section {
-                    Button {
-                        Task { await model.prepareFacts(for: episode, force: true) }
-                    } label: { Label("Neu ermitteln", systemImage: "arrow.clockwise") }
-                    .disabled(model.factsInProgress.contains(episode.id))
+                    if model.factsInProgress.contains(episode.id) {
+                        FactsGatheringRow(title: "Fakten werden neu ermittelt …",
+                                          progress: model.factsProgress[episode.id], detail: nil)
+                    } else if let position = model.factsQueuePosition(of: episode.id) {
+                        FactsGatheringRow(title: "Fakten werden neu ermittelt …", progress: nil,
+                                          detail: factsQueueDetail(position: position),
+                                          paused: model.factsWait != nil)
+                    } else {
+                        Button {
+                            model.requestFacts(for: episode)
+                        } label: { Label("Neu ermitteln", systemImage: "arrow.clockwise") }
+                    }
                 }
             }
         }
+    }
+
+    /// Holt die Folge in der Warteschlange der Fakten nach vorn.
+    private var requestFactsButton: some View {
+        Button {
+            model.requestFacts(for: episode)
+        } label: { Label("Jetzt ermitteln", systemImage: "checkmark.seal") }
+        .accessibilityIdentifier("facts.request")
+    }
+
+    /// Warum die Folge noch wartet: auf das Modell oder auf die Folgen davor.
+    private func factsQueueDetail(position: Int) -> String {
+        if let wait = model.factsWait { return wait }
+        let ahead = position + (model.gatheringFacts == nil ? 0 : 1)
+        guard ahead > 0 else { return String(localized: "startet gleich") }
+        return String(AttributedString(localized: "wartet, noch ^[\(ahead) Folge](inflect: true) davor").characters)
+    }
+}
+
+/// „Fakten werden gesammelt …“, solange eine Folge in der Warteschlange der
+/// Fakten steht oder gerade dran ist. Läuft sie, zeigt ein Balken, wie weit.
+private struct FactsGatheringRow: View {
+    let title: LocalizedStringKey
+    let progress: Double?
+    let detail: String?
+    /// Die Warteschlange steht, weil das Modell fehlt: eine Uhr statt eines Kreisels.
+    var paused = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+            HStack(spacing: Design.Spacing.small) {
+                if paused {
+                    Image(systemName: "clock").foregroundStyle(.secondary).accessibilityHidden(true)
+                } else {
+                    ProgressView().controlSize(.small)
+                }
+                Text(title)
+            }
+            if let progress {
+                ProgressView(value: progress)
+            }
+            if let detail {
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("facts.gathering")
     }
 }
 
@@ -1385,11 +1451,54 @@ struct QueueView: View {
                         """)
                 }
             }
+
+            if model.gatheringFacts != nil || !model.factsQueue.isEmpty {
+                factsSection
+            }
         }
         .navigationTitle("Warteschlange")
         #if os(iOS)
         .toolbar { EditButton() }
         #endif
+    }
+
+    /// Was nach dem Transkript noch Fakten bekommt. Läuft neben den
+    /// Transkripten, eine Folge nach der anderen.
+    private var factsSection: some View {
+        Section {
+            if let current = model.gatheringFacts {
+                NavigationLink { EpisodeDetailView(episode: current) } label: {
+                    QueueRow(episode: current, detail: factsRunningDetail(current.id))
+                }
+            }
+            ForEach(model.factsQueue) { episode in
+                NavigationLink { EpisodeDetailView(episode: episode) } label: {
+                    QueueRow(episode: episode, detail: model.factsWait ?? String(localized: "wartet"))
+                }
+            }
+        } header: {
+            Text(factsHeader)
+        } footer: {
+            Text("""
+                Nach dem Transkript zieht die App mit Apple Intelligence auf dem Gerät überprüfbare \
+                Aussagen heraus, eine Folge nach der anderen. Das läuft neben den Transkripten und \
+                hält sie nicht auf.
+                """)
+        }
+    }
+
+    /// „Fakten: 2 Folgen“.
+    private var factsHeader: String {
+        let count = model.factsQueue.count + (model.gatheringFacts == nil ? 0 : 1)
+        return String(AttributedString(localized: "Fakten: ^[\(count) Folge](inflect: true)").characters)
+    }
+
+    /// „Fakten werden gesammelt · 40 %“.
+    private func factsRunningDetail(_ id: EpisodeID) -> String {
+        guard let progress = model.factsProgress[id], progress > 0 else {
+            return String(localized: "Fakten werden gesammelt …")
+        }
+        return String(localized: "Fakten werden gesammelt · \(progress.formatted(.percent.precision(.fractionLength(0))))")
     }
 
     /// Startet „Als Nächstes“ von oben, an der gemerkten Stelle der ersten Folge.

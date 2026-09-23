@@ -22,7 +22,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 1. Der Feed liefert Folgen mit Audio-Adresse, Kapiteln und Shownotes.
 2. Die App lädt die jüngsten Folgen und transkribiert sie auf dem Gerät. Jedes Wort trägt seine Zeit im Ton.
 3. Das Transkript wird in Passagen von etwa einer Minute geschnitten. Jede Passage ist ein Beleg mit Zeitbereich.
-4. Apple Intelligence zieht daraus Fakten. Jede Aussage zeigt auf ihren Beleg.
+4. Apple Intelligence zieht daraus Fakten. Jede Aussage zeigt auf ihren Beleg. Das läuft in einer eigenen Warteschlange neben den Transkripten, eine Folge nach der anderen und ohne das nächste Transkript aufzuhalten. Beim Start, nach Abgleich und Aktualisieren reiht die App Folgen mit Transkript ohne Fakten nach, neueste zuerst; auf dem iPhone arbeitet auch die Hintergrundaufgabe `com.podcastai.analysis` sie ab. Kam das Transkript von einem anderen Gerät, wartet dieses Gerät 20 Minuten auf dessen Fakten.
 5. Eine Frage sucht zuerst auf dem Gerät die passenden Belege: Stichworte gewichtet nach Seltenheit und semantische Nähe über Apples NaturalLanguage-Einbettungen. Nur diese Belege sieht das Sprachmodell. Die Antwort verweist mit Nummern auf sie. Ist die Frage auf einen Podcast oder einen Zeitraum eingegrenzt, nimmt der Code die übrigen Folgen vorher heraus; das Modell wählt nur unter dem, was bleibt.
 
 ## Welches Modell wann
