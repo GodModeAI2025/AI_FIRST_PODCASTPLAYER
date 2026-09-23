@@ -187,6 +187,7 @@ struct EpisodeDetailView: View {
             }
             Button(role: .destructive) { confirmDelete = true } label: {
                 Label("Folge löschen", systemImage: "trash")
+                Text("Gemerkte Stellen und Notizen bleiben")
             }
         } label: {
             Label("Mehr", systemImage: "ellipsis.circle")
@@ -662,7 +663,8 @@ struct EpisodeDetailView: View {
     /// älteren Versionen tragen noch die Bezeichnung in der Sprache, in der
     /// sie entstanden sind. „Auf dem Gerät“ und nicht „auf diesem Gerät“:
     /// über iCloud kommen auch Fakten, die ein anderes Gerät formuliert hat.
-    /// Was keiner Stufe entspricht, etwa bei Beispieldaten, steht wörtlich da.
+    /// Was keiner Stufe entspricht, steht wörtlich da. Nur „Beispieldaten“
+    /// kommt in der Sprache der App, sonst stünde es mitten im englischen Satz.
     static func factAuthor(_ stored: String?) -> String {
         let stored = stored ?? ""
         let tier: ModelTier? = switch stored {
@@ -672,6 +674,7 @@ struct EpisodeDetailView: View {
         switch tier {
         case .onDevice: return String(localized: "Apple Intelligence auf dem Gerät")
         case .privateCloudCompute: return String(localized: "Apple Intelligence über Private Cloud Compute")
+        case nil where stored == "Beispieldaten": return String(localized: "Beispieldaten")
         case nil: return stored.isEmpty ? "Apple Intelligence" : stored
         }
     }
