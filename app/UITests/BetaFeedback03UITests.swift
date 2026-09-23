@@ -86,16 +86,27 @@ final class BetaFeedback03UITests: XCTestCase {
         attach(app, "warteschlange")
     }
 
-    /// Aus 0.1 offen geblieben: „Die Unterscheidung muss erklärt werden“.
-    func testInterestKindsAreExplained() {
-        let app = XCUIApplication(); app.launchArguments = ["-skip-onboarding"]; app.launch()
+    /// Feedback zu 0.6 und 0.7: „Will nur Themen benennen, das andere macht
+    /// es unnötig kompliziert.“ Ein Thema entsteht ohne Wahl einer Art.
+    func testAddingTopicNeedsNoKind() {
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
         app.tabBars.buttons["Wissen"].tap()
         let interests = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Interessen'")).firstMatch
         XCTAssertTrue(interests.waitForExistence(timeout: 5))
         interests.tap()
-        let explanation = app.staticTexts["interest.kind.explanation"]
-        XCTAssertTrue(explanation.waitForExistence(timeout: 5))
-        XCTAssertTrue(explanation.label.contains("dauerhaft"))
+
+        let field = app.textFields["interest.new"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Art"].exists, "Es gibt wieder eine Auswahl der Art")
+        XCTAssertFalse(app.staticTexts["Aktuelles Vorhaben"].exists)
+        XCTAssertFalse(app.staticTexts["Offene Frage"].exists)
+
+        let label = "Testthema \(Int(Date().timeIntervalSince1970) % 100_000)"
+        field.tap()
+        // Mit dem Zeilenschalter: die Tastatur kann den Knopf verdecken.
+        field.typeText(label + "\n")
+        XCTAssertTrue(app.staticTexts[label].waitForExistence(timeout: 5), "Das Thema erscheint nicht in der Liste")
+        XCTAssertTrue(app.staticTexts["Themen"].exists || app.staticTexts["THEMEN"].exists)
         attach(app, "interessen")
     }
 

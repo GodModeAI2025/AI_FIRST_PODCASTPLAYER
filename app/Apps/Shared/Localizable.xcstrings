@@ -1417,38 +1417,6 @@
         }
       }
     },
-    "Aktuelle Vorhaben": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktuelle Vorhaben"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current Projects"
-          }
-        }
-      }
-    },
-    "Aktuelles Vorhaben": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aktuelles Vorhaben"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current Project"
-          }
-        }
-      }
-    },
     "Alle %lld Fakten": {
       "localizations": {
         "de": {
@@ -2232,22 +2200,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Working"
-          }
-        }
-      }
-    },
-    "Art": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Art"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Type"
           }
         }
       }
@@ -3730,6 +3682,22 @@
         }
       }
     },
+    "Deine Themen, jedes mit eigenen Stichworten. Daraus entstehen „Für dich“ und die Themen-Updates.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Themen, jedes mit eigenen Stichworten. Daraus entstehen „Für dich“ und die Themen-Updates."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your topics, each with its own keywords. They shape \"For You\" and your Topic Updates."
+          }
+        }
+      }
+    },
     "Deine These": {
       "localizations": {
         "de": {
@@ -5155,22 +5123,6 @@
         }
       }
     },
-    "Ein Gebiet, das dich dauerhaft interessiert. Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ein Gebiet, das dich dauerhaft interessiert. Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A subject you're interested in over the long term. Topics fill \"For You\" and are the basis for Topic Updates."
-          }
-        }
-      }
-    },
     "Ein Podcast": {
       "localizations": {
         "de": {
@@ -5407,22 +5359,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "A saved answer keeps a question together with its source passages and notes. In Chat, every answer has \"Save Answer\". If you listen to source passages one after another and stop playback after at least two minutes, the closing card offers \"Save for Later\"."
-          }
-        }
-      }
-    },
-    "Eine konkrete Frage, auf die du eine Antwort suchst. „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, bei längeren Fragen mindestens zwei.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eine konkrete Frage, auf die du eine Antwort suchst. „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, bei längeren Fragen mindestens zwei."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A specific question you want answered. \"For You\" shows passages that contain important words from the question, at least two for longer questions."
           }
         }
       }
@@ -5695,22 +5631,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Created %@"
-          }
-        }
-      }
-    },
-    "Etwas, woran du gerade arbeitest. Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Etwas, woran du gerade arbeitest. Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Something you're working on right now. Matching passages appear in \"For You\" ahead of equally good matches for your topics."
           }
         }
       }
@@ -9742,38 +9662,6 @@
         }
       }
     },
-    "Offene Frage": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Offene Frage"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Question"
-          }
-        }
-      }
-    },
-    "Offene Fragen": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Offene Fragen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Questions"
-          }
-        }
-      }
-    },
     "Ohne Auswahl sucht das Update in allen abonnierten Podcasts.": {
       "localizations": {
         "de": {
@@ -11331,22 +11219,6 @@
         }
       }
     },
-    "Thema": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Thema"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Topic"
-          }
-        }
-      }
-    },
     "Thema %@": {
       "localizations": {
         "de": {
@@ -11359,6 +11231,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Topic %@"
+          }
+        }
+      }
+    },
+    "Thema hinzufügen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Thema hinzufügen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add Topic"
           }
         }
       }
@@ -11439,22 +11327,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Topics Without Matches"
-          }
-        }
-      }
-    },
-    "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Topics, current projects, and open questions. \"For You\" is built from these."
           }
         }
       }
@@ -14365,22 +14237,6 @@
         }
       }
     },
-    "z. B. Lokale KI-Modelle bewerten": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "z. B. Lokale KI-Modelle bewerten"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "e.g., Evaluate local AI models"
-          }
-        }
-      }
-    },
     "z. B. Mein KI Update": {
       "localizations": {
         "de": {
@@ -14393,22 +14249,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "e.g., My AI Update"
-          }
-        }
-      }
-    },
-    "z. B. Was bietet iOS 27 für agentische Apps?": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "z. B. Was bietet iOS 27 für agentische Apps?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "e.g., What does iOS 27 offer for agentic apps?"
           }
         }
       }

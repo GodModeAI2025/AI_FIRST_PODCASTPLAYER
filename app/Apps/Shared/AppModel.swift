@@ -1270,6 +1270,20 @@ public final class AppModel {
     func reloadProfile() async throws {
         let suggested = profile.suggested
         var reloaded = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+        // Es gibt nur noch Themen. Aktuelle Vorhaben und offene Fragen aus
+        // früheren Versionen oder von einem anderen Gerät werden einmal zu
+        // Themen, mit Bezeichnung und Stichworten. Ein Ablaufdatum hatten
+        // nur Vorhaben; bliebe es stehen, träfe das Thema nach Ablauf still
+        // nichts mehr.
+        let legacy = reloaded.interests.filter { $0.kind != .topic }
+        if !legacy.isEmpty {
+            for var interest in legacy {
+                interest.kind = .topic
+                interest.expiresAt = nil
+                try await store.upsert(interest: interest)
+            }
+            reloaded = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+        }
         let confirmedLabels = Set(reloaded.confirmed.map { $0.label.lowercased() })
         for interest in suggested where !confirmedLabels.contains(interest.label.lowercased()) {
             reloaded.add(interest)
@@ -1278,7 +1292,8 @@ public final class AppModel {
     }
 
     /// Legt ein Interesse an. „Für dich“ rechnet danach gleich neu, damit
-    /// ein neues Thema sofort seine Stellen zeigt.
+    /// ein neues Thema sofort seine Stellen zeigt. Die Oberfläche legt nur
+    /// Themen an.
     @discardableResult
     public func addInterest(_ label: String, kind: InterestKind) async -> InterestID? {
         let interest = Interest(label: label, kind: kind, origin: .confirmedByUser)
@@ -1720,8 +1735,14 @@ public final class AppModel {
                 }
             )
             let existing = Set((editions[feedID] ?? []).map(\.batchKey))
+            // Liegt eine Stelle in einem Kapitel des Originals, schneidet die
+            // Ausgabe an dessen Grenzen.
+            let scope = Set(feed.restrictedToSourceIDs)
+            let chapters = await chapterMarks(for: candidates.filter {
+                scope.isEmpty || scope.contains($0.sourceID)
+            })
             let outcome = PersonalEpisodePublisher().makeEdition(
-                feed: feed, candidates: candidates, ledger: ledger,
+                feed: feed, candidates: candidates, ledger: ledger, chapters: chapters,
                 existingBatchKeys: existing, requestedByUser: requestedByUser
             )
             // Themen ohne einen einzigen Treffer in den gewählten Podcasts.
@@ -1788,6 +1809,53 @@ public final class AppModel {
             if requestedByUser { lastError = UserFacingError.describe(error) }
             return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false)
         }
+    }
+
+    /// Höchstens so viele Kapiteldateien lädt eine Ausgabe nach.
+    static let chapterFileLimit = 12
+
+    /// Die Kapitelmarken der Originalfolgen, aus denen eine Ausgabe
+    /// schneiden kann. Kapitel aus dem Feed sind schon da. Verweist der Feed
+    /// nur auf eine Kapiteldatei, lädt die App sie für die relevantesten
+    /// Folgen einmal nach und behält sie wie beim Öffnen einer Folge.
+    private func chapterMarks(for candidates: [SegmentCandidate]) async -> [EpisodeID: EpisodeChapters] {
+        var ranked: [EpisodeID] = []
+        for candidate in candidates.sorted(by: { $0.relevanceScore > $1.relevanceScore })
+        where !ranked.contains(candidate.episodeID) {
+            ranked.append(candidate.episodeID)
+        }
+        guard !ranked.isEmpty,
+              let episodes = try? await store.episodes(ids: ranked) else { return [:] }
+        let byID = Dictionary(episodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+
+        var missing: [(EpisodeID, URL)] = []
+        for id in ranked {
+            guard let episode = byID[id], episode.publisherChapters.isEmpty,
+                  chapterCache[id] == nil, let url = episode.chaptersURL else { continue }
+            missing.append((id, url))
+        }
+        if !isOffline, !missing.isEmpty {
+            let refresher = refresher
+            let loaded = await withTaskGroup(of: (EpisodeID, [Chapter]?).self) { group in
+                for (id, url) in missing.prefix(Self.chapterFileLimit) {
+                    group.addTask { (id, await refresher.loadChapters(from: url)) }
+                }
+                var result: [EpisodeID: [Chapter]] = [:]
+                for await (id, chapters) in group {
+                    if let chapters, !chapters.isEmpty { result[id] = chapters }
+                }
+                return result
+            }
+            for (id, chapters) in loaded { chapterCache[id] = chapters }
+        }
+
+        var marks: [EpisodeID: EpisodeChapters] = [:]
+        for (id, episode) in byID {
+            let chapters = episode.publisherChapters.isEmpty ? (chapterCache[id] ?? []) : episode.publisherChapters
+            guard !chapters.isEmpty else { continue }
+            marks[id] = EpisodeChapters(chapters: chapters, duration: episode.declaredDuration)
+        }
+        return marks
     }
 
     // MARK: - Wissen

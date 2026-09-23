@@ -1738,7 +1738,6 @@ struct InterestsView: View {
 
     @Environment(AppModel.self) private var model
     @State private var newLabel = ""
-    @State private var newKind: InterestKind = .topic
 
     var body: some View {
         List {
@@ -1751,24 +1750,6 @@ struct InterestsView: View {
                 Text("Themen")
             } footer: {
                 Text("Deine Themen füllen „Für dich“ und die Themen-Updates. Antippen, um Stichworte zu ergänzen.")
-            }
-
-            if !model.profile.activeProjects.isEmpty {
-                Section("Aktuelle Vorhaben") {
-                    ForEach(model.profile.activeProjects) { interest in
-                        NavigationLink { InterestEditView(interest: interest) } label: { InterestRow(interest: interest) }
-                    }
-                    .onDelete { offsets in remove(model.profile.activeProjects, at: offsets) }
-                }
-            }
-
-            if !model.profile.openQuestions.isEmpty {
-                Section("Offene Fragen") {
-                    ForEach(model.profile.openQuestions) { interest in
-                        NavigationLink { InterestEditView(interest: interest) } label: { InterestRow(interest: interest) }
-                    }
-                    .onDelete { offsets in remove(model.profile.openQuestions, at: offsets) }
-                }
             }
 
             // Vorgeschlagenes bleibt sichtbar getrennt von Bestätigtem.
@@ -1796,57 +1777,26 @@ struct InterestsView: View {
                 }
             }
 
+            // Nur Themen. Die Arten „Vorhaben“ und „Frage“ machten das
+            // Anlegen komplizierter (Rückmeldung zu 0.6 und 0.7).
             Section {
-                Picker("Art", selection: $newKind) {
-                    Text("Thema").tag(InterestKind.topic)
-                    Text("Aktuelles Vorhaben").tag(InterestKind.activeProject)
-                    Text("Offene Frage").tag(InterestKind.openQuestion)
-                }
-                Text(kindExplanation)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("interest.kind.explanation")
-                TextField(placeholder, text: $newLabel)
-                Button("Hinzufügen") {
-                    let label = newLabel.trimmingCharacters(in: .whitespaces)
-                    guard !label.isEmpty else { return }
-                    Task { await model.addInterest(label, kind: newKind); newLabel = "" }
-                }
-                .disabled(newLabel.trimmingCharacters(in: .whitespaces).isEmpty)
+                TextField("z. B. Datenschutz", text: $newLabel)
+                    .accessibilityIdentifier("interest.new")
+                    .onSubmit(add)
+                Button("Hinzufügen", action: add)
+                    .disabled(newLabel.trimmingCharacters(in: .whitespaces).isEmpty)
             } header: {
-                Text("Hinzufügen")
+                Text("Thema hinzufügen")
             }
         }
         .navigationTitle("Interessen")
     }
 
-    private var kindExplanation: String {
-        switch newKind {
-        case .topic:
-            String(localized: """
-                Ein Gebiet, das dich dauerhaft interessiert. \
-                Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates.
-                """)
-        case .activeProject:
-            String(localized: """
-                Etwas, woran du gerade arbeitest. \
-                Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen.
-                """)
-        case .openQuestion:
-            String(localized: """
-                Eine konkrete Frage, auf die du eine Antwort suchst. \
-                „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, \
-                bei längeren Fragen mindestens zwei.
-                """)
-        }
-    }
-
-    private var placeholder: String {
-        switch newKind {
-        case .topic: String(localized: "z. B. Datenschutz")
-        case .activeProject: String(localized: "z. B. Lokale KI-Modelle bewerten")
-        case .openQuestion: String(localized: "z. B. Was bietet iOS 27 für agentische Apps?")
-        }
+    private func add() {
+        let label = newLabel.trimmingCharacters(in: .whitespaces)
+        guard !label.isEmpty else { return }
+        newLabel = ""
+        Task { await model.addInterest(label, kind: .topic) }
     }
 
     private func remove(_ interests: [Interest], at offsets: IndexSet) {

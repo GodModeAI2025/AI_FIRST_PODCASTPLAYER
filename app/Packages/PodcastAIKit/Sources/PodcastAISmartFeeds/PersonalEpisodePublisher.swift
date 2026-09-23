@@ -5,8 +5,9 @@
 //  Der Weg von „es gibt neues passendes Material“ zu einer persönlichen
 //  Ausgabe. Reihenfolge ist verbindlich:
 //
-//    Scope prüfen → Belege wählen → Hörzustand abziehen → Budget anwenden
-//    → unveränderliches Manifest bilden → Shownotes → veröffentlichen
+//    Scope prüfen → Belege wählen → auf Kapitel einrasten → Hörzustand
+//    abziehen → Budget anwenden → Abspielfolge → unveränderliches Manifest
+//    bilden → Shownotes → veröffentlichen
 //
 //  Die Veröffentlichung startet **nie** Ton. Eine neue Ausgabe ist ein
 //  Zustand, kein Ereignis mit Audio.
@@ -50,13 +51,52 @@ public struct SegmentCandidate: Sendable, Hashable {
     }
 }
 
+/// Die Kapitelmarken einer Originalfolge.
+///
+/// Ein Kapitel reicht bis zum nächsten, das letzte bis zum Ende der Folge,
+/// sofern ihre Länge bekannt ist. Liegt eine passende Stelle in einem
+/// Kapitel, spielt die Ausgabe das ganze Kapitel: es beginnt und endet dort,
+/// wo der Podcast selbst schneidet.
+public struct EpisodeChapters: Sendable, Hashable {
+
+    /// Kapitelanfänge, aufsteigend und ohne Doppelte.
+    public let starts: [MediaTime]
+    /// Länge der Folge. Ohne sie hat das letzte Kapitel kein Ende.
+    public let duration: MediaDuration?
+
+    public init(chapters: [Chapter], duration: MediaDuration? = nil) {
+        self.starts = Array(Set(chapters.map(\.start))).sorted()
+        self.duration = duration
+    }
+
+    /// Von der Kapitelgrenze vor der Stelle bis zur Kapitelgrenze nach ihr.
+    /// Reicht die Stelle über eine Grenze, umfasst der Bereich beide Kapitel.
+    /// `nil`, wenn die Stelle vor dem ersten Kapitel beginnt oder das Ende
+    /// des letzten Kapitels unbekannt ist.
+    public func span(covering range: MediaTimeRange) -> MediaTimeRange? {
+        guard let first = starts.lastIndex(where: { $0 <= range.start }) else { return nil }
+        // Endet die Stelle genau auf einer Grenze, gehört sie zum Kapitel davor.
+        let last = max(first, starts.lastIndex(where: { $0 < range.end }) ?? first)
+        let end: MediaTime
+        if last + 1 < starts.count {
+            end = starts[last + 1]
+        } else if let duration, duration.milliseconds > starts[last].milliseconds {
+            end = MediaTime(milliseconds: duration.milliseconds)
+        } else {
+            return nil
+        }
+        return MediaTimeRange(start: starts[first], end: end)
+    }
+}
+
 public struct PublisherOptions: Sendable {
     /// Kontext vor dem eigentlich Neuen. Macht einen Einstieg verständlich,
     /// zählt aber nicht als neuer Inhalt.
     public var contextLeadIn: MediaDuration
     /// Kürzeste Länge, die ein Abschnitt haben muss.
     public var minimumSegmentDuration: MediaDuration
-    /// Längster Einzelabschnitt.
+    /// Längster Einzelabschnitt. Ein längeres Kapitel wird nicht ganz
+    /// gespielt, dann bleibt es bei der passenden Stelle.
     public var maximumSegmentDuration: MediaDuration
     /// Hörbare Pause zwischen zwei Abschnitten, in der virtuellen Zeitachse.
     public var transition: MediaDuration
@@ -102,10 +142,15 @@ public struct PersonalEpisodePublisher: Sendable {
     /// Dann gilt die Mindestmenge der automatischen Regel nicht. Sie soll
     /// verhindern, dass die App von selbst Mini-Ausgaben veröffentlicht,
     /// nicht, dass man drei Minuten Material hören kann, wenn man sie will.
+    ///
+    /// `chapters`: die Kapitelmarken der Originalfolgen, soweit bekannt.
+    /// Liegt eine Stelle in einem Kapitel, das nicht länger als
+    /// `maximumSegmentDuration` ist, spielt die Ausgabe das ganze Kapitel.
     public func makeEdition(
         feed: SmartPodcastFeed,
         candidates: [SegmentCandidate],
         ledger: ListeningLedger,
+        chapters: [EpisodeID: EpisodeChapters] = [:],
         existingBatchKeys: Set<String> = [],
         requestedByUser: Bool = false,
         options: PublisherOptions = PublisherOptions(),
@@ -118,8 +163,10 @@ public struct PersonalEpisodePublisher: Sendable {
             ? candidates
             : candidates.filter { allowedSources.contains($0.sourceID) }
 
-        // 1. Hörzustand anwenden: nur echt Ungehörtes bleibt Kandidat.
-        let unheard = resolveUnheard(candidates, ledger: ledger, feed: feed, options: options)
+        // 1. Auf Kapitel einrasten und den Hörzustand anwenden: nur echt
+        //    Ungehörtes bleibt Kandidat.
+        let unheard = resolveUnheard(
+            candidates, ledger: ledger, chapters: chapters, feed: feed, options: options)
         guard !unheard.isEmpty else {
             return .noNewMaterial(candidateCount: candidates.count)
         }
@@ -148,8 +195,8 @@ public struct PersonalEpisodePublisher: Sendable {
         //    Original — sonst verschwinden ältere Inhalte dauerhaft hinter
         //    ständig nachrückenden neuen.
         let ranked = unheard.sorted { lhs, rhs in
-            if lhs.candidate.relevanceScore != rhs.candidate.relevanceScore {
-                return lhs.candidate.relevanceScore > rhs.candidate.relevanceScore
+            if lhs.relevanceScore != rhs.relevanceScore {
+                return lhs.relevanceScore > rhs.relevanceScore
             }
             let l = lhs.candidate.originalPublishedAt ?? .distantPast
             let r = rhs.candidate.originalPublishedAt ?? .distantPast
@@ -163,8 +210,12 @@ public struct PersonalEpisodePublisher: Sendable {
             return .belowThreshold(available: availableCore, required: required)
         }
 
-        // 5. Virtuelle Zeitachse aufbauen und Manifest bilden.
-        let segments = buildSegments(selected, options: options)
+        // 5. Abspielfolge: Folgen nach Relevanz, ihre Abschnitte am Stück und
+        //    in der Reihenfolge des Originals.
+        let ordered = Self.playbackOrder(selected)
+
+        // 6. Virtuelle Zeitachse aufbauen und Manifest bilden.
+        let segments = buildSegments(ordered, options: options)
         let shownotes = ShownotesBuilder().build(from: segments)
 
         let coverage = EditionCoverage(
@@ -195,17 +246,47 @@ public struct PersonalEpisodePublisher: Sendable {
     // MARK: - Ungehörtes auflösen
 
     struct UnheardCandidate {
-        let candidate: SegmentCandidate
+        /// Der tragende Kandidat. Titel, Grund und Fassung kommen von ihm.
+        var candidate: SegmentCandidate
+        /// Alle Belege, die in diesem Abschnitt erklingen, der tragende zuerst.
+        var evidenceIDs: [EvidenceID]
+        var topicIDs: [InterestID]
+        /// Der beste Wert unter den Belegen des Abschnitts.
+        var relevanceScore: Double
         /// Das tatsächlich Neue.
         let core: MediaTimeRange
         /// Was abgespielt wird, inklusive Kontextvorlauf.
         let playback: MediaTimeRange
         var hasContextReplay: Bool { playback.start < core.start }
+
+        init(candidate: SegmentCandidate, core: MediaTimeRange, playback: MediaTimeRange) {
+            self.candidate = candidate
+            self.evidenceIDs = [candidate.evidence.id]
+            self.topicIDs = candidate.topicIDs
+            self.relevanceScore = candidate.relevanceScore
+            self.core = core
+            self.playback = playback
+        }
+
+        /// Nimmt einen weiteren Beleg auf, der in diesem Abschnitt schon
+        /// erklingt. Der relevantere wird zum tragenden.
+        mutating func absorb(_ other: SegmentCandidate) {
+            for topic in other.topicIDs where !topicIDs.contains(topic) { topicIDs.append(topic) }
+            evidenceIDs.removeAll { $0 == other.evidence.id }
+            if other.relevanceScore > relevanceScore {
+                relevanceScore = other.relevanceScore
+                candidate = other
+                evidenceIDs.insert(other.evidence.id, at: 0)
+            } else {
+                evidenceIDs.append(other.evidence.id)
+            }
+        }
     }
 
     private func resolveUnheard(
         _ candidates: [SegmentCandidate],
         ledger: ListeningLedger,
+        chapters: [EpisodeID: EpisodeChapters],
         feed: SmartPodcastFeed,
         options: PublisherOptions
     ) -> [UnheardCandidate] {
@@ -226,25 +307,61 @@ public struct PersonalEpisodePublisher: Sendable {
                 continue
             }
 
-            var available = ledger.unheardPortion(
+            // Das Neue an der Stelle selbst. Ist sie schon gehört, holt auch
+            // ihr Kapitel sie nicht zurück.
+            let unheardPassage = ledger.unheardPortion(
                 of: range, in: mediaID, minimumFragment: options.minimumSegmentDuration
             )
-            if let alreadyReserved = reserved[mediaID] {
-                available = available.subtracting(alreadyReserved)
+            guard let passage = unheardPassage.ranges.max(by: { $0.duration < $1.duration }) else { continue }
+
+            // Erklingt die Stelle schon in einem Abschnitt dieses Laufs, etwa
+            // im selben Kapitel, kommt ihr Beleg dorthin, statt zu verschwinden.
+            if let index = result.firstIndex(where: {
+                $0.candidate.evidence.mediaVersionID == mediaID
+                    && $0.core.start <= passage.start && passage.end <= $0.core.end
+            }) {
+                result[index].absorb(candidate)
+                continue
+            }
+
+            func unreserved(_ set: IntervalSet) -> IntervalSet {
+                guard let alreadyReserved = reserved[mediaID] else { return set }
+                return set.subtracting(alreadyReserved)
                     .droppingFragments(shorterThan: options.minimumSegmentDuration)
             }
-            guard let core = available.ranges.max(by: { $0.duration < $1.duration }) else { continue }
 
-            let clampedCore = core.clamped(toDuration: options.maximumSegmentDuration)
+            // Auf das Kapitel des Originals einrasten, wenn es eines gibt und
+            // es nicht zu lang ist. Sonst bleibt es bei der Stelle.
+            let chapter = chapters[candidate.episodeID]?.span(covering: passage)
+                .flatMap { $0.duration <= options.maximumSegmentDuration ? $0 : nil }
+            var core: MediaTimeRange?
+            var floor: Int64 = 0
+            if let chapter {
+                let pieces = unreserved(ledger.unheardPortion(
+                    of: chapter, in: mediaID, minimumFragment: options.minimumSegmentDuration))
+                if let piece = pieces.ranges.first(where: { $0.overlaps(passage) }) {
+                    core = piece
+                    floor = chapter.start.milliseconds
+                }
+            }
+            if core == nil {
+                core = unreserved(unheardPassage).ranges
+                    .max(by: { $0.duration < $1.duration })?
+                    .clamped(toDuration: options.maximumSegmentDuration)
+            }
+            guard let core else { continue }
+
             // Kontextvorlauf: vor dem Neuen, bewusst auch schon Gehörtes.
+            // Beginnt der Abschnitt am Kapitelanfang, braucht er keinen, und
+            // er reicht nie ins Kapitel davor.
             let playback = MediaTimeRange(
-                start: MediaTime(milliseconds: max(0, clampedCore.start.milliseconds
+                start: MediaTime(milliseconds: max(floor, core.start.milliseconds
                                                    - options.contextLeadIn.milliseconds)),
-                end: clampedCore.end
+                end: core.end
             )
 
-            reserved[mediaID, default: IntervalSet()].insert(clampedCore)
-            result.append(UnheardCandidate(candidate: candidate, core: clampedCore, playback: playback))
+            reserved[mediaID, default: IntervalSet()].insert(core)
+            result.append(UnheardCandidate(candidate: candidate, core: core, playback: playback))
         }
         return result
     }
@@ -282,6 +399,31 @@ public struct PersonalEpisodePublisher: Sendable {
         return (selected, MediaDuration(milliseconds: leftOver))
     }
 
+    // MARK: - Abspielfolge
+
+    /// Folgen nach Relevanz, ihre Abschnitte am Stück und in der Zeitfolge
+    /// des Originals. Wer eine Folge hört, springt darin nicht zurück, und
+    /// zwischen zwei Stellen derselben Folge schiebt sich keine andere.
+    ///
+    /// `selected` kommt nach Relevanz sortiert. Eine Folge steht deshalb
+    /// dort, wo ihr relevantester Abschnitt stand.
+    static func playbackOrder(_ selected: [UnheardCandidate]) -> [UnheardCandidate] {
+        var order: [EpisodeID] = []
+        var groups: [EpisodeID: [UnheardCandidate]] = [:]
+        for item in selected {
+            let key = item.candidate.episodeID
+            if groups[key] == nil { order.append(key) }
+            groups[key, default: []].append(item)
+        }
+        return order.flatMap { key in
+            (groups[key] ?? []).sorted { lhs, rhs in
+                if lhs.core.start != rhs.core.start { return lhs.core.start < rhs.core.start }
+                return lhs.candidate.evidence.mediaVersionID.rawValue
+                    < rhs.candidate.evidence.mediaVersionID.rawValue
+            }
+        }
+    }
+
     // MARK: - Manifest
 
     private func buildSegments(
@@ -305,12 +447,12 @@ public struct PersonalEpisodePublisher: Sendable {
                 episodeID: item.candidate.episodeID,
                 mediaVersionID: item.candidate.evidence.mediaVersionID,
                 transcriptRevision: item.candidate.transcriptRevision,
-                evidenceIDs: [item.candidate.evidence.id],
+                evidenceIDs: item.evidenceIDs,
                 coreRange: item.core,
                 playbackRange: item.playback,
                 virtualRange: virtual,
                 reason: item.candidate.reason,
-                topicIDs: item.candidate.topicIDs,
+                topicIDs: item.topicIDs,
                 contextReplay: item.hasContextReplay,
                 sourceID: item.candidate.sourceID,
                 sourceTitle: item.candidate.sourceTitle,
