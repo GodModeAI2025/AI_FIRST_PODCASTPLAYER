@@ -8,6 +8,8 @@
 //
 
 import Foundation
+import NaturalLanguage
+import Network
 import Security
 import Observation
 import SwiftUI
@@ -65,9 +67,29 @@ public final class AppModel {
             if automaticAnalysis { Task { await prepareNewEpisodes() } }
         }
     }
-    /// Wie viele Folgen je Quelle die App von sich aus vorbereitet.
-    public static let automaticAnalysisPerSource = 3
+    /// Wie viele der jüngsten Folgen je Quelle die App von sich aus vorbereitet.
+    public var episodesPerSource: Int {
+        didSet {
+            UserDefaults.standard.set(episodesPerSource, forKey: Self.episodesPerSourceKey)
+            Task { await prepareNewEpisodes() }
+        }
+    }
+    public static let episodesPerSourceChoices = [1, 3, 5, 10]
     static let automaticAnalysisKey = "automaticAnalysis"
+    static let episodesPerSourceKey = "episodesPerSource"
+    static let wifiOnlyKey = "preparationOnWiFiOnly"
+    /// Von selbst nur im WLAN laden. Was man selbst anfordert, lädt immer.
+    public var preparationOnWiFiOnly: Bool {
+        didSet {
+            UserDefaults.standard.set(preparationOnWiFiOnly, forKey: Self.wifiOnlyKey)
+            networkChanged(expensive: onExpensiveNetwork)
+        }
+    }
+    /// Mobilfunk, persönlicher Hotspot oder Datensparmodus.
+    public private(set) var onExpensiveNetwork = false
+    @ObservationIgnored private let pathMonitor = NWPathMonitor()
+    /// Die automatische Vorbereitung wartet gerade auf WLAN.
+    public var preparationWaitsForWiFi: Bool { preparationOnWiFiOnly && onExpensiveNetwork }
     @ObservationIgnored var analyzedEpisodes: Set<EpisodeID> = []
     /// Von der App selbst eingereihte Folgen. Ihre Fehler unterbrechen
     /// niemanden: wer nicht darum gebeten hat, will dafür keinen Dialog.
@@ -133,6 +155,9 @@ public final class AppModel {
         // und die App wirkt, als könne sie nichts.
         self.automaticAnalysis = UserDefaults.standard.object(forKey: Self.automaticAnalysisKey) as? Bool ?? true
         self.allowPrivateCloudCompute = UserDefaults.standard.object(forKey: Self.privateCloudKey) as? Bool ?? true
+        let perSource = UserDefaults.standard.integer(forKey: Self.episodesPerSourceKey)
+        self.episodesPerSource = perSource > 0 ? perSource : 3
+        self.preparationOnWiFiOnly = UserDefaults.standard.object(forKey: Self.wifiOnlyKey) as? Bool ?? true
         self.deviceID = deviceID
         self.policy = PlaybackPolicy(deviceID: deviceID)
         let locator = LocalMediaLocator()
@@ -148,6 +173,11 @@ public final class AppModel {
         episodePlayer.onFinished = { [weak self] episode in
             self?.playNextInQueue(after: episode)
         }
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let expensive = path.isExpensive || path.isConstrained
+            Task { @MainActor in self?.networkChanged(expensive: expensive) }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "PodcastAI.network"))
         // Eine Folge und ein Fokus-Plan klingen nie gleichzeitig. Startet die
         // Folge über irgendeinen Weg (Knopf, Menü, Sperrbildschirm), endet
         // der Plan.
@@ -317,15 +347,28 @@ public final class AppModel {
         activity = "Link wird geprüft …"
         defer { activity = nil }
         do {
-            let added = try await refresher.addSource(from: input)
-            sources = try await store.sources()
+            let added = try await subscribe(to: input)
             activity = "„\(added.title)“ aufgenommen · \(added.episodeCount) Folgen gefunden"
-            for source in sources where source.kind == .youTubeChannel && podcastCounterparts[source.id] == nil {
-                await findPodcastCounterparts(for: source)
-            }
         } catch {
             lastError = UserFacingError.describe(error)
         }
+    }
+
+    /// Abonniert und meldet Fehler an den Aufrufer, damit das Blatt offen
+    /// bleiben und den Grund zeigen kann.
+    @discardableResult
+    public func subscribe(to input: String) async throws -> AddedSource {
+        let added = try await refresher.addSource(from: input)
+        sources = try await store.sources()
+        for source in sources where source.kind == .youTubeChannel && podcastCounterparts[source.id] == nil {
+            await findPodcastCounterparts(for: source)
+        }
+        return added
+    }
+
+    /// Ist dieser Feed schon abonniert?
+    public func isSubscribed(_ feed: URL) -> Bool {
+        sources.contains { $0.feedURL == feed }
     }
 
     /// Sucht zu einem YouTube-Kanal den Audio-Podcast desselben Anbieters.
@@ -388,13 +431,31 @@ public final class AppModel {
         let ids = sourceID.map { [$0] } ?? sources.map(\.id)
         for id in ids {
             let list = episodes[id] ?? []
+            // Erst die jüngsten N, dann filtern. Umgekehrt rückte nach jeder
+            // fertigen Folge die nächstältere nach, bis durchs ganze Archiv.
             let candidates = list
                 .filter { $0.audioURL != nil && $0.canBeAnalyzed }
+                .prefix(episodesPerSource)
                 .filter { !analyzedEpisodes.contains($0.id) }
                 .filter { stages[$0.id] == nil }
-                .prefix(Self.automaticAnalysisPerSource)
             for episode in candidates { enqueueAnalysis(episode, automatic: true) }
         }
+    }
+
+    /// Netz gewechselt. Im WLAN läuft Wartendes weiter, im Mobilfunk bleibt
+    /// automatisch Eingereihtes stehen.
+    func networkChanged(expensive: Bool) {
+        onExpensiveNetwork = expensive
+        for episode in analysisQueue where automaticallyQueued.contains(episode.id) {
+            stageDetails[episode.id] = preparationWaitsForWiFi ? "wartet auf WLAN" : "wartet"
+        }
+        if !preparationWaitsForWiFi, !analysisQueue.isEmpty { startAnalysisWorker() }
+    }
+
+    /// Darf diese Folge jetzt laufen? Automatisch Eingereihtes wartet im
+    /// Mobilfunk, wenn „Nur im WLAN“ an ist.
+    private func mayRunNow(_ episode: Episode) -> Bool {
+        !(preparationWaitsForWiFi && automaticallyQueued.contains(episode.id))
     }
 
     /// Erschliesst eine Folge: laden, transkribieren, Belege bilden.
@@ -418,7 +479,7 @@ public final class AppModel {
               !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
         analysisQueue.append(episode)
         stages[episode.id] = nil
-        stageDetails[episode.id] = "wartet"
+        stageDetails[episode.id] = automatic && preparationWaitsForWiFi ? "wartet auf WLAN" : "wartet"
         startAnalysisWorker()
     }
 
@@ -437,8 +498,8 @@ public final class AppModel {
             guard let self else { return }
             let background = BackgroundContinuation.begin(title: self.analysisQueue.first?.title ?? "")
             var retried: Set<EpisodeID> = []
-            while let next = self.analysisQueue.first {
-                self.analysisQueue.removeFirst()
+            while let index = self.analysisQueue.firstIndex(where: { self.mayRunNow($0) }) {
+                let next = self.analysisQueue.remove(at: index)
                 // Ohne Lücke: was nicht mehr wartet, läuft schon.
                 self.analyzing = next
                 background.setSubtitle(next.title)
@@ -575,6 +636,41 @@ public final class AppModel {
             lastError = UserFacingError.describe(error)
             return nil
         }
+    }
+
+    /// Bezeichnung und Stichworte ändern. „Für dich“ rechnet danach neu.
+    public func updateInterest(_ interest: Interest) async {
+        do {
+            try await store.upsert(interest: interest)
+            profile = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+        } catch {
+            lastError = UserFacingError.describe(error)
+            return
+        }
+        await refreshRelevantToday()
+    }
+
+    /// Verwandte Wörter aus der Wort-Einbettung des Systems, deutsch und
+    /// englisch. Läuft auf dem Gerät und ist nur ein Vorschlag.
+    public static func keywordSuggestions(for label: String, existing: [String]) -> [String] {
+        let taken = Set(([label] + existing).map { $0.lowercased() })
+        let words = label.lowercased()
+            .split { !$0.isLetter && !$0.isNumber }
+            .map(String.init)
+            .filter { $0.count >= 3 }
+        var result: [String] = []
+        for language in [NLLanguage.german, .english] {
+            guard let embedding = NLEmbedding.wordEmbedding(for: language) else { continue }
+            for word in words where embedding.contains(word) {
+                for (neighbor, distance) in embedding.neighbors(for: word, maximumCount: 8) where distance < 1.0 {
+                    let candidate = neighbor.lowercased()
+                    guard candidate.count >= 3, !taken.contains(candidate), !result.contains(candidate),
+                          !words.contains(candidate) else { continue }
+                    result.append(candidate)
+                }
+            }
+        }
+        return Array(result.prefix(10))
     }
 
     public func removeInterest(_ id: InterestID) async {

@@ -456,37 +456,198 @@ struct AddSourceSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var input = ""
+    @State private var results: [PodcastCounterpart] = []
+    @State private var searchedTerm: String?
+    @State private var searching = false
+    @State private var working: URL?
+    @State private var addingLink = false
+    @State private var added: [URL: Int] = [:]
+    @State private var failure: String?
+
+    private var trimmed: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var isLink: Bool {
+        trimmed.contains("://") || trimmed.hasPrefix("www.") || FeedRefresher.firstLink(in: trimmed) != nil
+    }
 
     var body: some View {
         NavigationStack {
-            Form {
+            List {
                 Section {
-                    TextField("Adresse einfügen", text: $input, axis: .vertical)
-                        .textContentType(.URL)
+                    TextField("Podcast suchen oder Link einfügen", text: $input, axis: .vertical)
+                        .accessibilityIdentifier("source.input")
+                        .onSubmit(submit)
+                        .submitLabel(isLink ? .done : .search)
                         #if os(iOS)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .keyboardType(.URL)
                         #endif
-                } header: {
-                    Text("Quelle")
                 } footer: {
-                    Text("Ein Podcast-Feed, eine einzelne Folge oder ein YouTube-Link. "
-                         + "Abonnieren lädt nichts herunter — was verarbeitet wird, "
-                         + "entscheidest du danach.")
+                    Text("Tippe den Namen eines Podcasts, eines Anbieters oder ein Thema. "
+                         + "Links gehen auch: Apple Podcasts, ein Feed, eine einzelne Folge oder ein YouTube-Kanal.")
+                }
+
+                if let failure {
+                    Section {
+                        Label(failure, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red)
+                            .accessibilityIdentifier("source.error")
+                    }
+                }
+
+                if isLink {
+                    Section {
+                        Button(action: submit) {
+                            HStack {
+                                Label("Diesen Link abonnieren", systemImage: "plus.circle.fill")
+                                Spacer()
+                                if addingLink { ProgressView() }
+                            }
+                        }
+                        .disabled(addingLink)
+                        .accessibilityIdentifier("source.addLink")
+                    }
+                } else if searching && results.isEmpty {
+                    Section { HStack { ProgressView(); Text("Suche im Podcast-Verzeichnis …").foregroundStyle(.secondary) } }
+                } else if !results.isEmpty {
+                    Section {
+                        ForEach(results) { podcast in
+                            PodcastSearchRow(podcast: podcast,
+                                             state: rowState(podcast),
+                                             subscribe: { Task { await subscribe(podcast) } })
+                        }
+                    } header: {
+                        Text("Treffer im Apple-Podcast-Verzeichnis")
+                    } footer: {
+                        Text("Nach dem Abonnieren bereitet die App die neuesten Folgen vor: laden, "
+                             + "Transkript erstellen, Fakten finden. Ältere Folgen erschliesst du bei Bedarf einzeln.")
+                    }
+                } else if let searchedTerm, searchedTerm == trimmed, !trimmed.isEmpty {
+                    ContentUnavailableView.search(text: trimmed)
                 }
             }
-            .navigationTitle("Quelle hinzufügen")
+            .navigationTitle("Podcast hinzufügen")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .task(id: trimmed) { await searchAfterPause() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Hinzufügen") {
-                        Task { await model.addSource(from: input); dismiss() }
+                    if added.isEmpty {
+                        Button("Hinzufügen", action: submit)
+                            .disabled(trimmed.isEmpty || addingLink)
+                    } else {
+                        Button("Fertig") { dismiss() }
                     }
-                    .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Abbrechen") { dismiss() }
                 }
+            }
+        }
+    }
+
+    private func rowState(_ podcast: PodcastCounterpart) -> PodcastSearchRow.State {
+        if let count = added[podcast.feedURL] { return .added(count) }
+        if model.isSubscribed(podcast.feedURL) { return .subscribed }
+        if working == podcast.feedURL { return .working }
+        return .open
+    }
+
+    private func submit() {
+        guard !trimmed.isEmpty else { return }
+        if isLink {
+            Task { await subscribeLink() }
+        } else {
+            Task { await search(trimmed) }
+        }
+    }
+
+    private func searchAfterPause() async {
+        failure = nil
+        guard !isLink, trimmed.count >= 2 else { results = []; searchedTerm = nil; return }
+        try? await Task.sleep(for: .milliseconds(450))
+        guard !Task.isCancelled else { return }
+        await search(trimmed)
+    }
+
+    private func search(_ term: String) async {
+        searching = true
+        defer { searching = false }
+        let found = await PodcastDirectory.search(term)
+        guard term == trimmed else { return }
+        results = found
+        searchedTerm = term
+    }
+
+    private func subscribeLink() async {
+        addingLink = true
+        failure = nil
+        defer { addingLink = false }
+        do {
+            try await model.subscribe(to: trimmed)
+            dismiss()
+        } catch {
+            failure = UserFacingError.describe(error)
+        }
+    }
+
+    private func subscribe(_ podcast: PodcastCounterpart) async {
+        working = podcast.feedURL
+        failure = nil
+        defer { working = nil }
+        do {
+            let result = try await model.subscribe(to: podcast.feedURL.absoluteString)
+            added[podcast.feedURL] = result.episodeCount
+        } catch {
+            failure = "„\(podcast.title)“: \(UserFacingError.describe(error))"
+        }
+    }
+}
+
+/// Ein Treffer der Podcastsuche mit Bild, Anbieter und Abo-Zustand.
+struct PodcastSearchRow: View {
+    enum State: Equatable { case open, working, subscribed, added(Int) }
+
+    let podcast: PodcastCounterpart
+    let state: State
+    let subscribe: () -> Void
+
+    var body: some View {
+        HStack(spacing: Design.Spacing.control) {
+            AsyncImage(url: podcast.artworkURL) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Image(systemName: "mic").foregroundStyle(.secondary)
+            }
+            .frame(width: 48, height: 48)
+            .background(.quaternary)
+            .clipShape(.rect(cornerRadius: 8))
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(podcast.title).font(.body).lineLimit(2)
+                Text([podcast.author, podcast.genre].compactMap { $0?.isEmpty == false ? $0 : nil }
+                        .joined(separator: " · "))
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if case .added(let count) = state {
+                    Text("Abonniert · \(count) Folgen gefunden")
+                        .font(.caption).foregroundStyle(.green)
+                }
+            }
+            Spacer(minLength: 0)
+            switch state {
+            case .open:
+                Button("Abonnieren", action: subscribe)
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+                    .accessibilityLabel("\(podcast.title) abonnieren")
+            case .working:
+                ProgressView()
+            case .subscribed, .added:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .accessibilityLabel("Abonniert")
             }
         }
     }
@@ -504,24 +665,30 @@ struct InterestsView: View {
         List {
             Section {
                 ForEach(model.profile.topics) { interest in
-                    InterestRow(interest: interest)
+                    NavigationLink { InterestEditView(interest: interest) } label: { InterestRow(interest: interest) }
                 }
                 .onDelete { offsets in remove(model.profile.topics, at: offsets) }
             } header: {
                 Text("Themen")
             } footer: {
-                Text("Diese Themen hast du bestätigt. Nur sie lösen persönliche Ausgaben aus.")
+                Text("Antippen, um Stichworte zu ergänzen. Nur bestätigte Themen lösen persönliche Ausgaben aus.")
             }
 
             if !model.profile.activeProjects.isEmpty {
                 Section("Aktuell") {
-                    ForEach(model.profile.activeProjects) { InterestRow(interest: $0) }
+                    ForEach(model.profile.activeProjects) { interest in
+                        NavigationLink { InterestEditView(interest: interest) } label: { InterestRow(interest: interest) }
+                    }
+                    .onDelete { offsets in remove(model.profile.activeProjects, at: offsets) }
                 }
             }
 
             if !model.profile.openQuestions.isEmpty {
                 Section("Offene Fragen") {
-                    ForEach(model.profile.openQuestions) { InterestRow(interest: $0) }
+                    ForEach(model.profile.openQuestions) { interest in
+                        NavigationLink { InterestEditView(interest: interest) } label: { InterestRow(interest: interest) }
+                    }
+                    .onDelete { offsets in remove(model.profile.openQuestions, at: offsets) }
                 }
             }
 
@@ -608,10 +775,102 @@ struct InterestRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
             Text(interest.label)
+            if !interest.keywords.isEmpty {
+                Text("Stichworte: " + interest.keywords.joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
             Text(interest.origin.label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// Bezeichnung und Stichworte eines Interesses. Ohne Stichworte trifft ein
+/// Thema nur sein eigenes Wort.
+struct InterestEditView: View {
+
+    @Environment(AppModel.self) private var model
+    @State private var interest: Interest
+    @State private var newKeyword = ""
+    @State private var suggestions: [String] = []
+    @State private var saved: Interest
+
+    init(interest: Interest) {
+        _interest = State(initialValue: interest)
+        _saved = State(initialValue: interest)
+    }
+
+    var body: some View {
+        Form {
+            Section("Bezeichnung") {
+                TextField("Bezeichnung", text: $interest.label)
+                    .onSubmit(save)
+            }
+            Section {
+                ForEach(interest.keywords, id: \.self) { Text($0) }
+                    .onDelete { offsets in interest.keywords.remove(atOffsets: offsets); save() }
+                HStack {
+                    TextField("Stichwort hinzufügen", text: $newKeyword)
+                        .accessibilityIdentifier("interest.keyword")
+                        .onSubmit(addKeyword)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                    Button("Hinzufügen", action: addKeyword)
+                        .disabled(newKeyword.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            } header: {
+                Text("Stichworte")
+            } footer: {
+                Text("Eine Stelle passt, wenn die Bezeichnung oder eines dieser Wörter darin vorkommt, auch als "
+                     + "Wortteil: „daten“ trifft „Datenschutz“. Englische Fachbegriffe und Abkürzungen hier ergänzen.")
+            }
+            if !suggestions.isEmpty {
+                Section {
+                    ForEach(suggestions, id: \.self) { word in
+                        Button { add(word) } label: { Label(word, systemImage: "plus.circle") }
+                    }
+                } header: {
+                    Text("Verwandte Wörter")
+                } footer: {
+                    Text("Aus dem Wortschatz des Systems, auf diesem Gerät berechnet. Nur übernehmen, was passt.")
+                }
+            }
+        }
+        .navigationTitle(interest.label.isEmpty ? "Interesse" : interest.label)
+        .task(id: interest.label) { refreshSuggestions() }
+        .onDisappear(perform: save)
+    }
+
+    private func addKeyword() {
+        for part in newKeyword.split(separator: ",") { add(String(part)) }
+        newKeyword = ""
+    }
+
+    private func add(_ word: String) {
+        let clean = word.trimmingCharacters(in: .whitespaces)
+        guard !clean.isEmpty,
+              !interest.keywords.contains(where: { $0.caseInsensitiveCompare(clean) == .orderedSame }) else { return }
+        interest.keywords.append(clean)
+        refreshSuggestions()
+        save()
+    }
+
+    private func refreshSuggestions() {
+        suggestions = AppModel.keywordSuggestions(for: interest.label, existing: interest.keywords)
+    }
+
+    private func save() {
+        let trimmed = interest.label.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        interest.label = trimmed
+        guard interest != saved else { return }
+        saved = interest
+        let snapshot = interest
+        Task { await model.updateInterest(snapshot) }
     }
 }
 

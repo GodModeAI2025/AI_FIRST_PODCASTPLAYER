@@ -46,7 +46,27 @@ public actor FeedRefresher {
         }
     }
 
+    /// Die erste Web-Adresse in einem geteilten Text.
+    static func firstLink(in text: String) -> URL? {
+        text.split(whereSeparator: \.isWhitespace)
+            .first { $0.hasPrefix("http://") || $0.hasPrefix("https://") }
+            .flatMap { URL(string: String($0)) }
+    }
+
     public func addSource(from input: String) async throws -> AddedSource {
+        // Geteilte Links kommen oft mit Titel davor. Apple Podcasts und
+        // Spotify verlinken keinen Feed auf ihren Seiten.
+        if let shared = Self.firstLink(in: input), let host = shared.host()?.lowercased() {
+            if host.hasSuffix("podcasts.apple.com") || host == "itunes.apple.com" {
+                guard let feed = await PodcastDirectory.feedURL(forAppleLink: shared) else {
+                    throw FeedRefreshError.appleLinkWithoutFeed
+                }
+                return try await addSource(from: feed.absoluteString)
+            }
+            if host.hasSuffix("spotify.com") || host == "spotify.link" {
+                throw FeedRefreshError.spotifyLink
+            }
+        }
         let link = try resolver.resolve(input)
 
         // Eine einzelne Audiodatei ist kein Feed. Sie landet als Folge in
@@ -326,6 +346,8 @@ public enum FeedRefreshError: Error, LocalizedError {
     case noChannelForVideo
     case notAFeed(String)
     case youTubeFeedUnavailable
+    case appleLinkWithoutFeed
+    case spotifyLink
 
     public var errorDescription: String? {
         switch self {
@@ -341,6 +363,11 @@ public enum FeedRefreshError: Error, LocalizedError {
         case .youTubeFeedUnavailable:
             "YouTube liefert für diesen Kanal gerade keine Daten. Das kommt bei YouTube immer wieder vor. "
             + "Später noch einmal versuchen oder direkt den Audio-Podcast des Kanals hinzufügen."
+        case .appleLinkWithoutFeed:
+            "Apple Podcasts nennt zu diesem Link keinen offenen Feed. Such den Podcast oben nach seinem Namen."
+        case .spotifyLink:
+            "Spotify gibt keine Feed-Adressen heraus. Such den Podcast oben nach seinem Namen, "
+            + "fast alle Sendungen gibt es auch als offenen Feed."
         case .noChannelForVideo:
             "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert "
             + "Kanäle, keine einzelnen Videos."
@@ -359,6 +386,8 @@ public struct PodcastCounterpart: Sendable, Hashable, Identifiable {
     public let title: String
     public let author: String
     public let feedURL: URL
+    public var artworkURL: URL?
+    public var genre: String?
     public var id: URL { feedURL }
 }
 
@@ -392,12 +421,68 @@ public enum PodcastDirectory {
         }
     }
 
+    /// Sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema.
+    public static func search(_ term: String) async -> [PodcastCounterpart] {
+        let term = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard term.count >= 2 else { return [] }
+        let results = await query("search", [
+            URLQueryItem(name: "media", value: "podcast"),
+            URLQueryItem(name: "entity", value: "podcast"),
+            URLQueryItem(name: "limit", value: "25"),
+            URLQueryItem(name: "country", value: Locale.current.region?.identifier ?? "DE"),
+            URLQueryItem(name: "term", value: term),
+        ])
+        var seen = Set<URL>()
+        return results.compactMap(\.counterpart).filter { seen.insert($0.feedURL).inserted }
+    }
+
+    /// Die Feed-Adresse zu einem Link aus Apple Podcasts. Apple nennt sie
+    /// im Verzeichnis, die Seite selbst verlinkt keinen Feed.
+    public static func feedURL(forAppleLink url: URL) async -> URL? {
+        guard let id = applePodcastID(in: url) else { return nil }
+        let results = await query("lookup", [
+            URLQueryItem(name: "id", value: id),
+            URLQueryItem(name: "entity", value: "podcast"),
+        ])
+        return results.compactMap(\.counterpart).first?.feedURL
+    }
+
+    /// `…/podcast/name/id1234567890?i=…` → `1234567890`.
+    static func applePodcastID(in url: URL) -> String? {
+        for part in url.pathComponents.reversed() where part.hasPrefix("id") {
+            let digits = part.dropFirst(2)
+            if !digits.isEmpty, digits.allSatisfy(\.isNumber) { return String(digits) }
+        }
+        return nil
+    }
+
+    private static func query(_ endpoint: String, _ items: [URLQueryItem]) async -> [SearchResponse.Result] {
+        guard var components = URLComponents(string: "https://itunes.apple.com/\(endpoint)") else { return [] }
+        components.queryItems = items
+        guard let url = components.url else { return [] }
+        let session = SafeHTTP.makeSession { $0.timeoutIntervalForRequest = 15 }
+        defer { session.finishTasksAndInvalidate() }
+        guard let data = try? await SafeHTTP.load(url, using: session, limit: 2 * 1024 * 1024),
+              let response = try? JSONDecoder().decode(SearchResponse.self, from: data) else { return [] }
+        return response.results
+    }
+
     private struct SearchResponse: Decodable {
         let results: [Result]
         struct Result: Decodable {
             let collectionName: String?
             let artistName: String?
             let feedUrl: String?
+            let artworkUrl100: String?
+            let primaryGenreName: String?
+
+            var counterpart: PodcastCounterpart? {
+                guard let feed = feedUrl.flatMap(URL.init(string:)) else { return nil }
+                return PodcastCounterpart(title: collectionName ?? feed.host() ?? "Podcast",
+                                          author: artistName ?? "", feedURL: feed,
+                                          artworkURL: artworkUrl100.flatMap(URL.init(string:)),
+                                          genre: primaryGenreName)
+            }
         }
     }
 }

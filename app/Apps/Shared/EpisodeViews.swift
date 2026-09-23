@@ -126,7 +126,7 @@ struct EpisodeListView: View {
                 Task { await model.removeEpisode(episode) }
             }
         } message: { _ in
-            Text("Transkript, Fakten, Belege, gemerkte Stellen und der Hörstand dieser Folge werden gelöscht.")
+            Text("Transkript, Fakten, Belege und der Hörstand dieser Folge werden gelöscht. Deine Notizen bleiben unter Wissen erhalten.")
         }
         .task { await model.loadEpisodes(for: sourceID) }
         .overlay {

@@ -82,6 +82,7 @@
 		ED007FAF5D505809947A08DD /* InterestPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C51C37619544003228BF8 /* InterestPersistenceTests.swift */; };
 		F41F54448C1C85BAB1ED1E4A /* LateWriteAndRejectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECC7B2DA4FC79C3CA93FE3B /* LateWriteAndRejectionTests.swift */; };
 		F4C8DC8BD355AD0976F791C2 /* BetaFeedback03UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A323EEBF0E9BF5744EE4F224 /* BetaFeedback03UITests.swift */; };
+		F4EF197C7BD9E9A22E00E927 /* PersonaFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBEE768FADEADDB8A6CD8CA6 /* PersonaFlowsUITests.swift */; };
 		F79504E5E52596148E39BEF8 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C67E84F9B4659B1B07416AF /* Views.swift */; };
 		F804E75826F80089D70B5CF0 /* MCPServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96C1EA3CDEE55B31930D6738 /* MCPServer.swift */; };
 /* End PBXBuildFile section */
@@ -147,6 +148,7 @@
 		E62E4AD033F13CC6F5377BDB /* RemovedEpisodeQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemovedEpisodeQueryTests.swift; sourceTree = "<group>"; };
 		E7559EDE9F251C1BD2FB8E6C /* BackgroundWork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWork.swift; sourceTree = "<group>"; };
 		E8C2BFB9A41A80DC63C8F6ED /* BetaFeedbackUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeedbackUITests.swift; sourceTree = "<group>"; };
+		EBEE768FADEADDB8A6CD8CA6 /* PersonaFlowsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonaFlowsUITests.swift; sourceTree = "<group>"; };
 		EC853F71E884276F4C6BDFAD /* AnswerPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnswerPromptTests.swift; sourceTree = "<group>"; };
 		EDBFAAEDED094DED2F661F3C /* PodcastAIKitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PodcastAIKitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EEA50A760A22D28142C51D30 /* MainFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlowUITests.swift; sourceTree = "<group>"; };
@@ -219,6 +221,7 @@
 				E8C2BFB9A41A80DC63C8F6ED /* BetaFeedbackUITests.swift */,
 				2542A126634BEE731EA9B08D /* GoalFeaturesUITests.swift */,
 				EEA50A760A22D28142C51D30 /* MainFlowUITests.swift */,
+				EBEE768FADEADDB8A6CD8CA6 /* PersonaFlowsUITests.swift */,
 			);
 			path = UITests;
 			sourceTree = "<group>";
@@ -491,6 +494,7 @@
 				E7E1287BB7D9E75C519A8664 /* BetaFeedbackUITests.swift in Sources */,
 				892155B355C93ED4AFE86904 /* GoalFeaturesUITests.swift in Sources */,
 				1CED891CBB2D25E15CACB45F /* MainFlowUITests.swift in Sources */,
+				F4EF197C7BD9E9A22E00E927 /* PersonaFlowsUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

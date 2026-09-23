@@ -106,8 +106,8 @@ struct EpisodeDetailView: View {
                 }
             }
         } message: {
-            Text("Transkript, Fakten, Belege, gemerkte Stellen und der Hörstand dieser Folge werden auf "
-                 + "allen Geräten gelöscht. Der Feed legt die Folge nicht wieder an.")
+            Text("Transkript, Fakten, Belege und der Hörstand dieser Folge werden auf allen Geräten gelöscht. "
+                 + "Der Feed legt die Folge nicht wieder an. Deine Notizen bleiben unter Wissen erhalten.")
         }
     }
 
@@ -420,6 +420,49 @@ struct FactRow: View {
             }
         }
         .accessibilityHint("Spielt die Stelle, aus der die Aussage stammt")
+        .contextMenu {
+            PassageActions(text: fact.statement, start: fact.range.start, episode: episode)
+        }
+    }
+}
+
+/// Merken, Kopieren und Teilen für eine Stelle mit Zeitmarke.
+struct PassageActions: View {
+    let text: String
+    let start: MediaTime
+    let episode: Episode
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Button {
+            model.playEpisode(episode, at: start.seconds)
+        } label: {
+            Label("Ab hier abspielen", systemImage: "play.fill")
+        }
+        Button {
+            Task { await model.addNote(nil, at: start.seconds, in: episode, quote: text) }
+        } label: {
+            Label("Stelle merken", systemImage: "bookmark")
+        }
+        Button {
+            Clipboard.copy(model.citation(text, at: start, in: episode))
+        } label: {
+            Label("Mit Quelle kopieren", systemImage: "doc.on.doc")
+        }
+        ShareLink(item: model.citation(text, at: start, in: episode)) {
+            Label("Teilen", systemImage: "square.and.arrow.up")
+        }
+    }
+}
+
+enum Clipboard {
+    static func copy(_ text: String) {
+        #if os(iOS)
+        UIPasteboard.general.string = text
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #endif
     }
 }
 
@@ -481,6 +524,13 @@ struct TranscriptSection: View {
                     // Schlicht, damit der Text schwarz bleibt und nicht als Link blau erscheint.
                     .buttonStyle(.plain)
                     .listRowBackground(isCurrent(paragraph.start) ? Color.accentColor.opacity(0.1) : nil)
+                    .swipeActions(edge: .leading) {
+                        Button { remember(paragraph) } label: { Label("Merken", systemImage: "bookmark") }
+                            .tint(.orange)
+                    }
+                    .contextMenu {
+                        PassageActions(text: paragraph.text, start: paragraph.start, episode: episode)
+                    }
                     .id(paragraph.start.milliseconds)
                 }
             }
@@ -506,6 +556,10 @@ struct TranscriptSection: View {
     }
 
     private func isCurrent(_ start: MediaTime) -> Bool { currentStart == start.milliseconds }
+
+    private func remember(_ paragraph: (start: MediaTime, text: String)) {
+        Task { await model.addNote(nil, at: paragraph.start.seconds, in: episode, quote: paragraph.text) }
+    }
 
     private func isHeard(_ start: MediaTime) -> Bool {
         guard let id = episode.streamMediaVersionID else { return false }

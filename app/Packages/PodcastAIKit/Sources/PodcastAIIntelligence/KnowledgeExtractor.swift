@@ -457,9 +457,10 @@ public struct KnowledgeExtractor: Sendable {
             } catch {
                 if error is CancellationError || Task.isCancelled { throw error }
                 guard case .available = availability.onDevice else {
-                    throw ExtractorError.generationFailed(error.localizedDescription)
+                    if Self.isRejection(error) { throw ExtractorError.generationRejected(Self.plainReason(error)) }
+                    throw ExtractorError.generationFailed(Self.plainReason(error))
                 }
-                privateCloudFailure = error.localizedDescription
+                privateCloudFailure = Self.plainReason(error)
             }
         }
         let session = try makeLocalSession(instructions: instructions)
@@ -467,13 +468,44 @@ public struct KnowledgeExtractor: Sendable {
             return (try await session.respond(to: prompt(.onDevice), generating: type).content, .onDevice)
         } catch {
             if error is CancellationError || Task.isCancelled { throw error }
-            var detail = error.localizedDescription
-            if let privateCloudFailure {
+            var detail = Self.plainReason(error)
+            if let privateCloudFailure, privateCloudFailure != detail {
                 detail = "Private Cloud Compute: \(privateCloudFailure) Auf dem Gerät: \(detail)"
             }
             if Self.isRejection(error) { throw ExtractorError.generationRejected(detail) }
             throw ExtractorError.generationFailed(detail)
         }
+    }
+
+    /// Ein Satz für Menschen statt Fehlercode und Domäne.
+    static func plainReason(_ error: any Error) -> String {
+        if #available(iOS 27.0, macOS 27.0, visionOS 27.0, *), let error = error as? LanguageModelError {
+            switch error {
+            case .contextSizeExceeded: return "Der Text ist für das Modell zu lang."
+            case .guardrailViolation: return "Die Schutzregeln des Modells haben diesen Inhalt abgelehnt."
+            case .refusal: return "Das Modell wollte dazu nicht antworten."
+            case .unsupportedLanguageOrLocale: return "Diese Sprache versteht das Modell nicht."
+            case .rateLimited: return "Das Modell ist gerade ausgelastet. Gleich noch einmal versuchen."
+            case .timeout: return "Das Modell hat zu lange gebraucht. Noch einmal versuchen."
+            case .unsupportedCapability, .unsupportedTranscriptContent, .unsupportedGenerationGuide:
+                return "Diese Art Anfrage unterstützt das Modell nicht."
+            @unknown default: break
+            }
+        }
+        if let error = error as? LanguageModelSession.GenerationError {
+            switch error {
+            case .exceededContextWindowSize: return "Der Text ist für das Modell zu lang."
+            case .guardrailViolation: return "Die Schutzregeln des Modells haben diesen Inhalt abgelehnt."
+            case .refusal: return "Das Modell wollte dazu nicht antworten."
+            case .unsupportedLanguageOrLocale: return "Diese Sprache versteht das Modell nicht."
+            case .rateLimited, .concurrentRequests: return "Das Modell ist gerade ausgelastet. Gleich noch einmal versuchen."
+            case .assetsUnavailable: return "Die Dateien des Modells werden noch geladen. Später noch einmal versuchen."
+            case .decodingFailure: return "Die Antwort des Modells war unlesbar. Noch einmal versuchen."
+            case .unsupportedGuide: return "Diese Art Anfrage unterstützt das Modell nicht."
+            @unknown default: break
+            }
+        }
+        return "Das Modell hat keine Antwort geliefert. Auf diesem Gerät ist Apple Intelligence vielleicht noch nicht bereit."
     }
 
     /// Scheitert jeder weitere Versuch mit derselben Eingabe genauso?

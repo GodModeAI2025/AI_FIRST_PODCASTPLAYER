@@ -59,13 +59,30 @@ struct AutomaticAnalysisSection: View {
                 get: { model.automaticAnalysis },
                 set: { model.automaticAnalysis = $0 }
             ))
+            if model.automaticAnalysis {
+                Picker("Folgen je Podcast", selection: Binding(
+                    get: { model.episodesPerSource },
+                    set: { model.episodesPerSource = $0 }
+                )) {
+                    ForEach(AppModel.episodesPerSourceChoices, id: \.self) { count in
+                        Text(count == 1 ? "nur die neueste" : "die \(count) neuesten").tag(count)
+                    }
+                }
+                Toggle("Nur im WLAN", isOn: Binding(
+                    get: { model.preparationOnWiFiOnly },
+                    set: { model.preparationOnWiFiOnly = $0 }
+                ))
+                if model.preparationWaitsForWiFi {
+                    Label("Wartet auf WLAN", systemImage: "wifi.exclamationmark")
+                        .foregroundStyle(.secondary)
+                }
+            }
         } header: {
             Text("Vorbereiten")
         } footer: {
-            Text("Die App lädt die \(AppModel.automaticAnalysisPerSource) jüngsten Folgen je Quelle und "
-                 + "transkribiert sie mit Zeitmarken. Erst dadurch finden „Für dich“, die Suche und die "
-                 + "Themen-Updates etwas. Das kostet Daten und Akku; ausgeschaltet erschliesst die App nur, "
-                 + "was du selbst anforderst.")
+            Text("Vorbereiten heisst: die Folge laden und mit Zeitmarken transkribieren. Erst dann finden "
+                 + "„Für dich“, die Fragen und die Themen-Updates etwas darin. Ältere Folgen bereitest du "
+                 + "bei Bedarf einzeln vor. Was du selbst abspielst oder anforderst, lädt auch im Mobilfunk.")
         }
     }
 }

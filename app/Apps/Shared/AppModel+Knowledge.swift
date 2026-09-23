@@ -306,10 +306,10 @@ extension AppModel {
             let top = overview
                 ? Self.evenlySpaced(Array(candidates.prefix(device.maximumCandidates)), count: 4)
                 : Array(candidates.prefix(4))
-            let reason = (error as? ExtractorError)?.errorDescription ?? error.localizedDescription
+            let reason = Self.chatReason(error)
             let text = top.isEmpty
                 ? "Dazu finde ich keine passende Stelle. \(reason)"
-                : "Formulieren kann ich gerade nicht (\(reason)). Diese Stellen passen am besten:\n\n"
+                : "Eine Antwort formulieren kann ich gerade nicht. \(reason)\n\nDiese Stellen passen am besten:\n\n"
                     + top.enumerated().map { "[\($0.offset + 1)] \(String($0.element.quotedText.prefix(220)))…" }
                         .joined(separator: "\n\n")
             var numbers: [Int: EvidenceID] = [:]
@@ -371,6 +371,15 @@ extension AppModel {
         let available = max(0, contextSize - reserved) * 3
         let candidates = min(base.maximumCandidates, max(4, available / (excerpt + 8)))
         return ContextBudget(maximumCandidates: candidates, excerptLimit: excerpt, libraryContextLimit: context)
+    }
+
+    /// Warum der Chat nicht formulieren konnte, ohne Fehlercode.
+    static func chatReason(_ error: any Error) -> String {
+        switch error as? ExtractorError {
+        case .modelUnavailable(let reason)?: reason.message
+        case .generationFailed(let detail)?, .generationRejected(let detail)?: detail
+        case nil: "Das Modell hat keine Antwort geliefert."
+        }
     }
 
     static func evenlySpaced<T>(_ items: [T], count: Int) -> [T] {
@@ -459,12 +468,13 @@ extension AppModel {
     /// Folgen- und Quellentitel kopiert. So bleibt die Notiz auch nach dem
     /// Löschen der Folge lesbar.
     @discardableResult
-    public func addNote(_ note: String?, at seconds: Double, in episode: Episode) async -> Highlight? {
+    public func addNote(_ note: String?, at seconds: Double, in episode: Episode,
+                        quote given: String? = nil) async -> Highlight? {
         guard let media = episode.streamMediaVersionID else { return nil }
         let position = MediaTime(milliseconds: Int64(max(0, seconds) * 1000))
         let range = HighlightCapture().range(around: position, limit: nil)
-        var quote: String?
-        if let transcript = await transcript(for: episode) {
+        var quote = given.map { String($0.prefix(700)) }
+        if quote == nil, let transcript = await transcript(for: episode) {
             let text = transcript.segments
                 .filter { $0.range.end.milliseconds > range.start.milliseconds
                     && $0.range.start.milliseconds < range.end.milliseconds }
@@ -482,6 +492,13 @@ extension AppModel {
         highlights.insert(highlight, at: 0)
         saveHighlights()
         return highlight
+    }
+
+    /// Ein Zitat mit Herkunft, zum Kopieren oder Teilen.
+    public func citation(_ text: String, at start: MediaTime, in episode: Episode) -> String {
+        let source = sources.first { $0.id == episode.sourceID }?.title
+        let origin = [episode.title, source, start.timecode].compactMap { $0 }.joined(separator: " · ")
+        return "„\(text)“\n(\(origin))"
     }
 
     public func updateNote(_ id: HighlightID, text: String?) {
