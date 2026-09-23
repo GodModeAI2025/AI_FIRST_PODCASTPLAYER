@@ -136,8 +136,38 @@ public enum SafeHTTP {
             throw HTTPTransferError.tooLarge(limit: limit)
         }
 
+        let data = try await collect(stream, expected: response.expectedContentLength,
+                                     limit: limit, truncating: truncating)
+        guard !data.isEmpty else { throw HTTPTransferError.emptyResponse }
+        return data
+    }
+
+    /// Wie `load`, aber ohne Urteil über den Status: Antwort und Inhalt
+    /// kommen auch bei 401 oder 429 zurück. Für Dienste, deren Fehlertext
+    /// und `Date`-Kopfzeile etwas bedeuten, etwa den Podcast-Katalog. Die
+    /// Obergrenze gilt genauso, ein leerer Inhalt ist hier kein Fehler.
+    public static func loadResponse(
+        _ url: URL, using session: URLSession, limit: Int64,
+        headers: [String: String] = [:]
+    ) async throws -> (data: Data, response: HTTPURLResponse) {
+        var request = try request(for: url)
+        for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
+        let (stream, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse else { throw HTTPTransferError.emptyResponse }
+        if response.expectedContentLength > limit {
+            throw HTTPTransferError.tooLarge(limit: limit)
+        }
+        let data = try await collect(stream, expected: response.expectedContentLength,
+                                     limit: limit, truncating: false)
+        return (data, http)
+    }
+
+    /// Liest höchstens `limit` Byte. Die Grenze greift beim Lesen, nicht danach.
+    private static func collect(
+        _ stream: URLSession.AsyncBytes, expected: Int64, limit: Int64, truncating: Bool
+    ) async throws -> Data {
         var data = Data()
-        data.reserveCapacity(min(Int(max(response.expectedContentLength, 0)), 1 << 20))
+        data.reserveCapacity(min(Int(max(expected, 0)), 1 << 20))
         var count: Int64 = 0
         for try await byte in stream {
             if count >= limit {
@@ -147,7 +177,6 @@ public enum SafeHTTP {
             count += 1
             data.append(byte)
         }
-        guard !data.isEmpty else { throw HTTPTransferError.emptyResponse }
         return data
     }
 
@@ -255,8 +284,11 @@ public final class RedirectGuard: NSObject, URLSessionTaskDelegate, @unchecked S
         var sanitized = request
         sanitized.httpShouldHandleCookies = false
         if original?.host?.lowercased() != url.host?.lowercased() {
-            sanitized.setValue(nil, forHTTPHeaderField: "Authorization")
-            sanitized.setValue(nil, forHTTPHeaderField: "Cookie")
+            // Dazu die Kennung der App beim Podcast-Katalog. Sie gehört zu
+            // api.podcastindex.org und zu keinem anderen Host.
+            for field in ["Authorization", "Cookie", "X-Auth-Key", "X-Auth-Date"] {
+                sanitized.setValue(nil, forHTTPHeaderField: field)
+            }
         }
         completionHandler(sanitized)
     }

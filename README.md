@@ -14,7 +14,7 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 
 | Bereich | Umfang |
 |---|---|
-| Abonnieren | Suche nach Name, Anbieter oder Thema im Apple-Podcast-Verzeichnis, Links aus Apple Podcasts, Podcast-Feeds, Webseiten mit Feed, einzelne MP3-Links, YouTube-Kanäle über ihren Feed oder einen @-Link; zu YouTube-Kanälen findet die App den passenden Audio-Podcast. Abos aus anderen Apps kommen per OPML-Datei herüber und lassen sich als OPML exportieren |
+| Abonnieren | Suche nach Name, Anbieter oder Thema im Podcast-Katalog Podcast Index und im Apple-Podcast-Verzeichnis, dazu ein Katalog mit „Angesagt“ in deiner Sprache, 19 Kategorien und einer Seite je Podcast mit Beschreibung und neuesten Folgen, Links aus Apple Podcasts, Podcast-Feeds, Webseiten mit Feed, einzelne MP3-Links, YouTube-Kanäle über ihren Feed oder einen @-Link; zu YouTube-Kanälen findet die App den passenden Audio-Podcast. Abos aus anderen Apps kommen per OPML-Datei herüber und lassen sich als OPML exportieren |
 | Hören | Tempo, ±15/30 Sekunden, Kapitel aus dem Feed, Schlaf-Timer, AirPlay, Sperrbildschirm, Warteschlange, Fortsetzung über Geräte hinweg |
 | Transkript | auf dem Gerät mit Apples Spracherkennung, mit Zeitmarken, durchsuchbar, Tipp springt an die Stelle; fremdsprachige Folgen lassen sich auf dem Gerät übersetzen |
 | Fakten | Aussagen je Folge, jede mit Zeitmarke auf dem Satz und dem Wortlaut; sie entstehen von selbst im Hintergrund |
@@ -33,7 +33,7 @@ Alles läuft mit Apple Intelligence. Antworten und Vergleiche nutzen Private Clo
 
 ## Datenschutz
 
-Transkription und Suche laufen auf dem Gerät. Private Cloud Compute verarbeitet Anfragen, ohne sie zu speichern, und ist in den Einstellungen abschaltbar. Deine Daten liegen in deiner privaten iCloud-Datenbank. Es gibt kein Konto bei uns und keinen API-Schlüssel. Eine Empfehlung startet nie von selbst Ton.
+Transkription und Suche laufen auf dem Gerät. Private Cloud Compute verarbeitet Anfragen, ohne sie zu speichern, und ist in den Einstellungen abschaltbar. Deine Daten liegen in deiner privaten iCloud-Datenbank. Es gibt kein Konto bei uns, und du brauchst keinen eigenen API-Schlüssel. Suche und Katalog fragen Podcast Index (podcastindex.org) und Apples Podcast-Verzeichnis, beide sehen dabei Suchbegriff und IP-Adresse. Eine Empfehlung startet nie von selbst Ton.
 
 ## Voraussetzungen
 

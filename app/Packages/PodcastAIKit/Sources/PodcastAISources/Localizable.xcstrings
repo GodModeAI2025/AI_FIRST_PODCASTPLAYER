@@ -1,6 +1,38 @@
 {
   "sourceLanguage": "de",
   "strings": {
+    "Bildung": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Education"
+          }
+        }
+      }
+    },
+    "Comedy": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comedy"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comedy"
+          }
+        }
+      }
+    },
     "Das ist keine gültige Adresse.": {
       "localizations": {
         "de": {
@@ -65,6 +97,70 @@
         }
       }
     },
+    "Der Podcast-Katalog antwortet gerade nicht (Status %@). Später noch einmal versuchen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Podcast-Katalog antwortet gerade nicht (Status %@). Später noch einmal versuchen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The podcast catalog isn't responding right now (status %@). Try again later."
+          }
+        }
+      }
+    },
+    "Der Podcast-Katalog bekommt gerade zu viele Anfragen. In einer Minute noch einmal versuchen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Podcast-Katalog bekommt gerade zu viele Anfragen. In einer Minute noch einmal versuchen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The podcast catalog is getting too many requests right now. Try again in a minute."
+          }
+        }
+      }
+    },
+    "Der Podcast-Katalog hat die Anfrage abgelehnt. Stimmt die Uhrzeit des Geräts? Sonst später noch einmal versuchen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Podcast-Katalog hat die Anfrage abgelehnt. Stimmt die Uhrzeit des Geräts? Sonst später noch einmal versuchen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The podcast catalog turned the request down. Check that the device's clock is right, or try again later."
+          }
+        }
+      }
+    },
+    "Der Podcast-Katalog hat keine lesbare Antwort geschickt. Versuch es gleich noch einmal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Podcast-Katalog hat keine lesbare Antwort geschickt. Versuch es gleich noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The podcast catalog sent an answer the app can't read. Try again in a moment."
+          }
+        }
+      }
+    },
     "Die Datei ist zu groß für eine Abo-Liste.": {
       "localizations": {
         "de": {
@@ -97,6 +193,38 @@
         }
       }
     },
+    "Diesen Podcast führt der Katalog nicht mehr.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diesen Podcast führt der Katalog nicht mehr."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The catalog no longer lists this podcast."
+          }
+        }
+      }
+    },
+    "Dieser Fassung der App fehlt der Zugang zum Podcast-Katalog. Gesucht wird im Apple-Podcast-Verzeichnis.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Fassung der App fehlt der Zugang zum Podcast-Katalog. Gesucht wird im Apple-Podcast-Verzeichnis."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version of the app has no access to the podcast catalog. Search uses the Apple Podcasts directory instead."
+          }
+        }
+      }
+    },
     "Dieses Format wird nicht unterstützt.": {
       "localizations": {
         "de": {
@@ -109,6 +237,86 @@
           "stringUnit": {
             "state": "translated",
             "value": "This format isn't supported."
+          }
+        }
+      }
+    },
+    "Fiktion": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fiktion"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fiction"
+          }
+        }
+      }
+    },
+    "Freizeit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Freizeit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leisure"
+          }
+        }
+      }
+    },
+    "Geschichte": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geschichte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
+          }
+        }
+      }
+    },
+    "Gesellschaft & Kultur": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesellschaft & Kultur"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Society & Culture"
+          }
+        }
+      }
+    },
+    "Gesundheit & Fitness": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesundheit & Fitness"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health & Fitness"
           }
         }
       }
@@ -129,6 +337,54 @@
         }
       }
     },
+    "Keine Verbindung zum Podcast-Katalog. Prüf die Internetverbindung und versuch es noch einmal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Verbindung zum Podcast-Katalog. Prüf die Internetverbindung und versuch es noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't reach the podcast catalog. Check your internet connection and try again."
+          }
+        }
+      }
+    },
+    "Kinder & Familie": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kinder & Familie"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kids & Family"
+          }
+        }
+      }
+    },
+    "Kunst": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kunst"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arts"
+          }
+        }
+      }
+    },
     "Links vom Typ „%@“ können nicht aufgenommen werden.": {
       "localizations": {
         "de": {
@@ -141,6 +397,166 @@
           "stringUnit": {
             "state": "translated",
             "value": "\"%@\" links can't be added."
+          }
+        }
+      }
+    },
+    "Musik": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Musik"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Music"
+          }
+        }
+      }
+    },
+    "Nachrichten": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nachrichten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "News"
+          }
+        }
+      }
+    },
+    "Politik & Staat": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Politik & Staat"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Politics & Government"
+          }
+        }
+      }
+    },
+    "Religion & Spiritualität": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Religion & Spiritualität"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Religion & Spirituality"
+          }
+        }
+      }
+    },
+    "Sport": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sport"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sports"
+          }
+        }
+      }
+    },
+    "TV & Film": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TV & Film"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TV & Film"
+          }
+        }
+      }
+    },
+    "Technik": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technik"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Technology"
+          }
+        }
+      }
+    },
+    "True Crime": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "True Crime"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "True Crime"
+          }
+        }
+      }
+    },
+    "Wirtschaft": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wirtschaft"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Business"
+          }
+        }
+      }
+    },
+    "Wissenschaft": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wissenschaft"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Science"
           }
         }
       }

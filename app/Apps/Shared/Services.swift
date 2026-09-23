@@ -27,17 +27,21 @@ public struct RefreshResult: Sendable {
 }
 
 /// Was man vor dem Abonnieren von einem Podcast sieht: Beschreibung, Zahl
-/// der Folgen und die neuesten Titel.
+/// der Folgen und die neuesten Titel. Aus dem Feed selbst, wenn der Katalog
+/// den Podcast nicht kennt.
 public struct PodcastPreview: Sendable {
     public struct Item: Sendable, Identifiable {
         public let id: Int
         public let title: String
         public let publishedAt: Date?
+        public let duration: Int?
     }
     public let summary: String?
     public let episodeCount: Int
     public let latestDate: Date?
     public let latest: [Item]
+    public let websiteURL: URL?
+    public let language: String?
 
     init(_ feed: ParsedFeed) {
         summary = feed.summary
@@ -45,8 +49,11 @@ public struct PodcastPreview: Sendable {
         latestDate = feed.items.compactMap(\.publishedAt).max()
         latest = feed.items.enumerated()
             .sorted { ($0.element.publishedAt ?? .distantPast) > ($1.element.publishedAt ?? .distantPast) }
-            .prefix(3)
-            .map { Item(id: $0.offset, title: $0.element.title, publishedAt: $0.element.publishedAt) }
+            .prefix(10)
+            .map { Item(id: $0.offset, title: $0.element.title, publishedAt: $0.element.publishedAt,
+                        duration: $0.element.duration) }
+        websiteURL = feed.websiteURL.flatMap { NetworkDestination.isAllowed($0) ? SafeHTTP.secureVariant(of: $0) : nil }
+        language = feed.language
     }
 }
 
@@ -667,12 +674,13 @@ public enum PodcastDirectory {
         }
     }
 
-    /// Sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema.
+    /// Sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema,
+    /// als Einträge für den Katalog.
     ///
     /// Wirft, wenn das Verzeichnis nicht erreichbar ist. Eine leere Liste
     /// heißt nur: nichts gefunden. Vorher sah beides gleich aus, und wer
     /// offline suchte, las „Keine Ergebnisse“.
-    public static func search(_ term: String) async throws -> [PodcastCounterpart] {
+    public static func search(_ term: String) async throws -> [CatalogPodcast] {
         let term = term.trimmingCharacters(in: .whitespacesAndNewlines)
         guard term.count >= 2 else { return [] }
         let results = try await query("search", [
@@ -683,7 +691,7 @@ public enum PodcastDirectory {
             URLQueryItem(name: "term", value: term),
         ])
         var seen = Set<URL>()
-        return results.compactMap(\.counterpart).filter { seen.insert($0.feedURL).inserted }
+        return results.compactMap(\.catalogPodcast).filter { seen.insert($0.feedURL).inserted }
     }
 
     /// Die Feed-Adresse zu einem Link aus Apple Podcasts. Apple nennt sie
@@ -736,13 +744,30 @@ public enum PodcastDirectory {
     private struct SearchResponse: Decodable {
         let results: [Result]
         struct Result: Decodable {
+            let collectionId: Int?
             let collectionName: String?
             let artistName: String?
             let feedUrl: String?
             let artworkUrl100: String?
+            let artworkUrl600: String?
             let primaryGenreName: String?
             let trackCount: Int?
             let releaseDate: String?
+            let collectionExplicitness: String?
+
+            /// Ein Eintrag für den Katalog. Das große Bild zuerst, die
+            /// Detailseite zeigt es groß.
+            var catalogPodcast: CatalogPodcast? {
+                guard let counterpart else { return nil }
+                return CatalogPodcast(
+                    origin: .appleDirectory, itunesID: collectionId,
+                    title: CatalogText.line(counterpart.title) ?? counterpart.title,
+                    author: CatalogText.line(counterpart.author) ?? "",
+                    feedURL: counterpart.feedURL,
+                    artworkURL: CatalogText.safeURL(artworkUrl600) ?? CatalogText.safeURL(artworkUrl100),
+                    genre: counterpart.genre, isExplicit: collectionExplicitness == "explicit",
+                    episodeCount: counterpart.episodeCount, newestEpisodeDate: counterpart.latestRelease)
+            }
 
             var counterpart: PodcastCounterpart? {
                 guard let feed = feedUrl.flatMap(URL.init(string:)) else { return nil }

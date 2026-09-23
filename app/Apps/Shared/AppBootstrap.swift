@@ -46,6 +46,9 @@ public enum AppBootstrap {
     public static func start(with model: AppModel) -> BackgroundWork {
         registerIntentDependencies(model)
         configureAudioSession()
+        // Vor dem ersten Bild: Cover aus Katalog und Mediathek teilen sich
+        // einen größeren Zwischenspeicher.
+        PodcastCatalog.configureImageCache()
         // Vor dem ersten Laden: die Fakten arbeiten nur vorn oder mit
         // Hintergrundzeit vom System, und die App muss wissen, wann sie
         // in den Hintergrund geht.
@@ -134,6 +137,8 @@ public enum AppBootstrap {
             "dismissedFromPreparation", "keptOfflineEpisodes", AppModel.dismissedRelevantKey,
             AppModel.factsSettledKey, AppModel.backCatalogKey, AppModel.prefetchedNewestKey,
             AppModel.prefetchDeclinedKey, AppModel.prefetchedFilesKey, AppModel.failedPreparationKey,
+            // Der Katalog zeigt im Test immer die Sprache der App zuerst.
+            "catalog.allLanguages",
         ] {
             defaults.removeObject(forKey: key)
         }

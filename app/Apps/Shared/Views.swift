@@ -1249,30 +1249,38 @@ struct SourceRow: View {
     }
 }
 
+/// „Podcast hinzufügen“: Suche, eingefügter Link, OPML-Import und der
+/// Podcast-Katalog mit Angesagt und Kategorien.
+///
+/// Mit Zugang zum Katalog sucht das Blatt in Podcast Index und im
+/// Apple-Podcast-Verzeichnis zugleich. Ohne Zugang sucht es nur bei Apple,
+/// und Angesagt und Kategorien fehlen.
 struct AddSourceSheet: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var input = ""
-    @State private var results: [PodcastCounterpart] = []
+    @State private var results: [CatalogPodcast] = []
     @State private var searchedTerm: String?
     @State private var searching = false
-    @State private var working: URL?
     @State private var addingLink = false
-    @State private var added: [URL: Int] = [:]
     @State private var failure: String?
     /// Das Suchfeld ist beim Öffnen aktiv. Wer das Blatt öffnet, will tippen.
     @FocusState private var fieldFocused: Bool
     @State private var importingOPML = false
     /// Was zuletzt gescheitert ist, damit „Nochmal versuchen“ es wiederholt.
     @State private var lastAttempt: Attempt?
-    /// Der Treffer, dessen Vorschau offen ist.
-    @State private var previewing: PodcastCounterpart?
+    /// Die offenen Seiten des Katalogs: Rubrik, Angesagt, Podcast.
+    @State private var path: [CatalogRoute] = []
+    /// Abos aus diesem Blatt. Trefferliste, Rubriken und Detailseite zeigen
+    /// denselben Stand.
+    @State private var subscriptions = CatalogSubscriptions()
+
+    private let catalog = PodcastCatalog.shared
 
     private enum Attempt: Equatable {
         case search(String)
         case link(String)
-        case podcast(PodcastCounterpart)
     }
 
     private var trimmed: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -1281,7 +1289,7 @@ struct AddSourceSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     HStack {
@@ -1323,9 +1331,19 @@ struct AddSourceSheet: View {
                             .accessibilityIdentifier("source.error")
                         if lastAttempt != nil {
                             Button("Nochmal versuchen", systemImage: "arrow.clockwise", action: retry)
-                                .disabled(addingLink || working != nil || searching)
+                                .disabled(addingLink || searching)
                                 .accessibilityIdentifier("source.retry")
                         }
+                    }
+                } else if let failed = subscriptions.failure {
+                    Section {
+                        NoticeLabel(String(localized: "„\(failed.podcast.title)“: \(failed.message)"), kind: .failure)
+                            .accessibilityIdentifier("source.error")
+                        Button("Nochmal versuchen", systemImage: "arrow.clockwise") {
+                            Task { await subscriptions.subscribe(failed.podcast, model: model) }
+                        }
+                        .disabled(subscriptions.state(of: failed.podcast, in: model) == .working)
+                        .accessibilityIdentifier("source.retry")
                     }
                 }
 
@@ -1346,25 +1364,37 @@ struct AddSourceSheet: View {
                 } else if !results.isEmpty {
                     Section {
                         ForEach(results) { podcast in
-                            PodcastSearchRow(podcast: podcast,
-                                             state: rowState(podcast),
-                                             subscribe: { Task { await subscribe(podcast) } },
-                                             preview: {
-                                                 fieldFocused = false
-                                                 previewing = podcast
-                                             })
+                            CatalogPodcastRow(podcast: podcast,
+                                              state: subscriptions.state(of: podcast, in: model),
+                                              subscribe: {
+                                                  // Die Tastatur lag sonst über dem Knopf, den man als Nächstes braucht.
+                                                  fieldFocused = false
+                                                  Task { await subscriptions.subscribe(podcast, model: model) }
+                                              },
+                                              preview: {
+                                                  fieldFocused = false
+                                                  path.append(.podcast(podcast))
+                                              })
                         }
                     } header: {
-                        Text("Treffer im Apple-Podcast-Verzeichnis")
+                        if catalog.isAvailable {
+                            Text("Treffer aus Podcast Index und dem Apple-Podcast-Verzeichnis")
+                        } else {
+                            Text("Treffer im Apple-Podcast-Verzeichnis")
+                        }
                     } footer: {
-                        Text(preparationNote)
+                        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                            Text(preparationNote)
+                            if catalog.isAvailable { CatalogAttribution() }
+                        }
                     }
                 } else if let searchedTerm, searchedTerm == trimmed, !trimmed.isEmpty {
                     ContentUnavailableView.search(text: trimmed)
                 }
 
-                // Viele Abos auf einmal, aus der bisherigen Podcast-App.
                 if trimmed.isEmpty {
+                    // Viele Abos auf einmal, aus der bisherigen Podcast-App.
+                    // Steht vor dem Katalog, damit es ohne Scrollen zu sehen ist.
                     Section {
                         Button { importingOPML = true } label: {
                             Label("Abos aus einer anderen App übernehmen", systemImage: "square.and.arrow.down")
@@ -1377,14 +1407,29 @@ struct AddSourceSheet: View {
                             einmal herüber.
                             """)
                     }
+
+                    if catalog.isAvailable {
+                        CatalogTrendingSection()
+                        Section {
+                            CatalogCategoryGrid()
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        } header: {
+                            Text("Kategorien")
+                        } footer: {
+                            CatalogAttribution()
+                        }
+                    }
                 }
             }
             // Wer in der Trefferliste scrollt, will die Knöpfe sehen, nicht
             // die Tastatur. Sie lag sonst über „Abonnieren“.
             .scrollDismissesKeyboard(.immediately)
-            .navigationDestination(item: $previewing) { podcast in
-                PodcastPreviewView(podcast: podcast) { count in
-                    added[podcast.feedURL] = count
+            .navigationDestination(for: CatalogRoute.self) { route in
+                switch route {
+                case .podcast(let podcast): CatalogPodcastDetailView(podcast: podcast)
+                case .trending: CatalogListView(category: nil)
+                case .category(let category): CatalogListView(category: category)
                 }
             }
             .opmlImport(isPresented: $importingOPML) { dismiss() }
@@ -1400,7 +1445,7 @@ struct AddSourceSheet: View {
             .task(id: trimmed) { await searchAfterPause() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    if added.isEmpty {
+                    if subscriptions.added.isEmpty {
                         // Bei einem Namen sucht der Knopf nur, abonniert wird
                         // in der Trefferliste.
                         Button(isLink ? "Hinzufügen" : "Suchen", action: submit)
@@ -1411,13 +1456,18 @@ struct AddSourceSheet: View {
                 }
                 // Nach einem Abo gibt es nichts mehr abzubrechen. Neben
                 // „Fertig“ klang „Abbrechen“, als nähme es das Abo zurück.
-                if added.isEmpty {
+                if subscriptions.added.isEmpty {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Abbrechen") { dismiss() }
                     }
                 }
             }
         }
+        .environment(subscriptions)
+        .environment(\.catalogNavigate, CatalogNavigator { route in
+            fieldFocused = false
+            path.append(route)
+        })
         .onDisappear { Task { await model.forgetPodcastPreview() } }
     }
 
@@ -1492,13 +1542,6 @@ struct AddSourceSheet: View {
         return sentences.joined(separator: " ")
     }
 
-    private func rowState(_ podcast: PodcastCounterpart) -> PodcastSearchRow.State {
-        if let count = added[podcast.feedURL] { return .added(count) }
-        if model.isSubscribed(podcast.feedURL) { return .subscribed }
-        if working == podcast.feedURL { return .working }
-        return .open
-    }
-
     private func submit() {
         guard !trimmed.isEmpty else { return }
         fieldFocused = false
@@ -1514,13 +1557,15 @@ struct AddSourceSheet: View {
         switch lastAttempt {
         case .search(let term)?: Task { await search(term) }
         case .link(let text)?: Task { await subscribeLink(text) }
-        case .podcast(let podcast)?: Task { await subscribe(podcast) }
         case nil: break
         }
     }
 
     private func searchAfterPause() async {
         failure = nil
+        // Wer weitertippt, sucht etwas anderes. Der Fehler beim Abonnieren
+        // eines früheren Treffers geht dann weg, wie jeder andere.
+        subscriptions.failure = nil
         guard !isLink, trimmed.count >= 2 else { results = []; searchedTerm = nil; return }
         try? await Task.sleep(for: .milliseconds(450))
         guard !Task.isCancelled else { return }
@@ -1531,7 +1576,7 @@ struct AddSourceSheet: View {
         searching = true
         defer { searching = false }
         do {
-            let found = try await PodcastDirectory.search(term)
+            let found = try await catalog.search(term)
             guard term == trimmed else { return }
             // Ein erneuter Versuch über „Suchen“ ändert den Text nicht. Die
             // alte Fehlermeldung muss dann hier weg, nicht erst beim Tippen.
@@ -1562,239 +1607,6 @@ struct AddSourceSheet: View {
         } catch {
             failure = UserFacingError.describe(error)
             lastAttempt = .link(text)
-        }
-    }
-
-    private func subscribe(_ podcast: PodcastCounterpart) async {
-        // Die Tastatur lag sonst über dem Knopf, den man als Nächstes braucht.
-        fieldFocused = false
-        working = podcast.feedURL
-        failure = nil
-        defer { working = nil }
-        do {
-            let result = try await model.subscribe(to: podcast.feedURL.absoluteString)
-            added[podcast.feedURL] = result.episodeCount
-        } catch is CancellationError {
-            return
-        } catch {
-            let reason = UserFacingError.describe(error)
-            failure = String(localized: "„\(podcast.title)“: \(reason)")
-            lastAttempt = .podcast(podcast)
-        }
-    }
-}
-
-/// Ein Treffer der Podcastsuche mit Bild, Anbieter und Abo-Zustand.
-struct PodcastSearchRow: View {
-    enum State: Equatable { case open, working, subscribed, added(Int) }
-
-    let podcast: PodcastCounterpart
-    let state: State
-    let subscribe: () -> Void
-    /// Bild und Titel öffnen die Vorschau. Der Knopf „Abonnieren“ bleibt
-    /// für sich, damit ein Tipp daneben nicht aus Versehen abonniert.
-    let preview: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: Design.Spacing.control) {
-                Button(action: preview) {
-                    HStack(spacing: Design.Spacing.control) {
-                        PodcastArtwork(url: podcast.artworkURL, size: 48)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(podcast.title).font(.body).lineLimit(3)
-                            Text([podcast.author, podcast.genre].compactMap { $0?.isEmpty == false ? $0 : nil }
-                                    .joined(separator: " · "))
-                                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Zeigt Beschreibung und neueste Folgen")
-                switch state {
-                case .open:
-                    Button("Abonnieren", action: subscribe)
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
-                        .controlSize(.small)
-                        .accessibilityLabel("\(podcast.title) abonnieren")
-                case .working:
-                    ProgressView()
-                case .subscribed, .added:
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .accessibilityLabel("Abonniert")
-                }
-            }
-            // Außerhalb des Vorschau-Knopfs, damit es ein eigener Text bleibt.
-            if case .added(let count) = state {
-                Text("Abonniert · ^[\(count) Folge](inflect: true) gefunden")
-                    .font(.caption).foregroundStyle(.green)
-                    .padding(.leading, 48 + Design.Spacing.control)
-            }
-        }
-    }
-}
-
-/// Bild eines Podcasts aus dem Verzeichnis, mit Mikrofon als Platzhalter.
-private struct PodcastArtwork: View {
-    let url: URL?
-    let size: CGFloat
-
-    var body: some View {
-        AsyncImage(url: url) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            Image(systemName: "mic").foregroundStyle(.secondary)
-        }
-        .frame(width: size, height: size)
-        .background(.quaternary)
-        .clipShape(.rect(cornerRadius: size / 6))
-        .accessibilityHidden(true)
-    }
-}
-
-/// Ein Blick auf den Podcast vor dem Abonnieren: Beschreibung, Zahl der
-/// Folgen, die neueste Folge. Was das Verzeichnis weiß, steht sofort da,
-/// die Beschreibung kommt aus dem Feed nach.
-struct PodcastPreviewView: View {
-    let podcast: PodcastCounterpart
-    /// Meldet ein Abo an die Trefferliste zurück.
-    let onSubscribed: (Int) -> Void
-
-    @Environment(AppModel.self) private var model
-    @State private var preview: PodcastPreview?
-    @State private var loadFailure: String?
-    @State private var working = false
-    @State private var addedCount: Int?
-    @State private var failure: String?
-
-    var body: some View {
-        List {
-            Section {
-                HStack(spacing: Design.Spacing.control) {
-                    PodcastArtwork(url: podcast.artworkURL, size: 72)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(podcast.title).font(.headline)
-                        if !podcast.author.isEmpty {
-                            Text(podcast.author).font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        if let genre = podcast.genre, !genre.isEmpty {
-                            Text(genre).font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                subscribeControl
-                if let failure {
-                    NoticeLabel(failure, kind: .failure)
-                }
-            }
-
-            if let count = preview?.episodeCount ?? podcast.episodeCount {
-                Section {
-                    LabeledContent("Folgen") { Text(count, format: .number) }
-                    if let latest = preview?.latestDate ?? podcast.latestRelease {
-                        LabeledContent("Neueste Folge") { Text(latest, style: .date) }
-                    }
-                }
-            }
-
-            Section("Beschreibung") {
-                if let preview {
-                    if let text = ShownotesText.plain(preview.summary) {
-                        Text(text)
-                    } else {
-                        Text("Der Podcast hat keine Beschreibung.").foregroundStyle(.secondary)
-                    }
-                } else if let loadFailure {
-                    NoticeLabel(loadFailure, kind: .failure)
-                    Button("Nochmal versuchen", systemImage: "arrow.clockwise") {
-                        self.loadFailure = nil
-                        Task { await load() }
-                    }
-                } else {
-                    HStack {
-                        ProgressView()
-                        Text("Beschreibung wird geladen …").foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            if let latest = preview?.latest, !latest.isEmpty {
-                Section("Neueste Folgen") {
-                    ForEach(latest) { item in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(item.title).lineLimit(2)
-                            if let date = item.publishedAt {
-                                Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle(podcast.title)
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .task { await load() }
-    }
-
-    @ViewBuilder private var subscribeControl: some View {
-        if let addedCount {
-            Label {
-                Text("Abonniert · ^[\(addedCount) Folge](inflect: true) gefunden")
-            } icon: {
-                Image(systemName: "checkmark.circle.fill")
-            }
-            .foregroundStyle(.green)
-        } else if model.isSubscribed(podcast.feedURL) {
-            Label("Schon abonniert", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        } else {
-            Button {
-                Task { await subscribe() }
-            } label: {
-                HStack {
-                    if failure == nil {
-                        Label("Abonnieren", systemImage: "plus.circle.fill")
-                    } else {
-                        Label("Nochmal versuchen", systemImage: "arrow.clockwise")
-                    }
-                    Spacer()
-                    if working { ProgressView() }
-                }
-            }
-            .disabled(working)
-            .accessibilityIdentifier("source.preview.subscribe")
-        }
-    }
-
-    private func load() async {
-        guard preview == nil else { return }
-        do {
-            preview = try await model.previewPodcast(podcast.feedURL)
-        } catch is CancellationError {
-            return
-        } catch {
-            loadFailure = UserFacingError.describe(error)
-        }
-    }
-
-    private func subscribe() async {
-        working = true
-        failure = nil
-        defer { working = false }
-        do {
-            let result = try await model.subscribe(to: podcast.feedURL.absoluteString)
-            addedCount = result.episodeCount
-            onSubscribed(result.episodeCount)
-        } catch is CancellationError {
-            return
-        } catch {
-            failure = UserFacingError.describe(error)
         }
     }
 }

@@ -9,3 +9,5 @@ __pycache__/
 *.pyc
 build/
 .claude/worktrees/
+# Zugang zum Podcast-Katalog, nur lokal. Vorlage daneben: PodcastIndexCredentials.example.plist
+app/Config/PodcastIndex/PodcastIndexCredentials.plist
