@@ -198,6 +198,7 @@ public final class AppModel {
     // MARK: - Laden
 
     public func load() async {
+        if DemoContent.isRequested { await DemoContent.seed(into: store) }
         // Nach einem iCloud-Abgleich können Datensätze doppelt vorliegen.
         // Wurde dabei eine gelöschte Folge endgültig bereinigt, geht auch
         // ihre Audiodatei.

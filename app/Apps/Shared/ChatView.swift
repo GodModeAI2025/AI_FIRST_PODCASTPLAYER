@@ -125,7 +125,7 @@ struct ChatView: View {
 private struct ChatTitle: ViewModifier {
     let show: Bool
     func body(content: Content) -> some View {
-        if show { content.navigationTitle("Fragen") } else { content }
+        if show { content.navigationTitle("Fragen").activityStatusToolbar() } else { content }
     }
 }
 

@@ -186,6 +186,7 @@ struct MacRootView: View {
             }
         }
         .autoRefresh()
+        .environment(\.openQueue, { section = .queue })
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView().environment(model).frame(minWidth: 480, minHeight: 620)
         }

@@ -100,6 +100,7 @@ struct KnowledgeHubView: View {
             }
         }
         .navigationTitle("Wissen")
+        .activityStatusToolbar()
         .navigationDestination(for: HubDestination.self) { destination in
             switch destination {
             case .highlights: KnowledgeView()

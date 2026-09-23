@@ -155,7 +155,7 @@ private extension View {
         modifier(MiniPlayerAccessoryModifier(isVisible: isVisible))
     }
 
-    func activityBanner(openQueue: @escaping () -> Void) -> some View {
+    func activityBanner(openQueue: @escaping @MainActor @Sendable () -> Void) -> some View {
         modifier(ActivityBannerInset(openQueue: openQueue))
     }
 }
@@ -173,28 +173,12 @@ private extension View {
 /// Auf dem iPad schwebt die Tab Bar oben und läge auf der Zeile. Bei
 /// regulärer Breite steht sie deshalb unten.
 private struct ActivityBannerInset: ViewModifier {
-    @Environment(AppModel.self) private var model
-    @Environment(\.horizontalSizeClass) private var sizeClass
-    let openQueue: () -> Void
+    let openQueue: @MainActor @Sendable () -> Void
 
     func body(content: Content) -> some View {
-        let atBottom = sizeClass == .regular
-        VStack(spacing: 0) {
-            if !atBottom { banner }
-            content
-            if atBottom { banner }
-        }
-    }
-
-    @ViewBuilder private var banner: some View {
-        if model.activity != nil {
-            Button(action: openQueue) { ActivityBanner() }
-                .buttonStyle(.plain)
-                .padding(.horizontal, Design.Spacing.standard)
-                .padding(.bottom, Design.Spacing.small)
-                .accessibilityHint("Öffnet die Warteschlange")
-                .accessibilityIdentifier("activity.banner")
-        }
+        // Kein Streifen mehr über dem Inhalt: das Symbol sitzt in der
+        // Navigationsleiste der Ansichten (siehe `activityStatusToolbar`).
+        content.environment(\.openQueue, openQueue)
     }
 }
 

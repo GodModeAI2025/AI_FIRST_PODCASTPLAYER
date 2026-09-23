@@ -48,6 +48,7 @@ struct ForYouView: View {
         }
         .listStyle(.plain)
         .navigationTitle("Für dich")
+        .activityStatusToolbar()
         .refreshable { await model.refreshAll() }
         .toolbar {
             NavigationLink { QueueView() } label: {
@@ -175,6 +176,7 @@ struct SmartFeedListView: View {
             }
         }
         .navigationTitle("Meine Feeds")
+        .activityStatusToolbar()
         .navigationDestination(for: SmartFeedID.self) { feedID in
             if let latest = model.editions[feedID]?.first {
                 PersonalEpisodeView(episode: latest)
@@ -378,6 +380,7 @@ struct LibraryView: View {
             }
         }
         .navigationTitle("Mediathek")
+        .activityStatusToolbar()
         .confirmationDialog("Abbestellen?", isPresented: Binding(
             get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }
         ), titleVisibility: .visible, presenting: pendingRemoval) { source in

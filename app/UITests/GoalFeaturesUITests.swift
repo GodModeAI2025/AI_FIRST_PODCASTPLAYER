@@ -83,53 +83,21 @@ final class GoalFeaturesUITests: XCTestCase {
     @MainActor
     func testActivityBannerLeavesNavigationFree() throws {
         let app = launchWithFeed()
-        let episode = app.cells.element(boundBy: 1)
-        XCTAssertTrue(episode.waitForExistence(timeout: 15))
-        episode.tap()
-        XCTAssertTrue(app.segmentedControls["episode.sections"].waitForExistence(timeout: 10))
-
-        // Alle Rahmen aus einer Momentaufnahme. Im Simulator scheitert die
-        // Transkription nach wenigen Sekunden, dann verschwindet die Zeile
-        // und alles rückt nach oben. Deshalb in kurzen Abständen schauen
-        // statt mit `waitForExistence`, das erst nach einer Sekunde prüft.
-        let banner = app.buttons["activity.banner"].firstMatch
-        var tree = try app.snapshot()
-        var found = find(tree) { $0.identifier == "activity.banner" }
-        let deadline = Date().addingTimeInterval(20)
-        while found == nil && Date() < deadline {
-            usleep(250_000)
-            tree = try app.snapshot()
-            found = find(tree) { $0.identifier == "activity.banner" }
-        }
-        guard let line = found else {
-            throw XCTSkip("Keine Vorbereitung aktiv, die Aktivitätszeile erscheint nicht")
+        // Nach dem Abonnieren bereitet die App Folgen vor. Das zeigt ein
+        // Symbol in der Navigationsleiste, kein Streifen über dem Inhalt.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let status = app.buttons["activity.status"].firstMatch
+        guard status.waitForExistence(timeout: 20) else {
+            throw XCTSkip("Keine Vorbereitung aktiv, das Symbol erscheint nicht")
         }
         attach(app, "aktivitaet")
-        let bar = find(tree) { node in
-            node.elementType == .navigationBar && find(node, { $0.identifier == "episode.menu" }) != nil
-        }
-        let back = bar.flatMap { find($0, { $0.elementType == .button }) }
-        let menu = find(tree) { $0.identifier == "episode.menu" }
-        let sections = find(tree) { $0.identifier == "episode.sections" }
-        let tabs = find(tree) { $0.elementType == .tabBar }
-        for (name, element) in [("Zurück", back), ("Mehr", menu), ("die Reiter", sections)] {
-            let frame = try XCTUnwrap(element, "\(name) fehlt").frame
-            XCTAssertFalse(line.frame.intersects(frame), "Die Aktivitätszeile verdeckt \(name)")
-        }
-        if let tabs {
-            XCTAssertFalse(line.frame.intersects(tabs.frame), "Die Aktivitätszeile verdeckt die Tabs")
-        }
-
-        // Tipp auf die Stelle aus der Momentaufnahme. Ein Tipp auf das
-        // Element schlägt fehl, wenn die Zeile gerade verschwindet. Die
-        // Mitte trifft dann nur den Titel, keinen Knopf.
-        app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: line.frame.midX, dy: line.frame.midY))
-            .tap()
-        let queue = app.navigationBars["Warteschlange"]
-        if !queue.waitForExistence(timeout: 5) {
-            if !banner.exists { throw XCTSkip("Die Vorbereitung endete während des Tipps") }
-            XCTFail("Die Aktivitätszeile öffnet die Warteschlange nicht")
+        let bar = app.navigationBars.firstMatch
+        XCTAssertTrue(bar.frame.contains(CGPoint(x: status.frame.midX, y: status.frame.midY)),
+                      "Das Symbol sitzt nicht in der Navigationsleiste")
+        status.tap()
+        if !app.navigationBars["Warteschlange"].waitForExistence(timeout: 5) {
+            if !status.exists { throw XCTSkip("Die Vorbereitung endete während des Tipps") }
+            XCTFail("Das Symbol öffnet die Warteschlange nicht")
             return
         }
         app.buttons["Fertig"].firstMatch.tap()

@@ -429,6 +429,23 @@ struct TranscriptSection: View {
     var body: some View {
         ScrollViewReader { proxy in
             List {
+                // Die Suche steht im Inhalt, nicht in der Navigationsleiste.
+                // Dort schob sie sich über die Reiter, und alles sprang.
+                if !paragraphs.isEmpty {
+                    HStack(spacing: Design.Spacing.small) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Im Transkript suchen", text: $query)
+                            .textFieldStyle(.plain)
+                            .accessibilityIdentifier("transcript.search")
+                        if !query.isEmpty {
+                            Button { query = "" } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Suche leeren")
+                        }
+                    }
+                }
                 if loaded && paragraphs.isEmpty {
                     ContentUnavailableView(
                         "Noch kein Transkript", systemImage: "text.alignleft",
@@ -446,12 +463,15 @@ struct TranscriptSection: View {
                                 .multilineTextAlignment(.leading)
                         }
                         .padding(.vertical, Design.Spacing.micro)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
                     }
+                    // Schlicht, damit der Text schwarz bleibt und nicht als Link blau erscheint.
+                    .buttonStyle(.plain)
                     .listRowBackground(isCurrent(paragraph.start) ? Color.accentColor.opacity(0.1) : nil)
                     .id(paragraph.start.milliseconds)
                 }
             }
-            .searchable(text: $query, prompt: "Im Transkript suchen")
             .onChange(of: currentStart) { _, start in
                 guard let start, query.isEmpty else { return }
                 withAnimation { proxy.scrollTo(start, anchor: .center) }

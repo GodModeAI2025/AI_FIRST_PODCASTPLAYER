@@ -113,6 +113,7 @@ struct OnboardingView: View {
     /// Beim ersten Start, nicht in UI-Tests.
     static var shouldShow: Bool {
         let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-show-onboarding") { return true }
         guard !arguments.contains("-uitest-fresh"), !arguments.contains("-skip-onboarding") else { return false }
         return !UserDefaults.standard.bool(forKey: seenKey)
     }
