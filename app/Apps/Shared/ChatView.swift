@@ -110,7 +110,7 @@ struct ChatView: View {
     }
 
     @ViewBuilder private var inputField: some View {
-        let prompt = fixedScope ? "Frage zu dieser Folge …" : "Frage stellen …"
+        let prompt: LocalizedStringKey = fixedScope ? "Frage zu dieser Folge …" : "Frage stellen …"
         #if os(iOS)
         // Einzeilig: in einem mitwachsenden Feld schreibt Return auf dem
         // iPhone eine neue Zeile, statt die Frage zu senden.
@@ -135,7 +135,9 @@ struct ChatView: View {
                 // Wer nicht auf den Bildschirm sieht, erfährt so, dass die Antwort steht.
                 let count = answer.citations.count
                 AccessibilityNotification.Announcement(
-                    count == 0 ? "Antwort da" : count == 1 ? "Antwort da, 1 Beleg" : "Antwort da, \(count) Belege"
+                    count == 0
+                        ? AttributedString(localized: "Antwort da")
+                        : AttributedString(localized: "Antwort da, ^[\(count) Beleg](inflect: true)")
                 ).post()
             }
             isAsking = false
@@ -143,12 +145,12 @@ struct ChatView: View {
     }
 }
 
-/// Eigenständig trägt der Chat den Titel „Fragen“. Innerhalb einer Folge
-/// bleibt deren Titel stehen.
+/// Eigenständig trägt der Chat den Titel „Frag deine Podcasts“. Innerhalb
+/// einer Folge bleibt deren Titel stehen.
 private struct ChatTitle: ViewModifier {
     let show: Bool
     func body(content: Content) -> some View {
-        if show { content.navigationTitle("Fragen").activityStatusToolbar() } else { content }
+        if show { content.navigationTitle("Frag deine Podcasts").activityStatusToolbar() } else { content }
     }
 }
 
@@ -169,7 +171,7 @@ struct ScopeBar: View {
                     get: { followsPlayer && currentTitle != nil ? ScopeChoice.currentEpisode : .allAnalyzed },
                     set: { followsPlayer = $0 == .currentEpisode }
                 )) {
-                    Text("Mediathek").tag(ScopeChoice.allAnalyzed)
+                    Text("Meine Podcasts").tag(ScopeChoice.allAnalyzed)
                     if let title = currentTitle {
                         Text("Laufende Folge: \(title)").tag(ScopeChoice.currentEpisode)
                     }
@@ -223,7 +225,7 @@ struct ScopeBar: View {
 
     /// Was gerade gefragt wird, in einer Zeile.
     private var summary: String {
-        if followsPlayer, let title = currentTitle { return "Laufende Folge: \(title)" }
+        if followsPlayer, let title = currentTitle { return String(localized: "Laufende Folge: \(title)") }
         if filter.isUnrestricted { return ChatScope.allAnalyzed.label }
         return model.scopeLabel(.library(filter))
     }
@@ -237,7 +239,10 @@ extension ModelStatus {
     /// Kurzform für die Anzeige, womit geantwortet wird.
     var resolveLabel: String? {
         switch resolve(.answer) {
-        case .success(let tier): tier == .privateCloudCompute ? "Private Cloud Compute" : "Auf dem Gerät"
+        case .success(let tier):
+            tier == .privateCloudCompute
+                ? String(localized: "Private Cloud Compute")
+                : String(localized: "Auf dem Gerät")
         case .failure: nil
         }
     }
@@ -251,16 +256,20 @@ struct ChatEmptyState: View {
     private var suggestions: [String] {
         switch scope {
         case .episode:
-            ["Worum geht es in dieser Folge?",
-             "Was sind die wichtigsten Aussagen?",
-             "Welche Zahlen und Namen werden genannt?",
-             "Wo sind sich die Gesprächspartner uneinig?"]
+            [String(localized: "Worum geht es in dieser Folge?"),
+             String(localized: "Was sind die wichtigsten Aussagen?"),
+             String(localized: "Welche Zahlen und Namen werden genannt?"),
+             String(localized: "Wo sind sich die Gesprächspartner uneinig?")]
         default:
-            ["Welche Folgen behandeln künstliche Intelligenz?",
-             "Was wurde zuletzt über Datenschutz gesagt?",
-             "Welche erschlossenen Folgen habe ich noch nicht gehört?",
-             "Wo widersprechen sich zwei Podcasts?"]
+            [String(localized: "Welche Folgen behandeln künstliche Intelligenz?"),
+             String(localized: "Was wurde zuletzt über Datenschutz gesagt?"),
+             String(localized: "Welche Folgen mit Transkript habe ich noch nicht gehört?"),
+             String(localized: "Wo widersprechen sich zwei Podcasts?")]
         }
+    }
+
+    private var title: LocalizedStringKey {
+        scope.isEpisode ? "Frag diese Folge" : "Frag deine Podcasts"
     }
 
     var body: some View {
@@ -268,10 +277,12 @@ struct ChatEmptyState: View {
             Image(systemName: "text.bubble")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
-            Text(scope.isEpisode ? "Frag diese Folge" : "Frag deine Podcasts")
+            Text(title)
                 .font(.headline)
-            Text("Jede Antwort nennt die Stellen, aus denen sie stammt. Ein Tipp auf einen Beleg "
-                 + "spielt die Stelle im Original.")
+            Text("""
+                Jede Antwort nennt die Stellen, aus denen sie stammt. \
+                Ein Tipp auf einen Beleg spielt die Stelle im Original.
+                """)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -371,13 +382,8 @@ struct AnswerCard: View {
                 Button {
                     model.playAnswer(answer)
                 } label: {
-                    Label(
-                        answer.playableCitations.count == 1
-                            ? "Diese Stelle anhören"
-                            : "Alle \(answer.playableCitations.count) Stellen nacheinander anhören",
-                        systemImage: "play.circle"
-                    )
-                    .frame(minHeight: Design.minimumTapTarget)
+                    Label(playLabel, systemImage: "play.circle")
+                        .frame(minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.capsule)
@@ -385,18 +391,17 @@ struct AnswerCard: View {
             }
 
             // Jede echte Antwort lässt sich sichern. Ein reiner Hinweis ohne
-            // Beleg und ohne Modell („noch nichts ausgewertet“) nicht.
+            // Beleg und ohne Modell („noch kein Transkript“) nicht.
             if !answer.citations.isEmpty || answer.modelLabel != nil {
                 Button {
                     model.park(answer)
                 } label: {
-                    Label(isParked ? "Als Wissenslandkarte gesichert" : "Als Wissenslandkarte sichern",
-                          systemImage: isParked ? "checkmark.circle" : "map")
+                    Label(saveLabel, systemImage: isParked ? "checkmark.circle" : "map")
                         .frame(minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.borderless)
                 .disabled(isParked)
-                .accessibilityHint("Legt Frage, Antwort, Belege und die Notizen zu diesen Stellen unter Wissen ab")
+                .accessibilityHint("Legt Frage, Antwort, Belege und die Notizen zu diesen Stellen unter „Gesicherte Antworten“ ab")
                 .accessibilityIdentifier("chat.saveTrail")
             }
         }
@@ -415,6 +420,16 @@ struct AnswerCard: View {
     }
 
     private var isParked: Bool { model.isParked(answer) }
+
+    private var saveLabel: LocalizedStringKey {
+        isParked ? "Antwort gesichert" : "Antwort sichern"
+    }
+
+    /// Mehr als eine Stelle heisst immer mindestens zwei, daher reicht der Plural.
+    private var playLabel: LocalizedStringKey {
+        let count = answer.playableCitations.count
+        return count == 1 ? "Diese Stelle anhören" : "Alle \(count) Stellen nacheinander anhören"
+    }
 
     private func copy(_ text: String) {
         #if os(iOS)
@@ -466,7 +481,7 @@ struct CitationRow: View {
 
     private var content: some View {
         HStack(alignment: .top, spacing: Design.Spacing.small) {
-            Text(number > 0 ? "\(number)" : "")
+            Text(number > 0 ? number.formatted() : "")
                 .font(.caption2.weight(.bold).monospacedDigit())
                 .foregroundStyle(.white)
                 .frame(minWidth: 20, minHeight: 20)

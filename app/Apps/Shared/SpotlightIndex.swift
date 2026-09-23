@@ -84,7 +84,7 @@ public final class SpotlightIndex {
         guard quote != nil || highlight.note != nil else { return nil }
 
         let attributes = CSSearchableItemAttributeSet(contentType: .text)
-        attributes.title = highlight.note ?? highlight.episodeTitle ?? "Gemerkte Stelle"
+        attributes.title = highlight.note ?? highlight.episodeTitle ?? String(localized: "Gemerkte Stelle")
         // Der Originaltext, gekürzt. Der Systemindex ist kein Archiv.
         // Die Zeitmarke steht vorn, weil das Attributset keine Start-
         // und Endzeit für Textelemente kennt.
@@ -161,10 +161,13 @@ struct SpotlightSettingsSection: View {
         } header: {
             Text("Systemsuche")
         } footer: {
-            Text("Gemerkte Stellen werden dann auch ausserhalb von PodcastAI gefunden. "
-                 + "Ausgeschaltet werden vorhandene Einträge wieder entfernt.\n\n"
-                 + "PodcastAI stellt Relevanz bereit — ob das System daraus einen Vorschlag "
-                 + "macht, entscheidet das System.")
+            Text("""
+                Gemerkte Stellen werden dann auch ausserhalb von PodcastAI gefunden. \
+                Ausgeschaltet werden vorhandene Einträge wieder entfernt.
+
+                PodcastAI stellt Relevanz bereit. Ob das System daraus einen Vorschlag \
+                macht, entscheidet das System.
+                """)
         }
         .task { isEnabled = model.spotlight.isEnabled }
     }
