@@ -57,6 +57,7 @@
 		996B38D964EA397957E2FDA0 /* AppModel+Knowledge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653843CFBEA17360AA358D5D /* AppModel+Knowledge.swift */; };
 		9F8F9C824B7420A3284CF221 /* EpisodePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20EC7F8EDB29F980CF84CB8E /* EpisodePlayer.swift */; };
 		A1E941BC885A6ABB28A538EA /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5557E1EF9E660C096E6C097 /* ChatView.swift */; };
+		A887858A248B71D82F3883DF /* InterestMatchingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 345CD8ADB40A67D9E1BFA336 /* InterestMatchingTests.swift */; };
 		AD87EA9A0365180F492320D7 /* ListeningViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40D86CC1E395802F6CBB0634 /* ListeningViews.swift */; };
 		B087FD0F267B402BE95356A7 /* EpisodePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20EC7F8EDB29F980CF84CB8E /* EpisodePlayer.swift */; };
 		B17A9C788A3BE5BD3B7143DE /* PodcastAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1FA87BDC51E9691B1B9F28C8 /* PodcastAIKit */; };
@@ -70,6 +71,7 @@
 		C8ACC820D9602D2727ACD79B /* SpotlightIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3F721A5E9D88C34407F9D3 /* SpotlightIndex.swift */; };
 		CBBAB01478B9CE9513C5FCB1 /* HelpViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 531481C01390313A3628023E /* HelpViews.swift */; };
 		CFF1973989506442E39CD787 /* CoreInvariantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33A2209E55DEDF473AD0B60 /* CoreInvariantTests.swift */; };
+		D03DD0EB123030FE7D4E5FB8 /* AgentDriverUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA01B5EB221EFC54B9033F9 /* AgentDriverUITests.swift */; };
 		D4CF84DB64C4097F6E71ACE0 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE12FB2B75DBFB0812CC03F /* AppModel.swift */; };
 		D777512D6A4E55179627CCD9 /* PodcastAIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1CB73B1C68359276B4EFE5E /* PodcastAIApp.swift */; };
 		DB09CFD78A75F3A02D31140F /* ListeningViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40D86CC1E395802F6CBB0634 /* ListeningViews.swift */; };
@@ -106,6 +108,7 @@
 		20EC7F8EDB29F980CF84CB8E /* EpisodePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodePlayer.swift; sourceTree = "<group>"; };
 		2542A126634BEE731EA9B08D /* GoalFeaturesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalFeaturesUITests.swift; sourceTree = "<group>"; };
 		2ECC7B2DA4FC79C3CA93FE3B /* LateWriteAndRejectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LateWriteAndRejectionTests.swift; sourceTree = "<group>"; };
+		345CD8ADB40A67D9E1BFA336 /* InterestMatchingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterestMatchingTests.swift; sourceTree = "<group>"; };
 		35784A6AD29DE8BC94716D87 /* PipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipelineTests.swift; sourceTree = "<group>"; };
 		36D6FF63120E3AC935A9B6C4 /* Services.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services.swift; sourceTree = "<group>"; };
 		3C1B0E410F5D4C70AC267B92 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
@@ -144,6 +147,7 @@
 		BF72E0A8E0D7DD1DE3249856 /* PodcastAI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PodcastAI.entitlements; sourceTree = "<group>"; };
 		C1CB73B1C68359276B4EFE5E /* PodcastAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodcastAIApp.swift; sourceTree = "<group>"; };
 		C3E097640F4E7EE4540693EF /* PodcastAIUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PodcastAIUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CFA01B5EB221EFC54B9033F9 /* AgentDriverUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDriverUITests.swift; sourceTree = "<group>"; };
 		D5557E1EF9E660C096E6C097 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		E62E4AD033F13CC6F5377BDB /* RemovedEpisodeQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemovedEpisodeQueryTests.swift; sourceTree = "<group>"; };
 		E7559EDE9F251C1BD2FB8E6C /* BackgroundWork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWork.swift; sourceTree = "<group>"; };
@@ -216,6 +220,7 @@
 		4A3BE81D070367ABAF865E29 /* UITests */ = {
 			isa = PBXGroup;
 			children = (
+				CFA01B5EB221EFC54B9033F9 /* AgentDriverUITests.swift */,
 				041C4EAB31537EFB05BCEA08 /* AtlasUITests.swift */,
 				A323EEBF0E9BF5744EE4F224 /* BetaFeedback03UITests.swift */,
 				E8C2BFB9A41A80DC63C8F6ED /* BetaFeedbackUITests.swift */,
@@ -284,6 +289,7 @@
 			children = (
 				EC853F71E884276F4C6BDFAD /* AnswerPromptTests.swift */,
 				F33A2209E55DEDF473AD0B60 /* CoreInvariantTests.swift */,
+				345CD8ADB40A67D9E1BFA336 /* InterestMatchingTests.swift */,
 				654C51C37619544003228BF8 /* InterestPersistenceTests.swift */,
 				2ECC7B2DA4FC79C3CA93FE3B /* LateWriteAndRejectionTests.swift */,
 				FCA596D4A48ED1F0791C8772 /* LiveAnalysisTests.swift */,
@@ -489,6 +495,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D03DD0EB123030FE7D4E5FB8 /* AgentDriverUITests.swift in Sources */,
 				DE97E86BA297E82EC29F3FEF /* AtlasUITests.swift in Sources */,
 				F4C8DC8BD355AD0976F791C2 /* BetaFeedback03UITests.swift in Sources */,
 				E7E1287BB7D9E75C519A8664 /* BetaFeedbackUITests.swift in Sources */,
@@ -571,6 +578,7 @@
 			files = (
 				436C87EE117653FD5F99D4DB /* AnswerPromptTests.swift in Sources */,
 				CFF1973989506442E39CD787 /* CoreInvariantTests.swift in Sources */,
+				A887858A248B71D82F3883DF /* InterestMatchingTests.swift in Sources */,
 				ED007FAF5D505809947A08DD /* InterestPersistenceTests.swift in Sources */,
 				F41F54448C1C85BAB1ED1E4A /* LateWriteAndRejectionTests.swift in Sources */,
 				7C989F71C6BA67BF63424BD1 /* LiveAnalysisTests.swift in Sources */,
