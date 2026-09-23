@@ -112,8 +112,9 @@ struct ChatView: View {
         isAsking = true
         let currentScope = scope
         Task {
-            let answer = await model.ask(text, scope: currentScope)
-            model.chatAnswers.insert(answer, at: 0)
+            // Das Modell nimmt die Antwort selbst in den Verlauf auf. Nur dort
+            // lässt sich prüfen, ob während der Suche eine Folge gelöscht wurde.
+            await model.ask(text, scope: currentScope)
             isAsking = false
         }
     }

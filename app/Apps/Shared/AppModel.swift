@@ -435,6 +435,8 @@ public final class AppModel {
             var retried: Set<EpisodeID> = []
             while let next = self.analysisQueue.first {
                 self.analysisQueue.removeFirst()
+                // Ohne Lücke: was nicht mehr wartet, läuft schon.
+                self.analyzing = next
                 background.setSubtitle(next.title)
                 let transientFailure = await self.runAnalysis(next, background: background)
                 if transientFailure, !retried.contains(next.id) {
@@ -455,12 +457,19 @@ public final class AppModel {
     /// vorübergehend war und ein zweiter Versuch lohnt.
     private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
         guard let audioURL = episode.audioURL else { return false }
+        // Gleich als laufend vormerken, vor dem ersten `await`. Der Worker hat
+        // die Folge schon aus der Warteschlange genommen. Ohne diese Zeile
+        // stünde sie während der Prüfung unten nirgends, `enqueueAnalysis`
+        // reihte sie ein zweites Mal ein, und das Abbestellen ihrer Quelle
+        // fände sie nicht.
+        analyzing = episode
         // Stand der Löschungen beim Start. Wird die Folge währenddessen
         // gelöscht, darf nichts von ihr zurückkommen.
         let ticket = removalCount
         // Inzwischen gelöscht, hier oder auf einem anderen Gerät: überspringen.
         let live = try? await store.episodes(ids: [episode.id])
         if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
+            analyzing = nil
             stages[episode.id] = nil
             stageDetails[episode.id] = nil
             return false
@@ -469,7 +478,6 @@ public final class AppModel {
         // des Geräts. Ohne Angabe im Feed bleibt es bei der Gerätesprache.
         let feedLanguage = sources.first(where: { $0.id == episode.sourceID })?.language
         let locale = feedLanguage.map { Locale(identifier: $0) } ?? .current
-        analyzing = episode
         stages[episode.id] = .discovered
         stageDetails[episode.id] = nil
         background.update(.discovered)

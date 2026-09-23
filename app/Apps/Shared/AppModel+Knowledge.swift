@@ -154,7 +154,50 @@ extension AppModel {
 
     // MARK: - Fragen
 
-    public func ask(_ question: String, scope: ChatScope) async -> ChatAnswer {
+    /// Stellt eine Frage und nimmt die Antwort in den Verlauf auf, neueste zuerst.
+    ///
+    /// Eine Antwort braucht einige Sekunden. Wird in dieser Zeit eine Folge
+    /// gelöscht, hat das Aufräumen in `pruneChatAnswers` die Antwort noch
+    /// nicht gesehen. Deshalb wird hier beim Einfügen noch einmal geprüft.
+    /// Galt die Frage einer Folge, die inzwischen gelöscht ist, kommt keine
+    /// Antwort. Stützt sich die Antwort nur auf eine gelöschte Folge, steht
+    /// statt ihrer ein Hinweis da, ohne Zitat aus der Folge.
+    @discardableResult
+    public func ask(_ question: String, scope: ChatScope) async -> ChatAnswer? {
+        let ticket = removalCount
+        let composed = await composeAnswer(question, scope: scope)
+        let removed = { (id: EpisodeID) in self.wasRemoved(id, since: ticket) }
+        switch scope {
+        case .episode(let id) where removed(id):
+            return nil
+        case .episodes(let ids) where ids.contains(where: removed):
+            return nil
+        default:
+            break
+        }
+        var kept = composed
+        if citesRemovedContent(composed, since: ticket) {
+            kept = ChatAnswer(
+                question: question, scope: scope,
+                text: "Während der Suche wurde eine Folge gelöscht, auf die sich die Antwort gestützt hätte. "
+                    + "Stell die Frage bitte noch einmal.",
+                citations: [])
+        }
+        chatAnswers.insert(kept, at: 0)
+        return kept
+    }
+
+    /// Zitiert die Antwort eine Folge, die seit `ticket` gelöscht wurde?
+    /// Eine abbestellte Quelle zählt auch dann, wenn ihre Folge nicht in der
+    /// geladenen Liste stand und deshalb kein Merkzeichen bekam.
+    private func citesRemovedContent(_ answer: ChatAnswer, since ticket: Int) -> Bool {
+        if answer.citations.contains(where: { wasRemoved($0.episodeID, since: ticket) }) { return true }
+        guard removalCount > ticket else { return false }
+        let live = Set(sources.map(\.id))
+        return answer.citations.contains { !live.contains($0.sourceID) }
+    }
+
+    private func composeAnswer(_ question: String, scope: ChatScope) async -> ChatAnswer {
         activity = "Antwort wird gesucht …"
         defer { activity = nil }
         // Seit dem Start kann das Modell bereit geworden oder das Kontingent
@@ -197,16 +240,26 @@ extension AppModel {
                 citations: [], coverageCaveat: caveat)
         }
 
-        let budget = Self.answerBudget(privateCloud: answersUsePrivateCloud,
+        // Das Gerätebudget gilt immer: direkt auf dem Gerät und ebenso, wenn
+        // eine Anfrage von Private Cloud Compute aufs Gerät zurückfällt.
+        let device = Self.answerBudget(privateCloud: false,
                                        contextSize: Self.onDeviceContextSize,
                                        questionLength: question.count)
-        let limit = budget.candidates
+        let budget = answersUsePrivateCloud
+            ? Self.answerBudget(privateCloud: true, contextSize: Self.onDeviceContextSize,
+                                questionLength: question.count)
+            : device
+        let limit = budget.maximumCandidates
+        let overview = Self.asksForOverview(question)
         let candidates: [Evidence]
-        if Self.asksForOverview(question) {
+        if overview {
             // Für „worum geht es“ zählt die ganze Folge, gleichmässig verteilt.
-            // Eine Rangfolge braucht es dafür nicht.
+            // Eine Rangfolge braucht es dafür nicht. Vorn stehen so viele
+            // Stellen, wie das Gerät fasst, damit auch ein Rückfall aufs
+            // Gerät die ganze Folge sieht.
             let ordered = pool.sorted { ($0.range?.start.milliseconds ?? 0) < ($1.range?.start.milliseconds ?? 0) }
-            candidates = Self.evenlySpaced(ordered, count: limit)
+            candidates = Self.coverageFirst(Self.evenlySpaced(ordered, count: limit),
+                                            leading: device.maximumCandidates)
         } else {
             // Einbettungen kosten je Stelle einige zehn Millisekunden. Deshalb
             // läuft die Suche nicht auf dem Hauptthread, und nur eine begrenzte
@@ -218,11 +271,15 @@ extension AppModel {
         }
 
         let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
-            candidateBuilder: CandidateListBuilder(excerptLimit: budget.excerpt, maximumCandidates: limit)))
+            candidateBuilder: CandidateListBuilder(excerptLimit: budget.excerptLimit, maximumCandidates: limit),
+            // Ohne diese Angabe rechnete der Extraktor auf dem Gerät mit dem
+            // festen Budget aus dem Paket und kürzte den Kontext unter das,
+            // was hier für das Gerät bestimmt wurde.
+            onDeviceBudget: device))
         do {
             let composed = try await extractor.answer(
                 question: question, from: candidates,
-                libraryContext: String(libraryContext.prefix(budget.contextCharacters)),
+                libraryContext: String(libraryContext.prefix(budget.libraryContextLimit)),
                 availability: modelStatus)
             let byID = Dictionary(candidates.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             var cited = composed.citations.sorted { $0.key < $1.key }.compactMap { byID[$0.value] }
@@ -242,7 +299,10 @@ extension AppModel {
             await refreshModelStatus()
             // Ohne Modell wird nichts erfunden. Dann zeigt die Antwort die
             // passendsten Stellen im Wortlaut, mit Sprung in den Originalton.
-            let top = Array(candidates.prefix(4))
+            // Beim Überblick verteilt über die ganze Folge.
+            let top = overview
+                ? Self.evenlySpaced(Array(candidates.prefix(device.maximumCandidates)), count: 4)
+                : Array(candidates.prefix(4))
             let reason = (error as? ExtractorError)?.errorDescription ?? error.localizedDescription
             let text = top.isEmpty
                 ? "Dazu finde ich keine passende Stelle. \(reason)"
@@ -286,38 +346,51 @@ extension AppModel {
     /// Sekunden Rechenzeit, genug für eine ganze Folge von einer Stunde.
     static let embeddingBudget = 64
 
-    struct AnswerBudget: Equatable {
-        /// Wie viele Stellen das Modell sieht.
-        let candidates: Int
-        /// Zeichen je Stelle.
-        let excerpt: Int
-        /// Zeichen für den Kontext zur Folge oder zur Mediathek.
-        let contextCharacters: Int
-    }
-
-    /// Wie viel Kontext eine Antwort bekommt.
+    /// Wie viel Kontext eine Antwort bekommt: Stellen, Zeichen je Stelle und
+    /// Zeichen für den Kontext zur Folge oder zur Mediathek.
     ///
-    /// Private Cloud Compute fasst viel. Auf dem Gerät teilen sich
-    /// Anweisungen, Schema, Kontext, Stellen und Antwort das Fenster des
-    /// Modells, auf iOS 26 und macOS 26 sind das 4.096 Token. Gerechnet wird
-    /// vorsichtig mit drei Zeichen je Token.
-    static func answerBudget(privateCloud: Bool, contextSize: Int, questionLength: Int) -> AnswerBudget {
-        if privateCloud {
-            return AnswerBudget(candidates: 60, excerpt: 900, contextCharacters: 6_000)
-        }
-        let excerpt = 420
-        let context = contextSize <= 4_096 ? 1_500 : 3_000
+    /// Private Cloud Compute fasst viel und bekommt das Budget aus dem
+    /// Paket. Auf dem Gerät teilen sich Anweisungen, Schema, Kontext, Stellen
+    /// und Antwort das Fenster des Modells, auf iOS 26 und macOS 26 sind das
+    /// 4.096 Token. Dort gilt das Gerätebudget aus dem Paket, in einem
+    /// grösseren Fenster doppelt so viel Kontext. Gerechnet wird vorsichtig
+    /// mit drei Zeichen je Token.
+    ///
+    /// Das Ergebnis für das Gerät geht als `onDeviceBudget` an den
+    /// Extraktor. So rechnen App und Paket mit denselben Zahlen.
+    static func answerBudget(privateCloud: Bool, contextSize: Int, questionLength: Int) -> ContextBudget {
+        if privateCloud { return .privateCloudCompute }
+        let base = ContextBudget.onDevice
+        let excerpt = base.excerptLimit
+        let context = contextSize <= 4_096 ? base.libraryContextLimit : base.libraryContextLimit * 2
         // Anweisungen und Schema etwa 350 Token, Rahmung etwa 100, Antwort etwa 700.
         let reserved = 1_150 + min(questionLength, 500) / 3 + context / 3
         let available = max(0, contextSize - reserved) * 3
-        let candidates = min(16, max(4, available / (excerpt + 8)))
-        return AnswerBudget(candidates: candidates, excerpt: excerpt, contextCharacters: context)
+        let candidates = min(base.maximumCandidates, max(4, available / (excerpt + 8)))
+        return ContextBudget(maximumCandidates: candidates, excerptLimit: excerpt, libraryContextLimit: context)
     }
 
     static func evenlySpaced<T>(_ items: [T], count: Int) -> [T] {
         guard items.count > count, count > 0 else { return items }
         let step = Double(items.count) / Double(count)
         return (0..<count).map { items[Int(Double($0) * step)] }
+    }
+
+    /// Ordnet eine gleichmässig verteilte, zeitlich sortierte Auswahl so um,
+    /// dass schon ihre ersten `leading` Einträge die ganze Folge abdecken.
+    ///
+    /// Fällt eine Antwort von Private Cloud Compute aufs Gerät zurück, sieht
+    /// das Gerät nur den Anfang der Liste. Stünden dort die ersten Minuten
+    /// der Folge, fasste es nur diese zusammen. Vorn stehen deshalb so viele
+    /// Stellen, wie das Gerät fasst, über die ganze Folge verteilt, dahinter
+    /// die übrigen. Beide Teile bleiben in sich zeitlich geordnet.
+    static func coverageFirst<T>(_ spread: [T], leading count: Int) -> [T] {
+        guard spread.count > count, count > 0 else { return spread }
+        let step = Double(spread.count) / Double(count)
+        let picked = Set((0..<count).map { Int(Double($0) * step) })
+        let front = spread.indices.filter { picked.contains($0) }.map { spread[$0] }
+        let rest = spread.indices.filter { !picked.contains($0) }.map { spread[$0] }
+        return front + rest
     }
 
     /// Was der Chat über eine Folge ausser dem Transkript wissen soll.
@@ -380,9 +453,14 @@ extension AppModel {
 
     /// Ermittelt die Fakten einer Folge aus ihren Belegen und speichert sie.
     ///
-    /// Gespeichert wird nur ein vollständiger Lauf. Scheitert ein Teil, bleibt
-    /// der Speicher leer, und der nächste Lauf beginnt von vorn. Hat der
-    /// Nutzer selbst gefragt (`force`), erfährt er den Grund.
+    /// Die Folge wird in Abschnitten ausgewertet, und was gelingt, bleibt.
+    /// Lehnt das Modell einen Abschnitt ab (Schutzregeln, Ablehnung, zu viel
+    /// Text für sein Fenster), bringt ein zweiter Versuch nichts. Die App
+    /// merkt sich den Abschnitt und schickt ihn auch beim nächsten Lauf nicht
+    /// mehr. Scheitert ein Abschnitt aus anderem Grund, gibt es einen zweiten
+    /// Versuch, danach geht es mit dem nächsten weiter. Fehlt das Modell ganz,
+    /// endet der Lauf ohne zu speichern, und der nächste beginnt von vorn.
+    /// Hat der Nutzer selbst gefragt (`force`), erfährt er, was gefehlt hat.
     ///
     /// `removalTicket` reicht die Erschliessung weiter, die die Fakten
     /// anstösst. So zählt auch eine Löschung, die zwischen dem Ende der
@@ -428,17 +506,43 @@ extension AppModel {
             candidateBuilder: CandidateListBuilder(excerptLimit: Self.factExcerptLimit, maximumCandidates: chunk)))
 
         var result: [EpisodeFact] = []
+        let knownRejections = Self.rejectedFactSlices
+        var rejected = 0
+        var failed = 0
+        var reason: String?
         for slice in slices {
+            let key = Self.factSliceKey(episode.id, slice)
+            if knownRejections.contains(key) {
+                rejected += 1
+                continue
+            }
             let claims: [Claim]
             do {
                 claims = try await Self.extractClaims(from: slice, with: extractor, availability: modelStatus)
-            } catch {
-                await refreshModelStatus()
-                if force {
-                    let reason = (error as? ExtractorError)?.errorDescription ?? error.localizedDescription
-                    lastError = "Die Fakten konnten nicht vollständig ermittelt werden. \(reason)"
+            } catch let error as ExtractorError {
+                switch error {
+                case .generationRejected:
+                    Self.rememberRejectedFactSlice(key)
+                    rejected += 1
+                    reason = error.errorDescription
+                    continue
+                case .generationFailed:
+                    failed += 1
+                    reason = error.errorDescription
+                    continue
+                case .modelUnavailable:
+                    await refreshModelStatus()
+                    if force {
+                        lastError = "Die Fakten konnten nicht ermittelt werden. \(error.errorDescription ?? "")"
+                    }
+                    return
                 }
-                return
+            } catch {
+                // Abgebrochen: nichts speichern, nichts melden.
+                if error is CancellationError || Task.isCancelled { return }
+                failed += 1
+                reason = error.localizedDescription
+                continue
             }
             guard !wasRemoved(episode.id, since: ticket) else { return }
             for claim in Self.evenlySpaced(claims, count: quota) {
@@ -451,8 +555,16 @@ extension AppModel {
             }
         }
         guard !wasRemoved(episode.id, since: ticket) else { return }
+        // Das Kontingent oder die Bereitschaft des Modells kann sich geändert haben.
+        if failed > 0 { await refreshModelStatus() }
+        if force, rejected + failed > 0 {
+            lastError = Self.factGapMessage(
+                rejected: rejected, failed: failed, total: slices.count, saved: !result.isEmpty, reason: reason)
+        }
         guard !result.isEmpty else {
-            if force { lastError = "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden." }
+            if force, rejected + failed == 0 {
+                lastError = "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden."
+            }
             return
         }
         let unique = Dictionary(result.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
@@ -464,11 +576,62 @@ extension AppModel {
         } catch {
             if force { lastError = UserFacingError.describe(error) }
         }
-        // Während des Speicherns gelöscht: gleich wieder entfernen.
+        // Während des Speicherns gelöscht: die Fakten gleich wieder entfernen.
+        // Nur sie, ohne neues Merkzeichen. Wurde die Quelle inzwischen neu
+        // abonniert, bliebe die Folge sonst für immer verborgen.
         if wasRemoved(episode.id, since: ticket) {
             facts[episode.id] = nil
-            if let report = try? await store.removeEpisode(episode.id) { applyRemoval(report) }
+            try? await store.save(facts: [], forEpisode: episode.id)
         }
+    }
+
+    /// Was der Nutzer erfährt, wenn Abschnitte einer Folge fehlen.
+    private static func factGapMessage(
+        rejected: Int, failed: Int, total: Int, saved: Bool, reason: String?
+    ) -> String {
+        let missing = rejected + failed
+        var parts = [saved
+            ? "Die Fakten sind unvollständig: \(missing) von \(total) Abschnitten der Folge fehlen."
+            : "Aus dieser Folge liessen sich keine Fakten ermitteln: \(missing) von \(total) Abschnitten fehlen."]
+        if rejected > 0 {
+            parts.append("\(rejected) davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. "
+                + "Diese versucht die App nicht noch einmal.")
+        }
+        if failed > 0 {
+            parts.append("\(failed) sind aus einem anderen Grund gescheitert. „Neu ermitteln“ versucht sie erneut.")
+        }
+        if let reason { parts.append(reason) }
+        return parts.joined(separator: " ")
+    }
+
+    // MARK: Abgelehnte Abschnitte
+
+    private static let rejectedFactSlicesKey = "com.podcastai.rejectedFactSlices"
+    /// So viele Ablehnungen merkt sich die App höchstens. Die ältesten fallen heraus.
+    private static let rejectedFactSliceLimit = 500
+
+    /// Abschnitte, die das Gerätemodell abgelehnt hat. Nur auf diesem Gerät,
+    /// ohne Eintrag in der Datenbank.
+    private static var rejectedFactSlices: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: rejectedFactSlicesKey) ?? [])
+    }
+
+    private static func rememberRejectedFactSlice(_ key: String) {
+        var list = UserDefaults.standard.stringArray(forKey: rejectedFactSlicesKey) ?? []
+        guard !list.contains(key) else { return }
+        list.append(key)
+        UserDefaults.standard.set(Array(list.suffix(rejectedFactSliceLimit)), forKey: rejectedFactSlicesKey)
+    }
+
+    /// Kennung eines Abschnitts. Belege haben stabile Kennungen, erster und
+    /// letzter Beleg und ihre Zahl bestimmen den Abschnitt. Die Version des
+    /// Systems gehört dazu: ein neues Modell bekommt eine neue Gelegenheit.
+    static func factSliceKey(_ episodeID: EpisodeID, _ slice: [Evidence]) -> String {
+        let system = ProcessInfo.processInfo.operatingSystemVersion
+        return [
+            episodeID.rawValue, slice.first?.id.rawValue ?? "", slice.last?.id.rawValue ?? "",
+            String(slice.count), "\(system.majorVersion).\(system.minorVersion)",
+        ].joined(separator: "|")
     }
 
     /// Höchstens so viele Fakten je Folge.
@@ -487,7 +650,8 @@ extension AppModel {
     }
 
     /// Ein Aufruf mit einem zweiten Versuch, wenn die Erzeugung scheitert.
-    /// Fehlt das Modell ganz, hilft kein zweiter Versuch.
+    /// Fehlt das Modell ganz oder lehnt es den Abschnitt ab
+    /// (`generationRejected`), hilft kein zweiter Versuch.
     private static func extractClaims(
         from slice: [Evidence], with extractor: KnowledgeExtractor, availability: ModelStatus
     ) async throws -> [Claim] {
@@ -635,9 +799,22 @@ extension AppModel {
     }
 
     /// Räumt nach, wenn die Erschliessung nach dem Löschen noch geschrieben
-    /// hat: Transkript, Belege und die frisch geladene Audiodatei.
+    /// hat: Transkript, Belege, Medienfassung und die frisch geladene
+    /// Audiodatei.
+    ///
+    /// Entfernt wird nur, was der späte Lauf geschrieben hat, und es entsteht
+    /// kein Merkzeichen. Eine gelöschte Folge trägt ihres schon. Wurde ihre
+    /// Quelle dagegen abbestellt und inzwischen neu abonniert, gehört die
+    /// Zeile der Folge zum neuen Abo. `removeEpisode` machte sie zum
+    /// Merkzeichen, und der Feed legte sie nie wieder an.
     func purgeLateWrites(of episode: Episode) async {
-        if let report = try? await store.removeEpisode(episode.id) { applyRemoval(report) }
+        if let audio = episode.audioURL,
+           let report = try? await store.removeAnalysis(
+               ofEpisode: episode.id, mediaVersionID: MediaVersionID(stable: audio.absoluteString)),
+           !report.evidenceIDs.isEmpty {
+            pruneChatAnswers(removedEpisodes: [], removedEvidence: Set(report.evidenceIDs))
+            await refreshRelevantToday()
+        }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
         facts[episode.id] = nil
         stages[episode.id] = nil

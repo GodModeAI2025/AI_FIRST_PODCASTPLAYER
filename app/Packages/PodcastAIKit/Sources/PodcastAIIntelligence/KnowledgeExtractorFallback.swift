@@ -23,11 +23,14 @@ import PodcastAICore
 public enum ExtractorError: Error, LocalizedError {
     case modelUnavailable(ModelUnavailability)
     case generationFailed(String)
+    /// Wie in KnowledgeExtractor.swift: abgelehnt, ein zweiter Versuch hilft nicht.
+    case generationRejected(String)
 
     public var errorDescription: String? {
         switch self {
         case .modelUnavailable(let reason): reason.message
         case .generationFailed(let detail): "Die Auswertung ist fehlgeschlagen: \(detail)"
+        case .generationRejected(let detail): "Das Modell hat diesen Text nicht ausgewertet: \(detail)"
         }
     }
 }
