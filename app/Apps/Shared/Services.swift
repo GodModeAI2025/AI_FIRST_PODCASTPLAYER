@@ -128,7 +128,7 @@ public actor FeedRefresher {
 
         let source = Source(
             id: sourceID, kind: kind,
-            title: parsed.title.isEmpty ? feedURL.host ?? "Unbenannte Quelle" : parsed.title,
+            title: parsed.title.isEmpty ? feedURL.host ?? String(localized: "Unbenannter Podcast") : parsed.title,
             author: parsed.author, feedURL: feedURL,
             websiteURL: parsed.websiteURL, artworkURL: parsed.artworkURL,
             capabilities: capabilities, language: parsed.language
@@ -162,8 +162,10 @@ public actor FeedRefresher {
             throw FeedRefreshError.youTubeFeedUnavailable
         }
         var limited = capabilities
-        limited.limitationReason = "YouTube liefert die Videoliste gerade nicht. Der Kanal ist angelegt, "
-            + "die Videos erscheinen beim nächsten Abgleich. Den passenden Audio-Podcast kannst du schon abonnieren."
+        limited.limitationReason = String(localized: """
+            YouTube liefert die Videoliste gerade nicht. Der Kanal ist angelegt, die Videos erscheinen \
+            beim nächsten Abgleich. Den passenden Audio-Podcast kannst du schon abonnieren.
+            """)
         let source = Source(
             id: SourceID(stable: feedURL.absoluteString), kind: .youTubeChannel,
             title: title, author: title, feedURL: feedURL, websiteURL: pageURL,
@@ -219,21 +221,22 @@ public actor FeedRefresher {
     /// Legt eine einzelne Audiodatei als Folge an.
     private func addSingleEpisode(_ audioURL: URL) async throws -> AddedSource {
         let sourceID = SourceID(stable: "single-episodes")
+        let sourceTitle = String(localized: "Einzelne Folgen")
         let existing = try await store.sources().first { $0.id == sourceID }
         if existing == nil {
             try await store.upsert(source: Source(
-                id: sourceID, kind: .singleEpisodeLink, title: "Einzelne Folgen",
+                id: sourceID, kind: .singleEpisodeLink, title: sourceTitle,
                 capabilities: SourceCapabilities(metadata: true, audioDownload: true)
             ))
         }
         let name = audioURL.deletingPathExtension().lastPathComponent
-        let title = "\(audioURL.host ?? "Audio") · \(name.count > 24 ? String(name.prefix(24)) + "…" : name)"
+        let title = "\(audioURL.host ?? String(localized: "Audio")) · \(name.count > 24 ? String(name.prefix(24)) + "…" : name)"
         let episode = Episode(
             id: EpisodeID(stable: "\(sourceID.rawValue)|\(audioURL.absoluteString)"),
             sourceID: sourceID, title: title, publishedAt: Date(), audioURL: audioURL
         )
         _ = try await store.upsert(episodes: [episode], forSource: sourceID)
-        return AddedSource(title: "Einzelne Folgen", episodeCount: 1)
+        return AddedSource(title: sourceTitle, episodeCount: 1)
     }
 
     public func refreshAll() async throws -> RefreshResult {
@@ -365,28 +368,42 @@ public enum FeedRefreshError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .needsDiscovery:
-            "Zu diesem Link lässt sich keine Feed-Adresse ermitteln. "
-            + "Füge die Feed-Adresse direkt ein."
+            String(localized: "Zu diesem Link lässt sich keine Feed-Adresse ermitteln. Füge die Feed-Adresse direkt ein.")
         case .noFeedOnPage(let host):
-            "\(host) bietet keinen Feed an. Manche Seiten verlinken ihn nur auf "
-            + "einer Unterseite — dann hilft die Adresse des Feeds selbst."
+            String(localized: """
+                \(host) bietet keinen Feed an. Manche Seiten verlinken ihn nur auf einer Unterseite. \
+                Dann hilft die Adresse des Feeds selbst.
+                """)
         case .notAFeed(let host):
-            "Unter dieser Adresse liegt kein Feed, und \(host) verlinkt auch keinen. "
-            + "Prüfe die Adresse oder füge den Link der Podcast-Seite ein."
+            String(localized: """
+                Unter dieser Adresse liegt kein Feed, und \(host) verlinkt auch keinen. Prüfe die \
+                Adresse oder füge den Link der Podcast-Seite ein.
+                """)
         case .youTubeFeedUnavailable:
-            "YouTube liefert für diesen Kanal gerade keine Daten. Das kommt bei YouTube immer wieder vor. "
-            + "Später noch einmal versuchen oder direkt den Audio-Podcast des Kanals hinzufügen."
+            String(localized: """
+                YouTube liefert für diesen Kanal gerade keine Daten. Das kommt bei YouTube immer wieder \
+                vor. Später noch einmal versuchen oder direkt den Audio-Podcast des Kanals hinzufügen.
+                """)
         case .appleLinkWithoutFeed:
-            "Apple Podcasts nennt zu diesem Link keinen offenen Feed. Such den Podcast oben nach seinem Namen."
+            String(localized: """
+                Apple Podcasts nennt zu diesem Link keinen offenen Feed. Such den Podcast oben nach \
+                seinem Namen.
+                """)
         case .spotifyLink:
-            "Spotify gibt keine Feed-Adressen heraus. Such den Podcast oben nach seinem Namen, "
-            + "fast alle Sendungen gibt es auch als offenen Feed."
+            String(localized: """
+                Spotify gibt keine Feed-Adressen heraus. Such den Podcast oben nach seinem Namen, fast \
+                alle Sendungen gibt es auch als offenen Feed.
+                """)
         case .noChannelForVideo:
-            "Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert "
-            + "Kanäle, keine einzelnen Videos."
+            String(localized: """
+                Zu diesem Video liess sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine \
+                einzelnen Videos.
+                """)
         case .noChannelForHandle(let handle):
-            "Zu „\(handle)“ liess sich kein YouTube-Kanal finden. Prüf die Schreibweise "
-            + "oder füge den Link zu einem Video des Kanals ein."
+            String(localized: """
+                Zu „\(handle)“ liess sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge \
+                den Link zu einem Video des Kanals ein.
+                """)
         }
     }
 }
@@ -414,9 +431,15 @@ public enum PodcastDirectoryError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unreachable:
-            "Keine Verbindung zum Podcast-Verzeichnis. Prüf die Internetverbindung und versuch es noch einmal."
+            String(localized: """
+                Keine Verbindung zum Podcast-Verzeichnis. Prüf die Internetverbindung und versuch es \
+                noch einmal.
+                """)
         case .unreadableAnswer:
-            "Das Podcast-Verzeichnis hat gerade keine lesbare Antwort geschickt. Versuch es gleich noch einmal."
+            String(localized: """
+                Das Podcast-Verzeichnis hat gerade keine lesbare Antwort geschickt. Versuch es gleich \
+                noch einmal.
+                """)
         }
     }
 }
@@ -523,7 +546,7 @@ public enum PodcastDirectory {
 
             var counterpart: PodcastCounterpart? {
                 guard let feed = feedUrl.flatMap(URL.init(string:)) else { return nil }
-                return PodcastCounterpart(title: collectionName ?? feed.host() ?? "Podcast",
+                return PodcastCounterpart(title: collectionName ?? feed.host() ?? String(localized: "Podcast"),
                                           author: artistName ?? "", feedURL: feed,
                                           artworkURL: artworkUrl100.flatMap(URL.init(string:)),
                                           genre: primaryGenreName)

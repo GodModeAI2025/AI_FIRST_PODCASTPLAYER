@@ -60,8 +60,12 @@ struct SmartFeedQuery: EntityQuery {
                 return SmartFeedEntity(
                     id: feed.id.rawValue,
                     title: feed.title,
-                    latestEditionSummary: latest.map {
-                        "\($0.segments.count) Stellen · \($0.totalMediaDuration.shortDescription)"
+                    // Einzahl und Mehrzahl über die Grammatik von Foundation, sonst stünde da „1 Stellen“.
+                    latestEditionSummary: latest.map { edition in
+                        let count = edition.segments.count
+                        let duration = edition.totalMediaDuration.shortDescription
+                        return String(AttributedString(
+                            localized: "^[\(count) Stelle](inflect: true) · \(duration)").characters)
                     }
                 )
             }
@@ -76,7 +80,7 @@ struct PlaySmartFeedIntent: AppIntent {
 
     static let title: LocalizedStringResource = "Themen-Update abspielen"
     static let description = IntentDescription(
-        "Spielt die neueste Ausgabe eines Themen-Updates ab, also Originalstellen aus deinen Quellen, die du noch nicht gehört hast. Ist sie schon gehört, entsteht vorher eine neue."
+        "Spielt die neueste Ausgabe eines Themen-Updates ab, also Originalstellen aus deinen Podcasts, die du noch nicht gehört hast. Ist sie schon gehört, entsteht vorher eine neue."
     )
     /// Die App kommt nach vorn: Wiedergabe ist etwas, das man sehen soll.
     static let openAppWhenRun = true
@@ -131,12 +135,18 @@ struct PlaySmartFeedIntent: AppIntent {
         // nicht, sagt Siri das, statt eine Ausgabe anzukündigen, die still bleibt.
         guard model.playerPlan?.id == plan.id else {
             model.policy.endFocusSession()
-            let reason = model.lastError ?? "Die Stellen sind gerade nicht abspielbar."
+            let reason = model.lastError ?? String(localized: "Die Stellen sind gerade nicht abspielbar.")
             model.lastError = nil
             return .result(dialog: "„\(edition.title)“ lässt sich nicht abspielen. \(reason)")
         }
 
-        return .result(dialog: "\(edition.title): \(edition.segments.count) Stellen aus \(edition.distinctSourceCount) Quellen.")
+        // Siri liest den Dialog als Text, die Zählung wird deshalb vorher gebeugt.
+        // Der Titel bleibt draussen, damit Zeichen darin nicht als Markdown gelten.
+        let passages = edition.segments.count
+        let podcasts = edition.distinctSourceCount
+        let counts = String(AttributedString(
+            localized: "^[\(passages) Stelle](inflect: true) aus ^[\(podcasts) Podcast](inflect: true)").characters)
+        return .result(dialog: "\(edition.title): \(counts).")
     }
 }
 
@@ -177,7 +187,7 @@ struct RememberCurrentPassageIntent: AppIntent {
 
     static let title: LocalizedStringResource = "Diese Stelle merken"
     static let description = IntentDescription(
-        "Merkt sich die Stelle, die gerade läuft, mit Folge, Quelle und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu."
+        "Merkt sich die Stelle, die gerade läuft, mit Folge, Podcast und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu."
     )
     static let openAppWhenRun = false
 

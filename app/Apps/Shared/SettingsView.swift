@@ -36,10 +36,12 @@ struct IntelligenceSettingsSection: View {
         } header: {
             Text("Intelligenz")
         } footer: {
-            Text("PodcastAI nutzt ausschliesslich Apple Intelligence. Antworten und Fakten entstehen "
-                 + "auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud "
-                 + "Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt "
-                 + "eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.")
+            Text("""
+                PodcastAI nutzt ausschliesslich Apple Intelligence. Antworten und Fakten entstehen \
+                auf dem Gerät oder, wenn eingeschaltet und verfügbar, auf Apples Private Cloud \
+                Compute. Dort ist mehr Kontext möglich; Apple speichert die Anfragen nicht. Fehlt \
+                eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.
+                """)
         }
     }
 }
@@ -55,7 +57,7 @@ struct AutomaticAnalysisSection: View {
 
     var body: some View {
         Section {
-            Toggle("Neue Folgen vorbereiten", isOn: Binding(
+            Toggle("Transkripte für neue Folgen erstellen", isOn: Binding(
                 get: { model.automaticAnalysis },
                 set: { model.automaticAnalysis = $0 }
             ))
@@ -65,7 +67,7 @@ struct AutomaticAnalysisSection: View {
                     set: { model.episodesPerSource = $0 }
                 )) {
                     ForEach(AppModel.episodesPerSourceChoices, id: \.self) { count in
-                        Text(count == 1 ? "nur die neueste" : "die \(count) neuesten").tag(count)
+                        Text(Self.choiceLabel(count)).tag(count)
                     }
                 }
                 Toggle("Nur im WLAN", isOn: Binding(
@@ -78,13 +80,21 @@ struct AutomaticAnalysisSection: View {
                 }
             }
         } header: {
-            Text("Vorbereiten")
+            Text("Transkripte")
         } footer: {
-            Text("Vorbereiten heisst: die Folge laden und mit Zeitmarken transkribieren. Erst dann finden "
-                 + "„Für dich“, die Fragen und die Themen-Updates etwas darin. Ältere Folgen bereitest du "
-                 + "bei Bedarf einzeln vor. Was du selbst abspielst oder anforderst, lädt auch im Mobilfunk. "
-                 + "Im Datensparmodus bereitet die App nichts von selbst vor.")
+            Text("""
+                Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit \
+                Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas \
+                darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Was du \
+                selbst abspielst oder anforderst, lädt auch im Mobilfunk. Im Datensparmodus \
+                erstellt die App keine Transkripte von selbst.
+                """)
         }
+    }
+
+    /// Der Eintrag im Auswahlmenü. Bei einer Folge heisst er „nur die neueste“.
+    private static func choiceLabel(_ count: Int) -> LocalizedStringKey {
+        count == 1 ? "nur die neueste" : "die \(count) neuesten"
     }
 }
 
@@ -100,7 +110,7 @@ struct StorageSettingsSection: View {
             LabeledContent("Audiodateien auf diesem Gerät") {
                 Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
             }
-            Toggle("Audio nach dem Auswerten entfernen", isOn: Binding(
+            Toggle("Audio entfernen, wenn das Transkript fertig ist", isOn: Binding(
                 get: { model.removeAudioAfterAnalysis },
                 set: { model.removeAudioAfterAnalysis = $0 }
             ))
@@ -113,10 +123,12 @@ struct StorageSettingsSection: View {
         } header: {
             Text("Speicher")
         } footer: {
-            Text("Audio entfernen löscht nur den Ton. Transkripte, Fakten, gemerkte Stellen und der "
-                 + "Hörstand bleiben, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ "
-                 + "holst, bleibt auch nach dem Auswerten auf dem Gerät. Eine einzelne Folge löschst du "
-                 + "in der Folge selbst; dann verschwinden auch ihre Daten.")
+            Text("""
+                „Audio entfernen“ löscht nur den Ton. Transkripte, Fakten, gemerkte Stellen und der \
+                Hörstand bleiben, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ \
+                holst, bleibt auch mit fertigem Transkript auf dem Gerät. Eine einzelne Folge löschst \
+                du in der Folge selbst; dann verschwinden auch ihre Daten.
+                """)
         }
         .task(id: model.mediaStorageChanged) { bytes = LocalMediaLocator.storedBytes() }
         .confirmationDialog("Alle Audiodateien entfernen?", isPresented: $confirm, titleVisibility: .visible) {
@@ -138,9 +150,11 @@ struct SyncSettingsSection: View {
         } header: {
             Text("Synchronisation")
         } footer: {
-            Text("Abos, Transkripte, Fakten, Hörstand, Interessen, Themen-Updates und gemerkte Stellen "
-                 + "gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. "
-                 + "Audiodateien lädt jedes Gerät selbst.")
+            Text("""
+                Abos, Transkripte, Fakten, Hörstand, Interessen, Themen-Updates und gemerkte Stellen \
+                gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. \
+                Audiodateien lädt jedes Gerät selbst.
+                """)
         }
     }
 }
@@ -162,9 +176,10 @@ struct LearningSettingsSection: View {
         } header: {
             Text("Lernen")
         } footer: {
-            Text("PodcastAI leitet Themen aus dem ab, was du tatsächlich gehört hast. "
-                 + "Vorschläge wirken erst, wenn du sie übernimmst. Ausgeschaltet "
-                 + "entstehen keine neuen.")
+            Text("""
+                PodcastAI leitet Themen aus dem ab, was du tatsächlich gehört hast. Vorschläge \
+                wirken erst, wenn du sie übernimmst. Ausgeschaltet entstehen keine neuen.
+                """)
         }
     }
 }
@@ -172,7 +187,7 @@ struct LearningSettingsSection: View {
 enum ModelAvailabilityText {
     static func describe(_ availability: ModelAvailability) -> String {
         switch availability {
-        case .available: "Verfügbar"
+        case .available: String(localized: "Verfügbar")
         case .unavailable(let reason): reason.message
         }
     }
@@ -206,42 +221,65 @@ struct LegalSettingsSection: View {
 /// Welche Daten wohin gehen, in einfachen Sätzen.
 struct PrivacyOverviewView: View {
 
-    private let items: [(symbol: String, title: String, text: String)] = [
+    /// Titel und Text sind Schlüssel für den String-Katalog.
+    private let items: [(symbol: String, title: LocalizedStringKey, text: LocalizedStringKey)] = [
         ("person.crop.circle.badge.xmark", "Kein Konto, kein eigener Server",
-         "PodcastAI hat keine Anmeldung, keine Werbung und keine Analyse- oder Tracking-Dienste. "
-         + "Der Anbieter der App bekommt keine deiner Daten."),
+         """
+         PodcastAI hat keine Anmeldung, keine Werbung und keine Analyse- oder Tracking-Dienste. \
+         Der Anbieter der App bekommt keine deiner Daten.
+         """),
         ("waveform", "Transkripte entstehen auf dem Gerät",
-         "Die Spracherkennung von Apple läuft auf deinem iPhone, iPad oder Mac. Der Ton verlässt dafür das Gerät nicht."),
+         """
+         Die Spracherkennung von Apple läuft auf deinem iPhone, iPad oder Mac. Der Ton verlässt \
+         dafür das Gerät nicht.
+         """),
         ("sparkles", "Antworten und Fakten mit Apple Intelligence",
-         "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist Private Cloud Compute eingeschaltet, "
-         + "gehen deine Frage und die passenden Transkriptstellen an Apples Server. Apple speichert sie nach "
-         + "eigenen Angaben nicht. Abschalten kannst du das in den Einstellungen unter Intelligenz."),
+         """
+         Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist Private Cloud Compute \
+         eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server. \
+         Apple speichert sie nach eigenen Angaben nicht. Abschalten kannst du das in den \
+         Einstellungen unter Intelligenz.
+         """),
         ("icloud", "Abgleich über deine iCloud",
-         "Abos, Transkripte, Fakten, Notizen, Interessen und Hörstand liegen in deiner privaten iCloud-Datenbank. "
-         + "Nur deine Geräte mit derselben Apple-ID lesen sie."),
+         """
+         Abos, Transkripte, Fakten, Notizen, Interessen und Hörstand liegen in deiner privaten \
+         iCloud-Datenbank. Nur deine Geräte mit derselben Apple-ID lesen sie.
+         """),
         ("network", "Anfragen ins Netz",
-         "Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Die Podcastsuche und Links "
-         + "aus Apple Podcasts fragen Apples Podcast-Verzeichnis mit deinem Suchbegriff, YouTube-Kanäle fragen "
-         + "YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine IP-Adresse."),
+         """
+         Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Die Podcastsuche \
+         und Links aus Apple Podcasts fragen Apples Podcast-Verzeichnis mit deinem Suchbegriff, \
+         YouTube-Kanäle fragen YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine \
+         IP-Adresse.
+         """),
         ("magnifyingglass", "Spotlight nur auf Wunsch",
-         "Gemerkte Stellen erscheinen in der Systemsuche nur, wenn du das einschaltest. Der Index bleibt auf dem Gerät."),
+         """
+         Gemerkte Stellen erscheinen in der Systemsuche nur, wenn du das einschaltest. Der Index \
+         bleibt auf dem Gerät.
+         """),
         ("trash", "Löschen",
-         "Eine gelöschte Folge verschwindet mit Transkript, Fakten und Hörstand auf allen Geräten. Deine Notizen "
-         + "bleiben, bis du sie selbst löschst. Alles in iCloud entfernst du in den Systemeinstellungen unter "
-         + "Apple-ID › iCloud › Speicher verwalten › PodcastAI."),
+         """
+         Eine gelöschte Folge verschwindet mit Transkript, Fakten und Hörstand auf allen Geräten. \
+         Deine Notizen bleiben, bis du sie selbst löschst. Alles in iCloud entfernst du in den \
+         Systemeinstellungen unter Apple-ID › iCloud › Speicher verwalten › PodcastAI.
+         """),
     ]
 
-    static let appleLinks: [(title: String, url: URL)] = [
-        ("Apple Intelligence und Datenschutz", URL(string: "https://www.apple.com/de/legal/privacy/data/de/intelligence-engine/")!),
-        ("Private Cloud Compute", URL(string: "https://security.apple.com/blog/private-cloud-compute/")!),
-        ("Datensicherheit in iCloud", URL(string: "https://support.apple.com/de-de/102651")!),
-        ("Apple Podcasts und Datenschutz", URL(string: "https://www.apple.com/de/legal/privacy/data/de/apple-podcasts/")!),
-        ("Datenschutzrichtlinie von Apple", URL(string: "https://www.apple.com/de/legal/privacy/de-ww/")!),
-    ]
+    /// Berechnet: `LocalizedStringKey` ist nicht `Sendable`, eine gespeicherte
+    /// statische Eigenschaft müsste es sein.
+    static var appleLinks: [(title: LocalizedStringKey, url: URL)] {
+        [
+            ("Apple Intelligence und Datenschutz", URL(string: "https://www.apple.com/de/legal/privacy/data/de/intelligence-engine/")!),
+            ("Private Cloud Compute", URL(string: "https://security.apple.com/blog/private-cloud-compute/")!),
+            ("Datensicherheit in iCloud", URL(string: "https://support.apple.com/de-de/102651")!),
+            ("Apple Podcasts und Datenschutz", URL(string: "https://www.apple.com/de/legal/privacy/data/de/apple-podcasts/")!),
+            ("Datenschutzrichtlinie von Apple", URL(string: "https://www.apple.com/de/legal/privacy/de-ww/")!),
+        ]
+    }
 
     var body: some View {
         List {
-            ForEach(items, id: \.title) { item in
+            ForEach(items, id: \.symbol) { item in
                 VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Label(item.title, systemImage: item.symbol).font(.headline)
                     Text(item.text).font(.callout).foregroundStyle(.secondary)
@@ -253,14 +291,17 @@ struct PrivacyOverviewView: View {
                 Link("Impressum", destination: LegalSettingsSection.imprint)
             }
             Section {
-                ForEach(Self.appleLinks, id: \.title) { link in
+                ForEach(Self.appleLinks, id: \.url) { link in
                     Link(link.title, destination: link.url)
                 }
             } header: {
                 Text("Erklärungen von Apple")
             } footer: {
-                Text("Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und das Podcast-Verzeichnis "
-                     + "sind Dienste von Apple. Für sie gelten Apples eigene Datenschutzangaben.")
+                Text("""
+                    Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und das \
+                    Podcast-Verzeichnis sind Dienste von Apple. Für sie gelten Apples eigene \
+                    Datenschutzangaben.
+                    """)
             }
         }
         .navigationTitle("Datenschutz")
