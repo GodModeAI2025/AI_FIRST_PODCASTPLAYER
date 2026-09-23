@@ -24,7 +24,7 @@ public enum ModelTier: String, Sendable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .onDevice: "Auf diesem Gerät"
+        case .onDevice: String(localized: "Auf diesem Gerät", bundle: .module)
         case .privateCloudCompute: "Private Cloud Compute"
         }
     }
@@ -45,21 +45,21 @@ public enum ModelUnavailability: Error, Sendable, Equatable {
     public var message: String {
         switch self {
         case .deviceNotEligible:
-            "Dieses Gerät unterstützt Apple Intelligence nicht."
+            String(localized: "Dieses Gerät unterstützt Apple Intelligence nicht.", bundle: .module)
         case .appleIntelligenceDisabled:
-            "Apple Intelligence ist in den Systemeinstellungen nicht aktiviert."
+            String(localized: "Apple Intelligence ist in den Systemeinstellungen nicht aktiviert.", bundle: .module)
         case .modelNotReady:
-            "Das Modell wird noch vorbereitet."
+            String(localized: "Das Modell wird noch vorbereitet.", bundle: .module)
         case .entitlementMissing:
-            "Diese App hat keine Berechtigung für Private Cloud Compute."
+            String(localized: "Diese App hat keine Berechtigung für Private Cloud Compute.", bundle: .module)
         case .userConsentMissing:
-            "Private Cloud Compute ist noch nicht freigegeben."
+            String(localized: "Private Cloud Compute ist noch nicht freigegeben.", bundle: .module)
         case .quotaExhausted:
-            "Das Kontingent für Private Cloud Compute ist aufgebraucht."
+            String(localized: "Das Kontingent für Private Cloud Compute ist aufgebraucht.", bundle: .module)
         case .offline:
-            "Private Cloud Compute braucht eine Internetverbindung."
+            String(localized: "Private Cloud Compute braucht eine Internetverbindung.", bundle: .module)
         case .unknown(let detail):
-            "Nicht verfügbar: \(detail)"
+            String(localized: "Nicht verfügbar: \(detail)", bundle: .module)
         }
     }
 
@@ -155,6 +155,6 @@ public struct ModelStatus: Sendable, Equatable {
         if case .unavailable(let reason) = availability(for: preferred) {
             return .failure(reason)
         }
-        return .failure(.unknown("keine Stufe verfügbar"))
+        return .failure(.unknown(String(localized: "keine Stufe verfügbar", bundle: .module)))
     }
 }

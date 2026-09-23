@@ -136,10 +136,10 @@ public final class PlaybackCoordinator {
 
         public var errorDescription: String? {
             switch self {
-            case .grantInvalid: "Die Wiedergabefreigabe ist nicht mehr gültig."
-            case .grantAlreadyUsed: "Diese Wiedergabefreigabe wurde bereits verwendet."
-            case .planEmpty: "Der Hörplan enthält keine abspielbaren Stellen."
-            case .mediaUnavailable: "Das Medium ist derzeit nicht verfügbar."
+            case .grantInvalid: String(localized: "Die Wiedergabefreigabe ist nicht mehr gültig.", bundle: .module)
+            case .grantAlreadyUsed: String(localized: "Diese Wiedergabefreigabe wurde bereits verwendet.", bundle: .module)
+            case .planEmpty: String(localized: "Der Hörplan enthält keine abspielbaren Stellen.", bundle: .module)
+            case .mediaUnavailable: String(localized: "Das Medium ist derzeit nicht verfügbar.", bundle: .module)
             }
         }
     }
@@ -220,7 +220,7 @@ public final class PlaybackCoordinator {
                       generation == self.seekGeneration else { return }
                 self.seekInFlight = false
                 guard finished else {
-                    self.fail("Der Sprung zur Stelle ist fehlgeschlagen.")
+                    self.fail(String(localized: "Der Sprung zur Stelle ist fehlgeschlagen.", bundle: .module))
                     return
                 }
                 // Während des Sprungs wurde pausiert: die Pause gilt. Ton

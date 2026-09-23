@@ -171,7 +171,7 @@ struct CounterpointAndClosureTests {
         let mixed = mixer.balance([candidate("u", .unclassified, confirmed: false), candidate("s", .supports)])
         #expect(mixed.map(\.relation) == [.supports, .unclassified])
         #expect(mixer.imbalanceNotice(mixed)?.contains("keine Gegenposition") == true)
-        #expect(mixer.imbalanceNotice([])?.contains("ausgewerteten") == true)
+        #expect(mixer.imbalanceNotice([])?.contains("Folgen mit Transkript") == true)
     }
 
     @Test("Das Modell wählt nie „nicht eingeordnet“")
@@ -191,6 +191,6 @@ struct CounterpointAndClosureTests {
 
         let empty = SessionClosure(question: "Frage", supportingEvidenceIDs: heard)
         #expect(!empty.canDeepen)
-        #expect(empty.followUpLabel == "Dazu ist nichts weiter ausgewertet.")
+        #expect(empty.followUpLabel == "Dazu gibt es keine weitere Stelle mit Transkript.")
     }
 }

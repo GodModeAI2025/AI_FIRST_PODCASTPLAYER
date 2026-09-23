@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "Das ist keine gültige Adresse." : {},
+    "Der Feed ist leer." : {},
+    "Der Feed ist zu groß (%@)." : {},
+    "Der Feed konnte nicht gelesen werden: %@" : {},
+    "Die Datei ist zu groß für eine Abo-Liste." : {},
+    "Diese Datei ist keine OPML-Liste. Exportiere die Abos in deiner bisherigen App als OPML und wähle diese Datei." : {},
+    "Dieses Format wird nicht unterstützt." : {},
+    "In dieser Datei steht kein Podcast." : {},
+    "Links vom Typ „%@“ können nicht aufgenommen werden." : {},
+    "unbekannter Fehler" : {}
   },
   "version" : "1.0"
 }

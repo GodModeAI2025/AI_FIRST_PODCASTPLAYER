@@ -74,8 +74,8 @@ public enum HistoryQuality: String, Codable, Sendable {
 
     public var label: String {
         switch self {
-        case .exact: "genau erfasst"
-        case .unknown: "aus älteren Daten übernommen"
+        case .exact: String(localized: "genau erfasst", bundle: .module)
+        case .unknown: String(localized: "aus älteren Daten übernommen", bundle: .module)
         }
     }
 }

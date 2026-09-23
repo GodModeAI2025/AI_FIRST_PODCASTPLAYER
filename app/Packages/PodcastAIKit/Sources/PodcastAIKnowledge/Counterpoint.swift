@@ -86,11 +86,11 @@ public enum CounterpointRelation: String, Sendable, Codable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .contradicts: "Gegenposition"
-        case .supports: "Stützt die These"
-        case .differentPremise: "Andere Voraussetzung"
-        case .qualifies: "Schränkt ein"
-        case .unclassified: "Zum Thema, nicht eingeordnet"
+        case .contradicts: String(localized: "Gegenposition", bundle: .module)
+        case .supports: String(localized: "Stützt die These", bundle: .module)
+        case .differentPremise: String(localized: "Andere Voraussetzung", bundle: .module)
+        case .qualifies: String(localized: "Schränkt ein", bundle: .module)
+        case .unclassified: String(localized: "Zum Thema, nicht eingeordnet", bundle: .module)
         }
     }
 
@@ -225,18 +225,22 @@ public struct CounterpointMixer: Sendable {
     public func imbalanceNotice(_ selection: [CounterpointCandidate]) -> String? {
         guard !isBalanced(selection) else { return nil }
         if selection.isEmpty {
-            return "Zu dieser These passt nichts aus deinen ausgewerteten Folgen."
+            return String(localized: "Zu dieser These passt nichts aus deinen Folgen mit Transkript.", bundle: .module)
         }
         // Ohne Einordnung lässt sich über Gegenpositionen nichts sagen. Den
         // Grund nennt die App an anderer Stelle, hier wird nichts behauptet.
         let relations = Set(selection.map(\.relation)).subtracting([.unclassified])
         guard !relations.isEmpty else { return nil }
         if !relations.contains(.contradicts) {
-            return "In deinen ausgewerteten Folgen findet sich keine Gegenposition. "
-                + "Das heißt nicht, dass es keine gibt."
+            return String(localized: """
+                In deinen Folgen mit Transkript findet sich keine Gegenposition. \
+                Das heißt nicht, dass es keine gibt.
+                """, bundle: .module)
         }
-        return "In deinen ausgewerteten Folgen findet sich nur die Gegenseite. "
-            + "Das ist keine ausgewogene Prüfung."
+        return String(localized: """
+            In deinen Folgen mit Transkript findet sich nur die Gegenseite. \
+            Das ist keine ausgewogene Prüfung.
+            """, bundle: .module)
     }
 }
 

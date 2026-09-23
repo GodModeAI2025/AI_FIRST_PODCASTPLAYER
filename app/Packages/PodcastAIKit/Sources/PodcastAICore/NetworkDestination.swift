@@ -42,17 +42,17 @@ public enum NetworkDestination {
         public var errorDescription: String? {
             switch self {
             case .unsupportedScheme(let scheme):
-                "Adressen vom Typ „\(scheme)“ werden nicht abgerufen."
+                String(localized: "Adressen vom Typ „\(scheme)“ werden nicht abgerufen.", bundle: .module)
             case .missingHost:
-                "Die Adresse hat keinen Server."
+                String(localized: "Die Adresse hat keinen Server.", bundle: .module)
             case .ipLiteral(let host):
-                "Direkte IP-Adressen werden nicht abgerufen (\(host))."
+                String(localized: "Direkte IP-Adressen werden nicht abgerufen (\(host)).", bundle: .module)
             case .localOrPrivateName(let host):
-                "Adressen im eigenen Netz werden nicht abgerufen (\(host))."
+                String(localized: "Adressen im eigenen Netz werden nicht abgerufen (\(host)).", bundle: .module)
             case .unsupportedPort(let port):
-                "Nur die Standardports sind zugelassen, nicht \(port)."
+                String(localized: "Nur die Standardports sind zugelassen, nicht \(String(port)).", bundle: .module)
             case .embeddedCredentials:
-                "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen."
+                String(localized: "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen.", bundle: .module)
             }
         }
     }
@@ -61,7 +61,7 @@ public enum NetworkDestination {
     /// der Grund geht in die Oberfläche.
     public static func validate(_ url: URL) throws(Rejection) {
         guard let scheme = url.scheme?.lowercased() else {
-            throw .unsupportedScheme("keines")
+            throw .unsupportedScheme(String(localized: "keines", bundle: .module))
         }
         guard scheme == "http" || scheme == "https" else {
             throw .unsupportedScheme(scheme)

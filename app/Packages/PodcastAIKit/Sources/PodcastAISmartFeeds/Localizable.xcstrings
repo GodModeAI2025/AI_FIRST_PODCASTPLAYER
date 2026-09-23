@@ -1,6 +1,88 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "Alles Ungehörte" : {},
+    "Alles Ungehörte, auch aus angefangenen Folgen" : {},
+    "Automatisch gestaltet" : {},
+    "Cover für %@: %@ aus %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Cover für %1$@: %2$@ aus %3$@."
+          }
+        }
+      }
+    },
+    "Das Bild konnte nicht übernommen werden." : {},
+    "Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, die du eventuell schon gehört hast." : {},
+    "Enthält %lld von ^[%lld Stelle](inflect: true)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enthält %1$lld von ^[%2$lld Stelle](inflect: true)."
+          }
+        }
+      }
+    },
+    "Enthält %lld von ^[%lld Stelle](inflect: true). Es bleiben %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enthält %1$lld von ^[%2$lld Stelle](inflect: true). Es bleiben %3$@."
+          }
+        }
+      }
+    },
+    "Enthält alles Ungehörte zu diesen Themen." : {},
+    "Kapitel" : {},
+    "Mit Image Playground erstellt" : {},
+    "Motiv des Podcasts" : {},
+    "Nur noch nicht begonnene Folgen" : {},
+    "Original %@–%@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Original %1$@–%2$@"
+          }
+        }
+      }
+    },
+    "Vom Nutzer bestätigtes Cover für %@." : {},
+    "^[%lld Quelle](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Quelle](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Stelle](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Stelle](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Stelle](inflect: true) aus ^[%lld Quelle](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld Stelle](inflect: true) aus ^[%2$lld Quelle](inflect: true)"
+          }
+        }
+      }
+    },
+    "neu für dich, nicht neu veröffentlicht" : {}
   },
   "version" : "1.0"
 }

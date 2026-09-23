@@ -1,6 +1,12 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "Das Audioformat ist nicht umwandelbar." : {},
+    "Der Audiopuffer konnte nicht angelegt werden." : {},
+    "Der Zielpuffer konnte nicht angelegt werden." : {},
+    "Die Audiodatei konnte nicht geöffnet werden: %@" : {},
+    "Die Umwandlung ist fehlgeschlagen: %@" : {},
+    "unbekannt" : {}
   },
   "version" : "1.0"
 }

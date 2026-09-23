@@ -25,12 +25,16 @@ public enum ChatScope: Sendable, Hashable {
 
     public var label: String {
         switch self {
-        case .episode: "Diese Folge"
-        case .episodes(let ids): "\(ids.count) ausgewählte Folgen"
-        case .smartFeed: "Dieser Themenfeed"
-        case .allAnalyzed: "Alle ausgewerteten Inhalte"
+        case .episode: String(localized: "Diese Folge", bundle: .module)
+        case .episodes(let ids):
+            String(AttributedString(
+                localized: "^[\(ids.count) ausgewählte Folge](inflect: true)", bundle: .module).characters)
+        case .smartFeed: String(localized: "Dieses Themen-Update", bundle: .module)
+        case .allAnalyzed: String(localized: "Alle Folgen mit Transkript", bundle: .module)
         case .library(let filter):
-            [filter.sourceID == nil ? "Alle Podcasts" : "Ein Podcast",
+            [filter.sourceID == nil
+                ? String(localized: "Alle Podcasts", bundle: .module)
+                : String(localized: "Ein Podcast", bundle: .module),
              filter.period == .all ? nil : filter.period.label].compactMap { $0 }.joined(separator: " · ")
         }
     }
@@ -52,9 +56,9 @@ public struct LibraryFilter: Sendable, Hashable {
 
         public var label: String {
             switch self {
-            case .all: "Alles"
-            case .lastWeek: "Letzte 7 Tage"
-            case .lastMonth: "Letzte 30 Tage"
+            case .all: String(localized: "Alles", bundle: .module)
+            case .lastWeek: String(localized: "Letzte 7 Tage", bundle: .module)
+            case .lastMonth: String(localized: "Letzte 30 Tage", bundle: .module)
             }
         }
 
@@ -183,15 +187,20 @@ public enum CoverageAdvisor {
         if !snapshot.incompleteSourceIDs.isEmpty {
             let count = snapshot.incompleteSourceIDs.count
             return count == 1
-                ? "Eine Quelle im gewählten Bereich ist nur teilweise erschlossen. Es kann mehr geben."
-                : "\(count) Quellen im gewählten Bereich sind nur teilweise erschlossen. Es kann mehr geben."
+                ? String(localized: "Bei einer Quelle im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben.",
+                         bundle: .module)
+                : String(localized: "Bei \(count) Quellen im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben.",
+                         bundle: .module)
         }
         if questionSuggestsExhaustive, !snapshot.coverage.isComplete {
-            return "Der gewählte Bereich ist \(snapshot.coverage.label). "
-                + "Diese Antwort deckt nur den erschlossenen Teil ab."
+            return String(localized: """
+                Der gewählte Bereich ist \(snapshot.coverage.label). \
+                Diese Antwort deckt nur den Teil mit Transkript ab.
+                """, bundle: .module)
         }
         if snapshot.evidence.isEmpty {
-            return "Im gewählten Bereich ist nichts erschlossen, worauf sich eine Antwort stützen könnte."
+            return String(localized: "Im gewählten Bereich gibt es keine Folge mit Transkript, auf die sich eine Antwort stützen könnte.",
+                          bundle: .module)
         }
         return nil
     }

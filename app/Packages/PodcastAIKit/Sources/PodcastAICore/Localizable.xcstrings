@@ -1,6 +1,63 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "%lld Min" : {},
+    "%lld Sek" : {},
+    "%lld Std" : {},
+    "%lld Std %lld Min" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld Std %2$lld Min"
+          }
+        }
+      }
+    },
+    "%lld ausgewählte Folgen" : {},
+    "1 ausgewählte Folge" : {},
+    "Ab %@" : {},
+    "Adressen im eigenen Netz werden nicht abgerufen (%@)." : {},
+    "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen." : {},
+    "Adressen vom Typ „%@“ werden nicht abgerufen." : {},
+    "Außerhalb des gewählten Bereichs" : {},
+    "Bereits bekannt" : {},
+    "Bereits gehört" : {},
+    "Bezieht sich auf eine veraltete Fassung" : {},
+    "Der Server hat mit Status %@ geantwortet." : {},
+    "Die Adresse hat keinen Server." : {},
+    "Die Antwort war leer." : {},
+    "Die Antwort überschreitet die Obergrenze von %@." : {},
+    "Die Weiterleitung wurde abgelehnt: %@" : {},
+    "Diese Adresse wird nicht abgerufen: %@" : {},
+    "Diese Fassung erlaubt keine exakten Sprünge" : {},
+    "Direkte IP-Adressen werden nicht abgerufen (%@)." : {},
+    "Eigene Notiz" : {},
+    "Fundstelle nicht im freigegebenen Bestand" : {},
+    "Für diese Stelle liegt kein Zeitbezug vor" : {},
+    "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes." : {},
+    "Gesamtes verfügbares Archiv" : {},
+    "KI-Ableitung" : {},
+    "Letzte %lld Folgen" : {},
+    "Letzte Folge" : {},
+    "Medium derzeit nicht verfügbar" : {},
+    "Mehr davon" : {},
+    "Nicht aus dieser Quelle" : {},
+    "Nicht relevant" : {},
+    "Nur die Standardports sind zugelassen, nicht %@." : {},
+    "Nur neue Folgen" : {},
+    "Originaltext" : {},
+    "Passt nicht mehr ins Zeitbudget" : {},
+    "Quellenangabe" : {},
+    "aus älteren Daten übernommen" : {},
+    "genau erfasst" : {},
+    "keines" : {},
+    "ohne Transkript" : {},
+    "teilweise transkribiert (%@)" : {},
+    "unzulässig" : {},
+    "vollständig transkribiert" : {},
+    "von PodcastAI vorgeschlagen" : {},
+    "von dir bestätigt" : {}
   },
   "version" : "1.0"
 }

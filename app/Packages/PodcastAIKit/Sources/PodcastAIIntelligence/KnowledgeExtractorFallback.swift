@@ -29,16 +29,19 @@ public enum ExtractorError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .modelUnavailable(let reason): reason.message
-        case .generationFailed(let detail): "Die Auswertung ist fehlgeschlagen: \(detail)"
-        case .generationRejected(let detail): "Das Modell hat diesen Text nicht ausgewertet: \(detail)"
+        case .generationFailed(let detail):
+            String(localized: "Die Anfrage an das Modell ist fehlgeschlagen: \(detail)", bundle: .module)
+        case .generationRejected(let detail):
+            String(localized: "Das Modell kann diesen Text nicht bearbeiten: \(detail)", bundle: .module)
         }
     }
 }
 
 public struct KnowledgeExtractor: Sendable {
 
-    private static let reason = ModelUnavailability.unknown(
-        "Auf dieser Plattform gibt es kein Apple-Sprachmodell.")
+    private static var reason: ModelUnavailability {
+        .unknown(String(localized: "Auf dieser Plattform gibt es kein Apple-Sprachmodell.", bundle: .module))
+    }
 
     public init(configuration: ExtractorConfiguration = ExtractorConfiguration()) {}
 

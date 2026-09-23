@@ -52,9 +52,9 @@ public enum SourceResolutionError: Error, LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .unsupportedScheme(let scheme):
-            "Links vom Typ „\(scheme)“ können nicht aufgenommen werden."
+            String(localized: "Links vom Typ „\(scheme)“ können nicht aufgenommen werden.", bundle: .module)
         case .notAURL:
-            "Das ist keine gültige Adresse."
+            String(localized: "Das ist keine gültige Adresse.", bundle: .module)
         }
     }
 }

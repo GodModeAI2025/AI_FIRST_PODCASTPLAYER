@@ -158,11 +158,14 @@ public struct MediaDuration: Hashable, Comparable, Codable, Sendable, CustomStri
     /// Menschliche Kurzform: „23 Min“, „1 Std 5 Min“, „45 Sek“.
     public var shortDescription: String {
         let totalSeconds = milliseconds / 1000
-        if totalSeconds < 60 { return "\(totalSeconds) Sek" }
+        if totalSeconds < 60 { return String(localized: "\(totalSeconds) Sek", bundle: .module) }
         let minutes = totalSeconds / 60
-        if minutes < 60 { return "\(minutes) Min" }
+        if minutes < 60 { return String(localized: "\(minutes) Min", bundle: .module) }
+        let hours = minutes / 60
         let remainder = minutes % 60
-        return remainder == 0 ? "\(minutes / 60) Std" : "\(minutes / 60) Std \(remainder) Min"
+        return remainder == 0
+            ? String(localized: "\(hours) Std", bundle: .module)
+            : String(localized: "\(hours) Std \(remainder) Min", bundle: .module)
     }
 
     public var description: String { shortDescription }

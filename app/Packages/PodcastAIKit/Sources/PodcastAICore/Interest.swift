@@ -20,8 +20,8 @@ public enum InterestOrigin: String, Codable, Sendable {
 
     public var label: String {
         switch self {
-        case .confirmedByUser: "von dir bestätigt"
-        case .suggestedBySystem: "von PodcastAI vorgeschlagen"
+        case .confirmedByUser: String(localized: "von dir bestätigt", bundle: .module)
+        case .suggestedBySystem: String(localized: "von PodcastAI vorgeschlagen", bundle: .module)
         }
     }
 }
@@ -82,10 +82,10 @@ public enum InterestFeedback: String, Codable, Sendable {
 
     public var label: String {
         switch self {
-        case .moreOfThis: "Mehr davon"
-        case .alreadyKnown: "Bereits bekannt"
-        case .notRelevant: "Nicht relevant"
-        case .notFromThisSource: "Nicht aus dieser Quelle"
+        case .moreOfThis: String(localized: "Mehr davon", bundle: .module)
+        case .alreadyKnown: String(localized: "Bereits bekannt", bundle: .module)
+        case .notRelevant: String(localized: "Nicht relevant", bundle: .module)
+        case .notFromThisSource: String(localized: "Nicht aus dieser Quelle", bundle: .module)
         }
     }
 }

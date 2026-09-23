@@ -1,6 +1,37 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "Aussagen aus der Folge, gesagt, nicht geprüft." : {},
+    "Belege" : {},
+    "Bereich:" : {},
+    "Erkenntnis" : {},
+    "Erschienen:" : {},
+    "Exportiert aus PodcastAI am %@." : {},
+    "Exportiert aus PodcastAI. Originalton und Originalrechte liegen bei den jeweiligen Anbietern." : {},
+    "Fakten" : {},
+    "Formuliert von:" : {},
+    "Kapitel" : {},
+    "Link:" : {},
+    "Länge:" : {},
+    "Meine Notiz" : {},
+    "Offene Frage" : {},
+    "Quelle:" : {},
+    "Quellen" : {},
+    "Relevant für %@: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Relevant für %1$@: %2$@"
+          }
+        }
+      }
+    },
+    "Shownotes" : {},
+    "Transkript" : {},
+    "Unbekannte Folge" : {},
+    "Unbekannte Quelle" : {},
+    "ohne Zeitbezug" : {}
   },
   "version" : "1.0"
 }

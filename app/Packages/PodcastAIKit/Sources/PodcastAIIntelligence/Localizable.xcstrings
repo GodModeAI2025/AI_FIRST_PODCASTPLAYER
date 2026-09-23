@@ -1,6 +1,40 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "Apple Intelligence ist in den Systemeinstellungen nicht aktiviert." : {},
+    "Auf diesem Gerät" : {},
+    "Das Kontingent für Private Cloud Compute ist aufgebraucht." : {},
+    "Das Modell hat keine Antwort geliefert. Auf diesem Gerät ist Apple Intelligence vielleicht noch nicht bereit." : {},
+    "Das Modell hat zu lange gebraucht. Noch einmal versuchen." : {},
+    "Das Modell ist gerade ausgelastet. Gleich noch einmal versuchen." : {},
+    "Das Modell kann diesen Text nicht bearbeiten: %@" : {},
+    "Das Modell wird noch vorbereitet." : {},
+    "Das Modell wollte dazu nicht antworten." : {},
+    "Der Text ist für das Modell zu lang." : {},
+    "Die Anfrage an das Modell ist fehlgeschlagen: %@" : {},
+    "Die Antwort des Modells war unlesbar. Noch einmal versuchen." : {},
+    "Die Dateien des Modells werden noch geladen. Später noch einmal versuchen." : {},
+    "Die Schutzregeln des Modells haben diesen Inhalt abgelehnt." : {},
+    "Diese App hat keine Berechtigung für Private Cloud Compute." : {},
+    "Diese Art Anfrage unterstützt das Modell nicht." : {},
+    "Diese Sprache versteht das Modell nicht." : {},
+    "Dieses Gerät unterstützt Apple Intelligence nicht." : {},
+    "Nicht verfügbar: %@" : {},
+    "Private Cloud Compute braucht eine Internetverbindung." : {},
+    "Private Cloud Compute ist noch nicht freigegeben." : {},
+    "Private Cloud Compute: %@ Auf dem Gerät: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Private Cloud Compute: %1$@ Auf dem Gerät: %2$@"
+          }
+        }
+      }
+    },
+    "braucht iOS 27 oder macOS 27" : {},
+    "keine Stufe verfügbar" : {},
+    "unbekannter Grund" : {}
   },
   "version" : "1.0"
 }

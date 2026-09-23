@@ -109,15 +109,15 @@ struct EpisodeArchiveTests {
     @Test("Die Kopfzeile nennt beide Zahlen und was automatisch passiert")
     func coverageLine() {
         #expect(EpisodeArchive.coverage(total: 412, analyzed: 3, analyzable: true, automatic: .newest(3))
-                == "3 von 412 Folgen ausgewertet, automatisch die 3 neuesten")
+                == "3 von 412 Folgen mit Transkript, automatisch die 3 neuesten")
         #expect(EpisodeArchive.coverage(total: 1, analyzed: 0, analyzable: true, automatic: .newest(1))
-                == "0 von 1 Folge ausgewertet, automatisch die neueste")
+                == "0 von 1 Folge mit Transkript, automatisch die neueste")
         #expect(EpisodeArchive.coverage(total: 20, analyzed: 2, analyzable: true, automatic: .off)
-                == "2 von 20 Folgen ausgewertet, automatisches Auswerten ist aus")
+                == "2 von 20 Folgen mit Transkript, keine automatischen Transkripte")
         #expect(EpisodeArchive.coverage(total: 20, analyzed: 2, analyzable: true, automatic: .paused)
-                == "2 von 20 Folgen ausgewertet, automatisch gerade keine")
+                == "2 von 20 Folgen mit Transkript, automatisch gerade keine")
         #expect(EpisodeArchive.coverage(total: 15, analyzed: 0, analyzable: false, automatic: .newest(3))
-                == "15 Folgen, keine davon auswertbar")
+                == "15 Folgen, kein Transkript möglich")
     }
 
     @Test("Die Auswahl nennt Anzahl und Länge")

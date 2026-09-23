@@ -47,10 +47,10 @@ public struct Highlight: Sendable, Identifiable, Hashable, Codable {
 
         public var label: String {
             switch self {
-            case .player: "aus dem Player"
-            case .transcript: "aus dem Transkript"
-            case .chat: "aus dem Chat"
-            case .appIntent: "per Kurzbefehl"
+            case .player: String(localized: "aus dem Player", bundle: .module)
+            case .transcript: String(localized: "aus dem Transkript", bundle: .module)
+            case .chat: String(localized: "aus dem Chat", bundle: .module)
+            case .appIntent: String(localized: "per Kurzbefehl", bundle: .module)
             }
         }
     }

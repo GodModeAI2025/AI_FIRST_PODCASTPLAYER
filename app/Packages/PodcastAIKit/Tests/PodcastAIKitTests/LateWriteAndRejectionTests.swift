@@ -147,7 +147,7 @@ struct RejectionClassificationTests {
     @Test("Die Meldung einer Ablehnung nennt keinen zweiten Versuch")
     func rejectedDescription() {
         let error = ExtractorError.generationRejected("Schutzregel")
-        #expect(error.errorDescription?.contains("nicht ausgewertet") == true)
+        #expect(error.errorDescription?.contains("nicht bearbeiten") == true)
         #expect(error.errorDescription?.contains("—") == false)
     }
 }

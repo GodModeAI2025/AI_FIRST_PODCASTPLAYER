@@ -76,7 +76,7 @@ struct InterestMatchingTests {
     func explanationListsMentionedTerms() {
         let topic = Interest(label: "Geldpolitik", keywords: ["EZB", "Leitzins"])
         let explanation = matches(topic, "Die EZB hebt den Leitzins an").first?.explanation()
-        #expect(explanation == "Passt zu deinem Thema „Geldpolitik“ · erwähnt: Leitzins, EZB · nur Stichworttreffer")
+        #expect(explanation == "Passt zu deinem Thema „Geldpolitik“ · erwähnt: Leitzins, EZB · Wort kommt vor")
     }
 
     @Test("Ein aktuelles Vorhaben steht vor einem gleich guten Thema")
