@@ -68,8 +68,10 @@ struct EpisodeListView: View {
                 } header: {
                     Text("Als Audio-Podcast verfügbar")
                 } footer: {
-                    Text("Der Audio-Podcast liefert die Tonspur, die PodcastAI transkribieren darf. "
-                         + "Das Audio der YouTube-Videos selbst lädt die App nicht.")
+                    Text("""
+                        Der Audio-Podcast liefert die Tonspur, die PodcastAI transkribieren darf. \
+                        Das Audio der YouTube-Videos selbst lädt die App nicht.
+                        """)
                 }
             }
 
@@ -106,7 +108,7 @@ struct EpisodeListView: View {
                         }
                         if episode.audioURL != nil, model.stages[episode.id] == nil || model.stages[episode.id] == .failed {
                             Button { model.enqueueAnalysis(episode) } label: {
-                                Label("Auswerten", systemImage: "waveform.badge.magnifyingglass")
+                                Label("Transkript erstellen", systemImage: "waveform.badge.magnifyingglass")
                             }
                             .tint(.teal)
                         }
@@ -125,7 +127,7 @@ struct EpisodeListView: View {
                         }
                         if episode.audioURL != nil {
                             Button { model.enqueueAnalysis(episode) } label: {
-                                Label("Auswerten", systemImage: "waveform.badge.magnifyingglass")
+                                Label("Transkript erstellen", systemImage: "waveform.badge.magnifyingglass")
                             }
                         }
                         Divider()
@@ -162,7 +164,7 @@ struct EpisodeListView: View {
                 }
             }
         }
-        .navigationTitle(source?.title ?? "Folgen")
+        .navigationTitle(source?.title ?? String(localized: "Folgen"))
         .searchable(text: $query, prompt: "Titel und Shownotes durchsuchen")
         .task(id: SearchRequest(query: query, episodeCount: episodes.count)) { await search() }
         .toolbar { archiveToolbar }
@@ -192,20 +194,22 @@ struct EpisodeListView: View {
                 ContentUnavailableView(
                     "Keine Folgen",
                     systemImage: "list.bullet",
-                    description: Text("In diesem Feed wurden keine Folgen gefunden.")
+                    description: Text("In diesem Podcast wurden keine Folgen gefunden.")
                 )
             } else if shown.isEmpty, matches != nil {
                 ContentUnavailableView(
                     "Keine Treffer",
                     systemImage: "magnifyingglass",
-                    description: Text("Keine Folge enthält „\(query.trimmingCharacters(in: .whitespaces))“ "
-                                      + "in Titel oder Shownotes.")
+                    description: Text("""
+                        Keine Folge enthält „\(query.trimmingCharacters(in: .whitespaces))“ \
+                        in Titel oder Shownotes.
+                        """)
                 )
             } else if shown.isEmpty {
                 ContentUnavailableView(
-                    "Alles ausgewertet",
+                    "Alle Transkripte fertig",
                     systemImage: "checkmark.circle",
-                    description: Text("Jede Folge dieser Quelle ist ausgewertet. Ohne den Filter siehst du alle.")
+                    description: Text("Jede Folge dieser Quelle hat ein Transkript. Ohne den Filter siehst du alle.")
                 )
             }
         }
@@ -270,7 +274,7 @@ struct EpisodeListView: View {
         ToolbarItemGroup(placement: .primaryAction) {
             Menu {
                 Toggle(isOn: $options.onlyUnanalyzed) {
-                    Label("Nur nicht ausgewertete", systemImage: "circle.dashed")
+                    Label("Nur ohne Transkript", systemImage: "circle.dashed")
                 }
                 Picker("Reihenfolge", selection: $options.oldestFirst) {
                     Text("Neueste zuerst").tag(false)
@@ -310,7 +314,7 @@ struct EpisodeListView: View {
                 .disabled(selectable.isEmpty)
                 Spacer()
                 Button { analyzeSelection() } label: {
-                    Label("Auswahl auswerten", systemImage: "waveform.badge.magnifyingglass")
+                    Label("Transkripte erstellen", systemImage: "waveform.badge.magnifyingglass")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(chosen.isEmpty)
@@ -419,7 +423,7 @@ struct EpisodeRow: View {
                 // Der Zustand trägt Symbol **und** Text. Farbe allein würde
                 // für jeden, der sie nicht unterscheiden kann, nichts sagen.
                 Label {
-                    Text(model.stageDetails[episode.id].map { "\(stage.label) · \($0)" }
+                    Text(model.stageDetails[episode.id].map { String(localized: "\(stage.label) · \($0)") }
                          ?? stage.label)
                 } icon: {
                     Image(systemName: stage.symbol)
@@ -447,7 +451,7 @@ struct EpisodeRow: View {
             if !episode.canBeAnalyzed {
                 // Ehrlich statt stiller Fehlschlag: ohne Audio und ohne
                 // getaktetes Transkript gibt es keinen Weg zu Timecodes.
-                Label("Kein Audiozugang — daraus entstehen keine Timecodes",
+                Label("Kein Audio, deshalb kein Transkript mit Zeitmarken",
                       systemImage: "speaker.slash")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -500,37 +504,56 @@ extension AppModel {
     func analysisUnavailableReason(for episode: Episode) -> String? {
         guard episode.audioURL == nil else { return nil }
         if let reason = sources.first(where: { $0.id == episode.sourceID })?.capabilities.limitationReason {
-            return "Diese Folge lässt sich nicht auswerten. \(reason)"
+            return String(localized: "Für diese Folge lässt sich kein Transkript erstellen. \(reason)")
         }
-        return "Diese Folge lässt sich nicht auswerten, weil der Feed zu ihr keine Audiodatei liefert. "
-            + "Ohne Ton entsteht kein Transkript."
+        return String(localized: """
+            Für diese Folge lässt sich kein Transkript erstellen, weil der Podcast zu ihr keine \
+            Audiodatei anbietet. Ohne Ton gibt es kein Transkript.
+            """)
     }
 
     /// Die Antwort im Reiter „Fragen“, solange eine Folge keine Belege hat.
     /// Sie nennt nur Knöpfe, die es im jeweiligen Zustand auch gibt.
     func unanalyzedEpisodeAnswer(_ id: EpisodeID) async -> String {
         guard let episode = try? await store.episodes(ids: [id]).first else {
-            return "Diese Folge ist nicht mehr in der Mediathek. Ohne Transkript habe ich keine Belege, "
-                + "mit denen ich antworten kann."
+            return String(localized: """
+                Diese Folge ist nicht mehr in „Meine Podcasts“. Ohne Transkript habe ich keine Belege, \
+                mit denen ich antworten kann.
+                """)
         }
         switch analysisPhase(for: episode) {
         case .unavailable(let reason):
-            return "\(reason) Deshalb habe ich keine Belege, mit denen ich antworten kann."
+            return String(localized: "\(reason) Deshalb habe ich keine Belege, mit denen ich antworten kann.")
         case .waiting:
-            return "Diese Folge wartet darauf, ausgewertet zu werden. Danach kann ich mit Belegen "
-                + "aus dem Transkript antworten."
+            return String(localized: """
+                Das Transkript dieser Folge steht in der Warteschlange. Sobald es fertig ist, kann ich \
+                mit Belegen aus dem Transkript antworten.
+                """)
         case .running:
-            return "Diese Folge wird gerade ausgewertet. Sobald das fertig ist, kann ich mit Belegen "
-                + "aus dem Transkript antworten."
-        case .failed(let message):
-            let reason = message.map { ": \($0)" } ?? "."
-            return "Das Auswerten dieser Folge ist fehlgeschlagen\(reason) Tippe in der Folge auf "
-                + "„Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten."
+            return String(localized: """
+                Das Transkript dieser Folge wird gerade erstellt. Sobald es fertig ist, kann ich \
+                mit Belegen aus dem Transkript antworten.
+                """)
+        case .failed(let message?):
+            return String(localized: """
+                Das Transkript dieser Folge konnte nicht erstellt werden: \(message) Tippe in der Folge \
+                auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten.
+                """)
+        case .failed(nil):
+            return String(localized: """
+                Das Transkript dieser Folge konnte nicht erstellt werden. Tippe in der Folge \
+                auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten.
+                """)
         case .ready:
-            return "Diese Folge ist noch nicht ausgewertet. Tippe in der Folge auf „Folge auswerten“, "
-                + "danach kann ich mit Belegen aus dem Transkript antworten."
+            return String(localized: """
+                Zu dieser Folge gibt es noch kein Transkript. Tippe in der Folge auf „Transkript erstellen“, \
+                danach kann ich mit Belegen aus dem Transkript antworten.
+                """)
         case .done:
-            return "Beim Auswerten dieser Folge sind keine Belege entstanden. Ohne sie kann ich nicht antworten."
+            return String(localized: """
+                Das Transkript dieser Folge ist fertig, aber daraus sind keine Belege entstanden. \
+                Ohne Belege kann ich nicht antworten.
+                """)
         }
     }
 }
@@ -581,7 +604,7 @@ struct EpisodeAnalysisPrompt: View {
         switch phase {
         case .ready:
             Button { model.enqueueAnalysis(episode) } label: {
-                Label("Folge auswerten", systemImage: "waveform.badge.magnifyingglass")
+                Label("Transkript erstellen", systemImage: "waveform.badge.magnifyingglass")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("episode.analyze")
@@ -612,15 +635,15 @@ struct EpisodeAnalysisPrompt: View {
             EmptyView()
         case .unavailable:
             bannerRow {
-                Label("Diese Folge lässt sich nicht auswerten.", systemImage: "speaker.slash")
+                Label("Für diese Folge lässt sich kein Transkript erstellen.", systemImage: "speaker.slash")
             }
         case .ready, .failed:
             bannerRow {
                 Text(phase == .ready
-                     ? "Noch nicht ausgewertet. Antworten aus dem Transkript gibt es erst danach."
-                     : "Das Auswerten ist fehlgeschlagen.")
+                     ? "Noch ohne Transkript. Antworten mit Belegen gibt es erst, wenn es fertig ist."
+                     : "Das Transkript konnte nicht erstellt werden.")
                 Spacer(minLength: Design.Spacing.small)
-                Button(phase == .ready ? "Folge auswerten" : "Erneut versuchen") {
+                Button(phase == .ready ? "Transkript erstellen" : "Erneut versuchen") {
                     model.enqueueAnalysis(episode)
                 }
                 .buttonStyle(.bordered)
@@ -661,18 +684,20 @@ struct EpisodeAnalysisPrompt: View {
 
     static func waitingDescription(_ ahead: Int) -> String {
         switch ahead {
-        case 0: "Wartet, kommt als Nächstes dran"
-        case 1: "Wartet, davor ist noch 1 Folge dran"
-        default: "Wartet, davor sind noch \(ahead) Folgen dran"
+        // Einzahl und Mehrzahl als eigene Texte. Die automatische Beugung
+        // braucht ein de.lproj, und der Katalog erzeugt noch keines.
+        case 0: String(localized: "Wartet, kommt als Nächstes dran")
+        case 1: String(localized: "Wartet, davor ist noch 1 Folge dran")
+        default: String(localized: "Wartet, davor sind noch \(ahead) Folgen dran")
         }
     }
 
     /// Der Schritt, der gerade läuft. Die Stufe nennt, was schon fertig ist.
     static func stepDescription(_ stage: ProcessingStage) -> String {
         switch stage {
-        case .mediaDownloaded: "Schritt 2 von 3: Die Folge wird transkribiert"
-        case .transcribed: "Schritt 3 von 3: Fundstellen werden gebildet"
-        default: "Schritt 1 von 3: Der Ton wird geladen"
+        case .mediaDownloaded: String(localized: "Schritt 2 von 3: Das Transkript wird erstellt")
+        case .transcribed: String(localized: "Schritt 3 von 3: Fundstellen werden gebildet")
+        default: String(localized: "Schritt 1 von 3: Der Ton wird geladen")
         }
     }
 }
@@ -719,8 +744,10 @@ struct KnowledgeView: View {
                 ContentUnavailableView {
                     Label("Noch nichts gemerkt", systemImage: "bookmark")
                 } description: {
-                    Text("Tippe beim Hören im Player auf „Moment merken“. Die Stelle wird mit Zeitmarke, "
-                         + "Zitat und deinem Kommentar gespeichert.")
+                    Text("""
+                        Tippe beim Hören im Player auf „Moment merken“. Die Stelle wird mit Zeitmarke, \
+                        Zitat und deinem Kommentar gespeichert.
+                        """)
                 }
             }
             ForEach(model.highlights) { highlight in
