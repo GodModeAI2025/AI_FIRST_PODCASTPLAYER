@@ -117,7 +117,7 @@ struct OnboardingView: View {
             .sheet(isPresented: $searching, onDismiss: {
                 if !model.sources.isEmpty { finish() }
             }) {
-                AddSourceSheet()
+                AddSourceSheet().sheetFeedback()
             }
         }
         // Auch Wegwischen zählt als gesehen. Sonst käme die Einführung bei

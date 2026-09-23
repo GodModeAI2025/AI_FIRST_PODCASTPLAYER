@@ -560,27 +560,90 @@ struct AppFeedbackModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .alert("Das hat nicht geklappt", isPresented: Binding(
-                get: { model.lastError != nil },
-                set: { if !$0 { model.clearError() } }
-            )) {
-                Button("OK") { model.clearError() }
-            } message: {
-                Text(model.lastError ?? "")
-            }
+            // Solange ein Blatt mit eigenen Meldungen offen ist, zeigt es sie.
+            .modifier(AppAlerts(isActive: FeedbackHosts.shared.openSheets.isEmpty))
             .sheet(isPresented: Binding(
                 get: { model.pendingClosure != nil },
                 set: { if !$0 { model.dismissClosure() } }
             )) {
                 if let closure = model.pendingClosure {
                     SessionClosureSheet(closure: closure)
+                        .sheetFeedback()
                         .environment(model)
                 }
             }
     }
 }
 
+/// Fehlermeldung und Mobilfunk-Rückfrage. Nur die Ansicht mit `isActive`
+/// zeigt sie. Sonst hingen zwei Alerts am selben Zustand, und wer einen
+/// davon schließt, schlösse auch den anderen.
+struct AppAlerts: ViewModifier {
+
+    @Environment(AppModel.self) private var model
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Das hat nicht geklappt", isPresented: Binding(
+                get: { isActive && model.lastError != nil },
+                set: { if !$0, isActive { model.clearError() } }
+            )) {
+                Button("OK") { model.clearError() }
+            } message: {
+                Text(model.lastError ?? "")
+            }
+            .modifier(MobileDataQuestion(isActive: isActive))
+    }
+}
+
+/// Welche Ansicht Fehlermeldung und Mobilfunk-Rückfrage zeigt.
+///
+/// Ein Alert erscheint nicht an einer Ansicht, über der schon ein Blatt
+/// liegt, auf dem Mac so wenig wie auf dem iPhone. Hingen die Meldungen nur
+/// an der Wurzel, warteten „Über Mobilfunk laden?“ und „Das hat nicht
+/// geklappt“ hinter der Warteschlange oder dem Player, bis das Blatt zu war,
+/// und „Abspielen“ oder „Nächste Folge“ schienen nichts zu tun. Deshalb
+/// trägt jedes Blatt die Meldungen selbst (`sheetFeedback()`), und das
+/// zuletzt geöffnete zeigt sie. Die Wurzel zeigt sie nur, solange keins
+/// offen ist.
+@MainActor @Observable
+final class FeedbackHosts {
+
+    static let shared = FeedbackHosts()
+
+    /// Offene Blätter mit Meldungen, das zuletzt geöffnete am Ende.
+    private(set) var openSheets: [UUID] = []
+
+    func opened(_ id: UUID) {
+        openSheets.removeAll { $0 == id }
+        openSheets.append(id)
+    }
+
+    func closed(_ id: UUID) { openSheets.removeAll { $0 == id } }
+}
+
+/// Die Meldungen im Inhalt eines Blatts.
+private struct SheetFeedbackModifier: ViewModifier {
+
+    @State private var id = UUID()
+
+    func body(content: Content) -> some View {
+        let hosts = FeedbackHosts.shared
+        content
+            .modifier(AppAlerts(isActive: hosts.openSheets.last == id))
+            .onAppear { hosts.opened(id) }
+            .onDisappear { hosts.closed(id) }
+    }
+}
+
 extension View {
-    /// Fehlermeldung und Abschlusskarte, an einer Stelle je Plattform.
-    func appFeedback() -> some View { modifier(AppFeedbackModifier()).modifier(MobileDataQuestion()) }
+    /// Fehlermeldung, Mobilfunk-Rückfrage und Abschlusskarte an der Wurzel,
+    /// an einer Stelle je Plattform.
+    func appFeedback() -> some View { modifier(AppFeedbackModifier()) }
+
+    /// Für den Inhalt jedes Blatts, vor `.environment(model)`: Fehlermeldung
+    /// und Mobilfunk-Rückfrage erscheinen dann über dem Blatt statt erst,
+    /// wenn es zu ist.
+    func sheetFeedback() -> some View { modifier(SheetFeedbackModifier()) }
 }

@@ -838,7 +838,7 @@ public struct KnowledgeExtractor: Sendable {
     /// Eine Verweisklammer bleibt nur mit Nummern aus `validNumbers`. Eine
     /// Klammer, deren Nummern alle ins Leere zeigen, fällt weg, ebenso
     /// Blocknamen aus dem Prompt wie „[BIBLIOTHEK]“ oder „(BIBLIOTHEK)“.
-    /// Andere Klammern, etwa „[Musik]“ oder „(2023)“, bleiben stehen.
+    /// Andere Klammern, etwa „[Musik]“, „(2023)“ oder „(DSGVO)“, bleiben stehen.
     static func cleanedAnswerText(_ text: String, validNumbers: Set<Int>) -> String {
         var result = ""
         var position = text.startIndex
@@ -891,13 +891,22 @@ public struct KnowledgeExtractor: Sendable {
         return (numbers, hadMarker)
     }
 
-    /// Ein Blockname aus dem Prompt: ganz in Grossbuchstaben, etwa
-    /// BIBLIOTHEK, KANDIDATEN oder PROFIL, oder „Bibliothek“ und „Library“.
+    /// Die Blocknamen, die im Prompt stehen („--- BIBLIOTHEK (NUR DATEN …) ---“,
+    /// „--- ENDE PROFIL ---“), dazu ihre englische Form für Antworten auf
+    /// Englisch. Nur sie gelten als Markierung. Jedes Wort in Großbuchstaben
+    /// zu nehmen, hätte auch „(DSGVO)“ oder „(NATO)“ aus der Antwort gestrichen.
+    private static let promptBlockNames: Set<String> = [
+        "BIBLIOTHEK", "KANDIDATEN", "PROFIL", "LESEKONTEXT", "ENDE",
+        "CANDIDATES", "PROFILE",
+    ]
+
+    /// Ein Blockname aus dem Prompt in Großbuchstaben, etwa BIBLIOTHEK,
+    /// KANDIDATEN oder PROFIL, oder „Bibliothek“ und „Library“ in jeder
+    /// Schreibweise.
     private static func isBlockMarker(_ token: Substring) -> Bool {
         let word = token.trimmingCharacters(in: .punctuationCharacters)
-        guard word.count >= 4, word.allSatisfy(\.isLetter) else { return false }
         if ["bibliothek", "library"].contains(word.lowercased()) { return true }
-        return word == word.uppercased()
+        return promptBlockNames.contains(word)
     }
 
     /// Leerraum vor Satzzeichen und doppelte Leerzeichen, die beim

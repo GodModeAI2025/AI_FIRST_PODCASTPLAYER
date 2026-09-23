@@ -105,7 +105,11 @@ public final class AppModel {
     /// vorher, statt still Daten zu verbrauchen. Transkripte für neue Folgen
     /// regelt davon getrennt „Nur im WLAN“.
     public var allowsCellularLoading: Bool {
-        didSet { UserDefaults.standard.set(allowsCellularLoading, forKey: Self.cellularLoadingKey) }
+        didSet {
+            UserDefaults.standard.set(allowsCellularLoading, forKey: Self.cellularLoadingKey)
+            // Angeforderte Transkripte warten oder laufen weiter.
+            queueConditionsChanged()
+        }
     }
     /// Mobilfunk oder Hotspot. Eigens gemerkt, weil `networkLimit` im
     /// Datensparmodus nur diesen nennt und den Mobilfunk verdeckt.
@@ -113,6 +117,9 @@ public final class AppModel {
     /// Einmal „Laden“ gesagt: bis das Gerät wieder im WLAN ist, fragt die
     /// App nicht noch einmal.
     @ObservationIgnored var mobileDataApproved = false
+    /// Schon nach den Transkripten gefragt, die im Mobilfunk warten. Bis zum
+    /// nächsten WLAN kommt die Frage dazu nicht noch einmal von selbst.
+    @ObservationIgnored private var askedAboutWaitingTranscripts = false
     /// Wartet auf die Antwort auf „Über Mobilfunk laden?“.
     public internal(set) var pendingMobileData: MobileDataRequest?
     /// Muss die App fragen, bevor sie etwas über das Netz holt?
@@ -161,13 +168,20 @@ public final class AppModel {
     public func answerMobileData(_ request: MobileDataRequest, load: Bool, always: Bool = false) {
         pendingMobileData = nil
         guard load else { return }
-        if always { allowsCellularLoading = true } else { mobileDataApproved = true }
+        // Erst im WLAN beantwortet: das Ja gilt für diese Anfrage, nicht für
+        // den nächsten Mobilfunk.
+        if always { allowsCellularLoading = true } else if onMobileData { mobileDataApproved = true }
         switch request {
         case .play(let episode, let seconds): playEpisode(episode, at: seconds)
         case .plan(let plan, let trigger): play(plan, from: trigger)
         case .download(let episode): Task { await downloadForOffline(episode) }
-        case .transcripts(let episodes): for episode in episodes { enqueueAnalysis(episode) }
+        case .transcripts(let episodes):
+            // Was schon von Hand eingereiht ist, behält seinen Platz. Neues
+            // kommt dazu.
+            for episode in episodes where !isQueuedByHand(episode.id) { enqueueAnalysis(episode) }
         }
+        // Nach einem Ja laufen auch Transkripte weiter, die im Mobilfunk warten.
+        queueConditionsChanged()
     }
 
     public func dismissMobileDataQuestion() { pendingMobileData = nil }
@@ -175,7 +189,14 @@ public final class AppModel {
     /// Neuer Netzpfad. Zurück im WLAN gilt ein früheres Ja nicht mehr.
     func mobileDataChanged(_ mobile: Bool) {
         onMobileData = mobile
-        if !mobile { mobileDataApproved = false }
+        guard !mobile else { return }
+        mobileDataApproved = false
+        askedAboutWaitingTranscripts = false
+        // Die Frage nach wartenden Transkripten erledigt sich im WLAN: sie
+        // laufen jetzt ohnehin.
+        if case .transcripts(let episodes)? = pendingMobileData, episodes.allSatisfy({ isQueuedByHand($0.id) }) {
+            pendingMobileData = nil
+        }
     }
     /// Was das Netz gerade einschränkt: kein Netz, Datensparmodus, Hotspot
     /// oder Mobilfunk. `nil` heißt WLAN ohne Datenlimit.
@@ -195,7 +216,7 @@ public final class AppModel {
     }
 
     /// Die Einschränkungen des Netzes, die das Vorbereiten anhalten.
-    public enum NetworkLimit: Equatable, Sendable {
+    public enum NetworkLimit: Equatable, Sendable, CaseIterable {
         case offline, lowDataMode, hotspot, cellular
 
         /// Kurz, für die Warteschlange und die Folge.
@@ -938,17 +959,53 @@ public final class AppModel {
     /// sonst bleibt automatisch Eingereihtes stehen und sagt, warum.
     func networkChanged(_ limit: NetworkLimit?) {
         networkLimit = limit
-        let detail = preparationWait?.queueDetail ?? Self.waitingDetail
-        for episode in analysisQueue where automaticallyQueued.contains(episode.id) {
-            stageDetails[episode.id] = detail
-        }
-        if preparationWait == nil, !analysisQueue.isEmpty { startAnalysisWorker() }
+        queueConditionsChanged()
     }
 
-    /// Darf diese Folge jetzt laufen? Automatisch Eingereihtes wartet, solange
-    /// das Netz es nicht erlaubt. Von Hand Angefordertes läuft immer.
-    func mayRunNow(_ episode: Episode) -> Bool {
-        !(preparationWait != nil && automaticallyQueued.contains(episode.id))
+    /// Netz, Einstellung oder Zustimmung haben sich geändert: jede wartende
+    /// Folge sagt, worauf sie wartet, und was laufen darf, läuft.
+    func queueConditionsChanged() {
+        let automaticDetail = preparationWait?.queueDetail ?? Self.waitingDetail
+        let networkDetails = Set(NetworkLimit.allCases.map(\.queueDetail))
+        for episode in analysisQueue {
+            if automaticallyQueued.contains(episode.id) {
+                stageDetails[episode.id] = automaticDetail
+            } else if let wait = queueWait(for: episode) {
+                stageDetails[episode.id] = wait.queueDetail
+            } else if let detail = stageDetails[episode.id], networkDetails.contains(detail) {
+                // Wartete aufs WLAN und darf jetzt. Ein anderer Grund, etwa
+                // der zweite Versuch, bleibt stehen.
+                stageDetails[episode.id] = Self.waitingDetail
+            }
+        }
+        if analysisQueue.contains(where: mayRunNow) { startAnalysisWorker() }
+    }
+
+    /// Worauf eine Folge in der Warteschlange wartet, oder `nil`, wenn sie
+    /// jetzt laufen darf. Automatisch Eingereihtes wartet, solange das Netz
+    /// es nicht erlaubt. Von Hand Angefordertes wartet nur, wenn es über
+    /// Mobilfunk laden müsste und der in den Einstellungen aus ist.
+    func queueWait(for episode: Episode) -> NetworkLimit? {
+        if automaticallyQueued.contains(episode.id) { return preparationWait }
+        return waitsForMobileData(episode) ? networkLimit ?? .cellular : nil
+    }
+
+    /// Darf diese Folge jetzt laufen?
+    func mayRunNow(_ episode: Episode) -> Bool { queueWait(for: episode) == nil }
+
+    /// Von Hand angefordert, der Ton käme aus dem Netz, und ohne Zustimmung
+    /// ginge das nur über Mobilfunk. Die Datei wird zuletzt geprüft, also
+    /// nur im Mobilfunk bei ausgeschalteter Einstellung.
+    private func waitsForMobileData(_ episode: Episode) -> Bool {
+        mobileDataNeedsConsent && !automaticallyQueued.contains(episode.id) && localAudioFile(for: episode) == nil
+    }
+
+    /// Transkripte, die jemand angefordert hat und die auf Mobilfunk-Zustimmung warten.
+    private var transcriptsWaitingForMobileData: [Episode] { analysisQueue.filter(waitsForMobileData) }
+
+    /// Steht die Folge von Hand eingereiht in der Warteschlange?
+    private func isQueuedByHand(_ id: EpisodeID) -> Bool {
+        !automaticallyQueued.contains(id) && analysisQueue.contains { $0.id == id }
     }
 
     /// Wie viele Folgen der Warteschlange jetzt laufen dürfen.
@@ -969,9 +1026,19 @@ public final class AppModel {
             automaticallyQueued.insert(episode.id)
         } else {
             // Von Hand angefordert und Mobilfunk aus: erst fragen, falls
-            // der Ton dafür aus dem Netz käme.
-            if episode.audioURL != nil, analyzing?.id != episode.id, localAudioFile(for: episode) == nil,
-               askBeforeMobileData(.transcripts([episode])) { return }
+            // der Ton dafür aus dem Netz käme. Ein Ja gilt auch für die
+            // Transkripte, die schon im Mobilfunk warten, also zählen sie mit.
+            if episode.audioURL != nil, analyzing?.id != episode.id, mobileDataNeedsConsent,
+               localAudioFile(for: episode) == nil {
+                // Wartet sie schon von Hand eingereiht, rückt sie gleich nach
+                // vorn. Nach einem Ja läuft sie dann als Nächste.
+                if let queued, !automaticallyQueued.contains(episode.id) {
+                    analysisQueue.insert(analysisQueue.remove(at: queued), at: 0)
+                }
+                _ = askBeforeMobileData(.transcripts(
+                    transcriptsWaitingForMobileData.filter { $0.id != episode.id } + [episode]))
+                return
+            }
             automaticallyQueued.remove(episode.id)
             dismissedFromPreparation.remove(episode.id)
             // Von Hand angefordert heißt: auch auf einem Gerät ohne
@@ -1051,10 +1118,29 @@ public final class AppModel {
             self.analysisTask = nil
             self.analyzing = nil
             self.activity = nil
+            self.askAboutWaitingTranscripts()
             // Frisch ausgewertetes Material ist genau das, worauf die
             // automatischen Themen-Updates warten.
             await self.processPendingEditions()
         }
+    }
+
+    /// Die Warteschlange ist bis auf Transkripte durch, die über Mobilfunk
+    /// laden müssten, etwa weil sie im WLAN angefordert wurden und das Gerät
+    /// es inzwischen verlassen hat. Eine Frage für alle, einmal bis zum
+    /// nächsten WLAN. Nach „Abbrechen“ warten sie, und „Transkript jetzt
+    /// erstellen“ an der Folge fragt erneut.
+    private func askAboutWaitingTranscripts() {
+        queueConditionsChanged()
+        let waiting = transcriptsWaitingForMobileData
+        guard !waiting.isEmpty, !askedAboutWaitingTranscripts else { return }
+        // Eine offene Frage zu etwas anderem bleibt stehen.
+        switch pendingMobileData {
+        case nil, .transcripts?: break
+        default: return
+        }
+        askedAboutWaitingTranscripts = true
+        _ = askBeforeMobileData(.transcripts(waiting))
     }
 
     /// Erschließt eine Folge. Gibt `true` zurück, wenn der Fehler

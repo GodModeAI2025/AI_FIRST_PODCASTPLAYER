@@ -464,6 +464,23 @@
           }
         }
       }
+    },
+    "„%@“": {
+      "comment": "Zitat zum Kopieren oder Teilen",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@”"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

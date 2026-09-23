@@ -74,7 +74,12 @@ public enum Citation {
     /// und der eigene Kommentar, jeweils nur, wenn es ihn gibt.
     public static func plainText(_ note: ExportedNote) -> String {
         var lines: [String] = []
-        if let quote = note.trimmedQuote { lines.append("„\(quote)“") }
+        if let quote = note.trimmedQuote {
+            // Die Anführungszeichen folgen der Sprache der App: „…“ auf
+            // Deutsch, “…” auf Englisch.
+            lines.append(String(localized: "„\(quote)“", bundle: .module,
+                                comment: "Zitat zum Kopieren oder Teilen"))
+        }
         let origin = note.origin
         if !origin.isEmpty { lines.append(lines.isEmpty ? origin : "(\(origin))") }
         if let link = note.link { lines.append(link.absoluteString) }

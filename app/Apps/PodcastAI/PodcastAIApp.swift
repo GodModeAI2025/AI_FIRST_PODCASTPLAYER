@@ -133,12 +133,15 @@ struct RootView: View {
                         }
                     }
             }
+            // Abspielen und „Transkript erstellen“ gehen auch von hier aus.
+            // Rückfrage und Fehler erscheinen dann über der Warteschlange.
+            .sheetFeedback()
             .environment(model)
         }
         .autoRefresh()
         .spotlightPassages()
         .sheet(isPresented: $showingOnboarding) {
-            OnboardingView().environment(model)
+            OnboardingView().sheetFeedback().environment(model)
         }
     }
 }
@@ -270,6 +273,7 @@ struct MiniPlayerAccessory: View {
                             }
                         }
                 }
+                .sheetFeedback()
                 .environment(model)
             }
         }

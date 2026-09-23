@@ -257,10 +257,11 @@ struct MacRootView: View {
         .spotlightPassages()
         .environment(\.openQueue, { section = .queue })
         .sheet(isPresented: $showingOnboarding) {
-            OnboardingView().environment(model).frame(minWidth: 480, minHeight: 620)
+            OnboardingView().sheetFeedback().environment(model).frame(minWidth: 480, minHeight: 620)
         }
         .sheet(isPresented: $isAddingSource) {
             AddSourceSheet()
+                .sheetFeedback()
                 .environment(model)
         }
         .focusedSceneValue(\.isAddingSource, $isAddingSource)

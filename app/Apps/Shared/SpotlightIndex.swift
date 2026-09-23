@@ -214,6 +214,7 @@ private struct SpotlightContinuation: ViewModifier {
             #endif
             .sheet(item: $opened) { item in
                 RememberedPassageView(highlightID: item.id)
+                    .sheetFeedback()
                     .environment(model)
                     #if os(macOS)
                     .frame(minWidth: 420, minHeight: 320)
@@ -226,6 +227,7 @@ private struct SpotlightContinuation: ViewModifier {
         let model = model
         let shown = anchor.presentAboveOpenSheet { close in
             RememberedPassageView(highlightID: id, close: close)
+                .sheetFeedback()
                 .environment(model)
         }
         if shown { return }

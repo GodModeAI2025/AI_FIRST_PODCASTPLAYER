@@ -1646,14 +1646,16 @@ extension AppModel {
     /// außer er ist in den Einstellungen aus. Dann fragt die App vorher.
     public func downloadForOffline(_ episode: Episode) async {
         guard let audioURL = episode.audioURL, !downloading.contains(episode.id) else { return }
-        if askBeforeMobileData(.download(episode)) { return }
-        keptOffline.insert(episode.id)
         // Liegt das Audio schon da, etwa für ein Transkript geladen, bleibt
-        // es ab jetzt liegen. Ein zweiter Download wäre nur Wartezeit.
+        // es ab jetzt liegen. Ein zweiter Download wäre nur Wartezeit, und
+        // über Mobilfunk käme nichts. Deshalb auch keine Rückfrage dazu.
         if localAudioFile(for: episode) != nil {
+            keptOffline.insert(episode.id)
             mediaStorageChanged += 1
             return
         }
+        if askBeforeMobileData(.download(episode)) { return }
+        keptOffline.insert(episode.id)
         let id = episode.id
         downloading.insert(id)
         downloadProgress[id] = DownloadProgress(received: 0, expected: nil)

@@ -149,7 +149,8 @@ struct MarkdownFileExportTests {
             publishedAt: published, webPageURL: URL(string: "https://example.com/362"))
         let text = Citation.plainText(note)
         let lines = text.components(separatedBy: "\n")
-        #expect(lines.first == "„Das war der beste Witz.“")
+        // Die Anführungszeichen kommen aus dem Katalog, je nach Sprache.
+        #expect(lines.first == TestLanguage.pick(de: "„Das war der beste Witz.“", en: "“Das war der beste Witz.”"))
         #expect(lines[1].hasPrefix("(#362 Der Hund · Gemischtes Hack · 0:19 · "))
         #expect(lines[1].contains(published.formatted(date: .long, time: .omitted)))
         #expect(lines.contains("https://example.com/362"))

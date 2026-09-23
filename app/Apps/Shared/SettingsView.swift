@@ -111,17 +111,19 @@ struct MobileDataSettingsSection: View {
 }
 
 /// Die Rückfrage „Über Mobilfunk laden?“, gestellt von `AppModel`, wenn
-/// Mobilfunk in den Einstellungen aus ist. Hängt mit den anderen Meldungen
-/// an `appFeedback()`.
+/// Mobilfunk in den Einstellungen aus ist. Hängt mit der Fehlermeldung an
+/// `appFeedback()` und `sheetFeedback()` (`AppAlerts`).
 struct MobileDataQuestion: ViewModifier {
 
     @Environment(AppModel.self) private var model
+    /// Nur eine Ansicht fragt, die oberste mit Meldungen (`FeedbackHosts`).
+    var isActive = true
 
     func body(content: Content) -> some View {
         content
             .alert("Über Mobilfunk laden?", isPresented: Binding(
-                get: { model.pendingMobileData != nil },
-                set: { if !$0 { model.dismissMobileDataQuestion() } }
+                get: { isActive && model.pendingMobileData != nil },
+                set: { if !$0, isActive { model.dismissMobileDataQuestion() } }
             ), presenting: model.pendingMobileData) { request in
                 // Die Anfrage kommt mit, damit die Reihenfolge von Knopf
                 // und Schließen keine Rolle spielt.
