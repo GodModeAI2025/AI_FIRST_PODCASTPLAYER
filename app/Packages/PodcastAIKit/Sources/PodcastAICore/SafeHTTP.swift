@@ -55,9 +55,14 @@ public enum HTTPTransferError: Error, LocalizedError, Equatable {
 
 public enum SafeHTTP {
 
-    /// Obergrenze für Textantworten (Feeds, Transkripte). Ein RSS-Feed mit
-    /// über 32 MB ist kein Feed mehr.
+    /// Obergrenze für Textantworten wie Transkripte.
     public static let textLimit: Int64 = 32 * 1024 * 1024
+
+    /// Obergrenze für Feed-Dokumente. Große Podcasts mit Tausenden Folgen
+    /// liefern 20 bis 40 MB. Was darüber hinausgeht, wird beim Laden
+    /// abgeschnitten statt abgelehnt (`truncating`), damit das Abo mit den
+    /// neuesten Folgen trotzdem zustande kommt.
+    public static let feedLimit: Int64 = 64 * 1024 * 1024
 
     /// Eine Session, die die Regeln oben schon mitbringt.
     ///
@@ -91,20 +96,33 @@ public enum SafeHTTP {
         } catch {
             throw HTTPTransferError.rejectedDestination(error)
         }
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: secureVariant(of: url))
         request.setValue("PodcastAI", forHTTPHeaderField: "User-Agent")
         request.httpShouldHandleCookies = false
         return request
+    }
+
+    /// Unverschlüsseltes http sperrt App Transport Security ohnehin. Viele
+    /// Feeds stehen aber noch mit http im Verzeichnis, obwohl ihr Server
+    /// längst https kann. Deshalb geht jede Anfrage über https hinaus. Die
+    /// gespeicherte Adresse bleibt, wie sie ist: an ihr hängen Kennungen.
+    public static func secureVariant(of url: URL) -> URL {
+        guard url.scheme?.lowercased() == "http",
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        components.scheme = "https"
+        if components.port == 80 { components.port = nil }
+        return components.url ?? url
     }
 
     /// Lädt eine Antwort vollständig in den Speicher — aber nie mehr als `limit`.
     ///
     /// Die Grenze greift an zwei Stellen: an der angekündigten Länge, bevor
     /// ein Byte gelesen wird, und am tatsächlich Gelesenen, falls die
-    /// Ankündigung log oder fehlte.
+    /// Ankündigung log oder fehlte. Mit `truncating` endet das Laden an der
+    /// Grenze ohne Fehler; geliefert wird der Anfang.
     public static func load(
         _ url: URL, using session: URLSession, limit: Int64 = textLimit,
-        headers: [String: String] = [:]
+        headers: [String: String] = [:], truncating: Bool = false
     ) async throws -> Data {
         var request = try request(for: url)
         for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
@@ -114,7 +132,7 @@ public enum SafeHTTP {
            !(200..<300).contains(http.statusCode) {
             throw HTTPTransferError.httpStatus(http.statusCode)
         }
-        if response.expectedContentLength > limit {
+        if response.expectedContentLength > limit, !truncating {
             throw HTTPTransferError.tooLarge(limit: limit)
         }
 
@@ -122,8 +140,11 @@ public enum SafeHTTP {
         data.reserveCapacity(min(Int(max(response.expectedContentLength, 0)), 1 << 20))
         var count: Int64 = 0
         for try await byte in stream {
+            if count >= limit {
+                if truncating { break }
+                throw HTTPTransferError.tooLarge(limit: limit)
+            }
             count += 1
-            if count > limit { throw HTTPTransferError.tooLarge(limit: limit) }
             data.append(byte)
         }
         guard !data.isEmpty else { throw HTTPTransferError.emptyResponse }
@@ -145,8 +166,12 @@ public enum SafeHTTP {
         public let mimeType: String?
     }
 
+    /// `progress` bekommt nach jedem geschriebenen Block die geladenen Byte
+    /// und die angekündigte Größe, sofern der Server eine nennt. Wird die
+    /// umgebende Aufgabe abgebrochen, endet das Laden nach dem nächsten Block.
     public static func save(
-        _ url: URL, to destination: URL, using session: URLSession, limit: Int64
+        _ url: URL, to destination: URL, using session: URLSession, limit: Int64,
+        progress: (@Sendable (_ received: Int64, _ expected: Int64?) -> Void)? = nil
     ) async throws -> SavedFile {
         let request = try request(for: url)
         let (stream, response) = try await session.bytes(for: request)
@@ -158,6 +183,8 @@ public enum SafeHTTP {
         if response.expectedContentLength > limit {
             throw HTTPTransferError.tooLarge(limit: limit)
         }
+        let expected = response.expectedContentLength > 0 ? response.expectedContentLength : nil
+        progress?(0, expected)
 
         try? FileManager.default.removeItem(at: destination)
         FileManager.default.createFile(atPath: destination.path, contents: nil)
@@ -176,10 +203,13 @@ public enum SafeHTTP {
                 if block.count >= blockSize {
                     try handle.write(contentsOf: block)
                     block.removeAll(keepingCapacity: true)
+                    progress?(total, expected)
+                    try Task.checkCancellation()
                 }
             }
             if !block.isEmpty { try handle.write(contentsOf: block) }
             try handle.close()
+            progress?(total, expected)
         } catch {
             // Kein halber Download bleibt liegen: was hier entsteht, sähe
             // später wie eine vollständige Medienfassung aus.

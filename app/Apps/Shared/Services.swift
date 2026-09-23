@@ -26,12 +26,39 @@ public struct RefreshResult: Sendable {
     public let failedSources: [String]
 }
 
+/// Was man vor dem Abonnieren von einem Podcast sieht: Beschreibung, Zahl
+/// der Folgen und die neuesten Titel.
+public struct PodcastPreview: Sendable {
+    public struct Item: Sendable, Identifiable {
+        public let id: Int
+        public let title: String
+        public let publishedAt: Date?
+    }
+    public let summary: String?
+    public let episodeCount: Int
+    public let latestDate: Date?
+    public let latest: [Item]
+
+    init(_ feed: ParsedFeed) {
+        summary = feed.summary
+        episodeCount = feed.items.count
+        latestDate = feed.items.compactMap(\.publishedAt).max()
+        latest = feed.items.enumerated()
+            .sorted { ($0.element.publishedAt ?? .distantPast) > ($1.element.publishedAt ?? .distantPast) }
+            .prefix(3)
+            .map { Item(id: $0.offset, title: $0.element.title, publishedAt: $0.element.publishedAt) }
+    }
+}
+
 public actor FeedRefresher {
 
     private let store: LibraryStore
     private let resolver = SourceResolver()
     private let parser = FeedParser()
     private let session: URLSession
+    /// Die zuletzt angesehene Vorschau. Wer gleich danach abonniert, lädt
+    /// einen großen Feed nicht ein zweites Mal.
+    private var previewed: (url: URL, feedURL: URL, feed: ParsedFeed, at: Date)?
 
     public init(store: LibraryStore) {
         self.store = store
@@ -41,8 +68,18 @@ public actor FeedRefresher {
         // fremden Feeds liefen ungeprüft durch.
         self.session = SafeHTTP.makeSession { configuration in
             configuration.requestCachePolicy = .reloadRevalidatingCacheData
-            configuration.timeoutIntervalForRequest = 30
-            configuration.waitsForConnectivity = true
+            // Kommt 20 Sekunden lang nichts, gilt der Server als nicht
+            // erreichbar. Ein großer Feed, der stetig lädt, darf länger
+            // brauchen, aber nicht ewig.
+            configuration.timeoutIntervalForRequest = 20
+            configuration.timeoutIntervalForResource = 180
+            // Nicht auf Netz warten. Mit Warten galt auch eine Adresse, die
+            // es nicht mehr gibt, als „noch kein Netz“: Abonnieren drehte
+            // dann ohne Ende, und ein toter Feed hielt das Aktualisieren
+            // aller anderen auf. Ohne Netz scheitern Abruf und Aktualisieren
+            // jetzt gleich, das Aktualisieren übergeht die Quelle wie jeden
+            // anderen Fehler.
+            configuration.waitsForConnectivity = false
         }
     }
 
@@ -53,7 +90,17 @@ public actor FeedRefresher {
             .flatMap { URL(string: String($0)) }
     }
 
+    /// Legt die Quelle an. Netzfehler kommen als Sätze zurück, die zum
+    /// Abonnieren passen, nicht als Meldung des Systems.
     public func addSource(from input: String) async throws -> AddedSource {
+        do {
+            return try await subscribe(from: input)
+        } catch {
+            throw FeedRefreshError.forSubscription(error, input: input)
+        }
+    }
+
+    private func subscribe(from input: String) async throws -> AddedSource {
         // Geteilte Links kommen oft mit Titel davor. Apple Podcasts und
         // Spotify verlinken keinen Feed auf ihren Seiten.
         if let shared = Self.firstLink(in: input), let host = shared.host()?.lowercased() {
@@ -61,7 +108,7 @@ public actor FeedRefresher {
                 guard let feed = try await PodcastDirectory.feedURL(forAppleLink: shared) else {
                     throw FeedRefreshError.appleLinkWithoutFeed
                 }
-                return try await addSource(from: feed.absoluteString)
+                return try await subscribe(from: feed.absoluteString)
             }
             if host.hasSuffix("spotify.com") || host == "spotify.link" {
                 throw FeedRefreshError.spotifyLink
@@ -78,6 +125,8 @@ public actor FeedRefresher {
         let linkFeedURL: URL
         let kind: SourceKind
         var capabilities: SourceCapabilities
+        // Stellt sich die Seite selbst als Feed heraus, ist er schon gelesen.
+        var prefetched: ParsedFeed?
 
         switch link {
         case .podcastFeed(let url):
@@ -94,8 +143,12 @@ public actor FeedRefresher {
         case .youTubeVideo, .youTubeChannelPage:
             linkFeedURL = try await discoverYouTubeChannelFeed(for: link)
             kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
+        case .webPageNeedingDiscovery(let page) where previewed?.url == page:
+            // Gerade in der Vorschau gelesen, `fetchFeed` nimmt ihn von dort.
+            linkFeedURL = page; kind = .podcastRSS; capabilities = .fullPodcast
         case .webPageNeedingDiscovery:
-            linkFeedURL = try await discoverFeedOnPage(for: link)
+            let found = try await discoverFeedOnPage(for: link)
+            linkFeedURL = found.url; prefetched = found.feed
             kind = .podcastRSS; capabilities = .fullPodcast
         case .localFile(let url):
             linkFeedURL = url; kind = .localFile
@@ -108,7 +161,11 @@ public actor FeedRefresher {
         let resolvedFeedURL: URL
         let parsed: ParsedFeed
         do {
-            (resolvedFeedURL, parsed) = try await fetchFeed(linkFeedURL, allowDiscovery: kind == .podcastRSS)
+            if let prefetched {
+                (resolvedFeedURL, parsed) = (linkFeedURL, prefetched)
+            } else {
+                (resolvedFeedURL, parsed) = try await fetchFeed(linkFeedURL, allowDiscovery: kind == .podcastRSS)
+            }
         } catch where kind == .youTubeChannel {
             // Der Feed-Dienst von YouTube fällt immer wieder aus und antwortet
             // dann mit 404. Der Kanal wird trotzdem angelegt, mit Name und
@@ -139,6 +196,40 @@ public actor FeedRefresher {
         _ = try await store.upsert(episodes: episodes, forSource: sourceID)
 
         return AddedSource(title: source.title, episodeCount: episodes.count)
+    }
+
+    /// Liest einen Podcast für die Vorschau, ohne ihn anzulegen. Abonniert
+    /// jemand gleich danach, nimmt `addSource` den schon gelesenen Feed.
+    public func preview(of url: URL) async throws -> PodcastPreview {
+        do {
+            let link = try resolver.resolve(url.absoluteString)
+            let feedURL: URL
+            let feed: ParsedFeed
+            switch link {
+            case .podcastFeed(let address):
+                (feedURL, feed) = try await fetchFeed(address, allowDiscovery: true)
+                previewed = (address, feedURL, feed, Date())
+            case .webPageNeedingDiscovery(let address):
+                let found = try await discoverFeedOnPage(for: link)
+                if let parsed = found.feed {
+                    (feedURL, feed) = (found.url, parsed)
+                } else {
+                    (feedURL, feed) = try await fetchFeed(found.url, allowDiscovery: true)
+                }
+                previewed = (address, feedURL, feed, Date())
+            default:
+                throw FeedRefreshError.needsDiscovery
+            }
+            return PodcastPreview(feed)
+        } catch {
+            throw FeedRefreshError.forSubscription(error, input: url.absoluteString)
+        }
+    }
+
+    /// Gibt den Feed der letzten Vorschau frei, etwa wenn das Blatt zugeht.
+    /// Ein großer Feed belegt sonst Speicher, den niemand mehr braucht.
+    public func discardPreview() {
+        previewed = nil
     }
 
     private func addYouTubeChannelWithoutFeed(
@@ -193,6 +284,15 @@ public actor FeedRefresher {
     /// antwortet auf `/rssfeed` mit einer 404-Seite, verlinkt den echten Feed
     /// `/feed/mp3` aber im Kopf der Startseite.
     private func fetchFeed(_ url: URL, allowDiscovery: Bool) async throws -> (URL, ParsedFeed) {
+        if let kept = previewed {
+            // Nur einmal und nur kurz: danach zählt wieder, was der Server sagt.
+            if Date().timeIntervalSince(kept.at) > 600 {
+                previewed = nil
+            } else if kept.url == url {
+                previewed = nil
+                return (kept.feedURL, kept.feed)
+            }
+        }
         var firstError: Error?
         do {
             let parsed = try parser.parse(try await fetch(url))
@@ -200,7 +300,10 @@ public actor FeedRefresher {
         } catch {
             firstError = error
         }
-        guard allowDiscovery else { throw firstError! }
+        // Ist der Server gar nicht erreichbar, kosten weitere Anfragen an
+        // denselben Host nur Wartezeit, und am Ende stünde „kein Feed“
+        // statt des eigentlichen Grunds.
+        guard allowDiscovery, Self.worthDiscovering(after: firstError) else { throw firstError! }
 
         var pages = [url]
         if let host = url.host, let root = URL(string: "\(url.scheme ?? "https")://\(host)/"), root != url {
@@ -286,6 +389,19 @@ public actor FeedRefresher {
         return try? ChapterFile.parse(data)
     }
 
+    /// Nur wenn der Server geantwortet, aber keinen Feed geliefert hat,
+    /// lohnt die Suche auf seinen Seiten.
+    private static func worthDiscovering(after error: Error?) -> Bool {
+        if error is URLError || error is CancellationError { return false }
+        if let http = error as? HTTPTransferError {
+            switch http {
+            case .httpStatus, .emptyResponse: return true
+            default: return false
+            }
+        }
+        return true
+    }
+
     /// Sucht den Feed auf einer gewöhnlichen Webseite.
     ///
     /// Gelesen wird nur der Kopf der Seite — genau das eine Element, das
@@ -293,21 +409,24 @@ public actor FeedRefresher {
     /// eigener Fehler und keine allgemeine Ausrede: der Nutzer erfährt,
     /// dass die Seite keinen Feed anbietet, nicht dass „etwas nicht
     /// eingebaut“ sei.
-    private func discoverFeedOnPage(for link: ResolvedLink) async throws -> URL {
+    ///
+    /// Ist die Seite selbst der Feed, kommt er gelesen zurück.
+    private func discoverFeedOnPage(for link: ResolvedLink) async throws -> (url: URL, feed: ParsedFeed?) {
         guard let page = FeedDiscovery.pageToInspect(for: link) else {
             throw FeedRefreshError.needsDiscovery
         }
-        let data = try await SafeHTTP.load(page, using: session, limit: Self.pageLimit)
-        // Viele Feed-Adressen sehen nicht nach Feed aus, etwa
-        // `feeds.transistor.fm/ai-to-the-dna`. Ist der Inhalt selbst ein
-        // Feed, ist die Suche hier schon zu Ende.
-        if (try? parser.parse(data)) != nil { return page }
+        // Mit der Grenze für Feeds, nicht der für Seiten: viele Feed-Adressen
+        // sehen nicht nach Feed aus, etwa `feeds.transistor.fm/ai-to-the-dna`
+        // oder `feeds.megaphone.fm/ESHO5419936864`. Ein Feed mit 2000 Folgen
+        // hat über 20 MB und scheiterte hier an der Seitengrenze.
+        let data = try await fetch(page)
+        if let feed = try? parser.parse(data) { return (page, feed) }
         let html = String(decoding: data, as: UTF8.self)
 
         guard let feedURL = FeedDiscovery.feedLinks(inHTML: html, base: page).first else {
             throw FeedRefreshError.noFeedOnPage(page.host ?? page.absoluteString)
         }
-        return feedURL
+        return (feedURL, nil)
     }
 
     /// Macht aus einem YouTube-Video oder einem Kanalnamen (`/@name`) den
@@ -350,8 +469,11 @@ public actor FeedRefresher {
     ///
     /// Vorher stand hier `session.data(for:)`: ein Server, der endlos
     /// sendet, hätte den Speicher gefüllt, bis das System die App beendet.
+    /// Ein Feed über der Grenze wird abgeschnitten, nicht abgelehnt: die
+    /// neuesten Folgen stehen vorn, und der Parser behält, was bis zum
+    /// Schnitt vollständig war.
     private func fetch(_ url: URL) async throws -> Data {
-        try await SafeHTTP.load(url, using: session, limit: SafeHTTP.textLimit)
+        try await SafeHTTP.load(url, using: session, limit: SafeHTTP.feedLimit, truncating: true)
     }
 }
 
@@ -364,9 +486,76 @@ public enum FeedRefreshError: Error, LocalizedError {
     case youTubeFeedUnavailable
     case appleLinkWithoutFeed
     case spotifyLink
+    case hostNotFound
+    case notResponding
+    case offline
+    case insecureServer
+    case pageTooLarge
+    case gone
+    case unreachable
+
+    /// Übersetzt Netzfehler beim Abonnieren in eigene Fälle mit klaren
+    /// Sätzen. Die Meldungen des Systems sprachen von „App Transport
+    /// Security“, und ein zu großer Feed klang wie ein Problem mit
+    /// Transkripten. Alles andere bleibt, wie es ist.
+    static func forSubscription(_ error: Error, input: String) -> Error {
+        switch error as? HTTPTransferError {
+        case .tooLarge?: return FeedRefreshError.pageTooLarge
+        case .httpStatus(404)?, .httpStatus(410)?: return FeedRefreshError.gone
+        default: break
+        }
+        guard let urlError = error as? URLError else { return error }
+        let wasHTTP = FeedRefresher.firstLink(in: input)?.scheme?.lowercased() == "http"
+        switch urlError.code {
+        case .cancelled:
+            return CancellationError()
+        case .cannotFindHost, .dnsLookupFailed:
+            return FeedRefreshError.hostNotFound
+        case .cannotConnectToHost where wasHTTP:
+            // Die App fragt über https an. Antwortet der Server dort nicht,
+            // kann er nur unverschlüsselt.
+            return FeedRefreshError.insecureServer
+        case .timedOut, .cannotConnectToHost, .networkConnectionLost:
+            return FeedRefreshError.notResponding
+        case .notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff:
+            return FeedRefreshError.offline
+        case .appTransportSecurityRequiresSecureConnection, .secureConnectionFailed,
+             .serverCertificateHasBadDate, .serverCertificateUntrusted,
+             .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid:
+            return FeedRefreshError.insecureServer
+        default:
+            return FeedRefreshError.unreachable
+        }
+    }
 
     public var errorDescription: String? {
         switch self {
+        case .hostNotFound:
+            String(localized: """
+                Diesen Podcast gibt es unter seiner Adresse nicht mehr. Vermutlich wurde er \
+                eingestellt oder ist umgezogen.
+                """)
+        case .notResponding:
+            String(localized: "Dieser Podcast antwortet gerade nicht. Später noch einmal versuchen.")
+        case .offline:
+            String(localized: "Keine Internetverbindung. Sobald wieder Netz da ist, noch einmal versuchen.")
+        case .insecureServer:
+            String(localized: """
+                Der Server dieses Podcasts bietet keine sichere Verbindung an. Die App lädt nur über \
+                sichere Verbindungen, deshalb lässt er sich nicht abonnieren.
+                """)
+        case .pageTooLarge:
+            String(localized: """
+                Die Seite hinter diesem Link ist größer, als die App liest. Such den Podcast oben nach \
+                seinem Namen.
+                """)
+        case .gone:
+            String(localized: """
+                Unter dieser Adresse gibt es den Podcast nicht mehr. Vermutlich ist er umgezogen oder \
+                wurde eingestellt.
+                """)
+        case .unreachable:
+            String(localized: "Der Podcast ließ sich gerade nicht laden. Später noch einmal versuchen.")
         case .needsDiscovery:
             String(localized: "Zu diesem Link lässt sich keine Feed-Adresse ermitteln. Füge die Feed-Adresse direkt ein.")
         case .noFeedOnPage(let host):
@@ -421,6 +610,10 @@ public struct PodcastCounterpart: Sendable, Hashable, Identifiable {
     public let feedURL: URL
     public var artworkURL: URL?
     public var genre: String?
+    /// Zahl der Folgen und Datum der neuesten laut Verzeichnis, für die
+    /// Vorschau vor dem Abonnieren.
+    public var episodeCount: Int?
+    public var latestRelease: Date?
     public var id: URL { feedURL }
 }
 
@@ -548,13 +741,17 @@ public enum PodcastDirectory {
             let feedUrl: String?
             let artworkUrl100: String?
             let primaryGenreName: String?
+            let trackCount: Int?
+            let releaseDate: String?
 
             var counterpart: PodcastCounterpart? {
                 guard let feed = feedUrl.flatMap(URL.init(string:)) else { return nil }
                 return PodcastCounterpart(title: collectionName ?? feed.host() ?? String(localized: "Podcast"),
                                           author: artistName ?? "", feedURL: feed,
                                           artworkURL: artworkUrl100.flatMap(URL.init(string:)),
-                                          genre: primaryGenreName)
+                                          genre: primaryGenreName,
+                                          episodeCount: trackCount,
+                                          latestRelease: releaseDate.flatMap { try? Date($0, strategy: .iso8601) })
             }
         }
     }
