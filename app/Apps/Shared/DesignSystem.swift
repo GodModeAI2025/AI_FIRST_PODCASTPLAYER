@@ -99,6 +99,48 @@ public enum Design {
         public static let sheet: Material = .regular
         public static let card: Material = .thin
     }
+
+    // MARK: - Hinweise
+
+    /// Die zwei Arten von Hinweisen in der App. Mehr gibt es nicht.
+    ///
+    /// Früher stand fast alles in Orange: ein gescheiterter Download genauso
+    /// wie „keine Gegenposition gefunden“ oder ein Satz dazu, was ein
+    /// YouTube-Kanal nicht liefert. Man konnte nicht sehen, ob etwas kaputt
+    /// ist oder nur erklärt wird. Jetzt trägt nur eine echte Störung Farbe.
+    public enum Notice: Sendable {
+        /// Sagt, was passiert ist oder warum etwas fehlt. Kein Fehler, nichts
+        /// zu tun: graue Schrift, ein „i“ davor.
+        case info
+        /// Etwas ist schiefgegangen und braucht einen neuen Versuch oder eine
+        /// Entscheidung: rotes Warndreieck. Die Schrift bleibt in der
+        /// Grundfarbe, damit sie auch klein gut lesbar ist.
+        case failure
+
+        public var symbol: String {
+            switch self {
+            case .info: "info.circle"
+            case .failure: "exclamationmark.triangle.fill"
+            }
+        }
+
+        /// Die Farbe des Symbols. Für einen Zustand, der nur aus Symbol und
+        /// kurzem Wort besteht, auch die des Worts.
+        public var tint: Color {
+            switch self {
+            case .info: .secondary
+            case .failure: .red
+            }
+        }
+
+        /// Die Farbe des Texts neben dem Symbol.
+        public var textStyle: HierarchicalShapeStyle {
+            switch self {
+            case .info: .secondary
+            case .failure: .primary
+            }
+        }
+    }
 }
 
 // MARK: - Modifier
@@ -166,6 +208,159 @@ public struct PressableButtonStyle: ButtonStyle {
 
 public extension ButtonStyle where Self == PressableButtonStyle {
     static var pressable: PressableButtonStyle { PressableButtonStyle() }
+}
+
+// MARK: - Hinweis
+
+/// Ein Hinweis in einer der zwei Arten aus ``Design/Notice``.
+///
+/// Symbol **und** Text, nie Farbe allein. Die Schriftgröße bestimmt der
+/// Aufrufer mit `.font(_:)`.
+///
+/// Mit `explanation` wird der Hinweis zu einem Knopf: Das „i“ wird farbig,
+/// und ein Tipp zeigt die Erklärung darunter. Oben steht in einem Satz, was
+/// passiert ist, das Warum nur für den, der es wissen will.
+public struct NoticeLabel: View {
+
+    private let title: Text
+    private let kind: Design.Notice
+    private let explanation: Text?
+    @State private var showsExplanation = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    public init(_ title: Text, kind: Design.Notice = .info, explanation: Text? = nil) {
+        self.title = title
+        self.kind = kind
+        self.explanation = explanation
+    }
+
+    public init(_ title: LocalizedStringKey, kind: Design.Notice = .info) {
+        self.init(Text(title), kind: kind)
+    }
+
+    /// Für Texte, die schon übersetzt als `String` ankommen, etwa Gründe
+    /// aus dem Modell oder aus dem Netz. Sie stehen wörtlich da.
+    @_disfavoredOverload
+    public init<S: StringProtocol>(_ title: S, kind: Design.Notice = .info, explanation: String? = nil) {
+        self.init(Text(title), kind: kind, explanation: explanation.map { Text($0) })
+    }
+
+    public var body: some View {
+        if let explanation {
+            Button {
+                withAnimation(Design.Motion.respectingReduceMotion(Design.Motion.smooth, reduceMotion: reduceMotion)) {
+                    showsExplanation.toggle()
+                }
+            } label: {
+                label(explanation: showsExplanation ? explanation : nil)
+                    .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget, alignment: .leading)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(showsExplanation
+                ? Text("Blendet die Erklärung aus")
+                : Text("Zeigt die Erklärung"))
+        } else {
+            label(explanation: nil)
+        }
+    }
+
+    private func label(explanation: Text?) -> some View {
+        Label {
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                title
+                    .foregroundStyle(kind.textStyle)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let explanation {
+                    explanation
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .transition(.opacity)
+                }
+            }
+        } icon: {
+            // Mit Erklärung ist das „i“ der Knopf und trägt die Farbe der App.
+            Image(systemName: self.explanation != nil && kind == .info
+                  ? (showsExplanation ? "info.circle.fill" : "info.circle")
+                  : kind.symbol)
+                .foregroundStyle(self.explanation != nil && kind == .info
+                                 ? AnyShapeStyle(.tint) : AnyShapeStyle(kind.tint))
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+// MARK: - Umbrechende Reihe
+
+/// Legt Elemente nebeneinander wie Wörter in einem Absatz. Was nicht mehr
+/// in die Zeile passt, beginnt die nächste.
+///
+/// Für Schlagworte und andere Chips. Seitlich gescrollt sah man nur die
+/// ersten drei, und dass es weitergeht, war nicht zu erkennen. Ein Chip,
+/// der allein breiter ist als die Zeile, bekommt eine eigene Zeile und
+/// bricht seinen Text um, etwa bei sehr großer Schrift.
+public struct FlowLayout: Layout {
+
+    /// Abstand zwischen zwei Elementen einer Zeile.
+    public var spacing: CGFloat
+    /// Abstand zwischen zwei Zeilen.
+    public var lineSpacing: CGFloat
+
+    public init(spacing: CGFloat = Design.Spacing.small, lineSpacing: CGFloat = Design.Spacing.small) {
+        self.spacing = spacing
+        self.lineSpacing = lineSpacing
+    }
+
+    public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = rows(of: subviews, width: proposal.width ?? .infinity)
+        guard !rows.isEmpty else { return .zero }
+        let height = rows.reduce(0) { $0 + $1.height } + lineSpacing * CGFloat(rows.count - 1)
+        return CGSize(width: rows.map(\.width).max() ?? 0, height: height)
+    }
+
+    public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in rows(of: subviews, width: bounds.width) {
+            var x = bounds.minX
+            for item in row.items {
+                // In der Zeile mittig, falls Elemente verschieden hoch sind.
+                subviews[item.index].place(
+                    at: CGPoint(x: x, y: y + (row.height - item.size.height) / 2),
+                    anchor: .topLeading, proposal: ProposedViewSize(item.size))
+                x += item.size.width + spacing
+            }
+            y += row.height + lineSpacing
+        }
+    }
+
+    private struct Row {
+        var items: [(index: Int, size: CGSize)] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    /// Teilt die Elemente in Zeilen. Jedes Element bekommt höchstens die
+    /// ganze Breite angeboten, so bricht ein zu langer Text in sich um.
+    private func rows(of subviews: Subviews, width: CGFloat) -> [Row] {
+        let offer = ProposedViewSize(width: width.isFinite ? width : nil, height: nil)
+        var rows: [Row] = []
+        var current = Row()
+        for index in subviews.indices {
+            var size = subviews[index].sizeThatFits(offer)
+            size.width = min(size.width, width)
+            let needed = current.items.isEmpty ? size.width : current.width + spacing + size.width
+            if !current.items.isEmpty, needed > width {
+                rows.append(current)
+                current = Row()
+            }
+            current.width = current.items.isEmpty ? size.width : current.width + spacing + size.width
+            current.height = max(current.height, size.height)
+            current.items.append((index, size))
+        }
+        if !current.items.isEmpty { rows.append(current) }
+        return rows
+    }
 }
 
 /// Ein Zeitcode in der Oberfläche.

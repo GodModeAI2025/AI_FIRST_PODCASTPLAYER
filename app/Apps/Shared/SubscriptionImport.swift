@@ -374,7 +374,8 @@ struct OPMLImportSheet: View {
         case .added(let count):
             Text("Abonniert · ^[\(count) Folge](inflect: true)").foregroundStyle(.green)
         case .failed(let reason):
-            Text(reason).foregroundStyle(.orange)
+            // Das rote Symbol daneben sagt, dass es gescheitert ist. Der Grund bleibt lesbar.
+            Text(reason).foregroundStyle(.secondary)
         case .skipped:
             Text("Nicht abonniert").foregroundStyle(.secondary)
         case nil:
@@ -396,8 +397,8 @@ struct OPMLImportSheet: View {
                 .foregroundStyle(.green)
                 .accessibilityLabel("Abonniert")
         case .failed:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            Image(systemName: Design.Notice.failure.symbol)
+                .foregroundStyle(Design.Notice.failure.tint)
                 .accessibilityLabel("Nicht abonniert")
         case .waiting, .skipped, nil:
             EmptyView()

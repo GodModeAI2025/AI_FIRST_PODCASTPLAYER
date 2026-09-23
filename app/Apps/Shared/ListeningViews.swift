@@ -215,11 +215,12 @@ struct EpisodeDetailView: View {
                     } icon: {
                         // Das Symbol wiederholt nur den Text. VoiceOver las
                         // beim Häkchen „Ausgewählt“.
+                        // Nur eine Störung trägt Farbe, und nur das Symbol.
                         Image(systemName: stage.symbol)
                             .symbolEffect(.pulse, isActive: stage.isRunning)
+                            .foregroundStyle(stage == .failed ? Design.Notice.failure.tint : Color.primary)
                             .accessibilityHidden(true)
                     }
-                    .foregroundStyle(stage == .failed ? .orange : .primary)
                     if stage == .evidenceExtracted {
                         // „Transkript fertig“ allein führte nirgendwohin.
                         Button { section = .transcript } label: {
@@ -309,8 +310,11 @@ struct EpisodeDetailView: View {
         // eines davon ändert, etwa nach dem Anlegen eines Interesses.
         .task(id: TopicTagInput(facts: facts.map(\.id), passages: passages.count,
                                 interests: model.profile.confirmed.map(\.id))) {
-            topicTags = TopicTagger().tags(statements: facts.map(\.statement), passages: passages,
-                                           profile: model.profile)
+            // Höchstens zehn, die eigenen Themen zuerst, danach die
+            // häufigsten anderen Hauptwörter der Folge.
+            topicTags = TopicTagger(maximumTags: TopicTagRow.maximumTags,
+                                    maximumInterests: TopicTagRow.maximumTags)
+                .tags(statements: facts.map(\.statement), passages: passages, profile: model.profile)
         }
     }
 
@@ -591,8 +595,7 @@ struct EpisodeDetailView: View {
                     } else if case .failure(let reason) = model.modelStatus.resolve(.extract) {
                         // Ohne Apple Intelligence gibt es keine Fakten. Das steht hier,
                         // statt dass ein Knopf ohne Wirkung angeboten wird.
-                        Label(reason.message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.secondary)
+                        NoticeLabel(reason.message, kind: .info)
                     } else {
                         // Nicht eingereiht: ausgeschaltet, gescheitert oder ohne Ergebnis.
                         if let issue = model.factsIssues[episode.id] {
@@ -1006,33 +1009,41 @@ struct FactWording: View {
 
 /// Die Themen einer Folge als Schlagworte. Ein Tipp auf ein neues Thema
 /// legt es als Interesse an; bekannte Interessen tragen ein Häkchen.
+///
+/// Umbrechend statt seitlich gescrollt: Alle Schlagworte sind auf einen
+/// Blick da. Deshalb sind es höchstens ``maximumTags``, die eigenen Themen
+/// zuerst.
 struct TopicTagRow: View {
     let tags: [TopicTag]
     let add: (TopicTag) -> Void
 
+    /// Mehr als zehn liest niemand, und die Liste darunter rückt zu weit weg.
+    static let maximumTags = 10
+
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Design.Spacing.small) {
-                ForEach(tags) { tag in
-                    Button {
-                        if !tag.isInterest { add(tag) }
-                    } label: {
-                        Label(tag.label, systemImage: tag.isInterest ? "checkmark" : "plus")
-                            .font(.caption.weight(.medium))
-                            .padding(.horizontal, Design.Spacing.control)
-                            .padding(.vertical, Design.Spacing.micro + 2)
-                            .background(Capsule().fill(tag.isInterest
-                                ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.12)))
-                            .frame(minHeight: Design.minimumTapTarget)
-                            .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(tag.isInterest ? Text("\(tag.label), schon ein Interesse")
-                                                       : Text("Thema \(tag.label)"))
-                    .accessibilityHint(tag.isInterest ? Text(verbatim: "") : Text("Legt das Thema als Interesse an"))
+        // Kein Zeilenabstand: Jeder Chip ist zum Antippen 44 Punkt hoch,
+        // die sichtbare Kapsel kleiner. Der Rest ist schon Luft genug.
+        FlowLayout(spacing: Design.Spacing.small, lineSpacing: Design.Spacing.none) {
+            ForEach(tags.prefix(Self.maximumTags)) { tag in
+                Button {
+                    if !tag.isInterest { add(tag) }
+                } label: {
+                    Label(tag.label, systemImage: tag.isInterest ? "checkmark" : "plus")
+                        .font(.caption.weight(.medium))
+                        .padding(.horizontal, Design.Spacing.control)
+                        .padding(.vertical, Design.Spacing.micro + 2)
+                        .background(Capsule().fill(tag.isInterest
+                            ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.12)))
+                        .frame(minHeight: Design.minimumTapTarget)
+                        .contentShape(.rect)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tag.isInterest ? Text("\(tag.label), schon ein Interesse")
+                                                   : Text("Thema \(tag.label)"))
+                .accessibilityHint(tag.isInterest ? Text(verbatim: "") : Text("Legt das Thema als Interesse an"))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Themen der Folge")
     }
@@ -1418,9 +1429,8 @@ struct EpisodePlayerView: View {
                             }
                         }
                         if let error = player.playbackError {
-                            Label(error, systemImage: "exclamationmark.triangle")
+                            NoticeLabel(error, kind: .failure)
                                 .font(.callout)
-                                .foregroundStyle(.orange)
                                 .multilineTextAlignment(.leading)
                                 .accessibilityIdentifier("player.error")
                         } else if player.isBuffering {
