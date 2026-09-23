@@ -194,7 +194,8 @@ struct CatalogDecodingTests {
         let first = podcasts[0]
         #expect(first.genreIDs == [1545, 1324, 1502])
         #expect(first.categories == [.sports, .society, .leisure])
-        #expect(first.newestEpisodeDate == Date(timeIntervalSince1970: 1_790_196_680))
+        // Podcast Index schreibt dort die Zeit der Anfrage hin, kein Datum einer Folge.
+        #expect(first.newestEpisodeDate == nil)
         #expect(first.isExplicit)
         #expect(first.itunesID == 1_594_623_221)
         // Die Kennung zeigt nicht auf Apple Podcasts und gilt nicht als Apple-Kennung.
@@ -318,8 +319,61 @@ struct CatalogChartTests {
         let before = await recorder.calls.count
         let government = try await catalog.page(of: .genre(.politics), offset: 0, count: 25)
         #expect(government.podcasts.isEmpty && government.total == 0 && government.nextOffset == nil)
-        // Nur die Charts, kein leerer Abruf der Einzelheiten.
-        #expect(await recorder.calls.count == before + 1)
+        // Leer im Land, also noch einmal in den USA. Kein leerer Abruf der Einzelheiten.
+        #expect(await recorder.urls.dropFirst(before).map(\.absoluteString) == [
+            "https://itunes.apple.com/de/rss/toppodcasts/limit=200/genre=1511/json",
+            "https://itunes.apple.com/us/rss/toppodcasts/limit=200/genre=1511/json",
+        ])
+    }
+
+    @Test("Rubrik ohne Einträge im Land: Charts aus den USA, nur kurz gehalten")
+    func emptyGenreChartFallsBack() async throws {
+        let recorder = Recorder()
+        let clock = TestClock()
+        let catalog = client(country: "li", { url, headers in
+            await recorder.record(url, headers)
+            if url.path().hasPrefix("/li/") {
+                return CatalogHTTPResponse(status: 200, body: json(#"{"feed": {"author": {}}}"#))
+            }
+            return try await CatalogFixtures.transport(url, headers)
+        }, clock: clock)
+        let news = try await catalog.page(of: .genre(.news), offset: 0, count: 25)
+        #expect(news.country == "us")
+        #expect(!news.podcasts.isEmpty)
+        let charts = { await recorder.urls.filter { $0.path().contains("/rss/") }.count }
+        #expect(await charts() == 2)
+
+        _ = try await catalog.page(of: .genre(.news), offset: 0, count: 25)
+        #expect(await charts() == 2)
+        // Charts aus den USA statt aus dem eigenen Land gelten nur eine Minute.
+        clock.advance(by: 2 * 60)
+        _ = try await catalog.page(of: .genre(.news), offset: 0, count: 25)
+        #expect(await charts() == 4)
+    }
+
+    @Test("Zwei Plätze mit demselben Feed: nur der höhere bleibt")
+    func sameFeedOnOnePage() async throws {
+        let chart: [String: Any] = ["feed": ["results": (1...3).map { index in
+            ["id": String(7_000 + index), "name": "Platz \(index)", "artistName": "Beispiel"]
+        }]]
+        let chartBody = try JSONSerialization.data(withJSONObject: chart)
+        let catalog = client { url, _ in
+            if url.path() == "/lookup" {
+                let ids = (query(url, "id") ?? "").split(separator: ",").compactMap { Int($0) }
+                let results = ids.map { id in
+                    // 7001 und 7003 zeigen auf denselben Feed, einmal mit www.
+                    let feed = id == 7_002 ? "https://example.com/b.xml"
+                        : id == 7_001 ? "https://example.com/a.xml" : "https://www.example.com/a.xml"
+                    return ["kind": "podcast", "collectionId": id, "collectionName": "Platz \(id - 7_000)",
+                            "feedUrl": feed] as [String: Any]
+                }
+                return CatalogHTTPResponse(status: 200, body: try JSONSerialization.data(withJSONObject: ["results": results]))
+            }
+            return CatalogHTTPResponse(status: 200, body: chartBody)
+        }
+        let page = try await catalog.page(of: .top, offset: 0, count: 3)
+        #expect(page.podcasts.map(\.title) == ["Platz 1", "Platz 2"])
+        #expect(Set(page.podcasts.map(\.id)).count == page.podcasts.count)
     }
 
     @Test("Eine Viertelstunde aus dem Zwischenspeicher, danach neu")
@@ -370,6 +424,22 @@ struct CatalogChartTests {
         #expect(found.contains { $0.title == "Kaffeeklatsch" })
         let searches = await recorder.urls.filter { $0.path() == "/search" && $0.host() == "itunes.apple.com" }
         #expect(searches.map { query($0, "country") } == ["kp", "us"])
+    }
+
+    @Test("Eine 500 bei der Suche heißt nicht, dass Apple das Land nicht führt")
+    func searchServerErrorStaysInCountry() async throws {
+        let recorder = Recorder()
+        let catalog = client { url, headers in
+            await recorder.record(url, headers)
+            if url.host() == "itunes.apple.com", url.path() == "/search" {
+                return CatalogHTTPResponse(status: 500, body: Data())
+            }
+            return try await CatalogFixtures.transport(url, headers)
+        }
+        let found = try await catalog.search("kaffee")
+        #expect(!found.isEmpty && found.allSatisfy { $0.origin == .podcastIndex })
+        let searches = await recorder.urls.filter { $0.path() == "/search" && $0.host() == "itunes.apple.com" }
+        #expect(searches.map { query($0, "country") } == ["de"])
     }
 
     @Test("Fehler des Katalogs kommen als eigene Fehler")
@@ -594,6 +664,21 @@ struct CatalogMergeTests {
         #expect(merged[3].origin == .podcastIndex)
         // Die andere Adresse zählt beim Abo-Abgleich mit.
         #expect(merged[0].knownFeedURLs.contains(URL(string: "https://feeds.example.org/a")!))
+        #expect(merged[0].feedURL.absoluteString == "https://example.com/a.xml")
+    }
+
+    @Test("Nennt Podcast Index den Podcast zuerst, zählen trotzdem Apples Angaben")
+    func appleWinsWhenIndexComesFirst() {
+        var fromIndex = podcast("A (Index)", "http://www.example.com/a.xml", origin: .podcastIndex, genres: ["News"])
+        fromIndex.genre = "News"
+        var fromApple = podcast("A", "https://example.com/a.xml", itunes: 1, genres: ["Nachrichten"])
+        fromApple.genre = "Nachrichten"
+        fromApple.newestEpisodeDate = Date(timeIntervalSince1970: 1_790_000_000)
+        let merged = CatalogMerge.merged([fromIndex], [fromApple])
+        #expect(merged.count == 1)
+        #expect(merged[0].origin == .appleDirectory)
+        #expect(merged[0].genres == ["Nachrichten"] && merged[0].genre == "Nachrichten")
+        #expect(merged[0].newestEpisodeDate == Date(timeIntervalSince1970: 1_790_000_000))
         #expect(merged[0].feedURL.absoluteString == "https://example.com/a.xml")
     }
 

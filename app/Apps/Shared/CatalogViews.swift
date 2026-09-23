@@ -217,7 +217,7 @@ struct CatalogPodcastRow: View {
     @ScaledMetric(relativeTo: .body) private var artworkSize: CGFloat = 56
 
     private var byline: String {
-        [podcast.author, podcast.genre].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
+        [podcast.author, podcast.categories.first?.title ?? podcast.genre].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
     }
 
     var body: some View {
@@ -566,9 +566,11 @@ struct CatalogPodcastDetailView: View {
     private var summary: String? { feed.flatMap { ShownotesText.plain($0.summary) } ?? podcast.summary }
 
     private var tags: [String] {
-        if !podcast.genres.isEmpty { return podcast.genres }
+        // In der Sprache der App wie die Kacheln der Kategorien. Apples
+        // Namen folgen dem Land und bleiben für Rubriken ohne Kachel.
         let categories = podcast.categories.map(\.title)
         if !categories.isEmpty { return categories }
+        if !podcast.genres.isEmpty { return podcast.genres }
         return [podcast.genre].compactMap { $0?.isEmpty == false ? $0 : nil }
     }
 

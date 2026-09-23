@@ -150,6 +150,10 @@ public struct CatalogPage: Sendable {
 public actor PodcastCatalogClient {
 
     public static let cacheLifetime: TimeInterval = 15 * 60
+    /// Charts aus den USA statt aus dem Land des Geräts hält der Client nur
+    /// kurz. War der Grund ein vorübergehender Fehler, kommen bald wieder
+    /// die richtigen.
+    public static let fallbackCacheLifetime: TimeInterval = 60
     /// So viele Kennungen nimmt `lookup` auf einmal.
     public static let lookupBatchSize = 100
     /// Treffer je Suchdienst.
@@ -160,6 +164,8 @@ public actor PodcastCatalogClient {
     /// So antwortet Apple, wenn es ein Land nicht führt: 400 bei Suche und
     /// Einzelheiten, 500 bei den Charts eines Landes.
     static let storefrontMissingStatuses: Set<Int> = [400, 404, 500]
+    /// Bei der Suche heißt 500 nur, dass Apple gerade klemmt.
+    static let searchStorefrontMissingStatuses: Set<Int> = [400, 404]
 
     public nonisolated let country: String
     private let userAgent: String
@@ -206,17 +212,31 @@ public actor PodcastCatalogClient {
         let end = min(start + max(count, 0), entries.count)
         let slice = entries[start..<end]
         let found = try await lookup(slice.map(\.itunesID), country: country)
-        let podcasts = slice.compactMap { entry in found[entry.itunesID].map { Self.combined($0, with: entry) } }
+        // Zwei Plätze können auf denselben Feed zeigen. Die Seite zählt
+        // Podcasts, der höhere Platz bleibt.
+        var feeds = Set<String>()
+        let podcasts = slice
+            .compactMap { entry in found[entry.itunesID].map { Self.combined($0, with: entry) } }
+            .filter { feeds.insert(CatalogMerge.feedKey($0.feedURL)).inserted }
         return CatalogPage(podcasts: podcasts, nextOffset: end < entries.count ? end : nil,
                            total: entries.count, country: country)
     }
 
     func chartEntries(_ chart: CatalogChart) async throws -> (country: String, entries: [CatalogChartEntry]) {
-        if let cached = charts[chart], clock().timeIntervalSince(cached.at) < Self.cacheLifetime {
-            return (cached.country, cached.entries)
+        if let cached = charts[chart] {
+            let lifetime = cached.country == self.country ? Self.cacheLifetime : Self.fallbackCacheLifetime
+            if clock().timeIntervalSince(cached.at) < lifetime { return (cached.country, cached.entries) }
         }
-        let (country, body) = try await fetchInStorefront { Self.chartURL(chart, country: $0) }
-        let entries = try Self.decodeChart(chart, body)
+        var (country, body) = try await fetchInStorefront { Self.chartURL(chart, country: $0) }
+        var entries = try Self.decodeChart(chart, body)
+        // Manche Länder haben Charts, aber keine der Rubriken: Apple
+        // antwortet dann mit 200 und ohne Einträge.
+        if entries.isEmpty, country != CatalogStorefront.fallback,
+           let url = Self.chartURL(chart, country: CatalogStorefront.fallback) {
+            country = CatalogStorefront.fallback
+            body = try await fetch(url)
+            entries = try Self.decodeChart(chart, body)
+        }
         charts[chart] = (clock(), country, entries)
         return (country, entries)
     }
@@ -293,7 +313,9 @@ public actor PodcastCatalogClient {
     }
 
     func searchApple(_ term: String) async throws -> [CatalogPodcast] {
-        let (_, body) = try await fetchInStorefront { Self.appleSearchURL(term, country: $0) }
+        let (_, body) = try await fetchInStorefront(missing: Self.searchStorefrontMissingStatuses) {
+            Self.appleSearchURL(term, country: $0)
+        }
         // Derselbe Feed kann zweimal im Verzeichnis stehen.
         return CatalogMerge.merged(try Self.decodeResults(body, origin: .appleDirectory), [])
     }
@@ -355,12 +377,13 @@ public actor PodcastCatalogClient {
     // MARK: Übertragung und Fehler
 
     /// Erst im Land des Geräts. Führt Apple es nicht, noch einmal in den USA.
-    private func fetchInStorefront(_ url: (String) -> URL?) async throws -> (country: String, body: Data) {
+    private func fetchInStorefront(missing: Set<Int> = storefrontMissingStatuses,
+                                   _ url: (String) -> URL?) async throws -> (country: String, body: Data) {
         guard let first = url(country) else { throw CatalogError.unreadableAnswer }
         do {
             return (country, try await fetch(first))
         } catch CatalogError.serverStatus(let status)
-                    where Self.storefrontMissingStatuses.contains(status) && country != CatalogStorefront.fallback {
+                    where missing.contains(status) && country != CatalogStorefront.fallback {
             guard let second = url(CatalogStorefront.fallback) else { throw CatalogError.serverStatus(status) }
             return (CatalogStorefront.fallback, try await fetch(second))
         }
@@ -453,7 +476,10 @@ public actor PodcastCatalogClient {
             genres: genres, genreIDs: genreIDs,
             isExplicit: result.collectionExplicitness == "explicit" || result.contentAdvisoryRating == "Explicit",
             episodeCount: result.trackCount.flatMap { $0 > 0 ? $0 : nil },
-            newestEpisodeDate: result.releaseDate.flatMap { try? Date($0, strategy: .iso8601) })
+            // Podcast Index schreibt bei der Suche die Zeit der Anfrage in
+            // `releaseDate`, nicht die der neuesten Folge.
+            newestEpisodeDate: origin == .podcastIndex
+                ? nil : result.releaseDate.flatMap { try? Date($0, strategy: .iso8601) })
     }
 
     private static func pointsToApple(_ link: String?) -> Bool {

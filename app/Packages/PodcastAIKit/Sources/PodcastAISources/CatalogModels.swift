@@ -198,7 +198,12 @@ public enum CatalogMerge {
                 let candidate = list[position]
                 let keys = keys(for: candidate)
                 if let existing = keys.lazy.compactMap({ positions[$0] }).first {
-                    result[existing] = filled(result[existing], from: candidate)
+                    // Apples Eintrag trägt Datum und Rubriken in der Sprache
+                    // des Landes. Er ist die Grundlage, egal welche Liste
+                    // den Podcast zuerst nannte.
+                    let present = result[existing]
+                    result[existing] = present.origin == .podcastIndex && candidate.origin == .appleDirectory
+                        ? filled(candidate, from: present) : filled(present, from: candidate)
                     for key in self.keys(for: result[existing]) { positions[key] = existing }
                 } else {
                     result.append(candidate)
