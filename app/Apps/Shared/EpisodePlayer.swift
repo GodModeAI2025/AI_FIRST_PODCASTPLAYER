@@ -340,6 +340,20 @@ public final class EpisodePlayer {
 
     public func togglePlayPause() { isPlaying ? pause() : resume() }
 
+    /// Abspielen oder Pause für das, was gerade den Ton besitzt: den
+    /// Fokus-Plan, solange einer besteht, sonst die Folge. Kopfhörer,
+    /// Sperrbildschirm und das Menü auf dem Mac gehen alle hier durch und
+    /// entscheiden deshalb gleich.
+    public func toggleActivePlayback() {
+        if let focus = activeFocus {
+            // `isPlaying` folgt dem Koordinator, der auch Pausen des Systems
+            // mitbekommt. Ein Abschnitt in Vorbereitung zählt als laufend.
+            if focus.info.isPlaying { focus.remote.pause() } else { focus.remote.resume() }
+        } else {
+            togglePlayPause()
+        }
+    }
+
     // MARK: - Schlaf-Timer
 
     public func setSleepTimer(_ timer: SleepTimer?) {
@@ -359,6 +373,20 @@ public final class EpisodePlayer {
             sleepChapterAnchor = currentTime
         case .endOfEpisode, nil:
             break
+        }
+    }
+
+    /// Setzt einen Timer mit seiner Restzeit wieder ein, etwa nachdem die
+    /// Folge neu geladen wurde. `stop()` räumt den Timer sonst ab, und wer
+    /// eingeschlafen ist, hört die ganze Nacht weiter.
+    public func restoreSleepTimer(_ timer: SleepTimer?, remaining: TimeInterval?) {
+        setSleepTimer(timer)
+        guard case .minutes = timer, let remaining else { return }
+        if isPlaying {
+            sleepDeadline = Date().addingTimeInterval(remaining)
+        } else {
+            // Die Folge lädt noch. `resume()` macht daraus die Frist.
+            sleepPausedRemaining = remaining
         }
     }
 
@@ -567,14 +595,6 @@ public final class EpisodePlayer {
         if let focus = activeFocus { focus.remote.pause() } else { pause() }
     }
 
-    private func remoteToggle() {
-        if let focus = activeFocus {
-            if focus.info.isPlaying { focus.remote.pause() } else { focus.remote.resume() }
-        } else {
-            togglePlayPause()
-        }
-    }
-
     /// Springen gilt nur für die Folge. Ein Fokus-Plan hat feste Stellen.
     private func remoteSeek(to seconds: Double) -> Bool {
         guard activeFocus == nil, episode != nil else { return false }
@@ -601,7 +621,7 @@ public final class EpisodePlayer {
             MainActor.assumeIsolated { self?.remotePause() }; return .success
         }
         center.togglePlayPauseCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.remoteToggle() }; return .success
+            MainActor.assumeIsolated { self?.toggleActivePlayback() }; return .success
         }
         center.skipForwardCommand.preferredIntervals = [30]
         center.skipForwardCommand.addTarget { [weak self] _ in

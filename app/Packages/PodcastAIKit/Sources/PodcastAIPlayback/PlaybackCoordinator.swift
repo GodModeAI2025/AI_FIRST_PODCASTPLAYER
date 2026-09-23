@@ -80,6 +80,17 @@ public final class PlaybackCoordinator {
     /// beendeten Sitzung nichts mehr auslösen.
     private var sessionToken = 0
 
+    /// Der Sprung zum laufenden Abschnitt ist noch nicht bestätigt. Eine
+    /// Pause in dieser Zeit wird gemerkt und beim Bestätigen angewendet.
+    private var seekInFlight = false
+    /// Zählt die Sprünge innerhalb einer Sitzung. Die Bestätigung eines
+    /// abgelösten Sprungs, etwa nach schnellem Überspringen, zählt nicht.
+    private var seekGeneration = 0
+
+    /// Das System hält den Player an, ohne `pause()` zu rufen: Anruf, Siri,
+    /// gezogener Kopfhörer. Diese Beobachtung hält den Zustand ehrlich.
+    private var controlObservation: NSKeyValueObservation?
+
     /// Bereits eingelöste Freigaben. Eine Freigabe gilt genau einmal —
     /// ein zweiter Aufruf mit demselben Nonce startet nichts.
     private var consumedGrants: Set<String> = []
@@ -102,6 +113,11 @@ public final class PlaybackCoordinator {
         self.observers = PlayerObservers(player: player)
         self.locator = locator
         self.observer = observer
+        controlObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
+            // Der Zustand wird beim Eintreffen frisch gelesen. Ein verspäteter
+            // Wert könnte sonst einen gerade fortgesetzten Plan als pausiert führen.
+            Task { @MainActor in self?.controlStatusChanged() }
+        }
     }
 
     /// Nachträglich setzen, weil der Beobachter den Koordinator meist selbst
@@ -149,7 +165,15 @@ public final class PlaybackCoordinator {
         activePlan = plan
         segmentIndex = 0
         sessionToken += 1
-        try playSegment(at: 0, token: sessionToken)
+        do {
+            try playSegment(at: 0, token: sessionToken)
+        } catch {
+            // Ein Plan, der nie klang, gilt nicht als laufend. Sonst hält
+            // `currentOriginalPosition()` ihn weiter für die aktuelle Stelle.
+            activePlan = nil
+            queueSnapshot = nil
+            throw error
+        }
         return sessionToken
     }
 
@@ -183,16 +207,25 @@ public final class PlaybackCoordinator {
         installEndObserver(for: item, token: token)
         installTimeObserver(for: segment, token: token)
 
+        seekGeneration += 1
+        let generation = seekGeneration
+        seekInFlight = true
+
         // Exakt springen: ohne Nulltoleranz landet man „in der Nähe“, und
         // das ist bei einem Zitat der falsche Satz.
         item.seek(to: segment.range.start.cmTime,
                   toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
             Task { @MainActor in
-                guard let self, token == self.sessionToken else { return }
+                guard let self, token == self.sessionToken,
+                      generation == self.seekGeneration else { return }
+                self.seekInFlight = false
                 guard finished else {
-                    self.setState(.failed("Der Sprung zur Stelle ist fehlgeschlagen."))
+                    self.fail("Der Sprung zur Stelle ist fehlgeschlagen.")
                     return
                 }
+                // Während des Sprungs wurde pausiert: die Pause gilt. Ton
+                // startet erst, wenn jemand fortsetzt.
+                if case .paused = self.state { return }
                 // Erst nach bestätigtem Sprung abspielen. Sonst hört man die
                 // Sekunden davor.
                 self.player.play()
@@ -259,13 +292,25 @@ public final class PlaybackCoordinator {
 
     // MARK: - Steuerung
 
+    /// Hält an, auch während ein Abschnitt noch vorbereitet wird. Dann
+    /// bleibt der Plan nach dem Sprung stumm, statt die Pause zu übergehen.
     public func pause() {
         player.pause()
-        if case .playing(let index) = state { setState(.paused(segmentIndex: index)) }
+        switch state {
+        case .playing(let index), .preparing(let index):
+            setState(.paused(segmentIndex: index))
+        default:
+            break
+        }
     }
 
     public func resume() {
         guard case .paused(let index) = state else { return }
+        // Der Sprung läuft noch. Abgespielt wird, sobald er bestätigt ist.
+        if seekInFlight {
+            setState(.preparing(segmentIndex: index))
+            return
+        }
         player.play()
         setState(.playing(segmentIndex: index))
     }
@@ -298,8 +343,14 @@ public final class PlaybackCoordinator {
     /// Bricht ab und stellt die vorherige Warteschlange wieder her.
     public func stop() {
         let token = sessionToken
-        if case .playing = state { completeCurrentSegment(token: token, reachedEnd: false) }
+        switch state {
+        case .playing: completeCurrentSegment(token: token, reachedEnd: false)
+        // Auch nach einer Pause des Systems zählt, was davor lief.
+        case .paused: recordPausedSegment()
+        default: break
+        }
         sessionToken += 1                                   // alle Callbacks entwerten
+        seekInFlight = false
         teardownObservers()
         player.pause()
         player.removeAllItems()
@@ -320,12 +371,55 @@ public final class PlaybackCoordinator {
 
     private func finish(token: Int) {
         guard token == sessionToken else { return }
+        seekInFlight = false
         teardownObservers()
         player.pause()
         player.removeAllItems()
         activePlan = nil
         setState(.finished)
         restoreQueueSnapshot()
+    }
+
+    /// Beendet die Sitzung mit einem Fehler. Der Plan gilt danach nicht mehr
+    /// als laufend, sonst nennt `currentOriginalPosition()` eine tote Stelle.
+    private func fail(_ reason: String) {
+        sessionToken += 1                                   // alle Callbacks entwerten
+        seekInFlight = false
+        teardownObservers()
+        player.pause()
+        player.removeAllItems()
+        activePlan = nil
+        queueSnapshot = nil
+        setState(.failed(reason))
+    }
+
+    /// Was vom pausierten Abschnitt schon erklungen ist. Wie beim
+    /// Überspringen zählt nur der tatsächlich abgespielte Teil.
+    private func recordPausedSegment() {
+        guard !seekInFlight, let plan = activePlan, segmentIndex < plan.segments.count else { return }
+        let segment = plan.segments[segmentIndex]
+        let position = min(MediaTime(player.currentTime()), segment.range.end)
+        guard position > segment.range.start else { return }
+        observer?.segmentCompleted(
+            segmentIndex: segmentIndex,
+            heard: MediaTimeRange(start: segment.range.start, end: position),
+            mediaVersionID: segment.mediaVersionID
+        )
+    }
+
+    /// Das System hat den Player angehalten: Anruf, Siri, Kopfhörer gezogen.
+    /// Dann gilt der Plan als pausiert. Sonst zeigen Sperrbildschirm und
+    /// Knopf weiter „Pause“, und erst der zweite Druck setzt fort.
+    private func controlStatusChanged() {
+        guard case .playing(let index) = state, !seekInFlight,
+              player.timeControlStatus == .paused,
+              let plan = activePlan, index < plan.segments.count else { return }
+        // Am Ende eines Abschnitts hält der Player von selbst an
+        // (`actionAtItemEnd = .pause`). Den Wechsel übernimmt der
+        // Endbeobachter, das ist keine Pause.
+        let end = plan.segments[index].range.end
+        if MediaTime(player.currentTime()) >= end - MediaDuration(milliseconds: 500) { return }
+        setState(.paused(segmentIndex: index))
     }
 
     private func restoreQueueSnapshot() {
