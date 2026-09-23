@@ -1,16 +1,106 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
-    "Das ist keine gültige Adresse." : {},
-    "Der Feed ist leer." : {},
-    "Der Feed ist zu groß (%@)." : {},
-    "Der Feed konnte nicht gelesen werden: %@" : {},
-    "Die Datei ist zu groß für eine Abo-Liste." : {},
-    "Diese Datei ist keine OPML-Liste. Exportiere die Abos in deiner bisherigen App als OPML und wähle diese Datei." : {},
-    "Dieses Format wird nicht unterstützt." : {},
-    "In dieser Datei steht kein Podcast." : {},
-    "Links vom Typ „%@“ können nicht aufgenommen werden." : {},
-    "unbekannter Fehler" : {}
+    "Das ist keine gültige Adresse." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That isn't a valid address."
+          }
+        }
+      }
+    },
+    "Der Feed ist leer." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The feed is empty."
+          }
+        }
+      }
+    },
+    "Der Feed ist zu groß (%@)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The feed is too large (%@)."
+          }
+        }
+      }
+    },
+    "Der Feed konnte nicht gelesen werden: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The feed couldn't be read: %@"
+          }
+        }
+      }
+    },
+    "Die Datei ist zu groß für eine Abo-Liste." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file is too large for a subscription list."
+          }
+        }
+      }
+    },
+    "Diese Datei ist keine OPML-Liste. Exportiere die Abos in deiner bisherigen App als OPML und wähle diese Datei." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file isn't an OPML list. Export your subscriptions as OPML from your previous app, then choose that file."
+          }
+        }
+      }
+    },
+    "Dieses Format wird nicht unterstützt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This format isn't supported."
+          }
+        }
+      }
+    },
+    "In dieser Datei steht kein Podcast." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file doesn't contain any podcasts."
+          }
+        }
+      }
+    },
+    "Links vom Typ „%@“ können nicht aufgenommen werden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"%@\" links can't be added."
+          }
+        }
+      }
+    },
+    "unbekannter Fehler" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unknown error"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

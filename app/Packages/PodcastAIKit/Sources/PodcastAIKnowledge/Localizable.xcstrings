@@ -8,6 +8,12 @@
             "state" : "translated",
             "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, automatisch die %3$lld neuesten"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of ^[%2$lld episode](inflect: true) transcribed, newest %3$lld automatically"
+          }
         }
       }
     },
@@ -17,6 +23,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, automatisch die neueste"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of ^[%2$lld episode](inflect: true) transcribed, newest one automatically"
           }
         }
       }
@@ -28,6 +40,12 @@
             "state" : "translated",
             "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, automatisch gerade keine"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld of ^[%2$lld episode](inflect: true) transcribed, automatic transcripts paused"
+          }
         }
       }
     },
@@ -38,76 +56,11 @@
             "state" : "translated",
             "value" : "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, keine automatischen Transkripte"
           }
-        }
-      }
-    },
-    "Alle Folgen mit Transkript" : {},
-    "Alle Podcasts" : {},
-    "Alles" : {},
-    "Andere Voraussetzung" : {},
-    "Bei %lld Quellen im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben." : {},
-    "Bei einer Quelle im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben." : {},
-    "Dazu gibt es keine weitere Stelle mit Transkript." : {},
-    "Der gewählte Bereich ist %@. Diese Antwort deckt nur den Teil mit Transkript ab." : {},
-    "Diese Folge" : {},
-    "Dieses Themen-Update" : {},
-    "Ein Podcast" : {},
-    "Gegenposition" : {},
-    "Im gewählten Bereich gibt es keine Folge mit Transkript, auf die sich eine Antwort stützen könnte." : {},
-    "In deinen Folgen mit Transkript findet sich keine Gegenposition. Das heißt nicht, dass es keine gibt." : {},
-    "In deinen Folgen mit Transkript findet sich nur die Gegenseite. Das ist keine ausgewogene Prüfung." : {},
-    "Könnte deine Frage „%@“ berühren" : {},
-    "Letzte 30 Tage" : {},
-    "Letzte 7 Tage" : {},
-    "Parken" : {},
-    "Passt zu deinem Thema „%@“" : {},
-    "Passt zu deinem Vorhaben „%@“" : {},
-    "Schränkt ein" : {},
-    "Stützt die These" : {},
-    "Tippe die Folgen an, für die ein Transkript erstellt werden soll." : {},
-    "Unter den eingeordneten Stellen ist keine Gegenposition. Die übrigen sind nicht eingeordnet, darunter kann eine sein." : {},
-    "Unter den eingeordneten Stellen ist nur die Gegenseite. Die übrigen sind nicht eingeordnet, darunter kann auch Stützendes sein." : {},
-    "Vertiefen" : {},
-    "Verwerfen" : {},
-    "Wort kommt vor" : {},
-    "Zu dieser These passt nichts aus deinen Folgen mit Transkript." : {},
-    "Zum Thema, nicht eingeordnet" : {},
-    "^[%lld Folge](inflect: true) ausgewählt" : {
-      "localizations" : {
-        "de" : {
+        },
+        "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "^[%lld Folge](inflect: true) ausgewählt"
-          }
-        }
-      }
-    },
-    "^[%lld Folge](inflect: true) ausgewählt, zusammen %@ Ton" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%1$lld Folge](inflect: true) ausgewählt, zusammen %2$@ Ton"
-          }
-        }
-      }
-    },
-    "^[%lld Folge](inflect: true) ausgewählt, zusammen mindestens %@ Ton" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%1$lld Folge](inflect: true) ausgewählt, zusammen mindestens %2$@ Ton"
-          }
-        }
-      }
-    },
-    "^[%lld Folge](inflect: true), kein Transkript möglich" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld Folge](inflect: true), kein Transkript möglich"
+            "value" : "%1$lld of ^[%2$lld episode](inflect: true) transcribed, no automatic transcripts"
           }
         }
       }
@@ -119,6 +72,76 @@
             "state" : "translated",
             "value" : "^[%lld ausgewählte Folge](inflect: true)"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld selected episode](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true) ausgewählt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Folge](inflect: true) ausgewählt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld episode](inflect: true) selected"
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true) ausgewählt, zusammen %@ Ton" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld Folge](inflect: true) ausgewählt, zusammen %2$@ Ton"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld episode](inflect: true) selected, %2$@ of audio in total"
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true) ausgewählt, zusammen mindestens %@ Ton" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld Folge](inflect: true) ausgewählt, zusammen mindestens %2$@ Ton"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld episode](inflect: true) selected, at least %2$@ of audio in total"
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true), kein Transkript möglich" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Folge](inflect: true), kein Transkript möglich"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld episode](inflect: true), can't be transcribed"
+          }
         }
       }
     },
@@ -129,14 +152,361 @@
             "state" : "translated",
             "value" : "^[%1$lld weitere Stelle](inflect: true) dazu, höchstens ^[%2$lld Minute](inflect: true)."
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld more passage](inflect: true) on this, up to ^[%2$lld minute](inflect: true)."
+          }
         }
       }
     },
-    "aus dem Chat" : {},
-    "aus dem Player" : {},
-    "aus dem Transkript" : {},
-    "erwähnt: %@" : {},
-    "per Kurzbefehl" : {}
+    "Alle Folgen mit Transkript" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Transcribed Episodes"
+          }
+        }
+      }
+    },
+    "Alle Podcasts" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Podcasts"
+          }
+        }
+      }
+    },
+    "Alles" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Time"
+          }
+        }
+      }
+    },
+    "Andere Voraussetzung" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Different Premise"
+          }
+        }
+      }
+    },
+    "aus dem Chat" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "from Chat"
+          }
+        }
+      }
+    },
+    "aus dem Player" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "from the player"
+          }
+        }
+      }
+    },
+    "aus dem Transkript" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "from the transcript"
+          }
+        }
+      }
+    },
+    "Bei %lld Quellen im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sources in the selected scope still have episodes without transcripts. There may be more."
+          }
+        }
+      }
+    },
+    "Bei einer Quelle im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One source in the selected scope still has episodes without transcripts. There may be more."
+          }
+        }
+      }
+    },
+    "Dazu gibt es keine weitere Stelle mit Transkript." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are no more transcribed passages on this."
+          }
+        }
+      }
+    },
+    "Der gewählte Bereich ist %@. Diese Antwort deckt nur den Teil mit Transkript ab." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected scope: %@. This answer only covers the transcribed part."
+          }
+        }
+      }
+    },
+    "Diese Folge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Episode"
+          }
+        }
+      }
+    },
+    "Dieses Themen-Update" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Topic Update"
+          }
+        }
+      }
+    },
+    "Ein Podcast" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One Podcast"
+          }
+        }
+      }
+    },
+    "erwähnt: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mentions: %@"
+          }
+        }
+      }
+    },
+    "Gegenposition" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counterpoint"
+          }
+        }
+      }
+    },
+    "Im gewählten Bereich gibt es keine Folge mit Transkript, auf die sich eine Antwort stützen könnte." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The selected scope has no transcribed episodes to base an answer on."
+          }
+        }
+      }
+    },
+    "In deinen Folgen mit Transkript findet sich keine Gegenposition. Das heißt nicht, dass es keine gibt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your transcribed episodes contain no counterpoint. That doesn't mean there isn't one."
+          }
+        }
+      }
+    },
+    "In deinen Folgen mit Transkript findet sich nur die Gegenseite. Das ist keine ausgewogene Prüfung." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your transcribed episodes only contain the opposing side. This isn't a balanced check."
+          }
+        }
+      }
+    },
+    "Könnte deine Frage „%@“ berühren" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Might touch on your question \"%@\""
+          }
+        }
+      }
+    },
+    "Letzte 7 Tage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 7 Days"
+          }
+        }
+      }
+    },
+    "Letzte 30 Tage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 30 Days"
+          }
+        }
+      }
+    },
+    "Parken" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save for Later"
+          }
+        }
+      }
+    },
+    "Passt zu deinem Thema „%@“" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matches your topic \"%@\""
+          }
+        }
+      }
+    },
+    "Passt zu deinem Vorhaben „%@“" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matches your project \"%@\""
+          }
+        }
+      }
+    },
+    "per Kurzbefehl" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "via Shortcuts"
+          }
+        }
+      }
+    },
+    "Schränkt ein" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualifies the Claim"
+          }
+        }
+      }
+    },
+    "Stützt die These" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supports the Claim"
+          }
+        }
+      }
+    },
+    "Tippe die Folgen an, für die ein Transkript erstellt werden soll." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the episodes you want transcripts for."
+          }
+        }
+      }
+    },
+    "Unter den eingeordneten Stellen ist keine Gegenposition. Die übrigen sind nicht eingeordnet, darunter kann eine sein." : {
+
+    },
+    "Unter den eingeordneten Stellen ist nur die Gegenseite. Die übrigen sind nicht eingeordnet, darunter kann auch Stützendes sein." : {
+
+    },
+    "Vertiefen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go Deeper"
+          }
+        }
+      }
+    },
+    "Verwerfen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discard"
+          }
+        }
+      }
+    },
+    "Wort kommt vor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "word appears"
+          }
+        }
+      }
+    },
+    "Zu dieser These passt nichts aus deinen Folgen mit Transkript." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing in your transcribed episodes relates to this claim."
+          }
+        }
+      }
+    },
+    "Zum Thema, nicht eingeordnet" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On Topic, Not Classified"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

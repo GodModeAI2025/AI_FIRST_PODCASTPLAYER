@@ -1,27 +1,236 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
-    "Apple Intelligence ist in den Systemeinstellungen nicht aktiviert." : {},
-    "Auf diesem Gerät" : {},
-    "Das Kontingent für Private Cloud Compute ist aufgebraucht." : {},
-    "Das Modell hat keine Antwort geliefert. Auf diesem Gerät ist Apple Intelligence vielleicht noch nicht bereit." : {},
-    "Das Modell hat zu lange gebraucht. Noch einmal versuchen." : {},
-    "Das Modell ist gerade ausgelastet. Gleich noch einmal versuchen." : {},
-    "Das Modell kann diesen Text nicht bearbeiten: %@" : {},
-    "Das Modell wird noch vorbereitet." : {},
-    "Das Modell wollte dazu nicht antworten." : {},
-    "Der Text ist für das Modell zu lang." : {},
-    "Die Anfrage an das Modell ist fehlgeschlagen: %@" : {},
-    "Die Antwort des Modells war unlesbar. Noch einmal versuchen." : {},
-    "Die Dateien des Modells werden noch geladen. Später noch einmal versuchen." : {},
-    "Die Schutzregeln des Modells haben diesen Inhalt abgelehnt." : {},
-    "Diese App hat keine Berechtigung für Private Cloud Compute." : {},
-    "Diese Art Anfrage unterstützt das Modell nicht." : {},
-    "Diese Sprache versteht das Modell nicht." : {},
-    "Dieses Gerät unterstützt Apple Intelligence nicht." : {},
-    "Nicht verfügbar: %@" : {},
-    "Private Cloud Compute braucht eine Internetverbindung." : {},
-    "Private Cloud Compute ist noch nicht freigegeben." : {},
+    "Apple Intelligence ist in den Systemeinstellungen nicht aktiviert." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence isn't turned on in Settings."
+          }
+        }
+      }
+    },
+    "Auf diesem Gerät" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On This Device"
+          }
+        }
+      }
+    },
+    "braucht iOS 27 oder macOS 27" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "requires iOS 27 or macOS 27"
+          }
+        }
+      }
+    },
+    "Das Kontingent für Private Cloud Compute ist aufgebraucht." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You've used up your Private Cloud Compute quota."
+          }
+        }
+      }
+    },
+    "Das Modell hat keine Antwort geliefert. Auf diesem Gerät ist Apple Intelligence vielleicht noch nicht bereit." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model didn't return a response. Apple Intelligence may not be ready on this device yet."
+          }
+        }
+      }
+    },
+    "Das Modell hat zu lange gebraucht. Noch einmal versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model took too long. Try again."
+          }
+        }
+      }
+    },
+    "Das Modell ist gerade ausgelastet. Gleich noch einmal versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model is busy right now. Try again in a moment."
+          }
+        }
+      }
+    },
+    "Das Modell kann diesen Text nicht bearbeiten: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model can't process this text: %@"
+          }
+        }
+      }
+    },
+    "Das Modell wird noch vorbereitet." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model is still getting ready."
+          }
+        }
+      }
+    },
+    "Das Modell wollte dazu nicht antworten." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model declined to answer this."
+          }
+        }
+      }
+    },
+    "Der Text ist für das Modell zu lang." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The text is too long for the model."
+          }
+        }
+      }
+    },
+    "Die Anfrage an das Modell ist fehlgeschlagen: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request to the model failed: %@"
+          }
+        }
+      }
+    },
+    "Die Antwort des Modells war unlesbar. Noch einmal versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model's response couldn't be read. Try again."
+          }
+        }
+      }
+    },
+    "Die Dateien des Modells werden noch geladen. Später noch einmal versuchen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model files are still downloading. Try again later."
+          }
+        }
+      }
+    },
+    "Die Schutzregeln des Modells haben diesen Inhalt abgelehnt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model's safety rules rejected this content."
+          }
+        }
+      }
+    },
+    "Diese App hat keine Berechtigung für Private Cloud Compute." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This app doesn't have permission to use Private Cloud Compute."
+          }
+        }
+      }
+    },
+    "Diese Art Anfrage unterstützt das Modell nicht." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model doesn't support this kind of request."
+          }
+        }
+      }
+    },
+    "Diese Sprache versteht das Modell nicht." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model doesn't understand this language."
+          }
+        }
+      }
+    },
+    "Dieses Gerät unterstützt Apple Intelligence nicht." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device doesn't support Apple Intelligence."
+          }
+        }
+      }
+    },
+    "keine Stufe verfügbar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no model available"
+          }
+        }
+      }
+    },
+    "Nicht verfügbar: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable: %@"
+          }
+        }
+      }
+    },
+    "Private Cloud Compute braucht eine Internetverbindung." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Private Cloud Compute needs an internet connection."
+          }
+        }
+      }
+    },
+    "Private Cloud Compute ist noch nicht freigegeben." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You haven't allowed Private Cloud Compute yet."
+          }
+        }
+      }
+    },
     "Private Cloud Compute: %@ Auf dem Gerät: %@" : {
       "localizations" : {
         "de" : {
@@ -29,12 +238,25 @@
             "state" : "new",
             "value" : "Private Cloud Compute: %1$@ Auf dem Gerät: %2$@"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Private Cloud Compute: %1$@ On device: %2$@"
+          }
         }
       }
     },
-    "braucht iOS 27 oder macOS 27" : {},
-    "keine Stufe verfügbar" : {},
-    "unbekannter Grund" : {}
+    "unbekannter Grund" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unknown reason"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

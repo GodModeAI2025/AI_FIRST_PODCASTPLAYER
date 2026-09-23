@@ -1,22 +1,176 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
-    "Aussagen aus der Folge, gesagt, nicht geprüft." : {},
-    "Belege" : {},
-    "Bereich:" : {},
-    "Erkenntnis" : {},
-    "Erschienen:" : {},
-    "Exportiert aus PodcastAI am %@." : {},
-    "Exportiert aus PodcastAI. Originalton und Originalrechte liegen bei den jeweiligen Anbietern." : {},
-    "Fakten" : {},
-    "Formuliert von:" : {},
-    "Kapitel" : {},
-    "Link:" : {},
-    "Länge:" : {},
-    "Meine Notiz" : {},
-    "Offene Frage" : {},
-    "Quelle:" : {},
-    "Quellen" : {},
+    "Aussagen aus der Folge, gesagt, nicht geprüft." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statements from the episode, as said, not fact-checked."
+          }
+        }
+      }
+    },
+    "Belege" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source Passages"
+          }
+        }
+      }
+    },
+    "Bereich:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scope:"
+          }
+        }
+      }
+    },
+    "Erkenntnis" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insight"
+          }
+        }
+      }
+    },
+    "Erschienen:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Published:"
+          }
+        }
+      }
+    },
+    "Exportiert aus PodcastAI am %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported from PodcastAI on %@."
+          }
+        }
+      }
+    },
+    "Exportiert aus PodcastAI. Originalton und Originalrechte liegen bei den jeweiligen Anbietern." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exported from PodcastAI. The original audio and its rights remain with the respective providers."
+          }
+        }
+      }
+    },
+    "Fakten" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Facts"
+          }
+        }
+      }
+    },
+    "Formuliert von:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Written by:"
+          }
+        }
+      }
+    },
+    "Kapitel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapters"
+          }
+        }
+      }
+    },
+    "Länge:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Length:"
+          }
+        }
+      }
+    },
+    "Link:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link:"
+          }
+        }
+      }
+    },
+    "Meine Notiz" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Note"
+          }
+        }
+      }
+    },
+    "Offene Frage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Question"
+          }
+        }
+      }
+    },
+    "ohne Zeitbezug" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no timestamp"
+          }
+        }
+      }
+    },
+    "Quelle:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source:"
+          }
+        }
+      }
+    },
+    "Quellen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sources"
+          }
+        }
+      }
+    },
     "Relevant für %@: %@" : {
       "localizations" : {
         "de" : {
@@ -24,14 +178,55 @@
             "state" : "new",
             "value" : "Relevant für %1$@: %2$@"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relevant to %1$@: %2$@"
+          }
         }
       }
     },
-    "Shownotes" : {},
-    "Transkript" : {},
-    "Unbekannte Folge" : {},
-    "Unbekannte Quelle" : {},
-    "ohne Zeitbezug" : {}
+    "Shownotes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Notes"
+          }
+        }
+      }
+    },
+    "Transkript" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcript"
+          }
+        }
+      }
+    },
+    "Unbekannte Folge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown Episode"
+          }
+        }
+      }
+    },
+    "Unbekannte Quelle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown Source"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

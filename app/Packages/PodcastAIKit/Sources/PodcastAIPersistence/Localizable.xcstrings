@@ -1,8 +1,26 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
-    "Deine gespeicherten Daten passen nicht zu dieser Version der App und liessen sich nicht übernehmen. Die alte Datei liegt unverändert als %@ im App-Ordner. Die App beginnt mit einem leeren Speicher." : {},
-    "Unbekannte Quelle" : {}
+    "Deine gespeicherten Daten passen nicht zu dieser Version der App und liessen sich nicht übernehmen. Die alte Datei liegt unverändert als %@ im App-Ordner. Die App beginnt mit einem leeren Speicher." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your saved data doesn't match this version of the app and couldn't be carried over. The old file is still in the app folder, unchanged, as %@. The app is starting with empty storage."
+          }
+        }
+      }
+    },
+    "Unbekannte Quelle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown Source"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

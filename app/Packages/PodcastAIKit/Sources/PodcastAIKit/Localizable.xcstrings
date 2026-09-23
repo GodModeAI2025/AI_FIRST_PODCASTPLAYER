@@ -1,9 +1,6 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
-    "Transkript fertig" : {},
-    "Unbekannte Folge" : {},
-    "Unbekannte Quelle" : {},
     "^[%lld Fundstelle](inflect: true)" : {
       "localizations" : {
         "de" : {
@@ -11,13 +8,85 @@
             "state" : "translated",
             "value" : "^[%lld Fundstelle](inflect: true)"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld passage](inflect: true)"
+          }
         }
       }
     },
-    "fehlgeschlagen" : {},
-    "gefunden" : {},
-    "geladen" : {},
-    "transkribiert" : {}
+    "fehlgeschlagen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed"
+          }
+        }
+      }
+    },
+    "gefunden" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Found"
+          }
+        }
+      }
+    },
+    "geladen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloaded"
+          }
+        }
+      }
+    },
+    "transkribiert" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcribed"
+          }
+        }
+      }
+    },
+    "Transkript fertig" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcript ready"
+          }
+        }
+      }
+    },
+    "Unbekannte Folge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown Episode"
+          }
+        }
+      }
+    },
+    "Unbekannte Quelle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown Source"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

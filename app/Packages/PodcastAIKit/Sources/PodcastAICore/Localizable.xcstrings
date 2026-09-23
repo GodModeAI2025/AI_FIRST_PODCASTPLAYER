@@ -1,9 +1,46 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
-    "%lld Min" : {},
-    "%lld Sek" : {},
-    "%lld Std" : {},
+    "%lld ausgewählte Folgen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld selected episodes"
+          }
+        }
+      }
+    },
+    "%lld Min" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        }
+      }
+    },
+    "%lld Sek" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sec"
+          }
+        }
+      }
+    },
+    "%lld Std" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld hr"
+          }
+        }
+      }
+    },
     "%lld Std %lld Min" : {
       "localizations" : {
         "de" : {
@@ -11,53 +48,445 @@
             "state" : "new",
             "value" : "%1$lld Std %2$lld Min"
           }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld hr %2$lld min"
+          }
         }
       }
     },
-    "%lld ausgewählte Folgen" : {},
-    "1 ausgewählte Folge" : {},
-    "Ab %@" : {},
-    "Adressen im eigenen Netz werden nicht abgerufen (%@)." : {},
-    "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen." : {},
-    "Adressen vom Typ „%@“ werden nicht abgerufen." : {},
-    "Außerhalb des gewählten Bereichs" : {},
-    "Bereits bekannt" : {},
-    "Bereits gehört" : {},
-    "Bezieht sich auf eine veraltete Fassung" : {},
-    "Der Server hat mit Status %@ geantwortet." : {},
-    "Die Adresse hat keinen Server." : {},
-    "Die Antwort war leer." : {},
-    "Die Antwort überschreitet die Obergrenze von %@." : {},
-    "Die Weiterleitung wurde abgelehnt: %@" : {},
-    "Diese Adresse wird nicht abgerufen: %@" : {},
-    "Diese Fassung erlaubt keine exakten Sprünge" : {},
-    "Direkte IP-Adressen werden nicht abgerufen (%@)." : {},
-    "Eigene Notiz" : {},
-    "Fundstelle nicht im freigegebenen Bestand" : {},
-    "Für diese Stelle liegt kein Zeitbezug vor" : {},
-    "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes." : {},
-    "Gesamtes verfügbares Archiv" : {},
-    "KI-Ableitung" : {},
-    "Letzte %lld Folgen" : {},
-    "Letzte Folge" : {},
-    "Medium derzeit nicht verfügbar" : {},
-    "Mehr davon" : {},
-    "Nicht aus dieser Quelle" : {},
-    "Nicht relevant" : {},
-    "Nur die Standardports sind zugelassen, nicht %@." : {},
-    "Nur neue Folgen" : {},
-    "Originaltext" : {},
-    "Passt nicht mehr ins Zeitbudget" : {},
-    "Quellenangabe" : {},
-    "aus älteren Daten übernommen" : {},
-    "genau erfasst" : {},
-    "keines" : {},
-    "ohne Transkript" : {},
-    "teilweise transkribiert (%@)" : {},
-    "unzulässig" : {},
-    "vollständig transkribiert" : {},
-    "von PodcastAI vorgeschlagen" : {},
-    "von dir bestätigt" : {}
+    "1 ausgewählte Folge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 selected episode"
+          }
+        }
+      }
+    },
+    "Ab %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Since %@"
+          }
+        }
+      }
+    },
+    "Adressen im eigenen Netz werden nicht abgerufen (%@)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local network addresses aren't loaded (%@)."
+          }
+        }
+      }
+    },
+    "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addresses with embedded credentials aren't loaded."
+          }
+        }
+      }
+    },
+    "Adressen vom Typ „%@“ werden nicht abgerufen." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addresses of type \"%@\" aren't loaded."
+          }
+        }
+      }
+    },
+    "aus älteren Daten übernommen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "carried over from older data"
+          }
+        }
+      }
+    },
+    "Außerhalb des gewählten Bereichs" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outside the selected scope"
+          }
+        }
+      }
+    },
+    "Bereits bekannt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already Known"
+          }
+        }
+      }
+    },
+    "Bereits gehört" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already played"
+          }
+        }
+      }
+    },
+    "Bezieht sich auf eine veraltete Fassung" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refers to an outdated version"
+          }
+        }
+      }
+    },
+    "Der Server hat mit Status %@ geantwortet." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server responded with status %@."
+          }
+        }
+      }
+    },
+    "Die Adresse hat keinen Server." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address has no host."
+          }
+        }
+      }
+    },
+    "Die Antwort überschreitet die Obergrenze von %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The response exceeds the %@ limit."
+          }
+        }
+      }
+    },
+    "Die Antwort war leer." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The response was empty."
+          }
+        }
+      }
+    },
+    "Die Weiterleitung wurde abgelehnt: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The redirect was blocked: %@"
+          }
+        }
+      }
+    },
+    "Diese Adresse wird nicht abgerufen: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This address won't be loaded: %@"
+          }
+        }
+      }
+    },
+    "Diese Fassung erlaubt keine exakten Sprünge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This version doesn't allow precise seeking"
+          }
+        }
+      }
+    },
+    "Direkte IP-Adressen werden nicht abgerufen (%@)." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct IP addresses aren't loaded (%@)."
+          }
+        }
+      }
+    },
+    "Eigene Notiz" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your note"
+          }
+        }
+      }
+    },
+    "Fundstelle nicht im freigegebenen Bestand" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passage isn't in the permitted material"
+          }
+        }
+      }
+    },
+    "Für diese Stelle liegt kein Zeitbezug vor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No timing available for this passage"
+          }
+        }
+      }
+    },
+    "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For this channel, only metadata and playback in the official player are available. Without access to the audio, no timecodes can be created."
+          }
+        }
+      }
+    },
+    "genau erfasst" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tracked precisely"
+          }
+        }
+      }
+    },
+    "Gesamtes verfügbares Archiv" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entire available archive"
+          }
+        }
+      }
+    },
+    "keines" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "none"
+          }
+        }
+      }
+    },
+    "KI-Ableitung" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI-derived"
+          }
+        }
+      }
+    },
+    "Letzte %lld Folgen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest %lld episodes"
+          }
+        }
+      }
+    },
+    "Letzte Folge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest episode"
+          }
+        }
+      }
+    },
+    "Medium derzeit nicht verfügbar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Media currently unavailable"
+          }
+        }
+      }
+    },
+    "Mehr davon" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More Like This"
+          }
+        }
+      }
+    },
+    "Nicht aus dieser Quelle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not from This Source"
+          }
+        }
+      }
+    },
+    "Nicht relevant" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Relevant"
+          }
+        }
+      }
+    },
+    "Nur die Standardports sind zugelassen, nicht %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only standard ports are allowed, not %@."
+          }
+        }
+      }
+    },
+    "Nur neue Folgen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New episodes only"
+          }
+        }
+      }
+    },
+    "ohne Transkript" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no transcript"
+          }
+        }
+      }
+    },
+    "Originaltext" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original text"
+          }
+        }
+      }
+    },
+    "Passt nicht mehr ins Zeitbudget" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doesn't fit in the time budget"
+          }
+        }
+      }
+    },
+    "Quellenangabe" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source info"
+          }
+        }
+      }
+    },
+    "teilweise transkribiert (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "partially transcribed (%@)"
+          }
+        }
+      }
+    },
+    "unzulässig" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "not allowed"
+          }
+        }
+      }
+    },
+    "vollständig transkribiert" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "fully transcribed"
+          }
+        }
+      }
+    },
+    "von dir bestätigt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "confirmed by you"
+          }
+        }
+      }
+    },
+    "von PodcastAI vorgeschlagen" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "suggested by PodcastAI"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

@@ -1,12 +1,66 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
-    "Auf diesem Gerät gibt es keine Spracherkennung. Im Simulator ist das normal. Auf einem iPhone, iPad oder Mac mit aktueller Software funktioniert es." : {},
-    "Das Sprachmodell ist nicht bereit: %@" : {},
-    "Die Datei konnte nicht gelesen werden: %@" : {},
-    "Es wird bereits ein Transkript erstellt." : {},
-    "Für %@ ist kein Sprachmodell verfügbar." : {},
-    "Kein kompatibles Audioformat gefunden." : {}
+    "Auf diesem Gerät gibt es keine Spracherkennung. Im Simulator ist das normal. Auf einem iPhone, iPad oder Mac mit aktueller Software funktioniert es." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speech recognition isn't available on this device. That's expected in Simulator. It works on an iPhone, iPad, or Mac with current software."
+          }
+        }
+      }
+    },
+    "Das Sprachmodell ist nicht bereit: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The speech model isn't ready: %@"
+          }
+        }
+      }
+    },
+    "Die Datei konnte nicht gelesen werden: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file couldn't be read: %@"
+          }
+        }
+      }
+    },
+    "Es wird bereits ein Transkript erstellt." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A transcript is already being created."
+          }
+        }
+      }
+    },
+    "Für %@ ist kein Sprachmodell verfügbar." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No speech model is available for %@."
+          }
+        }
+      }
+    },
+    "Kein kompatibles Audioformat gefunden." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No compatible audio format found."
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }

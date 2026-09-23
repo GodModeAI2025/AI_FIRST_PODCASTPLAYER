@@ -1,0 +1,73 @@
+{
+  "sourceLanguage" : "de",
+  "strings" : {
+    "Merke diese Stelle in ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Merke diese Stelle in ${applicationName}",
+              "Diese Aussage merken in ${applicationName}"
+            ]
+          }
+        },
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Save this moment in ${applicationName}",
+              "Remember this in ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Spiel mein Update in ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Spiel mein Update in ${applicationName}",
+              "Starte mein Themen-Update in ${applicationName}"
+            ]
+          }
+        },
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Play my update in ${applicationName}",
+              "Start my Topic Update in ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "Stoppe ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "de" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Stoppe ${applicationName}"
+            ]
+          }
+        },
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Stop ${applicationName}"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.3"
+}
