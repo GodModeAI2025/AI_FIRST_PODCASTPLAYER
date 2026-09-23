@@ -90,6 +90,7 @@ extension AppModel {
             if let report = try? await store.removeEpisode(episode.id) { applyRemoval(report) }
         }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: removed))
+        TranslationCache.remove(episodes: Array(gone.keys))
         for id in gone.keys {
             facts[id] = nil
             stages[id] = nil
@@ -1260,6 +1261,8 @@ extension AppModel {
 
     private func applyRemoval(_ report: LibraryStore.RemovalReport) {
         LocalMediaLocator.removeFiles(for: report.mediaVersionIDs)
+        // Übersetzte Transkripte sind aus der Folge entstanden und gehen mit.
+        TranslationCache.remove(episodes: report.episodeIDs)
         for id in report.episodeIDs {
             facts[id] = nil
             stages[id] = nil

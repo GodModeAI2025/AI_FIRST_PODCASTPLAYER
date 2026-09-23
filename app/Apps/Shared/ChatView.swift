@@ -10,6 +10,7 @@
 //
 
 import SwiftUI
+import Translation
 import PodcastAIKit
 
 struct ChatView: View {
@@ -445,6 +446,9 @@ struct AnswerCard: View {
 ///
 /// Nur ein Beleg mit Zeitbereich ist ein Knopf. Ohne Zeitmarke gibt es
 /// nichts abzuspielen, und die Zeile tut auch nicht so.
+///
+/// Ein Beleg in einer anderen Sprache als die App bietet „Übersetzen“ an.
+/// Die Übersetzung erscheint darüber, der Beleg bleibt im Wortlaut.
 struct CitationRow: View {
 
     var number: Int = 0
@@ -452,6 +456,8 @@ struct CitationRow: View {
     /// „Podcast · Folge · Datum“. Fehlt innerhalb einer Folge.
     var origin: String?
     @Environment(AppModel.self) private var model
+    @State private var foreign = false
+    @State private var translating = false
 
     var body: some View {
         Group {
@@ -476,7 +482,12 @@ struct CitationRow: View {
                     Label("Stelle merken", systemImage: "bookmark")
                 }
             }
+            if foreign {
+                TranslateTextButton(isPresented: $translating)
+            }
         }
+        .translationPresentation(isPresented: $translating, text: evidence.quotedText)
+        .task(id: evidence.id) { foreign = AppLanguage.current.isForeign(evidence.quotedText) }
     }
 
     private var content: some View {
