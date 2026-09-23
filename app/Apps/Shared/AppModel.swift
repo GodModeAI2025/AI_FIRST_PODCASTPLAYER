@@ -119,20 +119,20 @@ public final class AppModel {
         /// Kurz, für die Warteschlange und die Folge.
         public var queueDetail: String {
             switch self {
-            case .offline: "wartet auf Netz"
-            case .lowDataMode: "wartet, Datensparmodus ist an"
-            case .hotspot: "Hotspot erkannt, wartet auf WLAN ohne Datenlimit"
-            case .cellular: "wartet auf WLAN"
+            case .offline: String(localized: "wartet auf Netz")
+            case .lowDataMode: String(localized: "wartet, Datensparmodus ist an")
+            case .hotspot: String(localized: "Hotspot erkannt, wartet auf WLAN ohne Datenlimit")
+            case .cellular: String(localized: "wartet auf WLAN")
             }
         }
 
         /// Für die Einstellungen und das Aktivitätssymbol.
         public var settingsLabel: String {
             switch self {
-            case .offline: "Kein Netz, das Vorbereiten wartet"
-            case .lowDataMode: "Datensparmodus ist an, das Vorbereiten wartet"
-            case .hotspot: "Hotspot erkannt, wartet auf WLAN ohne Datenlimit"
-            case .cellular: "Wartet auf WLAN"
+            case .offline: String(localized: "Kein Netz, Laden und Transkripte warten")
+            case .lowDataMode: String(localized: "Datensparmodus ist an, Laden und Transkripte warten")
+            case .hotspot: String(localized: "Hotspot erkannt, wartet auf WLAN ohne Datenlimit")
+            case .cellular: String(localized: "Wartet auf WLAN")
             }
         }
 
@@ -211,7 +211,7 @@ public final class AppModel {
     /// Ansichten erhalten.
     public var chatAnswers: [ChatAnswer] = []
     /// Wie die Datenbank abgeglichen wird, für die Einstellungen.
-    public var syncDescription = "Nur auf diesem Gerät"
+    public var syncDescription = String(localized: "Nur auf diesem Gerät")
 
     // MARK: - Löschen während laufender Arbeit (genutzt in AppModel+Knowledge.swift)
 
@@ -503,8 +503,8 @@ public final class AppModel {
                 let title = titles[item.episodeID]
                 items.append(RelevantItem(
                     id: item.id,
-                    sourceTitle: title?.source ?? "Unbekannte Quelle",
-                    episodeTitle: title?.episode ?? "Unbekannte Folge",
+                    sourceTitle: title?.source ?? String(localized: "Unbekannter Podcast"),
+                    episodeTitle: title?.episode ?? String(localized: "Unbekannte Folge"),
                     range: range,
                     excerpt: item.quotedText,
                     relevance: match.personalRelevance(),
@@ -528,11 +528,15 @@ public final class AppModel {
     /// werden erfasst, nicht geladen und nicht analysiert. Was tatsächlich
     /// verarbeitet wird, entscheidet der Nutzer danach.
     public func addSource(from input: String) async {
-        activity = "Link wird geprüft …"
+        activity = String(localized: "Link wird geprüft …")
         defer { activity = nil }
         do {
             let added = try await subscribe(to: input)
-            activity = "„\(added.title)“ aufgenommen · \(added.episodeCount) Folgen gefunden"
+            // Die Zahl mit passendem Wort für sich, der Titel ausserhalb:
+            // `AttributedString(localized:)` liest Markdown und schluckte
+            // sonst Zeichen wie * oder _ aus dem Namen des Podcasts.
+            let found = String(AttributedString(localized: "^[\(added.episodeCount) Folge](inflect: true) gefunden").characters)
+            activity = String(localized: "„\(added.title)“ abonniert · \(found)")
         } catch {
             lastError = UserFacingError.describe(error)
         }
@@ -550,7 +554,7 @@ public final class AppModel {
         let added = try await refresher.addSource(from: input)
         sources = try await store.sources()
         pruneSubscribedCounterparts(input: input)
-        AccessibilityNotification.Announcement("Podcast abonniert: \(added.title)").post()
+        AccessibilityNotification.Announcement(String(localized: "Podcast abonniert: \(added.title)")).post()
         for source in sources where source.kind == .youTubeChannel && podcastCounterparts[source.id] == nil {
             await findPodcastCounterparts(for: source)
         }
@@ -577,7 +581,7 @@ public final class AppModel {
     }
 
     public func refreshAll() async {
-        activity = "Feeds werden aktualisiert …"
+        activity = String(localized: "Podcasts werden aktualisiert …")
         defer { activity = nil }
         lastRefresh = Date()
         do {
@@ -588,8 +592,8 @@ public final class AppModel {
             // Folgenliste und das Vorbereiten sie.
             await reloadEpisodeLists()
             activity = result.newEpisodes > 0
-                ? "\(result.newEpisodes) neue Folgen"
-                : "Keine neuen Folgen"
+                ? String(AttributedString(localized: "^[\(result.newEpisodes) neue Folge](inflect: true)").characters)
+                : String(localized: "Keine neuen Folgen")
         } catch {
             lastError = UserFacingError.describe(error)
         }
@@ -674,7 +678,7 @@ public final class AppModel {
     /// sonst bleibt automatisch Eingereihtes stehen und sagt, warum.
     func networkChanged(_ limit: NetworkLimit?) {
         networkLimit = limit
-        let detail = preparationWait?.queueDetail ?? "wartet"
+        let detail = preparationWait?.queueDetail ?? Self.waitingDetail
         for episode in analysisQueue where automaticallyQueued.contains(episode.id) {
             stageDetails[episode.id] = detail
         }
@@ -713,7 +717,7 @@ public final class AppModel {
             // läuft sie jetzt als Nächste.
             if let queued {
                 analysisQueue.insert(analysisQueue.remove(at: queued), at: 0)
-                stageDetails[episode.id] = "wartet"
+                stageDetails[episode.id] = Self.waitingDetail
                 startAnalysisWorker()
                 return
             }
@@ -723,9 +727,13 @@ public final class AppModel {
               !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
         analysisQueue.append(episode)
         stages[episode.id] = nil
-        stageDetails[episode.id] = automatic ? preparationWait?.queueDetail ?? "wartet" : "wartet"
+        stageDetails[episode.id] = automatic ? preparationWait?.queueDetail ?? Self.waitingDetail : Self.waitingDetail
         startAnalysisWorker()
     }
+
+    /// „wartet“ in der Warteschlange. Der Schlüssel bleibt genau „wartet“:
+    /// Ansichten vergleichen die Angabe damit.
+    static var waitingDetail: String { String(localized: "wartet", comment: "Zustand einer Folge in der Warteschlange") }
 
     public func removeFromAnalysisQueue(_ episodeID: EpisodeID) {
         // Wer eine Folge herausnimmt, will sie nicht beim nächsten
@@ -755,7 +763,7 @@ public final class AppModel {
                 if transientFailure, !retried.contains(next.id) {
                     retried.insert(next.id)
                     self.analysisQueue.append(next)
-                    self.stageDetails[next.id] = "wartet auf zweiten Versuch"
+                    self.stageDetails[next.id] = String(localized: "wartet auf zweiten Versuch")
                     try? await Task.sleep(for: .seconds(3))
                 }
             }
@@ -798,9 +806,13 @@ public final class AppModel {
         stageDetails[episode.id] = nil
         background.update(.discovered)
         let remaining = analysisQueue.count
-        activity = remaining > 0
-            ? "„\(episode.title)“ wird erschlossen, danach noch \(remaining) …"
-            : "„\(episode.title)“ wird erschlossen …"
+        if remaining > 0 {
+            // Zahl und Wort für sich, der Titel ausserhalb des Markdowns.
+            let more = String(AttributedString(localized: "^[\(remaining) Folge](inflect: true)").characters)
+            activity = String(localized: "Transkript für „\(episode.title)“ wird erstellt, danach noch \(more) …")
+        } else {
+            activity = String(localized: "Transkript für „\(episode.title)“ wird erstellt …")
+        }
 
         let pipeline = ContentPipeline(
             store: store,
@@ -842,7 +854,7 @@ public final class AppModel {
             // Nur was jemand selbst angefordert hat, wird angesagt. Das
             // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
             if automaticallyQueued.remove(episode.id) == nil {
-                AccessibilityNotification.Announcement("Folge ausgewertet: \(episode.title)").post()
+                AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(episode.title)")).post()
             }
             await removeAudioAfterAnalysisIfWanted(episode)
             await refreshRelevantToday()
@@ -874,7 +886,7 @@ public final class AppModel {
                 automaticallyQueued.removeAll()
             }
             // Nur selbst angeforderte Arbeit meldet sich mit einem Dialog.
-            if !wasAutomatic { lastError = "„\(episode.title)“: \(message)" }
+            if !wasAutomatic { lastError = String(localized: "„\(episode.title)“: \(message)") }
             return false
         }
     }
@@ -1213,7 +1225,7 @@ public final class AppModel {
         do {
             try await work(store)
         } catch {
-            lastError = "Konnte nicht gesichert werden: \(error.localizedDescription)"
+            lastError = String(localized: "Konnte nicht gesichert werden: \(error.localizedDescription)")
         }
     }
 
@@ -1234,16 +1246,16 @@ public final class AppModel {
         feedID: SmartFeedID, budget: MediaDuration? = nil, requestedByUser: Bool = true
     ) async -> String {
         guard var feed = smartFeeds.first(where: { $0.id == feedID }) else {
-            return "Diesen Themenfeed gibt es nicht."
+            return String(localized: "Dieses Themen-Update gibt es nicht.")
         }
         // Zweimal gleichzeitig ergäbe zwei fast gleiche Ausgaben.
         guard !buildingFeeds.contains(feedID) else {
-            return "Die Ausgabe wird gerade zusammengestellt."
+            return String(localized: "Die Ausgabe wird gerade zusammengestellt.")
         }
         if let budget { feed.editionMode = .budgeted(budget) }
 
         buildingFeeds.insert(feedID)
-        if requestedByUser { activity = "Ausgabe wird zusammengestellt …" }
+        if requestedByUser { activity = String(localized: "Ausgabe wird zusammengestellt …") }
         defer {
             buildingFeeds.remove(feedID)
             if requestedByUser { activity = nil }
@@ -1286,33 +1298,38 @@ public final class AppModel {
             case .published(let episode):
                 // Während des Zusammenstellens gelöscht: nichts anlegen.
                 guard smartFeeds.contains(where: { $0.id == feedID }) else {
-                    return ("Diesen Themenfeed gibt es nicht mehr.", false)
+                    return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false)
                 }
                 editions[feedID, default: []].insert(episode, at: 0)
                 persistEditions(for: feedID)
-                return ("\(episode.title): \(episode.segments.count) Stellen aus "
-                    + "\(episode.distinctSourceCount) Quellen.", true)
+                // Die Zählung für sich, der Titel ausserhalb des Markdowns.
+                let content = String(AttributedString(localized: """
+                    ^[\(episode.segments.count) Stelle](inflect: true) aus \
+                    ^[\(episode.distinctSourceCount) Podcast](inflect: true)
+                    """).characters)
+                return (String(localized: "\(episode.title): \(content)."), true)
             case .noNewMaterial(let count):
                 return (count == 0
-                    ? "Zu diesen Themen ist noch nichts ausgewertet."
-                    : "Nichts Neues. Alle passenden Stellen hast du schon gehört.", false)
+                    ? String(localized: "Zu diesen Themen gibt es noch keine Folge mit Transkript.")
+                    : String(localized: "Nichts Neues. Alle passenden Stellen hast du schon gehört."), false)
             case .belowThreshold(let available, let required):
                 // Von Hand angefordert gilt keine Mindestmenge. Dann passt
                 // nur keine einzelne Stelle in die gewählte Länge.
                 if requestedByUser {
-                    return ("Keine passende Stelle ist kurz genug für "
-                        + "\(feed.editionMode.label).", false)
+                    return (String(localized: "Keine passende Stelle ist kurz genug für \(feed.editionMode.label)."), false)
                 }
-                return ("Erst \(available.shortDescription) neues Material, "
-                    + "nötig sind \(required.shortDescription).", false)
+                return (String(localized: """
+                    Erst \(available.shortDescription) neues Material, \
+                    nötig sind \(required.shortDescription).
+                    """), false)
             case .alreadyPublished:
-                return ("Seit der letzten Ausgabe ist nichts dazugekommen.", false)
+                return (String(localized: "Seit der letzten Ausgabe ist nichts dazugekommen."), false)
             }
         } catch {
             // Die Automatik meldet sich nicht mit einem Dialog. Wer nicht
             // gefragt hat, will dafür keinen.
             if requestedByUser { lastError = UserFacingError.describe(error) }
-            return ("Die Ausgabe konnte nicht erstellt werden.", false)
+            return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false)
         }
     }
 
@@ -1335,7 +1352,7 @@ public final class AppModel {
            let highlight = await addNote(note, at: position.seconds, in: episode,
                                          mediaVersionID: mediaVersionID, via: route) {
             let time = MediaTime(milliseconds: Int64(highlight.positionMs ?? 0)).timecode
-            return "Gemerkt: \(time) in „\(episode.title)“."
+            return String(localized: "Gemerkt: \(time) in „\(episode.title)“.")
         }
         // Die Folge ist nicht mehr da. Was der Plan über sie weiss, bleibt
         // als Kopie, damit die Notiz nicht leer ist.
@@ -1352,7 +1369,7 @@ public final class AppModel {
         )
         highlights.insert(highlight, at: 0)
         persistHighlights()
-        return "Gemerkt: \(position.timecode)."
+        return String(localized: "Gemerkt: \(position.timecode).")
     }
 
     /// Die Folge zu einer Medienfassung, die gerade klingt: über die
@@ -1399,7 +1416,7 @@ public final class AppModel {
             options: FocusPlannerOptions(skipAlreadyHeard: false, ledger: ledger)
         )
         guard !plan.isEmpty else {
-            lastError = "Zu dieser Antwort lässt sich nichts abspielen."
+            lastError = String(localized: "Zu dieser Antwort lässt sich nichts abspielen.")
             return
         }
         play(plan, from: .chat)
@@ -1539,18 +1556,23 @@ public final class AppModel {
             }
             let claim = Claim(
                 id: ClaimID(stable: highlight.id.rawValue),
-                statement: highlight.note ?? "Gemerkte Stelle",
+                statement: highlight.note ?? Self.rememberedPassageTitle,
                 evidenceIDs: [highlight.evidenceID],
                 provenance: highlight.note == nil ? .original : .user
             )
             return exporter.export(ExportableInsight(
-                title: highlight.note ?? "Gemerkte Stelle",
+                title: highlight.note ?? Self.rememberedPassageTitle,
                 claim: claim, evidence: [evidence],
                 userNote: highlight.note,
                 sourceTitles: sourceTitles, episodeTitles: episodeTitles
             ))
         }
         .joined(separator: "\n\n")
+    }
+
+    /// Überschrift einer gemerkten Stelle ohne eigene Notiz, im Export.
+    nonisolated static var rememberedPassageTitle: String {
+        String(localized: "Gemerkte Stelle")
     }
 
     /// Prüft alle automatischen Themenfeeds auf neues Material.
@@ -1614,8 +1636,8 @@ public final class AppModel {
     public func findCounterpoints(for thesis: String) async -> CounterpointSearch {
         let pool = (try? await store.evidenceForAnalyzedEpisodes(limit: 20_000)) ?? []
         guard !pool.isEmpty else {
-            return CounterpointSearch(candidates: [], classificationProblem:
-                "Noch ist keine Folge ausgewertet. Sobald das geschehen ist, sucht die App darin.")
+            return CounterpointSearch(candidates: [], classificationProblem: String(localized:
+                "Noch hat keine Folge ein Transkript. Sobald das erste fertig ist, sucht die App darin."))
         }
 
         let embeddingLimit = Self.embeddingBudget
@@ -1673,7 +1695,7 @@ public final class AppModel {
                 relation: assigned ?? .unclassified,
                 isModelConfirmed: assigned != nil,
                 sourceTitle: titles[item.episodeID]?.source
-                    ?? sources.first { $0.id == item.sourceID }?.title ?? "Unbekannte Quelle",
+                    ?? sources.first { $0.id == item.sourceID }?.title ?? String(localized: "Unbekannter Podcast"),
                 excerpt: item.quotedText,
                 episodeID: item.episodeID,
                 episodeTitle: titles[item.episodeID]?.episode,
@@ -1682,15 +1704,20 @@ public final class AppModel {
 
         let problem: String?
         if failed >= shortlist.count {
-            problem = ["Die Stellen sind nicht eingeordnet.", reason,
-                       "Sie passen zum Thema der These. Ob sie dafür oder dagegen sprechen, "
-                        + "lässt sich so nicht sagen."].compactMap { $0 }.joined(separator: " ")
+            problem = [String(localized: "Die Stellen sind nicht eingeordnet."), reason,
+                       String(localized: """
+                           Sie passen zum Thema der These. Ob sie dafür oder dagegen sprechen, \
+                           lässt sich so nicht sagen.
+                           """)].compactMap { $0 }.joined(separator: " ")
         } else if failed > 0 {
-            problem = ["\(failed) von \(shortlist.count) Stellen liessen sich nicht einordnen.", reason]
+            // Hier ist `failed` kleiner als die Zahl der Stellen, also sind es mindestens zwei.
+            problem = [String(localized: "\(failed) von \(shortlist.count) Stellen liessen sich nicht einordnen."), reason]
                 .compactMap { $0 }.joined(separator: " ")
         } else if classified.isEmpty {
-            problem = "Das Modell hat keine der Stellen dieser These zugeordnet. "
-                + "Sie passen nur dem Wortlaut nach."
+            problem = String(localized: """
+                Das Modell hat keine der Stellen dieser These zugeordnet. \
+                Sie passen nur dem Wortlaut nach.
+                """)
         } else {
             problem = nil
         }
@@ -1715,7 +1742,7 @@ public final class AppModel {
         guard var check = counterpointCheck, !check.isRunning, !check.isSaved,
               !check.candidates.isEmpty else { return }
         trails.insert(KnowledgeTrail(
-            question: "These: \(check.thesis)",
+            question: String(localized: "These: \(check.thesis)"),
             evidenceIDs: check.candidates.map(\.evidenceID),
             counterpointEvidenceIDs: check.candidates.filter { $0.relation == .contradicts }.map(\.evidenceID)
         ), at: 0)
@@ -1729,7 +1756,7 @@ public final class AppModel {
         Task {
             guard let episodeID = candidate.episodeID, let range = candidate.range,
                   let episode = (try? await store.episodes(ids: [episodeID]))?.first else {
-                lastError = "Diese Stelle ist nicht mehr verfügbar."
+                lastError = String(localized: "Diese Stelle ist nicht mehr verfügbar.")
                 return
             }
             playEpisode(episode, at: range.start.seconds)
@@ -1742,7 +1769,7 @@ public final class AppModel {
         Task {
             guard let episodeID = candidate.episodeID, let range = candidate.range,
                   let episode = (try? await store.episodes(ids: [episodeID]))?.first else {
-                lastError = "Diese Stelle ist nicht mehr verfügbar."
+                lastError = String(localized: "Diese Stelle ist nicht mehr verfügbar.")
                 return
             }
             await addNote(nil, at: range.start.seconds, in: episode, quote: candidate.excerpt)
@@ -1756,13 +1783,13 @@ public final class AppModel {
             let plan = FocusPlanner(context: context).plan(
                 from: PlaylistProposal(
                     evidenceIDs: candidates.map(\.evidenceID),
-                    requestSummary: "Gegenpositionen zu: \(thesis)"
+                    requestSummary: String(localized: "Gegenpositionen zu: \(thesis)")
                 ),
                 route: .counterpoint,
                 options: FocusPlannerOptions(skipAlreadyHeard: false, ledger: ledger)
             )
             guard !plan.isEmpty else {
-                lastError = "Zu dieser These lässt sich nichts abspielen."
+                lastError = String(localized: "Zu dieser These lässt sich nichts abspielen.")
                 return
             }
             play(plan, from: .tap)
@@ -1852,7 +1879,7 @@ public final class AppModel {
                 )
             )
             guard !plan.isEmpty else {
-                lastError = "Die weiteren Stellen sind inzwischen gehört oder nicht mehr da."
+                lastError = String(localized: "Die weiteren Stellen sind inzwischen gehört oder nicht mehr da.")
                 return
             }
             play(plan, from: .tap)
@@ -1873,12 +1900,12 @@ public final class AppModel {
         Task {
             let ids = items.map(\.id)
             guard let found = try? await store.evidence(ids: ids) else {
-                lastError = "Diese Stelle ist nicht mehr verfügbar."
+                lastError = String(localized: "Diese Stelle ist nicht mehr verfügbar.")
                 return
             }
             let evidence = ids.compactMap { found[$0] }
             guard !evidence.isEmpty else {
-                lastError = "Diese Stelle ist nicht mehr verfügbar."
+                lastError = String(localized: "Diese Stelle ist nicht mehr verfügbar.")
                 return
             }
             let context = await planningContext(for: evidence)
@@ -1891,7 +1918,7 @@ public final class AppModel {
                 options: FocusPlannerOptions(skipAlreadyHeard: false, ledger: ledger)
             )
             guard !plan.isEmpty else {
-                lastError = plan.excluded.first?.reason ?? "Diese Stelle lässt sich nicht abspielen."
+                lastError = plan.excluded.first?.reason ?? String(localized: "Diese Stelle lässt sich nicht abspielen.")
                 return
             }
             play(plan, from: .tap)
@@ -1909,7 +1936,7 @@ public final class AppModel {
                   let episode = (try? await store.episodes(ids: [episodeID]))?.first,
                   await addNote(nil, at: item.range.start.seconds, in: episode, quote: item.excerpt) != nil
             else {
-                lastError = "Diese Stelle lässt sich nicht mehr merken."
+                lastError = String(localized: "Diese Stelle lässt sich nicht mehr merken.")
                 return
             }
         }
@@ -1961,14 +1988,14 @@ public final class AppModel {
         // für eine Folge, die gar nicht klingen kann.
         guard local != nil || episode.audioURL != nil else {
             lastError = episode.opensInYouTube
-                ? "„\(episode.title)“ hat keine Audiodatei, nur ein Video bei YouTube."
-                : "„\(episode.title)“ hat keine Audiodatei."
+                ? String(localized: "„\(episode.title)“ hat keine Audiodatei, nur ein Video bei YouTube.")
+                : String(localized: "„\(episode.title)“ hat keine Audiodatei.")
             return
         }
         // Ohne Netz und ohne Datei gleich sagen, woran es liegt, statt einen
         // Player zu öffnen, der nur lädt.
         if local == nil, isOffline {
-            lastError = "„\(episode.title)“ ist nicht auf diesem Gerät geladen. Ohne Netz lässt sich die Folge nicht abspielen."
+            lastError = String(localized: "„\(episode.title)“ ist nicht auf diesem Gerät geladen. Ohne Netz lässt sich die Folge nicht abspielen.")
             return
         }
         if playerPlan != nil { stopPlayback() }
@@ -2180,7 +2207,7 @@ extension AppModel: PlaybackObserver {
     /// die App vermeiden.
     public func willChangeSource(to segment: PlanSegment) {
         AccessibilityNotification.Announcement(
-            "Nächste Stelle: \(segment.episodeTitle), aus \(segment.sourceTitle)"
+            String(localized: "Nächste Stelle: \(segment.episodeTitle), aus \(segment.sourceTitle)")
         ).post()
     }
 
@@ -2192,7 +2219,7 @@ extension AppModel: PlaybackObserver {
     /// Hörstand-Zeile, von der CloudKit nur die letzte Änderung behält.
     /// Eine Notiz ohne gespeicherten Beleg als Markdown, aus ihrer Kopie.
     static func snapshotMarkdown(_ highlight: Highlight) -> String {
-        var lines = ["## " + (highlight.note ?? "Gemerkte Stelle")]
+        var lines = ["## " + (highlight.note ?? rememberedPassageTitle)]
         var meta: [String] = []
         if let episode = highlight.episodeTitle { meta.append(episode) }
         if let source = highlight.sourceTitle { meta.append(source) }

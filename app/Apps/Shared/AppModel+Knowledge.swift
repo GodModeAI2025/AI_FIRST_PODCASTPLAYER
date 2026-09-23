@@ -180,8 +180,10 @@ extension AppModel {
         if citesRemovedContent(composed, since: ticket) {
             kept = ChatAnswer(
                 question: question, scope: scope,
-                text: "Während der Suche wurde eine Folge gelöscht, auf die sich die Antwort gestützt hätte. "
-                    + "Stell die Frage bitte noch einmal.",
+                text: String(localized: """
+                    Während der Suche wurde eine Folge gelöscht, auf die sich die Antwort gestützt hätte. \
+                    Stell die Frage bitte noch einmal.
+                    """),
                 citations: [])
         }
         chatAnswers.insert(kept, at: 0)
@@ -202,7 +204,7 @@ extension AppModel {
     }
 
     private func composeAnswer(_ question: String, scope: ChatScope) async -> ChatAnswer {
-        activity = "Antwort wird gesucht …"
+        activity = String(localized: "Antwort wird gesucht …")
         defer { activity = nil }
         // Seit dem Start kann das Modell bereit geworden oder das Kontingent
         // aufgebraucht sein. Die Abfrage ist billig.
@@ -232,7 +234,9 @@ extension AppModel {
             let known = episodes.values.flatMap { $0 }.count
             let analyzed = analyzedEpisodes.count
             if known > analyzed {
-                caveat = "Durchsucht wurden \(analyzed) erschlossene von \(known) bekannten Folgen."
+                caveat = String(AttributedString(localized: """
+                    \(analyzed) von ^[\(known) Folge](inflect: true) mit Transkript. Nur diese wurden durchsucht.
+                    """).characters)
             }
         case .library(let filter):
             // Der Code grenzt ein, bevor gesucht wird. Das Modell bekommt nur
@@ -250,22 +254,31 @@ extension AppModel {
             if admitted.isEmpty && known == 0 {
                 return ChatAnswer(
                     question: question, scope: scope,
-                    text: "Im gewählten Bereich gibt es keine Folge. Wähle oben einen anderen Podcast "
-                        + "oder einen längeren Zeitraum.",
+                    text: String(localized: """
+                        Im gewählten Bereich gibt es keine Folge. Wähle oben einen anderen Podcast \
+                        oder einen längeren Zeitraum.
+                        """),
                     citations: [])
             }
             if admitted.isEmpty {
-                caveat = "Im gewählten Bereich ist noch keine Folge ausgewertet. Die Antwort kennt nur die Folgenliste."
+                caveat = String(localized: """
+                    Im gewählten Bereich hat noch keine Folge ein Transkript. Die Antwort kennt nur die Folgenliste.
+                    """)
             } else if known > admitted.count {
-                caveat = "Durchsucht wurden \(admitted.count) ausgewertete von \(known) Folgen im gewählten Bereich."
+                caveat = String(AttributedString(localized: """
+                    Im gewählten Bereich: \(admitted.count) von ^[\(known) Folge](inflect: true) mit Transkript. \
+                    Nur diese wurden durchsucht.
+                    """).characters)
             }
         }
 
         guard !pool.isEmpty || !libraryContext.isEmpty else {
             return ChatAnswer(
                 question: question, scope: scope,
-                text: "Dazu ist noch nichts erschlossen. Füge eine Quelle hinzu; die App bereitet "
-                    + "die neuesten Folgen von selbst vor, danach antworte ich mit Belegen.",
+                text: String(localized: """
+                    Dazu gibt es noch keine Folge mit Transkript. Füge einen Podcast hinzu. Die App lädt \
+                    die neuesten Folgen und erstellt ihre Transkripte von selbst, danach antworte ich mit Belegen.
+                    """),
                 citations: [], coverageCaveat: caveat)
         }
 
@@ -317,7 +330,7 @@ extension AppModel {
             if text.isEmpty {
                 text = composed.claims.map { "• \($0.statement)" }.joined(separator: "\n")
             }
-            if text.isEmpty { text = "Dazu steht in den erschlossenen Folgen nichts Belegtes." }
+            if text.isEmpty { text = String(localized: "Dazu steht in den Transkripten nichts Belegtes.") }
             return ChatAnswer(
                 question: question, scope: scope, text: text, citations: cited,
                 coverageCaveat: caveat, modelLabel: composed.tier?.label,
@@ -333,9 +346,12 @@ extension AppModel {
                 ? Self.evenlySpaced(Array(candidates.prefix(device.maximumCandidates)), count: 4)
                 : Array(candidates.prefix(4))
             let reason = Self.chatReason(error)
+            // Der Satz ist übersetzbar, die Liste der Stellen ist Wortlaut und
+            // kommt unverändert dahinter.
             let text = top.isEmpty
-                ? "Dazu finde ich keine passende Stelle. \(reason)"
-                : "Eine Antwort formulieren kann ich gerade nicht. \(reason)\n\nDiese Stellen passen am besten:\n\n"
+                ? String(localized: "Dazu finde ich keine passende Stelle. \(reason)")
+                : String(localized: "Eine Antwort formulieren kann ich gerade nicht. \(reason)\n\nDiese Stellen passen am besten:")
+                    + "\n\n"
                     + top.enumerated().map { "[\($0.offset + 1)] \(String($0.element.quotedText.prefix(220)))…" }
                         .joined(separator: "\n\n")
             var numbers: [Int: EvidenceID] = [:]
@@ -404,7 +420,7 @@ extension AppModel {
         switch error as? ExtractorError {
         case .modelUnavailable(let reason)?: reason.message
         case .generationFailed(let detail)?, .generationRejected(let detail)?: detail
-        case nil: "Das Modell hat keine Antwort geliefert."
+        case nil: String(localized: "Das Modell hat keine Antwort geliefert.")
         }
     }
 
@@ -475,7 +491,9 @@ extension AppModel {
             for episode in list.prefix(12) {
                 var entry = "- \(episode.title)"
                 if let date = episode.publishedAt { entry += ", \(date.formatted(date: .abbreviated, time: .omitted))" }
-                entry += analyzedEpisodes.contains(episode.id) ? ", erschlossen" : ", nicht erschlossen"
+                // Kontext für das Modell, deshalb deutsch und nicht übersetzt.
+                // Die Wörter sind die der Oberfläche, damit die Antwort sie aufgreift.
+                entry += analyzedEpisodes.contains(episode.id) ? ", Transkript fertig" : ", ohne Transkript"
                 let heard = Int(heardFraction(for: episode) * 100)
                 if heard > 0 { entry += ", \(heard) % gehört" }
                 lines.append(entry)
@@ -497,9 +515,9 @@ extension AppModel {
         guard case .library(let filter) = scope else { return scope.label }
         var parts: [String] = []
         if let id = filter.sourceID {
-            parts.append(sources.first { $0.id == id }?.title ?? "Ein Podcast")
+            parts.append(sources.first { $0.id == id }?.title ?? String(localized: "Ein Podcast"))
         } else {
-            parts.append("Alle Podcasts")
+            parts.append(String(localized: "Alle Podcasts"))
         }
         if filter.period != .all { parts.append(filter.period.label) }
         return parts.joined(separator: " · ")
@@ -600,7 +618,7 @@ extension AppModel {
     public func rememberEvidence(_ evidence: Evidence, via route: Highlight.CaptureRoute) async -> Highlight? {
         guard let range = evidence.range else { return nil }
         guard let episode = (try? await store.episodes(ids: [evidence.episodeID]))?.first else {
-            lastError = "Die Folge zu dieser Stelle ist gelöscht. Merken geht deshalb nicht mehr."
+            lastError = String(localized: "Die Folge zu dieser Stelle ist gelöscht. Merken geht deshalb nicht mehr.")
             return nil
         }
         return await addNote(nil, at: range.start.seconds, in: episode, quote: evidence.quotedText,
@@ -614,18 +632,20 @@ extension AppModel {
 
     /// Ein Zitat mit Herkunft, zum Kopieren oder Teilen.
     public func citation(_ text: String, at start: MediaTime, in episode: Episode) -> String {
-        "„\(text)“\n(\(origin(at: start, in: episode)))"
+        let place = self.origin(at: start, in: episode)
+        return String(localized: "„\(text)“\n(\(place))", comment: "Zitat mit Herkunft zum Kopieren")
     }
 
     /// Ein Fakt zum Kopieren oder Teilen. Wörtlich zitiert wird nur der
     /// Beleg. Die Aussage hat das Modell formuliert, sie steht deshalb als
     /// Zusammenfassung da und nie in Anführungszeichen.
     public func factCitation(_ fact: EpisodeFact, evidenceText: String?, in episode: Episode) -> String {
-        let summary = "Zusammenfassung: \(fact.statement)"
+        let summary = String(localized: "Zusammenfassung: \(fact.statement)")
+        let place = self.origin(at: fact.range.start, in: episode)
         guard let evidenceText, !evidenceText.isEmpty else {
-            return "\(summary)\n(\(origin(at: fact.range.start, in: episode)))"
+            return "\(summary)\n(\(place))"
         }
-        return "„\(evidenceText)“\n(\(origin(at: fact.range.start, in: episode)))\n\n\(summary)"
+        return String(localized: "„\(evidenceText)“\n(\(place))\n\n\(summary)", comment: "Fakt mit wörtlichem Beleg zum Kopieren")
     }
 
     private func origin(at start: MediaTime, in episode: Episode) -> String {
@@ -653,7 +673,7 @@ extension AppModel {
     public func playHighlight(_ highlight: Highlight) async {
         guard let episodeID = highlight.episodeID, let ms = highlight.positionMs else { return }
         guard let episode = (try? await store.episodes(ids: [episodeID]))?.first else {
-            lastError = "Die Folge zu dieser Notiz ist gelöscht. Die Notiz selbst bleibt."
+            lastError = String(localized: "Die Folge zu dieser Notiz ist gelöscht. Die Notiz selbst bleibt.")
             return
         }
         playEpisode(episode, at: max(0, Double(ms) / 1000 - 5))
@@ -729,7 +749,7 @@ extension AppModel {
         case .success(let resolved):
             tier = resolved
         case .failure(let reason):
-            if force { lastError = "Fakten lassen sich gerade nicht ermitteln. \(reason.message)" }
+            if force { lastError = String(localized: "Fakten lassen sich gerade nicht ermitteln. \(reason.message)") }
             return
         }
 
@@ -776,7 +796,8 @@ extension AppModel {
                 case .modelUnavailable:
                     await refreshModelStatus()
                     if force {
-                        lastError = "Die Fakten konnten nicht ermittelt werden. \(error.errorDescription ?? "")"
+                        let detail = error.errorDescription ?? ""
+                        lastError = String(localized: "Die Fakten konnten nicht ermittelt werden. \(detail)")
                     }
                     return
                 }
@@ -811,7 +832,7 @@ extension AppModel {
         }
         guard !result.isEmpty else {
             if force, rejected + failed == 0 {
-                lastError = "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden."
+                lastError = String(localized: "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden.")
             }
             return
         }
@@ -839,14 +860,19 @@ extension AppModel {
     ) -> String {
         let missing = rejected + failed
         var parts = [saved
-            ? "Die Fakten sind unvollständig: \(missing) von \(total) Abschnitten der Folge fehlen."
-            : "Aus dieser Folge liessen sich keine Fakten ermitteln: \(missing) von \(total) Abschnitten fehlen."]
+            ? String(localized: "Die Fakten sind unvollständig: \(missing) von \(total) Abschnitten der Folge fehlen.")
+            : String(localized: "Aus dieser Folge liessen sich keine Fakten ermitteln: \(missing) von \(total) Abschnitten fehlen.")]
         if rejected > 0 {
-            parts.append("\(rejected) davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. "
-                + "Diese versucht die App nicht noch einmal.")
+            parts.append(String(localized: """
+                \(rejected) davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. \
+                Diese versucht die App nicht noch einmal.
+                """))
         }
         if failed > 0 {
-            parts.append("\(failed) sind aus einem anderen Grund gescheitert. „Neu ermitteln“ versucht sie erneut.")
+            // Ohne Verb, das sich nach der Zahl richten müsste: „1 sind gescheitert“ wäre falsch.
+            parts.append(String(localized: """
+                Bei \(failed) davon ging aus einem anderen Grund etwas schief. „Neu ermitteln“ versucht es dort noch einmal.
+                """))
         }
         if let reason { parts.append(reason) }
         return parts.joined(separator: " ")
@@ -969,10 +995,12 @@ extension AppModel {
     public func exportAnswer(_ answer: ChatAnswer) async -> String {
         let titles = (try? await store.titles(forEpisodes: answer.citations.map(\.episodeID))) ?? [:]
         let numberFor = Dictionary(answer.citationNumbers.map { ($0.value, $0.key) }, uniquingKeysWith: { a, _ in a })
+        let unknownEpisode = String(localized: "Unbekannte Folge")
+        let unknownSource = String(localized: "Unbekannter Podcast")
         let citations = answer.citations.enumerated().map { offset, evidence in
             (number: numberFor[evidence.id] ?? offset + 1,
-             episode: titles[evidence.episodeID]?.episode ?? "Folge",
-             source: titles[evidence.episodeID]?.source ?? "Quelle",
+             episode: titles[evidence.episodeID]?.episode ?? unknownEpisode,
+             source: titles[evidence.episodeID]?.source ?? unknownSource,
              range: evidence.range, quote: evidence.quotedText)
         }
         return EpisodeDossierExporter().markdown(ExportedAnswer(
@@ -1046,7 +1074,8 @@ extension AppModel {
                 return
             }
             keptOffline.remove(episode.id)
-            lastError = "„\(episode.title)“ wurde nicht geladen: \(UserFacingError.describe(error))"
+            let reason = UserFacingError.describe(error)
+            lastError = String(localized: "„\(episode.title)“ wurde nicht geladen: \(reason)")
         }
     }
 

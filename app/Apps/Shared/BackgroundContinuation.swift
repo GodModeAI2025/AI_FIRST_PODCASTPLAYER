@@ -25,6 +25,11 @@ public final class BackgroundContinuation {
     public static let identifierPrefix = "com.godmodeai.podcastai.mobile.analysis"
 
     #if os(iOS)
+    /// Die Überschrift der Fortschrittsanzeige des Systems.
+    private static var displayTitle: String {
+        String(localized: "Transkripte erstellen", comment: "Titel der Fortschrittsanzeige im Hintergrund")
+    }
+
     private var task: BGContinuedProcessingTask?
     private var fallbackID: UIBackgroundTaskIdentifier = .invalid
     private var pendingProgress: Int64 = 0
@@ -51,7 +56,7 @@ public final class BackgroundContinuation {
     public func setSubtitle(_ subtitle: String) {
         #if os(iOS)
         pendingSubtitle = subtitle
-        task?.updateTitle("Folgen erschliessen", subtitle: subtitle)
+        task?.updateTitle(Self.displayTitle, subtitle: subtitle)
         #endif
     }
 
@@ -112,7 +117,7 @@ public final class BackgroundContinuation {
         }
         guard registered else { return }
         let request = BGContinuedProcessingTaskRequest(
-            identifier: identifier, title: "Folgen erschliessen", subtitle: subtitle
+            identifier: identifier, title: Self.displayTitle, subtitle: subtitle
         )
         request.strategy = .fail
         try? BGTaskScheduler.shared.submit(request)
@@ -122,7 +127,7 @@ public final class BackgroundContinuation {
         task = processing
         processing.progress.totalUnitCount = 100
         processing.progress.completedUnitCount = pendingProgress
-        processing.updateTitle("Folgen erschliessen", subtitle: pendingSubtitle)
+        processing.updateTitle(Self.displayTitle, subtitle: pendingSubtitle)
         processing.expirationHandler = { [weak self] in
             Task { @MainActor in
                 guard let self, let task = self.task else { return }
