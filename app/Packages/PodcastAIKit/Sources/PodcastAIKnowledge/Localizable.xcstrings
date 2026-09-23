@@ -456,6 +456,12 @@
             "state": "translated",
             "value": "Unter den eingeordneten Stellen ist keine Gegenposition. Die übrigen sind nicht eingeordnet, darunter kann eine sein."
           }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Among the classified passages there is no counterpoint. The rest aren't classified, and one of them could be."
+          }
         }
       }
     },
@@ -465,6 +471,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unter den eingeordneten Stellen ist nur die Gegenseite. Die übrigen sind nicht eingeordnet, darunter kann auch Stützendes sein."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Among the classified passages there is only the opposing side. The rest aren't classified, and some of them could support the claim."
           }
         }
       }

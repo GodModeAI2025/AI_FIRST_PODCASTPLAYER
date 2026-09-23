@@ -234,11 +234,11 @@ struct CounterpointAndClosureTests {
         let mixed = mixer.balance([candidate("u", .unclassified, confirmed: false), candidate("s", .supports)])
         #expect(mixed.map(\.relation) == [.supports, .unclassified])
         let notice = mixer.imbalanceNotice(mixed)
-        #expect(notice?.contains("nicht eingeordnet") == true)
+        #expect(notice?.contains(TestLanguage.pick(de: "nicht eingeordnet", en: "aren't classified")) == true)
         #expect(notice?.contains("findet sich keine Gegenposition") == false)
 
         let against = mixer.balance([candidate("u", .unclassified, confirmed: false), candidate("c", .contradicts)])
-        #expect(mixer.imbalanceNotice(against)?.contains("nicht eingeordnet") == true)
+        #expect(mixer.imbalanceNotice(against)?.contains(TestLanguage.pick(de: "nicht eingeordnet", en: "aren't classified")) == true)
         #expect(mixer.imbalanceNotice(against)?.contains("findet sich nur die Gegenseite") == false)
 
         // Alles eingeordnet und keine Gegenposition: das darf die App sagen.
