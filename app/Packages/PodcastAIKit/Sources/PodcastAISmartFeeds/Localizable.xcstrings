@@ -1,238 +1,310 @@
 {
-  "sourceLanguage" : "de",
-  "strings" : {
-    "^[%lld Quelle](inflect: true)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld Quelle](inflect: true)"
+  "sourceLanguage": "de",
+  "strings": {
+    "Alles Ungehörte": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles Ungehörte"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld source](inflect: true)"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Unplayed"
           }
         }
       }
     },
-    "^[%lld Stelle](inflect: true)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld Stelle](inflect: true)"
+    "Alles Ungehörte, auch aus angefangenen Folgen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alles Ungehörte, auch aus angefangenen Folgen"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld passage](inflect: true)"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All unplayed audio, including the rest of episodes you've started"
           }
         }
       }
     },
-    "^[%lld Stelle](inflect: true) aus ^[%lld Quelle](inflect: true)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%1$lld Stelle](inflect: true) aus ^[%2$lld Quelle](inflect: true)"
+    "Automatisch gestaltet": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatisch gestaltet"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%1$lld passage](inflect: true) from ^[%2$lld source](inflect: true)"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic Layout"
           }
         }
       }
     },
-    "Alles Ungehörte" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All Unplayed"
-          }
-        }
-      }
-    },
-    "Alles Ungehörte, auch aus angefangenen Folgen" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All unplayed audio, including the rest of episodes you've started"
-          }
-        }
-      }
-    },
-    "Automatisch gestaltet" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatic Layout"
-          }
-        }
-      }
-    },
-    "Cover für %@: %@ aus %@." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Cover für %1$@: %2$@ aus %3$@."
+    "Cover für %@: %@ aus %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Cover für %1$@: %2$@ aus %3$@."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cover art for %1$@: %2$@ from %3$@."
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cover art for %1$@: %2$@ from %3$@."
           }
         }
       }
     },
-    "Das Bild konnte nicht übernommen werden." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The image couldn't be used."
-          }
-        }
-      }
-    },
-    "Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, die du eventuell schon gehört hast." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Some sections start with a few seconds of context you may have already heard."
-          }
-        }
-      }
-    },
-    "Enthält %lld von ^[%lld Stelle](inflect: true)." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enthält %1$lld von ^[%2$lld Stelle](inflect: true)."
+    "Das Bild konnte nicht übernommen werden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Bild konnte nicht übernommen werden."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Includes %1$lld of ^[%2$lld passage](inflect: true)."
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The image couldn't be used."
           }
         }
       }
     },
-    "Enthält %lld von ^[%lld Stelle](inflect: true). Es bleiben %@." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enthält %1$lld von ^[%2$lld Stelle](inflect: true). Es bleiben %3$@."
+    "Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, die du eventuell schon gehört hast.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, die du eventuell schon gehört hast."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Includes %1$lld of ^[%2$lld passage](inflect: true). %3$@ remaining."
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some sections start with a few seconds of context you may have already heard."
           }
         }
       }
     },
-    "Enthält alles Ungehörte zu diesen Themen." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Includes everything you haven't heard on these topics."
-          }
-        }
-      }
-    },
-    "Kapitel" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chapters"
-          }
-        }
-      }
-    },
-    "Mit Image Playground erstellt" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Created with Image Playground"
-          }
-        }
-      }
-    },
-    "Motiv des Podcasts" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Podcast Artwork"
-          }
-        }
-      }
-    },
-    "neu für dich, nicht neu veröffentlicht" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "new to you, not newly published"
-          }
-        }
-      }
-    },
-    "Nur noch nicht begonnene Folgen" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only Episodes Not Yet Started"
-          }
-        }
-      }
-    },
-    "Original %@–%@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Original %1$@–%2$@"
+    "Enthält %lld von ^[%lld Stelle](inflect: true).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enthält %1$lld von ^[%2$lld Stelle](inflect: true)."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Original %1$@–%2$@"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Includes %1$lld of ^[%2$lld passage](inflect: true)."
           }
         }
       }
     },
-    "Vom Nutzer bestätigtes Cover für %@." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cover art for %@, confirmed by you."
+    "Enthält %lld von ^[%lld Stelle](inflect: true). Es bleiben %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enthält %1$lld von ^[%2$lld Stelle](inflect: true). Es bleiben %3$@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Includes %1$lld of ^[%2$lld passage](inflect: true). %3$@ remaining."
+          }
+        }
+      }
+    },
+    "Enthält alles Ungehörte zu diesen Themen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enthält alles Ungehörte zu diesen Themen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Includes everything you haven't heard on these topics."
+          }
+        }
+      }
+    },
+    "Kapitel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapitel"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chapters"
+          }
+        }
+      }
+    },
+    "Mit Image Playground erstellt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Image Playground erstellt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Created with Image Playground"
+          }
+        }
+      }
+    },
+    "Motiv des Podcasts": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Motiv des Podcasts"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Podcast Artwork"
+          }
+        }
+      }
+    },
+    "Nur noch nicht begonnene Folgen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur noch nicht begonnene Folgen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only Episodes Not Yet Started"
+          }
+        }
+      }
+    },
+    "Original %@–%@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Original %1$@–%2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original %1$@–%2$@"
+          }
+        }
+      }
+    },
+    "Vom Nutzer bestätigtes Cover für %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vom Nutzer bestätigtes Cover für %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cover art for %@, confirmed by you."
+          }
+        }
+      }
+    },
+    "^[%lld Quelle](inflect: true)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld Quelle](inflect: true)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld source](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Stelle](inflect: true)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld Stelle](inflect: true)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld passage](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Stelle](inflect: true) aus ^[%lld Quelle](inflect: true)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%1$lld Stelle](inflect: true) aus ^[%2$lld Quelle](inflect: true)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%1$lld passage](inflect: true) from ^[%2$lld source](inflect: true)"
+          }
+        }
+      }
+    },
+    "neu für dich, nicht neu veröffentlicht": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "neu für dich, nicht neu veröffentlicht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "new to you, not newly published"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

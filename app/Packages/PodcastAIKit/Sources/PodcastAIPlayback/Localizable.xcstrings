@@ -1,56 +1,86 @@
 {
-  "sourceLanguage" : "de",
-  "strings" : {
-    "Das Medium ist derzeit nicht verfügbar." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This audio isn't available right now."
+  "sourceLanguage": "de",
+  "strings": {
+    "Das Medium ist derzeit nicht verfügbar.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Medium ist derzeit nicht verfügbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This audio isn't available right now."
           }
         }
       }
     },
-    "Der Hörplan enthält keine abspielbaren Stellen." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The listening plan has no playable passages."
+    "Der Hörplan enthält keine abspielbaren Stellen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Hörplan enthält keine abspielbaren Stellen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The listening plan has no playable passages."
           }
         }
       }
     },
-    "Der Sprung zur Stelle ist fehlgeschlagen." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't jump to that passage."
+    "Der Sprung zur Stelle ist fehlgeschlagen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Sprung zur Stelle ist fehlgeschlagen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't jump to that passage."
           }
         }
       }
     },
-    "Die Wiedergabefreigabe ist nicht mehr gültig." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The playback authorization is no longer valid."
+    "Die Wiedergabefreigabe ist nicht mehr gültig.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Wiedergabefreigabe ist nicht mehr gültig."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The playback authorization is no longer valid."
           }
         }
       }
     },
-    "Diese Wiedergabefreigabe wurde bereits verwendet." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This playback authorization has already been used."
+    "Diese Wiedergabefreigabe wurde bereits verwendet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Wiedergabefreigabe wurde bereits verwendet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This playback authorization has already been used."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

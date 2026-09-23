@@ -1,5 +1,21 @@
 # Änderungsverlauf
 
+## App 0.7 · 2026-09-23
+Aus dem TestFlight-Feedback, einem Test mit 50 Personas, einem Begriffstest mit 12 Personas und einer Prüfung jedes Bedienelements:
+- Podcast finden: Das Blatt „Podcast hinzufügen“ sucht im Apple-Podcast-Verzeichnis nach Name, Anbieter oder Thema und abonniert mit einem Tipp. Links aus Apple Podcasts funktionieren, YouTube-Links mit @-Namen auch. Bei Spotify-Links sagt die App, warum es nicht geht. Abos lassen sich als OPML-Datei übernehmen und sichern. Die Einführung beginnt mit der Suche.
+- Begriffe, die Einsteiger verstehen: „Transkript erstellen“ und „Transkript fertig“ statt „erschliessen“, Reiter „Meine Podcasts“, „Themen-Updates“ und „Chat“ mit Sprechblase statt Lupe, „Gesicherte Antworten“ statt „Wissenslandkarten“. Die Hilfe hat ein kleines Glossar.
+- Englisch: Die ganze Oberfläche gibt es auf Englisch, samt Siri-Kurzbefehlen.
+- Moment merken: Im Player hält „Moment merken“ die Stelle mit Zitat, Zeitmarke und eigenem Kommentar fest. Merken geht auch im Transkript, bei Fakten, in Chat-Antworten und auf den Karten in „Für dich“. Notizen bleiben, wenn die Folge gelöscht wird.
+- Für dich: Weiterhören nach einem Neustart, neue Folgen aus den Abos, Treffer nach Thema gruppiert, mit Datum und „Nicht relevant“. Themen treffen ganze Wörter statt Wortteile („KI“ findet keine Kinder mehr) und haben eigene Stichworte mit Vorschlägen.
+- Speicher und unterwegs: „Laden (offline)“ holt nur den Ton. Nach dem Transkript und einen Tag nach dem Hören räumt die App den Ton von selbst weg, beides abschaltbar. Transkripte für neue Folgen entstehen nur im WLAN, für die gewählte Zahl neuester Folgen je Podcast. Im Hotspot oder Datensparmodus sagt die App, worauf sie wartet.
+- Ältere Folgen: Die Folgenliste hat eine Suche über Titel und Shownotes, Filter, Sortierung und eine Auswahl, für die man auf einmal Transkripte erstellen lässt.
+- Chat: Jeder Beleg nennt Podcast und Folge. Fragen lassen sich auf einen Podcast und einen Zeitraum eingrenzen. Antworten lassen sich sichern und später wieder öffnen.
+- Themen-Updates: neue Ausgabe auf Knopfdruck, frühere Ausgaben, bearbeiten und löschen. Automatische Ausgaben entstehen jetzt wirklich, auf dem iPhone auch im Hintergrund.
+- Player: Die Warteschlange hat einen Abspielknopf und setzt dort fort, wo man war. „Als Nächstes“ reiht vorne ein. Das Tempo bleibt gespeichert. Folgen ohne Ton öffnen YouTube.
+- Fakten: Die Zeitmarke zeigt auf den Satz, der Wortlaut lässt sich einblenden, und Fakten tragen kein Prüfsiegel mehr, weil sie gesagt und nicht geprüft sind. Gegenpositionen durchsuchen den ganzen Bestand und sagen ehrlich, wenn etwas nicht eingeordnet werden konnte.
+- Mac: Der Agentenzugang (MCP) startet über `--mcp`. Die Seitenleiste zeigt, was läuft. Mehrere Fenster doppeln keine Meldungen mehr.
+- Rechtliches: Impressum, Datenschutzerklärung, eine Seite „Datenschutz in PodcastAI“ und Verweise auf Apples eigene Erklärungen.
+
 ## App 0.6.1 · 2026-09-23
 Nach einer gründlichen Prüfung von 0.6 mit 60 gemeldeten und 22 nachträglich gefundenen Fehlern, alle behoben und einzeln nachgeprüft:
 - Abgleich: Legen zwei Geräte dieselbe Quelle oder Folge an, bevor iCloud abgeglichen hat, werden die Doppelten jetzt zusammengeführt statt gelöscht. Vorher konnte dabei das Transkript des anderen Geräts verloren gehen. Der Hörstand liegt je Gerät in einer eigenen Zeile und wird beim Lesen vereinigt, damit gleichzeitiges Hören auf zwei Geräten nichts überschreibt.

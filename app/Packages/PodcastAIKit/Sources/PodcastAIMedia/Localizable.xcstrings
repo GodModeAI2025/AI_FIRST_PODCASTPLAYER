@@ -1,66 +1,102 @@
 {
-  "sourceLanguage" : "de",
-  "strings" : {
-    "Das Audioformat ist nicht umwandelbar." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This audio format can't be converted."
+  "sourceLanguage": "de",
+  "strings": {
+    "Das Audioformat ist nicht umwandelbar.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Audioformat ist nicht umwandelbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This audio format can't be converted."
           }
         }
       }
     },
-    "Der Audiopuffer konnte nicht angelegt werden." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't create the audio buffer."
+    "Der Audiopuffer konnte nicht angelegt werden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Audiopuffer konnte nicht angelegt werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't create the audio buffer."
           }
         }
       }
     },
-    "Der Zielpuffer konnte nicht angelegt werden." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't create the output buffer."
+    "Der Zielpuffer konnte nicht angelegt werden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Zielpuffer konnte nicht angelegt werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't create the output buffer."
           }
         }
       }
     },
-    "Die Audiodatei konnte nicht geöffnet werden: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't open the audio file: %@"
+    "Die Audiodatei konnte nicht geöffnet werden: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Audiodatei konnte nicht geöffnet werden: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't open the audio file: %@"
           }
         }
       }
     },
-    "Die Umwandlung ist fehlgeschlagen: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conversion failed: %@"
+    "Die Umwandlung ist fehlgeschlagen: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Umwandlung ist fehlgeschlagen: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversion failed: %@"
           }
         }
       }
     },
-    "unbekannt" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "unknown"
+    "unbekannt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unbekannt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unknown"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

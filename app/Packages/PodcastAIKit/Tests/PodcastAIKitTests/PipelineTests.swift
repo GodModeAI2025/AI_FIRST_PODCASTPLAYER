@@ -124,7 +124,7 @@ struct FocusPlannerTests {
             route: .chatFocus, options: FocusPlannerOptions(skipAlreadyHeard: false)
         )
         #expect(plan.isEmpty)
-        #expect(plan.excluded.first?.reason == "Medium derzeit nicht verfügbar")
+        #expect(plan.excluded.first?.reason == TestLanguage.pick(de: "Medium derzeit nicht verfügbar", en: "Media currently unavailable"))
     }
 }
 

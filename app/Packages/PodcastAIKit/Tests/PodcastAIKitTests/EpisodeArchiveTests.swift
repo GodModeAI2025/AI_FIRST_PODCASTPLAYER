@@ -109,23 +109,23 @@ struct EpisodeArchiveTests {
     @Test("Die Kopfzeile nennt beide Zahlen und was automatisch passiert")
     func coverageLine() {
         #expect(EpisodeArchive.coverage(total: 412, analyzed: 3, analyzable: true, automatic: .newest(3))
-                == "3 von 412 Folgen mit Transkript, automatisch die 3 neuesten")
+                == TestLanguage.pick(de: "3 von 412 Folgen mit Transkript, automatisch die 3 neuesten", en: "3 of 412 episodes transcribed, newest 3 automatically"))
         #expect(EpisodeArchive.coverage(total: 1, analyzed: 0, analyzable: true, automatic: .newest(1))
-                == "0 von 1 Folge mit Transkript, automatisch die neueste")
+                == TestLanguage.pick(de: "0 von 1 Folge mit Transkript, automatisch die neueste", en: "0 of 1 episode transcribed, newest one automatically"))
         #expect(EpisodeArchive.coverage(total: 20, analyzed: 2, analyzable: true, automatic: .off)
-                == "2 von 20 Folgen mit Transkript, keine automatischen Transkripte")
+                == TestLanguage.pick(de: "2 von 20 Folgen mit Transkript, keine automatischen Transkripte", en: "2 of 20 episodes transcribed, no automatic transcripts"))
         #expect(EpisodeArchive.coverage(total: 20, analyzed: 2, analyzable: true, automatic: .paused)
-                == "2 von 20 Folgen mit Transkript, automatisch gerade keine")
+                == TestLanguage.pick(de: "2 von 20 Folgen mit Transkript, automatisch gerade keine", en: "2 of 20 episodes transcribed, automatic transcripts paused"))
         #expect(EpisodeArchive.coverage(total: 15, analyzed: 0, analyzable: false, automatic: .newest(3))
-                == "15 Folgen, kein Transkript möglich")
+                == TestLanguage.pick(de: "15 Folgen, kein Transkript möglich", en: "15 episodes, can't be transcribed"))
     }
 
     @Test("Die Auswahl nennt Anzahl und Länge")
     func selectionLine() {
         #expect(EpisodeArchive.selectionSummary([episode(1, minutes: 60), episode(2, minutes: 100)])
-                == "2 Folgen ausgewählt, zusammen 2 Std 40 Min Ton")
+                == TestLanguage.pick(de: "2 Folgen ausgewählt, zusammen 2 Std 40 Min Ton", en: "2 episodes selected, 2 hr 40 min of audio in total"))
         #expect(EpisodeArchive.selectionSummary([episode(1, minutes: 45), episode(2)])
-                == "2 Folgen ausgewählt, zusammen mindestens 45 Min Ton")
-        #expect(EpisodeArchive.selectionSummary([episode(1)]) == "1 Folge ausgewählt")
+                == TestLanguage.pick(de: "2 Folgen ausgewählt, zusammen mindestens 45 Min Ton", en: "2 episodes selected, at least 45 min of audio in total"))
+        #expect(EpisodeArchive.selectionSummary([episode(1)]) == TestLanguage.pick(de: "1 Folge ausgewählt", en: "1 episode selected"))
     }
 }

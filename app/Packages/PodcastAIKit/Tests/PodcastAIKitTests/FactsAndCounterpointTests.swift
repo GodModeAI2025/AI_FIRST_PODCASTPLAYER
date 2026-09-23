@@ -243,8 +243,8 @@ struct CounterpointAndClosureTests {
 
         // Alles eingeordnet und keine Gegenposition: das darf die App sagen.
         let classified = mixer.balance([candidate("s", .supports), candidate("d", .differentPremise)])
-        #expect(mixer.imbalanceNotice(classified)?.contains("findet sich keine Gegenposition") == true)
-        #expect(mixer.imbalanceNotice([])?.contains("Folgen mit Transkript") == true)
+        #expect(mixer.imbalanceNotice(classified)?.contains(TestLanguage.pick(de: "findet sich keine Gegenposition", en: "no counterpoint")) == true)
+        #expect(mixer.imbalanceNotice([])?.contains(TestLanguage.pick(de: "Folgen mit Transkript", en: "transcribed episodes")) == true)
     }
 
     @Test("Ob eine These gesichert ist, ergibt sich aus den Karten")
@@ -286,10 +286,10 @@ struct CounterpointAndClosureTests {
         let closure = SessionClosure(question: "Frage", supportingEvidenceIDs: heard, followUpEvidenceIDs: next)
         #expect(closure.canDeepen)
         #expect(closure.availableFollowUpCount == 2)
-        #expect(closure.followUpLabel == "2 weitere Stellen dazu, höchstens 10 Minuten.")
+        #expect(closure.followUpLabel == TestLanguage.pick(de: "2 weitere Stellen dazu, höchstens 10 Minuten.", en: "2 more passages on this, up to 10 minutes."))
 
         let empty = SessionClosure(question: "Frage", supportingEvidenceIDs: heard)
         #expect(!empty.canDeepen)
-        #expect(empty.followUpLabel == "Dazu gibt es keine weitere Stelle mit Transkript.")
+        #expect(empty.followUpLabel == TestLanguage.pick(de: "Dazu gibt es keine weitere Stelle mit Transkript.", en: "There are no more transcribed passages on this."))
     }
 }

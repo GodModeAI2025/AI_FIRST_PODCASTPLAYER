@@ -1,106 +1,166 @@
 {
-  "sourceLanguage" : "de",
-  "strings" : {
-    "Das ist keine gültige Adresse." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That isn't a valid address."
+  "sourceLanguage": "de",
+  "strings": {
+    "Das ist keine gültige Adresse.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist keine gültige Adresse."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That isn't a valid address."
           }
         }
       }
     },
-    "Der Feed ist leer." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The feed is empty."
+    "Der Feed ist leer.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Feed ist leer."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The feed is empty."
           }
         }
       }
     },
-    "Der Feed ist zu groß (%@)." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The feed is too large (%@)."
+    "Der Feed ist zu groß (%@).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Feed ist zu groß (%@)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The feed is too large (%@)."
           }
         }
       }
     },
-    "Der Feed konnte nicht gelesen werden: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The feed couldn't be read: %@"
+    "Der Feed konnte nicht gelesen werden: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Feed konnte nicht gelesen werden: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The feed couldn't be read: %@"
           }
         }
       }
     },
-    "Die Datei ist zu groß für eine Abo-Liste." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The file is too large for a subscription list."
+    "Die Datei ist zu groß für eine Abo-Liste.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Datei ist zu groß für eine Abo-Liste."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is too large for a subscription list."
           }
         }
       }
     },
-    "Diese Datei ist keine OPML-Liste. Exportiere die Abos in deiner bisherigen App als OPML und wähle diese Datei." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This file isn't an OPML list. Export your subscriptions as OPML from your previous app, then choose that file."
+    "Diese Datei ist keine OPML-Liste. Exportiere die Abos in deiner bisherigen App als OPML und wähle diese Datei.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei ist keine OPML-Liste. Exportiere die Abos in deiner bisherigen App als OPML und wähle diese Datei."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file isn't an OPML list. Export your subscriptions as OPML from your previous app, then choose that file."
           }
         }
       }
     },
-    "Dieses Format wird nicht unterstützt." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This format isn't supported."
+    "Dieses Format wird nicht unterstützt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Format wird nicht unterstützt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This format isn't supported."
           }
         }
       }
     },
-    "In dieser Datei steht kein Podcast." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This file doesn't contain any podcasts."
+    "In dieser Datei steht kein Podcast.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In dieser Datei steht kein Podcast."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file doesn't contain any podcasts."
           }
         }
       }
     },
-    "Links vom Typ „%@“ können nicht aufgenommen werden." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "\"%@\" links can't be added."
+    "Links vom Typ „%@“ können nicht aufgenommen werden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Links vom Typ „%@“ können nicht aufgenommen werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" links can't be added."
           }
         }
       }
     },
-    "unbekannter Fehler" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "unknown error"
+    "unbekannter Fehler": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unbekannter Fehler"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unknown error"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }
