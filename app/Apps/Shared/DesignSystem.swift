@@ -194,15 +194,30 @@ public struct TimecodeLabel: View {
     static func spoken(_ timecode: String) -> String {
         let parts = timecode.split(separator: "–")
         guard parts.count == 2 else { return spokenSingle(String(timecode)) }
-        return "von \(spokenSingle(String(parts[0]))) bis \(spokenSingle(String(parts[1])))"
+        let start = spokenSingle(String(parts[0]))
+        let end = spokenSingle(String(parts[1]))
+        return String(localized: "von \(start) bis \(end)")
     }
 
+    /// „1 Minute 5“, „12 Minuten 14“. Einzahl und Mehrzahl stehen als eigene
+    /// Texte da: die automatische Beugung braucht ein de.lproj, und der
+    /// Katalog erzeugt noch keines.
     static func spokenSingle(_ value: String) -> String {
         let units = value.split(separator: ":").map(String.init)
-        switch units.count {
-        case 2: return "\(units[0]) Minuten \(units[1])"
-        case 3: return "\(units[0]) Stunden \(units[1]) Minuten \(units[2])"
+        let numbers = units.compactMap { Int($0) }
+        guard numbers.count == units.count else { return value }
+        switch numbers.count {
+        case 2: return "\(minutes(numbers[0])) \(numbers[1])"
+        case 3: return "\(hours(numbers[0])) \(minutes(numbers[1])) \(numbers[2])"
         default: return value
         }
+    }
+
+    private static func minutes(_ count: Int) -> String {
+        count == 1 ? String(localized: "1 Minute") : String(localized: "\(count) Minuten")
+    }
+
+    private static func hours(_ count: Int) -> String {
+        count == 1 ? String(localized: "1 Stunde") : String(localized: "\(count) Stunden")
     }
 }

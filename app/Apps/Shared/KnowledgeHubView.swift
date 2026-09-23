@@ -3,7 +3,7 @@
 //  PodcastAI
 //
 //  Der Sammelpunkt für alles, was nicht Hören ist: gemerkte Stellen,
-//  Wissenslandkarten, Gegenpositionen, Interessen.
+//  gesicherte Antworten, Gegenpositionen, Interessen.
 //
 //  Vier Bereiche, die eine Tab Bar gesprengt hätten, aber inhaltlich
 //  zusammengehören — hier bekommen sie eine Ebene, statt oben um Platz zu
@@ -22,18 +22,18 @@ struct KnowledgeHubView: View {
             Section {
                 NavigationLink(value: HubDestination.highlights) {
                     HubRow(
-                        title: "Gemerkte Stellen",
+                        title: String(localized: "Gemerkte Stellen"),
                         detail: model.highlights.isEmpty
-                            ? "Noch nichts gemerkt"
-                            : "\(model.highlights.count)",
+                            ? String(localized: "Noch nichts gemerkt")
+                            : model.highlights.count.formatted(),
                         symbol: "bookmark",
                         tint: .orange
                     )
                 }
                 NavigationLink(value: HubDestination.trails) {
                     HubRow(
-                        title: "Wissenslandkarten",
-                        detail: model.trails.isEmpty ? "Noch keine" : "\(model.trails.count)",
+                        title: String(localized: "Gesicherte Antworten"),
+                        detail: model.trails.isEmpty ? String(localized: "Noch keine") : model.trails.count.formatted(),
                         symbol: "map",
                         tint: .green
                     )
@@ -45,8 +45,8 @@ struct KnowledgeHubView: View {
             Section {
                 NavigationLink(value: HubDestination.counterpoint) {
                     HubRow(
-                        title: "Gegenpositionen",
-                        detail: "Eine These prüfen",
+                        title: String(localized: "Gegenpositionen"),
+                        detail: String(localized: "Eine These prüfen"),
                         symbol: "arrow.left.arrow.right",
                         tint: .purple
                     )
@@ -54,15 +54,17 @@ struct KnowledgeHubView: View {
             } header: {
                 Text("Prüfen")
             } footer: {
-                Text("PodcastAI sucht belegte Positionen zu deiner These, dafür und dagegen. "
-                     + "Ziel ist dein eigenes Urteil, nicht eine bestimmte Meinung.")
+                Text("""
+                    PodcastAI sucht belegte Positionen zu deiner These, dafür und dagegen. \
+                    Ziel ist dein eigenes Urteil, nicht eine bestimmte Meinung.
+                    """)
             }
 
             Section {
                 NavigationLink(value: HubDestination.interests) {
                     HubRow(
-                        title: "Interessen",
-                        detail: "\(model.profile.confirmed.count) bestätigt",
+                        title: String(localized: "Interessen"),
+                        detail: String(localized: "\(model.profile.confirmed.count) bestätigt"),
                         symbol: "target",
                         tint: .blue
                     )
@@ -71,8 +73,10 @@ struct KnowledgeHubView: View {
                 Text("Profil")
             } footer: {
                 // „Warum sehe ich das?“ beginnt hier — und das gehört gesagt.
-                Text("Bestimmt, welche Stellen dir als relevant angezeigt werden. "
-                     + "Jederzeit einsehbar und korrigierbar.")
+                Text("""
+                    Bestimmt, welche Stellen dir als relevant angezeigt werden. \
+                    Jederzeit einsehbar und korrigierbar.
+                    """)
             }
 
             #if os(iOS)
@@ -83,8 +87,8 @@ struct KnowledgeHubView: View {
             Section {
                 NavigationLink(value: HubDestination.settings) {
                     HubRow(
-                        title: "Einstellungen",
-                        detail: "Vorbereiten, Intelligenz, Lernen, Systemsuche",
+                        title: String(localized: "Einstellungen"),
+                        detail: String(localized: "Transkripte, Intelligenz, Lernen, Systemsuche"),
                         symbol: "gearshape",
                         tint: .gray
                     )
@@ -94,7 +98,8 @@ struct KnowledgeHubView: View {
 
             Section {
                 NavigationLink(value: HubDestination.help) {
-                    HubRow(title: "So funktioniert's", detail: "Einsteiger bis Experten",
+                    HubRow(title: String(localized: "So funktioniert's"),
+                           detail: String(localized: "Einsteiger bis Experten"),
                            symbol: "questionmark.circle", tint: .teal)
                 }
             }
@@ -127,6 +132,9 @@ struct KnowledgeHubView: View {
 ///
 /// Farbe trägt hier keine Information allein: jede Zeile hat Symbol **und**
 /// Beschriftung. Wer Farben nicht unterscheiden kann, verliert nichts.
+///
+/// Titel und Detail kommen fertig übersetzt an (`String(localized:)`),
+/// Zahlen über `formatted()`. `Text` zeigt sie so, wie sie sind.
 struct HubRow: View {
 
     let title: String

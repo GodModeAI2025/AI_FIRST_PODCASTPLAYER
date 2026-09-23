@@ -38,7 +38,7 @@ struct ActivityStatusButton: View {
                     }
                     let count = pending > 0 ? pending : waiting
                     if count > 0 {
-                        Text("\(count)").font(.caption.monospacedDigit().weight(.semibold))
+                        Text(count, format: .number).font(.caption.monospacedDigit().weight(.semibold))
                     }
                 }
             }
@@ -48,16 +48,23 @@ struct ActivityStatusButton: View {
         }
     }
 
+    /// Das Verb richtet sich hier nach der Zahl („wird“, „werden“). Die
+    /// automatische Beugung hilft da nicht, deshalb stehen Einzahl und
+    /// Mehrzahl als eigene Sätze da.
     private var accessibilityText: String {
         if pending > 0 {
-            return pending == 1 ? "Eine Folge wird vorbereitet" : "\(pending) Folgen werden vorbereitet"
+            return pending == 1
+                ? String(localized: "Für eine Folge wird das Transkript erstellt")
+                : String(localized: "Für \(pending) Folgen werden Transkripte erstellt")
         }
         if let activity = model.activity { return activity }
         if waiting > 0 {
-            let count = waiting == 1 ? "Eine Folge wartet" : "\(waiting) Folgen warten"
-            return model.preparationWait.map { "\(count). \($0.settingsLabel)" } ?? count
+            let count = waiting == 1
+                ? String(localized: "Eine Folge wartet")
+                : String(localized: "\(waiting) Folgen warten")
+            return model.preparationWait.map { String(localized: "\(count). \($0.settingsLabel)") } ?? count
         }
-        return "Arbeit läuft"
+        return String(localized: "Arbeit läuft")
     }
 }
 
