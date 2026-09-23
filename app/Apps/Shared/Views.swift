@@ -1128,6 +1128,14 @@ struct AddSourceSheet: View {
                 Das Transkript einer Folge erstellst du dann selbst, wenn du es brauchst.
                 """)
         }
+        // Hat das Gerät keine Spracherkennung, reiht die App nichts von selbst
+        // ein. Dann darf hier auch keine Vorbereitung versprochen werden.
+        if let unavailable = model.preparationUnavailable {
+            return String(localized: """
+                Transkripte für neue Folgen erstellt die App gerade nicht. \(unavailable) \
+                Das Transkript einer Folge kannst du trotzdem selbst anfordern.
+                """)
+        }
         let count = model.episodesPerSource
         var sentences = [count == 1
             ? String(localized: """
@@ -1138,8 +1146,22 @@ struct AddSourceSheet: View {
                 Nach dem Abonnieren bereitet die App die \(count) neuesten Folgen vor: \
                 laden, Transkript erstellen, Fakten finden.
                 """)]
-        if model.preparationOnWiFiOnly {
-            sentences.append(String(localized: "Geladen wird dafür nur im WLAN."))
+        // Was das Netz gerade erlaubt, nicht nur was eingestellt ist.
+        switch model.preparationWait {
+        case .offline?:
+            sentences.append(String(localized: "Gerade ist kein Netz da. Die App fängt an, sobald wieder eines da ist."))
+        case .lowDataMode?:
+            sentences.append(String(localized: "Solange der Datensparmodus an ist, wartet die App damit."))
+        case .hotspot?:
+            sentences.append(String(localized: """
+                Geladen wird dafür nur im WLAN. Ein Hotspot zählt nicht dazu, die App wartet also.
+                """))
+        case .cellular?:
+            sentences.append(String(localized: "Geladen wird dafür nur im WLAN. Die App wartet, bis eines da ist."))
+        case nil:
+            if model.preparationOnWiFiOnly {
+                sentences.append(String(localized: "Geladen wird dafür nur im WLAN."))
+            }
         }
         sentences.append(String(localized: "Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln."))
         return sentences.joined(separator: " ")
@@ -1175,6 +1197,9 @@ struct AddSourceSheet: View {
         do {
             let found = try await PodcastDirectory.search(term)
             guard term == trimmed else { return }
+            // Ein erneuter Versuch über „Suchen“ ändert den Text nicht. Die
+            // alte Fehlermeldung muss dann hier weg, nicht erst beim Tippen.
+            failure = nil
             results = found
             searchedTerm = term
         } catch is CancellationError {
@@ -1565,7 +1590,12 @@ struct NewSmartFeedSheet: View {
                 Section {
                     Stepper("\(minutes) Minuten je Ausgabe", value: $minutes, in: 5...120, step: 5)
                 } footer: {
-                    Text("Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. Der Rest wartet auf die nächste Ausgabe.")
+                    // Eine neue Ausgabe nimmt nur Ungehörtes. Was nicht
+                    // hineinpasst, rückt also erst nach, wenn das Vorige gehört ist.
+                    Text("""
+                        Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. \
+                        Der Rest rückt nach, sobald du sie gehört hast.
+                        """)
                 }
                 if !model.sources.isEmpty {
                     Section {
