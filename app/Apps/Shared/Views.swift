@@ -57,7 +57,7 @@ struct ForYouView: View {
                     Label("Wonach suchst du?", systemImage: "sparkles")
                 } description: {
                     Text("""
-                        Leg ein oder zwei Themen an, etwa „Datenschutz“ oder „Ernährung“. \
+                        Leg ein oder zwei Themen an, etwa „Fußball“, „Kochen“ oder „Datenschutz“. \
                         Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen.
                         """)
                 } actions: {
@@ -70,6 +70,18 @@ struct ForYouView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
+                // Woher die Stellen kommen, gleich darüber und mit dem Weg
+                // zum Ändern. Sonst stand das nur in der Hilfe.
+                Section {
+                    NavigationLink { InterestsView() } label: {
+                        LabeledContent {
+                            Text("Bearbeiten")
+                        } label: {
+                            Label("Ausgewählt nach deinen Interessen", systemImage: "target")
+                        }
+                    }
+                    .accessibilityIdentifier("forYou.interests")
+                }
                 ForEach(groupedRelevant) { group in
                     Section {
                         ForEach(group.cards) { card in
@@ -86,6 +98,20 @@ struct ForYouView: View {
                     }
                 }
             }
+
+            // Gemerkte Stellen auch von hier, nicht nur unter „Wissen“.
+            if !model.highlights.isEmpty {
+                Section {
+                    NavigationLink { KnowledgeView() } label: {
+                        LabeledContent {
+                            Text(model.highlights.count, format: .number)
+                        } label: {
+                            Label("Gemerkte Stellen", systemImage: "bookmark")
+                        }
+                    }
+                    .accessibilityIdentifier("forYou.highlights")
+                }
+            }
         }
         .sheet(isPresented: $addingSource) { AddSourceSheet() }
         .listStyle(.plain)
@@ -96,9 +122,31 @@ struct ForYouView: View {
             NavigationLink { QueueView() } label: {
                 Label("Warteschlange", systemImage: "list.bullet")
             }
+            // Nach dem ersten Abo verschwindet der grosse Suchknopf. Weitere
+            // Podcasts kommen dann über das Plus dazu.
+            Button { addingSource = true } label: {
+                Label("Podcast hinzufügen", systemImage: "plus")
+            }
+            .accessibilityIdentifier("forYou.add")
+            #if os(iOS)
+            SettingsToolbarLink()
+            #endif
         }
     }
 }
+
+#if os(iOS)
+/// Das Zahnrad in „Für dich“ und „Meine Podcasts“. Einstellungen, Hilfe und
+/// Datenschutz lagen vorher nur ganz unten im Reiter „Wissen“.
+struct SettingsToolbarLink: View {
+    var body: some View {
+        NavigationLink { SettingsView() } label: {
+            Label("Einstellungen", systemImage: "gearshape")
+        }
+        .accessibilityIdentifier("toolbar.settings")
+    }
+}
+#endif
 
 /// Eine Karte in „Für dich“: alle Treffer einer Folge zu einem Interesse.
 struct RelevantCard: Identifiable {
@@ -941,6 +989,9 @@ struct LibraryView: View {
             Button { showingAdd = true } label: {
                 Label("Podcast hinzufügen", systemImage: "plus")
             }
+            #if os(iOS)
+            SettingsToolbarLink()
+            #endif
         }
         .sheet(isPresented: $showingAdd) { AddSourceSheet() }
         .opmlImport(isPresented: $importingOPML)
@@ -1039,10 +1090,9 @@ struct AddSourceSheet: View {
                         .autocorrectionDisabled()
                         #endif
                 } footer: {
-                    Text("""
-                        Tippe den Namen eines Podcasts, eines Anbieters oder ein Thema. \
-                        Links gehen auch: Apple Podcasts, eine Feed-Adresse, eine einzelne Folge oder ein YouTube-Kanal.
-                        """)
+                    // Kurz halten. Wer einen Link hat, fügt ihn ein, der Rest
+                    // steht in der Hilfe.
+                    Text("Tippe den Namen der Sendung ein. Ein Link aus Apple Podcasts oder von YouTube geht auch.")
                 }
 
                 if let failure {
@@ -1087,13 +1137,14 @@ struct AddSourceSheet: View {
                 if trimmed.isEmpty {
                     Section {
                         Button { importingOPML = true } label: {
-                            Label("Abos aus Datei importieren (OPML)", systemImage: "square.and.arrow.down")
+                            Label("Abos aus einer anderen App übernehmen", systemImage: "square.and.arrow.down")
                         }
                         .accessibilityIdentifier("source.importOPML")
                     } footer: {
                         Text("""
-                            Overcast, Pocket Casts und die meisten anderen Podcast-Apps exportieren \
-                            ihre Abos als OPML-Datei. So kommen alle auf einmal herüber.
+                            Overcast, Pocket Casts und die meisten anderen Podcast-Apps sichern ihre \
+                            Abos in einer Datei (OPML). Die wählst du hier aus, dann kommen alle auf \
+                            einmal herüber.
                             """)
                     }
                 }
@@ -1120,8 +1171,12 @@ struct AddSourceSheet: View {
                         Button("Fertig") { dismiss() }
                     }
                 }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Abbrechen") { dismiss() }
+                // Nach einem Abo gibt es nichts mehr abzubrechen. Neben
+                // „Fertig“ klang „Abbrechen“, als nähme es das Abo zurück.
+                if added.isEmpty {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Abbrechen") { dismiss() }
+                    }
                 }
             }
         }
@@ -1314,7 +1369,7 @@ struct InterestsView: View {
             } header: {
                 Text("Themen")
             } footer: {
-                Text("Antippen, um Stichworte zu ergänzen. Nur bestätigte Themen lösen persönliche Ausgaben aus.")
+                Text("Deine Themen füllen „Für dich“ und die Themen-Updates. Antippen, um Stichworte zu ergänzen.")
             }
 
             if !model.profile.activeProjects.isEmpty {
@@ -1592,7 +1647,10 @@ struct NewSmartFeedSheet: View {
                     if model.profile.topics.isEmpty {
                         Text("Lege mindestens ein Thema an. Es wird auch unter „Wissen › Interessen“ gespeichert.")
                     } else {
-                        Text("Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen.")
+                        Text("""
+                            Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim \
+                            Anlegen mitgenommen. Stichworte zu einem Thema ergänzt du unter „Wissen › Interessen“.
+                            """)
                     }
                 }
                 Section {

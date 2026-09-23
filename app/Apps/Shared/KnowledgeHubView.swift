@@ -83,12 +83,13 @@ struct KnowledgeHubView: View {
             // Auf dem Mac liegen die Einstellungen im Programmmenü. Auf iOS
             // gab es sie gar nicht — Modellstatus, Lernschalter und der
             // Spotlight-Schalter waren nur auf einem der beiden Geräte
-            // erreichbar.
+            // erreichbar. Der Hauptweg ist inzwischen das Zahnrad in „Für
+            // dich“ und „Meine Podcasts“; diese Zeile bleibt als zweiter.
             Section {
                 NavigationLink(value: HubDestination.settings) {
                     HubRow(
                         title: String(localized: "Einstellungen"),
-                        detail: String(localized: "Transkripte, Intelligenz, Lernen, Systemsuche"),
+                        detail: String(localized: "Mobilfunk, Speicher, Datenschutz"),
                         symbol: "gearshape",
                         tint: .gray
                     )

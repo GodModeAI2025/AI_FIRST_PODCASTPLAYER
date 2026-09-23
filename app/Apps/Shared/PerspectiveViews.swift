@@ -582,5 +582,5 @@ struct AppFeedbackModifier: ViewModifier {
 
 extension View {
     /// Fehlermeldung und Abschlusskarte, an einer Stelle je Plattform.
-    func appFeedback() -> some View { modifier(AppFeedbackModifier()) }
+    func appFeedback() -> some View { modifier(AppFeedbackModifier()).modifier(MobileDataQuestion()) }
 }
