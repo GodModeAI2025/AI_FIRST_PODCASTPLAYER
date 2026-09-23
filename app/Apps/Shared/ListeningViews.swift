@@ -21,6 +21,16 @@ struct EpisodeDetailView: View {
         case facts = "Fakten"
         case ask = "Fragen"
         var id: Self { self }
+        /// Was im Reiter steht. Der Rohwert bleibt deutsch und dient nur als Kennung.
+        var title: LocalizedStringKey {
+            switch self {
+            case .overview: "Überblick"
+            case .chapters: "Kapitel"
+            case .transcript: "Transkript"
+            case .facts: "Fakten"
+            case .ask: "Fragen"
+            }
+        }
         var symbol: String {
             switch self {
             case .overview: "info.circle"
@@ -61,7 +71,7 @@ struct EpisodeDetailView: View {
         VStack(spacing: 0) {
             Picker("Bereich", selection: $section) {
                 ForEach(Section.allCases) { item in
-                    Text(item.rawValue).tag(item)
+                    Text(item.title).tag(item)
                 }
             }
             .pickerStyle(.segmented)
@@ -111,8 +121,11 @@ struct EpisodeDetailView: View {
                 }
             }
         } message: {
-            Text("Transkript, Fakten, Belege und der Hörstand dieser Folge werden auf allen Geräten gelöscht. "
-                 + "Der Feed legt die Folge nicht wieder an. Deine Notizen bleiben unter Wissen erhalten.")
+            Text("""
+                Transkript, Fakten, Belege und der Hörstand dieser Folge werden auf allen Geräten gelöscht. \
+                Die Folge kommt auch beim Aktualisieren des Podcasts nicht zurück. \
+                Deine Notizen bleiben unter Wissen erhalten.
+                """)
         }
     }
 
@@ -177,9 +190,13 @@ struct EpisodeDetailView: View {
             }
 
             if let stage {
-                SwiftUI.Section("Auswertung") {
+                SwiftUI.Section("Transkript") {
                     Label {
-                        Text(model.stageDetails[episode.id].map { "\(stage.label) · \($0)" } ?? stage.label)
+                        if let detail = model.stageDetails[episode.id] {
+                            Text("\(stage.label) · \(detail)")
+                        } else {
+                            Text(stage.label)
+                        }
                     } icon: {
                         Image(systemName: stage.symbol)
                             .symbolEffect(.pulse, isActive: stage.isRunning)
@@ -191,7 +208,7 @@ struct EpisodeDetailView: View {
                     }
                 }
             } else if let detail = model.stageDetails[episode.id] {
-                SwiftUI.Section("Auswertung") { Label(detail, systemImage: "clock") }
+                SwiftUI.Section("Transkript") { Label(detail, systemImage: "clock") }
             }
             if stage == nil, hasLocalAudio || model.downloading.contains(episode.id) {
                 SwiftUI.Section {
@@ -354,24 +371,27 @@ struct EpisodeDetailView: View {
                 Button {
                     model.enqueueAnalysis(episode)
                 } label: {
-                    Label(stage == .failed ? "Erneut versuchen" : "Folge auswerten",
+                    Label(stage == .failed ? "Erneut versuchen" : "Transkript erstellen",
                           systemImage: "waveform.badge.magnifyingglass")
                         .labelStyle(.iconOnly)
                         .frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
                 }
                 .buttonStyle(.bordered)
-                .disabled(model.stageDetails[episode.id] == "wartet")
-                .help(stage == .failed ? "Auswerten erneut versuchen" : "Folge auswerten")
-                .accessibilityLabel(stage == .failed ? "Erneut versuchen" : "Folge auswerten")
+                // Derselbe Schlüssel wie im AppModel, damit der Vergleich auch
+                // in einer Übersetzung trifft.
+                .disabled(model.stageDetails[episode.id] == String(localized: "wartet"))
+                .help(stage == .failed ? "Transkript erneut erstellen" : "Transkript erstellen")
+                .accessibilityLabel(stage == .failed ? "Erneut versuchen" : "Transkript erstellen")
             }
         }
         .buttonBorderShape(.capsule)
     }
 
-    private var playLabel: String {
+    private var playLabel: LocalizedStringKey {
         if isCurrent { return player.isPlayingOrStarting ? "Pause" : "Weiter" }
         let resume = model.resumePosition(for: episode)
-        return resume > 5 ? "Weiter ab \(MediaTime(milliseconds: Int64(resume * 1000)).timecode)" : "Abspielen"
+        guard resume > 5 else { return "Abspielen" }
+        return "Weiter ab \(MediaTime(milliseconds: Int64(resume * 1000)).timecode)"
     }
 
     // MARK: Kapitel
@@ -397,9 +417,10 @@ struct EpisodeDetailView: View {
                     if model.factsInProgress.contains(episode.id) {
                         HStack { ProgressView(); Text("Fakten werden ermittelt …") }
                     } else if passages.isEmpty {
-                        EpisodeAnalysisPrompt(episode: episode, style: .inline(
-                            "Sobald die Folge ausgewertet ist, zieht die App überprüfbare Aussagen mit "
-                            + "Zeitmarke heraus."))
+                        EpisodeAnalysisPrompt(episode: episode, style: .inline(String(localized: """
+                            Sobald das Transkript fertig ist, zieht die App überprüfbare Aussagen \
+                            mit Zeitmarke heraus.
+                            """)))
                     } else if case .failure(let reason) = model.modelStatus.resolve(.extract) {
                         // Ohne Apple Intelligence gibt es keine Fakten. Das steht hier,
                         // statt dass ein Knopf ohne Wirkung angeboten wird.
@@ -422,9 +443,12 @@ struct EpisodeDetailView: View {
                         }
                     }
                 } footer: {
-                    Text("Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. "
-                         + "Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. "
-                         + "Formuliert von: \(facts.first?.modelTier ?? "Apple Intelligence").")
+                    let tier = facts.first?.modelTier ?? "Apple Intelligence"
+                    Text("""
+                        Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. \
+                        Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. \
+                        Formuliert von: \(tier).
+                        """)
                 }
                 SwiftUI.Section {
                     Button {
@@ -605,8 +629,9 @@ struct TopicTagRow: View {
                             .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(tag.isInterest ? "\(tag.label), schon ein Interesse" : "Thema \(tag.label)")
-                    .accessibilityHint(tag.isInterest ? "" : "Legt das Thema als Interesse an")
+                    .accessibilityLabel(tag.isInterest ? Text("\(tag.label), schon ein Interesse")
+                                                       : Text("Thema \(tag.label)"))
+                    .accessibilityHint(tag.isInterest ? Text(verbatim: "") : Text("Legt das Thema als Interesse an"))
                 }
             }
         }
@@ -696,8 +721,11 @@ struct TranscriptSection: View {
                         Label(unavailable == nil ? "Noch kein Transkript" : "Kein Transkript",
                               systemImage: "text.alignleft")
                     } description: {
-                        Text(unavailable
-                             ?? "Die App erstellt das Transkript beim Auswerten, auf dem Gerät und mit Zeitmarken.")
+                        if let unavailable {
+                            Text(unavailable)
+                        } else {
+                            Text("Die App erstellt das Transkript auf dem Gerät, mit Zeitmarken.")
+                        }
                     } actions: {
                         EpisodeAnalysisPrompt(episode: episode)
                     }
@@ -794,7 +822,8 @@ struct HeardProgress: View {
             HStack(spacing: Design.Spacing.small) {
                 ProgressView(value: fraction)
                     .frame(maxWidth: 120)
-                Text(fraction > 0.97 ? "gehört" : "\(Int(fraction * 100)) % gehört")
+                Text(fraction > 0.97 ? "gehört"
+                     : "\(fraction.formatted(.percent.precision(.fractionLength(0)).rounded(rule: .down))) gehört")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -985,7 +1014,7 @@ struct EpisodePlayerView: View {
             HStack {
                 Text(Self.format(scrubbing ?? player.currentTime))
                 Spacer()
-                Text("-" + Self.format(max(0, total - (scrubbing ?? player.currentTime))))
+                Text(verbatim: "-" + Self.format(max(0, total - (scrubbing ?? player.currentTime))))
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
@@ -995,8 +1024,8 @@ struct EpisodePlayerView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Position")
         .accessibilityValue(player.duration > 0
-            ? "\(Self.spoken(player.currentTime)) von \(Self.spoken(player.duration))"
-            : Self.spoken(player.currentTime))
+            ? Text("\(Self.spoken(player.currentTime)) von \(Self.spoken(player.duration))")
+            : Text(Self.spoken(player.currentTime)))
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment: player.skip(by: 30)
@@ -1006,15 +1035,11 @@ struct EpisodePlayerView: View {
         }
     }
 
-    /// Eine Zeitangabe zum Vorlesen, etwa „12 Minuten 30 Sekunden“.
+    /// Eine Zeitangabe zum Vorlesen, etwa „12 Minuten und 30 Sekunden“.
+    /// Einzahl, Mehrzahl und Wortstellung kommen aus der Gerätesprache.
     static func spoken(_ seconds: Double) -> String {
-        let total = Int(max(0, seconds))
-        let hours = total / 3600, minutes = total % 3600 / 60, rest = total % 60
-        var parts: [String] = []
-        if hours > 0 { parts.append(hours == 1 ? "1 Stunde" : "\(hours) Stunden") }
-        if minutes > 0 { parts.append(minutes == 1 ? "1 Minute" : "\(minutes) Minuten") }
-        if rest > 0 || parts.isEmpty { parts.append(rest == 1 ? "1 Sekunde" : "\(rest) Sekunden") }
-        return parts.joined(separator: " ")
+        Duration.seconds(Int(max(0, seconds)))
+            .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide))
     }
 
     private var transport: some View {
@@ -1072,7 +1097,9 @@ struct EpisodePlayerView: View {
     private var sleepMenu: some View {
         Menu {
             ForEach([5, 15, 30, 45, 60], id: \.self) { minutes in
-                Button("\(minutes) Minuten") { player.setSleepTimer(.minutes(minutes)) }
+                Button { player.setSleepTimer(.minutes(minutes)) } label: {
+                    Text(Duration.seconds(minutes * 60), format: .units(allowed: [.minutes], width: .wide))
+                }
             }
             Button("Ende des Kapitels") { player.setSleepTimer(.endOfChapter) }
                 .disabled(player.chapters.isEmpty)
@@ -1096,9 +1123,9 @@ struct EpisodePlayerView: View {
         // Die Restzeit steht auch in der Pause still, genau wie der Timer.
         if case .minutes = player.sleepTimer, let remaining = player.sleepRemaining {
             let minutes = max(1, Int(remaining / 60 + 0.5))
-            return "\(minutes) Min"
+            return String(localized: "\(minutes) Min")
         }
-        return player.sleepTimer?.label ?? "Schlaf-Timer"
+        return player.sleepTimer?.label ?? String(localized: "Schlaf-Timer")
     }
 
     private var chapterList: some View {
@@ -1152,9 +1179,7 @@ struct EpisodeMiniBar: View {
                             Text(episode.title)
                                 .font(.subheadline.weight(.medium))
                                 .lineLimit(1)
-                            Text(player.playbackError != nil ? "Nicht abspielbar"
-                                 : player.isBuffering ? "lädt …"
-                                 : player.currentChapter?.title ?? EpisodePlayerView.format(player.currentTime))
+                            Text(status)
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -1187,6 +1212,13 @@ struct EpisodeMiniBar: View {
                     #endif
             }
         }
+    }
+
+    /// Die zweite Zeile: Fehler, Laden, Kapitel oder die Position.
+    private var status: String {
+        if player.playbackError != nil { return String(localized: "Nicht abspielbar") }
+        if player.isBuffering { return String(localized: "lädt …") }
+        return player.currentChapter?.title ?? EpisodePlayerView.format(player.currentTime)
     }
 }
 
@@ -1241,13 +1273,14 @@ struct QueueView: View {
                     NavigationLink { EpisodeDetailView(episode: current) } label: {
                         QueueRow(episode: current,
                                  detail: model.stages[current.id].map { stage in
-                                     model.stageDetails[current.id].map { "\(stage.label) · \($0)" } ?? stage.label
-                                 } ?? "startet")
+                                     model.stageDetails[current.id].map { String(localized: "\(stage.label) · \($0)") }
+                                         ?? stage.label
+                                 } ?? String(localized: "startet"))
                     }
                 }
                 ForEach(model.analysisQueue) { episode in
                     // Der echte Grund: auf WLAN, auf einen zweiten Versuch oder einfach der Reihe nach.
-                    QueueRow(episode: episode, detail: model.stageDetails[episode.id] ?? "wartet")
+                    QueueRow(episode: episode, detail: model.stageDetails[episode.id] ?? String(localized: "wartet"))
                         .swipeActions {
                             Button("Entfernen", role: .destructive) { model.removeFromAnalysisQueue(episode.id) }
                         }
@@ -1263,19 +1296,23 @@ struct QueueView: View {
                     ids.forEach(model.removeFromAnalysisQueue)
                 }
                 if model.analyzing == nil && model.analysisQueue.isEmpty {
-                    Text("Nichts in Arbeit. Eine Folge wertest du in der Folge selbst aus, mehrere in der "
-                         + "Folgenliste einer Quelle über „Auswählen“.")
+                    Text("""
+                        Nichts in Arbeit. Das Transkript einer Folge erstellst du in der Folge selbst. \
+                        Für mehrere Folgen tippst du in der Folgenliste eines Podcasts auf „Auswählen“.
+                        """)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
             } header: {
-                Text("Auswerten")
+                Text("Transkripte erstellen")
             } footer: {
                 if let unavailable = model.preparationUnavailable {
-                    Text("Automatisch vorbereitet wird gerade nichts. \(unavailable)")
+                    Text("Transkripte für neue Folgen erstellt die App gerade nicht. \(unavailable)")
                 } else {
-                    Text("Es läuft immer eine Folge zur Zeit. Auf dem iPhone geht die Arbeit im Hintergrund weiter, "
-                     + "solange die Fortschrittsanzeige des Systems zu sehen ist.")
+                    Text("""
+                        Die App erstellt ein Transkript nach dem anderen. Auf dem iPhone geht die Arbeit \
+                        im Hintergrund weiter, solange die Fortschrittsanzeige des Systems zu sehen ist.
+                        """)
                 }
             }
         }
@@ -1309,10 +1346,10 @@ struct QueueView: View {
     /// „3 Folgen · noch 2 Std 5 Min“.
     private var upNextSummary: String {
         let count = model.upNext.count
-        let episodes = count == 1 ? "1 Folge" : "\(count) Folgen"
+        let episodes = String(AttributedString(localized: "^[\(count) Folge](inflect: true)").characters)
         let remaining = model.upNextRemaining
         guard remaining >= 60 else { return episodes }
-        return "\(episodes) · noch \(MediaDuration(seconds: remaining).shortDescription)"
+        return String(localized: "\(episodes) · noch \(MediaDuration(seconds: remaining).shortDescription)")
     }
 }
 
@@ -1470,7 +1507,9 @@ extension Episode {
     /// Liegt die Folge bei YouTube? Dann gibt es ein Video, aber keine Audiodatei.
     var opensInYouTube: Bool { webPageURL?.host()?.contains("youtu") ?? false }
     /// Wie der Knopf heisst, der eine Folge ohne Audiodatei öffnet.
-    var webLinkTitle: String { opensInYouTube ? "In YouTube öffnen" : "Webseite öffnen" }
+    var webLinkTitle: String {
+        opensInYouTube ? String(localized: "In YouTube öffnen") : String(localized: "Webseite öffnen")
+    }
     var webLinkSymbol: String { opensInYouTube ? "play.rectangle" : "safari" }
 }
 
