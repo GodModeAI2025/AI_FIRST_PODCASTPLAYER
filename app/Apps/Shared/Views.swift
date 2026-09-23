@@ -44,8 +44,10 @@ struct ForYouView: View {
                 ContentUnavailableView {
                     Label("Noch keine Podcasts", systemImage: "mic")
                 } description: {
-                    Text("Such deine Lieblingssendungen nach Namen und abonniere sie. "
-                         + "Danach stehen hier neue Folgen und die Stellen zu deinen Themen.")
+                    Text("""
+                        Such deine Lieblingssendungen nach Namen und abonniere sie. \
+                        Danach stehen hier neue Folgen und die Stellen zu deinen Themen.
+                        """)
                 } actions: {
                     Button("Podcast suchen") { addingSource = true }
                         .buttonStyle(.borderedProminent)
@@ -54,15 +56,17 @@ struct ForYouView: View {
                 ContentUnavailableView {
                     Label("Wonach suchst du?", systemImage: "sparkles")
                 } description: {
-                    Text("Leg ein oder zwei Themen an, etwa „Datenschutz“ oder „Ernährung“. "
-                         + "Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen.")
+                    Text("""
+                        Leg ein oder zwei Themen an, etwa „Datenschutz“ oder „Ernährung“. \
+                        Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen.
+                        """)
                 } actions: {
                     NavigationLink("Themen anlegen") { InterestsView() }
                         .buttonStyle(.borderedProminent)
                 }
             } else if model.relevantToday.isEmpty {
                 Section("Zu deinen Themen") {
-                    Text("Gerade keine ungehörten Stellen. Neue kommen, sobald die App weitere Folgen vorbereitet hat.")
+                    Text("Gerade keine ungehörten Stellen. Neue kommen dazu, sobald weitere Transkripte fertig sind.")
                         .foregroundStyle(.secondary)
                 }
             } else {
@@ -123,13 +127,13 @@ struct RelevantGroup: Identifiable {
     let cards: [RelevantCard]
 
     var header: some View {
-        let (icon, kind): (String, String) = switch reason {
-        case .activeProject: ("briefcase", "Vorhaben")
-        case .openQuestion: ("questionmark.circle", "Frage")
-        default: ("tag", "Thema")
+        let (icon, spoken): (String, Text) = switch reason {
+        case .activeProject: ("briefcase", Text("Vorhaben: \(label)"))
+        case .openQuestion: ("questionmark.circle", Text("Frage: \(label)"))
+        default: ("tag", Text("Thema: \(label)"))
         }
         return Label(label, systemImage: icon)
-            .accessibilityLabel("\(kind): \(label)")
+            .accessibilityLabel(spoken)
     }
 }
 
@@ -149,7 +153,7 @@ extension ForYouView {
             let items = groups[key] ?? []
             return RelevantGroup(
                 id: key,
-                label: items.first?.relevance?.interestLabel ?? "Weitere Treffer",
+                label: items.first?.relevance?.interestLabel ?? String(localized: "Weitere Treffer"),
                 reason: items.first?.relevance?.reason,
                 cards: Self.cards(from: items))
         }
@@ -237,7 +241,7 @@ struct FreshEpisodeRow: View {
                         Text(source.title).lineLimit(1)
                     }
                     if let published = episode.publishedAt {
-                        Text("·")
+                        Text(verbatim: "·")
                         Text(published, format: .relative(presentation: .named))
                     }
                 }
@@ -279,8 +283,11 @@ struct RelevantItemRow: View {
                 Label("In der Folge ab hier hören", systemImage: "play.fill")
             }
             Button { model.playRelevantItems(bundle.hits) } label: {
-                Label(bundle.hits.count > 1 ? "Nur diese \(bundle.hits.count) Stellen hören" : "Nur diese Stelle hören",
-                      systemImage: "scope")
+                if bundle.hits.count > 1 {
+                    Label("Nur diese \(bundle.hits.count) Stellen hören", systemImage: "scope")
+                } else {
+                    Label("Nur diese Stelle hören", systemImage: "scope")
+                }
             }
             if !others.isEmpty {
                 Section("Weitere Stellen in dieser Folge") {
@@ -319,7 +326,10 @@ struct RelevantItemRow: View {
     /// steht, welche Wörter getroffen haben.
     private var reason: String? {
         let mentioned = bundle.mentioned
-        if !mentioned.isEmpty { return "erwähnt: " + mentioned.prefix(3).joined(separator: ", ") }
+        if !mentioned.isEmpty {
+            let terms = mentioned.prefix(3).joined(separator: ", ")
+            return String(localized: "erwähnt: \(terms)")
+        }
         return item.relevance?.explanation
     }
 
@@ -344,7 +354,7 @@ struct RelevantItemRow: View {
                     .foregroundStyle(.tint)
                     .lineLimit(1)
                 if let published = item.publishedAt {
-                    Text("·").foregroundStyle(.tertiary)
+                    Text(verbatim: "·").foregroundStyle(.tertiary)
                     Text(published, format: .relative(presentation: .named))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -376,7 +386,7 @@ struct RelevantItemRow: View {
                 // Detail, sondern das Versprechen: das hier kannst du nachhören.
                 TimecodeLabel(item.range, emphasis: .medium)
                 if bundle.hits.count > 1 {
-                    Text("·").foregroundStyle(.tertiary)
+                    Text(verbatim: "·").foregroundStyle(.tertiary)
                     Text("\(bundle.hits.count) Stellen in dieser Folge")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -408,12 +418,12 @@ struct RelevantItemRow: View {
     /// Zitat, Folge, Podcast, Zeit: in dieser Reihenfolge entscheidet man,
     /// ob man hinhören will.
     private var accessibilityDescription: String {
-        var parts = [item.excerpt, item.episodeTitle, "aus \(item.sourceTitle)"]
+        var parts = [item.excerpt, item.episodeTitle, String(localized: "aus \(item.sourceTitle)")]
         if let published = item.publishedAt {
             parts.append(published.formatted(.relative(presentation: .named)))
         }
         parts.append(TimecodeLabel.spoken("\(item.range.start.timecode)–\(item.range.end.timecode)"))
-        if bundle.hits.count > 1 { parts.append("\(bundle.hits.count) Stellen in dieser Folge") }
+        if bundle.hits.count > 1 { parts.append(String(localized: "\(bundle.hits.count) Stellen in dieser Folge")) }
         if let reason { parts.append(reason) }
         return parts.joined(separator: ", ")
     }
@@ -434,8 +444,10 @@ struct SmartFeedListView: View {
                 ContentUnavailableView {
                     Label("Noch kein Themen-Update", systemImage: "waveform.circle")
                 } description: {
-                    Text("Aus deinen Interessen kann PodcastAI einen eigenen Podcast bauen — "
-                         + "aus den Originalstellen, die du noch nicht gehört hast.")
+                    Text("""
+                        Aus deinen Interessen baut PodcastAI einen eigenen Podcast. \
+                        Er besteht aus Originalstellen, die du noch nicht gehört hast.
+                        """)
                 } actions: {
                     Button("Themen-Update anlegen") { showingNewFeed = true }
                 }
@@ -462,7 +474,7 @@ struct SmartFeedListView: View {
                 }
             }
         }
-        .navigationTitle("Themen")
+        .navigationTitle("Themen-Updates")
         .activityStatusToolbar()
         .navigationDestination(for: SmartFeedID.self) { feedID in
             SmartFeedDetailView(feedID: feedID)
@@ -503,8 +515,7 @@ private struct SmartFeedDeletionDialog: ViewModifier {
                 onDelete()
             }
         } message: { _ in
-            Text("Alle Ausgaben dieses Updates werden gelöscht. Folgen, Transkripte "
-                 + "und Hörstand bleiben.")
+            Text("Alle Ausgaben dieses Updates werden gelöscht. Folgen, Transkripte und Hörstand bleiben.")
         }
     }
 }
@@ -542,11 +553,12 @@ struct SmartFeedRow: View {
 
     private var status: String {
         guard let latest = editions.first else {
-            return model.editionNotes[feed.id] ?? "Noch keine Ausgabe"
+            return model.editionNotes[feed.id] ?? String(localized: "Noch keine Ausgabe")
         }
-        var parts = ["Bereit seit \(SmartFeedDetailView.readySince(latest.publishedAt))",
+        let since = SmartFeedDetailView.readySince(latest.publishedAt)
+        var parts = [String(localized: "Bereit seit \(since)"),
                      latest.totalMediaDuration.shortDescription]
-        if latest.heardFraction(in: model.ledger) >= 0.8 { parts.append("gehört") }
+        if latest.heardFraction(in: model.ledger) >= 0.8 { parts.append(String(localized: "gehört")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -596,9 +608,14 @@ struct SmartFeedDetailView: View {
                 ContentUnavailableView {
                     Label("Noch keine Ausgabe", systemImage: "waveform.circle")
                 } description: {
-                    Text(model.editionNotes[feedID]
-                         ?? "Sobald genug ungehörtes Material zu deinen Themen vorliegt, "
-                         + "entsteht daraus von selbst eine Ausgabe.")
+                    if let note = model.editionNotes[feedID] {
+                        Text(note)
+                    } else {
+                        Text("""
+                            Sobald genug ungehörtes Material zu deinen Themen vorliegt, \
+                            entsteht daraus von selbst eine Ausgabe.
+                            """)
+                    }
                 }
             }
 
@@ -645,7 +662,7 @@ struct SmartFeedDetailView: View {
                 }
             }
         }
-        .navigationTitle(feed?.title ?? "Themen-Update")
+        .navigationTitle(feed?.title ?? String(localized: "Themen-Update"))
         .toolbar {
             if let feed {
                 Menu {
@@ -693,10 +710,11 @@ struct EditionRow: View {
     }
 
     private var details: String {
+        let count = episode.segments.count
         var parts = [episode.publishedAt.formatted(date: .abbreviated, time: .shortened),
-                     "\(episode.segments.count) Stellen",
+                     String(AttributedString(localized: "^[\(count) Stelle](inflect: true)").characters),
                      episode.totalMediaDuration.shortDescription]
-        if episode.heardFraction(in: model.ledger) >= 0.8 { parts.append("gehört") }
+        if episode.heardFraction(in: model.ledger) >= 0.8 { parts.append(String(localized: "gehört")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -721,9 +739,11 @@ struct EditionHeader: View {
             }
 
             Label {
-                Text("\(episode.segments.count) Stellen · "
-                     + "\(episode.distinctSourceCount) Quellen · "
-                     + "\(episode.totalMediaDuration.shortDescription)")
+                Text("""
+                    ^[\(episode.segments.count) Stelle](inflect: true) · \
+                    ^[\(episode.distinctSourceCount) Quelle](inflect: true) · \
+                    \(episode.totalMediaDuration.shortDescription)
+                    """)
             } icon: {
                 Image(systemName: "waveform")
             }
@@ -740,9 +760,18 @@ struct EditionHeader: View {
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
-            .accessibilityHint("Spielt \(episode.segments.count) Originalstellen nacheinander ab")
+            .accessibilityHint(playHint)
         }
         .padding(.vertical, Design.Spacing.small)
+    }
+
+    /// Zwei feste Sätze statt `inflect`: „Originalstelle“ kennt die
+    /// automatische Beugung im Deutschen nicht, sie bliebe in der Einzahl.
+    private var playHint: String {
+        let count = episode.segments.count
+        return count == 1
+            ? String(localized: "Spielt 1 Originalstelle ab")
+            : String(localized: "Spielt \(count) Originalstellen nacheinander ab")
     }
 
     private func play() {
@@ -799,8 +828,7 @@ struct PersonalEpisodeView: View {
                     .padding(.vertical, Design.Spacing.micro)
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(
-                        "\(TimecodeLabel.spokenSingle(entry.virtualStart.timecode)), "
-                        + "\(entry.title), aus \(entry.sourceTitle)"
+                        "\(TimecodeLabel.spokenSingle(entry.virtualStart.timecode)), \(entry.title), aus \(entry.sourceTitle)"
                     )
                 }
             }
@@ -813,8 +841,7 @@ struct PersonalEpisodeView: View {
                 Text("Umfang")
             } footer: {
                 if episode.segments.contains(where: \.contextReplay) {
-                    Text("Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, "
-                         + "die du eventuell schon gehört hast.")
+                    Text("Einzelne Abschnitte beginnen mit ein paar Sekunden Kontext, die du eventuell schon gehört hast.")
                 }
             }
         }
@@ -833,12 +860,12 @@ struct PersonalEpisodeView: View {
         if index < episode.segments.count, let published = episode.segments[index].originalPublishedAt {
             parts.append(published.formatted(date: .abbreviated, time: .omitted))
         }
-        parts.append("Original \(entry.originalRange.start.timecode)")
+        parts.append(String(localized: "Original \(entry.originalRange.start.timecode)"))
         return parts.joined(separator: " · ")
     }
 }
 
-// MARK: - Mediathek
+// MARK: - Meine Podcasts
 
 struct LibraryView: View {
 
@@ -883,7 +910,7 @@ struct LibraryView: View {
                 }
             }
         }
-        .navigationTitle("Mediathek")
+        .navigationTitle("Meine Podcasts")
         .activityStatusToolbar()
         .confirmationDialog("Abbestellen?", isPresented: Binding(
             get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }
@@ -892,7 +919,7 @@ struct LibraryView: View {
                 Task { await model.removeSource(source.id) }
             }
         } message: { _ in
-            Text("Alle Folgen dieser Quelle werden mit Transkripten, Fakten und Hörstand gelöscht.")
+            Text("Alle Folgen dieses Podcasts werden mit Transkripten, Fakten und Hörstand gelöscht.")
         }
         .navigationDestination(for: SourceID.self) { sourceID in
             EpisodeListView(sourceID: sourceID)
@@ -912,7 +939,7 @@ struct LibraryView: View {
                 Label("Abos importieren oder exportieren", systemImage: "arrow.up.arrow.down.circle")
             }
             Button { showingAdd = true } label: {
-                Label("Quelle hinzufügen", systemImage: "plus")
+                Label("Podcast hinzufügen", systemImage: "plus")
             }
         }
         .sheet(isPresented: $showingAdd) { AddSourceSheet() }
@@ -920,12 +947,11 @@ struct LibraryView: View {
         .overlay {
             if model.sources.isEmpty {
                 ContentUnavailableView {
-                    Label("Keine Quellen", systemImage: "antenna.radiowaves.left.and.right")
+                    Label("Noch keine Podcasts", systemImage: "antenna.radiowaves.left.and.right")
                 } description: {
-                    Text("Füge einen Podcast-Feed, eine einzelne Folge oder einen "
-                         + "YouTube-Kanal hinzu.")
+                    Text("Füge einen Podcast, eine einzelne Folge oder einen YouTube-Kanal hinzu.")
                 } actions: {
-                    Button("Quelle hinzufügen") { showingAdd = true }
+                    Button("Podcast hinzufügen") { showingAdd = true }
                     Button("Abos aus Datei importieren") { importingOPML = true }
                 }
             }
@@ -937,10 +963,16 @@ extension LibraryView {
     var queueSummary: String {
         let listen = model.upNext.count
         let analyze = model.analysisQueue.count + (model.analyzing == nil ? 0 : 1)
-        if listen == 0 && analyze == 0 { return "Nichts vorgemerkt" }
+        if listen == 0 && analyze == 0 { return String(localized: "Nichts vorgemerkt") }
         var parts: [String] = []
-        if listen > 0 { parts.append(listen == 1 ? "1 Folge zum Hören" : "\(listen) Folgen zum Hören") }
-        if analyze > 0 { parts.append(analyze == 1 ? "1 wird erschlossen" : "\(analyze) werden erschlossen") }
+        if listen > 0 {
+            parts.append(String(AttributedString(localized: "^[\(listen) Folge](inflect: true) zum Hören").characters))
+        }
+        if analyze > 0 {
+            parts.append(analyze == 1
+                         ? String(localized: "1 Transkript wird erstellt")
+                         : String(localized: "\(analyze) Transkripte werden erstellt"))
+        }
         return parts.joined(separator: " · ")
     }
 }
@@ -1004,8 +1036,10 @@ struct AddSourceSheet: View {
                         .autocorrectionDisabled()
                         #endif
                 } footer: {
-                    Text("Tippe den Namen eines Podcasts, eines Anbieters oder ein Thema. "
-                         + "Links gehen auch: Apple Podcasts, ein Feed, eine einzelne Folge oder ein YouTube-Kanal.")
+                    Text("""
+                        Tippe den Namen eines Podcasts, eines Anbieters oder ein Thema. \
+                        Links gehen auch: Apple Podcasts, eine Feed-Adresse, eine einzelne Folge oder ein YouTube-Kanal.
+                        """)
                 }
 
                 if let failure {
@@ -1054,8 +1088,10 @@ struct AddSourceSheet: View {
                         }
                         .accessibilityIdentifier("source.importOPML")
                     } footer: {
-                        Text("Overcast, Pocket Casts und die meisten anderen Podcast-Apps exportieren "
-                             + "ihre Abos als OPML-Datei. So kommen alle auf einmal herüber.")
+                        Text("""
+                            Overcast, Pocket Casts und die meisten anderen Podcast-Apps exportieren \
+                            ihre Abos als OPML-Datei. So kommen alle auf einmal herüber.
+                            """)
                     }
                 }
             }
@@ -1087,14 +1123,26 @@ struct AddSourceSheet: View {
     /// vorsehen.
     private var preparationNote: String {
         guard model.automaticAnalysis else {
-            return "Das automatische Vorbereiten ist in den Einstellungen aus. "
-                + "Folgen wertest du einzeln aus, wenn du sie brauchst."
+            return String(localized: """
+                „Transkripte für neue Folgen erstellen“ ist in den Einstellungen aus. \
+                Das Transkript einer Folge erstellst du dann selbst, wenn du es brauchst.
+                """)
         }
         let count = model.episodesPerSource
-        let newest = count == 1 ? "die neueste Folge" : "die \(count) neuesten Folgen"
-        let wifi = model.preparationOnWiFiOnly ? " Geladen wird dafür nur im WLAN." : ""
-        return "Nach dem Abonnieren bereitet die App \(newest) vor: laden, Transkript erstellen, "
-            + "Fakten finden.\(wifi) Ältere Folgen wertest du bei Bedarf einzeln aus."
+        var sentences = [count == 1
+            ? String(localized: """
+                Nach dem Abonnieren bereitet die App die neueste Folge vor: \
+                laden, Transkript erstellen, Fakten finden.
+                """)
+            : String(localized: """
+                Nach dem Abonnieren bereitet die App die \(count) neuesten Folgen vor: \
+                laden, Transkript erstellen, Fakten finden.
+                """)]
+        if model.preparationOnWiFiOnly {
+            sentences.append(String(localized: "Geladen wird dafür nur im WLAN."))
+        }
+        sentences.append(String(localized: "Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln."))
+        return sentences.joined(separator: " ")
     }
 
     private func rowState(_ podcast: PodcastCounterpart) -> PodcastSearchRow.State {
@@ -1160,7 +1208,8 @@ struct AddSourceSheet: View {
             let result = try await model.subscribe(to: podcast.feedURL.absoluteString)
             added[podcast.feedURL] = result.episodeCount
         } catch {
-            failure = "„\(podcast.title)“: \(UserFacingError.describe(error))"
+            let reason = UserFacingError.describe(error)
+            failure = String(localized: "„\(podcast.title)“: \(reason)")
         }
     }
 }
@@ -1191,7 +1240,7 @@ struct PodcastSearchRow: View {
                         .joined(separator: " · "))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 if case .added(let count) = state {
-                    Text("Abonniert · \(count) Folgen gefunden")
+                    Text("Abonniert · ^[\(count) Folge](inflect: true) gefunden")
                         .font(.caption).foregroundStyle(.green)
                 }
             }
@@ -1305,19 +1354,29 @@ struct InterestsView: View {
     private var kindExplanation: String {
         switch newKind {
         case .topic:
-            "Ein Gebiet, das dich dauerhaft interessiert. Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates."
+            String(localized: """
+                Ein Gebiet, das dich dauerhaft interessiert. \
+                Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates.
+                """)
         case .activeProject:
-            "Etwas, woran du gerade arbeitest. Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen."
+            String(localized: """
+                Etwas, woran du gerade arbeitest. \
+                Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen.
+                """)
         case .openQuestion:
-            "Eine konkrete Frage, auf die du eine Antwort suchst. „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, bei längeren Fragen mindestens zwei."
+            String(localized: """
+                Eine konkrete Frage, auf die du eine Antwort suchst. \
+                „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, \
+                bei längeren Fragen mindestens zwei.
+                """)
         }
     }
 
     private var placeholder: String {
         switch newKind {
-        case .topic: "z. B. Datenschutz"
-        case .activeProject: "z. B. Lokale KI-Modelle bewerten"
-        case .openQuestion: "z. B. Was bietet iOS 27 für agentische Apps?"
+        case .topic: String(localized: "z. B. Datenschutz")
+        case .activeProject: String(localized: "z. B. Lokale KI-Modelle bewerten")
+        case .openQuestion: String(localized: "z. B. Was bietet iOS 27 für agentische Apps?")
         }
     }
 
@@ -1337,7 +1396,7 @@ struct InterestRow: View {
         VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
             Text(interest.label)
             if !interest.keywords.isEmpty {
-                Text("Stichworte: " + interest.keywords.joined(separator: ", "))
+                Text("Stichworte: \(interest.keywords.joined(separator: ", "))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -1386,11 +1445,13 @@ struct InterestEditView: View {
             } header: {
                 Text("Stichworte")
             } footer: {
-                Text("Eine Stelle passt, wenn die Bezeichnung oder eines dieser Stichworte am Wortanfang vorkommt: "
-                     + "„daten“ trifft „Datenschutz“, „schutz“ trifft es nicht. Begriffe mit bis zu drei Buchstaben "
-                     + "wie KI zählen nur als ganzes Wort. Bei mehreren Wörtern braucht es den ganzen Ausdruck oder "
-                     + "zwei der wichtigen Wörter daraus, Füllwörter zählen nicht. Englische Fachbegriffe und "
-                     + "Abkürzungen hier ergänzen.")
+                Text("""
+                    Eine Stelle passt, wenn die Bezeichnung oder eines dieser Stichworte am Wortanfang vorkommt: \
+                    „daten“ trifft „Datenschutz“, „schutz“ trifft es nicht. Begriffe mit bis zu drei Buchstaben \
+                    wie KI zählen nur als ganzes Wort. Bei mehreren Wörtern braucht es den ganzen Ausdruck oder \
+                    zwei der wichtigen Wörter daraus, Füllwörter zählen nicht. Englische Fachbegriffe und \
+                    Abkürzungen hier ergänzen.
+                    """)
             }
             if !suggestions.isEmpty {
                 Section {
@@ -1404,7 +1465,7 @@ struct InterestEditView: View {
                 }
             }
         }
-        .navigationTitle(interest.label.isEmpty ? "Interesse" : interest.label)
+        .navigationTitle(interest.label.isEmpty ? String(localized: "Interesse") : interest.label)
         .task(id: interest.label) { refreshSuggestions() }
         .onDisappear(perform: save)
     }
@@ -1504,8 +1565,7 @@ struct NewSmartFeedSheet: View {
                 Section {
                     Stepper("\(minutes) Minuten je Ausgabe", value: $minutes, in: 5...120, step: 5)
                 } footer: {
-                    Text("Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. "
-                         + "Der Rest wartet auf die nächste Ausgabe.")
+                    Text("Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. Der Rest wartet auf die nächste Ausgabe.")
                 }
                 if !model.sources.isEmpty {
                     Section {
@@ -1529,11 +1589,13 @@ struct NewSmartFeedSheet: View {
                             )
                         }
                     } header: {
-                        Text("Quellen")
+                        Text("Podcasts")
                     } footer: {
-                        Text(selectedSources.isEmpty
-                             ? "Ohne Auswahl sucht das Update in allen abonnierten Quellen."
-                             : "Das Update sucht nur in den ausgewählten Quellen.")
+                        if selectedSources.isEmpty {
+                            Text("Ohne Auswahl sucht das Update in allen abonnierten Podcasts.")
+                        } else {
+                            Text("Das Update sucht nur in den ausgewählten Podcasts.")
+                        }
                     }
                 }
             }
@@ -1596,7 +1658,7 @@ struct NewSmartFeedSheet: View {
         guard !topicIDs.isEmpty else { return }
         let labels = model.profile.topics.filter { topicIDs.contains($0.id) }.map(\.label)
         let name = title.trimmingCharacters(in: .whitespaces).isEmpty
-            ? (labels.isEmpty ? "Mein Update" : labels.prefix(2).joined(separator: " und "))
+            ? Self.defaultName(for: labels)
             : title
         // In der Reihenfolge der Mediathek, damit gleiche Auswahl gleich aussieht.
         let sourceIDs = model.sources.map(\.id).filter(selectedSources.contains)
@@ -1615,6 +1677,15 @@ struct NewSmartFeedSheet: View {
         // Gleich eine erste Ausgabe bauen: ein leerer Feed direkt nach dem
         // Anlegen sieht aus wie ein Fehler.
         await model.buildEdition(feedID: feedID)
+    }
+
+    /// Der Name, wenn keiner eingetippt ist: die ersten beiden Themen.
+    private static func defaultName(for labels: [String]) -> String {
+        switch labels.count {
+        case 0: String(localized: "Mein Update")
+        case 1: labels[0]
+        default: String(localized: "\(labels[0]) und \(labels[1])")
+        }
     }
 
     private func addTopic() {
@@ -1672,7 +1743,7 @@ struct FocusPlayerView: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Text(segment.episodeTitle)
                     .font(.headline).multilineTextAlignment(.center)
-                Text("\(segment.range.start.timecode)–\(segment.range.end.timecode)")
+                Text(verbatim: "\(segment.range.start.timecode)–\(segment.range.end.timecode)")
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
 
                 // Wie weit die Stelle schon gelaufen ist.
@@ -1753,9 +1824,11 @@ struct FocusPlayerView: View {
                         TextField("Notiz (optional)", text: $note, axis: .vertical)
                             .lineLimit(3...6)
                     } footer: {
-                        Text("Gemerkt wird die Stelle, die beim Antippen lief, mit Folge, Quelle "
-                             + "und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu. "
-                             + "Deine Notiz bleibt davon getrennt und wird nie überschrieben.")
+                        Text("""
+                            Gemerkt wird die Stelle, die beim Antippen lief, mit Folge, Quelle \
+                            und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu. \
+                            Deine Notiz bleibt davon getrennt und wird nie überschrieben.
+                            """)
                     }
                 }
                 .navigationTitle("Stelle merken")
@@ -1824,13 +1897,13 @@ struct SourceDetailView: View {
                 }
             }
         }
-        .navigationTitle(source?.title ?? "Quelle")
+        .navigationTitle(source?.title ?? String(localized: "Quelle"))
     }
 }
 
 struct CapabilityRow: View {
 
-    let title: String
+    let title: LocalizedStringKey
     let isAvailable: Bool
 
     var body: some View {
