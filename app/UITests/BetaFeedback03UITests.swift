@@ -58,7 +58,9 @@ final class BetaFeedback03UITests: XCTestCase {
         attach(app, "kapitel")
         sections.buttons["Überblick"].tap()
         let shownotes = app.staticTexts["Shownotes"].firstMatch
-        for _ in 0..<40 where !shownotes.exists { app.swipeUp(velocity: .fast) }
+        // Der Überblick ist lang geworden (Erwähnt, Ton, Kapitel). Schnelles
+        // Wischen springt über die Überschrift hinweg, also Schritt für Schritt.
+        for _ in 0..<60 where !shownotes.exists { app.swipeUp() }
         XCTAssertTrue(shownotes.exists, "Keine Shownotes")
         attach(app, "shownotes")
 
