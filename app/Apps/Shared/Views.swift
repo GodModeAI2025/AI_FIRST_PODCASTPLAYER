@@ -66,10 +66,10 @@ struct ForYouView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                ForEach(groupedRelevant, id: \.label) { group in
+                ForEach(groupedRelevant) { group in
                     Section {
-                        ForEach(group.items) { item in
-                            RelevantItemRow(item: item)
+                        ForEach(group.cards) { card in
+                            RelevantItemRow(bundle: card)
                                 .listRowInsets(EdgeInsets(top: Design.Spacing.small,
                                                           leading: Design.Spacing.standard,
                                                           bottom: Design.Spacing.small,
@@ -78,7 +78,7 @@ struct ForYouView: View {
                                 .listRowBackground(Color.clear)
                         }
                     } header: {
-                        Label(group.label, systemImage: "tag")
+                        group.header
                     }
                 }
             }
@@ -96,17 +96,91 @@ struct ForYouView: View {
     }
 }
 
+/// Eine Karte in „Für dich“: alle Treffer einer Folge zu einem Interesse.
+struct RelevantCard: Identifiable {
+    /// Der beste Treffer. Er steht auf der Karte, ein Tipp spielt ab ihm.
+    let lead: RelevantItem
+    /// Alle Treffer der Folge, in der Reihenfolge, in der sie laufen.
+    let hits: [RelevantItem]
+    var id: EvidenceID { lead.id }
+
+    /// Was die Treffer erwähnen, ohne Doppelte, der beste Treffer zuerst.
+    var mentioned: [String] {
+        var result: [String] = []
+        for term in ([lead] + hits).flatMap(\.mentioned)
+        where !result.contains(where: { $0.caseInsensitiveCompare(term) == .orderedSame }) {
+            result.append(term)
+        }
+        return result
+    }
+}
+
+/// Die Treffer zu einem Interesse.
+struct RelevantGroup: Identifiable {
+    let id: String
+    let label: String
+    let reason: PersonalRelevance.Reason?
+    let cards: [RelevantCard]
+
+    var header: some View {
+        let (icon, kind): (String, String) = switch reason {
+        case .activeProject: ("briefcase", "Vorhaben")
+        case .openQuestion: ("questionmark.circle", "Frage")
+        default: ("tag", "Thema")
+        }
+        return Label(label, systemImage: icon)
+            .accessibilityLabel("\(kind): \(label)")
+    }
+}
+
 extension ForYouView {
-    /// Treffer nach Interesse, in der Reihenfolge des besten Treffers je Gruppe.
-    var groupedRelevant: [(label: String, items: [RelevantItem])] {
+    /// Treffer nach Interesse, in der Reihenfolge des besten Treffers je
+    /// Gruppe. Treffer derselben Folge teilen sich eine Karte, die neueste
+    /// Folge steht oben.
+    var groupedRelevant: [RelevantGroup] {
         var order: [String] = []
         var groups: [String: [RelevantItem]] = [:]
         for item in model.relevantToday {
-            let label = item.relevance?.interestLabel ?? "Weitere Treffer"
-            if groups[label] == nil { order.append(label) }
-            groups[label, default: []].append(item)
+            let key = item.relevance?.interestID.rawValue ?? ""
+            if groups[key] == nil { order.append(key) }
+            groups[key, default: []].append(item)
         }
-        return order.map { ($0, groups[$0] ?? []) }
+        return order.map { key in
+            let items = groups[key] ?? []
+            return RelevantGroup(
+                id: key,
+                label: items.first?.relevance?.interestLabel ?? "Weitere Treffer",
+                reason: items.first?.relevance?.reason,
+                cards: Self.cards(from: items))
+        }
+    }
+
+    /// `items` kommen bester Treffer zuerst. Die Karte einer Folge führt
+    /// deshalb ihr bester Treffer an.
+    static func cards(from items: [RelevantItem]) -> [RelevantCard] {
+        var order: [String] = []
+        var byEpisode: [String: [RelevantItem]] = [:]
+        for item in items {
+            let key = item.episodeID?.rawValue ?? item.id.rawValue
+            if byEpisode[key] == nil { order.append(key) }
+            byEpisode[key, default: []].append(item)
+        }
+        let cards = order.compactMap { key -> RelevantCard? in
+            guard let hits = byEpisode[key], let lead = hits.first else { return nil }
+            return RelevantCard(
+                lead: lead,
+                hits: hits.sorted { $0.range.start.milliseconds < $1.range.start.milliseconds })
+        }
+        // Neueste Folge zuerst. Ohne Datum ans Ende, bei Gleichstand bleibt
+        // die Reihenfolge nach bestem Treffer.
+        return cards.enumerated().sorted { lhs, rhs in
+            switch (lhs.element.lead.publishedAt, rhs.element.lead.publishedAt) {
+            case let (left?, right?) where left != right: left > right
+            case (.some, .none): true
+            case (.none, .some): false
+            default: lhs.offset < rhs.offset
+            }
+        }.map(\.element)
     }
 }
 
@@ -179,8 +253,11 @@ struct FreshEpisodeRow: View {
 
 struct RelevantItemRow: View {
 
-    let item: RelevantItem
+    let bundle: RelevantCard
     @Environment(AppModel.self) private var model
+
+    private var item: RelevantItem { bundle.lead }
+    private var others: [RelevantItem] { bundle.hits.filter { $0.id != item.id } }
 
     var body: some View {
         Button {
@@ -190,14 +267,55 @@ struct RelevantItemRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Spielt die Folge ab dieser Stelle")
+        .accessibilityAction(named: "Stelle merken") { model.rememberRelevantItem(item) }
+        .accessibilityAction(named: "Nicht relevant") { model.dismissRelevantItems(bundle.hits) }
         .contextMenu {
             Button { model.playRelevantItemInEpisode(item) } label: {
                 Label("In der Folge ab hier hören", systemImage: "play.fill")
             }
-            Button { model.playRelevantItem(item) } label: {
-                Label("Nur diese Stelle hören", systemImage: "scope")
+            Button { model.playRelevantItems(bundle.hits) } label: {
+                Label(bundle.hits.count > 1 ? "Nur diese \(bundle.hits.count) Stellen hören" : "Nur diese Stelle hören",
+                      systemImage: "scope")
+            }
+            if !others.isEmpty {
+                Section("Weitere Stellen in dieser Folge") {
+                    ForEach(others) { hit in
+                        Button { model.playRelevantItemInEpisode(hit) } label: {
+                            Label("Ab \(hit.range.start.timecode) hören", systemImage: "play")
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button { model.rememberRelevantItem(item) } label: {
+                Label("Stelle merken", systemImage: "bookmark")
+            }
+            .disabled(model.isRemembered(item))
+            Button { model.dismissRelevantItems(bundle.hits) } label: {
+                Label("Nicht relevant", systemImage: "eye.slash")
             }
         }
+        .swipeActions(edge: .trailing) {
+            Button { model.dismissRelevantItems(bundle.hits) } label: {
+                Label("Nicht relevant", systemImage: "eye.slash")
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if !model.isRemembered(item) {
+                Button { model.rememberRelevantItem(item) } label: {
+                    Label("Merken", systemImage: "bookmark")
+                }
+                .tint(.accentColor)
+            }
+        }
+    }
+
+    /// Die Begründung auf der Karte. Das Thema steht schon darüber, hier
+    /// steht, welche Wörter getroffen haben.
+    private var reason: String? {
+        let mentioned = bundle.mentioned
+        if !mentioned.isEmpty { return "erwähnt: " + mentioned.prefix(3).joined(separator: ", ") }
+        return item.relevance?.explanation
     }
 
     private var partlyHeard: Bool {
@@ -220,11 +338,20 @@ struct RelevantItemRow: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tint)
                     .lineLimit(1)
-                Text("·").foregroundStyle(.tertiary)
-                // Der Timecode steht sichtbar dabei. Er ist kein technisches
-                // Detail, sondern das Versprechen: das hier kannst du nachhören.
-                TimecodeLabel(item.range, emphasis: .medium)
+                if let published = item.publishedAt {
+                    Text("·").foregroundStyle(.tertiary)
+                    Text(published, format: .relative(presentation: .named))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
                 Spacer(minLength: 0)
+                if model.isRemembered(item) {
+                    Image(systemName: "bookmark.fill")
+                        .foregroundStyle(.tint)
+                        .accessibilityLabel("gemerkt")
+                }
                 Image(systemName: partlyHeard ? "circle.lefthalf.filled" : "play.circle")
                     .foregroundStyle(.tint)
                     .accessibilityLabel(partlyHeard ? "teilweise gehört" : "noch nicht gehört")
@@ -239,11 +366,23 @@ struct RelevantItemRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
 
-            if let relevance = item.relevance {
+            HStack(spacing: Design.Spacing.micro) {
+                // Der Timecode steht sichtbar dabei. Er ist kein technisches
+                // Detail, sondern das Versprechen: das hier kannst du nachhören.
+                TimecodeLabel(item.range, emphasis: .medium)
+                if bundle.hits.count > 1 {
+                    Text("·").foregroundStyle(.tertiary)
+                    Text("\(bundle.hits.count) Stellen in dieser Folge")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let reason {
                 // „Warum sehe ich das?“ steht hier und nicht hinter einem
                 // Info-Symbol. Wer die Begründung suchen muss, glaubt sie nicht.
                 Label {
-                    Text(relevance.explanation)
+                    Text(reason)
                 } icon: {
                     Image(systemName: "target")
                 }
@@ -261,10 +400,16 @@ struct RelevantItemRow: View {
         .accessibilityLabel(accessibilityDescription)
     }
 
+    /// Zitat, Folge, Podcast, Zeit: in dieser Reihenfolge entscheidet man,
+    /// ob man hinhören will.
     private var accessibilityDescription: String {
-        var parts = [item.episodeTitle, "aus \(item.sourceTitle)",
-                     TimecodeLabel.spoken("\(item.range.start.timecode)–\(item.range.end.timecode)")]
-        if let relevance = item.relevance { parts.append(relevance.explanation) }
+        var parts = [item.excerpt, item.episodeTitle, "aus \(item.sourceTitle)"]
+        if let published = item.publishedAt {
+            parts.append(published.formatted(.relative(presentation: .named)))
+        }
+        parts.append(TimecodeLabel.spoken("\(item.range.start.timecode)–\(item.range.end.timecode)"))
+        if bundle.hits.count > 1 { parts.append("\(bundle.hits.count) Stellen in dieser Folge") }
+        if let reason { parts.append(reason) }
         return parts.joined(separator: ", ")
     }
 }
@@ -592,7 +737,9 @@ struct AddSourceSheet: View {
         NavigationStack {
             List {
                 Section {
-                    TextField("Podcast suchen oder Link einfügen", text: $input, axis: .vertical)
+                    // Einzeilig: in einem mehrzeiligen Feld fügt die
+                    // Eingabetaste einen Zeilenumbruch ein, statt abzuschicken.
+                    TextField("Podcast suchen oder Link einfügen", text: $input)
                         .accessibilityIdentifier("source.input")
                         .onSubmit(submit)
                         .submitLabel(isLink ? .done : .search)
@@ -637,8 +784,7 @@ struct AddSourceSheet: View {
                     } header: {
                         Text("Treffer im Apple-Podcast-Verzeichnis")
                     } footer: {
-                        Text("Nach dem Abonnieren bereitet die App die neuesten Folgen vor: laden, "
-                             + "Transkript erstellen, Fakten finden. Ältere Folgen erschliesst du bei Bedarf einzeln.")
+                        Text(preparationNote)
                     }
                 } else if let searchedTerm, searchedTerm == trimmed, !trimmed.isEmpty {
                     ContentUnavailableView.search(text: trimmed)
@@ -652,7 +798,9 @@ struct AddSourceSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     if added.isEmpty {
-                        Button("Hinzufügen", action: submit)
+                        // Bei einem Namen sucht der Knopf nur, abonniert wird
+                        // in der Trefferliste.
+                        Button(isLink ? "Hinzufügen" : "Suchen", action: submit)
                             .disabled(trimmed.isEmpty || addingLink)
                     } else {
                         Button("Fertig") { dismiss() }
@@ -663,6 +811,20 @@ struct AddSourceSheet: View {
                 }
             }
         }
+    }
+
+    /// Was nach dem Abonnieren passiert, so wie die Einstellungen es gerade
+    /// vorsehen.
+    private var preparationNote: String {
+        guard model.automaticAnalysis else {
+            return "Das automatische Vorbereiten ist in den Einstellungen aus. "
+                + "Folgen wertest du einzeln aus, wenn du sie brauchst."
+        }
+        let count = model.episodesPerSource
+        let newest = count == 1 ? "die neueste Folge" : "die \(count) neuesten Folgen"
+        let wifi = model.preparationOnWiFiOnly ? " Geladen wird dafür nur im WLAN." : ""
+        return "Nach dem Abonnieren bereitet die App \(newest) vor: laden, Transkript erstellen, "
+            + "Fakten finden.\(wifi) Ältere Folgen wertest du bei Bedarf einzeln aus."
     }
 
     private func rowState(_ podcast: PodcastCounterpart) -> PodcastSearchRow.State {
@@ -865,9 +1027,9 @@ struct InterestsView: View {
         case .topic:
             "Ein Gebiet, das dich dauerhaft interessiert. Themen füllen „Für dich“ und sind die Grundlage für Themen-Updates."
         case .activeProject:
-            "Etwas, woran du gerade arbeitest. Passende Stellen werden höher eingestuft, solange das Vorhaben aktuell ist. Die Begründung lautet dann „Passt zu deinem Vorhaben“."
+            "Etwas, woran du gerade arbeitest. Passende Stellen stehen in „Für dich“ vor gleich guten Treffern zu deinen Themen."
         case .openQuestion:
-            "Eine konkrete Frage, auf die du eine Antwort suchst. Die App markiert Stellen, die sie berühren könnten, und nimmt die Frage beim Erschliessen mit."
+            "Eine konkrete Frage, auf die du eine Antwort suchst. „Für dich“ zeigt Stellen, in denen wichtige Wörter der Frage vorkommen, bei längeren Fragen mindestens zwei."
         }
     }
 
@@ -944,8 +1106,11 @@ struct InterestEditView: View {
             } header: {
                 Text("Stichworte")
             } footer: {
-                Text("Eine Stelle passt, wenn die Bezeichnung oder eines dieser Wörter darin vorkommt, auch als "
-                     + "Wortteil: „daten“ trifft „Datenschutz“. Englische Fachbegriffe und Abkürzungen hier ergänzen.")
+                Text("Eine Stelle passt, wenn die Bezeichnung oder eines dieser Stichworte am Wortanfang vorkommt: "
+                     + "„daten“ trifft „Datenschutz“, „schutz“ trifft es nicht. Begriffe mit bis zu drei Buchstaben "
+                     + "wie KI zählen nur als ganzes Wort. Bei mehreren Wörtern braucht es den ganzen Ausdruck oder "
+                     + "zwei der wichtigen Wörter daraus, Füllwörter zählen nicht. Englische Fachbegriffe und "
+                     + "Abkürzungen hier ergänzen.")
             }
             if !suggestions.isEmpty {
                 Section {

@@ -32,6 +32,64 @@ struct InterestMatchingTests {
         #expect(!hits("führung", "Eine kurze Einführung in das Thema"))
     }
 
+    @Test("AI trifft keinen englischen Satz ohne AI")
+    func englishSentenceWithoutAI() {
+        #expect(!hits("ai", "The main point was the chain of events in the trial"))
+        #expect(hits("ai", "AI tools are everywhere now"))
+    }
+
+    private func evidence(_ text: String, _ id: String = "e1") -> Evidence {
+        Evidence(id: EvidenceID(stable: id), mediaVersionID: MediaVersionID(stable: "m"),
+                 episodeID: EpisodeID(stable: "ep"), sourceID: SourceID(stable: "s"),
+                 transcriptID: TranscriptID(stable: "t"), transcriptRevision: .initial,
+                 range: MediaTimeRange(start: MediaTime(milliseconds: 0), end: MediaTime(milliseconds: 9_000)),
+                 quotedText: text)
+    }
+
+    private func matches(_ interest: Interest, _ text: String) -> [RelevanceMatch] {
+        RelevanceScorer().score(evidence: [evidence(text)], profile: InterestProfile(interests: [interest]))
+    }
+
+    @Test("Mehrere Wörter: der ganze Ausdruck oder zwei davon, eines allein reicht nicht")
+    func multiWordNeedsPhraseOrTwoWords() {
+        let topic = Interest(label: "Lokale KI-Modelle")
+        #expect(matches(topic, "Neue Modelle der Autoindustrie kommen im Herbst").isEmpty)
+        #expect(matches(topic, "Die lokale Presse berichtet").isEmpty)
+        #expect(!matches(topic, "KI-Modelle laufen jetzt auf dem Telefon").isEmpty)
+        #expect(!matches(topic, "Modelle, die lokal laufen, und KI im Alltag").isEmpty)
+    }
+
+    @Test("Hat ein Ausdruck nur ein tragendes Wort, zählt es allein")
+    func singleCarryingWordCounts() {
+        #expect(!matches(Interest(label: "Die Bahn"), "Bahnstreik am Montag").isEmpty)
+    }
+
+    @Test("Ein einzelnes Stichwort trifft weiter für sich")
+    func singleKeywordStillMatches() {
+        let topic = Interest(label: "Geldpolitik", keywords: ["EZB", "Leitzins"])
+        let found = matches(topic, "Die EZB hebt den Leitzins an")
+        #expect(found.count == 1)
+        #expect(found.first?.matchedTerms == ["Leitzins", "EZB"])
+    }
+
+    @Test("Die Begründung nennt, was erwähnt wird, in der Schreibweise des Nutzers")
+    func explanationListsMentionedTerms() {
+        let topic = Interest(label: "Geldpolitik", keywords: ["EZB", "Leitzins"])
+        let explanation = matches(topic, "Die EZB hebt den Leitzins an").first?.explanation()
+        #expect(explanation == "Passt zu deinem Thema „Geldpolitik“ · erwähnt: Leitzins, EZB · nur Stichworttreffer")
+    }
+
+    @Test("Ein aktuelles Vorhaben steht vor einem gleich guten Thema")
+    func activeProjectRanksHigher() {
+        let topic = Interest(label: "Datenschutz", kind: .topic)
+        let project = Interest(label: "Datenschutz-Audit", kind: .activeProject,
+                               keywords: ["Datenschutz"])
+        let found = RelevanceScorer().score(
+            evidence: [evidence("Datenschutz ist Pflicht")],
+            profile: InterestProfile(interests: [topic, project]))
+        #expect(found.first?.interestID == project.id)
+    }
+
     @Test("Fragewörter einer offenen Frage sind keine Suchbegriffe")
     func questionWordsAreIgnored() {
         let question = Interest(label: "Welche Möglichkeiten bietet iOS 27 für agentische Apps?", kind: .openQuestion)

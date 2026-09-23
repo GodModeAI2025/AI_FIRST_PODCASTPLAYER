@@ -29,8 +29,9 @@ public struct RelevanceMatch: Sendable, Hashable {
     /// Zwischen 0 und 1. Nur eine Rangfolge für die Vorauswahl — **keine**
     /// Aussage über Wichtigkeit, die man dem Nutzer zeigen sollte.
     public let score: Double
-    /// Die Begriffe, die tatsächlich getroffen haben. Machen die Auswahl
-    /// nachvollziehbar, statt eine Zahl zu behaupten.
+    /// Die Begriffe, die tatsächlich getroffen haben, in der Schreibweise
+    /// des Nutzers. Machen die Auswahl nachvollziehbar, statt eine Zahl zu
+    /// behaupten.
     public let matchedTerms: [String]
     /// Hat ein Modell die Relevanz bestätigt, oder ist das bloß ein Treffer
     /// auf Stichwortebene?
@@ -54,7 +55,7 @@ public struct RelevanceMatch: Sendable, Hashable {
         case .activeProject: "Passt zu deinem Vorhaben „\(interestLabel)“"
         case .openQuestion: "Könnte deine Frage „\(interestLabel)“ berühren"
         }
-        let suffix = terms.isEmpty ? "" : " (\(terms))"
+        let suffix = terms.isEmpty ? "" : " · erwähnt: \(terms)"
         // Ohne Modellbestätigung wird das ausdrücklich gesagt.
         let qualifier = isModelConfirmed ? "" : " · nur Stichworttreffer"
         return base + suffix + qualifier
@@ -104,22 +105,22 @@ public struct RelevanceScorer: Sendable {
         guard !drivers.isEmpty else { return [] }
 
         var byInterest: [InterestID: [RelevanceMatch]] = [:]
+        // Einmal normalisieren, nicht je Interesse aufs Neue.
+        let haystacks = evidence.map { Self.normalize($0.quotedText) }
 
         for interest in drivers {
-            let terms = Self.terms(for: interest)
-            guard !terms.isEmpty else { continue }
+            let entries = Self.entries(for: interest)
+            guard !entries.isEmpty else { continue }
 
-            for item in evidence {
-                let haystack = Self.normalize(item.quotedText)
-                guard !haystack.isEmpty else { continue }
-
-                let (value, matched) = Self.match(terms: terms, in: haystack)
+            for (item, haystack) in zip(evidence, haystacks) where !haystack.isEmpty {
+                let (value, matched) = Self.match(entries: entries, in: haystack)
                 guard value >= threshold else { continue }
 
                 byInterest[interest.id, default: []].append(RelevanceMatch(
                     evidenceID: item.id, interestID: interest.id,
                     interestLabel: interest.label, kind: interest.kind,
-                    score: value, matchedTerms: matched
+                    score: min(1.0, value * Self.weight(for: interest.kind)),
+                    matchedTerms: matched
                 ))
             }
         }
@@ -137,6 +138,13 @@ public struct RelevanceScorer: Sendable {
                 (byInterest[key] ?? []).sorted(by: Self.ranking).prefix(maximumPerInterest)
             }
         return limited.sorted(by: Self.ranking)
+    }
+
+    /// Ein aktuelles Vorhaben wiegt schwerer als ein Thema. Die Gewichtung
+    /// wirkt erst nach der Schwelle: sie ändert die Reihenfolge, nicht, ob
+    /// eine Stelle überhaupt Kandidat wird.
+    static func weight(for kind: InterestKind) -> Double {
+        kind == .activeProject ? 1.25 : 1.0
     }
 
     /// Die eine Rangfolge, an drei Stellen benutzt.
@@ -162,39 +170,113 @@ public struct RelevanceScorer: Sendable {
     // hiessen: ein Vorschlag zu einem Thema, das schon im Profil steht.
     static func terms(for interest: Interest) -> [String] {
         var result = Set<String>()
-        for raw in [interest.label] + interest.keywords {
-            let normalized = normalize(raw)
-            guard !normalized.isEmpty else { continue }
-            result.insert(normalized)
-            // Mehrwortbegriffe zusätzlich in Einzelwörter zerlegen, aber
-            // Füllwörter weglassen: „für“ trifft sonst überall.
-            for word in normalized.split(separator: " ") where word.count >= 4 {
-                if !stopWords.contains(String(word)) { result.insert(String(word)) }
-            }
+        for entry in entries(for: interest) {
+            result.insert(entry.phrase)
+            result.formUnion(entry.words)
         }
         return Array(result).sorted()
     }
 
-    /// Bewertet, wie gut die Begriffe im Text vorkommen.
+    /// Ein Eintrag eines Interesses, also die Bezeichnung oder ein
+    /// Stichwort, zerlegt für den Vergleich.
+    struct Entry: Sendable, Hashable {
+        /// Der ganze Ausdruck, normalisiert.
+        let phrase: String
+        /// Die tragenden Wörter eines Ausdrucks aus mehreren Wörtern. Leer,
+        /// wenn der Eintrag nur ein Wort ist.
+        let words: [String]
+        /// Normalisierte Form und Schreibweise des Nutzers, für die
+        /// Begründung auf der Karte.
+        let display: [String: String]
+
+        init(phrase: String, words: [String] = [], display: [String: String] = [:]) {
+            self.phrase = phrase; self.words = words; self.display = display
+        }
+    }
+
+    /// Bezeichnung und Stichworte eines Interesses als Einträge.
+    ///
+    /// Tragende Wörter sind solche ab vier Buchstaben, die kein Füllwort
+    /// sind („für“ träfe sonst überall), und kurze Abkürzungen, die der
+    /// Nutzer gross geschrieben hat: KI, AI, ML, EU.
+    static func entries(for interest: Interest) -> [Entry] {
+        var result: [Entry] = []
+        for raw in [interest.label] + interest.keywords {
+            let phrase = normalize(raw)
+            guard !phrase.isEmpty else { continue }
+            let spelled = raw.split { !$0.isLetter && !$0.isNumber }.map(String.init)
+            var display = [phrase: raw.trimmingCharacters(in: .whitespacesAndNewlines)]
+            var words: [String] = []
+            if spelled.count > 1 {
+                for word in spelled {
+                    let normalized = word.lowercased()
+                    guard !stopWords.contains(normalized), !words.contains(normalized) else { continue }
+                    guard normalized.count >= 4 || isAcronym(word) else { continue }
+                    words.append(normalized)
+                    display[normalized] = word
+                }
+            }
+            result.append(Entry(phrase: phrase, words: words, display: display))
+        }
+        return result
+    }
+
+    /// „KI“, „AI“, „EU“: zwei oder drei Zeichen, alle Buchstaben gross.
+    static func isAcronym(_ word: String) -> Bool {
+        (2...3).contains(word.count)
+            && word.contains(where: \.isLetter)
+            && word.allSatisfy { $0.isNumber || $0.isUppercase }
+    }
+
+    /// Bewertet, wie gut einzelne Begriffe im Text vorkommen. Jeder Begriff
+    /// zählt für sich, auch einer aus mehreren Wörtern.
+    static func match(terms: [String], in haystack: String) -> (Double, [String]) {
+        match(entries: terms.map { Entry(phrase: $0) }, in: haystack)
+    }
+
+    /// Bewertet, wie gut die Einträge eines Interesses im Text vorkommen.
+    ///
+    /// Ein Eintrag aus mehreren Wörtern trifft mit dem ganzen Ausdruck oder
+    /// mit mindestens zwei seiner tragenden Wörter. Eines allein reicht
+    /// nicht: bei „Lokale KI-Modelle“ ist nicht jede Stelle über Modelle
+    /// gemeint. Hat der Ausdruck nur ein tragendes Wort („Die Bahn“), zählt
+    /// dieses allein.
     ///
     /// Ein Mehrworttreffer zählt mehr als ein Einzelwort, und mehrere
     /// verschiedene Treffer zählen mehr als derselbe Begriff zehnmal —
     /// sonst gewinnt ein Text, der ein Wort ständig wiederholt.
-    static func match(terms: [String], in haystack: String) -> (Double, [String]) {
+    static func match(entries: [Entry], in haystack: String) -> (Double, [String]) {
         var matched: [String] = []
+        var display: [String: String] = [:]
         var value = 0.0
 
-        let padded = " " + haystack + " "
-        for term in terms where occurs(term, in: padded) {
+        func count(_ term: String, _ weight: Double, from entry: Entry) {
+            guard !matched.contains(term) else { return }
             matched.append(term)
-            // Mehrwortbegriffe sind spezifischer und wiegen schwerer.
-            value += term.contains(" ") ? 0.5 : 0.2
+            display[term] = entry.display[term] ?? term
+            value += weight
+        }
+
+        let padded = " " + haystack + " "
+        for entry in entries {
+            let phraseHit = occurs(entry.phrase, in: padded)
+            guard !entry.words.isEmpty else {
+                // Mehrwortbegriffe sind spezifischer und wiegen schwerer.
+                if phraseHit { count(entry.phrase, entry.phrase.contains(" ") ? 0.5 : 0.2, from: entry) }
+                continue
+            }
+            if phraseHit { count(entry.phrase, 0.5, from: entry) }
+            let wordHits = entry.words.filter { occurs($0, in: padded) }
+            guard phraseHit || wordHits.count >= 2 || entry.words.count == 1 else { continue }
+            for word in wordHits { count(word, 0.2, from: entry) }
         }
         guard !matched.isEmpty else { return (0, []) }
 
         // Sättigung: der zehnte Treffer macht einen Abschnitt nicht zehnmal
-        // relevanter.
-        return (min(1.0, value), matched.sorted { $0.count > $1.count })
+        // relevanter. Längere Begriffe zuerst, bei gleicher Länge
+        // alphabetisch, damit die Begründung von Lauf zu Lauf gleich bleibt.
+        let ordered = matched.sorted { $0.count != $1.count ? $0.count > $1.count : $0 < $1 }
+        return (min(1.0, value), ordered.map { display[$0] ?? $0 })
     }
 
     /// Kommt der Begriff an einer Wortgrenze vor?
