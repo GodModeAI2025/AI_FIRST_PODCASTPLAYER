@@ -1,10 +1,10 @@
 # PodcastAI
 
-Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podcasts wie jeder gute Player, schreibt jede Folge auf dem Gerät mit Zeitmarken mit und macht daraus Wissen, das du befragen, nachlesen und exportieren kannst. Jede Aussage führt zurück zur Stelle im Originalton.
+Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podcasts wie jeder gute Player, schreibt die Folgen auf dem Gerät mit Zeitmarken mit und macht daraus Wissen, das du befragen, nachlesen und exportieren kannst. Jede Aussage führt zurück zur Stelle im Originalton. Die App spricht Deutsch und Englisch, und was sie formuliert, kommt in deiner Sprache, auch bei Podcasts in einer anderen.
 
 ## Für wen
 
-**Einsteiger** abonnieren Podcasts und hören sie. Kapitel, Shownotes, Cover, Tempo, Schlaf-Timer, AirPlay und eine Warteschlange sind da, wo man sie erwartet. Die App merkt sich, wo du warst, auch wenn du vom iPhone zum Mac wechselst.
+**Einsteiger** suchen ihre Podcasts nach Namen, abonnieren sie mit einem Tipp und hören sie. Kapitel, Shownotes, Cover, Tempo, Schlaf-Timer, AirPlay und eine Warteschlange sind da, wo man sie erwartet. Die App merkt sich, wo du warst, auch wenn du vom iPhone zum Mac wechselst.
 
 **Fortgeschrittene** lesen das Transkript mit, springen per Tipp an jede Stelle, sehen die wichtigsten Fakten einer Folge und stellen Fragen an eine Folge oder an alle zusammen. „Für dich“ zeigt die Stellen, die zu deinen Interessen passen.
 
@@ -14,17 +14,18 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 
 | Bereich | Umfang |
 |---|---|
-| Abonnieren | Podcast-Feeds, Webseiten mit Feed, einzelne MP3-Links, YouTube-Kanäle über ihren Feed oder einen @-Link; zu YouTube-Kanälen findet die App den passenden Audio-Podcast. Abos aus anderen Apps kommen per OPML-Datei herüber und lassen sich als OPML exportieren |
+| Abonnieren | Suche nach Name, Anbieter oder Thema im Apple-Podcast-Verzeichnis, Links aus Apple Podcasts, Podcast-Feeds, Webseiten mit Feed, einzelne MP3-Links, YouTube-Kanäle über ihren Feed oder einen @-Link; zu YouTube-Kanälen findet die App den passenden Audio-Podcast. Abos aus anderen Apps kommen per OPML-Datei herüber und lassen sich als OPML exportieren |
 | Hören | Tempo, ±15/30 Sekunden, Kapitel aus dem Feed, Schlaf-Timer, AirPlay, Sperrbildschirm, Warteschlange, Fortsetzung über Geräte hinweg |
-| Transkript | auf dem Gerät mit Apples Spracherkennung, mit Zeitmarken, durchsuchbar, Tipp springt an die Stelle |
-| Fakten | überprüfbare Aussagen je Folge, jede mit Zeitmarke |
-| Fragen | an eine Folge oder an alle ausgewerteten Folgen, eingrenzbar auf einen Podcast und die letzten 7 oder 30 Tage; jeder Beleg nennt Podcast, Folge und Zeitmarke und spielt auf Wunsch ab; jede Antwort lässt sich als Wissenslandkarte sichern |
+| Transkript | auf dem Gerät mit Apples Spracherkennung, mit Zeitmarken, durchsuchbar, Tipp springt an die Stelle; fremdsprachige Folgen lassen sich auf dem Gerät übersetzen |
+| Fakten | Aussagen je Folge, jede mit Zeitmarke auf dem Satz und dem Wortlaut; sie entstehen von selbst im Hintergrund |
+| Chat | Fragen an eine Folge oder an alle Folgen mit Transkript, eingrenzbar auf einen Podcast und die letzten 7 oder 30 Tage; jeder Beleg nennt Podcast, Folge und Zeitmarke und spielt auf Wunsch ab; jede Antwort lässt sich sichern |
 | Themen-Updates | eine eigene Folge je Thema mit Kapiteln, Shownotes und Cover, gebaut aus Originalstellen |
+| Gemerkte Stellen | „Moment merken“ im Player mit eigenem Kommentar, dazu Merken im Transkript, bei Fakten und im Chat; Notizen bleiben, auch wenn die Folge gelöscht wird |
 | Export | Folge mit Shownotes, Kapiteln, Fakten und Transkript; Chat-Antworten mit Belegen; gemerkte Stellen |
 | Abgleich | über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac |
-| Speicher | „Laden (offline)“ holt nur den Ton; „Audio entfernen“ löscht nur den Ton, alle Daten bleiben; „Folge löschen“ löscht die Folge mit allen Daten; nach dem Auswerten und einen Tag nach dem Hören räumt die App den Ton von selbst weg |
+| Speicher | „Laden (offline)“ holt nur den Ton; „Audio entfernen“ löscht nur den Ton, alle Daten bleiben; „Folge löschen“ löscht die Folge mit allen Daten; nach dem Transkript und einen Tag nach dem Hören räumt die App den Ton von selbst weg |
 
-Die jüngsten Folgen jeder Quelle bereitet die App von selbst vor. Das lässt sich in den Einstellungen abschalten.
+Für die neuesten Folgen jedes Podcasts erstellt die App das Transkript von selbst, im WLAN und für die gewählte Zahl Folgen. Das lässt sich in den Einstellungen abschalten.
 
 ## Apple Intelligence
 
