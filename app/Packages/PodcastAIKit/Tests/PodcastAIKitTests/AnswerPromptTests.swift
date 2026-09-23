@@ -44,6 +44,50 @@ struct CitedNumberTests {
     }
 }
 
+@Suite("Aussagen und Antworttext aufräumen")
+struct StatementCleanupTests {
+
+    @Test("Aussagen in einer Zeile werden getrennt")
+    func runOnLine() {
+        let parsed = KnowledgeExtractor.parsePipedLines(
+            "1 | Viele Firmen testen Assistenten. 2 | Datenschutz ist ein Problem. 3 | Modelle laufen lokal.")
+        #expect(parsed.map(\.0) == [1, 2, 3])
+        #expect(parsed.map(\.1) == [
+            "Viele Firmen testen Assistenten.", "Datenschutz ist ein Problem.", "Modelle laufen lokal.",
+        ])
+    }
+
+    @Test("Zeilen wie bisher, Jahreszahlen sind keine Nummern")
+    func lines() {
+        let parsed = KnowledgeExtractor.parsePipedLines("2 | Erste Aussage\n\n5 |Zweite 2023 | bleibt\nohne Nummer")
+        #expect(parsed.map(\.0) == [2, 5])
+        #expect(parsed[1].1 == "Zweite 2023 | bleibt")
+    }
+
+    @Test("Verklebte, zu kurze und zu lange Aussagen werden verworfen")
+    func validation() {
+        #expect(KnowledgeExtractor.validatedStatement("  Modelle   laufen auf dem Gerät. ") == "Modelle laufen auf dem Gerät.")
+        #expect(KnowledgeExtractor.validatedStatement("Zu kurz") == nil)
+        #expect(KnowledgeExtractor.validatedStatement("Erste Aussage hier. 2 | Zweite Aussage dort.") == nil)
+        #expect(KnowledgeExtractor.validatedStatement(String(repeating: "Wort ", count: 100)) == nil)
+        #expect(KnowledgeExtractor.validatedStatement(
+            "Das ist der erste Satz. Das ist der zweite Satz. Und hier kommt der dritte Satz.") == nil)
+    }
+
+    @Test("Blocknamen und Verweise ohne Beleg verschwinden")
+    func answerMarkers() {
+        let text = "Es gibt zehn Folgen [BIBLIOTHEK]. Keine davon spricht darüber. [3] [5] Mehr nicht (BIBLIOTHEK)."
+        #expect(KnowledgeExtractor.cleanedAnswerText(text, validNumbers: []) ==
+            "Es gibt zehn Folgen. Keine davon spricht darüber. Mehr nicht.")
+        #expect(KnowledgeExtractor.cleanedAnswerText("Stimmt [3] [5].", validNumbers: [3]) == "Stimmt [3].")
+        #expect(KnowledgeExtractor.cleanedAnswerText("Beide [3, 7].", validNumbers: [3]) == "Beide [3].")
+        #expect(KnowledgeExtractor.cleanedAnswerText("Beide [3, 5].", validNumbers: [3, 5]) == "Beide [3, 5].")
+        #expect(KnowledgeExtractor.cleanedAnswerText("Laut [BIBLIOTHEK, 4] so.", validNumbers: [4]) == "Laut [4] so.")
+        #expect(KnowledgeExtractor.cleanedAnswerText("[Musik] im Jahr (2023) [00:12].", validNumbers: []) ==
+            "[Musik] im Jahr (2023) [00:12].")
+    }
+}
+
 @Suite("Prompt für Fragen")
 struct AnswerPromptTests {
 

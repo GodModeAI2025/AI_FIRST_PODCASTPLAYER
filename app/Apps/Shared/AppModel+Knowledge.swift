@@ -174,7 +174,8 @@ extension AppModel {
 
     // MARK: - Fragen
 
-    /// Stellt eine Frage und nimmt die Antwort in den Verlauf auf, neueste zuerst.
+    /// Stellt eine Frage und hängt die Antwort an den Verlauf an. Er liest
+    /// sich von oben nach unten, die neueste Antwort steht unten.
     ///
     /// Eine Antwort braucht einige Sekunden. Wird in dieser Zeit eine Folge
     /// gelöscht, hat das Aufräumen in `pruneChatAnswers` die Antwort noch
@@ -205,7 +206,7 @@ extension AppModel {
                     """),
                 citations: [])
         }
-        chatAnswers.insert(kept, at: 0)
+        chatAnswers.append(kept)
         return kept
     }
 
@@ -823,9 +824,14 @@ extension AppModel {
         // Lücken hinterlassen.
         var stored: [EpisodeFact] = []
         var gaps: Set<String> = []
+        // „Neu ermitteln“ rechnet alles neu, merkt sich aber die bisherigen
+        // Fakten. Liefert der neue Lauf deutlich weniger, bleiben sie.
+        var previous: [EpisodeFact] = []
         if !force {
             stored = (try? await store.facts(forEpisode: episode.id)) ?? []
             gaps = Self.factGaps(of: episode.id)
+        } else {
+            previous = (try? await store.facts(forEpisode: episode.id)) ?? []
         }
         if !stored.isEmpty, gaps.isEmpty {
             facts[episode.id] = await anchoredFacts(stored, episodeID: episode.id)
@@ -960,7 +966,10 @@ extension AppModel {
         // späterer Lauf nach.
         let outcome: FactsOutcome = missing.isEmpty ? .stored : .partial(gap)
         guard !result.isEmpty || !stored.isEmpty else {
-            let nothingFound = String(localized: "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden.")
+            // Gespeichert wird nichts: bisherige Fakten bleiben stehen.
+            let nothingFound = previous.isEmpty
+                ? String(localized: "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden.")
+                : String(localized: "Der neue Lauf fand keine überprüfbaren Aussagen. Die bisherigen Fakten bleiben.")
             if force, gap == nil { lastError = nothingFound }
             // Ist etwas nur gescheitert, lohnt ein späterer Versuch. Hat das
             // Modell alles abgelehnt oder nichts gefunden, nicht.
@@ -973,6 +982,18 @@ extension AppModel {
             guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
             facts[episode.id] = shown
             return outcome
+        }
+        // Deutlich weniger als vorher, etwa weil das Modell diesmal kaum
+        // Brauchbares lieferte: nichts ersetzen. Die bisherigen Fakten
+        // bleiben, und der Hinweis steht über „Neu ermitteln“.
+        if Self.isClearlyWorse(result.count, than: previous.count) {
+            let shown = await anchoredFacts(previous, episodeID: episode.id)
+            guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
+            facts[episode.id] = shown
+            let found = String(AttributedString(localized: "^[\(result.count) Fakt](inflect: true)").characters)
+            return .partial(String(localized: """
+                Der neue Lauf fand nur \(found) statt \(previous.count). Die bisherigen Fakten bleiben.
+                """))
         }
         let unique = Dictionary((stored + result).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
             .sorted { $0.range.start.milliseconds < $1.range.start.milliseconds }
@@ -1126,6 +1147,12 @@ extension AppModel {
     static func factSliceID(_ slice: [Evidence]) -> String {
         [slice.first?.id.rawValue ?? "", slice.last?.id.rawValue ?? "", String(slice.count)]
             .joined(separator: "|")
+    }
+
+    /// Ist ein neuer Lauf deutlich schlechter als der vorige? Ja, wenn er
+    /// weniger als halb so viele Fakten liefert wie vorher mindestens zwei.
+    static func isClearlyWorse(_ fresh: Int, than previous: Int) -> Bool {
+        previous >= 2 && fresh * 2 < previous
     }
 
     /// Höchstens so viele Fakten je Folge.

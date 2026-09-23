@@ -1421,6 +1421,7 @@ public final class AppModel {
         smartFeeds[index] = updated
         // Die letzte Rückmeldung galt für die alten Themen.
         editionNotes[feed.id] = nil
+        editionChecks[feed.id] = nil
         persistSmartFeeds()
     }
 
@@ -1430,6 +1431,7 @@ public final class AppModel {
         smartFeeds.removeAll { $0.id == feedID }
         editions[feedID] = nil
         editionNotes[feedID] = nil
+        editionChecks[feedID] = nil
         persistSmartFeeds()
         Task { await persist { try await $0.save(editions: [], forFeed: feedID) } }
     }
@@ -1554,6 +1556,20 @@ public final class AppModel {
     public internal(set) var buildingFeeds: Set<SmartFeedID> = []
     /// Die letzte Rückmeldung je Themenfeed, als Satz für die Oberfläche.
     public internal(set) var editionNotes: [SmartFeedID: String] = [:]
+    /// Was die letzte Prüfung je Themenfeed ergeben hat, auch die stille
+    /// der Automatik. Nur im Speicher.
+    public internal(set) var editionChecks: [SmartFeedID: EditionCheck] = [:]
+
+    /// Das Ergebnis einer Prüfung auf neues Material.
+    public struct EditionCheck: Equatable, Sendable {
+        public var date = Date()
+        /// Ungehörtes Material, das noch unter der Mindestmenge der
+        /// Automatik liegt.
+        public var waiting: MediaDuration?
+        /// Themen des Updates, zu denen in den Folgen mit Transkript keine
+        /// Stelle passt. Leer, solange es gar kein Transkript gibt.
+        public var topicsWithoutHits: [InterestID] = []
+    }
 
     /// Stellt eine neue Ausgabe zusammen. Startet ausdrücklich keinen Ton.
     ///
@@ -1622,6 +1638,16 @@ public final class AppModel {
                 feed: feed, candidates: candidates, ledger: ledger,
                 existingBatchKeys: existing, requestedByUser: requestedByUser
             )
+            // Themen ohne einen einzigen Treffer in den gewählten Podcasts.
+            // Ohne jedes Transkript liegt es nicht am Thema.
+            let allowed = Set(feed.restrictedToSourceIDs)
+            let hitTopics = Set(candidates
+                .filter { allowed.isEmpty || allowed.contains($0.sourceID) }
+                .flatMap(\.topicIDs))
+            var check = EditionCheck(
+                topicsWithoutHits: known.isEmpty ? [] : feed.topicIDs.filter { !hitTopics.contains($0) })
+            if case .belowThreshold(let available, _) = outcome, !requestedByUser { check.waiting = available }
+            if smartFeeds.contains(where: { $0.id == feedID }) { editionChecks[feedID] = check }
 
             switch outcome {
             case .published(let episode):
@@ -1638,9 +1664,25 @@ public final class AppModel {
                     """).characters)
                 return (String(localized: "\(episode.title): \(content)."), true)
             case .noNewMaterial(let count):
-                return (count == 0
-                    ? String(localized: "Zu diesen Themen gibt es noch keine Folge mit Transkript.")
-                    : String(localized: "Nichts Neues. Alle passenden Stellen hast du schon gehört."), false)
+                if known.isEmpty {
+                    return (String(localized: """
+                        Noch hat keine Folge ein Transkript. Sobald Transkripte fertig sind, sucht das Update darin.
+                        """), false)
+                }
+                guard count == 0 else {
+                    return (String(localized: "Nichts Neues. Alle passenden Stellen hast du schon gehört."), false)
+                }
+                // Welche Themen nichts treffen, steht mit Namen da.
+                let labels = profile.interests
+                    .filter { check.topicsWithoutHits.contains($0.id) }
+                    .map(\.label)
+                guard !labels.isEmpty else {
+                    return (String(localized: "Zu diesen Themen passt noch keine Stelle in deinen Folgen mit Transkript."),
+                            false)
+                }
+                let named = labels.formatted(.list(type: .and))
+                return (String(localized: "Zu \(named) passt noch keine Stelle in deinen Folgen mit Transkript."),
+                        false)
             case .belowThreshold(let available, let required):
                 // Von Hand angefordert gilt keine Mindestmenge. Dann passt
                 // nur keine einzelne Stelle in die gewählte Länge.
@@ -1862,13 +1904,69 @@ public final class AppModel {
     public func processPendingEditions() async {
         for feed in smartFeeds where feed.publicationPolicy.isAutomatic {
             guard !buildingFeeds.contains(feed.id) else { continue }
-            if let latest = editions[feed.id]?.first,
-               Date().timeIntervalSince(latest.publishedAt) < 12 * 60 * 60,
-               latest.heardFraction(in: ledger) < 0.8 {
-                continue
-            }
+            if earliestAutomaticEdition(for: feed) != nil { continue }
             _ = await buildEdition(feedID: feed.id, requestedByUser: false)
         }
+    }
+
+    /// So lange ruht die Automatik nach einer Ausgabe, die noch nicht gehört ist.
+    static let editionRestInterval: TimeInterval = 12 * 60 * 60
+    /// Ab diesem Anteil gilt eine Ausgabe als gehört.
+    static let editionHeardThreshold = 0.8
+
+    /// Ruht die Automatik für dieses Update, bis wann? `nil`, wenn die
+    /// nächste Prüfung eine Ausgabe veröffentlichen darf: es gibt noch
+    /// keine, die letzte ist gehört oder älter als ``editionRestInterval``.
+    func earliestAutomaticEdition(for feed: SmartPodcastFeed, now: Date = Date()) -> Date? {
+        guard let latest = editions[feed.id]?.first,
+              latest.heardFraction(in: ledger) < Self.editionHeardThreshold else { return nil }
+        let earliest = latest.publishedAt.addingTimeInterval(Self.editionRestInterval)
+        return earliest > now ? earliest : nil
+    }
+
+    /// Die Regel, nach der Ausgaben entstehen, in wenigen Sätzen.
+    static func editionRule(for policy: PublicationPolicy) -> String {
+        guard policy.isAutomatic else {
+            return String(localized: "Neue Ausgaben entstehen nur, wenn du „Neue Ausgabe zusammenstellen“ antippst.")
+        }
+        let minimum = policy.minimumMaterial.shortDescription
+        let hours = Int(editionRestInterval / 3_600)
+        return String(localized: """
+            Eine neue Ausgabe entsteht von selbst, sobald mindestens \(minimum) neues Material zu den Themen da ist \
+            und du die letzte Ausgabe gehört hast oder sie älter als \(hours) Stunden ist. Das prüft die App, \
+            wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ \
+            geht jederzeit, auch mit weniger Material.
+            """)
+    }
+
+    /// Wann die nächste Ausgabe von selbst kommen kann, in einem Satz.
+    func nextEditionHint(for feed: SmartPodcastFeed) -> String {
+        let policy = feed.publicationPolicy
+        guard policy.isAutomatic else {
+            return String(localized: "Die nächste Ausgabe entsteht, wenn du sie zusammenstellst.")
+        }
+        let minimum = policy.minimumMaterial.shortDescription
+        if let earliest = earliestAutomaticEdition(for: feed) {
+            return String(localized: """
+                Die nächste Ausgabe kommt frühestens \(Self.editionMoment(earliest)) oder sobald du diese gehört hast, \
+                wenn dann mindestens \(minimum) neues Material da ist.
+                """)
+        }
+        if let waiting = editionChecks[feed.id]?.waiting {
+            return String(localized: """
+                Die nächste Ausgabe kommt, sobald \(minimum) neues Material da ist. Zurzeit sind es \
+                \(waiting.shortDescription).
+                """)
+        }
+        return String(localized: "Die nächste Ausgabe kommt, sobald \(minimum) neues Material da ist.")
+    }
+
+    /// „heute um 18:40“, „morgen um 6:40“ oder „am 25. Sept. um 6:40“.
+    static func editionMoment(_ date: Date) -> String {
+        let time = date.formatted(date: .omitted, time: .shortened)
+        if Calendar.current.isDateInToday(date) { return String(localized: "heute um \(time)") }
+        if Calendar.current.isDateInTomorrow(date) { return String(localized: "morgen um \(time)") }
+        return String(localized: "am \(date.formatted(.dateTime.day().month())) um \(time)")
     }
 
     // MARK: - Gegenpositionen und Wissenspfade
