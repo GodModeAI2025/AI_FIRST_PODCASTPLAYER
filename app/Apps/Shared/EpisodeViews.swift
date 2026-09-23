@@ -165,7 +165,14 @@ struct EpisodeListView: View {
             }
         }
         .navigationTitle(source?.title ?? String(localized: "Folgen"))
+        // Auf dem iPhone steht die Suche immer da. Sonst erscheint sie erst
+        // beim Herunterziehen, und niemand weiss, dass es sie gibt.
+        #if os(iOS)
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: "Titel und Shownotes durchsuchen")
+        #else
         .searchable(text: $query, prompt: "Titel und Shownotes durchsuchen")
+        #endif
         .task(id: SearchRequest(query: query, episodeCount: episodes.count)) { await search() }
         .toolbar { archiveToolbar }
         .safeAreaInset(edge: .bottom) {
@@ -328,11 +335,20 @@ struct EpisodeListView: View {
     }
 
     /// Reiht die Auswahl in der Reihenfolge der Liste ein. Jede Folge gilt
-    /// als selbst angefordert, wie ein Tippen auf „Auswerten“. Abgespielt
-    /// wird dabei nichts.
+    /// als selbst angefordert, wie ein Tippen auf „Transkript erstellen“.
+    /// Was schon wartet, rückt dabei nach vorn, neue Folgen kommen ans Ende.
+    /// In beiden Gruppen bleibt die Reihenfolge der Liste. Abgespielt wird
+    /// dabei nichts.
     private func analyzeSelection() {
         let ordered = options.oldestFirst ? EpisodeArchive.oldestFirst(episodes) : episodes
-        for episode in ordered where selection.contains(episode.id) && canQueue(episode) {
+        let chosen = ordered.filter { selection.contains($0.id) && canQueue($0) }
+        let waiting = Set(model.analysisQueue.map(\.id))
+        // Jede wartende Folge springt an den Anfang. Rückwärts eingereiht,
+        // steht die erste der Liste am Ende ganz vorn.
+        for episode in chosen.reversed() where waiting.contains(episode.id) {
+            model.enqueueAnalysis(episode)
+        }
+        for episode in chosen where !waiting.contains(episode.id) {
             model.enqueueAnalysis(episode)
         }
         selection.removeAll()
@@ -469,8 +485,11 @@ struct EpisodeRow: View {
 enum AnalysisPhase: Equatable {
     /// Ohne Audiodatei gibt es nichts auszuwerten. Der Text sagt warum.
     case unavailable(String)
-    /// Wartet. So viele Folgen sind vorher dran.
-    case waiting(ahead: Int)
+    /// Wartet in der Warteschlange. `ahead`: so viele Folgen laufen vorher.
+    /// `detail`: ein eigener Grund, etwa der zweite Versuch. `heldBy`: die
+    /// App hat die Folge von selbst eingereiht, und das Netz hält sie an.
+    /// Dann zählt keine Position, und von Hand lässt sie sich trotzdem starten.
+    case waiting(ahead: Int, detail: String?, heldBy: AppModel.NetworkLimit?)
     /// Läuft. Die Stufe ist die zuletzt erreichte.
     case running(ProcessingStage)
     case failed(String?)
@@ -490,7 +509,12 @@ extension AppModel {
             return .running(stage.flatMap { $0.isRunning ? $0 : nil } ?? .discovered)
         }
         if let index = analysisQueue.firstIndex(where: { $0.id == episode.id }) {
-            return .waiting(ahead: index + (analyzing == nil ? 0 : 1))
+            // Von selbst Eingereihtes, das aufs Netz wartet, läuft nicht vorher.
+            // Der Worker überspringt es, also zählt es auch hier nicht mit.
+            let ahead = analysisQueue.prefix(index).filter(mayRunNow).count + (analyzing == nil ? 0 : 1)
+            let detail = stageDetails[episode.id].flatMap { $0 == Self.waitingDetail ? nil : $0 }
+            return .waiting(ahead: ahead, detail: detail,
+                            heldBy: mayRunNow(episode) ? nil : preparationWait)
         }
         if let stage, stage.isRunning { return .running(stage) }
         if let reason = analysisUnavailableReason(for: episode) { return .unavailable(reason) }
@@ -524,6 +548,16 @@ extension AppModel {
         switch analysisPhase(for: episode) {
         case .unavailable(let reason):
             return String(localized: "\(reason) Deshalb habe ich keine Belege, mit denen ich antworten kann.")
+        case .waiting(_, _, .offline?):
+            return String(localized: """
+                Das Transkript dieser Folge steht in der Warteschlange und wartet auf Netz. Sobald es \
+                fertig ist, kann ich mit Belegen aus dem Transkript antworten.
+                """)
+        case .waiting(_, _, let limit?):
+            return String(localized: """
+                Das Transkript dieser Folge steht in der Warteschlange (\(limit.queueDetail)). Tippe in der \
+                Folge auf „Transkript jetzt erstellen“, danach kann ich mit Belegen aus dem Transkript antworten.
+                """)
         case .waiting:
             return String(localized: """
                 Das Transkript dieser Folge steht in der Warteschlange. Sobald es fertig ist, kann ich \
@@ -551,8 +585,9 @@ extension AppModel {
                 """)
         case .done:
             return String(localized: """
-                Das Transkript dieser Folge ist fertig, aber daraus sind keine Belege entstanden. \
-                Ohne Belege kann ich nicht antworten.
+                Das Transkript dieser Folge ist fertig, aber es steht kein Text darin, also habe ich \
+                keine Belege. Meist enthält die Folge dann kaum Sprache. Im Reiter „Transkript“ kannst \
+                du es mit „Erneut versuchen“ noch einmal erstellen.
                 """)
         }
     }
@@ -577,6 +612,10 @@ struct EpisodeAnalysisPrompt: View {
     let episode: Episode
     var style: Style = .actions
     @Environment(AppModel.self) private var model
+    /// Fertig und trotzdem ohne Belege, im Speicher nachgesehen. Direkt nach
+    /// dem Fertigwerden lädt die Ansicht darüber ihre Stellen erst noch, und
+    /// bis dahin soll hier kein falsches „leer“ aufblitzen.
+    @State private var confirmedEmpty = false
 
     var body: some View {
         let phase = model.analysisPhase(for: episode)
@@ -588,7 +627,9 @@ struct EpisodeAnalysisPrompt: View {
                 if case .unavailable(let reason) = phase {
                     Label(reason, systemImage: "speaker.slash")
                         .foregroundStyle(.secondary)
-                } else if phase != .done {
+                } else if phase == .done {
+                    controls(phase)
+                } else {
                     Text(outcome)
                         .foregroundStyle(.secondary)
                     controls(phase)
@@ -619,12 +660,57 @@ struct EpisodeAnalysisPrompt: View {
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("episode.analyze")
-        case .waiting(let ahead):
-            progress(Self.waitingDescription(ahead))
+        case .waiting(_, _, let limit?):
+            // Nichts läuft, also kein Kreisel. Der Grund steht da, und von
+            // Hand geht es trotzdem los, ausser ganz ohne Netz.
+            Label(limit.settingsLabel, systemImage: limit.symbol)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            if limit != .offline { startNowButton.buttonStyle(.bordered) }
+        case .waiting(let ahead, let detail, nil):
+            progress(detail.map(Self.sentence) ?? Self.waitingDescription(ahead))
         case .running(let stage):
             progress(Self.stepDescription(stage))
-        case .unavailable, .done:
+        case .done:
+            emptyTranscriptNote
+        case .unavailable:
             EmptyView()
+        }
+    }
+
+    /// Stellt eine Folge, die aufs Netz wartet, von Hand an den Anfang. Sie
+    /// lädt dann über die Verbindung, die gerade da ist.
+    private var startNowButton: some View {
+        Button { model.enqueueAnalysis(episode) } label: {
+            Label("Transkript jetzt erstellen", systemImage: "waveform.badge.magnifyingglass")
+        }
+        .accessibilityHint("Lädt die Folge über die Verbindung, die gerade besteht")
+        .accessibilityIdentifier("episode.analyze")
+    }
+
+    /// Fertig, aber ohne Text. Das passiert, wenn die Spracherkennung in der
+    /// Folge nichts verstanden hat. Ohne diesen Satz stünde hier „noch kein
+    /// Transkript“ oder gar nichts, als liefe noch etwas.
+    private var emptyTranscriptNote: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.small) {
+            if confirmedEmpty {
+                Text("""
+                    Das Transkript ist fertig, aber es steht kein Text darin. Meist enthält die Folge \
+                    dann kaum Sprache, zum Beispiel nur Musik.
+                    """)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Button { model.enqueueAnalysis(episode) } label: {
+                    Label("Erneut versuchen", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("episode.analyze")
+            }
+        }
+        .task(id: model.stages[episode.id]) {
+            // Nach einem neuen Versuch gilt das alte Ergebnis nicht mehr.
+            confirmedEmpty = false
+            confirmedEmpty = await model.evidence(forEpisode: episode.id).isEmpty
         }
     }
 
@@ -650,10 +736,22 @@ struct EpisodeAnalysisPrompt: View {
                 .controlSize(.small)
                 .accessibilityIdentifier("episode.analyze")
             }
-        case .waiting(let ahead):
+        case .waiting(_, _, let limit?):
+            bannerRow {
+                Image(systemName: limit.symbol)
+                    .accessibilityHidden(true)
+                Text(limit.settingsLabel)
+                if limit != .offline {
+                    Spacer(minLength: Design.Spacing.small)
+                    startNowButton
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+            }
+        case .waiting(let ahead, let detail, nil):
             bannerRow {
                 ProgressView().controlSize(.small)
-                Text(Self.waitingDescription(ahead))
+                Text(detail.map(Self.sentence) ?? Self.waitingDescription(ahead))
             }
         case .running(let stage):
             bannerRow {
@@ -680,6 +778,12 @@ struct EpisodeAnalysisPrompt: View {
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// Ein Zustand aus der Warteschlange, etwa „wartet auf zweiten Versuch“,
+    /// als Satz mit grossem Anfang.
+    static func sentence(_ detail: String) -> String {
+        detail.prefix(1).uppercased() + detail.dropFirst()
     }
 
     static func waitingDescription(_ ahead: Int) -> String {
