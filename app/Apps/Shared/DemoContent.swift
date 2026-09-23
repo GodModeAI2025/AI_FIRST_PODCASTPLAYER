@@ -42,6 +42,10 @@ enum DemoContent {
         "Kritisch bleibt die Frage, wer für Fehler eines Modells haftet.",
         "Die europäische KI-Verordnung verlangt dafür Transparenz und Risikobewertung.",
         "Zum Schluss: Wer heute anfängt, sollte mit einem kleinen, messbaren Projekt starten.",
+        // Für „Erwähnt“: ein Termin mit Adresse und eine gesprochene Webadresse.
+        // Hinten angehängt, denn die Fakten zeigen über ihre Nummer auf Belege.
+        "Unser Workshop dazu ist am 12. November in der Musterstraße 12, 10115 Berlin.",
+        "Anmeldung und alle Links findet ihr unter example punkt org slash workshop.",
     ]
 
     /// Legt Quelle, Folge, Transkript, Belege, Fakten und Interessen an.
@@ -64,7 +68,9 @@ enum DemoContent {
             shownotesHTML: "<p>In dieser Beispielfolge geht es um KI-Assistenten im Arbeitsalltag, "
                 + "Datenschutz, Regeln für Teams und die europäische KI-Verordnung.</p>"
                 + "<ul><li>Modelle auf dem Gerät</li><li>Regeln statt Schattenlösungen</li>"
-                + "<li>Haftung</li></ul>")
+                + "<li>Haftung</li></ul>"
+                + "<p>Mehr zur Folge: <a href=\"https://example.org/ki-arbeit\">example.org/ki-arbeit</a>. "
+                + "Workshop am 12. November 2026 um 18 Uhr, Musterstraße 12, 10115 Berlin.</p>")
         let second = Episode(
             id: EpisodeID(stable: "demo-folge-2"), sourceID: sourceID,
             title: "Ohne Transkript: Ausblick auf die nächste Folge",
@@ -87,8 +93,9 @@ enum DemoContent {
             let transcript = Transcript(
                 id: transcriptID, mediaVersionID: media, revision: .initial, origin: .speechAnalysis,
                 locale: "de_DE", segments: segments,
-                analyzedRanges: IntervalSet(MediaTimeRange(start: MediaTime(milliseconds: 0),
-                                                           end: MediaTime(milliseconds: 600_000))))
+                analyzedRanges: IntervalSet(MediaTimeRange(
+                    start: MediaTime(milliseconds: 0),
+                    end: MediaTime(milliseconds: Int64(lines.count) * 40_000))))
             try await store.save(transcript: transcript,
                                  media: MediaVersion(id: media, episodeID: episodeID, remoteURL: audio),
                                  forEpisode: episodeID)

@@ -141,16 +141,21 @@ public struct ChatAnswer: Sendable, Identifiable {
     public let modelLabel: String?
     /// Verweisnummern im Text wie [3] → Beleg.
     public let citationNumbers: [Int: EvidenceID]
+    /// Folgen, aus denen der Text etwas nennt, auch ohne Beleg, etwa einen
+    /// Link aus den Shownotes. Wird eine davon gelöscht, geht die Antwort mit.
+    public let referencedEpisodeIDs: [EpisodeID]
 
     public init(
         id: UUID = UUID(), question: String, scope: ChatScope, text: String,
         citations: [Evidence], coverageCaveat: String? = nil, answeredAt: Date = Date(),
-        modelLabel: String? = nil, citationNumbers: [Int: EvidenceID] = [:]
+        modelLabel: String? = nil, citationNumbers: [Int: EvidenceID] = [:],
+        referencedEpisodeIDs: [EpisodeID] = []
     ) {
         self.id = id; self.question = question; self.scope = scope; self.text = text
         self.citations = citations; self.coverageCaveat = coverageCaveat
         self.answeredAt = answeredAt; self.modelLabel = modelLabel
         self.citationNumbers = citationNumbers
+        self.referencedEpisodeIDs = referencedEpisodeIDs
     }
 
     /// Die belegten Stellen, die abgespielt werden können.

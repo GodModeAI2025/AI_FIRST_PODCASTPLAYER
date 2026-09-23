@@ -11,6 +11,7 @@
 
 import Foundation
 import PodcastAICore
+import PodcastAIKnowledge
 
 public struct EpisodeDossier: Sendable {
     public var title: String
@@ -26,15 +27,17 @@ public struct EpisodeDossier: Sendable {
     public var factQuotes: [String: String]
     /// Die eigenen Notizen zu dieser Folge.
     public var notes: [ExportedNote]
+    /// Was in der Folge genannt wird: Links, Termine, Adressen und Namen.
+    public var mentions: [Mention]
 
     public init(title: String, sourceTitle: String, publishedAt: Date? = nil,
                 duration: MediaDuration? = nil, webPageURL: URL? = nil, shownotes: String? = nil,
                 chapters: [Chapter] = [], facts: [EpisodeFact] = [], transcript: Transcript? = nil,
-                factQuotes: [String: String] = [:], notes: [ExportedNote] = []) {
+                factQuotes: [String: String] = [:], notes: [ExportedNote] = [], mentions: [Mention] = []) {
         self.title = title; self.sourceTitle = sourceTitle; self.publishedAt = publishedAt
         self.duration = duration; self.webPageURL = webPageURL; self.shownotes = shownotes
         self.chapters = chapters; self.facts = facts; self.transcript = transcript
-        self.factQuotes = factQuotes; self.notes = notes
+        self.factQuotes = factQuotes; self.notes = notes; self.mentions = mentions
     }
 }
 
@@ -106,6 +109,10 @@ public struct EpisodeDossierExporter: Sendable {
                 }
             }
         }
+        if !dossier.mentions.isEmpty {
+            lines += ["", "## " + String(localized: "Erwähnt", bundle: .module)]
+            lines += Self.mentionLines(dossier.mentions)
+        }
         if !dossier.notes.isEmpty {
             lines += ["", "## " + String(localized: "Meine Notizen", bundle: .module), ""]
             for note in dossier.notes {
@@ -154,6 +161,35 @@ public struct EpisodeDossierExporter: Sendable {
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Die Nennungen nach Art, jede mit ihren Zeitmarken und dem Hinweis,
+    /// ob sie in den Shownotes steht. Ein ungefährer Termin sagt das und
+    /// nennt den Wortlaut.
+    static func mentionLines(_ mentions: [Mention]) -> [String] {
+        var lines: [String] = []
+        for kind in Mention.Kind.allCases {
+            let items = mentions.filter { $0.kind == kind }
+            guard !items.isEmpty else { continue }
+            lines += ["", "### " + kind.label, ""]
+            for mention in items {
+                var title = MarkdownExporter.escapeInline(mention.title)
+                if kind == .link, let link = SafeSourceLink(publicURL: mention.url) {
+                    title = "[\(title)](\(link.url.absoluteString))"
+                }
+                if kind == .date, mention.isVague {
+                    let wording = MarkdownExporter.escapeInline(mention.display)
+                    title += ", " + String(localized: "ungefähr, gesagt: „\(wording)“", bundle: .module)
+                }
+                var places: [String] = []
+                if mention.inShownotes { places.append(String(localized: "Shownotes", bundle: .module)) }
+                let times = mention.occurrences.compactMap(\.time)
+                places += times.prefix(5).map { "`\($0.timecode)`" }
+                if times.count > 5 { places.append("…") }
+                lines.append("- " + title + (places.isEmpty ? "" : " (" + places.joined(separator: ", ") + ")"))
+            }
+        }
+        return lines
     }
 
     /// Shownotes als Markdown. Aufzählungspunkte aus dem HTML („• “) werden

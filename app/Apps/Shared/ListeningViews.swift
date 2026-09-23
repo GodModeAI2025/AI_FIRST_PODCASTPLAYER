@@ -52,6 +52,8 @@ struct EpisodeDetailView: View {
     @State private var exported: String?
     @State private var confirmDelete = false
     @State private var topicTags: [TopicTag] = []
+    /// Links, Termine, Adressen und Namen der Folge, aus Shownotes und Transkript.
+    @State private var mentions: EpisodeMentions?
 
     private var player: EpisodePlayer { model.episodePlayer }
     private var isCurrent: Bool { player.episode?.id == episode.id }
@@ -106,6 +108,8 @@ struct EpisodeDetailView: View {
         .task(id: model.stages[episode.id]) {
             passages = await model.evidence(forEpisode: episode.id)
             await model.loadFacts(for: episode.id)
+            // Neu, sobald das Transkript da ist: dann kommt mehr als die Shownotes dazu.
+            mentions = await model.mentions(for: episode)
         }
         .task { await model.loadChapters(for: episode) }
         .sheet(item: Binding(get: { exported.map(ExportPreview.init) }, set: { exported = $0?.text })) {
@@ -267,6 +271,10 @@ struct EpisodeDetailView: View {
                         Text("Ein Tipp auf ein Thema mit Plus legt es als Interesse an.")
                     }
                 }
+            }
+
+            if let mentions, !mentions.mentions.isEmpty {
+                MentionsOverviewSection(episode: episode, mentions: mentions)
             }
 
             let episodeNotes = model.notes(for: episode.id)

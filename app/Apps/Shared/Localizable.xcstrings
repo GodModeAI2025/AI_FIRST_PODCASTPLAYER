@@ -17,6 +17,22 @@
         }
       }
     },
+    "%@ (ungefähr, gesagt: „%@“)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (ungefähr, gesagt: „%2$@“)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ (approximate, said: \"%2$@\")"
+          }
+        }
+      }
+    },
     "%@ Deshalb habe ich keine Belege, mit denen ich antworten kann.": {
       "localizations": {
         "de": {
@@ -125,6 +141,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ downloaded"
+          }
+        }
+      }
+    },
+    "%@ in deinen Podcasts:": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in deinen Podcasts:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in your podcasts:"
+          }
+        }
+      }
+    },
+    "%@ in dieser Folge:": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in dieser Folge:"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ in this episode:"
           }
         }
       }
@@ -317,6 +365,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@: %2$@."
+          }
+        }
+      }
+    },
+    "%@: keine in deinen Podcasts.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: keine in deinen Podcasts."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: none in your podcasts."
+          }
+        }
+      }
+    },
+    "%@: keine in dieser Folge.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: keine in dieser Folge."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: none in this episode."
           }
         }
       }
@@ -1801,6 +1881,22 @@
         }
       }
     },
+    "Anrufen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anrufen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Call"
+          }
+        }
+      }
+    },
     "Ans Ende": {
       "localizations": {
         "de": {
@@ -2896,6 +2992,46 @@
         }
       }
     },
+    "Bei %lld Folgen fehlt noch das Transkript, dort zählen nur die Shownotes.": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bei einer Folge fehlt noch das Transkript, dort zählen nur die Shownotes."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Bei %lld Folgen fehlt noch das Transkript, dort zählen nur die Shownotes."
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "One episode has no transcript yet, only its show notes count."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld episodes have no transcript yet, only their show notes count."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Bei %lld davon ging aus einem anderen Grund etwas schief. Ein neuer Versuch kann sie nachholen.": {
       "localizations": {
         "de": {
@@ -3137,6 +3273,38 @@
         }
       }
     },
+    "Bisher aus den Shownotes. Mit dem Transkript kommt mehr dazu.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bisher aus den Shownotes. Mit dem Transkript kommt mehr dazu."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So far from the show notes. The transcript adds more."
+          }
+        }
+      }
+    },
+    "Bisher nur aus den Shownotes. Mit dem Transkript kommt mehr dazu, mit Zeitmarke.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bisher nur aus den Shownotes. Mit dem Transkript kommt mehr dazu, mit Zeitmarke."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only from the show notes so far. The transcript adds more, with timestamps."
+          }
+        }
+      }
+    },
     "Chat": {
       "localizations": {
         "de": {
@@ -3165,6 +3333,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "After that, the app removes the audio from the device, and episodes play from the internet."
+          }
+        }
+      }
+    },
+    "Das Datum ist ungefähr, gesagt wurde: „%@“": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Datum ist ungefähr, gesagt wurde: „%@“"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The date is approximate. What was said: \"%@\""
           }
         }
       }
@@ -3646,6 +3830,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "Duration in Minutes"
+          }
+        }
+      }
+    },
+    "Dazu %lld weitere.": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Dazu eine weitere."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Dazu %lld weitere."
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Plus one more."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Plus %lld more."
+                }
+              }
+            }
           }
         }
       }
@@ -4434,6 +4658,22 @@
         }
       }
     },
+    "Die Folge hat noch kein Transkript. Bisher zählen nur die Shownotes, mit dem Transkript kommt mehr dazu.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Folge hat noch kein Transkript. Bisher zählen nur die Shownotes, mit dem Transkript kommt mehr dazu."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This episode has no transcript yet. So far only the show notes count, the transcript adds more."
+          }
+        }
+      }
+    },
     "Die Folge ließ sich gerade nicht laden. Später noch einmal versuchen.": {
       "localizations": {
         "de": {
@@ -5123,6 +5363,38 @@
         }
       }
     },
+    "Durchsucht wurden die neuesten Folgen im gewählten Bereich.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durchsucht wurden die neuesten Folgen im gewählten Bereich."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only the newest episodes in the selected range were searched."
+          }
+        }
+      }
+    },
+    "E-Mail schreiben": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "E-Mail schreiben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write Email"
+          }
+        }
+      }
+    },
     "Ein Ausschnitt aus einer Folge, den du dir mit Zeitmarke gemerkt hast, auf Wunsch mit Notiz. Du findest sie unter „Gemerkte Stellen“.": {
       "localizations": {
         "de": {
@@ -5695,6 +5967,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Created %@"
+          }
+        }
+      }
+    },
+    "Erwähnt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erwähnt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mentioned"
+          }
+        }
+      }
+    },
+    "Erwähnt in „%@“.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erwähnt in „%@“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mentioned in \"%@\"."
           }
         }
       }
@@ -7384,6 +7688,22 @@
         }
       }
     },
+    "Im Browser öffnen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Browser öffnen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Browser"
+          }
+        }
+      }
+    },
     "Im Chat fragst du alle deine Podcasts auf einmal, in einer Folge unter „Fragen“ nur diese eine. Jede Antwort zeigt die Stelle im Original. Alles lässt sich als Markdown exportieren.": {
       "extractionState": "stale",
       "localizations": {
@@ -7429,6 +7749,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search Transcript"
+          }
+        }
+      }
+    },
+    "Im gewählten Bereich gibt es keine Folge.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im gewählten Bereich gibt es keine Folge."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no episodes in the selected range."
           }
         }
       }
@@ -7545,6 +7881,22 @@
         }
       }
     },
+    "In Karten öffnen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Karten öffnen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Maps"
+          }
+        }
+      }
+    },
     "In YouTube öffnen": {
       "localizations": {
         "de": {
@@ -7557,6 +7909,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open in YouTube"
+          }
+        }
+      }
+    },
+    "In den Kalender": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In den Kalender"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to Calendar"
           }
         }
       }
@@ -8231,6 +8599,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't save: %@"
+          }
+        }
+      }
+    },
+    "Kopieren": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopieren"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
           }
         }
       }
@@ -10995,6 +11379,22 @@
         }
       }
     },
+    "Stelle in der Folge: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stelle in der Folge: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timestamp in the episode: %@"
+          }
+        }
+      }
+    },
     "Stelle merken": {
       "localizations": {
         "de": {
@@ -12166,6 +12566,22 @@
         }
       }
     },
+    "Ungefähr, gesagt: „%@“": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungefähr, gesagt: „%@“"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approximate, said: \"%@\""
+          }
+        }
+      }
+    },
     "Unter dieser Adresse gibt es den Podcast nicht mehr. Vermutlich ist er umgezogen oder wurde eingestellt.": {
       "localizations": {
         "de": {
@@ -12775,6 +13191,38 @@
         }
       }
     },
+    "Welche Links werden genannt?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welche Links werden genannt?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which links are mentioned?"
+          }
+        }
+      }
+    },
+    "Welche Termine kommen vor?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welche Termine kommen vor?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which dates come up?"
+          }
+        }
+      }
+    },
     "Welche Zahlen und Namen werden genannt?": {
       "localizations": {
         "de": {
@@ -13092,6 +13540,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Shows the description and latest episodes"
+          }
+        }
+      }
+    },
+    "Zeigt alle Links, Termine, Adressen und Namen der Folge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigt alle Links, Termine, Adressen und Namen der Folge"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shows all links, dates, addresses, and names in this episode"
           }
         }
       }
@@ -13852,6 +14316,22 @@
         }
       }
     },
+    "bei %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bei %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "at %@"
+          }
+        }
+      }
+    },
     "davon ^[%lld Gegenposition](inflect: true)": {
       "localizations": {
         "de": {
@@ -13996,6 +14476,62 @@
         }
       }
     },
+    "in %lld weiteren Folgen": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "in einer weiteren Folge"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "in %lld weiteren Folgen"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "in one more episode"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "in %lld more episodes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "in den Shownotes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in den Shownotes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in the show notes"
+          }
+        }
+      }
+    },
     "lädt …": {
       "localizations": {
         "de": {
@@ -14072,6 +14608,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld min left"
+          }
+        }
+      }
+    },
+    "noch %lld-mal": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "noch einmal"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "noch %lld-mal"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "once more"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld more times"
+                }
+              }
+            }
           }
         }
       }

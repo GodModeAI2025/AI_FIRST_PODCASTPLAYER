@@ -310,14 +310,20 @@ struct ChatEmptyState: View {
 
     private var suggestions: [String] {
         switch scope {
+        // „Welche Links …“ und „Welche Termine …“ beantworten die erkannten
+        // Nennungen, auch ohne Apple Intelligence.
         case .episode:
             [String(localized: "Worum geht es in dieser Folge?"),
              String(localized: "Was sind die wichtigsten Aussagen?"),
+             String(localized: "Welche Links werden genannt?"),
+             String(localized: "Welche Termine kommen vor?"),
              String(localized: "Welche Zahlen und Namen werden genannt?"),
              String(localized: "Wo sind sich die Gesprächspartner uneinig?")]
         default:
             [String(localized: "Welche Folgen behandeln künstliche Intelligenz?"),
              String(localized: "Was wurde zuletzt über Datenschutz gesagt?"),
+             String(localized: "Welche Links werden genannt?"),
+             String(localized: "Welche Termine kommen vor?"),
              String(localized: "Welche Folgen mit Transkript habe ich noch nicht gehört?"),
              String(localized: "Wo widersprechen sich zwei Podcasts?")]
         }
