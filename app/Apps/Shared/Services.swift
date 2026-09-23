@@ -804,13 +804,16 @@ public struct LocalMediaLocator: MediaLocating {
         return removed
     }
 
-    public static var mediaDirectory: URL {
+    /// Einmal bestimmt und angelegt. Die Warteschlange und die Ansichten
+    /// fragen oft nach Dateien; jedes Mal den Ordner anzulegen kostete dort
+    /// einen Dateizugriff mehr. Entfernt werden nur Dateien, nie der Ordner.
+    public static let mediaDirectory: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first ?? URL(fileURLWithPath: NSTemporaryDirectory())
         let directory = base.appendingPathComponent("PodcastAI/Media", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
-    }
+    }()
 }
 
 /// Merkt sich, unter welcher Adresse eine Fassung beim Anbieter liegt.

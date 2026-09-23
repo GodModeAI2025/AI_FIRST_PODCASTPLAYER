@@ -1425,9 +1425,13 @@ struct AddSourceSheet: View {
     /// vorsehen.
     private var preparationNote: String {
         guard model.automaticAnalysis else {
-            return String(localized: """
+            let off = String(localized: """
                 „Transkripte für neue Folgen erstellen“ ist in den Einstellungen aus. \
                 Das Transkript einer Folge erstellst du dann selbst, wenn du es brauchst.
+                """)
+            guard model.keepNewestAudio else { return off }
+            return off + " " + String(localized: """
+                Die neueste Folge legt die App trotzdem für unterwegs aufs Gerät.
                 """)
         }
         // Hat das Gerät keine Spracherkennung, reiht die App nichts von selbst
@@ -1449,10 +1453,20 @@ struct AddSourceSheet: View {
                 laden, Transkript erstellen, Fakten finden.
                 """)]
         // Sonst wundert man sich später, dass eine geladene Folge wieder weg ist.
-        if model.removeAudioAfterAnalysis {
+        switch (model.keepNewestAudio, model.removeAudioAfterAnalysis) {
+        case (true, true):
+            sentences.append(String(localized: """
+                Die neueste Folge bleibt für unterwegs auf dem Gerät. Bei den anderen nimmt die App \
+                das Audio danach wieder weg, abgespielt wird dann aus dem Netz.
+                """))
+        case (false, true):
             sentences.append(String(localized: """
                 Das Audio nimmt die App danach wieder vom Gerät, abgespielt wird dann aus dem Netz.
                 """))
+        case (true, false):
+            sentences.append(String(localized: "Die neueste Folge bleibt für unterwegs auf dem Gerät."))
+        case (false, false):
+            break
         }
         // Was das Netz gerade erlaubt, nicht nur was eingestellt ist.
         switch model.preparationWait {
@@ -1471,7 +1485,10 @@ struct AddSourceSheet: View {
                 sentences.append(String(localized: "Geladen wird dafür nur im WLAN."))
             }
         }
-        sentences.append(String(localized: "Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln."))
+        sentences.append(String(localized: """
+            Ältere Folgen bereitet die App vor, wenn du in der Folgenliste des Podcasts „Ältere Folgen \
+            auch vorbereiten“ wählst.
+            """))
         return sentences.joined(separator: " ")
     }
 

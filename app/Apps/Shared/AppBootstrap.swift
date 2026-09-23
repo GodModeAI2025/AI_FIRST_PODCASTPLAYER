@@ -132,7 +132,8 @@ public enum AppBootstrap {
         for key in [
             "episodePlaybackPositions", "recentEpisodeIDs", "upNextEpisodeIDs",
             "dismissedFromPreparation", "keptOfflineEpisodes", AppModel.dismissedRelevantKey,
-            AppModel.factsSettledKey,
+            AppModel.factsSettledKey, AppModel.backCatalogKey, AppModel.prefetchedNewestKey,
+            AppModel.prefetchDeclinedKey, AppModel.prefetchedFilesKey, AppModel.failedPreparationKey,
         ] {
             defaults.removeObject(forKey: key)
         }

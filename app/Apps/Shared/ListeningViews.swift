@@ -242,15 +242,32 @@ struct EpisodeDetailView: View {
                     audioStatus
                 }
             } else if let detail = model.stageDetails[episode.id] {
-                SwiftUI.Section("Transkript") {
+                let wait = networkWait
+                SwiftUI.Section {
                     Label {
                         Text(detail)
                     } icon: {
-                        Image(systemName: "clock").accessibilityHidden(true)
+                        Image(systemName: wait?.symbol ?? "clock").accessibilityHidden(true)
                     }
+                    if let wait {
+                        // Der Ton liegt da und trotzdem wartet das Transkript:
+                        // sagen, was es noch aus dem Netz braucht.
+                        if hasLocalAudio {
+                            Text(waitReasonWithLocalAudio)
+                                .font(.caption).foregroundStyle(.secondary)
+                                .accessibilityIdentifier("episode.waitReason")
+                        }
+                        TranscriptWaitControls(episode: episode, wait: wait)
+                    }
+                } header: {
+                    Text("Transkript")
+                } footer: {
+                    if let wait { TranscriptWaitControls.footnote(for: wait, episode: episode, model: model) }
                 }
             }
-            if stage == nil, hasLocalAudio || isDownloading {
+            // Auch ohne Transkript: sagen, dass die neueste Folge noch für
+            // unterwegs kommt.
+            if stage == nil, hasLocalAudio || isDownloading || model.awaitsPrefetch(episode) {
                 SwiftUI.Section { audioStatus }
             }
 
@@ -326,14 +343,34 @@ struct EpisodeDetailView: View {
         }
     }
 
+    /// Warum ein Transkript aufs Netz wartet, obwohl Ton auf dem Gerät liegt:
+    /// die Datei gehört zu einer früheren Audioadresse, oder die Erkennung
+    /// braucht erst das Sprachmodell.
+    private var waitReasonWithLocalAudio: LocalizedStringKey {
+        model.hasAudioForTranscript(episode)
+            ? "Der Ton liegt schon auf dem Gerät. Das Sprachmodell für die Sprache dieser Folge lädt die App noch aus dem Netz."
+            : "Der Podcast hat die Audiodatei geändert. Für das Transkript lädt die App die neue Fassung."
+    }
+
+    /// Worauf das Transkript dieser Folge im Netz wartet, oder `nil`.
+    private var networkWait: AppModel.NetworkLimit? {
+        if case .waiting(_, _, let limit?) = model.analysisPhase(for: episode) { return limit }
+        return nil
+    }
+
     // MARK: Audio auf dem Gerät
 
-    /// Ob das Audio da ist, wie weit es lädt und ob die App es später von
-    /// selbst wieder entfernt. Gesagt wird das dort, wo man nachsieht.
+    /// Ob das Audio da ist, wie weit es lädt und warum es auf dem Gerät
+    /// liegt: selbst geladen, neueste Folge oder nur bis zum Transkript.
+    /// Gesagt wird das dort, wo man nachsieht.
     @ViewBuilder private var audioStatus: some View {
         if isDownloading {
             DownloadProgressRow(progress: model.downloadProgress[episode.id]) {
                 model.cancelDownload(episode)
+            }
+            if audioVerdict == .newest {
+                Text("Neueste Folge, wird für unterwegs geladen.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         } else if hasLocalAudio {
             Label {
@@ -342,10 +379,18 @@ struct EpisodeDetailView: View {
                 Image(systemName: "internaldrive").accessibilityHidden(true)
             }
             .font(.caption).foregroundStyle(.secondary)
-            if removesAudioLater {
-                Text(removalNote)
+            Text(Self.audioReason(audioVerdict))
+                .font(.caption).foregroundStyle(.secondary)
+                .accessibilityIdentifier("episode.audioReason")
+            if audioVerdict.isTemporary {
+                Text("Mit „Auf dem Gerät behalten“ im Menü bleibt es.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+        } else if stage?.isRunning != true, model.awaitsPrefetch(episode) {
+            Label("Audio nicht auf dem Gerät", systemImage: "wifi")
+                .font(.caption).foregroundStyle(.secondary)
+            Text(prefetchNote)
+                .font(.caption).foregroundStyle(.secondary)
         } else if stage == .evidenceExtracted, episode.audioURL != nil, model.removeAudioAfterAnalysis {
             Label("Audio nicht auf dem Gerät", systemImage: "wifi")
                 .font(.caption).foregroundStyle(.secondary)
@@ -358,30 +403,37 @@ struct EpisodeDetailView: View {
         }
     }
 
-    /// Liegt das Audio nur vorübergehend da? Was jemand mit „Laden
-    /// (offline)“ geholt hat, bleibt immer.
-    private var removesAudioLater: Bool {
-        hasLocalAudio && !model.isKeptOffline(episode)
-            && (model.removeAudioAfterAnalysis || model.removeHeardAudio)
+    /// Was mit dem Audio dieser Folge geschieht, nach `AudioRetention`.
+    private var audioVerdict: AudioRetention.Verdict { model.audioVerdict(for: episode) }
+
+    /// Wann die neueste Folge aufs Gerät kommt. Sie lädt wie alles, was die
+    /// App von selbst holt, nach der Regel „Nur im WLAN“. Wartet ihr
+    /// Transkript, kommt der Ton erst mit ihm.
+    private var prefetchNote: LocalizedStringKey {
+        switch model.preparationWait {
+        case .cellular?, .hotspot?: "Neueste Folge. Die App lädt sie für unterwegs, sobald WLAN da ist."
+        case .offline?, .lowDataMode?: "Neueste Folge. Die App lädt sie für unterwegs, sobald das Netz es zulässt."
+        case nil:
+            model.analysisQueue.contains(where: { $0.id == episode.id })
+                ? "Neueste Folge. Die App lädt sie mit dem Transkript und behält sie für unterwegs."
+                : "Neueste Folge. Die App lädt sie gleich für unterwegs."
+        }
     }
 
-    private var removalNote: LocalizedStringKey {
-        switch (model.removeAudioAfterAnalysis, model.removeHeardAudio) {
-        case (true, true):
-            """
-            Die App nimmt dieses Audio später wieder vom Gerät: nach dem Transkript oder einen Tag \
-            nach dem Hören. Mit „Auf dem Gerät behalten“ im Menü bleibt es.
-            """
-        case (true, false):
-            """
-            Ist das Transkript fertig, nimmt die App dieses Audio wieder vom Gerät. \
-            Mit „Auf dem Gerät behalten“ im Menü bleibt es.
-            """
-        default:
-            """
-            Einen Tag nach dem Hören nimmt die App dieses Audio wieder vom Gerät. \
-            Mit „Auf dem Gerät behalten“ im Menü bleibt es.
-            """
+    /// Nimmt die App das Audio später von selbst weg? Dann bietet das Menü
+    /// „Auf dem Gerät behalten“ an. Was jemand mit „Laden (offline)“ geholt
+    /// hat, bleibt immer.
+    private var removesAudioLater: Bool { hasLocalAudio && audioVerdict.isTemporary }
+
+    /// Warum das Audio auf dem Gerät liegt, in einem Satz.
+    static func audioReason(_ verdict: AudioRetention.Verdict) -> LocalizedStringKey {
+        switch verdict {
+        case .keptByUser: "Von dir geladen, bleibt bis „Audio entfernen“."
+        case .newest: "Neueste Folge auf dem Gerät, bleibt für unterwegs, bis eine neuere geladen ist."
+        case .removeAfterTranscript: "Wird nach dem Transkript entfernt, abgespielt wird dann aus dem Netz."
+        case .removeAfterHeard: "Wird einen Tag nach dem Hören entfernt, abgespielt wird dann aus dem Netz."
+        case .remove: "Wird bald entfernt, abgespielt wird dann aus dem Netz."
+        case .stays: "Bleibt, bis du „Audio entfernen“ wählst."
         }
     }
 
@@ -476,8 +528,10 @@ struct EpisodeDetailView: View {
     /// Knopfs ohne Erklärung fehlt er dann.
     private var showsUpNextMenu: Bool { model.canPlay(episode) && !isCurrent }
 
+    /// Wartet das Transkript aufs Netz, steht „Jetzt erstellen“ schon in der
+    /// Zeile darunter. Ein zweiter Knopf dafür wäre doppelt.
     private var showsTranscriptButton: Bool {
-        episode.audioURL != nil && (stage == nil || stage == .failed)
+        episode.audioURL != nil && (stage == nil || stage == .failed) && networkWait == nil
     }
 
     @ViewBuilder private var secondaryControls: some View {

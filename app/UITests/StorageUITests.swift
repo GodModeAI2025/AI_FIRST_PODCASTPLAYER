@@ -31,9 +31,10 @@ final class StorageUITests: XCTestCase {
 
     func testLoadOfflineThenRemoveAudioKeepsPausedPlayer() {
         let app = XCUIApplication()
-        // Ohne automatisches Vorbereiten: sonst liegt der Ton schon auf dem Gerät,
-        // bevor der Test „Laden (offline)“ antippen kann.
-        app.launchArguments = ["-uitest-fresh", "-automaticAnalysis", "NO"]; app.launch()
+        // Ohne automatisches Vorbereiten und ohne Vorhalten der neuesten Folge:
+        // sonst liegt der Ton schon auf dem Gerät, bevor der Test „Laden
+        // (offline)“ antippen kann.
+        app.launchArguments = ["-uitest-fresh", "-automaticAnalysis", "NO", "-keepNewestAudio", "NO"]; app.launch()
         addSource(app, "https://audio.podigee-cdn.net/2598733-m-21b7bc55dcb4707563cae78e503f9c5e.mp3?source=webplayer-download")
         let row = app.staticTexts["Einzelne Folgen"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 20))

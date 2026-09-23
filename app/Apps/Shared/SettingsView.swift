@@ -65,11 +65,11 @@ struct PrivateCloudToggle: View {
     }
 }
 
-/// Ob Folgen über Mobilfunk laden, wenn jemand sie selbst abspielt, lädt
-/// oder ein Transkript anfordert.
+/// Beide Regeln fürs Netz an einem Ort: was jemand selbst abspielt, lädt
+/// oder als Transkript anfordert, und was die App von selbst vorbereitet.
 ///
-/// Vorher stand die Antwort nur im Kleingedruckten der Transkripte, und
-/// abschalten ließ sich nichts. Die Zeilen sagen jetzt selbst, was gilt.
+/// Vorher stand die zweite Regel als „Nur im WLAN“ unter Transkripte, und
+/// hier nur ihr Zustand. Wer nach Mobilfunk suchte, fand sie nicht.
 struct MobileDataSettingsSection: View {
 
     @Environment(AppModel.self) private var model
@@ -84,16 +84,23 @@ struct MobileDataSettingsSection: View {
                 Text(loadingRule)
             }
             .accessibilityIdentifier("settings.cellular")
-            LabeledContent("Transkripte für neue Folgen") {
-                Text(transcriptRule)
+            Toggle(isOn: Binding(
+                get: { !model.preparationOnWiFiOnly },
+                set: { model.preparationOnWiFiOnly = !$0 }
+            )) {
+                Text("Neue Folgen auch über Mobilfunk vorbereiten")
+                Text(preparationRule)
             }
+            .accessibilityIdentifier("settings.preparationCellular")
         } header: {
             Text("Mobilfunk")
         } footer: {
             Text("""
-                Gemeint ist, was du selbst abspielst, für unterwegs lädst oder als Transkript \
-                anforderst. Ein Hotspot zählt wie Mobilfunk. Für Transkripte neuer Folgen gilt \
-                der Schalter „Nur im WLAN“ unter Transkripte.
+                „Abspielen und Laden“ gilt für alles, was du selbst abspielst, für unterwegs lädst oder \
+                als Transkript anforderst. „Neue Folgen vorbereiten“ gilt für das, was die App von selbst \
+                lädt: Transkripte neuer und älterer Folgen und die neueste Folge je Podcast. Ein Hotspot \
+                zählt wie Mobilfunk. Im Datensparmodus lädt die App nichts von selbst. Liegt der Ton schon \
+                auf dem Gerät, entsteht das Transkript auch ohne Netz.
                 """)
         }
     }
@@ -104,9 +111,10 @@ struct MobileDataSettingsSection: View {
             : "Aus: Ohne WLAN fragt die App vorher."
     }
 
-    private var transcriptRule: LocalizedStringKey {
-        if !model.automaticAnalysis { return "aus" }
-        return model.preparationOnWiFiOnly ? "nur im WLAN" : "auch über Mobilfunk"
+    private var preparationRule: LocalizedStringKey {
+        model.preparationOnWiFiOnly
+            ? "Aus: Was die App von selbst lädt, wartet auf WLAN."
+            : "An: Die App lädt auch ohne WLAN von selbst."
     }
 }
 
@@ -163,14 +171,19 @@ struct AutomaticAnalysisSection: View {
                         Text(Self.choiceLabel(count)).tag(count)
                     }
                 }
-                Toggle("Nur im WLAN", isOn: Binding(
-                    get: { model.preparationOnWiFiOnly },
-                    set: { model.preparationOnWiFiOnly = $0 }
-                ))
-                if let wait = model.preparationWait {
-                    Label(wait.settingsLabel, systemImage: wait.symbol)
-                        .foregroundStyle(.secondary)
-                }
+            }
+            #if os(macOS)
+            // Der Mac hat keinen Mobilfunk, wohl aber den Hotspot eines
+            // Telefons. Auf iOS steht der Schalter unter Mobilfunk.
+            Toggle("Neue Folgen auch über einen Hotspot vorbereiten", isOn: Binding(
+                get: { !model.preparationOnWiFiOnly },
+                set: { model.preparationOnWiFiOnly = !$0 }
+            ))
+            .accessibilityIdentifier("settings.preparationCellular")
+            #endif
+            if model.automaticAnalysis, let wait = model.preparationWait {
+                Label(wait.settingsLabel, systemImage: wait.symbol)
+                    .foregroundStyle(.secondary)
             }
             // Auch ohne automatische Transkripte: selbst angeforderte Folgen
             // bekommen ihre Fakten dann ebenfalls von selbst.
@@ -186,9 +199,15 @@ struct AutomaticAnalysisSection: View {
                 Text("""
                     Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit \
                     Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas \
-                    darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Im \
-                    Datensparmodus erstellt die App keine Transkripte von selbst.
+                    darin. Ältere Folgen eines Podcasts nimmt die App dazu, wenn du in seiner Folgenliste \
+                    „Ältere Folgen auch vorbereiten“ wählst. Liegt der Ton schon auf dem Gerät, entsteht \
+                    das Transkript auch ohne Netz. Im Datensparmodus lädt die App nichts von selbst.
                     """)
+                #if os(iOS)
+                Text("Ob die App dafür auch Mobilfunk nutzt, stellst du oben unter Mobilfunk ein.")
+                #else
+                Text("Über den Hotspot eines Telefons lädt die App nur, wenn der Schalter dafür an ist.")
+                #endif
                 Text("""
                     Fakten zieht die App nach jedem Transkript mit Apple Intelligence auf dem Gerät \
                     heraus, auch im Hintergrund und für ältere Folgen mit Transkript. Dafür braucht es \
@@ -216,6 +235,11 @@ struct StorageSettingsSection: View {
             LabeledContent("Audiodateien auf diesem Gerät") {
                 Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
             }
+            Toggle("Neueste Folge je Podcast behalten", isOn: Binding(
+                get: { model.keepNewestAudio },
+                set: { model.keepNewestAudio = $0 }
+            ))
+            .accessibilityIdentifier("settings.keepNewest")
             Toggle("Audio entfernen, wenn das Transkript fertig ist", isOn: Binding(
                 get: { model.removeAudioAfterAnalysis },
                 set: { model.removeAudioAfterAnalysis = $0 }
@@ -229,11 +253,16 @@ struct StorageSettingsSection: View {
         } header: {
             Text("Speicher")
         } footer: {
+            // Je Schalter ein Satz, was er bewirkt. So stimmt der Text, wie
+            // auch immer die Schalter darüber stehen.
             Text("""
-                „Audio entfernen“ löscht nur den Ton. Transkripte, Fakten, gemerkte Stellen und der \
-                Hörstand bleiben, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ \
-                holst, bleibt auch mit fertigem Transkript auf dem Gerät. Eine einzelne Folge löschst \
-                du in der Folge selbst; dann verschwinden auch ihre Daten.
+                Mit „Neueste Folge je Podcast behalten“ bleibt die neueste Folge jedes Podcasts auf dem \
+                Gerät und spielt ohne Netz, bis eine neuere geladen ist. Mit „Audio entfernen, wenn das \
+                Transkript fertig ist“ nimmt die App die anderen Folgen nach dem Transkript wieder vom \
+                Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, \
+                bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, \
+                Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der \
+                Folge selbst, dann verschwinden auch ihre Daten.
                 """)
         }
         .task(id: model.mediaStorageChanged) { bytes = LocalMediaLocator.storedBytes() }

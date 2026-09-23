@@ -174,6 +174,8 @@ public enum EpisodeArchive {
         case off
         /// Eingeschaltet, aber das Gerät kann gerade nicht transkribieren.
         case paused
+        /// Alle Folgen dieses Podcasts, auch die älteren.
+        case all
     }
 
     /// Die Kopfzeile der Folgenliste, etwa „3 von 412 Folgen mit Transkript,
@@ -207,7 +209,48 @@ public enum EpisodeArchive {
             return String(AttributedString(localized: """
                 \(analyzed) von ^[\(total) Folge](inflect: true) mit Transkript, automatisch gerade keine
                 """, bundle: .module).characters)
+        case .all:
+            return String(AttributedString(localized: """
+                \(analyzed) von ^[\(total) Folge](inflect: true) mit Transkript, automatisch alle
+                """, bundle: .module).characters)
         }
+    }
+
+    // MARK: - Ältere Folgen vorbereiten
+
+    /// So viele Bytes je Sekunde Ton rechnet die Schätzung: 128 kbit/s, die
+    /// übliche Rate für gesprochene Podcasts.
+    static let estimatedBytesPerSecond: Double = 16_000
+
+    /// Grob, wie viel das Laden dieser Folgen kostet.
+    ///
+    /// Der Feed nennt die Länge einer Folge, die Dateigröße behält die App
+    /// nicht. Gerechnet wird deshalb mit der Länge und 128 kbit/s. Fehlt sie
+    /// bei einzelnen Folgen, zählen diese mit dem Mittel der übrigen. `nil`,
+    /// wenn keine Folge eine Länge nennt; dann gibt es nur die Anzahl.
+    public static func estimatedDownloadBytes(for episodes: [Episode]) -> Int64? {
+        let known = episodes.compactMap(\.declaredDuration).filter { !$0.isZero }
+        guard !known.isEmpty else { return nil }
+        let seconds = known.reduce(0) { $0 + $1.seconds }
+        let average = seconds / Double(known.count)
+        let total = seconds + average * Double(episodes.count - known.count)
+        return Int64((total * estimatedBytesPerSecond).rounded())
+    }
+
+    /// Der erste Satz der Rückfrage vor „Ältere Folgen auch vorbereiten“:
+    /// wie viele Folgen noch ohne Transkript sind und, wenn die Längen
+    /// bekannt sind, wie viel das ungefähr zu laden ist. `toLoad`: die davon,
+    /// deren Ton nicht schon auf dem Gerät liegt; ohne Angabe alle.
+    public static func backCatalogSummary(_ episodes: [Episode], toLoad: [Episode]? = nil) -> String {
+        let count = episodes.count
+        guard let bytes = estimatedDownloadBytes(for: toLoad ?? episodes) else {
+            return String(AttributedString(
+                localized: "^[\(count) Folge](inflect: true) noch ohne Transkript.", bundle: .module).characters)
+        }
+        let size = bytes.formatted(.byteCount(style: .file))
+        return String(AttributedString(localized: """
+            ^[\(count) Folge](inflect: true) noch ohne Transkript, zusammen etwa \(size) zum Laden.
+            """, bundle: .module).characters)
     }
 
     /// Die Zeile über „Transkripte erstellen“: wie viele Folgen und wie viel Ton.

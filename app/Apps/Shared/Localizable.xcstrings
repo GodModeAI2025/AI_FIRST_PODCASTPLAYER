@@ -17,6 +17,22 @@
         }
       }
     },
+    "%@ %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@."
+          }
+        }
+      }
+    },
     "%@ (ungefähr, gesagt: „%@“)" : {
       "localizations" : {
         "de" : {
@@ -1697,6 +1713,22 @@
         }
       }
     },
+    "An: Die App lädt auch ohne WLAN von selbst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An: Die App lädt auch ohne WLAN von selbst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On: The app also downloads on its own without Wi-Fi."
+          }
+        }
+      }
+    },
     "An: Folgen laden auch ohne WLAN." : {
       "localizations" : {
         "de" : {
@@ -2594,6 +2626,22 @@
         }
       }
     },
+    "Aus: Was die App von selbst lädt, wartet auf WLAN." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus: Was die App von selbst lädt, wartet auf WLAN."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off: What the app downloads on its own waits for Wi-Fi."
+          }
+        }
+      }
+    },
     "Ausgabe löschen" : {
       "localizations" : {
         "de" : {
@@ -2954,6 +3002,54 @@
         }
       }
     },
+    "Bereitet auch ältere Folgen vor, gerade angehalten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereitet auch ältere Folgen vor, gerade angehalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also preparing older episodes, paused right now."
+          }
+        }
+      }
+    },
+    "Bereitet auch ältere Folgen vor, gerade ist keine offen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereitet auch ältere Folgen vor, gerade ist keine offen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also preparing older episodes, none left right now."
+          }
+        }
+      }
+    },
+    "Bereitet auch ältere Folgen vor, noch ^[%lld Folge](inflect: true) offen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereitet auch ältere Folgen vor, noch ^[%lld Folge](inflect: true) offen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Also preparing older episodes, ^[%lld episode](inflect: true) to go."
+          }
+        }
+      }
+    },
     "Beschreibung" : {
       "localizations" : {
         "de" : {
@@ -3062,6 +3158,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Only from the show notes so far. The transcript adds more, with timestamps."
+          }
+        }
+      }
+    },
+    "Bleibt, bis du „Audio entfernen“ wählst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bleibt, bis du „Audio entfernen“ wählst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stays until you choose \"Remove Audio\"."
           }
         }
       }
@@ -3494,6 +3606,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The update only searches the selected podcasts."
+          }
+        }
+      }
+    },
+    "Das beginnt, sobald „Transkripte für neue Folgen erstellen“ in den Einstellungen an ist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das beginnt, sobald „Transkripte für neue Folgen erstellen“ in den Einstellungen an ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This starts once \"Create transcripts for new episodes\" is on in Settings."
           }
         }
       }
@@ -3954,6 +4082,22 @@
         }
       }
     },
+    "Der Podcast hat die Audiodatei geändert. Für das Transkript lädt die App die neue Fassung." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Podcast hat die Audiodatei geändert. Für das Transkript lädt die App die neue Fassung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The podcast has changed the audio file. For the transcript, the app downloads the new version."
+          }
+        }
+      }
+    },
     "Der Podcast hat keine Beschreibung." : {
       "localizations" : {
         "de" : {
@@ -3998,6 +4142,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The podcast couldn't be loaded right now. Try again later."
+          }
+        }
+      }
+    },
+    "Der Schalter gilt für alle Podcasts und steht auch in den Einstellungen unter Intelligenz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Schalter gilt für alle Podcasts und steht auch in den Einstellungen unter Intelligenz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The switch applies to all podcasts and is also in Settings under Intelligence."
+          }
+        }
+      }
+    },
+    "Der Schalter gilt für alle Podcasts und steht auch in den Einstellungen unter Mobilfunk." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Schalter gilt für alle Podcasts und steht auch in den Einstellungen unter Mobilfunk."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The switch applies to all podcasts and is also in Settings under Cellular Data."
           }
         }
       }
@@ -4178,6 +4354,22 @@
         }
       }
     },
+    "Der Ton liegt schon auf dem Gerät. Das Sprachmodell für die Sprache dieser Folge lädt die App noch aus dem Netz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ton liegt schon auf dem Gerät. Das Sprachmodell für die Sprache dieser Folge lädt die App noch aus dem Netz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The audio is already on the device. The app still needs to download the speech model for this episode's language."
+          }
+        }
+      }
+    },
     "Der mitgeschriebene Text einer Folge. Erst damit kannst du in der Folge suchen und Fragen stellen." : {
       "localizations" : {
         "de" : {
@@ -4274,6 +4466,22 @@
         }
       }
     },
+    "Die App erstellt die Transkripte von selbst, neueste zuerst, und reiht neue Folgen davor ein." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die App erstellt die Transkripte von selbst, neueste zuerst, und reiht neue Folgen davor ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app creates the transcripts on its own, newest first, and puts new episodes ahead of them."
+          }
+        }
+      }
+    },
     "Die App erstellt ein Transkript nach dem anderen. Auf dem iPhone geht die Arbeit im Hintergrund weiter, solange die Fortschrittsanzeige des Systems zu sehen ist." : {
       "localizations" : {
         "de" : {
@@ -4306,34 +4514,18 @@
         }
       }
     },
-    "Die App nimmt dieses Audio später wieder vom Gerät: nach dem Transkript oder einen Tag nach dem Hören. Mit „Auf dem Gerät behalten“ im Menü bleibt es." : {
+    "Die App schreibt Folgen auf dem Gerät mit Zeitmarken mit. Im Reiter „Transkript“ springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für eine ältere Folge tippst du in der Folge auf „Transkript erstellen“, für alle älteren eines Podcasts in seiner Folgenliste auf „Ältere Folgen auch vorbereiten“." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die App nimmt dieses Audio später wieder vom Gerät: nach dem Transkript oder einen Tag nach dem Hören. Mit „Auf dem Gerät behalten“ im Menü bleibt es."
+            "value" : "Die App schreibt Folgen auf dem Gerät mit Zeitmarken mit. Im Reiter „Transkript“ springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für eine ältere Folge tippst du in der Folge auf „Transkript erstellen“, für alle älteren eines Podcasts in seiner Folgenliste auf „Ältere Folgen auch vorbereiten“."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The app will remove this audio from the device later: after the transcript or one day after you listen. Choose \"Keep on Device\" in the menu to keep it."
-          }
-        }
-      }
-    },
-    "Die App schreibt Folgen auf dem Gerät mit Zeitmarken mit. Im Reiter „Transkript“ springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für ältere Folgen tippst du in der Folge auf „Transkript erstellen“." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die App schreibt Folgen auf dem Gerät mit Zeitmarken mit. Im Reiter „Transkript“ springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für ältere Folgen tippst du in der Folge auf „Transkript erstellen“."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The app transcribes episodes on your device, with timestamps. In the \"Transcript\" tab, tap any passage to jump to it; search finds every word. For older episodes, tap \"Create Transcript\" in the episode."
+            "value" : "The app transcribes episodes on your device, with timestamps. In the \"Transcript\" tab, tap any passage to jump to it; search finds every word. For one older episode, tap \"Create Transcript\" in the episode. For all older episodes of a podcast, tap \"Prepare Older Episodes Too\" in its episode list."
           }
         }
       }
@@ -4798,6 +4990,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Playback won't start. Check your audio output and network connection, then tap Play again."
+          }
+        }
+      }
+    },
+    "Die neueste Folge bleibt für unterwegs auf dem Gerät." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die neueste Folge bleibt für unterwegs auf dem Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The newest episode stays on the device for listening on the go."
+          }
+        }
+      }
+    },
+    "Die neueste Folge bleibt für unterwegs auf dem Gerät. Bei den anderen nimmt die App das Audio danach wieder weg, abgespielt wird dann aus dem Netz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die neueste Folge bleibt für unterwegs auf dem Gerät. Bei den anderen nimmt die App das Audio danach wieder weg, abgespielt wird dann aus dem Netz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The newest episode stays on the device for listening on the go. For the others, the app removes the audio afterwards, and they play from the internet."
+          }
+        }
+      }
+    },
+    "Die neueste Folge jedes Podcasts bleibt auf dem Gerät und spielt ohne Netz. Bei den anderen entfernt die App den Ton nach dem Transkript, abgespielt wird dann aus dem Netz. In einer Folge über „Mehr“: „Laden (offline)“ holt den Ton aufs Gerät und lässt ihn dort, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton, „Folge löschen“ löscht Ton, Transkript, Fakten und Hörstand. Deine Notizen bleiben unter Wissen. Unter „Audio liegt auf diesem Gerät“ steht in der Folge, warum. Die Regeln lassen sich in den Einstellungen unter Speicher abschalten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die neueste Folge jedes Podcasts bleibt auf dem Gerät und spielt ohne Netz. Bei den anderen entfernt die App den Ton nach dem Transkript, abgespielt wird dann aus dem Netz. In einer Folge über „Mehr“: „Laden (offline)“ holt den Ton aufs Gerät und lässt ihn dort, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton, „Folge löschen“ löscht Ton, Transkript, Fakten und Hörstand. Deine Notizen bleiben unter Wissen. Unter „Audio liegt auf diesem Gerät“ steht in der Folge, warum. Die Regeln lassen sich in den Einstellungen unter Speicher abschalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The newest episode of each podcast stays on the device and plays without a connection. For the others, the app removes the audio after the transcript, and they play from the internet. In an episode, under \"More\": \"Download\" puts the audio on the device and keeps it there until you choose \"Remove Audio\". \"Remove Audio\" deletes only the audio, \"Delete Episode\" deletes the audio, transcript, facts, and listening progress. Your notes stay in Knowledge. Below \"Audio is on this device\", the episode tells you why. You can turn these rules off in Settings under Storage."
+          }
+        }
+      }
+    },
+    "Die neueste Folge legt die App trotzdem für unterwegs aufs Gerät." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die neueste Folge legt die App trotzdem für unterwegs aufs Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app still puts the newest episode on the device for listening on the go."
           }
         }
       }
@@ -5586,22 +5842,6 @@
         }
       }
     },
-    "Einen Tag nach dem Hören nimmt die App dieses Audio wieder vom Gerät. Mit „Auf dem Gerät behalten“ im Menü bleibt es." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einen Tag nach dem Hören nimmt die App dieses Audio wieder vom Gerät. Mit „Auf dem Gerät behalten“ im Menü bleibt es."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The app removes this audio from the device one day after you listen to it. To keep it, choose \"Keep on Device\" in the menu."
-          }
-        }
-      }
-    },
     "Eingabe löschen" : {
       "localizations" : {
         "de" : {
@@ -5870,6 +6110,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Created %@"
+          }
+        }
+      }
+    },
+    "Erstellt Transkripte für alle Folgen dieses Podcasts, neueste zuerst" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erstellt Transkripte für alle Folgen dieses Podcasts, neueste zuerst"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creates transcripts for all episodes of this podcast, newest first"
           }
         }
       }
@@ -6786,18 +7042,18 @@
         }
       }
     },
-    "Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Im Datensparmodus erstellt die App keine Transkripte von selbst." : {
+    "Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas darin. Ältere Folgen eines Podcasts nimmt die App dazu, wenn du in seiner Folgenliste „Ältere Folgen auch vorbereiten“ wählst. Liegt der Ton schon auf dem Gerät, entsteht das Transkript auch ohne Netz. Im Datensparmodus lädt die App nichts von selbst." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas darin. Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln. Im Datensparmodus erstellt die App keine Transkripte von selbst."
+            "value" : "Für ein Transkript lädt die App die Folge und schreibt sie auf dem Gerät mit Zeitmarken mit. Erst dann finden „Für dich“, der Chat und die Themen-Updates etwas darin. Ältere Folgen eines Podcasts nimmt die App dazu, wenn du in seiner Folgenliste „Ältere Folgen auch vorbereiten“ wählst. Liegt der Ton schon auf dem Gerät, entsteht das Transkript auch ohne Netz. Im Datensparmodus lädt die App nichts von selbst."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "To create a transcript, the app downloads the episode and transcribes it on the device with timestamps. Only then can \"For You\", Chat, and Topic Updates find anything in it. For older episodes, create the transcript one at a time when you need it. In Low Data Mode, the app doesn't create transcripts on its own."
+            "value" : "To create a transcript, the app downloads the episode and transcribes it on the device with timestamps. Only then can \"For You\", Chat, and Topic Updates find anything in it. The app adds a podcast's older episodes when you choose \"Prepare Older Episodes Too\" in its episode list. If the audio is already on the device, the transcript is created without a connection. In Low Data Mode, the app doesn't download anything on its own."
           }
         }
       }
@@ -6814,22 +7070,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Creating a transcript for one episode"
-          }
-        }
-      }
-    },
-    "Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Für ältere Folgen erstellst du das Transkript bei Bedarf einzeln."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "For older episodes, create the transcript one at a time when you need it."
           }
         }
       }
@@ -6914,6 +7154,38 @@
         }
       }
     },
+    "Geladen wird auch über Mobilfunk, so ist es in den Einstellungen unter Mobilfunk eingestellt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geladen wird auch über Mobilfunk, so ist es in den Einstellungen unter Mobilfunk eingestellt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads also happen over cellular data, as set in Settings under Cellular Data."
+          }
+        }
+      }
+    },
+    "Geladen wird auch über einen Hotspot, so ist es in den Einstellungen unter Intelligenz eingestellt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geladen wird auch über einen Hotspot, so ist es in den Einstellungen unter Intelligenz eingestellt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads also happen over a Personal Hotspot, as set in Settings under Intelligence."
+          }
+        }
+      }
+    },
     "Geladen wird dafür nur im WLAN." : {
       "localizations" : {
         "de" : {
@@ -6962,18 +7234,18 @@
         }
       }
     },
-    "Gemeint ist, was du selbst abspielst, für unterwegs lädst oder als Transkript anforderst. Ein Hotspot zählt wie Mobilfunk. Für Transkripte neuer Folgen gilt der Schalter „Nur im WLAN“ unter Transkripte." : {
+    "Geladen wird nur im WLAN." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gemeint ist, was du selbst abspielst, für unterwegs lädst oder als Transkript anforderst. Ein Hotspot zählt wie Mobilfunk. Für Transkripte neuer Folgen gilt der Schalter „Nur im WLAN“ unter Transkripte."
+            "value" : "Geladen wird nur im WLAN."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This covers what you play yourself, download for offline listening, or request as a transcript. A Personal Hotspot counts as cellular data. For transcripts of new episodes, the \"Wi-Fi Only\" setting under Transcripts applies."
+            "value" : "Downloads only happen on Wi-Fi."
           }
         }
       }
@@ -7570,6 +7842,22 @@
         }
       }
     },
+    "Im Datensparmodus lädt die App nichts von selbst. „Jetzt erstellen“ lädt trotzdem." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Datensparmodus lädt die App nichts von selbst. „Jetzt erstellen“ lädt trotzdem."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Low Data Mode, the app doesn't download anything on its own. \"Create Now\" downloads anyway."
+          }
+        }
+      }
+    },
     "Im Player tippst du auf „Moment merken“ und schreibst auf Wunsch eine Notiz dazu. Im Transkript, bei Fakten und im Chat heißt der Befehl „Stelle merken“. Alles liegt dann mit Zeitmarke unter Wissen › Gemerkte Stellen." : {
       "localizations" : {
         "de" : {
@@ -7906,22 +8194,6 @@
         }
       }
     },
-    "In einer Folge über „Mehr“: „Laden (offline)“ holt den Ton aufs Gerät, „Audio entfernen“ löscht nur den Ton, „Folge löschen“ löscht Ton, Transkript, Fakten und Hörstand. Deine Notizen bleiben unter Wissen. Ist das Transkript fertig, entfernt die App den Ton von selbst, abschaltbar in den Einstellungen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In einer Folge über „Mehr“: „Laden (offline)“ holt den Ton aufs Gerät, „Audio entfernen“ löscht nur den Ton, „Folge löschen“ löscht Ton, Transkript, Fakten und Hörstand. Deine Notizen bleiben unter Wissen. Ist das Transkript fertig, entfernt die App den Ton von selbst, abschaltbar in den Einstellungen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In an episode, under \"More\" : \"Download\" puts the audio on the device, \"Remove Audio\" deletes only the audio, and \"Delete Episode\" deletes the audio, transcript, facts, and listening progress. Your notes stay in Knowledge. Once the transcript is ready, the app removes the audio on its own. You can turn this off in Settings."
-          }
-        }
-      }
-    },
     "Intelligenz" : {
       "localizations" : {
         "de" : {
@@ -7986,22 +8258,6 @@
         }
       }
     },
-    "Ist das Transkript fertig, nimmt die App dieses Audio wieder vom Gerät. Mit „Auf dem Gerät behalten“ im Menü bleibt es." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ist das Transkript fertig, nimmt die App dieses Audio wieder vom Gerät. Mit „Auf dem Gerät behalten“ im Menü bleibt es."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Once the transcript is ready, the app removes this audio from the device. To keep it, choose \"Keep on Device\" in the menu."
-          }
-        }
-      }
-    },
     "Jede Antwort nennt die Stellen, aus denen sie stammt. Ein Tipp auf einen Beleg spielt die Stelle im Original." : {
       "localizations" : {
         "de" : {
@@ -8046,6 +8302,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Extract Now"
+          }
+        }
+      }
+    },
+    "Jetzt erstellen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt erstellen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create Now"
           }
         }
       }
@@ -9028,6 +9300,38 @@
         }
       }
     },
+    "Mit „Auf dem Gerät behalten“ im Menü bleibt es." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit „Auf dem Gerät behalten“ im Menü bleibt es."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose \"Keep on Device\" in the menu to keep it."
+          }
+        }
+      }
+    },
+    "Mit „Neueste Folge je Podcast behalten“ bleibt die neueste Folge jedes Podcasts auf dem Gerät und spielt ohne Netz, bis eine neuere geladen ist. Mit „Audio entfernen, wenn das Transkript fertig ist“ nimmt die App die anderen Folgen nach dem Transkript wieder vom Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der Folge selbst, dann verschwinden auch ihre Daten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit „Neueste Folge je Podcast behalten“ bleibt die neueste Folge jedes Podcasts auf dem Gerät und spielt ohne Netz, bis eine neuere geladen ist. Mit „Audio entfernen, wenn das Transkript fertig ist“ nimmt die App die anderen Folgen nach dem Transkript wieder vom Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der Folge selbst, dann verschwinden auch ihre Daten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With \"Keep Newest Episode of Each Podcast\" on, the newest episode of each podcast stays on the device and plays without a connection until a newer one is downloaded. With \"Remove Audio When Transcript Is Ready\" on, the app removes the other episodes from the device after their transcript, and they play from the internet. Anything you get with \"Download\" stays until you choose \"Remove Audio\". \"Remove Audio\" deletes only the audio; transcripts, facts, saved moments, and your listening progress stay. To delete a single episode, do it in the episode itself. Its data goes with it."
+          }
+        }
+      }
+    },
     "Mobilfunk" : {
       "localizations" : {
         "de" : {
@@ -9136,6 +9440,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "After the transcript, the app removes the audio from the device, as set in Settings. The episode then plays from the internet. To listen on the go, choose \"Download\" in the menu. That audio stays on the device."
+          }
+        }
+      }
+    },
+    "Nach dem Transkript nimmt die App den Ton wieder vom Gerät, abgespielt wird dann aus dem Netz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach dem Transkript nimmt die App den Ton wieder vom Gerät, abgespielt wird dann aus dem Netz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After the transcript, the app removes the audio from the device, and episodes play from the internet."
           }
         }
       }
@@ -9300,6 +9620,38 @@
         }
       }
     },
+    "Neue Folgen auch über Mobilfunk vorbereiten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Folgen auch über Mobilfunk vorbereiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare New Episodes over Cellular Data"
+          }
+        }
+      }
+    },
+    "Neue Folgen auch über einen Hotspot vorbereiten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Folgen auch über einen Hotspot vorbereiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare New Episodes over a Personal Hotspot"
+          }
+        }
+      }
+    },
     "Neues Cover entsteht" : {
       "localizations" : {
         "de" : {
@@ -9408,6 +9760,118 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Latest Episode"
+          }
+        }
+      }
+    },
+    "Neueste Folge auf dem Gerät, bleibt für unterwegs, bis eine neuere geladen ist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge auf dem Gerät, bleibt für unterwegs, bis eine neuere geladen ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest episode on the device, stays for listening on the go until a newer one is downloaded."
+          }
+        }
+      }
+    },
+    "Neueste Folge je Podcast behalten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge je Podcast behalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep Newest Episode of Each Podcast"
+          }
+        }
+      }
+    },
+    "Neueste Folge, wird für unterwegs geladen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge, wird für unterwegs geladen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest episode, downloading for listening on the go."
+          }
+        }
+      }
+    },
+    "Neueste Folge. Die App lädt sie für unterwegs, sobald WLAN da ist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge. Die App lädt sie für unterwegs, sobald WLAN da ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest episode. The app downloads it for listening on the go once Wi-Fi is available."
+          }
+        }
+      }
+    },
+    "Neueste Folge. Die App lädt sie für unterwegs, sobald das Netz es zulässt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge. Die App lädt sie für unterwegs, sobald das Netz es zulässt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest episode. The app downloads it for listening on the go once the network allows it."
+          }
+        }
+      }
+    },
+    "Neueste Folge. Die App lädt sie gleich für unterwegs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge. Die App lädt sie gleich für unterwegs."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest episode. The app is about to download it for listening on the go."
+          }
+        }
+      }
+    },
+    "Neueste Folge. Die App lädt sie mit dem Transkript und behält sie für unterwegs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge. Die App lädt sie mit dem Transkript und behält sie für unterwegs."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest episode. The app downloads it with the transcript and keeps it for listening on the go."
           }
         }
       }
@@ -9584,6 +10048,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing Playing"
+          }
+        }
+      }
+    },
+    "Nimmt die älteren Folgen aus der Warteschlange. Fertige Transkripte bleiben." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nimmt die älteren Folgen aus der Warteschlange. Fertige Transkripte bleiben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removes the older episodes from the queue. Finished transcripts stay."
           }
         }
       }
@@ -9876,22 +10356,6 @@
         }
       }
     },
-    "Nur im WLAN" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nur im WLAN"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wi-Fi Only"
-          }
-        }
-      }
-    },
     "Nur lesend und nur auf diesem Mac. Der Agent startet PodcastAI selbst und spricht über die Standardeingabe mit ihm, einen Netzwerk-Port gibt es nicht. Es gibt kein Werkzeug, das schreibt, löscht oder Wiedergabe startet. Ausgeschaltet beantwortet PodcastAI keine Anfrage mehr, auch nicht in einer laufenden Verbindung." : {
       "localizations" : {
         "de" : {
@@ -10036,18 +10500,34 @@
         }
       }
     },
-    "Ob Folgen auch ohne WLAN laden, stellst du über das Zahnrad › Mobilfunk ein. Ist es aus, fragt die App vorher. Transkripte für neue Folgen lädt sie mit „Nur im WLAN“ nur im WLAN." : {
+    "Ob Folgen auch ohne WLAN laden, stellst du über das Zahnrad › Mobilfunk ein. Ist es aus, fragt die App vorher. Was die App von selbst lädt, Transkripte und die neueste Folge, wartet auf WLAN, bis du dort „Neue Folgen auch über Mobilfunk vorbereiten“ einschaltest. Liegt der Ton schon auf dem Gerät, entsteht das Transkript auch ohne Netz." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ob Folgen auch ohne WLAN laden, stellst du über das Zahnrad › Mobilfunk ein. Ist es aus, fragt die App vorher. Transkripte für neue Folgen lädt sie mit „Nur im WLAN“ nur im WLAN."
+            "value" : "Ob Folgen auch ohne WLAN laden, stellst du über das Zahnrad › Mobilfunk ein. Ist es aus, fragt die App vorher. Was die App von selbst lädt, Transkripte und die neueste Folge, wartet auf WLAN, bis du dort „Neue Folgen auch über Mobilfunk vorbereiten“ einschaltest. Liegt der Ton schon auf dem Gerät, entsteht das Transkript auch ohne Netz."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose whether episodes also download without Wi-Fi under the gear button › Cellular Data. If it's off, the app asks first. With \"Wi-Fi Only\" on, transcripts for new episodes download only on Wi-Fi."
+            "value" : "Choose whether episodes also download without Wi-Fi under the gear button › Cellular Data. If it's off, the app asks first. What the app downloads on its own, transcripts and the newest episode, waits for Wi-Fi until you turn on \"Prepare New Episodes over Cellular Data\" there. If the audio is already on the device, the transcript is created without a connection."
+          }
+        }
+      }
+    },
+    "Ob die App dafür auch Mobilfunk nutzt, stellst du oben unter Mobilfunk ein." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ob die App dafür auch Mobilfunk nutzt, stellst du oben unter Mobilfunk ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whether the app also uses cellular data for this is set above under Cellular Data."
           }
         }
       }
@@ -12277,22 +12757,6 @@
         }
       }
     },
-    "Transkripte für neue Folgen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transkripte für neue Folgen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transcripts for New Episodes"
-          }
-        }
-      }
-    },
     "Transkripte für neue Folgen erstellen" : {
       "localizations" : {
         "de" : {
@@ -12721,6 +13185,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The app can't translate from %1$@ to %2$@ here on its own. Try the system translation window, where you can also download languages."
+          }
+        }
+      }
+    },
+    "Von dir geladen, bleibt bis „Audio entfernen“." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von dir geladen, bleibt bis „Audio entfernen“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloaded by you, stays until \"Remove Audio\"."
+          }
+        }
+      }
+    },
+    "Vorbereiten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorbereiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare"
           }
         }
       }
@@ -13313,6 +13809,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Player, %@"
+          }
+        }
+      }
+    },
+    "Wird bald entfernt, abgespielt wird dann aus dem Netz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird bald entfernt, abgespielt wird dann aus dem Netz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Will be removed soon, then plays from the internet."
+          }
+        }
+      }
+    },
+    "Wird einen Tag nach dem Hören entfernt, abgespielt wird dann aus dem Netz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird einen Tag nach dem Hören entfernt, abgespielt wird dann aus dem Netz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed one day after you listen, then plays from the internet."
+          }
+        }
+      }
+    },
+    "Wird nach dem Transkript entfernt, abgespielt wird dann aus dem Netz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird nach dem Transkript entfernt, abgespielt wird dann aus dem Netz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed after the transcript, then plays from the internet."
           }
         }
       }
@@ -14279,38 +14823,6 @@
         }
       }
     },
-    "auch über Mobilfunk" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "auch über Mobilfunk"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wi-Fi and Cellular Data"
-          }
-        }
-      }
-    },
-    "aus" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "aus"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Off"
-          }
-        }
-      }
-    },
     "aus %@" : {
       "localizations" : {
         "de" : {
@@ -14711,22 +15223,6 @@
         }
       }
     },
-    "nur im WLAN" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "nur im WLAN"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wi-Fi Only"
-          }
-        }
-      }
-    },
     "pausiert" : {
       "localizations" : {
         "de" : {
@@ -15032,6 +15528,86 @@
         }
       }
     },
+    "Ältere Folgen auch vorbereiten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ältere Folgen auch vorbereiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare Older Episodes Too"
+          }
+        }
+      }
+    },
+    "Ältere Folgen auch vorbereiten?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ältere Folgen auch vorbereiten?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prepare Older Episodes Too?"
+          }
+        }
+      }
+    },
+    "Ältere Folgen bereitet die App vor, wenn du in der Folgenliste des Podcasts „Ältere Folgen auch vorbereiten“ wählst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ältere Folgen bereitet die App vor, wenn du in der Folgenliste des Podcasts „Ältere Folgen auch vorbereiten“ wählst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app prepares older episodes when you choose \"Prepare Older Episodes Too\" in the podcast's episode list."
+          }
+        }
+      }
+    },
+    "Ältere Folgen nicht mehr vorbereiten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ältere Folgen nicht mehr vorbereiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Preparing Older Episodes"
+          }
+        }
+      }
+    },
+    "Ältere Folgen: startet, sobald „Transkripte für neue Folgen erstellen“ in den Einstellungen an ist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ältere Folgen: startet, sobald „Transkripte für neue Folgen erstellen“ in den Einstellungen an ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Older episodes: starts once \"Create transcripts for new episodes\" is on in Settings."
+          }
+        }
+      }
+    },
     "Älteste zuerst" : {
       "localizations" : {
         "de" : {
@@ -15112,6 +15688,22 @@
         }
       }
     },
+    "Über den Hotspot eines Telefons lädt die App nur, wenn der Schalter dafür an ist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über den Hotspot eines Telefons lädt die App nur, wenn der Schalter dafür an ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Over a phone's Personal Hotspot, the app only downloads when that switch is on."
+          }
+        }
+      }
+    },
     "Über diese Quelle" : {
       "localizations" : {
         "de" : {
@@ -15124,6 +15716,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "About This Source"
+          }
+        }
+      }
+    },
+    "Über einen Hotspot lädt die App dafür nichts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über einen Hotspot lädt die App dafür nichts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app doesn't download anything for this over a Personal Hotspot."
           }
         }
       }
@@ -15400,6 +16008,22 @@
         }
       }
     },
+    "„Abspielen und Laden“ gilt für alles, was du selbst abspielst, für unterwegs lädst oder als Transkript anforderst. „Neue Folgen vorbereiten“ gilt für das, was die App von selbst lädt: Transkripte neuer und älterer Folgen und die neueste Folge je Podcast. Ein Hotspot zählt wie Mobilfunk. Im Datensparmodus lädt die App nichts von selbst. Liegt der Ton schon auf dem Gerät, entsteht das Transkript auch ohne Netz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Abspielen und Laden“ gilt für alles, was du selbst abspielst, für unterwegs lädst oder als Transkript anforderst. „Neue Folgen vorbereiten“ gilt für das, was die App von selbst lädt: Transkripte neuer und älterer Folgen und die neueste Folge je Podcast. Ein Hotspot zählt wie Mobilfunk. Im Datensparmodus lädt die App nichts von selbst. Liegt der Ton schon auf dem Gerät, entsteht das Transkript auch ohne Netz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"Play and Download\" covers what you play yourself, download for offline listening, or request as a transcript. \"Prepare New Episodes\" covers what the app downloads on its own: transcripts of new and older episodes and the newest episode of each podcast. A Personal Hotspot counts as cellular data. In Low Data Mode, the app doesn't download anything on its own. If the audio is already on the device, the transcript is created without a connection."
+          }
+        }
+      }
+    },
     "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, gedrückt halten bietet „Ans Ende“. Die Warteschlange liegt in „Meine Podcasts“." : {
       "localizations" : {
         "de" : {
@@ -15428,22 +16052,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "\"Play Next\" puts an episode right after the one that's playing. Click and hold for \"Play Last\". The queue is in the sidebar on the left and in \"My Podcasts\"."
-          }
-        }
-      }
-    },
-    "„Audio entfernen“ löscht nur den Ton. Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt auch mit fertigem Transkript auf dem Gerät. Eine einzelne Folge löschst du in der Folge selbst; dann verschwinden auch ihre Daten." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "„Audio entfernen“ löscht nur den Ton. Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt auch mit fertigem Transkript auf dem Gerät. Eine einzelne Folge löschst du in der Folge selbst; dann verschwinden auch ihre Daten."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "\"Remove Audio\" deletes only the audio. Transcripts, facts, saved moments, and your listening progress stay, and the episode then plays from the internet. Anything you get with \"Download\" stays on the device, even once its transcript is ready. To delete a single episode, do it in the episode itself. Its data goes with it."
           }
         }
       }
