@@ -245,19 +245,20 @@ struct OPMLImportSheet: View {
                     }
                 } header: {
                     HStack {
-                        Text(feeds.count == 1 ? "1 Podcast in „\(request.fileName)“"
-                             : "\(feeds.count) Podcasts in „\(request.fileName)“")
+                        Text("^[\(feeds.count) Podcast](inflect: true) in „\(request.fileName)“")
                         Spacer()
                         if phase == .choosing, !selectable.isEmpty {
-                            Button(selected.count == selectable.count ? "Alle abwählen" : "Alle auswählen") {
+                            Button {
                                 selected = selected.count == selectable.count ? [] : Set(selectable.map(\.id))
+                            } label: {
+                                if selected.count == selectable.count { Text("Alle abwählen") } else { Text("Alle auswählen") }
                             }
                             .font(.caption)
                         }
                     }
                 } footer: {
                     if phase == .choosing {
-                        Text("Abonnieren holt nur die Folgenlisten. Ausgewertet wird dabei noch nichts.")
+                        Text("Abonnieren holt nur die Folgenlisten. Transkripte entstehen dabei noch keine.")
                     }
                 }
             }
@@ -301,18 +302,23 @@ struct OPMLImportSheet: View {
 
     private var summary: String {
         if phase == .running {
-            return "\(doneCount) von \(total) erledigt"
+            return String(localized: "\(doneCount) von \(total) erledigt")
         }
-        let added = addedCount == 1 ? "1 Podcast abonniert" : "\(addedCount) Podcasts abonniert"
-        var parts = [added]
+        var parts = [Self.inflected("^[\(addedCount) Podcast](inflect: true) abonniert")]
         if failedCount > 0 {
-            parts.append(failedCount == 1 ? "1 ging nicht" : "\(failedCount) gingen nicht")
+            parts.append(failedCount == 1 ? String(localized: "1 ging nicht") : String(localized: "\(failedCount) gingen nicht"))
         }
         if skippedCount > 0 {
-            parts.append("\(skippedCount) nach dem Stoppen ausgelassen")
+            parts.append(String(localized: "\(skippedCount) nach dem Stoppen ausgelassen"))
         }
-        let text = parts.joined(separator: ", ") + "."
-        return failedCount > 0 ? text + " Den Grund siehst du beim jeweiligen Podcast." : text
+        let text = parts.formatted(.list(type: .and, width: .narrow))
+        return failedCount > 0
+            ? String(localized: "\(text). Den Grund siehst du beim jeweiligen Podcast.")
+            : String(localized: "\(text).")
+    }
+
+    private static func inflected(_ resource: String.LocalizationValue) -> String {
+        String(AttributedString(localized: resource).characters)
     }
 
     // MARK: Zeile
@@ -365,7 +371,7 @@ struct OPMLImportSheet: View {
         case .running:
             Text("wird abonniert …").foregroundStyle(.secondary)
         case .added(let count):
-            Text(count == 1 ? "Abonniert · 1 Folge" : "Abonniert · \(count) Folgen").foregroundStyle(.green)
+            Text("Abonniert · ^[\(count) Folge](inflect: true)").foregroundStyle(.green)
         case .failed(let reason):
             Text(reason).foregroundStyle(.orange)
         case .skipped:
@@ -450,8 +456,8 @@ struct OPMLImportSheet: View {
         let nsError = error as NSError
         if nsError.domain == NSURLErrorDomain {
             return nsError.code == NSURLErrorNotConnectedToInternet
-                ? "Keine Internetverbindung"
-                : "Der Server ist nicht erreichbar."
+                ? String(localized: "Keine Internetverbindung")
+                : String(localized: "Der Server ist nicht erreichbar.")
         }
         return UserFacingError.describe(error)
     }

@@ -88,17 +88,18 @@ struct RootView: View {
                 NavigationStack { SmartFeedListView() }
                     .activityBanner { showingQueue = true }
             }
-            // Keine Such-Rolle: hier wird gefragt, nicht gesucht.
-            Tab("Chat", systemImage: "bubble.left.and.bubble.right", value: Area.ask) {
-                NavigationStack { ChatView() }
-                    .activityBanner { showingQueue = true }
-            }
             Tab("Meine Podcasts", systemImage: "books.vertical", value: Area.library) {
                 NavigationStack { LibraryView() }
                     .activityBanner { showingQueue = true }
             }
             Tab("Wissen", systemImage: "brain", value: Area.knowledge) {
                 NavigationStack { KnowledgeHubView() }
+                    .activityBanner { showingQueue = true }
+            }
+            // Keine Such-Rolle: hier wird gefragt, nicht gesucht. Der Chat
+            // bleibt ganz rechts, wo früher die Lupe stand.
+            Tab("Chat", systemImage: "bubble.left.and.bubble.right", value: Area.ask) {
+                NavigationStack { ChatView() }
                     .activityBanner { showingQueue = true }
             }
         }
