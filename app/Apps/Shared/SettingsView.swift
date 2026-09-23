@@ -168,6 +168,77 @@ enum ModelAvailabilityText {
     }
 }
 
+/// Anbieter, Datenschutzerklärung und was die App mit Daten macht.
+struct LegalSettingsSection: View {
+
+    static let imprint = URL(string: "https://www.mobilebox-consulting.de/impressum-site-notice/")!
+    static let privacyPolicy = URL(string: "https://www.mobilebox-consulting.de/datenschutzerkl%C3%A4rung-privacy-policy/")!
+
+    var body: some View {
+        Section {
+            NavigationLink { PrivacyOverviewView() } label: {
+                Label("Datenschutz in PodcastAI", systemImage: "hand.raised")
+            }
+            Link(destination: Self.privacyPolicy) {
+                Label("Datenschutzerklärung", systemImage: "doc.text")
+            }
+            Link(destination: Self.imprint) {
+                Label("Impressum", systemImage: "building.2")
+            }
+        } header: {
+            Text("Rechtliches")
+        } footer: {
+            Text("Anbieter: MOBILE BOX - App Consulting UG (haftungsbeschränkt), Karlsruhe.")
+        }
+    }
+}
+
+/// Welche Daten wohin gehen, in einfachen Sätzen.
+struct PrivacyOverviewView: View {
+
+    private let items: [(symbol: String, title: String, text: String)] = [
+        ("person.crop.circle.badge.xmark", "Kein Konto, kein eigener Server",
+         "PodcastAI hat keine Anmeldung, keine Werbung und keine Analyse- oder Tracking-Dienste. "
+         + "Der Anbieter der App bekommt keine deiner Daten."),
+        ("waveform", "Transkripte entstehen auf dem Gerät",
+         "Die Spracherkennung von Apple läuft auf deinem iPhone, iPad oder Mac. Der Ton verlässt dafür das Gerät nicht."),
+        ("sparkles", "Antworten und Fakten mit Apple Intelligence",
+         "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist Private Cloud Compute eingeschaltet, "
+         + "gehen deine Frage und die passenden Transkriptstellen an Apples Server. Apple speichert sie nach "
+         + "eigenen Angaben nicht. Abschalten kannst du das in den Einstellungen unter Intelligenz."),
+        ("icloud", "Abgleich über deine iCloud",
+         "Abos, Transkripte, Fakten, Notizen, Interessen und Hörstand liegen in deiner privaten iCloud-Datenbank. "
+         + "Nur deine Geräte mit derselben Apple-ID lesen sie."),
+        ("network", "Anfragen ins Netz",
+         "Feeds und Audiodateien lädt die App direkt beim Anbieter des Podcasts. Die Podcastsuche und Links "
+         + "aus Apple Podcasts fragen Apples Podcast-Verzeichnis mit deinem Suchbegriff, YouTube-Kanäle fragen "
+         + "YouTube. Diese Anbieter sehen dabei, wie bei jedem Abruf, deine IP-Adresse."),
+        ("magnifyingglass", "Spotlight nur auf Wunsch",
+         "Gemerkte Stellen erscheinen in der Systemsuche nur, wenn du das einschaltest. Der Index bleibt auf dem Gerät."),
+        ("trash", "Löschen",
+         "Eine gelöschte Folge verschwindet mit Transkript, Fakten und Hörstand auf allen Geräten. Deine Notizen "
+         + "bleiben, bis du sie selbst löschst. Alles in iCloud entfernst du in den Systemeinstellungen unter "
+         + "Apple-ID › iCloud › Speicher verwalten › PodcastAI."),
+    ]
+
+    var body: some View {
+        List {
+            ForEach(items, id: \.title) { item in
+                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                    Label(item.title, systemImage: item.symbol).font(.headline)
+                    Text(item.text).font(.callout).foregroundStyle(.secondary)
+                }
+                .padding(.vertical, Design.Spacing.micro)
+            }
+            Section {
+                Link("Vollständige Datenschutzerklärung", destination: LegalSettingsSection.privacyPolicy)
+                Link("Impressum", destination: LegalSettingsSection.imprint)
+            }
+        }
+        .navigationTitle("Datenschutz")
+    }
+}
+
 #if os(iOS)
 /// Die Einstellungen auf iOS. Erreichbar über „Wissen“.
 struct SettingsView: View {
@@ -182,6 +253,7 @@ struct SettingsView: View {
             StorageSettingsSection()
             LearningSettingsSection()
             SpotlightSettingsSection()
+            LegalSettingsSection()
         }
         .navigationTitle("Einstellungen")
     }

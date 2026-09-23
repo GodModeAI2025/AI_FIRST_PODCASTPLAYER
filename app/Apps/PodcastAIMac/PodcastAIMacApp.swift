@@ -235,6 +235,15 @@ struct MacSettingsView: View {
             .tabItem { Label("Lernen", systemImage: "target") }
             .frame(width: 420)
 
+            NavigationStack {
+                Form {
+                    LegalSettingsSection()
+                }
+                .formStyle(.grouped)
+            }
+            .tabItem { Label("Rechtliches", systemImage: "building.2") }
+            .frame(width: 420, height: 420)
+
             Form {
                 SpotlightSettingsSection()
             }
