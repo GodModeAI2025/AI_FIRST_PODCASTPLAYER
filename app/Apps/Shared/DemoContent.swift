@@ -10,6 +10,8 @@
 //  Speicher. Der Text ist für diesen Zweck geschrieben und gehört zu keiner
 //  echten Sendung. Die Audiodatei ist ein öffentlicher Podcast-Download, damit
 //  die Wiedergabe funktioniert; Zeitmarken und Text passen nicht zu ihr.
+//  Die angegebene Länge ist aber die der Datei, 53:10. Sonst zeigten Liste,
+//  „Weiterhören“ und Warteschlange eine andere Länge als der Player.
 //
 
 import Foundation
@@ -22,6 +24,8 @@ enum DemoContent {
     static let sourceID = SourceID(stable: "demo-quelle")
     static let episodeID = EpisodeID(stable: "demo-folge-1")
     static let audio = URL(string: "https://audio.podigee-cdn.net/2598733-m-21b7bc55dcb4707563cae78e503f9c5e.mp3")!
+    /// Die Länge der Audiodatei, beide Beispielfolgen spielen sie.
+    static let audioLength = MediaDuration(seconds: 3_190)
 
     private static let lines: [String] = [
         "Willkommen zur Beispielfolge über künstliche Intelligenz im Arbeitsalltag.",
@@ -55,7 +59,7 @@ enum DemoContent {
             id: episodeID, sourceID: sourceID, title: "KI im Arbeitsalltag: Datenschutz, Regeln, Haftung",
             summary: "Wie Teams Sprachmodelle sinnvoll einsetzen.",
             publishedAt: Date().addingTimeInterval(-86_400),
-            declaredDuration: MediaDuration(seconds: 600), audioURL: audio,
+            declaredDuration: audioLength, audioURL: audio,
             publisherChapters: chapters,
             shownotesHTML: "<p>In dieser Beispielfolge geht es um KI-Assistenten im Arbeitsalltag, "
                 + "Datenschutz, Regeln für Teams und die europäische KI-Verordnung.</p>"
@@ -64,7 +68,7 @@ enum DemoContent {
         let second = Episode(
             id: EpisodeID(stable: "demo-folge-2"), sourceID: sourceID,
             title: "Ohne Transkript: Ausblick auf die nächste Folge",
-            publishedAt: Date(), declaredDuration: MediaDuration(seconds: 1_200), audioURL: audio)
+            publishedAt: Date(), declaredDuration: audioLength, audioURL: audio)
         do {
             try await store.upsert(source: source)
             _ = try await store.upsert(episodes: [episode, second], forSource: sourceID)

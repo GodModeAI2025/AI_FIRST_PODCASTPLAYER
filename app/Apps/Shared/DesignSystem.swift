@@ -145,11 +145,15 @@ public struct PressableButtonStyle: ButtonStyle {
 
         let configuration: Configuration
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        /// Ein eigener Stil blendet einen gesperrten Knopf nicht von selbst
+        /// ab. Ohne das sah „Nächstes Kapitel“ in einer Folge ohne Kapitel
+        /// bedienbar aus und tat beim Antippen nichts.
+        @Environment(\.isEnabled) private var isEnabled
 
         var body: some View {
             configuration.label
                 .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
-                .opacity(configuration.isPressed ? 0.7 : 1)
+                .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.3)
                 .animation(
                     Design.Motion.respectingReduceMotion(
                         Design.Motion.snappy, reduceMotion: reduceMotion
@@ -187,7 +191,7 @@ public struct TimecodeLabel: View {
         Text(text)
             .font(.caption.weight(emphasis).monospacedDigit())
             .foregroundStyle(.secondary)
-            // Für VoiceOver ausgeschrieben: „12 Minuten 14“ statt „12 Doppelpunkt 14“.
+            // Für VoiceOver ausgeschrieben: „12 Minuten und 14 Sekunden“ statt „12 Doppelpunkt 14“.
             .accessibilityLabel(Self.spoken(text))
     }
 
@@ -199,25 +203,15 @@ public struct TimecodeLabel: View {
         return String(localized: "von \(start) bis \(end)")
     }
 
-    /// „1 Minute 5“, „12 Minuten 14“. Einzahl und Mehrzahl stehen als eigene
-    /// Texte da: die automatische Beugung braucht ein de.lproj, und der
-    /// Katalog erzeugt noch keines.
+    /// „4 Minuten“, „1 Minute und 5 Sekunden“, „1 Stunde und 2 Minuten“.
+    /// Volle Minuten ohne eine „0“ dahinter, und Sekunden heissen Sekunden.
+    /// Einzahl, Mehrzahl und Wortstellung kommen aus der Sprache der App.
     static func spokenSingle(_ value: String) -> String {
         let units = value.split(separator: ":").map(String.init)
         let numbers = units.compactMap { Int($0) }
-        guard numbers.count == units.count else { return value }
-        switch numbers.count {
-        case 2: return "\(minutes(numbers[0])) \(numbers[1])"
-        case 3: return "\(hours(numbers[0])) \(minutes(numbers[1])) \(numbers[2])"
-        default: return value
-        }
-    }
-
-    private static func minutes(_ count: Int) -> String {
-        count == 1 ? String(localized: "1 Minute") : String(localized: "\(count) Minuten")
-    }
-
-    private static func hours(_ count: Int) -> String {
-        count == 1 ? String(localized: "1 Stunde") : String(localized: "\(count) Stunden")
+        guard numbers.count == units.count, (2...3).contains(numbers.count) else { return value }
+        let seconds = numbers.reduce(0) { $0 * 60 + $1 }
+        return Duration.seconds(seconds)
+            .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide))
     }
 }

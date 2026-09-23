@@ -44,7 +44,7 @@ public final class EpisodePlayer {
     public private(set) var playbackError: String?
 
     /// Schlaf-Timer: nach einer Zeit, am Ende des Kapitels oder der Folge.
-    public enum SleepTimer: Equatable, Sendable {
+    public enum SleepTimer: Hashable, Sendable {
         case minutes(Int), endOfChapter, endOfEpisode
         public var label: String {
             switch self {
@@ -75,6 +75,27 @@ public final class EpisodePlayer {
     }
     private static let rateKey = "episodePlaybackRate"
 
+    /// Die Sprungweiten, die der Player anbietet, in Sekunden. Zu jeder gibt
+    /// es ein passendes Symbol (`gobackward.15`, `goforward.30`).
+    public static let skipChoices = [10, 15, 30, 45]
+    /// Wie weit „zurück“ springt. Gilt auch für Sperrbildschirm, CarPlay und
+    /// Kopfhörer und bleibt über einen Neustart erhalten.
+    public var skipBackward = 15 {
+        didSet {
+            UserDefaults.standard.set(skipBackward, forKey: Self.skipBackwardKey)
+            updateSkipIntervals()
+        }
+    }
+    /// Wie weit „vor“ springt.
+    public var skipForward = 30 {
+        didSet {
+            UserDefaults.standard.set(skipForward, forKey: Self.skipForwardKey)
+            updateSkipIntervals()
+        }
+    }
+    private static let skipBackwardKey = "episodeSkipBackward"
+    private static let skipForwardKey = "episodeSkipForward"
+
     /// Die Folge spielt oder soll gleich spielen, etwa während ein Stream
     /// öffnet. Die Tasten zeigen dann schon „Pause“.
     public var isPlayingOrStarting: Bool { isPlaying || isBuffering }
@@ -95,8 +116,9 @@ public final class EpisodePlayer {
     /// Die Steuerung eines Fokus-Plans. Solange `current` etwas liefert,
     /// gehen Sperrbildschirm und Kopfhörertasten an den Plan.
     @ObservationIgnored public var focusRemote: FocusRemote?
-    /// „Nächster Titel“ an Kopfhörer oder Lenkrad. Liefert `true`, wenn die
-    /// nächste Folge aus „Als Nächstes“ startet. Sonst springt die Folge 30 s vor.
+    /// „Nächster Titel“ an Kopfhörer oder Lenkrad, wenn kein Kapitel mehr
+    /// folgt. Liefert `true`, wenn die nächste Folge aus „Als Nächstes“
+    /// startet. Sonst springt die Folge um die eingestellte Weite vor.
     @ObservationIgnored public var onNextTrack: (() -> Bool)?
     /// Podcastname und Cover einer Folge für den Sperrbildschirm. Der Player
     /// kennt die Quellen nicht, das Modell schon.
@@ -174,6 +196,10 @@ public final class EpisodePlayer {
         recentEpisodeIDs = (UserDefaults.standard.stringArray(forKey: "recentEpisodeIDs") ?? []).map(EpisodeID.init(rawValue:))
         let savedRate = UserDefaults.standard.float(forKey: Self.rateKey)
         if (0.5...3).contains(savedRate) { rate = savedRate }
+        let savedBackward = UserDefaults.standard.integer(forKey: Self.skipBackwardKey)
+        if Self.skipChoices.contains(savedBackward) { skipBackward = savedBackward }
+        let savedForward = UserDefaults.standard.integer(forKey: Self.skipForwardKey)
+        if Self.skipChoices.contains(savedForward) { skipForward = savedForward }
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 1, preferredTimescale: 600), queue: .main
         ) { [weak self] time in
@@ -604,10 +630,19 @@ public final class EpisodePlayer {
 
     public func skip(by seconds: Double) { seek(to: currentTime + seconds) }
 
+    /// Springt um die eingestellte Weite zurück.
+    public func skipBack() { skip(by: -Double(skipBackward)) }
+
+    /// Springt um die eingestellte Weite vor.
+    public func skipAhead() { skip(by: Double(skipForward)) }
+
+    /// Wo das nächste Kapitel beginnt. `nil` ohne Kapitel und im letzten.
+    public var nextChapterStart: Double? {
+        chapters.first(where: { $0.start.seconds > currentTime + 1 })?.start.seconds
+    }
+
     public func nextChapter() {
-        if let next = chapters.first(where: { $0.start.seconds > currentTime + 1 }) {
-            seek(to: next.start.seconds)
-        }
+        if let next = nextChapterStart { seek(to: next) }
     }
 
     public func previousChapter() {
@@ -820,11 +855,26 @@ public final class EpisodePlayer {
         return true
     }
 
-    /// „Nächster Titel“: die nächste Folge aus „Als Nächstes“, sonst 30 s vor.
+    /// „Nächster Titel“ wie ⏭ im Player: das nächste Kapitel, sonst die
+    /// nächste Folge aus „Als Nächstes“. Gibt es beides nicht, springt die
+    /// Folge vor. Eine Kopfhörertaste lässt sich nicht ausgrauen.
     private func remoteNextTrack() -> Bool {
         guard activeFocus == nil else { return false }
+        if episode != nil, let next = nextChapterStart {
+            seek(to: next)
+            return true
+        }
         if onNextTrack?() == true { return true }
-        return remoteSeek(to: currentTime + 30)
+        return remoteSeek(to: currentTime + Double(skipForward))
+    }
+
+    /// Sperrbildschirm und CarPlay zeigen die eingestellten Sprungweiten.
+    private func updateSkipIntervals() {
+        #if canImport(MediaPlayer)
+        let center = MPRemoteCommandCenter.shared()
+        center.skipForwardCommand.preferredIntervals = [NSNumber(value: skipForward)]
+        center.skipBackwardCommand.preferredIntervals = [NSNumber(value: skipBackward)]
+        #endif
     }
 
     #if canImport(MediaPlayer)
@@ -849,19 +899,18 @@ public final class EpisodePlayer {
         center.togglePlayPauseCommand.addTarget { [weak self] _ in
             MainActor.assumeIsolated { self?.toggleActivePlayback() }; return .success
         }
-        center.skipForwardCommand.preferredIntervals = [30]
+        updateSkipIntervals()
         center.skipForwardCommand.addTarget { [weak self] _ in
             let handled = MainActor.assumeIsolated {
                 guard let self else { return false }
-                return self.remoteSeek(to: self.currentTime + 30)
+                return self.remoteSeek(to: self.currentTime + Double(self.skipForward))
             }
             return handled ? .success : .commandFailed
         }
-        center.skipBackwardCommand.preferredIntervals = [15]
         center.skipBackwardCommand.addTarget { [weak self] _ in
             let handled = MainActor.assumeIsolated {
                 guard let self else { return false }
-                return self.remoteSeek(to: self.currentTime - 15)
+                return self.remoteSeek(to: self.currentTime - Double(self.skipBackward))
             }
             return handled ? .success : .commandFailed
         }
