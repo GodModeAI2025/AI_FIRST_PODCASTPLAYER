@@ -85,4 +85,39 @@ final class BetaFeedbackUITests: XCTestCase {
         create.tap()
         XCTAssertTrue(app.staticTexts["Neue KI Modelle"].firstMatch.waitForExistence(timeout: 10))
     }
+
+    /// Ein Themen-Update lässt sich öffnen, neu zusammenstellen, bearbeiten
+    /// und löschen. Vorher führte der Feed nur in seine erste Ausgabe.
+    func testTopicUpdateCanBeRebuiltEditedAndDeleted() {
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
+        app.tabBars.buttons["Themen"].tap()
+        app.navigationBars.buttons["Neu"].firstMatch.tap()
+        let name = app.textFields["z. B. Mein KI Update"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap(); name.typeText("Wochenupdate")
+        let topic = app.textFields["Neues Thema, z. B. KI-Modelle"]
+        topic.tap(); topic.typeText("Datenschutz")
+        let create = app.navigationBars.buttons["Anlegen"]
+        let deadline = Date().addingTimeInterval(10)
+        while !create.isEnabled && Date() < deadline { sleep(1) }
+        create.tap()
+
+        let row = app.staticTexts["Wochenupdate"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        // Solange die erste Ausgabe entsteht, heisst der Knopf anders.
+        let rebuild = app.buttons["Neue Ausgabe zusammenstellen"].firstMatch
+        XCTAssertTrue(rebuild.waitForExistence(timeout: 30), "Kein Knopf für eine neue Ausgabe")
+        attach(app, "themen-update")
+
+        app.navigationBars.buttons["Mehr"].firstMatch.tap()
+        app.buttons["Bearbeiten"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Themen-Update bearbeiten"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons["Abbrechen"].firstMatch.tap()
+
+        app.navigationBars.buttons["Mehr"].firstMatch.tap()
+        app.buttons["Löschen"].firstMatch.tap()
+        app.buttons["„Wochenupdate“ löschen"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Noch kein Themen-Update"].firstMatch.waitForExistence(timeout: 10))
+    }
 }

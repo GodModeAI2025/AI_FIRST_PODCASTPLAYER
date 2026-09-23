@@ -45,7 +45,11 @@ CloudKit kennt keine eindeutigen Schlüssel. Treffen zwei Geräte denselben Date
 | Aktion | Was verschwindet | Was bleibt |
 |---|---|---|
 | Audio entfernen | die Audiodatei | Transkript, Belege, Fakten, Hörzustand, gemerkte Stellen; abgespielt wird aus dem Netz |
-| Folge löschen | Audiodatei, Transkript, Belege, Fakten, Hörzustand dieser Folge | ein Merkzeichen, damit der Feed die Folge nicht wieder anlegt; deine Notizen, denn sie tragen Zitat, Folge, Quelle und Zeitmarke selbst |
-| Quelle abbestellen | die Quelle mit allen Folgen und deren Daten | deine Notizen |
+| Folge löschen | Audiodatei, Transkript, Belege, Fakten, Hörzustand dieser Folge, ihre Stellen in Themen-Updates | ein Merkzeichen, damit der Feed die Folge nicht wieder anlegt; deine Notizen, denn sie tragen Zitat, Folge, Quelle und Zeitmarke selbst |
+| Quelle abbestellen | die Quelle mit allen Folgen und deren Daten, ihre Stellen in Themen-Updates | deine Notizen |
 
-Beides ist in `LibraryStore.removeEpisode`, `removeSource` und `markAudioRemoved` umgesetzt und durch Tests abgesichert.
+Beides ist in `LibraryStore.removeEpisode`, `removeSource` und `markAudioRemoved` umgesetzt und durch Tests abgesichert. Eine Ausgabe, der dabei alle Stellen verloren gehen, verschwindet ganz; bei den übrigen rückt die Zeitachse zusammen (`PersonalEpisodePublisher.removingSegments`).
+
+## Themen-Updates
+
+Eine Ausgabe entsteht auf zwei Wegen. Von Hand über „Neue Ausgabe zusammenstellen“ oder Siri, dann ohne Mindestmenge. Von selbst nach dem Aktualisieren der Feeds, nach der Auswertung neuer Folgen und in der Hintergrundaufgabe `com.podcastai.analysis`, dann erst ab fünf Minuten ungehörtem Material und nur, wenn die letzte Ausgabe gehört oder älter als zwölf Stunden ist. Auf dem Mac gibt es keinen `BGTaskScheduler`; dort übernimmt das Aktualisieren beim Start und alle 30 Minuten diese Rolle. Keine Ausgabe startet Ton.

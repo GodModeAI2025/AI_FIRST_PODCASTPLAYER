@@ -275,6 +275,8 @@ struct SmartFeedListView: View {
 
     @Environment(AppModel.self) private var model
     @State private var showingNewFeed = false
+    @State private var editingFeed: SmartPodcastFeed?
+    @State private var pendingDeletion: SmartPodcastFeed?
 
     var body: some View {
         List {
@@ -292,18 +294,28 @@ struct SmartFeedListView: View {
                 NavigationLink(value: feed.id) {
                     SmartFeedRow(feed: feed, editions: model.editions[feed.id] ?? [])
                 }
+                .swipeActions {
+                    Button(role: .destructive) { pendingDeletion = feed } label: {
+                        Label("Löschen", systemImage: "trash")
+                    }
+                    Button { editingFeed = feed } label: {
+                        Label("Bearbeiten", systemImage: "pencil")
+                    }
+                }
+                .contextMenu {
+                    Button { editingFeed = feed } label: {
+                        Label("Bearbeiten", systemImage: "pencil")
+                    }
+                    Button(role: .destructive) { pendingDeletion = feed } label: {
+                        Label("Löschen", systemImage: "trash")
+                    }
+                }
             }
         }
         .navigationTitle("Themen")
         .activityStatusToolbar()
         .navigationDestination(for: SmartFeedID.self) { feedID in
-            if let latest = model.editions[feedID]?.first {
-                PersonalEpisodeView(episode: latest)
-            } else {
-                // Kein leerer Bildschirm: der Zustand "noch keine Ausgabe"
-                // ist ein eigener Zustand mit einer Handlung daran.
-                SmartFeedEmptyView(feedID: feedID)
-            }
+            SmartFeedDetailView(feedID: feedID)
         }
         .toolbar {
             Button { showingNewFeed = true } label: {
@@ -311,6 +323,39 @@ struct SmartFeedListView: View {
             }
         }
         .sheet(isPresented: $showingNewFeed) { NewSmartFeedSheet() }
+        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed) }
+        .smartFeedDeletionDialog(for: $pendingDeletion)
+    }
+}
+
+extension View {
+    /// Fragt nach, bevor ein Themen-Update verschwindet. Gelöscht werden
+    /// nur seine Ausgaben, nicht die Folgen, aus denen sie bestehen.
+    func smartFeedDeletionDialog(
+        for feed: Binding<SmartPodcastFeed?>, onDelete: @escaping () -> Void = {}
+    ) -> some View {
+        modifier(SmartFeedDeletionDialog(feed: feed, onDelete: onDelete))
+    }
+}
+
+private struct SmartFeedDeletionDialog: ViewModifier {
+
+    @Binding var feed: SmartPodcastFeed?
+    let onDelete: () -> Void
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("Themen-Update löschen?", isPresented: Binding(
+            get: { feed != nil }, set: { if !$0 { feed = nil } }
+        ), titleVisibility: .visible, presenting: feed) { feed in
+            Button("„\(feed.title)“ löschen", role: .destructive) {
+                model.removeSmartFeed(feed.id)
+                onDelete()
+            }
+        } message: { _ in
+            Text("Alle Ausgaben dieses Updates werden gelöscht. Folgen, Transkripte "
+                 + "und Hörstand bleiben.")
+        }
     }
 }
 
@@ -318,6 +363,7 @@ struct SmartFeedRow: View {
 
     let feed: SmartPodcastFeed
     let editions: [PersonalEpisode]
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         HStack(spacing: Design.Spacing.control) {
@@ -330,67 +376,260 @@ struct SmartFeedRow: View {
             }
             VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                 Text(feed.title).font(.headline)
-                if let latest = editions.first {
-                    Text("\(latest.title) · \(latest.totalMediaDuration.shortDescription)")
+                // Der Zustand, nicht nur der Name: ob gerade etwas entsteht,
+                // seit wann die letzte Ausgabe bereit ist und ob sie gehört ist.
+                if model.buildingFeeds.contains(feed.id) {
+                    Label("Wird zusammengestellt …", systemImage: "hourglass")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
-                    Text(feed.editionMode.label)
+                    Text(status)
                         .font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
             }
         }
     }
+
+    private var status: String {
+        guard let latest = editions.first else {
+            return model.editionNotes[feed.id] ?? "Noch keine Ausgabe"
+        }
+        var parts = ["Bereit seit \(SmartFeedDetailView.readySince(latest.publishedAt))",
+                     latest.totalMediaDuration.shortDescription]
+        if latest.heardFraction(in: model.ledger) >= 0.8 { parts.append("gehört") }
+        return parts.joined(separator: " · ")
+    }
 }
 
-/// Eine persönliche Ausgabe — sieht aus wie eine Podcastfolge, besteht aber
-/// aus Originalstellen.
-struct PersonalEpisodeView: View {
+/// Ein Themen-Update: die neueste Ausgabe zum Abspielen, der Knopf für eine
+/// neue und alle früheren Ausgaben.
+///
+/// Vorher sprang der Feed direkt in seine erste Ausgabe. Eine zweite
+/// entstand in der App nie, frühere waren nicht zu erreichen, Ändern und
+/// Löschen gab es nicht.
+struct SmartFeedDetailView: View {
+
+    let feedID: SmartFeedID
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State private var editingFeed: SmartPodcastFeed?
+    @State private var pendingDeletion: SmartPodcastFeed?
+
+    private var feed: SmartPodcastFeed? { model.smartFeeds.first { $0.id == feedID } }
+    private var editions: [PersonalEpisode] { model.editions[feedID] ?? [] }
+    private var isBuilding: Bool { model.buildingFeeds.contains(feedID) }
+
+    var body: some View {
+        List {
+            if let latest = editions.first {
+                Section {
+                    EditionHeader(episode: latest)
+                    NavigationLink {
+                        PersonalEpisodeView(episode: latest)
+                    } label: {
+                        Label("Kapitel und Quellen", systemImage: "list.bullet")
+                    }
+                } header: {
+                    Text("Neueste Ausgabe")
+                }
+            } else if isBuilding {
+                // Nicht „Noch keine Ausgabe“, solange eine entsteht: das
+                // sähe fertig und leer aus.
+                Section {
+                    HStack(spacing: Design.Spacing.control) {
+                        ProgressView()
+                        Text("Die Ausgabe wird zusammengestellt …")
+                    }
+                    .padding(.vertical, Design.Spacing.small)
+                }
+            } else {
+                ContentUnavailableView {
+                    Label("Noch keine Ausgabe", systemImage: "waveform.circle")
+                } description: {
+                    Text(model.editionNotes[feedID]
+                         ?? "Sobald genug ungehörtes Material zu deinen Themen vorliegt, "
+                         + "entsteht daraus von selbst eine Ausgabe.")
+                }
+            }
+
+            Section {
+                Button {
+                    Task { await model.buildEdition(feedID: feedID) }
+                } label: {
+                    HStack {
+                        Label(isBuilding ? "Wird zusammengestellt …" : "Neue Ausgabe zusammenstellen",
+                              systemImage: "arrow.triangle.2.circlepath")
+                        if isBuilding {
+                            Spacer()
+                            ProgressView().controlSize(.small)
+                        }
+                    }
+                }
+                .disabled(isBuilding || feed == nil)
+            } footer: {
+                // Die Rückmeldung als Satz: was entstanden ist oder warum nicht.
+                if !editions.isEmpty, !isBuilding, let note = model.editionNotes[feedID] {
+                    Text(note)
+                }
+            }
+
+            if editions.count > 1 {
+                Section("Frühere Ausgaben") {
+                    ForEach(editions.dropFirst()) { edition in
+                        NavigationLink {
+                            PersonalEpisodeView(episode: edition)
+                        } label: {
+                            EditionRow(episode: edition)
+                        }
+                        .swipeActions {
+                            Button(role: .destructive) { model.removeEdition(edition) } label: {
+                                Label("Löschen", systemImage: "trash")
+                            }
+                        }
+                        .contextMenu {
+                            Button(role: .destructive) { model.removeEdition(edition) } label: {
+                                Label("Ausgabe löschen", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(feed?.title ?? "Themen-Update")
+        .toolbar {
+            if let feed {
+                Menu {
+                    Button { editingFeed = feed } label: {
+                        Label("Bearbeiten", systemImage: "pencil")
+                    }
+                    if let latest = editions.first {
+                        ShareLink(item: ShownotesBuilder().markdown(for: latest)) {
+                            Label("Neueste Ausgabe als Text teilen", systemImage: "square.and.arrow.up")
+                        }
+                    }
+                    Button(role: .destructive) { pendingDeletion = feed } label: {
+                        Label("Löschen", systemImage: "trash")
+                    }
+                } label: {
+                    Label("Mehr", systemImage: "ellipsis.circle")
+                }
+            }
+        }
+        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed) }
+        .smartFeedDeletionDialog(for: $pendingDeletion) { dismiss() }
+    }
+
+    /// „6:40“ für heute, sonst das Datum.
+    static func readySince(_ date: Date) -> String {
+        Calendar.current.isDateInToday(date)
+            ? date.formatted(date: .omitted, time: .shortened)
+            : date.formatted(.dateTime.day().month())
+    }
+}
+
+/// Eine frühere Ausgabe in der Liste.
+struct EditionRow: View {
 
     let episode: PersonalEpisode
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+            Text(episode.title)
+            Text(details)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var details: String {
+        var parts = [episode.publishedAt.formatted(date: .abbreviated, time: .shortened),
+                     "\(episode.segments.count) Stellen",
+                     episode.totalMediaDuration.shortDescription]
+        if episode.heardFraction(in: model.ledger) >= 0.8 { parts.append("gehört") }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// Kopf einer Ausgabe: Cover, Titel, Umfang und „Abspielen“.
+struct EditionHeader: View {
+
+    let episode: PersonalEpisode
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.control) {
+            if let cover = model.cover(for: episode) {
+                CoverView(cover: cover, size: 120)
+            }
+            Text(episode.title)
+                .font(.title2.weight(.bold))
+            if let subtitle = episode.subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Label {
+                Text("\(episode.segments.count) Stellen · "
+                     + "\(episode.distinctSourceCount) Quellen · "
+                     + "\(episode.totalMediaDuration.shortDescription)")
+            } icon: {
+                Image(systemName: "waveform")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+            // Die primäre Aktion: gefüllt, getintet, in voller Breite.
+            // Sie ist die einzige gefüllte Schaltfläche auf diesem
+            // Bildschirm, sonst wäre keine mehr primär.
+            Button(action: play) {
+                Label("Abspielen", systemImage: "play.fill")
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            .accessibilityHint("Spielt \(episode.segments.count) Originalstellen nacheinander ab")
+        }
+        .padding(.vertical, Design.Spacing.small)
+    }
+
+    private func play() {
+        let plan = ValidatedPlaybackPlan(
+            segments: episode.segments.map { segment in
+                PlanSegment(
+                    evidenceID: segment.evidenceIDs.first ?? EvidenceID(),
+                    mediaVersionID: segment.mediaVersionID,
+                    episodeID: segment.episodeID,
+                    sourceID: segment.sourceID,
+                    range: segment.playbackRange,
+                    sourceTitle: segment.sourceTitle,
+                    episodeTitle: segment.episodeTitle,
+                    rationale: segment.reason
+                )
+            },
+            requestSummary: episode.title,
+            route: .smartFeedEpisode
+        )
+        model.play(plan, from: .tap)
+    }
+}
+
+/// Eine persönliche Ausgabe. Sie sieht aus wie eine Podcastfolge, besteht
+/// aber aus Originalstellen.
+struct PersonalEpisodeView: View {
+
+    let episode: PersonalEpisode
+
+    var body: some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: Design.Spacing.control) {
-                    if let cover = model.cover(for: episode) {
-                        CoverView(cover: cover, size: 120)
-                    }
-                    Text(episode.title)
-                        .font(.title2.weight(.bold))
-                    if let subtitle = episode.subtitle {
-                        Text(subtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Label {
-                        Text("\(episode.segments.count) Stellen · "
-                             + "\(episode.distinctSourceCount) Quellen · "
-                             + "\(episode.totalMediaDuration.shortDescription)")
-                    } icon: {
-                        Image(systemName: "waveform")
-                    }
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                    // Die primäre Aktion: gefüllt, getintet, in voller Breite.
-                    // Sie ist die einzige gefüllte Schaltfläche auf diesem
-                    // Bildschirm — sonst wäre keine mehr primär.
-                    Button(action: play) {
-                        Label("Abspielen", systemImage: "play.fill")
-                            .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .accessibilityHint("Spielt \(episode.segments.count) Originalstellen nacheinander ab")
-                }
-                .padding(.vertical, Design.Spacing.small)
+                EditionHeader(episode: episode)
             }
 
             Section("Kapitel") {
-                ForEach(Array(episode.shownotes.enumerated()), id: \.offset) { _, entry in
+                ForEach(Array(episode.shownotes.enumerated()), id: \.offset) { index, entry in
                     VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                         HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.control) {
                             TimecodeLabel(entry.virtualStart, emphasis: .medium)
@@ -402,8 +641,7 @@ struct PersonalEpisodeView: View {
                         }
                         // Jedes Kapitel zeigt seine Originalquelle. Ohne das
                         // wäre die Ausgabe ein Zusammenschnitt ohne Herkunft.
-                        Text("\(entry.sourceTitle) · \(entry.episodeTitle) · "
-                             + "Original \(entry.originalRange.start.timecode)")
+                        Text(origin(of: entry, at: index))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .padding(.leading, 52 + Design.Spacing.control)
@@ -431,26 +669,22 @@ struct PersonalEpisodeView: View {
             }
         }
         .navigationTitle(episode.title)
+        .toolbar {
+            // Kapitel mit Quelle und Originalzeit als Text, etwa für Notizen.
+            ShareLink(item: ShownotesBuilder().markdown(for: episode)) {
+                Label("Als Text teilen", systemImage: "square.and.arrow.up")
+            }
+        }
     }
 
-    private func play() {
-        let plan = ValidatedPlaybackPlan(
-            segments: episode.segments.map { segment in
-                PlanSegment(
-                    evidenceID: segment.evidenceIDs.first ?? EvidenceID(),
-                    mediaVersionID: segment.mediaVersionID,
-                    episodeID: segment.episodeID,
-                    sourceID: segment.sourceID,
-                    range: segment.playbackRange,
-                    sourceTitle: segment.sourceTitle,
-                    episodeTitle: segment.episodeTitle,
-                    rationale: segment.reason
-                )
-            },
-            requestSummary: episode.title,
-            route: .smartFeedEpisode
-        )
-        model.play(plan, from: .tap)
+    /// Quelle, Folge, Erscheinungsdatum der Originalfolge und Originalzeit.
+    private func origin(of entry: ShownotesEntry, at index: Int) -> String {
+        var parts = [entry.sourceTitle, entry.episodeTitle]
+        if index < episode.segments.count, let published = episode.segments[index].originalPublishedAt {
+            parts.append(published.formatted(date: .abbreviated, time: .omitted))
+        }
+        parts.append("Original \(entry.originalRange.start.timecode)")
+        return parts.joined(separator: " · ")
     }
 }
 
@@ -993,7 +1227,11 @@ struct InterestEditView: View {
     }
 }
 
+/// Legt ein Themen-Update an oder ändert eines.
 struct NewSmartFeedSheet: View {
+
+    /// Gesetzt, wenn ein bestehendes Update bearbeitet wird.
+    var editing: SmartPodcastFeed? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(AppModel.self) private var model
@@ -1001,6 +1239,9 @@ struct NewSmartFeedSheet: View {
     @State private var selected: Set<InterestID> = []
     @State private var minutes = 20
     @State private var newTopic = ""
+    /// Leer heisst: alle abonnierten Quellen.
+    @State private var selectedSources: Set<SourceID> = []
+    @State private var prepared = false
 
     var body: some View {
         NavigationStack {
@@ -1052,22 +1293,47 @@ struct NewSmartFeedSheet: View {
                 Section {
                     Stepper("\(minutes) Minuten je Ausgabe", value: $minutes, in: 5...120, step: 5)
                 } footer: {
-                    Text("„Alles Ungehörte“ ist ein eigener Modus und ausdrücklich etwas "
-                         + "anderes als ein kurzes Update.")
+                    Text("Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. "
+                         + "Der Rest wartet auf die nächste Ausgabe.")
+                }
+                if !model.sources.isEmpty {
+                    Section {
+                        ForEach(model.sources) { source in
+                            Button {
+                                if selectedSources.contains(source.id) { selectedSources.remove(source.id) }
+                                else { selectedSources.insert(source.id) }
+                            } label: {
+                                HStack {
+                                    Text(source.title).foregroundStyle(.primary)
+                                    Spacer()
+                                    if selectedSources.contains(source.id) {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(.tint)
+                                            .accessibilityHidden(true)
+                                    }
+                                }
+                            }
+                            .accessibilityAddTraits(
+                                selectedSources.contains(source.id) ? [.isButton, .isSelected] : .isButton
+                            )
+                        }
+                    } header: {
+                        Text("Quellen")
+                    } footer: {
+                        Text(selectedSources.isEmpty
+                             ? "Ohne Auswahl sucht das Update in allen abonnierten Quellen."
+                             : "Das Update sucht nur in den ausgewählten Quellen.")
+                    }
                 }
             }
-            .navigationTitle("Themen-Update")
-            .onAppear {
-                // Alle Themen sind vorausgewählt. Wer nichts abwählt, bekommt
-                // ein Update über alles, was ihn interessiert.
-                if selected.isEmpty { selected = Set(model.profile.topics.map(\.id)) }
-            }
+            .navigationTitle(editing == nil ? "Themen-Update" : "Themen-Update bearbeiten")
+            .onAppear(perform: prepare)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     // Der Knopf legte bisher nichts an, er schloss nur das
                     // Blatt. Das Themen-Update — das sichtbarste Merkmal des
                     // Konzepts — war damit nicht erreichbar.
-                    Button("Anlegen") {
+                    Button(editing == nil ? "Anlegen" : "Sichern") {
                         Task { await create() }
                     }
                     // Gesperrt nur, wenn es wirklich nichts anzulegen gibt.
@@ -1088,6 +1354,28 @@ struct NewSmartFeedSheet: View {
         !selected.isEmpty || !pendingTopic.isEmpty
     }
 
+    /// Füllt das Blatt einmal: beim Bearbeiten mit dem Update, sonst mit
+    /// allen Themen.
+    private func prepare() {
+        guard !prepared else { return }
+        prepared = true
+        if let editing {
+            title = editing.title
+            let known = Set(model.profile.topics.map(\.id))
+            selected = Set(editing.topicIDs).intersection(known)
+            if let budget = editing.editionMode.budget {
+                let value = Int(budget.milliseconds / 60_000)
+                minutes = min(120, max(5, (value + 2) / 5 * 5))
+            }
+            let live = Set(model.sources.map(\.id))
+            selectedSources = Set(editing.restrictedToSourceIDs).intersection(live)
+            return
+        }
+        // Alle Themen sind vorausgewählt. Wer nichts abwählt, bekommt
+        // ein Update über alles, was ihn interessiert.
+        if selected.isEmpty { selected = Set(model.profile.topics.map(\.id)) }
+    }
+
     private func create() async {
         var topicIDs = model.profile.topics.map(\.id).filter(selected.contains)
         if !pendingTopic.isEmpty, let id = await model.addInterest(pendingTopic, kind: .topic) {
@@ -1099,7 +1387,19 @@ struct NewSmartFeedSheet: View {
         let name = title.trimmingCharacters(in: .whitespaces).isEmpty
             ? (labels.isEmpty ? "Mein Update" : labels.prefix(2).joined(separator: " und "))
             : title
-        let feedID = model.createSmartFeed(title: name, topicIDs: topicIDs, minutes: minutes)
+        // In der Reihenfolge der Mediathek, damit gleiche Auswahl gleich aussieht.
+        let sourceIDs = model.sources.map(\.id).filter(selectedSources.contains)
+        if var feed = editing {
+            feed.title = name
+            feed.topicIDs = topicIDs
+            feed.editionMode = .budgeted(MediaDuration(minutes: minutes))
+            feed.restrictedToSourceIDs = sourceIDs
+            model.updateSmartFeed(feed)
+            dismiss()
+            return
+        }
+        let feedID = model.createSmartFeed(
+            title: name, topicIDs: topicIDs, minutes: minutes, sourceIDs: sourceIDs)
         dismiss()
         // Gleich eine erste Ausgabe bauen: ein leerer Feed direkt nach dem
         // Anlegen sieht aus wie ein Fehler.
@@ -1252,29 +1552,6 @@ struct FocusPlayerView: View {
     }
 }
 
-
-/// Ein Themenfeed ohne Ausgabe. „Noch nichts da“ ist ein Zustand mit einer
-/// Handlung daran, kein leerer Bildschirm.
-struct SmartFeedEmptyView: View {
-
-    let feedID: SmartFeedID
-    @Environment(AppModel.self) private var model
-    @State private var message: String?
-
-    var body: some View {
-        ContentUnavailableView {
-            Label("Noch keine Ausgabe", systemImage: "waveform.circle")
-        } description: {
-            Text(message ?? "Sobald genug ungehörtes Material zu deinen Themen vorliegt, "
-                 + "entsteht daraus eine Ausgabe.")
-        } actions: {
-            Button("Jetzt zusammenstellen") {
-                Task { message = await model.buildEdition(feedID: feedID) }
-            }
-        }
-        .navigationTitle(model.smartFeeds.first { $0.id == feedID }?.title ?? "Themen-Update")
-    }
-}
 
 struct SourceDetailView: View {
 

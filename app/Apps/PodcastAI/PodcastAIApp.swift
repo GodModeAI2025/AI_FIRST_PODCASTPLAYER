@@ -48,9 +48,12 @@ struct PodcastAIApp: App {
             RootView()
                 .environment(model)
                 .task {
-                    await model.load()
+                    await model.ensureLoaded()
                     model.observeRemoteChanges()
                     background.scheduleRefresh()
+                    // Ohne diesen ersten Auftrag lief die Analyse-Aufgabe nie,
+                    // und kein Themen-Update entstand im Hintergrund.
+                    background.scheduleAnalysis()
                 }
                 .alert("Der Speicher konnte nicht geöffnet werden",
                        isPresented: .constant(startupError != nil)) {

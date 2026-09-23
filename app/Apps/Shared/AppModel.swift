@@ -227,6 +227,26 @@ public final class AppModel {
 
     // MARK: - Laden
 
+    /// Der erste Ladevorgang, einmal je Prozess.
+    @ObservationIgnored private var initialLoad: Task<Void, Never>?
+
+    /// Lädt den Bestand, falls das noch niemand getan hat, und wartet darauf.
+    ///
+    /// Startet Siri oder ein Kurzbefehl die beendete App im Hintergrund,
+    /// verbindet sich keine Szene, und das `.task` des Fensters läuft nie.
+    /// Ohne diesen Aufruf fänden die Intents keinen einzigen Themenfeed.
+    /// Fenster und Intents teilen sich denselben Vorgang, statt doppelt zu
+    /// laden. Das Neuladen nach einem Abgleich ruft weiter `load()` direkt.
+    public func ensureLoaded() async {
+        if let initialLoad {
+            await initialLoad.value
+            return
+        }
+        let task = Task { await self.load() }
+        initialLoad = task
+        await task.value
+    }
+
     public func load() async {
         if DemoContent.isRequested { await DemoContent.seed(into: store) }
         // Nach einem iCloud-Abgleich können Datensätze doppelt vorliegen.
@@ -418,6 +438,9 @@ public final class AppModel {
             lastError = UserFacingError.describe(error)
         }
         await refreshRelevantToday()
+        // Neue Folgen können ein Themen-Update füllen. Ohne zu warten: das
+        // Ziehen zum Aktualisieren soll nicht auf das Zusammenstellen warten.
+        Task { await processPendingEditions() }
     }
 
     // MARK: - Folgen erschliessen
@@ -537,6 +560,9 @@ public final class AppModel {
             self.analysisTask = nil
             self.analyzing = nil
             self.activity = nil
+            // Frisch ausgewertetes Material ist genau das, worauf die
+            // automatischen Themen-Updates warten.
+            await self.processPendingEditions()
         }
     }
 
@@ -824,15 +850,77 @@ public final class AppModel {
     /// ist, sieht aus wie ein Fehler.
     @discardableResult
     public func createSmartFeed(
-        title: String, topicIDs: [InterestID], minutes: Int
+        title: String, topicIDs: [InterestID], minutes: Int, sourceIDs: [SourceID] = []
     ) -> SmartFeedID {
         let feed = SmartPodcastFeed(
-            title: title, topicIDs: topicIDs,
+            title: title, topicIDs: topicIDs, restrictedToSourceIDs: sourceIDs,
             editionMode: .budgeted(MediaDuration(minutes: minutes))
         )
         smartFeeds.append(feed)
         persistSmartFeeds()
         return feed.id
+    }
+
+    /// Übernimmt Name, Themen, Länge und Quellen eines Themenfeeds.
+    ///
+    /// Bereits erschienene Ausgaben bleiben, wie sie sind. Die Änderung
+    /// gilt ab der nächsten.
+    public func updateSmartFeed(_ feed: SmartPodcastFeed) {
+        guard let index = smartFeeds.firstIndex(where: { $0.id == feed.id }) else { return }
+        var updated = feed
+        updated.policyRevision = smartFeeds[index].policyRevision.next()
+        smartFeeds[index] = updated
+        // Die letzte Rückmeldung galt für die alten Themen.
+        editionNotes[feed.id] = nil
+        persistSmartFeeds()
+    }
+
+    /// Löscht einen Themenfeed mit allen seinen Ausgaben. Die Folgen, aus
+    /// denen sie bestanden, und der Hörstand bleiben unberührt.
+    public func removeSmartFeed(_ feedID: SmartFeedID) {
+        smartFeeds.removeAll { $0.id == feedID }
+        editions[feedID] = nil
+        editionNotes[feedID] = nil
+        persistSmartFeeds()
+        Task { await persist { try await $0.save(editions: [], forFeed: feedID) } }
+    }
+
+    /// Löscht eine einzelne Ausgabe.
+    public func removeEdition(_ episode: PersonalEpisode) {
+        editions[episode.feedID]?.removeAll { $0.id == episode.id }
+        persistEditions(for: episode.feedID)
+    }
+
+    /// Nimmt aus allen Ausgaben, was aus gelöschten Folgen oder
+    /// abbestellten Quellen stammt (Regel 5: „Folge löschen“ entfernt
+    /// alles, was aus ihr entstanden ist). Eine Ausgabe ohne übrige Stelle
+    /// verschwindet ganz.
+    func pruneEditions(removedEpisodes: Set<EpisodeID>, removedSources: Set<SourceID> = []) {
+        guard !removedEpisodes.isEmpty || !removedSources.isEmpty else { return }
+        let publisher = PersonalEpisodePublisher()
+        for (feedID, list) in editions {
+            var changed = false
+            let kept = list.compactMap { episode -> PersonalEpisode? in
+                let result = publisher.removingSegments(from: episode) { segment in
+                    removedEpisodes.contains(segment.episodeID)
+                        || removedSources.contains(segment.sourceID)
+                }
+                if result?.segments.count != episode.segments.count { changed = true }
+                return result
+            }
+            guard changed else { continue }
+            editions[feedID] = kept
+            persistEditions(for: feedID)
+        }
+        // Eine abbestellte Quelle kann kein Themenfeed mehr eingrenzen.
+        guard !removedSources.isEmpty else { return }
+        var feedsChanged = false
+        for index in smartFeeds.indices
+        where smartFeeds[index].restrictedToSourceIDs.contains(where: removedSources.contains) {
+            smartFeeds[index].restrictedToSourceIDs.removeAll(where: removedSources.contains)
+            feedsChanged = true
+        }
+        if feedsChanged { persistSmartFeeds() }
     }
 
     /// Sichert die selbst angelegten Bestände.
@@ -887,17 +975,48 @@ public final class AppModel {
         }
     }
 
+    /// Themenfeeds, für die gerade eine Ausgabe entsteht. Die Oberfläche
+    /// zeigt daran „wird zusammengestellt“, statt fertig und leer zu wirken.
+    public internal(set) var buildingFeeds: Set<SmartFeedID> = []
+    /// Die letzte Rückmeldung je Themenfeed, als Satz für die Oberfläche.
+    public internal(set) var editionNotes: [SmartFeedID: String] = [:]
+
     /// Stellt eine neue Ausgabe zusammen. Startet ausdrücklich keinen Ton.
+    ///
+    /// `requestedByUser` ist der Normalfall: jemand hat getippt oder Siri
+    /// gefragt. Dann gilt die Mindestmenge der Automatik nicht, und die
+    /// Aktivitätszeile zeigt, dass gearbeitet wird. Der automatische Lauf
+    /// arbeitet still.
     @discardableResult
-    public func buildEdition(feedID: SmartFeedID, budget: MediaDuration? = nil) async -> String {
+    public func buildEdition(
+        feedID: SmartFeedID, budget: MediaDuration? = nil, requestedByUser: Bool = true
+    ) async -> String {
         guard var feed = smartFeeds.first(where: { $0.id == feedID }) else {
             return "Diesen Themenfeed gibt es nicht."
         }
+        // Zweimal gleichzeitig ergäbe zwei fast gleiche Ausgaben.
+        guard !buildingFeeds.contains(feedID) else {
+            return "Die Ausgabe wird gerade zusammengestellt."
+        }
         if let budget { feed.editionMode = .budgeted(budget) }
 
-        activity = "Ausgabe wird zusammengestellt …"
-        defer { activity = nil }
+        buildingFeeds.insert(feedID)
+        if requestedByUser { activity = "Ausgabe wird zusammengestellt …" }
+        defer {
+            buildingFeeds.remove(feedID)
+            if requestedByUser { activity = nil }
+        }
+        let note = await composeEdition(for: feed, requestedByUser: requestedByUser)
+        // Die Automatik überschreibt keine Rückmeldung, um die jemand gebeten
+        // hat, ausser sie hat tatsächlich etwas veröffentlicht.
+        if requestedByUser || note.published { editionNotes[feedID] = note.text }
+        return note.text
+    }
 
+    private func composeEdition(
+        for feed: SmartPodcastFeed, requestedByUser: Bool
+    ) async -> (text: String, published: Bool) {
+        let feedID = feed.id
         do {
             let pipeline = ContentPipeline(
                 store: store, mediaDirectory: LocalMediaLocator.mediaDirectory
@@ -918,28 +1037,40 @@ public final class AppModel {
             let existing = Set((editions[feedID] ?? []).map(\.batchKey))
             let outcome = PersonalEpisodePublisher().makeEdition(
                 feed: feed, candidates: candidates, ledger: ledger,
-                existingBatchKeys: existing
+                existingBatchKeys: existing, requestedByUser: requestedByUser
             )
 
             switch outcome {
             case .published(let episode):
+                // Während des Zusammenstellens gelöscht: nichts anlegen.
+                guard smartFeeds.contains(where: { $0.id == feedID }) else {
+                    return ("Diesen Themenfeed gibt es nicht mehr.", false)
+                }
                 editions[feedID, default: []].insert(episode, at: 0)
                 persistEditions(for: feedID)
-                return "\(episode.title): \(episode.segments.count) Stellen aus "
-                    + "\(episode.distinctSourceCount) Quellen."
+                return ("\(episode.title): \(episode.segments.count) Stellen aus "
+                    + "\(episode.distinctSourceCount) Quellen.", true)
             case .noNewMaterial(let count):
-                return count == 0
-                    ? "Zu diesen Themen ist noch nichts erschlossen."
-                    : "Nichts Neues — alle passenden Stellen hast du schon gehört."
+                return (count == 0
+                    ? "Zu diesen Themen ist noch nichts ausgewertet."
+                    : "Nichts Neues. Alle passenden Stellen hast du schon gehört.", false)
             case .belowThreshold(let available, let required):
-                return "Erst \(available.shortDescription) neues Material, "
-                    + "nötig sind \(required.shortDescription)."
+                // Von Hand angefordert gilt keine Mindestmenge. Dann passt
+                // nur keine einzelne Stelle in die gewählte Länge.
+                if requestedByUser {
+                    return ("Keine passende Stelle ist kurz genug für "
+                        + "\(feed.editionMode.label).", false)
+                }
+                return ("Erst \(available.shortDescription) neues Material, "
+                    + "nötig sind \(required.shortDescription).", false)
             case .alreadyPublished:
-                return "Diese Ausgabe gibt es bereits."
+                return ("Seit der letzten Ausgabe ist nichts dazugekommen.", false)
             }
         } catch {
-            lastError = UserFacingError.describe(error)
-            return "Die Ausgabe konnte nicht erstellt werden."
+            // Die Automatik meldet sich nicht mit einem Dialog. Wer nicht
+            // gefragt hat, will dafür keinen.
+            if requestedByUser { lastError = UserFacingError.describe(error) }
+            return ("Die Ausgabe konnte nicht erstellt werden.", false)
         }
     }
 
@@ -1142,9 +1273,20 @@ public final class AppModel {
     ///
     /// Veröffentlicht höchstens eine Ausgabe je Feed und Lauf: fünf auf
     /// einmal wären keine Neuigkeit mehr, sondern eine Flut.
+    ///
+    /// Eine neue Ausgabe entsteht von selbst erst, wenn die letzte
+    /// weitgehend gehört oder älter als zwölf Stunden ist. Sonst läge nach
+    /// jedem Aktualisieren eine fast gleiche Ausgabe über der vorigen.
+    /// Startet nie Ton.
     public func processPendingEditions() async {
         for feed in smartFeeds where feed.publicationPolicy.isAutomatic {
-            _ = await buildEdition(feedID: feed.id)
+            guard !buildingFeeds.contains(feed.id) else { continue }
+            if let latest = editions[feed.id]?.first,
+               Date().timeIntervalSince(latest.publishedAt) < 12 * 60 * 60,
+               latest.heardFraction(in: ledger) < 0.8 {
+                continue
+            }
+            _ = await buildEdition(feedID: feed.id, requestedByUser: false)
         }
     }
 

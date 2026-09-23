@@ -76,7 +76,7 @@ public final class BackgroundWork {
         // das System entscheidet ohnehin, und zu häufige Anfragen führen
         // dazu, dass es seltener zustimmt.
         request.earliestBeginDate = Date().addingTimeInterval(60 * 60)
-        try? BGTaskScheduler.shared.submit(request)
+        submit(request)
     }
 
     public func scheduleAnalysis() {
@@ -86,7 +86,19 @@ public final class BackgroundWork {
         request.requiresNetworkConnectivity = true
         request.requiresExternalPower = true
         request.earliestBeginDate = Date().addingTimeInterval(60 * 15)
-        try? BGTaskScheduler.shared.submit(request)
+        submit(request)
+    }
+
+    /// Reicht einen Auftrag ein. Ein abgelehnter Auftrag wird protokolliert,
+    /// nicht verschluckt: ohne passenden Hintergrundmodus in der Info.plist
+    /// lehnt iOS ihn still ab, und niemand merkt, dass nichts mehr läuft.
+    private func submit(_ request: BGTaskRequest) {
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            NSLog("Hintergrundauftrag %@ nicht eingereicht: %@",
+                  request.identifier, error.localizedDescription)
+        }
     }
 
     private func handleRefresh(_ task: BGAppRefreshTask) {
@@ -94,7 +106,11 @@ public final class BackgroundWork {
         // wird: bricht die Arbeit ab, ist die Kette sonst unterbrochen.
         scheduleRefresh()
 
-        let work = Task { @MainActor in await model.refreshAll() }
+        // Nach einem Start im Hintergrund hat noch niemand geladen.
+        let work = Task { @MainActor in
+            await model.ensureLoaded()
+            await model.refreshAll()
+        }
         task.expirationHandler = { work.cancel() }
         Task { @MainActor in
             _ = await work.result
@@ -105,7 +121,10 @@ public final class BackgroundWork {
     private func handleAnalysis(_ task: BGProcessingTask) {
         scheduleAnalysis()
 
-        let work = Task { @MainActor in await model.processPendingEditions() }
+        let work = Task { @MainActor in
+            await model.ensureLoaded()
+            await model.processPendingEditions()
+        }
         task.expirationHandler = { work.cancel() }
         Task { @MainActor in
             _ = await work.result

@@ -277,6 +277,121 @@ struct PersonalEpisodeTests {
     }
 }
 
+// MARK: - Themen-Updates bauen, eingrenzen, aufräumen
+
+@Suite("Themen-Updates")
+struct SmartFeedEditionTests {
+
+    private func candidate(_ name: String, media: String, _ start: Int64, _ end: Int64,
+                           score: Double = 0.9) -> SegmentCandidate {
+        SegmentCandidate(
+            evidence: Evidence(
+                id: EvidenceID(rawValue: name),
+                mediaVersionID: MediaVersionID(rawValue: media),
+                episodeID: EpisodeID(rawValue: "ep-\(media)"),
+                sourceID: SourceID(rawValue: "s-\(media)"),
+                transcriptID: TranscriptID(rawValue: "t"), transcriptRevision: .initial,
+                range: MediaTimeRange(start: MediaTime(milliseconds: start),
+                                      end: MediaTime(milliseconds: end)),
+                quotedText: "Text"
+            ),
+            episodeID: EpisodeID(rawValue: "ep-\(media)"),
+            sourceID: SourceID(rawValue: "s-\(media)"),
+            sourceTitle: media, episodeTitle: "Folge", originalPublishedAt: nil,
+            transcriptRevision: .initial, topicIDs: [], reason: "Passt zu deinem Thema",
+            relevanceScore: score
+        )
+    }
+
+    /// Wie ein frisch angelegter Feed: automatische Regel mit fünf Minuten.
+    private let automaticFeed = SmartPodcastFeed(title: "Mein KI Update", topicIDs: [])
+
+    @Test("Wer ausdrücklich fragt, bekommt auch drei Minuten Material")
+    func manualBuildSkipsAutomaticThreshold() {
+        let candidates = [candidate("a", media: "m1", 0, 180_000)]
+        let publisher = PersonalEpisodePublisher()
+
+        let automatic = publisher.makeEdition(
+            feed: automaticFeed, candidates: candidates, ledger: ListeningLedger())
+        guard case .belowThreshold = automatic else {
+            Issue.record("Automatik veröffentlicht unter der Schwelle")
+            return
+        }
+
+        let manual = publisher.makeEdition(
+            feed: automaticFeed, candidates: candidates, ledger: ListeningLedger(),
+            requestedByUser: true)
+        guard case .published(let episode) = manual else {
+            Issue.record("ausdrückliche Anforderung scheitert an der Schwelle")
+            return
+        }
+        #expect(episode.segments.count == 1)
+    }
+
+    @Test("Ein Feed mit ausgewählten Quellen nimmt nur diese")
+    func restrictedSourcesAreHonored() {
+        var feed = automaticFeed
+        feed.restrictedToSourceIDs = [SourceID(rawValue: "s-m2")]
+        let outcome = PersonalEpisodePublisher().makeEdition(
+            feed: feed,
+            candidates: [candidate("a", media: "m1", 0, 400_000),
+                         candidate("b", media: "m2", 0, 400_000)],
+            ledger: ListeningLedger(), requestedByUser: true)
+        guard case .published(let episode) = outcome else {
+            Issue.record("keine Ausgabe"); return
+        }
+        #expect(episode.segments.map(\.sourceID) == [SourceID(rawValue: "s-m2")])
+    }
+
+    @Test("Gelöschte Folgen verschwinden aus der Ausgabe, die Zeitachse rückt zusammen")
+    func removingSegmentsRebuildsTimeline() {
+        let publisher = PersonalEpisodePublisher()
+        guard case .published(let episode) = publisher.makeEdition(
+            feed: automaticFeed,
+            candidates: [candidate("a", media: "m1", 0, 300_000, score: 0.9),
+                         candidate("b", media: "m2", 0, 300_000, score: 0.8)],
+            ledger: ListeningLedger(), requestedByUser: true
+        ) else { Issue.record("keine Ausgabe"); return }
+        #expect(episode.segments.count == 2)
+
+        let gone = EpisodeID(rawValue: "ep-m1")
+        guard let pruned = publisher.removingSegments(from: episode, where: { $0.episodeID == gone })
+        else { Issue.record("Ausgabe ganz verworfen"); return }
+
+        #expect(pruned.id == episode.id)
+        #expect(pruned.batchKey == episode.batchKey)
+        #expect(pruned.segments.map(\.episodeID) == [EpisodeID(rawValue: "ep-m2")])
+        #expect(pruned.segments[0].virtualRange.start == .zero)
+        #expect(pruned.shownotes.count == 1)
+        #expect(pruned.shownotes[0].virtualStart == .zero)
+        #expect(pruned.manifestHash != episode.manifestHash)
+        #expect(pruned.coverage.includedCount == 1)
+
+        let untouched = publisher.removingSegments(from: episode, where: { _ in false })
+        #expect(untouched == episode)
+        #expect(publisher.removingSegments(from: episode, where: { _ in true }) == nil)
+    }
+
+    @Test("Gehört zählt nur das Neue, nicht den Kontextvorlauf")
+    func heardFractionUsesCoreRange() {
+        guard case .published(let episode) = PersonalEpisodePublisher().makeEdition(
+            feed: automaticFeed,
+            candidates: [candidate("a", media: "m1", 600_000, 900_000)],
+            ledger: ListeningLedger(), requestedByUser: true
+        ) else { Issue.record("keine Ausgabe"); return }
+        #expect(episode.heardFraction(in: ListeningLedger()) == 0)
+
+        var ledger = ListeningLedger()
+        ledger.apply(LedgerEvent(
+            mediaVersionID: MediaVersionID(rawValue: "m1"),
+            range: MediaTimeRange(start: MediaTime(milliseconds: 600_000),
+                                  end: MediaTime(milliseconds: 750_000)),
+            kind: .played, via: .smartFeedEpisode, deviceID: "t"
+        ))
+        #expect(abs(episode.heardFraction(in: ledger) - 0.5) < 0.01)
+    }
+}
+
 // MARK: - Export
 
 @Suite("Markdown-Export")

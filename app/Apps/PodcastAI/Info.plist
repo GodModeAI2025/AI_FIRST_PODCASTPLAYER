@@ -16,10 +16,12 @@
 
     <!-- Hintergrundwiedergabe. Ausdrücklich NICHT als Schlupfloch für
          dauerhafte KI-Arbeit im Hintergrund: Analysejobs laufen über
-         BGProcessing und halten an Checkpoints an. -->
+         BGProcessing und halten an Checkpoints an. „fetch“ braucht
+         BGAppRefresh, sonst lehnt iOS das Aktualisieren der Feeds ab. -->
     <key>UIBackgroundModes</key>
     <array>
         <string>audio</string>
+        <string>fetch</string>
         <string>processing</string>
         <string>remote-notification</string>
     </array>

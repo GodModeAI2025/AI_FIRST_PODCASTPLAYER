@@ -17,8 +17,11 @@ private struct AutoRefreshModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .task {
-                // Kurz warten, bis `load()` die Quellen gelesen hat.
-                try? await Task.sleep(for: .seconds(2))
+                // Warten, bis die Quellen gelesen sind. Zwei feste Sekunden
+                // reichten bei einem grossen Bestand nicht, und der erste
+                // Lauf fiel dann bis zum nächsten Takt aus. Das Aktualisieren
+                // stösst auch die automatischen Themen-Updates an.
+                await model.ensureLoaded()
                 await model.refreshIfStale(olderThan: 0)
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(30 * 60))
