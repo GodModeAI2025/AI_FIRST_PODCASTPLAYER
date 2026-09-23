@@ -118,14 +118,16 @@ public enum AppBootstrap {
     }
 
     /// Ein leerer Speicher reicht für einen frischen UI-Test nicht. Neben der
-    /// Datenbank merkt sich das Gerät geladene Audiodateien und Listen von
-    /// Folgen in den Benutzereinstellungen. Blieben sie stehen, fände ein
-    /// Test die Datei oder die Stelle aus dem letzten Lauf wieder.
+    /// Datenbank merkt sich das Gerät geladene Audiodateien, die Bilder der
+    /// Themen-Updates und Listen von Folgen in den Benutzereinstellungen.
+    /// Blieben sie stehen, fände ein Test die Datei oder die Stelle aus dem
+    /// letzten Lauf wieder.
     ///
     /// Läuft vor `AppModel(store:)`: Modell und Player lesen diese Listen
     /// beim Anlegen. Die Schlüssel stehen in `AppModel` und `EpisodePlayer`.
     private static func clearDeviceStateForUITest() {
         _ = LocalMediaLocator.removeAllFiles()
+        TopicCoverStore.standard.removeAll(except: [])
         let defaults = UserDefaults.standard
         for key in [
             "episodePlaybackPositions", "recentEpisodeIDs", "upNextEpisodeIDs",

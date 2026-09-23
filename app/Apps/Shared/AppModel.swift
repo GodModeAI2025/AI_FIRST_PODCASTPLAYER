@@ -557,6 +557,10 @@ public final class AppModel {
             // Was der Nutzer selbst angelegt hat. Bis eben lag das alles
             // nur im Speicher und war beim nächsten Start verschwunden.
             smartFeeds = try await store.smartFeeds()
+            // Auf einem anderen Gerät gelöschte Updates nehmen ihr Bild mit.
+            // Nicht bei einem Speicher nur im Arbeitsspeicher: der ist leer,
+            // und alle Bilder gingen verloren.
+            if !store.isInMemory { coverArt.retain(only: Set(smartFeeds.map(\.id))) }
             editions = try await store.editions()
             highlights = try await store.highlights()
             // Die Systemsuche zeigt den Stand der Datenbank, auch für Notizen,
@@ -2243,9 +2247,11 @@ public final class AppModel {
                            lässt sich so nicht sagen.
                            """)].compactMap { $0 }.joined(separator: " ")
         } else if failed > 0 {
-            // Hier ist `failed` kleiner als die Zahl der Stellen, also sind es mindestens zwei.
-            problem = [String(localized: "\(failed) von \(shortlist.count) Stellen ließen sich nicht einordnen."), reason]
-                .compactMap { $0 }.joined(separator: " ")
+            // Nur der Grund. Wie viele Stellen offen sind, sagt der Hinweis
+            // über dem Ergebnis selbst, gezählt an dem, was darunter steht.
+            // Eine zweite Zahl hier zählte die ganze Auswahl vor dem
+            // Ausgleichen und widerspräche ihm.
+            problem = reason
         } else if classified.isEmpty {
             problem = String(localized: """
                 Das Modell hat keine der Stellen dieser These zugeordnet. \

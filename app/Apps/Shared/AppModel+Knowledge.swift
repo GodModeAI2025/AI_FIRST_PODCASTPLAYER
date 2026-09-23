@@ -508,7 +508,7 @@ extension AppModel {
             lines.append("Kapitel: " + chapters.map { "\($0.start.timecode) \($0.title)" }.joined(separator: "; "))
         }
         var known = facts[id] ?? []
-        if known.isEmpty { known = ((try? await store.facts(forEpisode: id)) ?? []).filter { !$0.hasListArtifacts } }
+        if known.isEmpty { known = ((try? await store.facts(forEpisode: id)) ?? []).compactMap(\.cleaned) }
         if !known.isEmpty {
             lines.append("Bereits ermittelte Fakten: " + known.prefix(15).map(\.statement).joined(separator: " | "))
         }
@@ -854,12 +854,13 @@ extension AppModel {
         // Fakten. Liefert der neue Lauf deutlich weniger, bleiben sie.
         var previous: [EpisodeFact] = []
         // Fakten mit Listenresten zählen nicht. Sind es alle, rechnet der
-        // Lauf die Folge neu, und beim Speichern fallen sie weg.
+        // Lauf die Folge neu, und beim Speichern fallen sie weg. Eine Nummer
+        // vorn oder ein Verweis am Ende fällt nur aus dem Text (`cleaned`).
         if !force {
-            stored = ((try? await store.facts(forEpisode: episode.id)) ?? []).filter { !$0.hasListArtifacts }
+            stored = ((try? await store.facts(forEpisode: episode.id)) ?? []).compactMap(\.cleaned)
             gaps = Self.factGaps(of: episode.id)
         } else {
-            previous = ((try? await store.facts(forEpisode: episode.id)) ?? []).filter { !$0.hasListArtifacts }
+            previous = ((try? await store.facts(forEpisode: episode.id)) ?? []).compactMap(\.cleaned)
         }
         if !stored.isEmpty, gaps.isEmpty {
             facts[episode.id] = await anchoredFacts(stored, episodeID: episode.id)
@@ -1562,8 +1563,10 @@ extension AppModel {
     ///
     /// Fakten aus Läufen vor Version 0.7, in denen mehrere Aussagen samt
     /// Nummern aneinanderhängen („… 2 | Ich habe …“), zeigt die App nicht.
+    /// Steht nur vorn eine Nummer oder am Ende ein Verweis, zeigt sie den
+    /// Fakt ohne sie.
     func anchoredFacts(_ list: [EpisodeFact], episodeID: EpisodeID) async -> [EpisodeFact] {
-        let list = list.filter { !$0.hasListArtifacts }
+        let list = list.compactMap(\.cleaned)
         guard list.contains(where: { $0.range.duration.milliseconds >= 30_000 }),
               let transcript = try? await store.transcript(forEpisode: episodeID) else { return list }
         return FactAnchor.anchored(list, in: transcript)

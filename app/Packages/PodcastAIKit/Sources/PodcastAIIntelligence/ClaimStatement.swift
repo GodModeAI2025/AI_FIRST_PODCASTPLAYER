@@ -65,6 +65,11 @@ public enum ClaimStatement {
         return cleaned
     }
 
+    /// Nummer vorn und Verweise am Ende weg, sonst nichts.
+    static func strippingCitations(_ text: String) -> String {
+        strippingTrailingCitations(strippingLeadingNumber(text))
+    }
+
     /// „3 | Aussage“ oder „[3] Aussage“ → „Aussage“. Nur am Anfang.
     static func strippingLeadingNumber(_ text: String) -> String {
         guard let match = text.prefixMatch(of: /\s*(?:\[\s*\d{1,3}\s*\]|\d{1,3}[ \t]*[|\u{FF5C}\u{00A6}\u{2502}\u{2223}])[ \t]*/)
@@ -89,7 +94,22 @@ public extension EpisodeFact {
     /// Ein Fakt aus einem Lauf vor Version 0.7, in dem mehrere Aussagen samt
     /// Nummern aneinanderhängen, etwa „… beschäftigen. 2 | Ich habe …“. Die
     /// App zeigt ihn nicht, und die Folge bekommt neue Fakten.
+    ///
+    /// Eine Nummer vorn („[3] …“) oder Verweise am Ende („… [2].“) zählen
+    /// nicht. Sie fallen weg wie bei neuen Aussagen, siehe ``cleaned``.
     var hasListArtifacts: Bool {
-        ClaimStatement.hasListMarkers(statement)
+        ClaimStatement.hasListMarkers(ClaimStatement.strippingCitations(statement))
+    }
+
+    /// Der Fakt, wie die App ihn zeigt: ohne vorangestellte Nummer und ohne
+    /// Verweise am Ende. Kennung, Beleg und Zeitmarke bleiben. `nil`, wenn
+    /// danach noch Listenreste im Text stehen.
+    var cleaned: EpisodeFact? {
+        let text = ClaimStatement.strippingCitations(statement)
+        guard !text.isEmpty, !ClaimStatement.hasListMarkers(text) else { return nil }
+        guard text != statement else { return self }
+        return EpisodeFact(
+            id: id, episodeID: episodeID, sourceID: sourceID, evidenceID: evidenceID,
+            mediaVersionID: mediaVersionID, statement: text, range: range, modelTier: modelTier)
     }
 }

@@ -7,7 +7,8 @@
 //  - Eine Aussage mit Trennstrich oder Verweisklammer mitten im Text wird
 //    verworfen, eine vorangestellte Nummer und Verweise am Ende fallen weg.
 //  - Gespeicherte Fakten aus älteren Läufen mit solchen Resten erkennt die
-//    App und zeigt sie nicht.
+//    App und zeigt sie nicht. Steht nur vorn eine Nummer oder am Ende ein
+//    Verweis, zeigt sie den Fakt ohne sie.
 //
 
 import Testing
@@ -35,6 +36,38 @@ struct ClaimStatementTests {
             range: MediaTimeRange(start: MediaTime(milliseconds: 0), end: MediaTime(milliseconds: 1_000)),
             modelTier: "onDevice")
         #expect(fact.hasListArtifacts)
+    }
+
+    @Test("Gespeicherte Fakten mit Nummer vorn oder Verweis am Ende bleiben, ohne die Verweise", arguments: [
+        ("[3] Modelle laufen auf dem Gerät.", "Modelle laufen auf dem Gerät."),
+        ("Die DSGVO gilt seit 2018 [2].", "Die DSGVO gilt seit 2018."),
+        ("3 | Viele Firmen testen Assistenten.", "Viele Firmen testen Assistenten."),
+        ("Die DSGVO gilt seit 2018.", "Die DSGVO gilt seit 2018."),
+    ])
+    func storedCitationsAreCleaned(stored: String, shown: String) throws {
+        let fact = EpisodeFact(
+            id: "f", episodeID: EpisodeID(stable: "e"), sourceID: SourceID(stable: "s"),
+            evidenceID: EvidenceID(stable: "b"), mediaVersionID: MediaVersionID(stable: "m"),
+            statement: stored,
+            range: MediaTimeRange(start: MediaTime(milliseconds: 0), end: MediaTime(milliseconds: 1_000)),
+            modelTier: "onDevice")
+        #expect(!fact.hasListArtifacts)
+        let cleaned = try #require(fact.cleaned)
+        #expect(cleaned.statement == shown)
+        #expect(cleaned.id == fact.id)
+        #expect(cleaned.range == fact.range)
+    }
+
+    @Test("Verklebte Fakten bleiben auch nach dem Putzen verborgen")
+    func gluedFactStaysHidden() {
+        let fact = EpisodeFact(
+            id: "f", episodeID: EpisodeID(stable: "e"), sourceID: SourceID(stable: "s"),
+            evidenceID: EvidenceID(stable: "b"), mediaVersionID: MediaVersionID(stable: "m"),
+            statement: "[1] " + Self.gluedFact + " [4].",
+            range: MediaTimeRange(start: MediaTime(milliseconds: 0), end: MediaTime(milliseconds: 1_000)),
+            modelTier: "onDevice")
+        #expect(fact.hasListArtifacts)
+        #expect(fact.cleaned == nil)
     }
 
     @Test("Normale Aussagen, Jahreszahlen und Abkürzungen sind keine Listenreste", arguments: [

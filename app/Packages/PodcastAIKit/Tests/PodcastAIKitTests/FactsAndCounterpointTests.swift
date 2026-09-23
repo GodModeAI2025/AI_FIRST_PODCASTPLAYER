@@ -185,6 +185,35 @@ struct FactAnchorTests {
         #expect(tags.map(\.label) == ["Schnittstellen"])
     }
 
+    @Test("Zu Themen gewordene Fragen und Vorhaben werden keine Schlagworte")
+    func convertedQuestionsAreNoTags() {
+        let passages = [
+            passage("p1", "Agentische Apps nutzen in iOS 27 neue Schnittstellen."),
+            passage("p2", "Für agentische Apps öffnet Apple weitere Möglichkeiten."),
+        ]
+        let legacy = [
+            Interest(label: "Welche Möglichkeiten bietet iOS 27 für agentische Apps?",
+                     kind: .openQuestion, origin: .confirmedByUser),
+            Interest(label: "Eine eigene App für agentische Abläufe bauen",
+                     kind: .activeProject, origin: .confirmedByUser),
+            Interest(label: "Schnittstellen", kind: .topic, origin: .confirmedByUser),
+        ]
+        // Wie beim Laden des Profils: aus Fragen und Vorhaben werden Themen.
+        let converted = legacy.map { interest -> Interest in
+            var topic = interest
+            topic.kind = .topic
+            topic.expiresAt = nil
+            return topic
+        }
+        let profile = InterestProfile(interests: converted)
+        #expect(profile.topics.count == 3)
+
+        let tags = TopicTagger().tags(statements: [], passages: passages, profile: profile)
+        #expect(tags.map(\.label) == ["Schnittstellen"])
+        #expect(TopicTagger.isTagShaped("Künstliche Intelligenz"))
+        #expect(!TopicTagger.isTagShaped("Was kann KI?"))
+    }
+
     @Test("Zu Wahlen und Parteien schlägt die App kein Schlagwort vor")
     func sensitiveTopicsStayOut() {
         let statements = ["Vor der Wahl streiten die Parteien.", "Nach der Wahl regieren die Parteien."]

@@ -477,6 +477,59 @@ struct SmartFeedEditionTests {
         #expect(without.segments[0].coreRange == range(300_000, 360_000))
     }
 
+    @Test("Ein Kapitel, das nicht ins Zeitbudget passt, bringt nur die Stelle")
+    func chapterLongerThanBudgetKeepsPassage() throws {
+        var feed = automaticFeed
+        feed.editionMode = .budgeted(MediaDuration(minutes: 5))
+        // Kapitel von sieben Minuten, die Stellen darin je eine Minute lang.
+        let marks = [
+            EpisodeID(rawValue: "ep-m1"): chapters([0, 420_000, 840_000], duration: 1_260_000),
+            EpisodeID(rawValue: "ep-m2"): chapters([0, 420_000, 840_000], duration: 1_260_000),
+        ]
+        guard case .published(let episode) = PersonalEpisodePublisher().makeEdition(
+            feed: feed,
+            candidates: [candidate("a", media: "m1", 480_000, 540_000, score: 0.9),
+                         candidate("b", media: "m2", 60_000, 120_000, score: 0.8)],
+            ledger: ListeningLedger(), chapters: marks, requestedByUser: true
+        ) else { Issue.record("Die Stellen passen ins Budget, die Ausgabe fehlt"); return }
+        let cores = episode.segments.map(\.coreRange)
+        #expect(cores.count == 2)
+        #expect(cores.contains(range(480_000, 540_000)))
+        #expect(cores.contains(range(60_000, 120_000)))
+    }
+
+    @Test("Nachgeladene Kapitel ergeben keine zweite Ausgabe mit denselben Stellen")
+    func batchKeyIgnoresChapters() throws {
+        let candidates = [candidate("a", media: "m1", 300_000, 360_000),
+                          candidate("b", media: "m2", 100_000, 160_000)]
+        let marks = [EpisodeID(rawValue: "ep-m1"): chapters([0, 240_000, 600_000], duration: 900_000)]
+        let publisher = PersonalEpisodePublisher()
+
+        let first = try #require(edition(candidates))
+        // Beim zweiten Tipp sind die Kapitel geladen. Neu ist nichts.
+        let second = publisher.makeEdition(
+            feed: automaticFeed, candidates: candidates, ledger: ListeningLedger(), chapters: marks,
+            existingBatchKeys: [first.batchKey], requestedByUser: true)
+        guard case .alreadyPublished(let id) = second else {
+            Issue.record("Zweite Ausgabe mit denselben Stellen"); return
+        }
+        #expect(id == first.id)
+
+        // Mit Kapiteln gebaut: geschnitten wird am Kapitel, der Schlüssel bleibt.
+        let snapped = try #require(edition(candidates, chapters: marks))
+        #expect(snapped.segments.map(\.coreRange).contains(range(240_000, 600_000)))
+        #expect(snapped.batchKey == first.batchKey)
+
+        // Ausgaben von früher tragen den Schlüssel ihrer Kapitel.
+        let earlier = StableDigest.hex(ofUnordered: ["m1:240000-600000", "m2:100000-160000"])
+        let again = publisher.makeEdition(
+            feed: automaticFeed, candidates: candidates, ledger: ListeningLedger(), chapters: marks,
+            existingBatchKeys: [earlier], requestedByUser: true)
+        guard case .alreadyPublished = again else {
+            Issue.record("Eine Ausgabe von früher wurde nicht erkannt"); return
+        }
+    }
+
     @Test("Zwei Stellen im selben Kapitel ergeben einen Abschnitt mit beiden Belegen")
     func passagesInOneChapterShareASegment() throws {
         let episode = try #require(edition(
@@ -597,6 +650,28 @@ struct TopicCoverTests {
         store.remove(feed.id)
         #expect(store.stored(for: feed.id) == nil)
         #expect(store.stored(for: other.id) != nil)
+    }
+
+    @Test("Bilder von Updates, die es nicht mehr gibt, gehen beim Abgleich")
+    func storeKeepsOnlyLiveFeeds() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("covers-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = TopicCoverStore(directory: directory)
+        let gone = SmartPodcastFeed(title: "Anderswo gelöscht", topicIDs: [])
+        let image = try #require(Self.image(width: 20, height: 20))
+        try store.write(image, for: TopicCoverRecipe(feed: feed, topics: ["Datenschutz"]))
+        try store.write(image, for: TopicCoverRecipe(feed: gone, topics: ["Musik"]))
+        let foreign = directory.appendingPathComponent("notiz.txt")
+        try Data("bleibt".utf8).write(to: foreign)
+
+        store.removeAll(except: [feed.id])
+        #expect(store.stored(for: feed.id) != nil)
+        #expect(store.stored(for: gone.id) == nil)
+        #expect(FileManager.default.fileExists(atPath: foreign.path))
+
+        store.removeAll(except: [])
+        #expect(store.stored(for: feed.id) == nil)
     }
 
     private static func image(width: Int, height: Int) -> CGImage? {

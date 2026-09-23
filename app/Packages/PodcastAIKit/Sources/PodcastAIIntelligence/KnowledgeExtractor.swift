@@ -377,51 +377,9 @@ public struct KnowledgeExtractor: Sendable {
         return result
     }
 
-    /// Größter Bereich, der ausgeschrieben wird. Alles darüber ist eher ein
-    /// Tippfehler als ein Verweis; dann zählen nur die beiden Enden.
-    private static let maximumCitationRange = 10
-
+    /// Dieselben Regeln wie in der Anzeige der Antwort, siehe ``AnswerMarkers``.
     private static func numbers(inBrackets content: String) -> [Int] {
-        enum Token { case number(Int), dash }
-        var tokens: [Token] = []
-        var digits = ""
-        func flush() {
-            if !digits.isEmpty, let number = Int(digits) { tokens.append(.number(number)) }
-            digits = ""
-        }
-        for character in content {
-            if character.isASCII, character.isWholeNumber {
-                digits.append(character)
-            } else if character == "-" || character == "\u{2013}" {
-                flush()
-                tokens.append(.dash)
-            } else if character == "," || character == ";" || character.isWhitespace {
-                flush()
-            } else {
-                return []
-            }
-        }
-        flush()
-
-        var numbers: [Int] = []
-        var position = 0
-        while position < tokens.count {
-            guard case .number(let first) = tokens[position] else { position += 1; continue }
-            if position + 2 < tokens.count,
-               case .dash = tokens[position + 1],
-               case .number(let last) = tokens[position + 2] {
-                if first < last, last - first <= maximumCitationRange {
-                    numbers += Array(first...last)
-                } else {
-                    numbers += [first, last]
-                }
-                position += 3
-            } else {
-                numbers.append(first)
-                position += 1
-            }
-        }
-        return numbers
+        AnswerMarkers.numbers(inBrackets: content)
     }
 
     /// Die Instruktion für Fragen. Zwei Quellen mit klarer Rolle: die

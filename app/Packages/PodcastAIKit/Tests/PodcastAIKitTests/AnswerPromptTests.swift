@@ -33,7 +33,24 @@ struct CitedNumberTests {
     func ranges() {
         #expect(KnowledgeExtractor.citedNumbers(in: "Siehe [2-4].") == [2, 3, 4])
         #expect(KnowledgeExtractor.citedNumbers(in: "Siehe [2 – 4].") == [2, 3, 4])
+        #expect(KnowledgeExtractor.citedNumbers(in: "Siehe [2 - 4].") == [2, 3, 4])
         #expect(KnowledgeExtractor.citedNumbers(in: "Siehe [1-40].") == [1, 40])
+    }
+
+    @Test("Die Anzeige liest eine Klammer wie der Extraktor", arguments: [
+        ("2 - 4", [2, 3, 4]),
+        ("2 – 4", [2, 3, 4]),
+        ("2-4", [2, 3, 4]),
+        ("3, 5", [3, 5]),
+        ("1 2", [1, 2]),
+        ("1-40", [1, 40]),
+        ("Musik", []),
+        ("00:12", []),
+        ("", []),
+    ])
+    func displaySharesRules(content: String, expected: [Int]) {
+        #expect(AnswerMarkers.numbers(inBrackets: content) == expected)
+        #expect(KnowledgeExtractor.citedNumbers(in: "[\(content)]") == expected)
     }
 
     @Test("Klammern ohne Verweis bleiben ohne Nummer")
@@ -239,5 +256,44 @@ struct AnswerPromptTests {
         #expect(!instructions.contains("ausschließlich aus den vorgelegten Abschnitten"))
         #expect(!instructions.contains("Nur was in den Abschnitten steht"))
         #expect(!instructions.contains("—"))
+    }
+}
+
+@Suite("Sätze einer Antwort")
+struct AnswerSentenceTests {
+
+    @Test("Ein Titel vor einem Namen beendet keinen Satz")
+    func titlesDoNotEndSentences() {
+        #expect(AnswerMarkers.sentences(in:
+            "Im Gespräch erklärt Prof. Dr. Anna Weber, warum Regeln helfen [1]. Sie nennt eine Studie [2]. Haftung bleibt offen [3]."
+        ) == [
+            "Im Gespräch erklärt Prof. Dr. Anna Weber, warum Regeln helfen [1].",
+            "Sie nennt eine Studie [2].",
+            "Haftung bleibt offen [3].",
+        ])
+        #expect(AnswerMarkers.sentences(in: "Mr. Smith thinks AI helps teams [1]. He cites a study [2].") == [
+            "Mr. Smith thinks AI helps teams [1].",
+            "He cites a study [2].",
+        ])
+        #expect(AnswerMarkers.sentences(in: "Ms. Lee and Mrs. Park spoke about robots [1]. Both agree [2].") == [
+            "Ms. Lee and Mrs. Park spoke about robots [1].",
+            "Both agree [2].",
+        ])
+    }
+
+    @Test("Eine Einheit am Satzende ist kein Titel")
+    func unitsEndSentences() {
+        #expect(AnswerMarkers.sentences(in: "Die Antwort kommt nach 20 ms. Das reicht für Sprache [1].") == [
+            "Die Antwort kommt nach 20 ms.",
+            "Das reicht für Sprache [1].",
+        ])
+    }
+
+    @Test("Ein Verweis hinter dem Punkt gehört zum Satz davor")
+    func trailingMarkersStay() {
+        #expect(AnswerMarkers.sentences(in: "Das stimmt. [2] Und das auch [3].") == [
+            "Das stimmt. [2]",
+            "Und das auch [3].",
+        ])
     }
 }

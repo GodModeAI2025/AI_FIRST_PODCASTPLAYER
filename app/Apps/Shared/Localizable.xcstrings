@@ -689,22 +689,6 @@
         }
       }
     },
-    "%lld von %lld Stellen ließen sich nicht einordnen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld von %2$lld Stellen ließen sich nicht einordnen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld of %2$lld passages couldn't be classified."
-          }
-        }
-      }
-    },
     "%lld von %lld erledigt" : {
       "localizations" : {
         "de" : {
@@ -3174,6 +3158,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The cover couldn't be saved. The current one stays."
+          }
+        }
+      }
+    },
+    "Das Cover wurde unterbrochen, etwa weil PodcastAI im Hintergrund war. Das bisherige bleibt. Wähle noch einmal „Neues Cover erzeugen“." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Cover wurde unterbrochen, etwa weil PodcastAI im Hintergrund war. Das bisherige bleibt. Wähle noch einmal „Neues Cover erzeugen“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The cover was interrupted, for example because PodcastAI was in the background. The current one stays. Choose \"Create New Cover\" again."
           }
         }
       }

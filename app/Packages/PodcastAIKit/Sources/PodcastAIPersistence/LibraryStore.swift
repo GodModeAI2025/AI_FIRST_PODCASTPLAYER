@@ -33,6 +33,13 @@ public actor LibraryStore {
         LibraryStore(modelContainer: container)
     }
 
+    /// Liegt die Datenbank nur im Arbeitsspeicher, etwa im UI-Test oder
+    /// weil sich die Datei nicht öffnen ließ? Dann ist sie leer, und wer
+    /// Dateien daneben mit ihr abgleicht, darf daraus nichts schließen.
+    public nonisolated var isInMemory: Bool {
+        modelContainer.configurations.contains { $0.isStoredInMemoryOnly }
+    }
+
     public static let modelTypes: [any PersistentModel.Type] = [
         StoredSource.self, StoredEpisode.self, StoredMediaVersion.self,
         StoredTranscript.self, StoredSegment.self, StoredListeningState.self,
