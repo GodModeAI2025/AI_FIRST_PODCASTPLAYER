@@ -45,7 +45,7 @@ CloudKit kennt keine eindeutigen Schlüssel. Treffen zwei Geräte denselben Date
 | Aktion | Was verschwindet | Was bleibt |
 |---|---|---|
 | Audio entfernen | die Audiodatei | Transkript, Belege, Fakten, Hörzustand, gemerkte Stellen; abgespielt wird aus dem Netz |
-| Folge löschen | Audiodatei, Transkript, Belege, Fakten, Hörzustand, gemerkte Stellen dieser Folge | ein Merkzeichen, damit der Feed die Folge nicht wieder anlegt |
-| Quelle abbestellen | die Quelle mit allen Folgen und deren Daten | nichts |
+| Folge löschen | Audiodatei, Transkript, Belege, Fakten, Hörzustand dieser Folge | ein Merkzeichen, damit der Feed die Folge nicht wieder anlegt; deine Notizen, denn sie tragen Zitat, Folge, Quelle und Zeitmarke selbst |
+| Quelle abbestellen | die Quelle mit allen Folgen und deren Daten | deine Notizen |
 
 Beides ist in `LibraryStore.removeEpisode`, `removeSource` und `markAudioRemoved` umgesetzt und durch Tests abgesichert.
