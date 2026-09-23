@@ -145,6 +145,7 @@ struct EpisodeListView: View {
                         }
                         Button(role: .destructive) { pendingDelete = episode } label: {
                             Label("Folge löschen", systemImage: "trash")
+                            Text("Gemerkte Stellen und Notizen bleiben")
                         }
                     }
                 }

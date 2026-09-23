@@ -116,7 +116,9 @@ struct RootView: View {
         // das Material, statt dass die App Glas auf Glas legt.
         .miniPlayerAccessory(isVisible: !(model.playerPlan?.isEmpty ?? true)
                              || model.episodePlayer.episode != nil)
-        .tabBarMinimizeBehavior(.onScrollDown)
+        // Nie einklappen: der runde Restknopf lag beim Scrollen auf Text
+        // und versteckte die übrigen Reiter, „Wissen“ war nicht zu treffen.
+        .tabBarMinimizeBehavior(.never)
         .animation(
             Design.Motion.respectingReduceMotion(Design.Motion.snappy,
                                                  reduceMotion: reduceMotion),
@@ -246,7 +248,7 @@ struct MiniPlayerAccessory: View {
                         .tappableArea()
                 }
                 .buttonStyle(.pressable)
-                .accessibilityLabel(isPlaying ? "Pausieren" : "Fortsetzen")
+                .accessibilityLabel(isPlaying ? "Pause" : "Fortsetzen")
 
                 Button {
                     model.stopPlayback()

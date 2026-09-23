@@ -136,7 +136,9 @@ final class GoalFeaturesUITests: XCTestCase {
         app.buttons["Fertig"].firstMatch.tap()
 
         menu.tap()
-        app.buttons["Folge löschen"].tap()
+        // Der Menüeintrag trägt einen Untertitel. Je nach System gehört er
+        // zur Beschriftung, deshalb nur der Anfang.
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Folge löschen'")).firstMatch.tap()
         let confirm = app.buttons["Folge und alle Daten löschen"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
         confirm.tap()

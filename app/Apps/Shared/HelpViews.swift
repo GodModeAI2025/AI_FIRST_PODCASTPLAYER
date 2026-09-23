@@ -219,7 +219,7 @@ struct HelpView: View {
                     springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für ältere Folgen \
                     tippst du in der Folge auf „Transkript erstellen“.
                     """, "text.alignleft")
-                tip("Fakten", "Überprüfbare Aussagen der Folge, jede mit Zeitmarke zum Nachhören.", "checkmark.seal")
+                tip("Fakten", "Aussagen aus der Folge, jede mit Zeitmarke zum Nachhören. Die App prüft sie nicht.", "checkmark.seal")
                 tip("Fragen und Chat", Self.askText, "text.bubble")
                 tip("Interessen", "Themen, aktuelle Vorhaben und offene Fragen. Daraus entsteht „Für dich“.",
                     "target")

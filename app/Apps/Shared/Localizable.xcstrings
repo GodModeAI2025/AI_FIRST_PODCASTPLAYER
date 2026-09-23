@@ -1201,6 +1201,22 @@
         }
       }
     },
+    "Aktuelle Vorhaben": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuelle Vorhaben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Projects"
+          }
+        }
+      }
+    },
     "Aktuelles Vorhaben": {
       "localizations": {
         "de": {
@@ -1309,6 +1325,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "All editions of this update will be deleted. Episodes, transcripts, and listening progress stay."
+          }
+        }
+      }
+    },
+    "Alle Folgen abrufbar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Folgen abrufbar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All Episodes Available"
           }
         }
       }
@@ -1581,6 +1613,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tap to deselect or reselect a topic. A topic you type is added when you tap Create."
+          }
+        }
+      }
+    },
+    "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Sichern mitgenommen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Sichern mitgenommen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to deselect or reselect a topic. A topic you type is added when you tap Save."
           }
         }
       }
@@ -2226,6 +2274,22 @@
         }
       }
     },
+    "Aussagen aus der Folge, jede mit Zeitmarke zum Nachhören. Die App prüft sie nicht.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aussagen aus der Folge, jede mit Zeitmarke zum Nachhören. Die App prüft sie nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Statements from the episode, each with a timestamp so you can listen again. The app doesn't fact-check them."
+          }
+        }
+      }
+    },
     "Auswahl aufheben": {
       "localizations": {
         "de": {
@@ -2254,6 +2318,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Select"
+          }
+        }
+      }
+    },
+    "Automatische Transkripte": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatische Transkripte"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic Transcripts"
           }
         }
       }
@@ -2351,6 +2431,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Something went wrong while creating the transcript (%@). Try again, and if it keeps happening, please send feedback."
+          }
+        }
+      }
+    },
+    "Beispieldaten": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beispieldaten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sample data"
           }
         }
       }
@@ -5637,6 +5733,22 @@
         }
       }
     },
+    "Gemerkte Stellen und Notizen bleiben": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemerkte Stellen und Notizen bleiben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved moments and notes stay"
+          }
+        }
+      }
+    },
     "Gemerkte Stellen und gesicherte Antworten einschliessen": {
       "localizations": {
         "de": {
@@ -6112,7 +6224,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Imprint"
+            "value": "Legal Notice"
           }
         }
       }
@@ -9138,7 +9250,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search for your favorite shows by name and subscribe to them. New episodes and passages on your topics will then show up here."
+            "value": "Search for shows you like by name and subscribe to them. New episodes and passages on your topics will then show up here."
           }
         }
       }

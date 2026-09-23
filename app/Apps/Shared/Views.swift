@@ -1099,7 +1099,7 @@ struct AddSourceSheet: View {
                 }
             }
             .opmlImport(isPresented: $importingOPML) { dismiss() }
-            .navigationTitle("Podcast hinzufügen")
+            .navigationTitle("Hinzufügen")
             .task {
                 // Kurz warten, bis das Blatt steht. Sofort gesetzt, greift der Fokus nicht.
                 try? await Task.sleep(for: .milliseconds(450))
@@ -1268,10 +1268,10 @@ struct PodcastSearchRow: View {
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(podcast.title).font(.body).lineLimit(2)
+                Text(podcast.title).font(.body).lineLimit(3)
                 Text([podcast.author, podcast.genre].compactMap { $0?.isEmpty == false ? $0 : nil }
                         .joined(separator: " · "))
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 if case .added(let count) = state {
                     Text("Abonniert · ^[\(count) Folge](inflect: true) gefunden")
                         .font(.caption).foregroundStyle(.green)
@@ -1318,7 +1318,7 @@ struct InterestsView: View {
             }
 
             if !model.profile.activeProjects.isEmpty {
-                Section("Aktuell") {
+                Section("Aktuelle Vorhaben") {
                     ForEach(model.profile.activeProjects) { interest in
                         NavigationLink { InterestEditView(interest: interest) } label: { InterestRow(interest: interest) }
                     }
@@ -1592,7 +1592,9 @@ struct NewSmartFeedSheet: View {
                     if model.profile.topics.isEmpty {
                         Text("Lege mindestens ein Thema an. Es wird auch unter „Wissen › Interessen“ gespeichert.")
                     } else {
-                        Text("Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen.")
+                        Text(editing == nil
+                             ? "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen."
+                             : "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Sichern mitgenommen.")
                     }
                 }
                 Section {
@@ -1809,7 +1811,7 @@ struct FocusPlayerView: View {
                             .font(.title)
                             .tappableArea()
                     }
-                    .accessibilityLabel(isPaused ? "Fortsetzen" : "Pausieren")
+                    .accessibilityLabel(isPaused ? "Fortsetzen" : "Pause")
 
                     Button { model.skipSegment() } label: {
                         Image(systemName: "forward.end.fill")
@@ -1915,7 +1917,7 @@ struct SourceDetailView: View {
                     if let author = source.author {
                         LabeledContent("Herausgeber", value: author)
                     }
-                    LabeledContent("Historie", value: source.backfillPolicy.label)
+                    LabeledContent("Automatische Transkripte", value: source.backfillPolicy.label)
                 }
                 Section {
                     // Fähigkeiten einzeln und ehrlich: ein Kanal ohne
@@ -1924,7 +1926,7 @@ struct SourceDetailView: View {
                                   isAvailable: source.capabilities.audioDownload)
                     CapabilityRow(title: "Transkript vom Anbieter",
                                   isAvailable: source.capabilities.publisherTranscript)
-                    CapabilityRow(title: "Gesamtes Archiv",
+                    CapabilityRow(title: "Alle Folgen abrufbar",
                                   isAvailable: source.capabilities.historicalCatalog)
                 } header: {
                     Text("Was mit dieser Quelle geht")
