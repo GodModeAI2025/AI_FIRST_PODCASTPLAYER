@@ -26,7 +26,7 @@ struct EpisodeDetailView: View {
             case .overview: "info.circle"
             case .chapters: "list.bullet"
             case .transcript: "text.alignleft"
-            case .facts: "checkmark.seal"
+            case .facts: "quote.bubble"
             case .ask: "text.bubble"
             }
         }
@@ -40,6 +40,7 @@ struct EpisodeDetailView: View {
     @State private var exported: String?
     @State private var confirmDelete = false
     @State private var hasLocalAudio = false
+    @State private var topicTags: [TopicTag] = []
 
     private var player: EpisodePlayer { model.episodePlayer }
     private var isCurrent: Bool { player.episode?.id == episode.id }
@@ -185,12 +186,21 @@ struct EpisodeDetailView: View {
 
             if !facts.isEmpty {
                 SwiftUI.Section {
-                    ForEach(facts.prefix(3)) { fact in FactRow(fact: fact, episode: episode) }
+                    if !topicTags.isEmpty {
+                        TopicTagRow(tags: topicTags) { tag in
+                            Task { await model.addInterest(tag.label, kind: .topic) }
+                        }
+                    }
+                    ForEach(digestFacts) { fact in FactRow(fact: fact, episode: episode) }
                     if facts.count > 3 {
                         Button("Alle \(facts.count) Fakten") { section = .facts }
                     }
                 } header: {
-                    Text("Das Wichtigste")
+                    Text("Kurz gesagt")
+                } footer: {
+                    if topicTags.contains(where: { !$0.isInterest }) {
+                        Text("Ein Tipp auf ein Thema mit Plus legt es als Interesse an.")
+                    }
                 }
             }
 
@@ -225,6 +235,27 @@ struct EpisodeDetailView: View {
                 }
             }
         }
+        // Schlagworte aus Fakten, Belegen und Interessen. Neu, sobald sich
+        // eines davon ändert, etwa nach dem Anlegen eines Interesses.
+        .task(id: TopicTagInput(facts: facts.map(\.id), passages: passages.count,
+                                interests: model.profile.confirmed.map(\.id))) {
+            topicTags = TopicTagger().tags(statements: facts.map(\.statement), passages: passages,
+                                           profile: model.profile)
+        }
+    }
+
+    private struct TopicTagInput: Equatable {
+        let facts: [String]
+        let passages: Int
+        let interests: [InterestID]
+    }
+
+    /// Zwei oder drei Aussagen über die ganze Folge verteilt, nicht nur
+    /// die ersten Minuten.
+    private var digestFacts: [EpisodeFact] {
+        guard facts.count > 3 else { return facts }
+        let step = Double(facts.count) / 3
+        return (0..<3).map { facts[Int(Double($0) * step)] }
     }
 
     private var header: some View {
@@ -340,10 +371,18 @@ struct EpisodeDetailView: View {
                     }
                 }
             } else {
+                let wording = model.factWording(facts, passages: passages)
                 SwiftUI.Section {
-                    ForEach(facts) { fact in FactRow(fact: fact, episode: episode) }
+                    ForEach(facts) { fact in
+                        VStack(alignment: .leading, spacing: Design.Spacing.none) {
+                            FactRow(fact: fact, episode: episode)
+                                .buttonStyle(.borderless)
+                            if let text = wording[fact.id] { FactWording(text: text) }
+                        }
+                    }
                 } footer: {
-                    Text("Jede Aussage stammt aus dem Transkript. Antippen spielt die Stelle. "
+                    Text("Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. "
+                         + "Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. "
                          + "Formuliert von: \(facts.first?.modelTier ?? "Apple Intelligence").")
                 }
                 SwiftUI.Section {
@@ -409,7 +448,10 @@ struct FactRow: View {
             model.playEpisode(episode, at: fact.range.start.seconds)
         } label: {
             HStack(alignment: .top, spacing: Design.Spacing.small) {
-                Image(systemName: "checkmark.seal.fill").foregroundStyle(.tint)
+                // Eine Aussage aus der Folge, kein geprüfter Fakt. Ein Siegel
+                // hätte das Gegenteil behauptet.
+                Image(systemName: "quote.bubble").foregroundStyle(.tint)
+                    .accessibilityLabel("Aussage aus der Folge")
                 VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Text(fact.statement).foregroundStyle(.primary).multilineTextAlignment(.leading)
                     HStack(spacing: Design.Spacing.micro) {
@@ -418,11 +460,77 @@ struct FactRow: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(.rect)
         }
         .accessibilityHint("Spielt die Stelle, aus der die Aussage stammt")
         .contextMenu {
             PassageActions(text: fact.statement, start: fact.range.start, episode: episode)
         }
+    }
+}
+
+/// Was in der Folge zu einer Aussage wörtlich gesagt wurde, auf Wunsch.
+struct FactWording: View {
+    let text: String
+    @State private var shown = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+            Button {
+                withAnimation { shown.toggle() }
+            } label: {
+                Label(shown ? "Wortlaut ausblenden" : "Wortlaut zeigen",
+                      systemImage: shown ? "chevron.up" : "text.quote")
+                    .font(.caption)
+                    .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.borderless)
+            if shown {
+                Text("„\(text)“")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, Design.Spacing.small)
+            }
+        }
+        // Eingerückt unter den Text der Aussage, neben dem Symbol.
+        .padding(.leading, 28)
+    }
+}
+
+/// Die Themen einer Folge als Schlagworte. Ein Tipp auf ein neues Thema
+/// legt es als Interesse an; bekannte Interessen tragen ein Häkchen.
+struct TopicTagRow: View {
+    let tags: [TopicTag]
+    let add: (TopicTag) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Design.Spacing.small) {
+                ForEach(tags) { tag in
+                    Button {
+                        if !tag.isInterest { add(tag) }
+                    } label: {
+                        Label(tag.label, systemImage: tag.isInterest ? "checkmark" : "plus")
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, Design.Spacing.control)
+                            .padding(.vertical, Design.Spacing.micro + 2)
+                            .background(Capsule().fill(tag.isInterest
+                                ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.12)))
+                            .frame(minHeight: Design.minimumTapTarget)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(tag.isInterest ? "\(tag.label), schon ein Interesse" : "Thema \(tag.label)")
+                    .accessibilityHint(tag.isInterest ? "" : "Legt das Thema als Interesse an")
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Themen der Folge")
     }
 }
 

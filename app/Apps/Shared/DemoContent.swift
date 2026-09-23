@@ -101,16 +101,22 @@ enum DemoContent {
             }
             try await store.store(evidence: evidence)
 
+            // Der Index zählt Belege, und jeder Beleg fasst zwei Zeilen. „Modelle
+            // auf dem Gerät“ ist Zeile 4 und steht damit in Beleg 2.
             let statements = [
-                (1, "Modelle auf dem Gerät verarbeiten Text lokal, Daten verlassen das Telefon nicht."),
+                (2, "Modelle auf dem Gerät verarbeiten Text lokal, Daten verlassen das Telefon nicht."),
                 (3, "Teams mit klaren Regeln arbeiten laut einer Studie zwanzig Prozent schneller."),
                 (4, "Automatisierung verändert eher einzelne Tätigkeiten als ganze Berufe."),
                 (6, "Die europäische KI-Verordnung verlangt Transparenz und Risikobewertung."),
             ]
+            // Die Zeitmarke zeigt wie bei echten Fakten auf den Satz im Beleg.
             let facts = statements.map { index, text in
-                EpisodeFact(id: "demo-fakt-\(index)", episodeID: episodeID, sourceID: sourceID,
-                            evidenceID: evidence[index].id, mediaVersionID: media, statement: text,
-                            range: evidence[index].range!, modelTier: "Beispieldaten")
+                let passage = evidence[index].range!
+                return EpisodeFact(
+                    id: "demo-fakt-\(index)", episodeID: episodeID, sourceID: sourceID,
+                    evidenceID: evidence[index].id, mediaVersionID: media, statement: text,
+                    range: FactAnchor.range(for: text, within: passage, in: segments) ?? passage,
+                    modelTier: "Beispieldaten")
             }
             try await store.save(facts: facts, forEpisode: episodeID)
 

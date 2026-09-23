@@ -54,7 +54,7 @@ struct KnowledgeHubView: View {
             } header: {
                 Text("Prüfen")
             } footer: {
-                Text("PodcastAI sucht belegte Positionen zu deiner These — dafür und dagegen. "
+                Text("PodcastAI sucht belegte Positionen zu deiner These, dafür und dagegen. "
                      + "Ziel ist dein eigenes Urteil, nicht eine bestimmte Meinung.")
             }
 

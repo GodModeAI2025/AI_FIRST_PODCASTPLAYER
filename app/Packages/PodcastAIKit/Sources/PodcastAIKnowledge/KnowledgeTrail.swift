@@ -57,33 +57,42 @@ public struct SessionClosure: Sendable {
     public let question: String
     /// Die Belege, aus denen die Frage entstanden ist.
     public let supportingEvidenceIDs: [EvidenceID]
-    /// Wie viele weiterführende Quellen es **tatsächlich** gibt.
+    /// Die weiterführenden Stellen, die „Vertiefen“ abspielt.
     ///
-    /// Eine echte Zahl, keine Andeutung: „drei weitere Quellen“ muss
-    /// bedeuten, dass drei erschlossene Quellen vorliegen. Sonst führt
-    /// „Vertiefen“ ins Leere.
-    public let availableFollowUpCount: Int
+    /// Die Kennungen selbst, nicht nur ihre Zahl. Früher plante „Vertiefen“
+    /// aus `supportingEvidenceIDs`, also genau aus dem eben Gehörten, und
+    /// der Planer verwarf das als schon gehört. Die angekündigten Stellen
+    /// kamen nie an die Reihe.
+    public let followUpEvidenceIDs: [EvidenceID]
     /// Vorgeschlagenes Zeitbudget für die Vertiefung.
     public let suggestedBudget: MediaDuration
 
     public init(
         question: String, supportingEvidenceIDs: [EvidenceID],
-        availableFollowUpCount: Int, suggestedBudget: MediaDuration = MediaDuration(minutes: 10)
+        followUpEvidenceIDs: [EvidenceID] = [],
+        suggestedBudget: MediaDuration = MediaDuration(minutes: 10)
     ) {
         self.question = question
         self.supportingEvidenceIDs = supportingEvidenceIDs
-        self.availableFollowUpCount = availableFollowUpCount
+        self.followUpEvidenceIDs = followUpEvidenceIDs
         self.suggestedBudget = suggestedBudget
     }
+
+    /// Wie viele weiterführende Stellen es **tatsächlich** gibt.
+    ///
+    /// Eine echte Zahl, keine Andeutung: „drei weitere Stellen“ heisst,
+    /// dass „Vertiefen“ genau diese drei Stellen plant.
+    public var availableFollowUpCount: Int { followUpEvidenceIDs.count }
 
     /// „Vertiefen“ wird nur angeboten, wenn es etwas zu vertiefen gibt.
     public var canDeepen: Bool { availableFollowUpCount > 0 }
 
     public var followUpLabel: String {
-        switch availableFollowUpCount {
-        case 0: "Dazu ist nichts weiter erschlossen."
-        case 1: "Eine weitere Quelle dazu."
-        default: "\(availableFollowUpCount) weitere Quellen dazu."
+        let minutes = Int((suggestedBudget.seconds / 60).rounded())
+        return switch availableFollowUpCount {
+        case 0: "Dazu ist nichts weiter ausgewertet."
+        case 1: "Eine weitere Stelle dazu, höchstens \(minutes) Minuten."
+        default: "\(availableFollowUpCount) weitere Stellen dazu, höchstens \(minutes) Minuten."
         }
     }
 }

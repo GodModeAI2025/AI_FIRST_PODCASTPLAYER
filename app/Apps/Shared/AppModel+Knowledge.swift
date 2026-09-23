@@ -550,7 +550,7 @@ extension AppModel {
         defer { factsInProgress.remove(episode.id) }
         let ticket = removalTicket ?? removalCount
         if !force, let cached = try? await store.facts(forEpisode: episode.id), !cached.isEmpty {
-            facts[episode.id] = cached
+            facts[episode.id] = await anchoredFacts(cached, episodeID: episode.id)
             return
         }
         let evidence = ((try? await store.evidence(forEpisode: episode.id)) ?? []).filter { $0.range != nil }
@@ -581,6 +581,9 @@ extension AppModel {
         let quota = max(3, Int((Double(Self.factLimit) / Double(max(1, slices.count))).rounded(.up)))
         let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
             candidateBuilder: CandidateListBuilder(excerptLimit: Self.factExcerptLimit, maximumCandidates: chunk)))
+        // Für die Zeitmarken: das Modell wählt nur den Beleg, den Satz darin
+        // findet der Code im Transkript.
+        let timed = await transcript(for: episode)
 
         var result: [EpisodeFact] = []
         let knownRejections = Self.rejectedFactSlices
@@ -625,10 +628,15 @@ extension AppModel {
             for claim in Self.evenlySpaced(claims, count: quota) {
                 guard let evidenceID = claim.evidenceIDs.first, let source = byID[evidenceID],
                       let range = source.range else { continue }
+                let sentence = timed.flatMap { transcript in
+                    transcript.mediaVersionID == source.mediaVersionID
+                        ? FactAnchor.range(for: claim.statement, within: range, in: transcript.segments)
+                        : nil
+                }
                 result.append(EpisodeFact(
                     id: claim.id.rawValue, episodeID: episode.id, sourceID: source.sourceID,
                     evidenceID: evidenceID, mediaVersionID: source.mediaVersionID,
-                    statement: claim.statement, range: range, modelTier: tier.label))
+                    statement: claim.statement, range: sentence ?? range, modelTier: tier.label))
             }
         }
         guard !wasRemoved(episode.id, since: ticket) else { return }
@@ -741,7 +749,31 @@ extension AppModel {
     }
 
     public func loadFacts(for episodeID: EpisodeID) async {
-        if let stored = try? await store.facts(forEpisode: episodeID) { facts[episodeID] = stored }
+        if let stored = try? await store.facts(forEpisode: episodeID) {
+            facts[episodeID] = await anchoredFacts(stored, episodeID: episodeID)
+        }
+    }
+
+    /// Fakten aus älteren Läufen zeigen auf den Anfang ihres Belegs, eine
+    /// Passage von ein, zwei Minuten. Für die Anzeige bekommen sie ihren
+    /// Satz. Gespeichert wird dabei nichts, „Neu ermitteln“ schreibt die
+    /// neuen Zeitmarken.
+    func anchoredFacts(_ list: [EpisodeFact], episodeID: EpisodeID) async -> [EpisodeFact] {
+        guard list.contains(where: { $0.range.duration.milliseconds >= 30_000 }),
+              let transcript = try? await store.transcript(forEpisode: episodeID) else { return list }
+        return FactAnchor.anchored(list, in: transcript)
+    }
+
+    /// Was in der Folge zu jedem Fakt wörtlich gesagt wurde: der passende
+    /// Satz aus seinem Beleg.
+    func factWording(_ list: [EpisodeFact], passages: [Evidence]) -> [String: String] {
+        let byID = Dictionary(passages.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var result: [String: String] = [:]
+        for fact in list {
+            guard let passage = byID[fact.evidenceID] else { continue }
+            result[fact.id] = FactAnchor.wording(for: fact.statement, in: passage.quotedText)
+        }
+        return result
     }
 
     public func transcript(for episode: Episode) async -> Transcript? {
@@ -755,13 +787,18 @@ extension AppModel {
         let source = sources.first { $0.id == episode.sourceID }?.title ?? ""
         let chapters = episode.publisherChapters.isEmpty ? (chapterCache[episode.id] ?? []) : episode.publisherChapters
         var known = facts[episode.id] ?? []
-        if known.isEmpty { known = (try? await store.facts(forEpisode: episode.id)) ?? [] }
+        if known.isEmpty {
+            known = await anchoredFacts((try? await store.facts(forEpisode: episode.id)) ?? [],
+                                        episodeID: episode.id)
+        }
+        let passages = known.isEmpty ? [] : ((try? await store.evidence(forEpisode: episode.id)) ?? [])
         let dossier = EpisodeDossier(
             title: episode.title, sourceTitle: source, publishedAt: episode.publishedAt,
             duration: episode.declaredDuration, webPageURL: episode.webPageURL,
             shownotes: ShownotesText.plain(episode.shownotesHTML ?? episode.summary),
             chapters: chapters, facts: known,
-            transcript: includeTranscript ? await transcript(for: episode) : nil)
+            transcript: includeTranscript ? await transcript(for: episode) : nil,
+            factQuotes: factWording(known, passages: passages))
         return EpisodeDossierExporter().markdown(dossier, includeTranscript: includeTranscript)
     }
 
