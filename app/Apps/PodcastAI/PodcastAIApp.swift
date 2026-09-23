@@ -72,31 +72,27 @@ struct RootView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var selection: Area = .forYou
-
-    /// Nicht `Tab` genannt: das verdeckte `SwiftUI.Tab` im eigenen
-    /// Gültigkeitsbereich, und die Aufrufe darunter hätten versucht, das
-    /// Enum als Funktion zu benutzen.
-    enum Area: Hashable {
-        case forYou, feeds, ask, library, knowledge
-    }
 
     var body: some View {
-        TabView(selection: $selection) {
-            Tab("Für dich", systemImage: "sparkles", value: Area.forYou) {
+        // Die Auswahl liegt am Modell, damit ein leerer Zustand auf den
+        // nächsten Schritt zeigen kann — „Noch keine Quellen“ führt in die
+        // Mediathek, statt nur dorthin zu verweisen.
+        @Bindable var model = model
+        return TabView(selection: $model.area) {
+            Tab("Für dich", systemImage: "sparkles", value: AppArea.forYou) {
                 NavigationStack { ForYouView() }
             }
-            Tab("Meine Feeds", systemImage: "waveform.circle", value: Area.feeds) {
+            Tab("Meine Feeds", systemImage: "waveform.circle", value: AppArea.feeds) {
                 NavigationStack { SmartFeedListView() }
             }
             // Eigener Such-Tab: die Rolle, die er seit WWDC25 hat.
-            Tab("Fragen", systemImage: "magnifyingglass", value: Area.ask, role: .search) {
+            Tab("Fragen", systemImage: "magnifyingglass", value: AppArea.ask, role: .search) {
                 NavigationStack { ChatView() }
             }
-            Tab("Mediathek", systemImage: "books.vertical", value: Area.library) {
+            Tab("Mediathek", systemImage: "books.vertical", value: AppArea.library) {
                 NavigationStack { LibraryView() }
             }
-            Tab("Wissen", systemImage: "brain", value: Area.knowledge) {
+            Tab("Wissen", systemImage: "brain", value: AppArea.knowledge) {
                 NavigationStack { KnowledgeHubView() }
             }
         }

@@ -18,18 +18,59 @@ struct ForYouView: View {
 
     var body: some View {
         List {
-            if model.profile.confirmed.isEmpty {
+            // Die Reihenfolge ist der Punkt.
+            //
+            // Vorher stand hier zuerst „Noch keine Interessen — Themen legst
+            // du unter ‚Interessen' an". Das stimmte und führte trotzdem in
+            // die Irre: Interessen ohne Quellen ergeben nichts. Wer dem
+            // Hinweis folgte, legte Themen an, kam zurück, sah „Nichts
+            // Neues" und hielt die App für kaputt.
+            //
+            // Die tatsächliche Kette ist: Quelle → Folge erschliessen →
+            // Themen → Für dich. Jeder Zustand nennt genau den nächsten
+            // Schritt, und wo der in einem anderen Bereich liegt, führt ein
+            // Knopf dorthin.
+            if model.sources.isEmpty {
                 ContentUnavailableView {
-                    Label("Noch keine Interessen", systemImage: "sparkles")
+                    Label("Zuerst eine Quelle", systemImage: "antenna.radiowaves.left.and.right")
                 } description: {
-                    Text("PodcastAI zeigt dir erst dann relevante Stellen, wenn es weiß, "
-                         + "wonach du suchst. Themen legst du unter „Interessen“ an.")
+                    Text("PodcastAI arbeitet ausschliesslich mit dem, was du selbst "
+                         + "hinzufügst. Ein Podcast-Feed, ein YouTube-Kanal oder eine "
+                         + "einzelne Folge genügt.")
+                } actions: {
+                    Button("Zur Mediathek") { model.area = .library }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else if !model.hasAnalyzedMaterial {
+                ContentUnavailableView {
+                    Label("Noch nichts erschlossen", systemImage: "waveform.badge.magnifyingglass")
+                } description: {
+                    // Das ist der Schritt, den bisher niemand erwähnt hat --
+                    // und der, den die App bewusst nicht von selbst macht.
+                    Text("Abonnieren lädt nichts herunter und wertet nichts aus. "
+                         + "Öffne eine Quelle in der Mediathek und erschliesse eine "
+                         + "Folge — das dauert einige Minuten und du entscheidest, "
+                         + "welche.")
+                } actions: {
+                    Button("Zur Mediathek") { model.area = .library }
+                        .buttonStyle(.borderedProminent)
+                }
+            } else if model.profile.confirmed.isEmpty {
+                ContentUnavailableView {
+                    Label("Noch keine Themen", systemImage: "sparkles")
+                } description: {
+                    Text("PodcastAI zeigt dir erst dann relevante Stellen, wenn es weiss, "
+                         + "wonach du suchst.")
+                } actions: {
+                    Button("Themen anlegen") { model.area = .knowledge }
+                        .buttonStyle(.borderedProminent)
                 }
             } else if model.relevantToday.isEmpty {
                 ContentUnavailableView {
                     Label("Nichts Neues", systemImage: "checkmark.circle")
                 } description: {
-                    Text("Zu deinen Themen gibt es gerade keine ungehörten Stellen.")
+                    Text("Zu deinen Themen gibt es gerade keine ungehörten Stellen. "
+                         + "Erschliesse weitere Folgen oder ergänze ein Thema.")
                 }
             } else {
                 ForEach(model.relevantToday) { item in

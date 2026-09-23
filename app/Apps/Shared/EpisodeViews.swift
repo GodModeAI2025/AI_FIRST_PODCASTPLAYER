@@ -95,11 +95,27 @@ struct EpisodeRow: View {
                 .foregroundStyle(stage == .failed ? .orange : .secondary)
             }
 
-            if let audioURL = episode.audioURL, stage == nil || stage == .failed {
-                Button {
-                    Task { await model.analyze(episode, audioURL: audioURL) }
+            if model.isAnalyzing(episode.id) {
+                // Solange es läuft, ist Abbrechen die einzige sinnvolle
+                // Handlung. Ein zweites „Erschliessen“ danebenzustellen
+                // hiesse, einen Knopf anzubieten, der nichts tut.
+                Button(role: .destructive) {
+                    model.cancelAnalysis(episode.id)
                 } label: {
-                    Label(stage == .failed ? "Erneut versuchen" : "Erschliessen",
+                    Label("Abbrechen", systemImage: "stop.circle")
+                        .frame(minHeight: Design.minimumTapTarget)
+                }
+                .buttonStyle(.pressable)
+                .buttonBorderShape(.capsule)
+                .padding(.top, Design.Spacing.micro)
+                .accessibilityHint("Beendet das Laden und Auswerten. "
+                                   + "Bereits Erschlossenes bleibt erhalten.")
+            } else if let audioURL = episode.audioURL,
+                      stage == nil || stage == .failed || stage == .cancelled {
+                Button {
+                    model.startAnalysis(episode, audioURL: audioURL)
+                } label: {
+                    Label(startLabel(for: stage),
                           systemImage: "waveform.badge.magnifyingglass")
                         .frame(minHeight: Design.minimumTapTarget)
                 }
@@ -122,6 +138,25 @@ struct EpisodeRow: View {
     }
 }
 
+/// Die Beschriftung des Startknopfes hängt davon ab, was vorher war.
+///
+/// Nach einem Abbruch steht dort **nicht** „Weiter erschliessen“. Das wäre
+/// ein Versprechen, das der Code nicht hält: ein abgebrochener Lauf wird
+/// nicht fortgesetzt, er beginnt von vorn — die angefangene Mediendatei ist
+/// gelöscht, und ein Teiltranskript wird nirgends gesichert.
+///
+/// (Die Bausteine für echtes Fortsetzen sind da: `transcribeFile` nimmt ein
+/// `startingAt`, und der `TranscriptAssembler` kann zusammenführen. Was
+/// fehlt, ist das Sichern des Zwischenstands. Bis dahin sagt der Knopf, was
+/// tatsächlich passiert.)
+private func startLabel(for stage: ProcessingStage?) -> String {
+    switch stage {
+    case .failed: "Erneut versuchen"
+    case .cancelled: "Von vorn erschliessen"
+    default: "Erschliessen"
+    }
+}
+
 extension ProcessingStage {
 
     /// Ein eigenes Symbol je Stufe, damit der Fortschritt erkennbar ist,
@@ -133,6 +168,7 @@ extension ProcessingStage {
         case .transcribed: "text.alignleft"
         case .evidenceExtracted: "checkmark.circle.fill"
         case .failed: "exclamationmark.triangle"
+        case .cancelled: "stop.circle"
         }
     }
 
@@ -141,7 +177,7 @@ extension ProcessingStage {
     var isRunning: Bool {
         switch self {
         case .discovered, .mediaDownloaded, .transcribed: true
-        case .evidenceExtracted, .failed: false
+        case .evidenceExtracted, .failed, .cancelled: false
         }
     }
 }

@@ -87,6 +87,7 @@ struct SettingsView: View {
         Form {
             IntelligenceSettingsSection()
             LearningSettingsSection()
+            StorageSettingsSection()
             SpotlightSettingsSection()
         }
         .navigationTitle("Einstellungen")

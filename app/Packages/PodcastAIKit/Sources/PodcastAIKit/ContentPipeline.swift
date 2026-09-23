@@ -40,6 +40,11 @@ public enum ProcessingStage: String, Sendable, Codable, CaseIterable {
     case transcribed
     case evidenceExtracted
     case failed
+    /// Vom Nutzer abgebrochen. Eigene Stufe und ausdrücklich **nicht**
+    /// `failed`: es ist nichts kaputt, es wurde gewollt. Der Unterschied
+    /// steht auch in der Oberfläche — eine Warndreieck-Meldung für eine
+    /// eigene Entscheidung wäre eine Belehrung.
+    case cancelled
 
     public var label: String {
         switch self {
@@ -48,6 +53,7 @@ public enum ProcessingStage: String, Sendable, Codable, CaseIterable {
         case .transcribed: "transkribiert"
         case .evidenceExtracted: "erschlossen"
         case .failed: "fehlgeschlagen"
+        case .cancelled: "abgebrochen"
         }
     }
 }

@@ -59,7 +59,7 @@ KNOWN = {
     "Announcement","AccessibilityNotification","URLSessionDownloadDelegate",
     "AppDependencyManager","NSLock","NSLog","AVAudioSession",
     "AsyncIteratorProtocol","AVAudioTime","JSONEncoder","JSONDecoder",
-    "ViewModifier","Content","Substring","UTF8","NSRegularExpression","NSRange","JSONSerialization","FileHandle","URLResourceValues","Duration",
+    "ViewModifier","Content","Substring","UTF8","NSRegularExpression","NSRange","JSONSerialization","FileHandle","URLResourceValues","Duration","URLResourceKey",
 }
 
 def lift_interpolations(text):

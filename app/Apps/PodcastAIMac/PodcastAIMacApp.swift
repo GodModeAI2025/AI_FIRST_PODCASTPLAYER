@@ -187,6 +187,13 @@ struct MacSettingsView: View {
             .frame(width: 420)
 
             Form {
+                StorageSettingsSection()
+            }
+            .formStyle(.grouped)
+            .tabItem { Label("Speicher", systemImage: "internaldrive") }
+            .frame(width: 480)
+
+            Form {
                 SpotlightSettingsSection()
             }
             .formStyle(.grouped)

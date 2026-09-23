@@ -84,9 +84,38 @@ else:
     notes.append("Alle Symbol-Schaltflaechen beschriftet")
 
 # --- 5. Treffflaechen ------------------------------------------------------
+#
+# Nicht jede Schaltflaeche bemisst die App selbst. Was in einer Wischaktion,
+# einem Bestaetigungsdialog, einem Hinweis oder einer Werkzeugleiste steht,
+# legt das System aus -- dort eine eigene Mindestflaeche zu verlangen waere
+# nicht nur ueberfluessig, sondern falsch.
+#
+# Die Unterscheidung steht hier, weil eine Regel, die grundlos warnt,
+# irgendwann ignoriert wird. Dann faellt der echte Fall mit durch.
+SYSTEM_SIZED = ("swipeActions", "confirmationDialog", "alert", "toolbar",
+                "contextMenu", "ToolbarItem")
+
+
+def system_sized_ranges(body):
+    """Grobe Spannen der Modifier, die ihre Schaltflaechen selbst bemessen."""
+    spans = []
+    for name in SYSTEM_SIZED:
+        for match in re.finditer(re.escape(name), body):
+            # Bis zum Ende des zugehoerigen Blocks, hoechstens 1200 Zeichen --
+            # genug fuer einen Dialog, zu wenig, um eine ganze Ansicht zu
+            # verschlucken.
+            spans.append((match.start(), match.start() + 1200))
+    return spans
+
+
 for path in VIEWS:
     body = strip_comments(path.read_text())
-    buttons = len(re.findall(r"\bButton\s*[({]", body))
+    spans = system_sized_ranges(body)
+    buttons = 0
+    for match in re.finditer(r"\bButton\s*[({]", body):
+        if any(start <= match.start() < end for start, end in spans):
+            continue
+        buttons += 1
     targets = body.count("tappableArea()") + body.count("minHeight: Design.minimumTapTarget")
     if buttons >= 3 and targets == 0:
         findings.append(f"{path.name}: {buttons} Schaltflaechen, aber keine Mindesttrefflaeche gesetzt")

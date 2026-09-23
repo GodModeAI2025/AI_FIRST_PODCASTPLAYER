@@ -35,6 +35,19 @@ public final class AppModel {
     public private(set) var activity: String?
     public private(set) var lastError: String?
 
+    /// Liegt überhaupt erschlossenes Material vor?
+    ///
+    /// Nicht dasselbe wie „es gibt Quellen“: Abonnieren lädt und analysiert
+    /// ausdrücklich nichts. Ohne diese Unterscheidung kann die Oberfläche
+    /// den ersten leeren Zustand nicht vom zweiten trennen und schickt den
+    /// Nutzer an die falsche Stelle.
+    public private(set) var hasAnalyzedMaterial = false
+
+    /// Der sichtbare Bereich. Liegt hier und nicht in der Ansicht, weil ein
+    /// leerer Zustand auf den nächsten Schritt zeigen können muss — und der
+    /// liegt in einem anderen Tab.
+    public var area: AppArea = .forYou
+
     /// Offen, wenn der Nutzer eine Quelle hinzufügen will. Steht hier und
     /// nicht in einer Ansicht, weil auf dem Mac das Menü es öffnet und das
     /// Fenster es zeigt — zwei verschiedene Stellen.
@@ -155,6 +168,7 @@ public final class AppModel {
     public func refreshRelevantToday() async {
         do {
             let evidence = try await store.evidenceForAnalyzedEpisodes()
+            hasAnalyzedMaterial = !evidence.isEmpty
             let matches = RelevanceScorer().score(evidence: evidence, profile: profile)
             guard !matches.isEmpty else {
                 relevantToday = []
@@ -256,10 +270,41 @@ public final class AppModel {
     /// Ausdrücklich eine Nutzeraktion. Abonnieren allein lädt und analysiert
     /// nichts — das kostet Daten, Akku und Zeit, und die Entscheidung
     /// darüber gehört dem Nutzer.
-    public func analyze(_ episode: Episode, audioURL: URL, locale: Locale = .current) async {
+    /// Startet die Analyse und **behält den Vorgang**.
+    ///
+    /// Bisher warf die Oberfläche einen losgelösten `Task` an und vergaß
+    /// ihn. Damit gab es keinen Abbruch: wer die falsche Folge erwischt
+    /// hatte, konnte nur die App beenden — und wusste nicht, was dann mit
+    /// dem halben Ergebnis passiert. Die Pipeline war längst darauf
+    /// vorbereitet (`Task.checkCancellation` im Transkriptionslauf), es
+    /// fehlte nur der Griff daran.
+    public func startAnalysis(_ episode: Episode, audioURL: URL, locale: Locale = .current) {
+        guard analyses[episode.id] == nil else { return }
+        let task = Task { [weak self] in
+            await self?.analyze(episode, audioURL: audioURL, locale: locale)
+        }
+        analyses[episode.id] = task
+    }
+
+    /// Bricht eine laufende Analyse ab.
+    public func cancelAnalysis(_ episodeID: EpisodeID) {
+        analyses[episodeID]?.cancel()
+    }
+
+    public func isAnalyzing(_ episodeID: EpisodeID) -> Bool {
+        analyses[episodeID] != nil
+    }
+
+    /// Die laufenden Analysen. Je Folge höchstens eine.
+    private var analyses: [EpisodeID: Task<Void, Never>] = [:]
+
+    func analyze(_ episode: Episode, audioURL: URL, locale: Locale = .current) async {
         stages[episode.id] = .discovered
         activity = "„\(episode.title)“ wird erschlossen …"
-        defer { activity = nil }
+        defer {
+            analyses[episode.id] = nil
+            activity = nil
+        }
 
         let pipeline = ContentPipeline(
             store: store,
@@ -278,10 +323,23 @@ public final class AppModel {
                 episode: episode, audioURL: audioURL,
                 sourceID: episode.sourceID, locale: locale
             )
+        } catch is CancellationError {
+            // Kein Fehler und keine Meldung: der Nutzer hat es so gewollt.
+            // Die angefangene Datei hat `SafeHTTP.save` bereits entfernt.
+            stages[episode.id] = .cancelled
+            stageDetails[episode.id] = nil
         } catch {
-            stages[episode.id] = .failed
-            stageDetails[episode.id] = error.localizedDescription
-            lastError = error.localizedDescription
+            // Ein Abbruch kann auch als `URLError.cancelled` ankommen, wenn
+            // er die Netzschicht zuerst erwischt. Für den Nutzer ist das
+            // derselbe Vorgang.
+            if Task.isCancelled {
+                stages[episode.id] = .cancelled
+                stageDetails[episode.id] = nil
+            } else {
+                stages[episode.id] = .failed
+                stageDetails[episode.id] = error.localizedDescription
+                lastError = error.localizedDescription
+            }
         }
     }
 
