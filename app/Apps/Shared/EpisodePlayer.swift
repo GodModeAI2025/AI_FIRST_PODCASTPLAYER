@@ -233,6 +233,24 @@ public final class EpisodePlayer {
             let message = item.error?.localizedDescription
             Task { @MainActor in self?.itemStatusChanged(status, message: message, item: item) }
         }
+        // Wächter: Bleibt das Element hängen, etwa weil die Audioausgabe des
+        // Systems nicht reagiert, wechselt die Folge auf den Stream. Hilft auch
+        // das nicht, steht eine Meldung da statt einer stummen Pause-Taste.
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard let self, self.player.currentItem === item, item.status == .unknown,
+                  self.resumeWhenReady else { return }
+            if isLocal, let stream = self.episode?.audioURL {
+                self.pendingStart = self.pendingStart ?? self.currentTime
+                self.load(stream, isLocal: false)
+            } else {
+                self.resumeWhenReady = false
+                self.isBuffering = false
+                self.playbackError = "Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, "
+                    + "dann tippe erneut auf Abspielen."
+                self.updateNowPlaying()
+            }
+        }
         Task { [weak self] in
             guard let loaded = try? await item.asset.load(.duration),
                   loaded.seconds.isFinite, loaded.seconds > 0 else { return }
