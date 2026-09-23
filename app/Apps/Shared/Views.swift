@@ -113,7 +113,7 @@ struct ForYouView: View {
                 }
             }
         }
-        .sheet(isPresented: $addingSource) { AddSourceSheet() }
+        .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
         .listStyle(.plain)
         .navigationTitle("Für dich")
         .activityStatusToolbar()
@@ -560,8 +560,8 @@ struct SmartFeedListView: View {
                 Label("Neu", systemImage: "plus")
             }
         }
-        .sheet(isPresented: $showingNewFeed) { NewSmartFeedSheet() }
-        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed) }
+        .sheet(isPresented: $showingNewFeed) { NewSmartFeedSheet().sheetFeedback() }
+        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback() }
         .smartFeedDeletionDialog(for: $pendingDeletion)
     }
 }
@@ -810,8 +810,8 @@ struct SmartFeedDetailView: View {
                 }
             }
         }
-        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed) }
-        .sheet(isPresented: $addingSource) { AddSourceSheet() }
+        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback() }
+        .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
         .smartFeedDeletionDialog(for: $pendingDeletion) { dismiss() }
         .task(id: topicsWithoutHits) {
             var ideas: [InterestID: [String]] = [:]
@@ -1136,7 +1136,7 @@ struct LibraryView: View {
             SettingsToolbarLink()
             #endif
         }
-        .sheet(isPresented: $showingAdd) { AddSourceSheet() }
+        .sheet(isPresented: $showingAdd) { AddSourceSheet().sheetFeedback() }
         .opmlImport(isPresented: $importingOPML)
         .overlay {
             if model.sources.isEmpty {
@@ -2327,6 +2327,7 @@ struct FocusPlayerView: View {
                     }
                 }
             }
+            .sheetFeedback()
         }
     }
 

@@ -157,6 +157,7 @@ private struct OPMLImportModifier: ViewModifier {
                 subscribedCount = 0
             }) { request in
                 OPMLImportSheet(request: request, subscribedCount: $subscribedCount)
+                    .sheetFeedback()
                     .environment(model)
             }
             .alert("Datei lässt sich nicht einlesen", isPresented: Binding(

@@ -503,7 +503,7 @@ struct AnswerCard: View {
             get: { exported.map(ExportPreview.init) },
             set: { exported = $0?.text }
         )) { preview in
-            ExportPreviewSheet(text: preview.text)
+            ExportPreviewSheet(text: preview.text).sheetFeedback()
         }
     }
 

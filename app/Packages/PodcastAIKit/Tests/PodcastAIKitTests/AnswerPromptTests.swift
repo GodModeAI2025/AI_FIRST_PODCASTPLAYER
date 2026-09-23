@@ -86,6 +86,22 @@ struct StatementCleanupTests {
         #expect(KnowledgeExtractor.cleanedAnswerText("[Musik] im Jahr (2023) [00:12].", validNumbers: []) ==
             "[Musik] im Jahr (2023) [00:12].")
     }
+
+    @Test("Abkürzungen in Klammern bleiben, nur Blocknamen aus dem Prompt fallen weg")
+    func acronymsStay() {
+        #expect(KnowledgeExtractor.cleanedAnswerText(
+            "Die Datenschutz-Grundverordnung (DSGVO) gilt seit 2018 [2].", validNumbers: [2]) ==
+            "Die Datenschutz-Grundverordnung (DSGVO) gilt seit 2018 [2].")
+        #expect(KnowledgeExtractor.cleanedAnswerText("Die NATO (NATO) und die NASA [NASA].", validNumbers: []) ==
+            "Die NATO (NATO) und die NASA [NASA].")
+        #expect(KnowledgeExtractor.cleanedAnswerText("Laut OECD (OECD, 2023) steigt es.", validNumbers: []) ==
+            "Laut OECD (OECD, 2023) steigt es.")
+        #expect(KnowledgeExtractor.cleanedAnswerText(
+            "Zwei Folgen [KANDIDATEN] passen (PROFIL). Mehr [ENDE BIBLIOTHEK] nicht [Library].",
+            validNumbers: []) == "Zwei Folgen passen. Mehr nicht.")
+        #expect(KnowledgeExtractor.cleanedAnswerText("Two episodes [CANDIDATES, 3] fit (PROFILE).",
+                                                     validNumbers: [3]) == "Two episodes [3] fit.")
+    }
 }
 
 @Suite("Prompt für Fragen")

@@ -109,7 +109,7 @@ struct EpisodeDetailView: View {
         }
         .task { await model.loadChapters(for: episode) }
         .sheet(item: Binding(get: { exported.map(ExportPreview.init) }, set: { exported = $0?.text })) {
-            ExportPreviewSheet(text: $0.text, fileName: episode.title)
+            ExportPreviewSheet(text: $0.text, fileName: episode.title).sheetFeedback()
         }
         // „Gemerkt bei 4:00“ und „Kopiert“ aus Transkript, Fakten und Notizen.
         .confirmationBanner()
@@ -1495,6 +1495,8 @@ struct EpisodePlayerView: View {
                     .presentationDetents([.medium, .large])
                     .interactiveDismissDisabled()
                     .onDisappear { draft.save(with: appModel) }
+                    .sheetFeedback()
+                    .environment(appModel)
             }
         }
     }
@@ -1657,6 +1659,7 @@ struct EpisodePlayerView: View {
                         }
                     }
                 }
+                .sheetFeedback()
             }
         } else {
             HStack(spacing: Design.Spacing.control) {
@@ -1874,7 +1877,10 @@ struct EpisodeMiniBar: View {
             // die Knöpfe zeigen dann beim Gedrückthalten die große Ansicht.
             .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             .sheet(isPresented: $showingPlayer) {
+                // „Nächste Folge“ und Abspielen fragen oder melden sich hier,
+                // über dem Player.
                 EpisodePlayerView()
+                    .sheetFeedback()
                     .environment(model)
                     #if os(macOS)
                     .frame(minWidth: 420, minHeight: 560)

@@ -488,9 +488,10 @@ enum AnalysisPhase: Equatable {
     /// Ohne Audiodatei gibt es nichts auszuwerten. Der Text sagt warum.
     case unavailable(String)
     /// Wartet in der Warteschlange. `ahead`: so viele Folgen laufen vorher.
-    /// `detail`: ein eigener Grund, etwa der zweite Versuch. `heldBy`: die
-    /// App hat die Folge von selbst eingereiht, und das Netz hält sie an.
-    /// Dann zählt keine Position, und von Hand lässt sie sich trotzdem starten.
+    /// `detail`: ein eigener Grund, etwa der zweite Versuch. `heldBy`: das
+    /// Netz hält die Folge an, weil die App sie von selbst eingereiht hat
+    /// oder weil sie ohne Zustimmung über Mobilfunk laden müsste. Dann zählt
+    /// keine Position, und von Hand lässt sie sich trotzdem starten.
     case waiting(ahead: Int, detail: String?, heldBy: AppModel.NetworkLimit?)
     /// Läuft. Die Stufe ist die zuletzt erreichte.
     case running(ProcessingStage)
@@ -511,12 +512,12 @@ extension AppModel {
             return .running(stage.flatMap { $0.isRunning ? $0 : nil } ?? .discovered)
         }
         if let index = analysisQueue.firstIndex(where: { $0.id == episode.id }) {
-            // Von selbst Eingereihtes, das aufs Netz wartet, läuft nicht vorher.
-            // Der Worker überspringt es, also zählt es auch hier nicht mit.
+            // Was aufs Netz wartet, von selbst eingereiht oder im Mobilfunk
+            // ohne Zustimmung, läuft nicht vorher. Der Worker überspringt es,
+            // also zählt es auch hier nicht mit.
             let ahead = analysisQueue.prefix(index).filter(mayRunNow).count + (analyzing == nil ? 0 : 1)
             let detail = stageDetails[episode.id].flatMap { $0 == Self.waitingDetail ? nil : $0 }
-            return .waiting(ahead: ahead, detail: detail,
-                            heldBy: mayRunNow(episode) ? nil : preparationWait)
+            return .waiting(ahead: ahead, detail: detail, heldBy: queueWait(for: episode))
         }
         if let stage, stage.isRunning { return .running(stage) }
         if let reason = analysisUnavailableReason(for: episode) { return .unavailable(reason) }
@@ -888,6 +889,7 @@ struct KnowledgeView: View {
                 model.updateNote(highlight.id, text: editText)
             }
             .presentationDetents([.medium])
+            .sheetFeedback()
         }
         .toolbar {
             if !model.highlights.isEmpty {
@@ -903,6 +905,7 @@ struct KnowledgeView: View {
             set: { exported = $0?.text }
         )) { preview in
             ExportPreviewSheet(text: preview.text, fileName: String(localized: "Gemerkte Stellen"))
+                .sheetFeedback()
         }
     }
 
