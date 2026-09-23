@@ -19,7 +19,7 @@ final class MainFlowUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-skip-onboarding"]
         app.launch()
-        for tab in ["Meine Feeds", "Mediathek", "Wissen", "Für dich"] {
+        for tab in ["Themen", "Mediathek", "Wissen", "Für dich"] {
             app.tabBars.buttons[tab].tap()
             XCTAssertTrue(app.state == .runningForeground, "Absturz beim Öffnen von \(tab)")
         }

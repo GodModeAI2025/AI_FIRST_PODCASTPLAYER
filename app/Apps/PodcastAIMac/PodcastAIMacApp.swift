@@ -89,7 +89,7 @@ struct MacRootView: View {
         var label: String {
             switch self {
             case .forYou: "Für dich"
-            case .feeds: "Meine Feeds"
+            case .feeds: "Themen"
             case .chat: "Suchen und fragen"
             case .library: "Mediathek"
             case .queue: "Warteschlange"

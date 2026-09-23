@@ -17,6 +17,7 @@ struct OnboardingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var adding: String?
+    @State private var searching = false
 
     /// Zwei öffentliche Feeds zum Ausprobieren, einer auf Deutsch, einer auf Englisch.
     private let samples: [(title: String, detail: String, feed: String)] = [
@@ -34,22 +35,31 @@ struct OnboardingView: View {
                             .foregroundStyle(.tint)
                         Text("Podcasts hören und verstehen")
                             .font(.largeTitle.weight(.bold))
-                        Text("PodcastAI spielt deine Podcasts wie ein normaler Player. Nebenbei schreibt es jede "
-                             + "Folge auf dem Gerät mit Zeitmarken mit. Dadurch kannst du Fragen stellen, Fakten "
-                             + "nachlesen und dir eigene Themen-Folgen aus den Originalstellen bauen lassen.")
+                        Text("PodcastAI spielt deine Podcasts wie ein normaler Player. Nebenbei schreibt es die "
+                             + "neuesten Folgen auf dem Gerät mit Zeitmarken mit. Dadurch kannst du Fragen stellen, "
+                             + "Fakten nachlesen und dir eigene Themen-Folgen aus den Originalstellen bauen lassen.")
                             .foregroundStyle(.secondary)
                     }
 
-                    step(1, "Podcast hinzufügen", "Feed-Adresse, einzelne Folge oder YouTube-Kanal einfügen. "
-                         + "Oder unten ein Beispiel wählen.", symbol: "plus.circle")
-                    step(2, "Hören", "Die neuesten Folgen werden von selbst vorbereitet. Kapitel, Shownotes und "
-                         + "Transkript stehen in jeder Folge.", symbol: "play.circle")
+                    step(1, "Podcast finden", "Den Namen deiner Sendung eintippen und abonnieren. Links aus "
+                         + "Apple Podcasts oder von YouTube gehen auch.", symbol: "magnifyingglass")
+                    Button {
+                        searching = true
+                    } label: {
+                        Label("Podcast suchen", systemImage: "magnifyingglass")
+                            .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .accessibilityIdentifier("onboarding.search")
+                    step(2, "Hören", "Die neuesten Folgen bereitet die App von selbst vor, im WLAN. Kapitel, "
+                         + "Shownotes und Transkript stehen dann in der Folge.", symbol: "play.circle")
                     step(3, "Fragen und sammeln", "Im Reiter „Fragen“ oder in einer Folge fragen. Jede Antwort "
                          + "zeigt die Stelle im Original. Alles lässt sich als Markdown exportieren.",
                          symbol: "text.bubble")
 
                     VStack(alignment: .leading, spacing: Design.Spacing.small) {
-                        Text("Zum Ausprobieren").font(.headline)
+                        Text("Oder zum Ausprobieren").font(.headline)
                         ForEach(samples, id: \.feed) { sample in
                             Button {
                                 adding = sample.feed
@@ -83,6 +93,11 @@ struct OnboardingView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Los geht's") { finish() }
                 }
+            }
+            .sheet(isPresented: $searching, onDismiss: {
+                if !model.sources.isEmpty { finish() }
+            }) {
+                AddSourceSheet()
             }
         }
         // Auch Wegwischen zählt als gesehen. Sonst käme die Einführung bei
@@ -126,8 +141,9 @@ struct HelpView: View {
     var body: some View {
         List {
             Section {
-                tip("Abonnieren", "Mediathek › Plus. Feed-Adresse, Webseite mit Feed, einzelne MP3 oder YouTube-Kanal. "
-                    + "Zu YouTube-Kanälen sucht die App den passenden Audio-Podcast.", "plus.circle")
+                tip("Abonnieren", "Mediathek › Plus. Namen eintippen und im Apple-Podcast-Verzeichnis abonnieren. "
+                    + "Links gehen auch: Apple Podcasts, Feed, einzelne MP3 oder YouTube-Kanal. Zu YouTube-Kanälen "
+                    + "sucht die App den passenden Audio-Podcast.", "plus.circle")
                 tip("Hören", "Folge öffnen und abspielen. Die App merkt sich die Stelle, auch über iPhone, iPad "
                     + "und Mac hinweg. Im Player: Tempo, Kapitel, Schlaf-Timer, AirPlay.", "play.circle")
                 tip("Warteschlange", "„Als Nächstes“ reiht eine Folge ein. Die Warteschlange liegt in der Mediathek.",

@@ -221,6 +221,14 @@ struct PrivacyOverviewView: View {
          + "Apple-ID › iCloud › Speicher verwalten › PodcastAI."),
     ]
 
+    static let appleLinks: [(title: String, url: URL)] = [
+        ("Apple Intelligence und Datenschutz", URL(string: "https://www.apple.com/de/legal/privacy/data/de/intelligence-engine/")!),
+        ("Private Cloud Compute", URL(string: "https://security.apple.com/blog/private-cloud-compute/")!),
+        ("Datensicherheit in iCloud", URL(string: "https://support.apple.com/de-de/102651")!),
+        ("Apple Podcasts und Datenschutz", URL(string: "https://www.apple.com/de/legal/privacy/data/de/apple-podcasts/")!),
+        ("Datenschutzrichtlinie von Apple", URL(string: "https://www.apple.com/de/legal/privacy/de-ww/")!),
+    ]
+
     var body: some View {
         List {
             ForEach(items, id: \.title) { item in
@@ -233,6 +241,16 @@ struct PrivacyOverviewView: View {
             Section {
                 Link("Vollständige Datenschutzerklärung", destination: LegalSettingsSection.privacyPolicy)
                 Link("Impressum", destination: LegalSettingsSection.imprint)
+            }
+            Section {
+                ForEach(Self.appleLinks, id: \.title) { link in
+                    Link(link.title, destination: link.url)
+                }
+            } header: {
+                Text("Erklärungen von Apple")
+            } footer: {
+                Text("Spracherkennung, Apple Intelligence, Private Cloud Compute, iCloud und das Podcast-Verzeichnis "
+                     + "sind Dienste von Apple. Für sie gelten Apples eigene Datenschutzangaben.")
             }
         }
         .navigationTitle("Datenschutz")

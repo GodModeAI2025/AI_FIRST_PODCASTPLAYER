@@ -269,7 +269,7 @@ struct RelevantItemRow: View {
     }
 }
 
-// MARK: - Meine Feeds
+// MARK: - Themen
 
 struct SmartFeedListView: View {
 
@@ -294,7 +294,7 @@ struct SmartFeedListView: View {
                 }
             }
         }
-        .navigationTitle("Meine Feeds")
+        .navigationTitle("Themen")
         .activityStatusToolbar()
         .navigationDestination(for: SmartFeedID.self) { feedID in
             if let latest = model.editions[feedID]?.first {

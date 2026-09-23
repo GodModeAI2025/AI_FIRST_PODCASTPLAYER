@@ -46,7 +46,7 @@ final class AtlasUITests: XCTestCase {
         sleep(3)
         snap(app, "01-fuer-dich")
 
-        app.tabBars.buttons["Meine Feeds"].tap()
+        app.tabBars.buttons["Themen"].tap()
         snap(app, "02-meine-feeds")
         tapIfExists(app.navigationBars.buttons["Neu"].firstMatch)
         snap(app, "03-themen-update-anlegen")

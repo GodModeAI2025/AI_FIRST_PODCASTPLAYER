@@ -68,7 +68,7 @@ final class BetaFeedbackUITests: XCTestCase {
 
     func testTopicCanBeCreatedInsideTopicUpdate() {
         let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
-        app.tabBars.buttons["Meine Feeds"].tap()
+        app.tabBars.buttons["Themen"].tap()
         app.navigationBars.buttons["Neu"].firstMatch.tap()
         let name = app.textFields["z. B. Mein KI Update"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))

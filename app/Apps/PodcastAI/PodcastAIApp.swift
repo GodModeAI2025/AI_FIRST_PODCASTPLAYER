@@ -86,7 +86,7 @@ struct RootView: View {
                 NavigationStack { ForYouView() }
                     .activityBanner { showingQueue = true }
             }
-            Tab("Meine Feeds", systemImage: "waveform.circle", value: Area.feeds) {
+            Tab("Themen", systemImage: "waveform.circle", value: Area.feeds) {
                 NavigationStack { SmartFeedListView() }
                     .activityBanner { showingQueue = true }
             }
