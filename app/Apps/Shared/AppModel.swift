@@ -79,9 +79,11 @@ public final class AppModel {
         didSet {
             UserDefaults.standard.set(episodesPerSource, forKey: Self.episodesPerSourceKey)
             if episodesPerSource < oldValue {
-                // Weniger gewählt: was nicht mehr zu den jüngsten zählt, fällt heraus.
+                // Weniger gewählt: was nicht mehr zu den jüngsten zählt, fällt
+                // heraus. Podcasts mit „Ältere Folgen auch vorbereiten“ behalten
+                // ihre ganze Liste.
                 let keep = Set(episodes.values.flatMap { newestCandidates(in: $0).map(\.id) })
-                dropAutomaticallyQueued { !keep.contains($0.id) }
+                dropAutomaticallyQueued { !keep.contains($0.id) && !backCatalog.contains($0.sourceID) }
             }
             Task { await prepareNewEpisodes() }
         }
@@ -90,7 +92,8 @@ public final class AppModel {
     static let automaticAnalysisKey = "automaticAnalysis"
     static let episodesPerSourceKey = "episodesPerSource"
     static let wifiOnlyKey = "preparationOnWiFiOnly"
-    /// Von selbst nur im WLAN laden. Was man selbst anfordert, regelt
+    /// Von selbst nur im WLAN laden: Transkripte neuer und älterer Folgen und
+    /// die neueste Folge je Podcast. Was man selbst anfordert, regelt
     /// `allowsCellularLoading`.
     public var preparationOnWiFiOnly: Bool {
         didSet {
@@ -98,6 +101,17 @@ public final class AppModel {
             networkChanged(networkLimit)
         }
     }
+
+    // MARK: Ältere Folgen (Knopf in der Folgenliste, EpisodeViews.swift)
+
+    static let backCatalogKey = "backCatalogSources"
+    /// Podcasts, deren ältere Folgen die App auch vorbereitet, neueste zuerst.
+    /// Je Gerät in den Benutzereinstellungen, nicht in der Datenbank.
+    var backCatalog = StoredIDs<SourceSubject>(key: AppModel.backCatalogKey)
+    /// Ältere Folgen, die das Vorbereiten von selbst eingereiht hat. Neue
+    /// Folgen reihen sich vor ihnen ein, damit sie nicht hinter einem ganzen
+    /// Archiv warten.
+    @ObservationIgnored private var backlogQueued: Set<EpisodeID> = []
 
     // MARK: Mobilfunk (Rückfrage in `MobileDataQuestion`, SettingsView.swift)
 
@@ -277,8 +291,30 @@ public final class AppModel {
             if removeHeardAudio { Task { await tidyLocalAudio() } }
         }
     }
+    /// Die neueste Folge je Podcast bleibt auf dem Gerät, auch nach dem
+    /// Transkript, damit sie ohne Netz spielt. Alle anderen spielen nach dem
+    /// Transkript aus dem Netz. Die Regel steht in `AudioRetention`.
+    public var keepNewestAudio: Bool {
+        didSet {
+            UserDefaults.standard.set(keepNewestAudio, forKey: Self.keepNewestKey)
+            if keepNewestAudio { prefetchNewestEpisodes() } else { Task { await tidyLocalAudio() } }
+        }
+    }
     static let removeAfterAnalysisKey = "removeAudioAfterAnalysis"
     static let removeHeardKey = "removeHeardAudioAfterDay"
+    static let keepNewestKey = "keepNewestAudio"
+    static let prefetchedNewestKey = "prefetchedNewestEpisodes"
+    static let prefetchDeclinedKey = "prefetchDeclinedEpisodes"
+    /// Nur geladen, weil es die neueste Folge ihres Podcasts war. Ist sie es
+    /// nicht mehr, nimmt das Aufräumen die Datei wieder weg.
+    @ObservationIgnored var prefetchedNewest = StoredEpisodeIDs(key: AppModel.prefetchedNewestKey)
+    /// Neueste Folgen, deren Laden jemand abgebrochen oder deren Ton er
+    /// entfernt hat. Die App holt sie nicht von selbst wieder.
+    @ObservationIgnored var prefetchDeclined = StoredEpisodeIDs(key: AppModel.prefetchDeclinedKey)
+    /// Lädt gerade die neuesten Folgen, eine nach der anderen.
+    @ObservationIgnored var prefetchTask: Task<Void, Never>?
+    /// In dieser Sitzung nicht noch einmal versuchen: das Laden ist gescheitert.
+    @ObservationIgnored var prefetchFailed: Set<EpisodeID> = []
     /// Folgen, deren Audio gerade für unterwegs geladen wird.
     public internal(set) var downloading: Set<EpisodeID> = []
     /// Wie weit ein Download für unterwegs ist, für „23 von 70 MB“.
@@ -433,6 +469,8 @@ public final class AppModel {
         // Beide an: der Text bleibt, der Ton kommt bei Bedarf aus dem Netz.
         self.removeAudioAfterAnalysis = Self.storedFlag(Self.removeAfterAnalysisKey, default: true)
         self.removeHeardAudio = Self.storedFlag(Self.removeHeardKey, default: true)
+        // An: die neueste Folge spielt unterwegs ohne Netz, der Rest streamt.
+        self.keepNewestAudio = Self.storedFlag(Self.keepNewestKey, default: true)
         // Der Schalter „Interessen vorschlagen“ gilt über den Neustart hinaus.
         // Jedes Neuladen des Profils reicht den Wert von hier weiter.
         self.profile = InterestProfile(learningEnabled: UserDefaults.standard.bool(forKey: Self.learningEnabledKey))
@@ -928,24 +966,85 @@ public final class AppModel {
     /// Die App transkribiert die jüngsten Folgen jeder Quelle mit Zeitmarken,
     /// damit „Für dich“, die Suche und die Themen-Updates etwas zu arbeiten
     /// haben, sobald man sie öffnet. Ältere Folgen bleiben liegen, bis
-    /// jemand sie anfordert.
+    /// jemand sie anfordert oder für den Podcast „Ältere Folgen auch
+    /// vorbereiten“ wählt. Danach sieht die App nach, ob die neueste Folge
+    /// jedes Podcasts für unterwegs auf dem Gerät liegt.
     public func prepareNewEpisodes(in sourceID: SourceID? = nil) async {
+        // Auch ohne automatische Transkripte: die neueste Folge vorhalten.
+        defer { prefetchNewestEpisodes() }
         guard automaticAnalysis, preparationUnavailable == nil else { return }
         let ids = sourceID.map { [$0] } ?? sources.map(\.id)
+        // Erst die neuesten Folgen aller Podcasts, dann die älteren. So wartet
+        // eine neue Folge nicht hinter dem Archiv eines anderen Podcasts.
         for id in ids {
             // Erst die jüngsten N, dann filtern. Umgekehrt rückte nach jeder
             // fertigen Folge die nächstältere nach, bis durchs ganze Archiv.
-            let candidates = newestCandidates(in: episodes[id] ?? [])
-                .filter { !analyzedEpisodes.contains($0.id) }
-                .filter { stages[$0.id] == nil }
-                .filter { !dismissedFromPreparation.contains($0.id) }
+            let candidates = newestCandidates(in: episodes[id] ?? []).filter(isOpenForPreparation)
             for episode in candidates { enqueueAnalysis(episode, automatic: true) }
+        }
+        for id in ids where backCatalog.contains(id) {
+            for episode in backCatalogCandidates(in: id) {
+                enqueueAnalysis(episode, automatic: true, backlog: true)
+            }
         }
     }
 
     /// Die jüngsten Folgen einer Quelle, die das Vorbereiten von selbst nimmt.
     private func newestCandidates(in list: [Episode]) -> ArraySlice<Episode> {
         list.filter { $0.audioURL != nil && $0.canBeAnalyzed }.prefix(episodesPerSource)
+    }
+
+    /// Noch ohne Transkript, nicht in Arbeit oder gescheitert und nicht aus
+    /// der Warteschlange genommen. Was schon wartet, zählt mit.
+    private func isOpenForPreparation(_ episode: Episode) -> Bool {
+        !analyzedEpisodes.contains(episode.id) && stages[episode.id] == nil
+            && !dismissedFromPreparation.contains(episode.id)
+    }
+
+    // MARK: Ältere Folgen eines Podcasts
+
+    /// Bereitet die App für diesen Podcast auch die älteren Folgen vor?
+    public func preparesBackCatalog(_ sourceID: SourceID) -> Bool { backCatalog.contains(sourceID) }
+
+    /// Was „Ältere Folgen auch vorbereiten“ in diesem Podcast vor sich hat,
+    /// neueste zuerst: jede Folge mit Ton, die noch kein Transkript hat.
+    /// Eingereihte zählen mit, laufende, gescheiterte und aus der
+    /// Warteschlange genommene nicht.
+    public func backCatalogCandidates(in sourceID: SourceID) -> [Episode] {
+        (episodes[sourceID] ?? []).filter { $0.audioURL != nil && $0.canBeAnalyzed && isOpenForPreparation($0) }
+    }
+
+    /// Gibt es in diesem Podcast Folgen ohne Transkript, die das Vorbereiten
+    /// der neuesten Folgen nicht ohnehin nimmt? Nur dann lohnt der Knopf.
+    public func hasOlderEpisodesToPrepare(in sourceID: SourceID) -> Bool {
+        let covered = automaticAnalysis
+            ? Set(newestCandidates(in: episodes[sourceID] ?? []).map(\.id)) : []
+        return backCatalogCandidates(in: sourceID).contains { !covered.contains($0.id) }
+    }
+
+    /// Wie viele Folgen dieses Podcasts noch auf ihr Transkript warten,
+    /// die laufende eingeschlossen.
+    public func openTranscriptCount(in sourceID: SourceID) -> Int {
+        analysisQueue.count { $0.sourceID == sourceID } + (analyzing?.sourceID == sourceID ? 1 : 0)
+    }
+
+    /// Schaltet „Ältere Folgen auch vorbereiten“ für einen Podcast ein oder
+    /// aus. Die Folgen laufen als automatische Arbeit: sie achten die Regel
+    /// „Nur im WLAN“, verlieren nach dem Transkript ihren Ton und stehen in
+    /// der Warteschlange. Abgespielt wird dabei nichts.
+    public func setPreparesBackCatalog(_ enabled: Bool, for sourceID: SourceID) {
+        if enabled {
+            backCatalog.insert(sourceID)
+            Task { await prepareNewEpisodes(in: sourceID) }
+        } else {
+            backCatalog.remove(sourceID)
+            // Fertige Transkripte bleiben. Aus der Warteschlange gehen nur die
+            // älteren Folgen, die die App von selbst eingereiht hat. Was
+            // gerade läuft, läuft zu Ende.
+            let newest = automaticAnalysis
+                ? Set(newestCandidates(in: episodes[sourceID] ?? []).map(\.id)) : []
+            dropAutomaticallyQueued { $0.sourceID == sourceID && !newest.contains($0.id) }
+        }
     }
 
     /// Nimmt von selbst Eingereihtes wieder aus der Warteschlange.
@@ -955,6 +1054,7 @@ public final class AppModel {
         analysisQueue.removeAll { dropped.contains($0.id) }
         for id in dropped {
             automaticallyQueued.remove(id)
+            backlogQueued.remove(id)
             stageDetails[id] = nil
         }
     }
@@ -964,21 +1064,24 @@ public final class AppModel {
     func networkChanged(_ limit: NetworkLimit?) {
         networkLimit = limit
         queueConditionsChanged()
+        // Darf die App wieder von selbst laden, holt sie die neuesten Folgen.
+        prefetchNewestEpisodes()
     }
 
-    /// Netz, Einstellung oder Zustimmung haben sich geändert: jede wartende
-    /// Folge sagt, worauf sie wartet, und was laufen darf, läuft.
+    /// Netz, Einstellung, Zustimmung oder eine Datei auf dem Gerät haben sich
+    /// geändert: jede wartende Folge sagt, worauf sie wartet, und was laufen
+    /// darf, läuft. Die Angabe kommt aus `queueWait(for:)`, derselben Regel,
+    /// nach der der Worker wählt.
     func queueConditionsChanged() {
-        let automaticDetail = preparationWait?.queueDetail ?? Self.waitingDetail
         let networkDetails = Set(NetworkLimit.allCases.map(\.queueDetail))
         for episode in analysisQueue {
-            if automaticallyQueued.contains(episode.id) {
-                stageDetails[episode.id] = automaticDetail
-            } else if let wait = queueWait(for: episode) {
+            if let wait = queueWait(for: episode) {
                 stageDetails[episode.id] = wait.queueDetail
-            } else if let detail = stageDetails[episode.id], networkDetails.contains(detail) {
-                // Wartete aufs WLAN und darf jetzt. Ein anderer Grund, etwa
-                // der zweite Versuch, bleibt stehen.
+            } else if let detail = stageDetails[episode.id], !networkDetails.contains(detail) {
+                // Ein anderer Grund, etwa der zweite Versuch, bleibt stehen.
+                continue
+            } else {
+                // Wartete aufs Netz und darf jetzt.
                 stageDetails[episode.id] = Self.waitingDetail
             }
         }
@@ -987,12 +1090,25 @@ public final class AppModel {
 
     /// Worauf eine Folge in der Warteschlange wartet, oder `nil`, wenn sie
     /// jetzt laufen darf. Automatisch Eingereihtes wartet, solange das Netz
-    /// es nicht erlaubt. Von Hand Angefordertes wartet nur, wenn es über
-    /// Mobilfunk laden müsste und der in den Einstellungen aus ist.
+    /// das Vorbereiten nicht erlaubt. Von Hand Angefordertes wartet nur, wenn
+    /// es über Mobilfunk laden müsste und der in den Einstellungen aus ist.
+    ///
+    /// Liegt der Ton schon auf dem Gerät, wartet nichts: das Transkript
+    /// entsteht auf dem Gerät, zu laden gibt es nichts. Das gilt auch im
+    /// Hotspot, im Datensparmodus und ohne Netz. Die Datei wird erst geprüft,
+    /// wenn das Netz die Folge sonst anhielte, damit lange Warteschlangen im
+    /// WLAN keine Dateizugriffe kosten.
     func queueWait(for episode: Episode) -> NetworkLimit? {
-        if automaticallyQueued.contains(episode.id) { return preparationWait }
-        return waitsForMobileData(episode) ? networkLimit ?? .cellular : nil
+        let wait = automaticallyQueued.contains(episode.id)
+            ? preparationWait
+            : (mobileDataNeedsConsent ? networkLimit ?? .cellular : nil)
+        guard let wait, !hasAudioForTranscript(episode) else { return nil }
+        return wait
     }
+
+    /// Hat die App diese Folge von selbst eingereiht? Dann hält sie auch die
+    /// Regel „Nur im WLAN“ an, nicht nur die Zustimmung zu Mobilfunk.
+    func isQueuedAutomatically(_ id: EpisodeID) -> Bool { automaticallyQueued.contains(id) }
 
     /// Darf diese Folge jetzt laufen?
     func mayRunNow(_ episode: Episode) -> Bool { queueWait(for: episode) == nil }
@@ -1001,7 +1117,7 @@ public final class AppModel {
     /// ginge das nur über Mobilfunk. Die Datei wird zuletzt geprüft, also
     /// nur im Mobilfunk bei ausgeschalteter Einstellung.
     private func waitsForMobileData(_ episode: Episode) -> Bool {
-        mobileDataNeedsConsent && !automaticallyQueued.contains(episode.id) && localAudioFile(for: episode) == nil
+        mobileDataNeedsConsent && !automaticallyQueued.contains(episode.id) && !hasAudioForTranscript(episode)
     }
 
     /// Transkripte, die jemand angefordert hat und die auf Mobilfunk-Zustimmung warten.
@@ -1020,20 +1136,23 @@ public final class AppModel {
         enqueueAnalysis(episode)
     }
 
-    /// Stellt eine Folge in die Warteschlange der Erschließung.
-    public func enqueueAnalysis(_ episode: Episode, automatic: Bool = false) {
+    /// Stellt eine Folge in die Warteschlange der Erschließung. `backlog`:
+    /// eine ältere Folge aus „Ältere Folgen auch vorbereiten“. Sie kommt ans
+    /// Ende, neue Folgen reihen sich vor ihr ein.
+    public func enqueueAnalysis(_ episode: Episode, automatic: Bool = false, backlog: Bool = false) {
         let queued = analysisQueue.firstIndex { $0.id == episode.id }
         if automatic {
             // Schon eingereiht oder in Arbeit: so bleibt es. Sonst würde aus
             // einer Folge, die jemand angefordert hat, eine, die aufs WLAN wartet.
             guard preparationUnavailable == nil, queued == nil, analyzing?.id != episode.id else { return }
             automaticallyQueued.insert(episode.id)
+            if backlog { backlogQueued.insert(episode.id) } else { backlogQueued.remove(episode.id) }
         } else {
             // Von Hand angefordert und Mobilfunk aus: erst fragen, falls
             // der Ton dafür aus dem Netz käme. Ein Ja gilt auch für die
             // Transkripte, die schon im Mobilfunk warten, also zählen sie mit.
             if episode.audioURL != nil, analyzing?.id != episode.id, mobileDataNeedsConsent,
-               localAudioFile(for: episode) == nil {
+               !hasAudioForTranscript(episode) {
                 // Wartet sie schon von Hand eingereiht, rückt sie gleich nach
                 // vorn. Nach einem Ja läuft sie dann als Nächste.
                 if let queued, !automaticallyQueued.contains(episode.id) {
@@ -1044,6 +1163,7 @@ public final class AppModel {
                 return
             }
             automaticallyQueued.remove(episode.id)
+            backlogQueued.remove(episode.id)
             dismissedFromPreparation.remove(episode.id)
             // Von Hand angefordert heißt: auch auf einem Gerät ohne
             // Spracherkennung darf man es erneut versuchen.
@@ -1060,9 +1180,15 @@ public final class AppModel {
         guard episode.audioURL != nil,
               analyzing?.id != episode.id,
               !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
-        analysisQueue.append(episode)
+        if automatic, !backlog, let first = analysisQueue.firstIndex(where: { backlogQueued.contains($0.id) }) {
+            analysisQueue.insert(episode, at: first)
+        } else {
+            analysisQueue.append(episode)
+        }
         stages[episode.id] = nil
-        stageDetails[episode.id] = automatic ? preparationWait?.queueDetail ?? Self.waitingDetail : Self.waitingDetail
+        // Dieselbe Regel wie für den Worker: liegt der Ton schon da, wartet
+        // die Folge nicht aufs WLAN.
+        stageDetails[episode.id] = queueWait(for: episode)?.queueDetail ?? Self.waitingDetail
         startAnalysisWorker()
     }
 
@@ -1086,6 +1212,7 @@ public final class AppModel {
     func dropFromAnalysisQueue(_ episodeID: EpisodeID) {
         dismissedFromPreparation.remove(episodeID)
         automaticallyQueued.remove(episodeID)
+        backlogQueued.remove(episodeID)
         analysisQueue.removeAll { $0.id == episodeID }
         stageDetails[episodeID] = nil
     }
@@ -1230,6 +1357,10 @@ public final class AppModel {
             if automaticallyQueued.remove(episode.id) == nil {
                 AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(episode.title)")).post()
             }
+            backlogQueued.remove(episode.id)
+            // Die Datei gehört jetzt zum Transkript. Ab hier gelten für sie die
+            // Regeln nach dem Transkript, nicht mehr die fürs Vorhalten.
+            prefetchedNewest.remove(episode.id)
             await removeAudioAfterAnalysisIfWanted(episode)
             await refreshRelevantToday()
             return false
@@ -1256,6 +1387,7 @@ public final class AppModel {
                 }
                 analysisQueue.removeAll { automaticallyQueued.contains($0.id) }
                 automaticallyQueued.removeAll()
+                backlogQueued.removeAll()
             }
             // Nur selbst angeforderte Arbeit meldet sich mit einem Dialog.
             if !wasAutomatic { lastError = String(localized: "„\(episode.title)“: \(message)") }

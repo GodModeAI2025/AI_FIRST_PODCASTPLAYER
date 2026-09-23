@@ -321,6 +321,22 @@
         }
       }
     },
+    "%lld von ^[%lld Folge](inflect: true) mit Transkript, automatisch alle": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld von ^[%2$lld Folge](inflect: true) mit Transkript, automatisch alle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of ^[%2$lld episode](inflect: true) transcribed, all automatically"
+          }
+        }
+      }
+    },
     "%lld von ^[%lld Folge](inflect: true) mit Transkript, automatisch die %lld neuesten": {
       "localizations": {
         "de": {
@@ -1053,6 +1069,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "^[%1$lld episode](inflect: true) selected, at least %2$@ of audio in total"
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true) noch ohne Transkript, zusammen etwa %@ zum Laden.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%1$lld Folge](inflect: true) noch ohne Transkript, zusammen etwa %2$@ zum Laden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%1$lld episode](inflect: true) still without a transcript, about %2$@ to download."
+          }
+        }
+      }
+    },
+    "^[%lld Folge](inflect: true) noch ohne Transkript.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld Folge](inflect: true) noch ohne Transkript."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld episode](inflect: true) still without a transcript."
           }
         }
       }

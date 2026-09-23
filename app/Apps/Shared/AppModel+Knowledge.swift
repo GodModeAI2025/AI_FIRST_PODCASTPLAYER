@@ -1654,7 +1654,12 @@ extension AppModel {
         // Schlaf-Timer bleiben.
         if episodePlayer.episode?.id == episode.id { episodePlayer.switchToStream() }
         keptOffline.remove(episode.id)
+        // Wer den Ton der neuesten Folge selbst entfernt, will ihn nicht beim
+        // nächsten Aktualisieren wieder auf dem Gerät haben.
+        prefetchDeclined.insert(episode.id)
         await deleteLocalAudio(of: episode)
+        // Wartet ihr Transkript, braucht es jetzt wieder das Netz.
+        queueConditionsChanged()
     }
 
     /// Löscht alle geladenen Audiodateien. Alle Daten bleiben.
@@ -1664,8 +1669,14 @@ extension AppModel {
         episodePlayer.switchToStream()
         let removed = LocalMediaLocator.removeAllFiles()
         keptOffline.removeAll()
+        prefetchedNewest.removeAll()
+        // Alles weg heißt auch: die neuesten Folgen nicht gleich wieder laden.
+        for list in episodes.values {
+            if let newest = AudioRetention.newest(in: list) { prefetchDeclined.insert(newest.id) }
+        }
         try? await store.markAudioRemoved(removed)
         mediaStorageChanged += 1
+        queueConditionsChanged()
     }
 
     // MARK: - Audio auf dem Gerät
@@ -1675,6 +1686,15 @@ extension AppModel {
         let locator = LocalMediaLocator()
         let ids = [episode.streamMediaVersionID].compactMap { $0 } + Self.localMediaIDs(of: [episode])
         return ids.lazy.compactMap { locator.localFile(for: $0) }.first
+    }
+
+    /// Liegt genau die Datei auf dem Gerät, die das Transkript liest? Die
+    /// Erschließung nimmt die Fassung zur Audioadresse aus dem Feed. Eine
+    /// Datei unter einer früheren Adresse lädt sie neu, deshalb zählt die
+    /// hier nicht. Danach richten sich Warteschlange und Rückfrage.
+    func hasAudioForTranscript(_ episode: Episode) -> Bool {
+        guard let audioURL = episode.audioURL else { return false }
+        return LocalMediaLocator().localFile(for: MediaVersionID(stable: audioURL.absoluteString)) != nil
     }
 
     /// Liegt das Audio auf dem Gerät? Liest den Speicherzähler und die Stufe
@@ -1689,7 +1709,15 @@ extension AppModel {
     /// wird dabei nichts. Von Hand angefordert, deshalb auch im Mobilfunk,
     /// außer er ist in den Einstellungen aus. Dann fragt die App vorher.
     public func downloadForOffline(_ episode: Episode) async {
-        guard let audioURL = episode.audioURL, !downloading.contains(episode.id) else { return }
+        guard let audioURL = episode.audioURL else { return }
+        prefetchDeclined.remove(episode.id)
+        // Lädt die Folge schon, etwa als neueste ihres Podcasts: dann bleibt
+        // sie ab jetzt liegen, ein zweiter Download wäre nur Wartezeit.
+        if downloading.contains(episode.id) {
+            keptOffline.insert(episode.id)
+            mediaStorageChanged += 1
+            return
+        }
         // Liegt das Audio schon da, etwa für ein Transkript geladen, bleibt
         // es ab jetzt liegen. Ein zweiter Download wäre nur Wartezeit, und
         // über Mobilfunk käme nichts. Deshalb auch keine Rückfrage dazu.
@@ -1700,6 +1728,45 @@ extension AppModel {
         }
         if askBeforeMobileData(.download(episode)) { return }
         keptOffline.insert(episode.id)
+        let ticket = removalCount
+        switch await loadAudio(of: episode, from: audioURL) {
+        case .loaded:
+            // Während des Ladens gelöscht: die Datei gehört zu keiner Folge mehr.
+            if wasRemoved(episode.id, since: ticket) {
+                LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
+                keptOffline.remove(episode.id)
+            }
+            mediaStorageChanged += 1
+            // Ein Transkript, das aufs Netz wartete, kann jetzt laufen.
+            queueConditionsChanged()
+        case .cancelled:
+            // Abgebrochen: keine Meldung, und nichts bleibt „für unterwegs“ vorgemerkt.
+            keptOffline.remove(episode.id)
+            mediaStorageChanged += 1
+        case .failed(let error):
+            // Hat das Auswerten dieselbe Datei gleichzeitig fertig geladen, ist sie da.
+            if localAudioFile(for: episode) != nil {
+                mediaStorageChanged += 1
+                queueConditionsChanged()
+                return
+            }
+            keptOffline.remove(episode.id)
+            let reason = Self.downloadFailure(error)
+            lastError = String(localized: "„\(episode.title)“ wurde nicht geladen: \(reason)")
+        }
+    }
+
+    /// Wie ein Download für das Gerät ausging.
+    enum AudioLoadOutcome {
+        case loaded
+        case cancelled
+        case failed(any Error)
+    }
+
+    /// Lädt die Audiodatei einer Folge mit Fortschritt für „23 von 70 MB“.
+    /// Als eigene Aufgabe, damit „Laden abbrechen“ genau diesen Download
+    /// beendet. Eine halbe Datei bleibt nicht liegen.
+    private func loadAudio(of episode: Episode, from audioURL: URL) async -> AudioLoadOutcome {
         let id = episode.id
         downloading.insert(id)
         downloadProgress[id] = DownloadProgress(received: 0, expected: nil)
@@ -1708,11 +1775,9 @@ extension AppModel {
             downloadProgress[id] = nil
             downloadTasks[id] = nil
         }
-        let ticket = removalCount
         let report: @Sendable (Int64, Int64?) -> Void = { [weak self] received, expected in
             Task { @MainActor in self?.noteDownloadProgress(id, received: received, expected: expected) }
         }
-        // Als eigene Aufgabe, damit „Laden abbrechen“ genau diesen Download beendet.
         let run = Task {
             // Derselbe Name wie beim Auswerten: die Wiedergabe findet die Datei.
             try await MediaDownloader(directory: LocalMediaLocator.mediaDirectory)
@@ -1722,36 +1787,104 @@ extension AppModel {
         downloadTasks[id] = run
         do {
             _ = try await run.value
-            // Während des Ladens gelöscht: die Datei gehört zu keiner Folge mehr.
-            if wasRemoved(episode.id, since: ticket) {
-                LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
-                keptOffline.remove(episode.id)
-            }
-            mediaStorageChanged += 1
+            return .loaded
         } catch {
-            // Abgebrochen: keine Meldung, und nichts bleibt „für unterwegs“ vorgemerkt.
             if run.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
-                keptOffline.remove(episode.id)
-                mediaStorageChanged += 1
-                return
+                return .cancelled
             }
-            // Hat das Auswerten dieselbe Datei gleichzeitig fertig geladen, ist sie da.
-            if localAudioFile(for: episode) != nil {
-                mediaStorageChanged += 1
-                return
-            }
-            keptOffline.remove(episode.id)
-            let reason = Self.downloadFailure(error)
-            lastError = String(localized: "„\(episode.title)“ wurde nicht geladen: \(reason)")
+            return .failed(error)
         }
     }
 
+    // MARK: - Neueste Folge vorhalten
+
+    /// Lädt die neueste Folge jedes Podcasts aufs Gerät, damit sie ohne Netz
+    /// spielt. Eine nach der anderen und ohne Transkript; das entsteht wie
+    /// bisher über die Warteschlange. Nur mit „Neueste Folge je Podcast
+    /// behalten“ und nur, wenn das Netz das Vorbereiten erlaubt. Abgespielt
+    /// wird dabei nichts.
+    func prefetchNewestEpisodes() {
+        guard prefetchTask == nil, nextEpisodeToPrefetch() != nil else { return }
+        prefetchTask = Task { [weak self] in
+            while let self, let episode = self.nextEpisodeToPrefetch() {
+                await self.prefetch(episode)
+            }
+            self?.prefetchTask = nil
+        }
+    }
+
+    /// Kommt diese Folge als neueste ihres Podcasts von selbst aufs Gerät?
+    /// Für die Zeile „Audio nicht auf dem Gerät“ in der Folge.
+    public func awaitsPrefetch(_ episode: Episode) -> Bool {
+        _ = mediaStorageChanged
+        _ = downloading
+        guard keepNewestAudio, episode.audioURL != nil,
+              AudioRetention.newest(in: episodes[episode.sourceID] ?? [])?.id == episode.id,
+              !prefetchDeclined.contains(episode.id), !prefetchFailed.contains(episode.id),
+              !isHeard(episode) else { return false }
+        return localAudioFile(for: episode) == nil
+    }
+
+    /// Die nächste neueste Folge, die auf das Gerät gehört und noch fehlt.
+    /// Was in der Warteschlange steht, lädt dort ohnehin für sein Transkript.
+    private func nextEpisodeToPrefetch() -> Episode? {
+        guard keepNewestAudio, preparationWait == nil else { return nil }
+        var busy = Set(analysisQueue.map(\.id)).union(downloading)
+        if let analyzing { busy.insert(analyzing.id) }
+        for source in sources {
+            guard let episode = AudioRetention.newest(in: episodes[source.id] ?? []),
+                  !busy.contains(episode.id), !prefetchFailed.contains(episode.id),
+                  !prefetchDeclined.contains(episode.id), !isHeard(episode),
+                  localAudioFile(for: episode) == nil else { continue }
+            return episode
+        }
+        return nil
+    }
+
+    private func prefetch(_ episode: Episode) async {
+        guard let audioURL = episode.audioURL else { return }
+        // Vor dem Laden vermerkt: das Aufräumen weiß so, warum die Datei da ist.
+        prefetchedNewest.insert(episode.id)
+        let ticket = removalCount
+        let outcome = await loadAudio(of: episode, from: audioURL)
+        let loaded = localAudioFile(for: episode) != nil
+        switch outcome {
+        case .loaded:
+            if wasRemoved(episode.id, since: ticket) {
+                LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
+                prefetchedNewest.remove(episode.id)
+                keptOffline.remove(episode.id)
+            }
+        case .cancelled:
+            // „Laden abbrechen“: die App holt diese Folge nicht von selbst wieder.
+            prefetchDeclined.insert(episode.id)
+            if !loaded {
+                prefetchedNewest.remove(episode.id)
+                keptOffline.remove(episode.id)
+            }
+        case .failed(let error):
+            prefetchFailed.insert(episode.id)
+            if !loaded {
+                prefetchedNewest.remove(episode.id)
+                // Hat jemand währenddessen „Laden (offline)“ gewählt, erfährt
+                // er, warum nichts kam. Sonst bleibt es still.
+                if keptOffline.contains(episode.id) {
+                    keptOffline.remove(episode.id)
+                    lastError = String(localized: "„\(episode.title)“ wurde nicht geladen: \(Self.downloadFailure(error))")
+                }
+            }
+        }
+        mediaStorageChanged += 1
+        queueConditionsChanged()
+    }
+
     /// Nach dem Auswerten bleibt nur der Text, wenn so eingestellt. Was für
-    /// unterwegs geladen ist, bleibt liegen. Liegt die Folge gerade im Player,
-    /// räumt `tidyLocalAudio()` sie später auf.
+    /// unterwegs geladen ist und die neueste Folge bleiben liegen. Liegt die
+    /// Folge gerade im Player, räumt `tidyLocalAudio()` sie später auf.
     func removeAudioAfterAnalysisIfWanted(_ episode: Episode) async {
-        guard removeAudioAfterAnalysis, !keptOffline.contains(episode.id),
-              episodePlayer.episode?.id != episode.id else { return }
+        guard episodePlayer.episode?.id != episode.id,
+              audioVerdict(for: episode, newest: newestEpisodeIDs) == .remove,
+              !sharesAudioWithKeptEpisode(episode) else { return }
         await deleteLocalAudio(of: episode)
     }
 
@@ -1759,31 +1892,84 @@ extension AppModel {
     static let heardAudioRetention: TimeInterval = 24 * 60 * 60
 
     /// Entfernt Audiodateien, die nach den Einstellungen nicht mehr auf das
-    /// Gerät gehören: ausgewertete Folgen und Folgen, die seit einem Tag
-    /// gehört sind. Was im Player liegt, gerade lädt oder ausgewertet wird,
-    /// bleibt.
+    /// Gerät gehören: nach dem Transkript, einen Tag nach dem Hören und die
+    /// vorgehaltene Folge, sobald eine neuere erscheint. Was im Player liegt,
+    /// gerade lädt oder ausgewertet wird, bleibt. Die Regel steht in
+    /// `AudioRetention`.
     ///
     /// Was jemand mit „Laden (offline)“ geholt hat, bleibt immer, auch wenn
     /// er die Folge schon vor Tagen gehört hat. Wer eine gehörte Folge für
     /// den Flug noch einmal lädt, will sie dort hören. Solche Dateien
     /// entfernt nur „Audio entfernen“.
     public func tidyLocalAudio() async {
-        guard removeAudioAfterAnalysis || removeHeardAudio else { return }
         let files = Set((try? FileManager.default.contentsOfDirectory(
             atPath: LocalMediaLocator.mediaDirectory.path)) ?? [])
         guard !files.isEmpty else { return }
         var busy = Set(analysisQueue.map(\.id)).union(downloading)
         if let analyzing { busy.insert(analyzing.id) }
         if let playing = episodePlayer.episode { busy.insert(playing.id) }
-        for episode in episodes.values.joined()
-        where !busy.contains(episode.id) && !keptOffline.contains(episode.id) {
-            guard Self.localMediaIDs(of: [episode]).contains(where: { files.contains($0.rawValue) })
-            else { continue }
-            let analyzed = removeAudioAfterAnalysis && analyzedEpisodes.contains(episode.id)
-            let heard = removeHeardAudio && wasHeardLongAgo(episode)
-            guard analyzed || heard else { continue }
+        let newest = newestEpisodeIDs
+        // Erst urteilen, dann löschen. Teilen sich zwei Folgen eine Datei,
+        // entscheidet die, die sie behalten soll.
+        var removable: [Episode] = []
+        var kept: Set<MediaVersionID> = []
+        for episode in episodes.values.joined() {
+            let ids = Self.localMediaIDs(of: [episode])
+            guard ids.contains(where: { files.contains($0.rawValue) }) else { continue }
+            if !busy.contains(episode.id), audioVerdict(for: episode, newest: newest) == .remove {
+                removable.append(episode)
+            } else {
+                kept.formUnion(ids)
+            }
+        }
+        for episode in removable where !Self.localMediaIDs(of: [episode]).contains(where: kept.contains) {
             await deleteLocalAudio(of: episode)
         }
+    }
+
+    /// Was mit der Audiodatei einer Folge geschieht, nach den Einstellungen.
+    /// Für die Zeile unter „Audio liegt auf diesem Gerät“ und das Menü.
+    public func audioVerdict(for episode: Episode) -> AudioRetention.Verdict {
+        // Nach Laden, Entfernen oder einem neuen Transkript neu lesen.
+        _ = mediaStorageChanged
+        _ = stages[episode.id]
+        let newest = AudioRetention.newest(in: episodes[episode.sourceID] ?? []).map { [$0.id] } ?? []
+        return audioVerdict(for: episode, newest: Set(newest))
+    }
+
+    private func audioVerdict(for episode: Episode, newest: Set<EpisodeID>) -> AudioRetention.Verdict {
+        AudioRetention.verdict(
+            for: AudioRetention.Facts(
+                keptByUser: keptOffline.contains(episode.id),
+                isNewest: newest.contains(episode.id),
+                hasTranscript: analyzedEpisodes.contains(episode.id),
+                heardLongAgo: wasHeardLongAgo(episode),
+                prefetched: prefetchedNewest.contains(episode.id)),
+            rules: AudioRetention.Rules(
+                removeAfterTranscript: removeAudioAfterAnalysis, removeHeard: removeHeardAudio,
+                keepNewest: keepNewestAudio))
+    }
+
+    /// Die neueste Folge jedes Podcasts.
+    private var newestEpisodeIDs: Set<EpisodeID> {
+        Set(episodes.values.compactMap { AudioRetention.newest(in: $0)?.id })
+    }
+
+    /// Liegt dieselbe Datei auch unter einer Folge, die ihren Ton behalten
+    /// soll? Selten, etwa bei zwei Einträgen mit derselben Audioadresse.
+    private func sharesAudioWithKeptEpisode(_ episode: Episode) -> Bool {
+        let ids = Set(Self.localMediaIDs(of: [episode]))
+        let newest = newestEpisodeIDs
+        return episodes.values.joined().contains { other in
+            other.id != episode.id && Self.localMediaIDs(of: [other]).contains(where: ids.contains)
+                && (episodePlayer.episode?.id == other.id || audioVerdict(for: other, newest: newest) != .remove)
+        }
+    }
+
+    /// Zu Ende gehört: fast ganz, oder hier bis zum Schluss abgespielt.
+    func isHeard(_ episode: Episode) -> Bool {
+        // Hier zu Ende gehört steht die gemerkte Stelle auf 0.
+        heardFraction(for: episode) >= 0.9 || episodePlayer.savedPosition(for: episode.id) == 0
     }
 
     /// Zu Ende gehört, und das letzte Hören liegt länger als einen Tag zurück.
@@ -1791,8 +1977,7 @@ extension AppModel {
         guard let id = episode.streamMediaVersionID,
               let last = ledger.state(for: id).lastEventAt,
               Date().timeIntervalSince(last) >= Self.heardAudioRetention else { return false }
-        // Hier zu Ende gehört steht die gemerkte Stelle auf 0.
-        return heardFraction(for: episode) >= 0.9 || episodePlayer.savedPosition(for: episode.id) == 0
+        return isHeard(episode)
     }
 
     /// Löscht die Audiodatei einer Folge und vermerkt das. Der Player bleibt
@@ -1802,6 +1987,7 @@ extension AppModel {
         if let stored = try? await store.mediaVersionIDs(forEpisode: episode.id) { ids.formUnion(stored) }
         let list = Array(ids)
         LocalMediaLocator.removeFiles(for: list)
+        prefetchedNewest.remove(episode.id)
         try? await store.markAudioRemoved(list)
         mediaStorageChanged += 1
     }
@@ -1830,6 +2016,8 @@ extension AppModel {
         // Auch ohne geladene Folgen zählt die Abbestellung als neuer Stand.
         if affected.isEmpty { removalCount += 1 }
         removedSourceTickets[sourceID] = removalCount
+        // Ein neues Abo desselben Podcasts beginnt wieder mit den neuesten Folgen.
+        backCatalog.remove(sourceID)
         do {
             let report = try await store.removeSource(sourceID)
             applyRemoval(report)
@@ -1861,6 +2049,8 @@ extension AppModel {
             // Die Datei geht mit der Folge. Bliebe der Vermerk, hielte das
             // Aufräumen sie nach einem neuen Abo für ausdrücklich geladen.
             keptOffline.remove(id)
+            prefetchedNewest.remove(id)
+            prefetchDeclined.remove(id)
         }
     }
 
@@ -1966,28 +2156,32 @@ extension AppModel {
 
 /// Eine gemerkte Liste von Folgen in den Benutzereinstellungen, etwa was
 /// jemand aus der Warteschlange genommen oder für unterwegs geladen hat.
-/// Nur auf diesem Gerät. Die ältesten Einträge fallen ab einer Grenze weg.
-struct StoredEpisodeIDs {
+typealias StoredEpisodeIDs = StoredIDs<EpisodeSubject>
+
+/// Eine gemerkte Liste von Kennungen in den Benutzereinstellungen, etwa
+/// Folgen oder Podcasts. Nur auf diesem Gerät. Die ältesten Einträge fallen
+/// ab einer Grenze weg.
+struct StoredIDs<Subject> {
     let key: String
     let limit: Int
-    private var ids: [EpisodeID]
+    private var ids: [TypedID<Subject>]
 
     init(key: String, limit: Int = 500) {
         self.key = key
         self.limit = limit
-        ids = (UserDefaults.standard.stringArray(forKey: key) ?? []).map(EpisodeID.init(rawValue:))
+        ids = (UserDefaults.standard.stringArray(forKey: key) ?? []).map(TypedID<Subject>.init(rawValue:))
     }
 
-    func contains(_ id: EpisodeID) -> Bool { ids.contains(id) }
+    func contains(_ id: TypedID<Subject>) -> Bool { ids.contains(id) }
 
-    mutating func insert(_ id: EpisodeID) {
+    mutating func insert(_ id: TypedID<Subject>) {
         ids.removeAll { $0 == id }
         ids.append(id)
         if ids.count > limit { ids.removeFirst(ids.count - limit) }
         save()
     }
 
-    mutating func remove(_ id: EpisodeID) {
+    mutating func remove(_ id: TypedID<Subject>) {
         guard ids.contains(id) else { return }
         ids.removeAll { $0 == id }
         save()

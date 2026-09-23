@@ -23,9 +23,9 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 | Gemerkte Stellen | „Moment merken“ im Player mit eigenem Kommentar, dazu Merken im Transkript, bei Fakten und im Chat; Notizen bleiben, auch wenn die Folge gelöscht wird |
 | Export | Folge mit Shownotes, Kapiteln, Fakten und Transkript; Chat-Antworten mit Belegen; gemerkte Stellen |
 | Abgleich | über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac |
-| Speicher | „Laden (offline)“ holt nur den Ton; „Audio entfernen“ löscht nur den Ton, alle Daten bleiben; „Folge löschen“ löscht die Folge mit allen Daten; nach dem Transkript und einen Tag nach dem Hören räumt die App den Ton von selbst weg |
+| Speicher | die neueste Folge je Podcast bleibt für unterwegs auf dem Gerät, die anderen spielen nach dem Transkript aus dem Netz; „Laden (offline)“ holt nur den Ton und lässt ihn liegen, bis du „Audio entfernen“ wählst; „Audio entfernen“ löscht nur den Ton, alle Daten bleiben; „Folge löschen“ löscht die Folge mit allen Daten; einen Tag nach dem Hören räumt die App den Ton von selbst weg |
 
-Für die neuesten Folgen jedes Podcasts erstellt die App das Transkript von selbst, im WLAN und für die gewählte Zahl Folgen. Das lässt sich in den Einstellungen abschalten.
+Für die neuesten Folgen jedes Podcasts erstellt die App das Transkript von selbst, im WLAN und für die gewählte Zahl Folgen. Das lässt sich in den Einstellungen abschalten, ebenso die Regel mit dem WLAN. Mit „Ältere Folgen auch vorbereiten“ in der Folgenliste eines Podcasts kommt dessen ganzes Archiv dazu. Liegt der Ton schon auf dem Gerät, entsteht das Transkript auch ohne Netz.
 
 ## Apple Intelligence
 

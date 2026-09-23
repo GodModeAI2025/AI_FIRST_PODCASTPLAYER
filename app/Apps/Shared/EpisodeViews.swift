@@ -32,6 +32,8 @@ struct EpisodeListView: View {
     @State private var searchIndex: [EpisodeID: String] = [:]
     /// Treffer der Suche, `nil`, solange nichts gesucht wird.
     @State private var matches: Set<EpisodeID>?
+    /// Die Rückfrage vor „Ältere Folgen auch vorbereiten“.
+    @State private var confirmBackCatalog = false
 
     private var source: Source? { model.sources.first { $0.id == sourceID } }
     private var episodes: [Episode] { model.episodes[sourceID] ?? [] }
@@ -153,15 +155,20 @@ struct EpisodeListView: View {
                 // Gefunden und ausgewertet sind getrennte Zahlen. Sie zu
                 // vermischen würde behaupten, alles sei durchsuchbar.
                 if !episodes.isEmpty {
-                    VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
-                        Text(coverage(analyzed: analyzed.count))
-                        if matches != nil || options.onlyUnanalyzed {
-                            Text(shown.count == 1 ? "1 Folge angezeigt" : "\(shown.count) Folgen angezeigt")
+                    VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                        VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                            Text(coverage(analyzed: analyzed.count))
+                            if matches != nil || options.onlyUnanalyzed {
+                                Text(shown.count == 1 ? "1 Folge angezeigt" : "\(shown.count) Folgen angezeigt")
+                            }
                         }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("episodes.coverage")
+                        // In der Kopfzeile, nicht als eigene Zeile: gleich bei
+                        // der Zahl, um die es geht.
+                        backCatalogControls
                     }
                     .textCase(nil)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier("episodes.coverage")
                 }
             }
         }
@@ -187,6 +194,14 @@ struct EpisodeListView: View {
             }
         } message: { _ in
             Text("Transkript, Fakten, Belege und der Hörstand dieser Folge werden gelöscht. Deine Notizen bleiben unter Wissen erhalten.")
+        }
+        .confirmationDialog("Ältere Folgen auch vorbereiten?", isPresented: $confirmBackCatalog,
+                            titleVisibility: .visible) {
+            Button("Vorbereiten") { model.setPreparesBackCatalog(true, for: sourceID) }
+                .accessibilityIdentifier("episodes.confirmOlder")
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text(backCatalogQuestion)
         }
         .task { await model.loadEpisodes(for: sourceID) }
         // Was mit dieser Quelle geht und wie weit ihr Archiv zurückreicht.
@@ -271,10 +286,89 @@ struct EpisodeListView: View {
     private func coverage(analyzed: Int) -> String {
         let automatic: EpisodeArchive.Automatic = !model.automaticAnalysis ? .off
             : model.preparationUnavailable != nil ? .paused
+            : model.preparesBackCatalog(sourceID) ? .all
             : .newest(model.episodesPerSource)
         return EpisodeArchive.coverage(
             total: episodes.count, analyzed: analyzed,
             analyzable: episodes.contains { $0.audioURL != nil }, automatic: automatic)
+    }
+
+    // MARK: Ältere Folgen vorbereiten
+
+    /// Nur für Podcast-Feeds mit Ton. Einzelne Folgen und YouTube-Kanäle
+    /// haben kein Archiv, das sich so nachholen ließe.
+    private var offersBackCatalog: Bool {
+        guard source?.kind == .podcastRSS else { return false }
+        return model.preparesBackCatalog(sourceID) || model.hasOlderEpisodesToPrepare(in: sourceID)
+    }
+
+    /// Der Knopf „Ältere Folgen auch vorbereiten“ und, wenn er an ist, was
+    /// noch offen ist, samt dem Weg zurück.
+    @ViewBuilder private var backCatalogControls: some View {
+        if offersBackCatalog {
+            if model.preparesBackCatalog(sourceID) {
+                Label(backCatalogStatus, systemImage: "clock.arrow.circlepath")
+                    .accessibilityIdentifier("episodes.olderStatus")
+                Button("Ältere Folgen nicht mehr vorbereiten") {
+                    model.setPreparesBackCatalog(false, for: sourceID)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityHint("Nimmt die älteren Folgen aus der Warteschlange. Fertige Transkripte bleiben.")
+                .accessibilityIdentifier("episodes.stopOlder")
+            } else {
+                Button { confirmBackCatalog = true } label: {
+                    Label("Ältere Folgen auch vorbereiten", systemImage: "clock.arrow.circlepath")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityHint("Erstellt Transkripte für alle Folgen dieses Podcasts, neueste zuerst")
+                .accessibilityIdentifier("episodes.prepareOlder")
+            }
+        }
+    }
+
+    /// „Bereitet auch ältere Folgen vor, noch 12 offen“, oder warum gerade nichts läuft.
+    private var backCatalogStatus: String {
+        guard model.automaticAnalysis else {
+            return String(localized: """
+                Ältere Folgen: startet, sobald „Transkripte für neue Folgen erstellen“ in den Einstellungen an ist.
+                """)
+        }
+        if model.preparationUnavailable != nil {
+            return String(localized: "Bereitet auch ältere Folgen vor, gerade angehalten.")
+        }
+        let open = model.openTranscriptCount(in: sourceID)
+        let status = open > 0
+            ? String(AttributedString(localized: "Bereitet auch ältere Folgen vor, noch ^[\(open) Folge](inflect: true) offen.").characters)
+            : String(localized: "Bereitet auch ältere Folgen vor, gerade ist keine offen.")
+        guard open > 0, let wait = model.preparationWait else { return status }
+        return String(localized: "\(status) \(wait.settingsLabel).")
+    }
+
+    /// Die Rückfrage vor dem Einschalten: wie viele Folgen, wie viel ungefähr
+    /// zu laden, und nach welchen Regeln.
+    private var backCatalogQuestion: String {
+        var sentences = [
+            EpisodeArchive.backCatalogSummary(model.backCatalogCandidates(in: sourceID)),
+            String(localized: "Die App erstellt die Transkripte von selbst, neueste zuerst, und reiht neue Folgen davor ein."),
+        ]
+        if !model.automaticAnalysis {
+            sentences.append(String(localized: """
+                Das beginnt, sobald „Transkripte für neue Folgen erstellen“ in den Einstellungen an ist.
+                """))
+        }
+        if model.preparationOnWiFiOnly {
+            #if os(iOS)
+            sentences.append(String(localized: "Geladen wird nur im WLAN."))
+            #else
+            sentences.append(String(localized: "Über einen Hotspot lädt die App dafür nichts."))
+            #endif
+        }
+        if model.removeAudioAfterAnalysis {
+            sentences.append(String(localized: """
+                Nach dem Transkript nimmt die App den Ton wieder vom Gerät, abgespielt wird dann aus dem Netz.
+                """))
+        }
+        return sentences.joined(separator: " ")
     }
 
     @ToolbarContentBuilder
@@ -594,6 +688,67 @@ extension AppModel {
                 keine Belege. Meist enthält die Folge dann kaum Sprache. Im Reiter „Transkript“ kannst \
                 du es mit „Erneut versuchen“ noch einmal erstellen.
                 """)
+        }
+    }
+}
+
+/// Was man tun kann, wenn das Transkript einer Folge aufs Netz wartet: es
+/// jetzt erstellen lassen, über die Verbindung, die gerade besteht, oder
+/// die Regel für alle Podcasts ändern. Steht in der Folge unter „Transkript“.
+struct TranscriptWaitControls: View {
+
+    let episode: Episode
+    let wait: AppModel.NetworkLimit
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        // Ohne Netz gibt es nichts zu laden. Liegt der Ton auf dem Gerät,
+        // wartet die Folge gar nicht erst.
+        if wait != .offline {
+            // Von Hand angefordert: im Mobilfunk mit ausgeschaltetem Schalter
+            // fragt die App vorher, wie bei jedem anderen Laden auch.
+            Button { model.enqueueAnalysis(episode) } label: {
+                Label("Jetzt erstellen", systemImage: "waveform.badge.magnifyingglass")
+            }
+            .accessibilityHint("Lädt die Folge über die Verbindung, die gerade besteht")
+            .accessibilityIdentifier("episode.transcriptNow")
+        }
+        if Self.offersPreparationToggle(for: wait, episode: episode, model: model) {
+            Toggle(Self.preparationToggleTitle, isOn: Binding(
+                get: { !model.preparationOnWiFiOnly },
+                set: { model.preparationOnWiFiOnly = !$0 }
+            ))
+            .accessibilityIdentifier("episode.preparationCellular")
+        }
+    }
+
+    /// Der Schalter hilft nur, wenn die Regel „Nur im WLAN“ die Folge
+    /// anhält: von selbst eingereiht, im Mobilfunk oder Hotspot. Den
+    /// Datensparmodus achtet die App immer.
+    static func offersPreparationToggle(for wait: AppModel.NetworkLimit, episode: Episode, model: AppModel) -> Bool {
+        (wait == .cellular || wait == .hotspot) && model.isQueuedAutomatically(episode.id)
+    }
+
+    /// Berechnet: `LocalizedStringKey` ist nicht `Sendable`.
+    static var preparationToggleTitle: LocalizedStringKey {
+        #if os(iOS)
+        "Neue Folgen auch über Mobilfunk vorbereiten"
+        #else
+        "Neue Folgen auch über einen Hotspot vorbereiten"
+        #endif
+    }
+
+    /// Ein Satz unter der Zeile, was Schalter und Knopf bewirken.
+    @ViewBuilder
+    static func footnote(for wait: AppModel.NetworkLimit, episode: Episode, model: AppModel) -> some View {
+        if offersPreparationToggle(for: wait, episode: episode, model: model) {
+            #if os(iOS)
+            Text("Der Schalter gilt für alle Podcasts und steht auch in den Einstellungen unter Mobilfunk.")
+            #else
+            Text("Der Schalter gilt für alle Podcasts und steht auch in den Einstellungen unter Intelligenz.")
+            #endif
+        } else if wait == .lowDataMode {
+            Text("Im Datensparmodus lädt die App nichts von selbst. „Jetzt erstellen“ lädt trotzdem.")
         }
     }
 }

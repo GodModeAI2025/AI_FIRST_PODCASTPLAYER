@@ -415,8 +415,9 @@ extension HelpTopic {
             tips: [
                 HelpTip(title: "Transkript", text: """
                     Die App schreibt Folgen auf dem Gerät mit Zeitmarken mit. Im Reiter „Transkript“ \
-                    springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für ältere Folgen \
-                    tippst du in der Folge auf „Transkript erstellen“.
+                    springt ein Tipp an die Stelle; die Suche findet jedes Wort. Für eine ältere Folge \
+                    tippst du in der Folge auf „Transkript erstellen“, für alle älteren eines Podcasts \
+                    in seiner Folgenliste auf „Ältere Folgen auch vorbereiten“.
                     """, symbol: "text.alignleft", level: .advanced),
                 HelpTip(title: "Übersetzen", text: """
                     Transkripte und Shownotes in einer anderen Sprache übersetzt die App auf dem Gerät, \
@@ -489,16 +490,20 @@ extension HelpTopic {
 
     private static var storage: HelpTopic {
         let storage = HelpTip(title: "Speicher", text: """
-                In einer Folge über „Mehr“: „Laden (offline)“ holt den Ton aufs Gerät, „Audio \
-                entfernen“ löscht nur den Ton, „Folge löschen“ löscht Ton, Transkript, Fakten und \
-                Hörstand. Deine Notizen bleiben unter Wissen. Ist das Transkript fertig, entfernt die \
-                App den Ton von selbst, abschaltbar in den Einstellungen.
+                Die neueste Folge jedes Podcasts bleibt auf dem Gerät und spielt ohne Netz. Bei den \
+                anderen entfernt die App den Ton nach dem Transkript, abgespielt wird dann aus dem \
+                Netz. In einer Folge über „Mehr“: „Laden (offline)“ holt den Ton aufs Gerät und lässt \
+                ihn dort, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton, \
+                „Folge löschen“ löscht Ton, Transkript, Fakten und Hörstand. Deine Notizen bleiben \
+                unter Wissen. Unter „Audio liegt auf diesem Gerät“ steht in der Folge, warum. Die \
+                Regeln lassen sich in den Einstellungen unter Speicher abschalten.
                 """, symbol: "internaldrive", level: .beginner)
         #if os(iOS)
         let tips = [storage, HelpTip(title: "Mobilfunk", text: """
             Ob Folgen auch ohne WLAN laden, stellst du über das Zahnrad › Mobilfunk ein. Ist es \
-            aus, fragt die App vorher. Transkripte für neue Folgen lädt sie mit „Nur im WLAN“ \
-            nur im WLAN.
+            aus, fragt die App vorher. Was die App von selbst lädt, Transkripte und die neueste \
+            Folge, wartet auf WLAN, bis du dort „Neue Folgen auch über Mobilfunk vorbereiten“ \
+            einschaltest. Liegt der Ton schon auf dem Gerät, entsteht das Transkript auch ohne Netz.
             """, symbol: "antenna.radiowaves.left.and.right", level: .beginner)]
         #else
         let tips = [storage]
