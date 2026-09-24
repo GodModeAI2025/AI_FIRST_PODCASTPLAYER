@@ -1677,6 +1677,13 @@ struct AddSourceSheet: View {
         subscriptions.linkFailure = nil
         defer { addingLink = false }
         do {
+            // Beiträge aus TikTok, Instagram und Co. gehen über Supadata,
+            // nicht über die Suche nach einem Feed.
+            if AppModel.socialLink(in: text) != nil {
+                try await model.subscribe(to: text)
+                dismiss()
+                return
+            }
             switch try await model.inspectLink(text) {
             case .direct:
                 try await model.subscribe(to: text)
