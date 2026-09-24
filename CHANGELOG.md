@@ -1,5 +1,15 @@
 # Änderungsverlauf
 
+## App 0.8 · 2026-09-24
+Der Chat, nach den Neuerungen der WWDC26:
+- Antworten entstehen sichtbar: der Text erscheint, während Apple Intelligence schreibt, und „Abbrechen“ hält die Frage an, ohne Fehlermeldung.
+- Das Modell bekommt so viele Stellen, wie wirklich in sein Fenster passen, gezählt nach Token statt geschätzt. Auf dem Gerät sind das oft mehr als bisher.
+- Sind die Apple-Server für heute ausgeschöpft oder ausgelastet, sagt die Antwort das und nennt, ab wann es wieder geht.
+- Im Chat einer Folge kennt die Frage die Stelle im Player: „Was wurde gerade gesagt?“ antwortet mit den Passagen kurz davor.
+- Unter jeder Antwort: „Gegenpositionen prüfen“ mit dem Kernsatz als These, und je Folge „Mehr aus dieser Folge“.
+- Gesicherte Antworten zeigen Verweise wie der Chat. VoiceOver liest eine Antwort am Stück, Belege lassen sich per Aktion abspielen, merken und übersetzen. Belege zeigen „34:10 von 58:00“.
+- Antworten lassen sich aus dem Verlauf entfernen, gesicherte Fassungen bleiben.
+
 ## App 0.7.3 · 2026-09-24
 - Podcast-Katalog in „Podcast hinzufügen“, ohne Konto und ohne Schlüssel: „Angesagt“ zeigt die Apple-Charts deines Landes, 19 Kategorien mit Symbol öffnen die Charts ihres Genres, jede Seite mit Cover, Beschreibung, den neuesten Folgen und „Abonnieren“. Die Suche fragt Apple und Podcast Index zugleich und zeigt jeden Podcast einmal, so finden sich auch Podcasts, die nicht bei Apple stehen. Aus dem Katalog spielt nichts ab.
 
