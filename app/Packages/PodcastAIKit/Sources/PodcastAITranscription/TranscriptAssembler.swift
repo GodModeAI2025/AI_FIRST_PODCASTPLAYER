@@ -87,6 +87,45 @@ public struct TranscriptAssembler: Sendable {
         ))
     }
 
+    /// Wie weit ein Lauf vor dem Ende des Zwischenstands wieder einsetzt.
+    /// Die letzten Sätze vor einem Abbruch sind oft abgeschnitten oder fehlen
+    /// ganz, weil die Erkennung sie noch nicht abgeschlossen hatte.
+    public static let resumeOverlap = MediaDuration(seconds: 15)
+
+    /// Wo ein Lauf nach einem Zwischenstand weitermacht.
+    public struct ResumePoint: Equatable, Sendable {
+        /// Ab hier liest der neue Lauf die Datei.
+        public let offset: MediaTime
+        /// Was aus dem Zwischenstand bleibt. Alles ab `offset` erkennt der
+        /// neue Lauf noch einmal.
+        public let segments: [TranscriptSegment]
+        /// Bis wohin der frühere Lauf gekommen war.
+        public let analyzedThrough: MediaTime
+    }
+
+    /// Bestimmt den Einstieg nach einem Abbruch.
+    ///
+    /// Der neue Lauf beginnt `overlap` vor dem Ende des Zwischenstands, und
+    /// zwar an einer Segmentgrenze: Segmente, die in die Überlappung reichen,
+    /// fallen aus dem Bestand und entstehen neu. So beginnt kein neues Segment
+    /// mitten in einem alten, und das Zusammenführen findet für jede Stelle
+    /// genau eine Fassung. Was sich dennoch überlappt, räumt ``merge`` ab.
+    public func resumePoint(
+        from checkpoint: TranscriptCheckpoint, overlap: MediaDuration = TranscriptAssembler.resumeOverlap
+    ) -> ResumePoint {
+        let through = checkpoint.analyzedThrough
+        let cutoff = through - overlap
+        let sorted = checkpoint.segments.sorted { $0.range < $1.range }
+        let kept = sorted.filter { $0.range.end <= cutoff }
+        let redone = sorted.filter { $0.range.end > cutoff }
+        var offset = min(cutoff, redone.map(\.range.start).min() ?? cutoff)
+        // Nie hinter dem letzten Segment, das bleibt. Endete ein fortgesetzter
+        // Lauf früh, liegt sein Ende vor dem gemerkten Stand, und die Lücke
+        // dazwischen hätte niemand erkannt.
+        if let lastKept = kept.map(\.range.end).max() { offset = min(offset, lastKept) }
+        return ResumePoint(offset: offset, segments: kept, analyzedThrough: through)
+    }
+
     /// Baut das fertige Transkript und rechnet die tatsächliche Abdeckung aus.
     ///
     /// Die Abdeckung entsteht aus den Segmenten selbst, nicht aus einer

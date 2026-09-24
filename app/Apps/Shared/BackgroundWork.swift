@@ -113,12 +113,19 @@ public final class BackgroundWork {
         // wird: bricht die Arbeit ab, ist die Kette sonst unterbrochen.
         scheduleRefresh()
 
-        // Nach einem Start im Hintergrund hat noch niemand geladen.
+        // Nach einem Start im Hintergrund hat noch niemand geladen. Nur die
+        // Feeds: Transkripte beginnen nur vorn, und Fakten und Themen-Updates
+        // gehören in die Aufgabe `com.podcastai.analysis`, die Strom hat.
         let work = Task { @MainActor in
             await model.ensureLoaded()
-            await model.refreshAll()
+            await model.refreshAll(feedsOnly: true)
         }
-        task.expirationHandler = { work.cancel() }
+        task.expirationHandler = { [model] in
+            work.cancel()
+            // Laufen Transkripte ohne fortgesetzte Verarbeitung, halten sie
+            // mit Zwischenstand an, statt mitten im Schub eingefroren zu werden.
+            Task { @MainActor in model.stopTranscriptsWithoutCarrier() }
+        }
         Task { @MainActor in
             _ = await work.result
             task.setTaskCompleted(success: !work.isCancelled)
@@ -136,7 +143,10 @@ public final class BackgroundWork {
             // die Zeit, bricht die laufende Folge ab und bleibt vorn stehen.
             await model.processPendingFacts()
         }
-        task.expirationHandler = { work.cancel() }
+        task.expirationHandler = { [model] in
+            work.cancel()
+            Task { @MainActor in model.stopTranscriptsWithoutCarrier() }
+        }
         Task { @MainActor in
             _ = await work.result
             task.setTaskCompleted(success: !work.isCancelled)

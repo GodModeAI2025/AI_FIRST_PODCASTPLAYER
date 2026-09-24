@@ -679,6 +679,7 @@ struct AppAlerts: ViewModifier {
                 Text(model.lastError ?? "")
             }
             .modifier(MobileDataQuestion(isActive: isActive))
+            .modifier(TranscriptNotificationQuestion(isActive: isActive))
     }
 }
 

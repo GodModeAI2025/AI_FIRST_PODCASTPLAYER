@@ -51,9 +51,25 @@ public final class AppModel {
     }
     /// Was als Nächstes erschlossen wird. Die Spracherkennung verträgt nur
     /// eine Analyse zur Zeit, deshalb läuft alles über diese Warteschlange.
-    public internal(set) var analysisQueue: [Episode] = []
-    public internal(set) var analyzing: Episode?
+    public internal(set) var analysisQueue: [Episode] = [] {
+        didSet { persistAnalysisQueue() }
+    }
+    public internal(set) var analyzing: Episode? {
+        didSet { persistAnalysisQueue() }
+    }
     @ObservationIgnored private var analysisTask: Task<Void, Never>?
+    /// Die Hintergrundphase der laufenden Warteschlange. Sagt, ob die
+    /// fortgesetzte Verarbeitung die Transkripte gerade trägt.
+    @ObservationIgnored var transcriptContinuation: BackgroundContinuation?
+    /// Steht die gemerkte Warteschlange schon wieder? Erst dann wird sie
+    /// neu gemerkt.
+    @ObservationIgnored private var analysisQueueRestored = false
+    @ObservationIgnored private var analysisQueuePersistScheduled = false
+    /// Die Frage, ob die App Bescheid sagen darf, wenn Transkripte im
+    /// Hintergrund pausieren (`TranscriptNotificationQuestion`).
+    public internal(set) var asksForTranscriptNotifications = false
+    /// Schon gesagt, dass Transkripte pausieren. Gilt, bis die App wieder vorn ist.
+    @ObservationIgnored var transcriptPauseNotified = false
     public internal(set) var lastRefresh: Date?
     /// Steht, sobald `load()` einmal durch ist. Vorher heißt „nicht
     /// gefunden“ nur „noch nicht gelesen“.
@@ -111,7 +127,9 @@ public final class AppModel {
     /// Ältere Folgen, die das Vorbereiten von selbst eingereiht hat. Neue
     /// Folgen reihen sich vor ihnen ein, damit sie nicht hinter einem ganzen
     /// Archiv warten.
-    @ObservationIgnored private var backlogQueued: Set<EpisodeID> = []
+    @ObservationIgnored private var backlogQueued: Set<EpisodeID> = [] {
+        didSet { persistAnalysisQueue() }
+    }
 
     // MARK: Mobilfunk (Rückfrage in `MobileDataQuestion`, SettingsView.swift)
 
@@ -271,7 +289,9 @@ public final class AppModel {
     @ObservationIgnored var analyzedEpisodes: Set<EpisodeID> = []
     /// Von der App selbst eingereihte Folgen. Ihre Fehler unterbrechen
     /// niemanden: wer nicht darum gebeten hat, will dafür keinen Dialog.
-    @ObservationIgnored private var automaticallyQueued: Set<EpisodeID> = []
+    @ObservationIgnored private var automaticallyQueued: Set<EpisodeID> = [] {
+        didSet { persistAnalysisQueue() }
+    }
     /// Aus der Warteschlange genommen. Das Vorbereiten reiht sie nicht wieder
     /// ein, erst ein ausdrückliches Anfordern.
     @ObservationIgnored private var dismissedFromPreparation = StoredEpisodeIDs(key: "dismissedFromPreparation")
@@ -675,6 +695,8 @@ public final class AppModel {
         // Auf einem anderen Gerät Gelöschtes auch hier entfernen: Audiodateien,
         // „Als Nächstes“, Warteschlange und gemerkte Stellen.
         await forgetEpisodesRemovedElsewhere()
+        // Was vor dem Beenden auf sein Transkript wartete, wartet wieder.
+        await restoreAnalysisQueue()
         // Wofür eine Folge mit Ton auf dem Gerät auch ohne Netz ein
         // Transkript bekommt.
         await refreshInstalledSpeechModels()
@@ -950,10 +972,16 @@ public final class AppModel {
         podcastCounterparts[source.id] = found.filter { !subscribed.contains($0.feedURL) }
     }
 
-    public func refreshAll() async {
+    /// Aktualisiert die Feeds und stößt danach die Arbeit daran an.
+    ///
+    /// `feedsOnly` für `BGAppRefresh`: dort holt die App nur die Feeds. Kein
+    /// Transkript, keine Fakten, kein Themen-Update und kein Laden von Ton;
+    /// das Einreihen und alles Weitere folgt beim nächsten Öffnen, deshalb
+    /// bleibt `lastRefresh` dann stehen.
+    public func refreshAll(feedsOnly: Bool = false) async {
         activity = String(localized: "Podcasts werden aktualisiert …")
         defer { activity = nil }
-        lastRefresh = Date()
+        if !feedsOnly { lastRefresh = Date() }
         do {
             let result = try await refresher.refreshAll()
             sources = try await store.sources()
@@ -967,6 +995,7 @@ public final class AppModel {
         } catch {
             lastError = UserFacingError.describe(error)
         }
+        guard !feedsOnly else { return }
         await prepareNewEpisodes()
         await queueMissingFacts()
         await refreshRelevantToday()
@@ -1256,6 +1285,9 @@ public final class AppModel {
             backlogQueued.remove(episode.id)
             dismissedFromPreparation.remove(episode.id)
             failedInPreparation.remove(episode.id)
+            // Beim ersten angeforderten Transkript: darf die App Bescheid
+            // sagen, wenn es im Hintergrund pausiert?
+            askForTranscriptNotificationsIfNeeded()
             // Von Hand angefordert heißt: auch auf einem Gerät ohne
             // Spracherkennung darf man es erneut versuchen.
             preparationUnavailable = nil
@@ -1294,6 +1326,74 @@ public final class AppModel {
         if let index { analysisQueue.insert(episode, at: index) } else { analysisQueue.append(episode) }
     }
 
+    // MARK: Warteschlange merken und anhalten
+
+    static let analysisQueueKey = "analysisQueueSnapshot"
+
+    /// Merkt sich die Warteschlange samt laufender Folge in den
+    /// Benutzereinstellungen. Gebündelt: viele Änderungen hintereinander,
+    /// etwa beim Vorbereiten eines ganzen Archivs, schreiben einmal.
+    private func persistAnalysisQueue() {
+        // Vor dem Wiederherstellen nichts schreiben, sonst wäre der gemerkte
+        // Stand weg, bevor ihn jemand gelesen hat.
+        guard analysisQueueRestored, !analysisQueuePersistScheduled else { return }
+        analysisQueuePersistScheduled = true
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.analysisQueuePersistScheduled = false
+            let snapshot = AnalysisQueueSnapshot(
+                running: self.analyzing?.id, queue: self.analysisQueue.map(\.id),
+                automatic: self.automaticallyQueued, backlog: self.backlogQueued)
+            UserDefaults.standard.set(snapshot.encoded(), forKey: Self.analysisQueueKey)
+        }
+    }
+
+    /// Stellt nach einem Neustart die Warteschlange wieder her, einmal je
+    /// Start. Von Hand Angefordertes kommt immer zurück, von selbst
+    /// Eingereihtes nur, solange die App noch von selbst vorbereiten soll.
+    /// Die laufende Folge von damals steht vorn und setzt an ihrem
+    /// Zwischenstand an.
+    func restoreAnalysisQueue() async {
+        guard !analysisQueueRestored else { return }
+        let saved = AnalysisQueueSnapshot.decoded(
+            from: UserDefaults.standard.data(forKey: Self.analysisQueueKey))
+        let ids = saved?.entries.map(\.episodeID) ?? []
+        let found = ids.isEmpty ? [] : ((try? await store.episodes(ids: ids)) ?? [])
+        analysisQueueRestored = true
+        guard let saved else { return }
+        let byID = Dictionary(found.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let subscribed = Set(sources.map(\.id))
+        for entry in saved.restorable(known: Set(byID.keys), finished: analyzedEpisodes,
+                                      automaticAllowed: preparationUnavailable == nil) {
+            guard let episode = byID[entry.episodeID], episode.audioURL != nil,
+                  subscribed.contains(episode.sourceID), analyzing?.id != episode.id,
+                  !analysisQueue.contains(where: { $0.id == episode.id }) else { continue }
+            if entry.automatic {
+                let wanted = entry.backlog ? backCatalog.contains(episode.sourceID) : automaticAnalysis
+                guard wanted, !dismissedFromPreparation.contains(episode.id),
+                      !failedInPreparation.contains(episode.id) else { continue }
+                automaticallyQueued.insert(episode.id)
+                if entry.backlog { backlogQueued.insert(episode.id) }
+            }
+            insertIntoQueue(episode)
+            stageDetails[episode.id] = Self.waitingDetail
+        }
+        persistAnalysisQueue()
+    }
+
+    /// Transkripte, die jetzt laufen könnten oder gerade laufen.
+    var hasPendingTranscripts: Bool {
+        analyzing != nil || analysisQueue.contains(where: mayRunNow)
+    }
+
+    /// Hält die Transkripte an, weil die Zeit im Hintergrund endet. Die
+    /// laufende Folge behält ihren Zwischenstand und kommt wieder nach vorn.
+    func pauseTranscripts() {
+        guard let analysisTask else { return }
+        analysisTask.cancel()
+        pipelineRun?.cancel()
+    }
+
     /// „wartet“ in der Warteschlange. Der Schlüssel bleibt genau „wartet“:
     /// Ansichten vergleichen die Angabe damit.
     static var waitingDetail: String { String(localized: "wartet", comment: "Zustand einer Folge in der Warteschlange") }
@@ -1325,16 +1425,23 @@ public final class AppModel {
     }
 
     private func startAnalysisWorker() {
-        guard analysisTask == nil else { return }
+        // Transkripte beginnen nur vorn. Im Hintergrund trägt sie nur die
+        // fortgesetzte Verarbeitung, und die lässt sich nur im Vordergrund
+        // anmelden. Eine Aktualisierung im Hintergrund reiht deshalb ein,
+        // startet aber nichts; die Warteschlange läuft beim nächsten Öffnen.
+        guard analysisTask == nil, appInForeground else { return }
         analysisTask = Task { [weak self] in
             guard let self else { return }
-            let background = BackgroundContinuation.begin(title: self.analysisQueue.first?.title ?? "")
+            let background = BackgroundContinuation.begin(
+                title: self.analysisQueue.first?.title ?? "",
+                onExpire: { [weak self] in self?.transcriptTimeExpired() })
+            self.transcriptContinuation = background
             // Solange Transkripte entstehen, dürfen die Fakten mitlaufen,
             // auch im Hintergrund. Endet die Phase, hält `releaseFactsGrant`
             // sie an, wenn die App nicht vorn ist.
             self.factsGrants += 1
             var retried: Set<EpisodeID> = []
-            while let index = self.analysisQueue.firstIndex(where: { self.mayRunNow($0) }) {
+            while !Task.isCancelled, let index = self.analysisQueue.firstIndex(where: { self.mayRunNow($0) }) {
                 let next = self.analysisQueue.remove(at: index)
                 // Ohne Lücke: was nicht mehr wartet, läuft schon.
                 self.analyzing = next
@@ -1348,10 +1455,18 @@ public final class AppModel {
                 }
             }
             background.end()
+            self.transcriptContinuation = nil
             self.releaseFactsGrant()
             self.analysisTask = nil
             self.analyzing = nil
             self.activity = nil
+            // Angehalten, weil die Hintergrundzeit endete. Ist die App
+            // inzwischen wieder vorn, geht es gleich weiter, sonst beim
+            // nächsten Öffnen.
+            guard !Task.isCancelled else {
+                if self.appInForeground { self.queueConditionsChanged() }
+                return
+            }
             self.askAboutWaitingTranscripts()
             // Frisch ausgewertetes Material ist genau das, worauf die
             // automatischen Themen-Updates warten.
@@ -1420,6 +1535,12 @@ public final class AppModel {
                 Task { @MainActor in
                     // Eine gelöschte Folge taucht nicht wieder unter „Erschließen“ auf.
                     guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }
+                    // Nur ein Schritt im Transkript: die Anzeige des Systems
+                    // bekommt ihn, die Stufe der Folge bleibt.
+                    if let fraction = progress.fraction {
+                        background.update(progress.stage, fraction: fraction)
+                        return
+                    }
                     self.stages[progress.episodeID] = progress.stage
                     // Nach dem Download ändert sich der belegte Speicher.
                     if progress.stage == .mediaDownloaded { self.mediaStorageChanged += 1 }
@@ -1472,6 +1593,15 @@ public final class AppModel {
             // Abgebrochen, weil gelöscht: kein zweiter Versuch, nur aufräumen.
             if wasRemoved(episode.id, since: ticket) {
                 await purgeLateWrites(of: episode)
+                return false
+            }
+            // Angehalten, weil die Zeit im Hintergrund endete: kein Fehler.
+            // Die Folge kommt wieder nach vorn und setzt beim nächsten Lauf
+            // an ihrem Zwischenstand an.
+            if error is CancellationError || Task.isCancelled {
+                analysisQueue.insert(episode, at: 0)
+                stages[episode.id] = nil
+                stageDetails[episode.id] = String(localized: "pausiert")
                 return false
             }
             if UserFacingError.isTransient(error) {

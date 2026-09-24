@@ -130,6 +130,7 @@ public enum AppBootstrap {
     /// beim Anlegen. Die Schlüssel stehen in `AppModel` und `EpisodePlayer`.
     private static func clearDeviceStateForUITest() {
         _ = LocalMediaLocator.removeAllFiles()
+        AppModel.transcriptCheckpoints.removeAll()
         TopicCoverStore.standard.removeAll(except: [])
         let defaults = UserDefaults.standard
         for key in [
@@ -137,6 +138,7 @@ public enum AppBootstrap {
             "dismissedFromPreparation", "keptOfflineEpisodes", AppModel.dismissedRelevantKey,
             AppModel.factsSettledKey, AppModel.backCatalogKey, AppModel.prefetchedNewestKey,
             AppModel.prefetchDeclinedKey, AppModel.prefetchedFilesKey, AppModel.failedPreparationKey,
+            AppModel.analysisQueueKey, AppModel.transcriptNotificationsAskedKey,
             // Der Katalog zeigt im Test immer die Sprache der App zuerst.
             "catalog.allLanguages",
         ] {

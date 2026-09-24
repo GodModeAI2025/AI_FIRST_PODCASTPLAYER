@@ -1056,8 +1056,12 @@ extension AppModel {
         factsProgress[episode.id] = 0
         for (index, slice) in slices.enumerated() {
             // Keine Zeit mehr, etwa weil die App in den Hintergrund ging:
-            // nichts speichern, die Folge bleibt vorn.
-            if Task.isCancelled { return .cancelled }
+            // sichern, was fertig ist, die Folge bleibt vorn.
+            if Task.isCancelled {
+                return await keepFinishedFacts(
+                    result, stored: stored, of: episode, unfinished: Set(slices[index...].indices.filter(open.contains)),
+                    slices: slices, missing: missing, replacing: force && !previous.isEmpty, since: ticket)
+            }
             defer { factsProgress[episode.id] = Double(index + 1) / Double(slices.count) }
             let key = Self.factSliceKey(episode.id, slice)
             if knownRejections.contains(key) {
@@ -1090,8 +1094,12 @@ extension AppModel {
                     return .modelUnavailable(unavailable)
                 }
             } catch {
-                // Abgebrochen: nichts speichern, nichts melden.
-                if error is CancellationError || Task.isCancelled { return .cancelled }
+                // Abgebrochen: sichern, was fertig ist, nichts melden.
+                if error is CancellationError || Task.isCancelled {
+                    return await keepFinishedFacts(
+                        result, stored: stored, of: episode, unfinished: Set(slices[index...].indices.filter(open.contains)),
+                        slices: slices, missing: missing, replacing: force && !previous.isEmpty, since: ticket)
+                }
                 failed += 1
                 missing.insert(Self.factSliceID(slice))
                 reason = error.localizedDescription
@@ -1185,6 +1193,35 @@ extension AppModel {
             if !wasRemoved(episode.id, since: ticket) { facts[episode.id] = shown }
         }
         return outcome
+    }
+
+    /// Ein Lauf wird abgebrochen, etwa weil die Zeit im Hintergrund endet.
+    /// Die fertigen Abschnitte bleiben gespeichert, die übrigen merkt sich
+    /// die App als Lücken. Der nächste Lauf rechnet dann nur noch sie.
+    ///
+    /// Nicht bei „Neu ermitteln“ über vorhandene Fakten (`replacing`): ein
+    /// halber neuer Lauf ersetzte sonst die ganzen alten Fakten.
+    private func keepFinishedFacts(
+        _ result: [EpisodeFact], stored: [EpisodeFact], of episode: Episode, unfinished: Set<Int>,
+        slices: [[Evidence]], missing: Set<String>, replacing: Bool, since ticket: Int
+    ) async -> FactsOutcome {
+        guard !result.isEmpty, !replacing, !wasRemoved(episode.id, since: ticket) else { return .cancelled }
+        let unique = Dictionary((stored + result).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
+            .sorted { $0.range.start.milliseconds < $1.range.start.milliseconds }
+        let kept = Self.evenlySpaced(unique, count: Self.factLimit)
+        do {
+            try await store.save(facts: kept, forEpisode: episode.id)
+        } catch {
+            return .cancelled
+        }
+        if wasRemoved(episode.id, since: ticket) {
+            try? await store.save(facts: [], forEpisode: episode.id)
+            return .cancelled
+        }
+        // Ältere Fakten bekommen für die Anzeige ihren Satz, wie beim Laden.
+        facts[episode.id] = stored.isEmpty ? kept : await anchoredFacts(kept, episodeID: episode.id)
+        recordFactGaps(missing.union(unfinished.map { Self.factSliceID(slices[$0]) }), for: episode.id, since: ticket)
+        return .cancelled
     }
 
     /// Wie ein Lauf von ``prepareFacts(for:force:removalTicket:)`` ausging.
@@ -1554,12 +1591,15 @@ extension AppModel {
                     guard let self else { return }
                     self.returningFromBackground = true
                     self.pauseFactsWithoutTime()
+                    self.transcriptsEnteredBackground()
                 }
             },
             center.addObserver(forName: UIApplication.didBecomeActiveNotification,
                                object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
+                    // Transkripte, die im Hintergrund pausierten, laufen weiter.
+                    self.transcriptsBecameActive()
                     Task { await self.resumeFactsInForeground() }
                 }
             },
@@ -1955,7 +1995,8 @@ extension AppModel {
     /// behalten“ und nur, wenn das Netz das Vorbereiten erlaubt. Abgespielt
     /// wird dabei nichts.
     func prefetchNewestEpisodes() {
-        guard prefetchTask == nil else { return }
+        // Ohne „Neueste Folge je Podcast behalten“ lädt hier nichts.
+        guard keepNewestAudio, prefetchTask == nil else { return }
         adoptMovedPrefetches()
         guard nextEpisodeToPrefetch() != nil else { return }
         prefetchTask = Task { [weak self] in
@@ -2269,6 +2310,8 @@ extension AppModel {
         if let playing = episodePlayer.episode, ids.contains(playing.id) { stopWithoutRecordingHeard() }
         // Erst nach dem Anhalten: `stop()` merkt sich die Stelle noch einmal.
         episodePlayer.forgetPositions(for: ids)
+        // Ein Zwischenstand des Transkripts ist aus der Folge entstanden.
+        Self.transcriptCheckpoints.remove(Self.localMediaIDs(of: removed))
         for id in ids {
             removeFromUpNext(id)
             // Nicht `removeFromAnalysisQueue`: das merkt sich ein „Entfernen“
@@ -2326,6 +2369,8 @@ extension AppModel {
             await refreshRelevantToday()
         }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
+        // Der abgebrochene Lauf hat beim Anhalten noch seinen Zwischenstand gesichert.
+        Self.transcriptCheckpoints.remove(Self.localMediaIDs(of: [episode]))
         MentionCache.remove(episodes: [episode.id])
         facts[episode.id] = nil
         stages[episode.id] = nil
