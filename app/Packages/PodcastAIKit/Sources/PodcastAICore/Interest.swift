@@ -177,6 +177,9 @@ public struct InterestProfile: Codable, Sendable {
     }
 
     public var confirmed: [Interest] { interests.filter { $0.origin.isConfirmed } }
+    /// Tags, denen jemand folgt, jeder Art. Nach Minus gehört ein Tag nicht
+    /// mehr dazu, auch wenn es einmal bestätigt war.
+    public var followed: [Interest] { interests.filter(\.isFollowed) }
     /// Nur Vorschläge. Aus dem Inhalt erkannte Tags gehören nicht dazu, sie
     /// stehen in der Tag-Wolke.
     public var suggested: [Interest] { interests.filter { $0.origin == .suggestedBySystem } }

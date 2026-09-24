@@ -160,7 +160,9 @@ Den Schlüssel rechnet `TagNormalizer` (PodcastAIKnowledge): klein, ohne Akzente
 
 `LibraryStore.removeDuplicates()` trägt fehlende Schlüssel ein und legt Tags mit gleichem Schlüssel zusammen. Es bleibt die Zeile mit dem ältesten `createdAt`, bei Gleichstand die kleinere Kennung. Verweise in Kapitel-Tags, Themenfeeds, Ausgaben und gemerkten Stellen zeigen danach auf sie. Das deckt den ersten Start nach 0.10 und Tags ab, die zwei Geräte gleichzeitig angelegt haben.
 
-`StoredChapterTag` verbindet ein Kapitel mit einem Tag, über Kennungen wie `StoredFact`. Die Kennung ist aus Fassung, Kapitelstart und Schlüssel gerechnet und auf jedem Gerät dieselbe. Eine Einordnung ersetzt die Kapitel-Tags ihrer Folge; eine ältere Fassung des Transkripts oder eine gelöschte Folge schreibt nichts.
+`StoredChapterTag` verbindet ein Kapitel mit einem Tag, über Kennungen wie `StoredFact`. Die Kennung ist aus Fassung, Kapitelstart und Schlüssel gerechnet und auf jedem Gerät dieselbe. Eine Einordnung ersetzt die Kapitel-Tags ihrer Folge; eine ältere Revision des Transkripts derselben Medienfassung oder eine gelöschte Folge schreibt nichts. Eine neue Medienfassung zählt ihre Revisionen von vorn. Der Store nimmt nur Kapitel-Tags an, deren Tag er kennt, und setzt den Schlüssel selbst aus dem Tag (Regel 3). Nach dem Abgleich gilt je Folge und Fassung nur die neueste Revision, gleiche Kennungen werden eine Zeile. Beim Zusammenlegen zählt Plus nur von einem bestätigten oder erkannten Tag, nicht von einem Vorschlag.
+
+Alle Geräte müssen auf 0.10 sein, bevor die Einordnung Tags schreibt. Eine 0.9 kennt `detected` und `stanceRaw` nicht und hielte ein neutrales, erkanntes Tag für ein bestätigtes Interesse.
 
 ## Themen-Updates
 

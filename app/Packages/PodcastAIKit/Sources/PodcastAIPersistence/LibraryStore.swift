@@ -305,10 +305,8 @@ public actor LibraryStore {
         // bleibt. Erst danach die Kapitel-Tags, denn nach dem Umschreiben
         // sind Kopien vom anderen Gerät gleich.
         try settleTags()
-        try removeLeafDuplicates(StoredChapterTag.self, key: \.identifier,
-            order: [RowOrder.ascending { $0.createdAt },
-                    RowOrder.descending { $0.confidence },
-                    RowOrder.ascending { $0.interestIdentifier }])
+        try settleChapterTags()
+        try modelContext.save()
         try removeChapterTagsOfRemovedEpisodes()
         try modelContext.save()
         return report
@@ -316,7 +314,7 @@ public actor LibraryStore {
 
     /// Gruppiert Zeilen nach Schlüssel und ordnet jede Gruppe. Zurück kommen
     /// nur Gruppen, in denen die erste Zeile eindeutig vor der zweiten steht.
-    func duplicateGroups<T: PersistentModel>(
+    private func duplicateGroups<T: PersistentModel>(
         _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step]
     ) throws -> [(keep: T, drop: [T])] {
         var groups: [String: [T]] = [:]
@@ -340,7 +338,7 @@ public actor LibraryStore {
 
     /// Für Typen ohne Kinder: Die Kopien tragen dieselben Daten wie die
     /// behaltene Zeile und können gehen.
-    func removeLeafDuplicates<T: PersistentModel>(
+    private func removeLeafDuplicates<T: PersistentModel>(
         _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step]
     ) throws {
         for group in try duplicateGroups(type, key: key, order: order) {
@@ -1152,8 +1150,16 @@ public actor LibraryStore {
         }
         // Kapitel-Tags, deren Folge hier nie ankam, etwa weil das andere
         // Gerät sie noch nicht abgeglichen hat. Sie tragen ihre Quelle selbst.
-        for tag in try modelContext.fetch(
-            FetchDescriptor<StoredChapterTag>(predicate: #Predicate { $0.sourceIdentifier == key })) {
+        // Lebt ihre Folge dagegen hier unter einer anderen Quelle weiter,
+        // bleiben sie: Die Folgen dieser Quelle sind oben schon erledigt.
+        let orphanTags = try modelContext.fetch(
+            FetchDescriptor<StoredChapterTag>(predicate: #Predicate { $0.sourceIdentifier == key }))
+            .filter { !episodeKeys.contains($0.episodeIdentifier) }
+        let orphanEpisodes = Set(orphanTags.map(\.episodeIdentifier))
+        let livingElsewhere = Set(try modelContext.fetch(FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.removedAt == nil && orphanEpisodes.contains($0.identifier) }))
+            .map(\.identifier))
+        for tag in orphanTags where !livingElsewhere.contains(tag.episodeIdentifier) {
             modelContext.delete(tag)
         }
         for source in sources { modelContext.delete(source) }

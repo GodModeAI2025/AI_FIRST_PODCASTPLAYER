@@ -166,8 +166,9 @@ public final class MCPAccess {
         guard let grant, grant.permits(.listInterests) else { return [] }
         let profile = (try? await store.interestProfile(learningEnabled: false))
             ?? InterestProfile()
-        // Nur bestätigte. Was PodcastAI bloß vermutet, geht keinen Agenten an.
-        let labels = profile.confirmed.map(\.label)
+        // Nur Tags, denen jemand folgt. Was PodcastAI bloß vermutet oder im
+        // Inhalt erkannt hat, und Tags nach Minus gehen keinen Agenten an.
+        let labels = profile.followed.map(\.label)
         log(.listInterests, query: nil, count: labels.count)
         return labels
     }

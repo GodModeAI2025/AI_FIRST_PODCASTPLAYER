@@ -39,10 +39,13 @@ public enum TagNormalizer {
     ///   zuerst Deutsch, dann Englisch.
     public static func key(for label: String, language: NLLanguage? = nil) -> String {
         let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "" }
+        // Ohne Buchstaben und Ziffern bleibt nichts. Dann auch nicht die
+        // Ländertabelle bauen, das kostete bei jedem Laden eine halbe Sekunde.
+        let folded = fold(trimmed)
+        guard !folded.isEmpty else { return "" }
         // Länder vor dem Lemma: aus „Vereinigte Staaten“ machte es sonst
         // „vereinigt staat“.
-        if let region = regionKeys[fold(trimmed)] { return region }
+        if let region = regionKeys[folded] { return region }
         let key = lemmatizedWords(trimmed, preferred: language).map(fold).joined()
         // Gebeugte Ländernamen („den Vereinigten Staaten“ ohne Artikel)
         // treffen die Grundform der Namen.
@@ -81,6 +84,10 @@ public enum TagNormalizer {
 
     /// Ein neues Tag aus dem Inhalt, neutral, mit Kennung aus dem Schlüssel.
     /// `nil`, wenn ``admitsDetectedTag(_:)`` es nicht erlaubt.
+    ///
+    /// Regel 3: `label` ist ein Kandidat, den der Code gebildet hat (Namen
+    /// aus `NLTagger`, Hauptwörter aus `TopicTagger`, bekannte Tags). Ein
+    /// Modell wählt nur unter diesen Kandidaten und formuliert nie selbst.
     public static func makeDetectedTag(label: String, seenAt: Date = Date()) -> Tag? {
         guard admitsDetectedTag(label) else { return nil }
         let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -677,8 +677,8 @@ extension AppModel {
                 lines.append(entry)
             }
         }
-        if !profile.confirmed.isEmpty {
-            lines.append("Interessen: " + profile.confirmed.map(\.label).joined(separator: ", "))
+        if !profile.followed.isEmpty {
+            lines.append("Interessen: " + profile.followed.map(\.label).joined(separator: ", "))
         }
         let ownNotes = filter.isUnrestricted
             ? highlights

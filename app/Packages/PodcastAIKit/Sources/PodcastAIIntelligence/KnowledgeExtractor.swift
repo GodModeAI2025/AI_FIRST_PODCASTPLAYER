@@ -927,8 +927,8 @@ public struct KnowledgeExtractor: Sendable {
     /// Das Profil als Lesekontext. Die Umrahmung ist wörtlich die Härtung,
     /// die sich in BrainSpeaks `FactCaptureMode` bereits bewährt hat.
     private static func profileBlock(_ profile: InterestProfile) -> String {
-        let confirmed = profile.confirmed
-        guard !confirmed.isEmpty else {
+        // Nur Tags, denen jemand folgt. Ein neutrales Tag ist kein Filter.
+        guard !profile.followed.isEmpty else {
             return """
             --- PROFIL (NUR LESEKONTEXT) ---
             Kein Interessenfilter eingerichtet. Wähle nichts aus.

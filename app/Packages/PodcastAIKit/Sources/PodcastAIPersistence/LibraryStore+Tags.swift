@@ -61,6 +61,9 @@ extension LibraryStore {
     /// mit `origin = detected` und einer Kennung aus dem Schlüssel.
     /// `SensitiveTopicPolicy` entscheidet vorher, ob ein neues Tag überhaupt
     /// entstehen darf; ohne Erlaubnis kommt `nil`.
+    ///
+    /// Regel 3: `label` stammt aus den Kandidaten, die der Code gebildet hat,
+    /// nie als freier Text aus einem Modell.
     public func addDetectedTag(label: String, seenAt: Date = Date()) throws -> Tag? {
         if let existing = try resolveTag(label) {
             try noteFirstSeen([existing.id.rawValue: seenAt])
@@ -118,8 +121,21 @@ extension LibraryStore {
         if filled { try modelContext.save() }
 
         var groups: [String: [StoredInterest]] = [:]
+        var keysOf: [String: Set<String>] = [:]
         for row in rows where !row.normalizedKey.isEmpty && !row.identifier.isEmpty {
             groups[row.normalizedKey, default: []].append(row)
+            keysOf[row.identifier, default: []].insert(row.normalizedKey)
+        }
+        // Tragen Kopien derselben Kennung verschiedene Schlüssel, etwa weil
+        // eine Umbenennung erst auf einem Gerät angekommen ist, bleibt diese
+        // Kennung außen vor. Sonst würde sie in der einen Gruppe gelöscht,
+        // während sie in der anderen weiterlebt, und ihre Verweise zeigten
+        // auf ein fremdes Tag.
+        let unsettled = Set(keysOf.filter { $0.value.count > 1 }.keys)
+        if !unsettled.isEmpty {
+            for key in groups.keys {
+                groups[key]?.removeAll { unsettled.contains($0.identifier) }
+            }
         }
 
         var survivorOf: [InterestID: InterestID] = [:]
@@ -165,13 +181,22 @@ extension LibraryStore {
         keep.keywords = aliases
 
         let all = [keep] + others
-        if all.contains(where: { $0.stanceRaw == TagStance.follow.rawValue }) {
+        // Ein Vorschlag trägt als Standard `follow`, gefolgt ist ihm aber
+        // niemand. Nur ein bestätigtes oder erkanntes Tag mit Plus zählt,
+        // sonst würde ein neutrales erkanntes Tag durch einen Vorschlag
+        // gleichen Schlüssels still zu einem gefolgten.
+        let suggested = InterestOrigin.suggestedBySystem.rawValue
+        if all.contains(where: { $0.originRaw != suggested && $0.stanceRaw == TagStance.follow.rawValue }) {
             keep.stanceRaw = TagStance.follow.rawValue
+        } else if keep.originRaw == suggested, let other = all.first(where: { $0.originRaw != suggested }) {
+            keep.stanceRaw = other.stanceRaw
         }
-        let origins = Set(all.map(\.originRaw))
-        for origin in [InterestOrigin.confirmedByUser, .detected, .suggestedBySystem]
-        where origins.contains(origin.rawValue) {
+        // Herkunft und Art kommen von der stärksten Herkunft: bestätigt vor
+        // erkannt vor vorgeschlagen.
+        for origin in [InterestOrigin.confirmedByUser, .detected, .suggestedBySystem] {
+            guard let strongest = all.first(where: { $0.originRaw == origin.rawValue }) else { continue }
             keep.originRaw = origin.rawValue
+            keep.kindRaw = strongest.kindRaw
             break
         }
         // Läuft eines nie ab, läuft das zusammengelegte nie ab.
@@ -227,13 +252,53 @@ extension LibraryStore {
         removedDescriptor.propertiesToFetch = [\.identifier]
         var removed = Set(try modelContext.fetch(removedDescriptor).map(\.identifier))
         guard !removed.isEmpty else { return }
-        var liveDescriptor = FetchDescriptor<StoredEpisode>(predicate: #Predicate { $0.removedAt == nil })
+        // Nur die lebenden Kopien dieser Folgen, nicht die ganze Bibliothek.
+        let candidates = removed
+        var liveDescriptor = FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.removedAt == nil && candidates.contains($0.identifier) })
         liveDescriptor.propertiesToFetch = [\.identifier]
         removed.subtract(try modelContext.fetch(liveDescriptor).map(\.identifier))
         guard !removed.isEmpty else { return }
         for tag in try modelContext.fetch(FetchDescriptor<StoredChapterTag>(
             predicate: #Predicate { removed.contains($0.episodeIdentifier) })) {
             modelContext.delete(tag)
+        }
+    }
+
+    /// Räumt Kapitel-Tags nach dem Abgleich auf, in einem Durchgang.
+    ///
+    /// 1. Je Folge und Fassung gilt nur die neueste Transkript-Revision.
+    ///    Hat ein Gerät nach einer neuen Revision eingeordnet, während das
+    ///    andere noch die alte hatte, fallen die alten Zeilen weg.
+    /// 2. Zeilen mit derselben Kennung werden eine: Es bleibt die älteste,
+    ///    bei Gleichstand die sicherere, dann die kleinere Tag-Kennung. Ist
+    ///    auch das gleich, bleiben alle, wie bei den übrigen Typen.
+    func settleChapterTags() throws {
+        let rows = try modelContext.fetch(FetchDescriptor<StoredChapterTag>())
+        guard rows.count > 1 else { return }
+        var newest: [String: Int] = [:]
+        for row in rows {
+            let key = row.episodeIdentifier + "|" + row.mediaVersionIdentifier
+            newest[key] = max(newest[key] ?? row.transcriptRevisionValue, row.transcriptRevisionValue)
+        }
+        var byIdentifier: [String: [StoredChapterTag]] = [:]
+        for row in rows {
+            let key = row.episodeIdentifier + "|" + row.mediaVersionIdentifier
+            if row.transcriptRevisionValue < newest[key] ?? row.transcriptRevisionValue {
+                modelContext.delete(row)
+            } else if !row.identifier.isEmpty {
+                byIdentifier[row.identifier, default: []].append(row)
+            }
+        }
+        func precedes(_ lhs: StoredChapterTag, _ rhs: StoredChapterTag) -> Bool {
+            if lhs.createdAt != rhs.createdAt { return lhs.createdAt < rhs.createdAt }
+            if lhs.confidence != rhs.confidence { return lhs.confidence > rhs.confidence }
+            return lhs.interestIdentifier < rhs.interestIdentifier
+        }
+        for group in byIdentifier.values where group.count > 1 {
+            let sorted = group.sorted(by: precedes)
+            guard precedes(sorted[0], sorted[1]) else { continue }
+            for row in sorted.dropFirst() { modelContext.delete(row) }
         }
     }
 
@@ -253,10 +318,15 @@ extension LibraryStore {
 
     /// Ersetzt die Kapitel-Tags einer Folge durch die einer Einordnung.
     ///
-    /// Alle Zeilen der Folge aus dieser oder einer älteren Fassung des
-    /// Transkripts gehen, die neuen kommen. Liegen schon Tags aus einer
-    /// neueren Fassung vor, oder ist die Folge gelöscht, schreibt die
-    /// Einordnung nichts und das Ergebnis ist `false`.
+    /// Alle Zeilen der Folge gehen, die neuen kommen. Liegen für dieselbe
+    /// Medienfassung schon Tags aus einer neueren Revision des Transkripts
+    /// vor, oder ist die Folge gelöscht, schreibt die Einordnung nichts und
+    /// das Ergebnis ist `false`. Revisionen zählen je Fassung: Eine neue
+    /// Fassung beginnt wieder bei der ersten Revision.
+    ///
+    /// Regel 3: Jedes Kapitel-Tag muss auf ein gespeichertes Tag zeigen.
+    /// Andere Kennungen fallen weg, und den Schlüssel nimmt der Store vom
+    /// Tag, nicht aus dem Aufruf.
     @discardableResult
     public func save(
         chapterTags: [ChapterTag], forEpisode episodeID: EpisodeID, transcriptRevision: Revision
@@ -268,15 +338,37 @@ extension LibraryStore {
 
         let existing = try modelContext.fetch(
             FetchDescriptor<StoredChapterTag>(predicate: #Predicate { $0.episodeIdentifier == key }))
-        if existing.contains(where: { $0.transcriptRevisionValue > transcriptRevision.value }) { return false }
+        let incomingMedia = Set(chapterTags.map(\.mediaVersionID.rawValue))
+        if existing.contains(where: {
+            (incomingMedia.isEmpty || incomingMedia.contains($0.mediaVersionIdentifier))
+                && $0.transcriptRevisionValue > transcriptRevision.value
+        }) { return false }
+
+        let interestKeys = Set(chapterTags.map(\.interestID.rawValue))
+        var storedKey: [String: String] = [:]
+        for row in try modelContext.fetch(FetchDescriptor<StoredInterest>(
+            predicate: #Predicate { interestKeys.contains($0.identifier) })) {
+            // Ein Tag aus der Zeit vor 0.10 hat bis zum Bereinigen noch keinen
+            // Schlüssel. Dann gilt der aus seiner Bezeichnung.
+            let normalized = row.normalizedKey.isEmpty ? TagNormalizer.key(for: row.label) : row.normalizedKey
+            if !normalized.isEmpty { storedKey[row.identifier] = normalized }
+        }
         for row in existing { modelContext.delete(row) }
 
         var written: Set<ChapterTagID> = []
         var firstSeen: [String: Date] = [:]
-        for tag in chapterTags where tag.episodeID == episodeID && written.insert(tag.id).inserted {
+        for proposed in chapterTags where proposed.episodeID == episodeID {
+            guard let normalizedKey = storedKey[proposed.interestID.rawValue] else { continue }
+            let tag = ChapterTag(
+                episodeID: proposed.episodeID, mediaVersionID: proposed.mediaVersionID,
+                chapterStartMs: proposed.chapterStartMs, chapterEndMs: proposed.chapterEndMs,
+                interestID: proposed.interestID, normalizedKey: normalizedKey,
+                confidence: proposed.confidence, matchedKnown: proposed.matchedKnown,
+                sourceID: proposed.sourceID, publishedAt: proposed.publishedAt,
+                createdAt: proposed.createdAt, transcriptRevision: transcriptRevision)
+            guard written.insert(tag.id).inserted else { continue }
             let row = StoredChapterTag(identifier: tag.id.rawValue)
             row.apply(tag)
-            row.transcriptRevisionValue = transcriptRevision.value
             modelContext.insert(row)
             let interest = tag.interestID.rawValue
             firstSeen[interest] = min(firstSeen[interest] ?? tag.createdAt, tag.createdAt)

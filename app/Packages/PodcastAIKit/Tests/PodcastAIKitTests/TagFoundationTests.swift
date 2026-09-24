@@ -137,8 +137,19 @@ struct TagStoreTests {
         LibraryStore.make(container: try LibraryStore.makeContainer(inMemory: true))
     }
 
-    func seededStore() async throws -> LibraryStore {
+    /// Mit Quelle, Folge, Transkript und, wenn `withTags`, den Tags, auf die
+    /// die Kapitel-Tags der Tests zeigen. Der Store nimmt nur Kapitel-Tags
+    /// an, deren Tag er kennt (Regel 3).
+    func seededStore(withTags: Bool = true) async throws -> LibraryStore {
         let store = try store()
+        if withTags {
+            let created = Date(timeIntervalSince1970: 1_000)
+            for (identifier, label, key) in [("ds", "Datenschutz", "datenschutz"), ("us", "USA", "region:US"),
+                                             ("robotik", "Robotik", "robotik"), ("ki", "KI", "ki")] {
+                try await store.insertInterestRowForTesting(
+                    identifier: identifier, label: label, createdAt: created, normalizedKey: key)
+            }
+        }
         try await store.upsert(source: Source(id: sourceID, kind: .podcastRSS, title: "Quelle"))
         _ = try await store.upsert(episodes: [Episode(
             id: episodeID, sourceID: sourceID, title: "Folge", publishedAt: published, audioURL: audio)],
@@ -201,7 +212,7 @@ struct TagStoreTests {
 
     @Test("Umbenennen über die Oberfläche: der Wert aus dem Profil trägt den alten Schlüssel, gespeichert wird der neue")
     func renameFromProfileSnapshot() async throws {
-        let store = try await seededStore()
+        let store = try await seededStore(withTags: false)
         try await store.upsert(interest: Interest(label: "Vereinigte Staaten"))
         var loaded = try #require(try await store.interestProfile(learningEnabled: false).interests.first)
         #expect(loaded.normalizedKey == "region:US")
@@ -238,7 +249,7 @@ struct TagStoreTests {
 
     @Test("Beim Laden werden alte Interessen zu Tags, gleiche Schlüssel zu einem, und alle Verweise folgen")
     func migrationMergesAndRewrites() async throws {
-        let store = try await seededStore()
+        let store = try await seededStore(withTags: false)
         let t0 = Date(timeIntervalSince1970: 1_700_000_000)
         // Drei Interessen aus der Zeit vor den Tags, ohne Schlüssel.
         try await store.insertInterestRowForTesting(identifier: "usa", label: "USA", createdAt: t0,
@@ -302,7 +313,7 @@ struct TagStoreTests {
 
     @Test("Zwei Geräte legen dasselbe Tag an: es bleibt eines, auf beiden dasselbe")
     func parallelTagsFromTwoDevices() async throws {
-        let store = try await seededStore()
+        let store = try await seededStore(withTags: false)
         // Gerät A erkennt das Tag, Gerät B hatte es vorher unter anderer
         // Kennung angelegt. Die ältere Zeile bleibt.
         let detected = try #require(try await store.addDetectedTag(label: "Elektroautos"))
@@ -394,14 +405,15 @@ struct TagStoreTests {
         let interest = InterestID(rawValue: "ds")
         #expect(try await store.save(
             chapterTags: [chapterTag("datenschutz", interest: interest, start: 0),
-                          chapterTag("robotik", interest: interest, start: 0)],
+                          chapterTag("robotik", interest: InterestID(rawValue: "robotik"), start: 0)],
             forEpisode: episodeID, transcriptRevision: Revision(2)))
+        let ki = InterestID(rawValue: "ki")
         #expect(try await !store.save(
-            chapterTags: [chapterTag("ki", interest: interest)],
+            chapterTags: [chapterTag("ki", interest: ki)],
             forEpisode: episodeID, transcriptRevision: Revision(1)))
         #expect(try await store.chapterTags(forEpisode: episodeID).count == 2)
         #expect(try await store.save(
-            chapterTags: [chapterTag("ki", interest: interest)],
+            chapterTags: [chapterTag("ki", interest: ki)],
             forEpisode: episodeID, transcriptRevision: Revision(3)))
         let tags = try await store.chapterTags(forEpisode: episodeID)
         #expect(tags.map(\.normalizedKey) == ["ki"])
@@ -419,7 +431,7 @@ struct TagStoreTests {
         #expect(try await store.save(
             chapterTags: [chapterTag("datenschutz", interest: interest, start: 0),
                           chapterTag("datenschutz", interest: interest, start: 300_000),
-                          chapterTag("robotik", interest: interest, start: 300_000)],
+                          chapterTag("robotik", interest: InterestID(rawValue: "robotik"), start: 300_000)],
             forEpisode: episodeID, transcriptRevision: .initial))
         #expect(try await store.save(
             chapterTags: [chapterTag("datenschutz", interest: interest, episode: otherEpisode,
@@ -436,5 +448,94 @@ struct TagStoreTests {
         #expect(counts.first == ChapterTagCount(normalizedKey: "datenschutz", sourceID: sourceID, chapterCount: 2))
         #expect(counts.contains(ChapterTagCount(normalizedKey: "datenschutz", sourceID: otherSource, chapterCount: 1)))
         #expect(counts.contains(ChapterTagCount(normalizedKey: "robotik", sourceID: sourceID, chapterCount: 1)))
+    }
+
+    @Test("Regel 3: Kapitel-Tags nur zu bekannten Tags, den Schlüssel bestimmt das Tag")
+    func chapterTagsNeedKnownTag() async throws {
+        let store = try await seededStore()
+        #expect(try await store.save(
+            chapterTags: [chapterTag("frei erfunden", interest: InterestID(rawValue: "ds"), start: 0),
+                          chapterTag("unbekannt", interest: InterestID(rawValue: "gibt es nicht"), start: 60_000)],
+            forEpisode: episodeID, transcriptRevision: .initial))
+        let saved = try await store.chapterTags(forEpisode: episodeID)
+        #expect(saved.map(\.normalizedKey) == ["datenschutz"])
+        #expect(saved.first?.id == ChapterTag.identifier(mediaVersionID: mediaID, chapterStartMs: 0,
+                                                         normalizedKey: "datenschutz"))
+    }
+
+    @Test("Eine neue Medienfassung zählt ihre Revisionen neu und ersetzt die alte")
+    func newMediaVersionReplaces() async throws {
+        let store = try await seededStore()
+        let ds = InterestID(rawValue: "ds")
+        #expect(try await store.save(
+            chapterTags: [chapterTag("datenschutz", interest: ds)],
+            forEpisode: episodeID, transcriptRevision: Revision(3)))
+        let newMedia = MediaVersionID(stable: "neue fassung")
+        #expect(try await store.save(
+            chapterTags: [chapterTag("robotik", interest: InterestID(rawValue: "robotik"),
+                                     revision: Revision(1), media: newMedia)],
+            forEpisode: episodeID, transcriptRevision: Revision(1)))
+        let saved = try await store.chapterTags(forEpisode: episodeID)
+        #expect(saved.map(\.mediaVersionID) == [newMedia])
+        // Dieselbe Fassung mit älterer Revision schreibt weiter nichts.
+        #expect(try await !store.save(
+            chapterTags: [chapterTag("ki", interest: InterestID(rawValue: "ki"), media: newMedia)],
+            forEpisode: episodeID, transcriptRevision: .initial))
+        #expect(try await store.chapterTags(forEpisode: episodeID).map(\.normalizedKey) == ["robotik"])
+    }
+
+    @Test("Nach dem Abgleich gilt je Fassung nur die neueste Revision")
+    func syncKeepsNewestRevision() async throws {
+        let store = try await seededStore()
+        // Gerät A hat nach Revision 1 eingeordnet, Gerät B nach Revision 2.
+        try await store.insertChapterTagCopyForTesting(chapterTag(
+            "datenschutz", interest: InterestID(rawValue: "ds"), start: 0,
+            createdAt: Date(timeIntervalSince1970: 100), revision: Revision(1)))
+        try await store.insertChapterTagCopyForTesting(chapterTag(
+            "datenschutz", interest: InterestID(rawValue: "ds"), start: 0,
+            createdAt: Date(timeIntervalSince1970: 200), revision: Revision(2)))
+        try await store.insertChapterTagCopyForTesting(chapterTag(
+            "robotik", interest: InterestID(rawValue: "robotik"), start: 300_000,
+            createdAt: Date(timeIntervalSince1970: 100), revision: Revision(1)))
+        try await store.removeDuplicates()
+        let tags = try await store.chapterTags(forEpisode: episodeID)
+        #expect(tags.map(\.normalizedKey) == ["datenschutz"])
+        #expect(tags.first?.transcriptRevision == Revision(2))
+        #expect(try await store.rowCountForTesting(StoredChapterTag.self) == 1)
+    }
+
+    @Test("Ein Vorschlag macht ein erkanntes Tag beim Zusammenlegen nicht zu einem gefolgten")
+    func suggestionDoesNotFollowDetected() async throws {
+        let store = try await seededStore(withTags: false)
+        try await store.insertInterestRowForTesting(
+            identifier: "vorschlag", label: "Elektroauto", createdAt: Date(timeIntervalSince1970: 1_000),
+            stance: .follow, origin: .suggestedBySystem)
+        let detected = try #require(try await store.addDetectedTag(label: "Elektroautos"))
+        #expect(detected.id != InterestID(rawValue: "vorschlag"))
+        try await store.removeDuplicates()
+        let tags = try await store.tags()
+        #expect(tags.count == 1)
+        #expect(tags.first?.origin == .detected)
+        #expect(tags.first?.stance == .neutral)
+        let profile = try await store.interestProfile(learningEnabled: false)
+        #expect(profile.topics.isEmpty)
+        #expect(profile.followed.isEmpty)
+    }
+
+    @Test("Abbestellen lässt Kapitel-Tags einer Folge stehen, die unter einer anderen Quelle lebt")
+    func removingSourceKeepsLivingEpisodeElsewhere() async throws {
+        let store = try await seededStore()
+        let otherSource = SourceID(stable: "andere")
+        let otherEpisode = EpisodeID(stable: "andere folge")
+        try await store.upsert(source: Source(id: otherSource, kind: .podcastRSS, title: "Andere"))
+        _ = try await store.upsert(episodes: [Episode(
+            id: otherEpisode, sourceID: otherSource, title: "Andere Folge", publishedAt: published,
+            audioURL: URL(string: "https://example.com/andere.mp3")!)], forSource: otherSource)
+        // Das Kapitel-Tag trägt noch die alte Quelle.
+        try await store.insertChapterTagCopyForTesting(chapterTag(
+            "datenschutz", interest: InterestID(rawValue: "ds"),
+            episode: otherEpisode, media: MediaVersionID(stable: "andere fassung")))
+        _ = try await store.removeSource(sourceID)
+        #expect(try await store.chapterTags(forEpisode: otherEpisode).count == 1)
     }
 }

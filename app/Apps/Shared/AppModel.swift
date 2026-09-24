@@ -1947,8 +1947,18 @@ public final class AppModel {
     /// Themen an.
     @discardableResult
     public func addInterest(_ label: String, kind: InterestKind) async -> InterestID? {
-        let interest = Interest(label: label, kind: kind, origin: .confirmedByUser)
+        var interest = Interest(label: label, kind: kind, origin: .confirmedByUser)
         do {
+            // Gibt es das Tag schon unter diesem Schlüssel oder als Alias,
+            // heißt Anlegen folgen. Sonst stünde es bis zum nächsten
+            // Bereinigen doppelt da.
+            if let existing = try await store.resolveTag(label),
+               let known = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+                   .interests.first(where: { $0.id == existing.id }) {
+                interest = known
+                interest.stance = .follow
+                interest.origin = .confirmedByUser
+            }
             try await store.upsert(interest: interest)
             try await reloadProfile()
         } catch {
