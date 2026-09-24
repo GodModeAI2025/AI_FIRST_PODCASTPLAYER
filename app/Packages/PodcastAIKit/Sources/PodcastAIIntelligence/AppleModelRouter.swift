@@ -95,12 +95,16 @@ public enum TaskProfile: String, Sendable, CaseIterable {
     case proposePlayback
     /// Mehrere Folgen vergleichen. Braucht viel Kontext.
     case compare
+    /// Ein Satz je Kapitel, worum es darin geht. Läuft lokal. Fehlt das
+    /// Gerätemodell, darf Private Cloud Compute einspringen, sofern es
+    /// erlaubt ist (Entscheidung des Product Owners vom 24. September 2026).
+    case summarize
 
     /// Welche Stufe bevorzugt wird. `compare` profitiert von PCC, funktioniert
     /// lokal aber weiterhin — nur mit kleineren Häppchen.
     public var preferredTier: ModelTier {
         switch self {
-        case .extract, .recommend, .proposePlayback: .onDevice
+        case .extract, .recommend, .proposePlayback, .summarize: .onDevice
         case .answer, .compare: .privateCloudCompute
         }
     }
@@ -108,11 +112,15 @@ public enum TaskProfile: String, Sendable, CaseIterable {
     /// Darf lokal ausgeführt werden, wenn die bevorzugte Stufe fehlt?
     public var hasLocalFallback: Bool { true }
 
+    /// Darf Private Cloud Compute einspringen, wenn das Gerätemodell fehlt?
+    /// Nur für den Satz je Kapitel. Fakten und Relevanz bleiben auf dem Gerät.
+    public var hasCloudFallback: Bool { self == .summarize }
+
     /// Kein Profil bekommt Zugriff auf Player, Schlüsselbund, Dateisystem
     /// oder freies Netzwerk. Diese Liste ist die vollständige Werkzeugmenge.
     public var allowedTools: Set<ModelTool> {
         switch self {
-        case .extract: []
+        case .extract, .summarize: []
         case .answer, .compare: [.searchOwnIndex]
         case .recommend: [.readInterestProfile]
         case .proposePlayback: [.searchOwnIndex]
@@ -153,6 +161,10 @@ public struct ModelStatus: Sendable, Equatable {
         if preferred == .privateCloudCompute, profile.hasLocalFallback,
            case .available = onDevice {
             return .success(.onDevice)
+        }
+        if preferred == .onDevice, profile.hasCloudFallback,
+           case .available = privateCloudCompute {
+            return .success(.privateCloudCompute)
         }
         if case .unavailable(let reason) = availability(for: preferred) {
             return .failure(reason)

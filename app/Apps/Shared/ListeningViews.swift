@@ -615,16 +615,10 @@ struct EpisodeDetailView: View {
 
     // MARK: Kapitel
 
+    /// Je Kapitel Titel, Satz, Fakten und Transkript. Ohne Kapitel aus dem
+    /// Feed die Abschnitte, die die App aus dem Transkript bildet.
     private var chapterList: some View {
-        List {
-            if chapters.isEmpty {
-                ContentUnavailableView("Keine Kapitel", systemImage: "list.bullet",
-                                       description: Text("Der Podcast liefert für diese Folge keine Kapitelmarken."))
-            }
-            ForEach(Array(chapters.enumerated()), id: \.offset) { _, chapter in
-                ChapterRow(chapter: chapter, episode: episode, chapters: chapters)
-            }
-        }
+        EpisodeChapterList(episode: episode, chapters: chapters, passages: passages, facts: facts)
     }
 
     // MARK: Fakten

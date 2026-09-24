@@ -866,6 +866,10 @@ struct CitationRow: View {
             }
         }
         .contextMenu {
+            // Dieselbe Stelle in der ganzen Originalfolge, wie ein Tipp auf die Zeile.
+            if evidence.isPlayable, let range = evidence.range {
+                OpenOriginalButton(episodeID: evidence.episodeID, position: range.start)
+            }
             // Gemerkt wird genau dieser Beleg: sein Wortlaut, seine Zeit.
             if evidence.range != nil {
                 Button {
@@ -883,8 +887,8 @@ struct CitationRow: View {
         // Was sonst im Kontextmenü steht, auch für VoiceOver im Rotor.
         .accessibilityActions {
             if evidence.isPlayable, let range = evidence.range {
-                Button("Abspielen") {
-                    Task { await model.playEvidenceInEpisode(evidence, at: range.start.seconds) }
+                Button("Original öffnen") {
+                    Task { await model.openOriginal(episodeID: evidence.episodeID, at: range.start) }
                 }
             }
             if evidence.range != nil {

@@ -2610,6 +2610,22 @@
         }
       }
     },
+    "Aus dem Transkript" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus dem Transkript"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From the Transcript"
+          }
+        }
+      }
+    },
     "Aus dem Verlauf entfernen" : {
       "localizations" : {
         "de" : {
@@ -3467,18 +3483,18 @@
         }
       }
     },
-    "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz." : {
+    "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Den Satz je Kapitel schreiben Apples Server nur, wenn das Modell auf dem Gerät fehlt, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
+            "value" : "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Den Satz je Kapitel schreiben Apples Server nur, wenn das Modell auf dem Gerät fehlt, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The on-device model writes answers and facts. If \"Use Apple Servers\" is turned on, your question and the matching transcript passages go to Apple's servers (Private Cloud Compute). Apple says it doesn't store them. You'll find the switch at the bottom of this page and in Settings under Intelligence."
+            "value" : "The on-device model writes answers, facts and the one-sentence summary of each chapter. If \"Use Apple Servers\" is turned on, your question and the matching transcript passages go to Apple's servers (Private Cloud Compute). Chapter summaries go to Apple's servers only when the on-device model is missing, and then with that chapter's transcript passages. Apple says it doesn't store them. You'll find the switch at the bottom of this page and in Settings under Intelligence."
           }
         }
       }
@@ -4291,18 +4307,34 @@
         }
       }
     },
-    "Der Podcast liefert für diese Folge keine Kapitelmarken." : {
+    "Der Podcast liefert für diese Folge keine Kapitel. Die Abschnitte hat die App aus dem Transkript gebildet, dort, wo das Thema wechselt." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Podcast liefert für diese Folge keine Kapitelmarken."
+            "value" : "Der Podcast liefert für diese Folge keine Kapitel. Die Abschnitte hat die App aus dem Transkript gebildet, dort, wo das Thema wechselt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The podcast doesn't provide chapter markers for this episode."
+            "value" : "The podcast has no chapters for this episode. The app built these sections from the transcript, where the topic changes."
+          }
+        }
+      }
+    },
+    "Der Podcast liefert für diese Folge keine Kapitelmarken. Sobald das Transkript fertig ist, teilt die App die Folge in Abschnitte." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Podcast liefert für diese Folge keine Kapitelmarken. Sobald das Transkript fertig ist, teilt die App die Folge in Abschnitte."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The podcast has no chapter markers for this episode. Once the transcript is ready, the app splits the episode into sections."
           }
         }
       }
@@ -5039,6 +5071,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The note is attached to this passage. You can find it in the episode and under Knowledge › Saved Moments. It stays even if you delete the episode."
+          }
+        }
+      }
+    },
+    "Die Originalfolge ist nicht mehr in der Bibliothek." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Originalfolge ist nicht mehr in der Bibliothek."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The original episode is no longer in your library."
           }
         }
       }
@@ -11125,6 +11173,22 @@
         }
       }
     },
+    "Original öffnen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Original"
+          }
+        }
+      }
+    },
     "Overcast, Pocket Casts und die meisten anderen Podcast-Apps sichern ihre Abos in einer Datei (OPML). Die wählst du hier aus, dann kommen alle auf einmal herüber." : {
       "localizations" : {
         "de" : {
@@ -12113,6 +12177,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plays the episode from this point"
+          }
+        }
+      }
+    },
+    "Spielt die Originalfolge ab %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielt die Originalfolge ab %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plays the original episode from %@"
           }
         }
       }
@@ -15251,6 +15331,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Revoke"
+          }
+        }
+      }
+    },
+    "Zusammenfassung · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zusammenfassung · %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summary · %@"
           }
         }
       }

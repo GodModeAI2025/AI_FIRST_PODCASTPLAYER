@@ -261,6 +261,16 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
                 MediaTime(milliseconds: segment.playbackRange.start.milliseconds + offset))
     }
 
+    /// Wie ``originalPosition(forVirtual:)``, dazu die Originalfolge. Dafür
+    /// steht „Original öffnen“ an jedem Kapitel einer Ausgabe.
+    public func originalEpisodePosition(
+        forVirtual time: MediaTime
+    ) -> (episodeID: EpisodeID, mediaVersionID: MediaVersionID, position: MediaTime)? {
+        guard let original = originalPosition(forVirtual: time),
+              let segment = segments.first(where: { $0.virtualRange.contains(time) }) else { return nil }
+        return (segment.episodeID, original.mediaVersionID, original.position)
+    }
+
     /// Die Ledger-Ereignisse, die beim Hören dieser Ausgabe entstehen.
     ///
     /// Hier schließt sich der Kreis: was im persönlichen Update gehört wurde,

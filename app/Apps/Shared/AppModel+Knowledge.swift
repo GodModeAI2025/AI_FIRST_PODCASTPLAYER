@@ -95,6 +95,7 @@ extension AppModel {
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: removed))
         TranslationCache.remove(episodes: Array(gone.keys))
         MentionCache.remove(episodes: Array(gone.keys))
+        ChapterSummaryCache.remove(episodes: Array(gone.keys))
         for id in gone.keys {
             facts[id] = nil
             stages[id] = nil
@@ -1016,19 +1017,27 @@ extension AppModel {
 
         let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let chunk = Self.factChunkSize(contextSize: Self.onDeviceContextSize)
-        // Lange Folgen: gleichmäßig verteilte Stellen statt nur des Anfangs.
-        let sample = Self.evenlySpaced(evidence, count: chunk * Self.factChunkLimit)
-        let slices = stride(from: 0, to: sample.count, by: chunk).map {
-            Array(sample[$0..<min($0 + chunk, sample.count)])
-        }
+        // Jedes Kapitel bekommt seinen Anteil, statt gleichmäßig verteilter
+        // Stellen über die ganze Folge. Ohne Kapitel aus dem Feed gelten die
+        // Abschnitte, die auch der Reiter „Kapitel“ zeigt.
+        let sections = await Self.chapterSections(
+            chapters: feedChapters(for: episode), duration: episode.declaredDuration, evidence: evidence)
+        let plan = ChapterSections.factPlan(
+            evidence: evidence, sections: sections, chunk: chunk,
+            budget: ChapterSections.FactBudget(baseCalls: Self.factChunkLimit, baseLimit: Self.factLimit))
+        var slices = plan.slices
         // Mit Lücken: nur die Abschnitte, die beim letzten Mal fehlten. Was
         // schon da ist, bleibt.
         var open = Set(slices.indices)
         if !stored.isEmpty {
-            open = Set(slices.indices.filter { gaps.contains(Self.factSliceID(slices[$0])) })
-            // Die Lücken passen nicht mehr zu den Abschnitten, etwa nach einem
-            // neuen Transkript oder mit einem Modell, das mehr Text fasst. Dann
-            // bleibt es bei den Fakten, die es gibt. „Neu ermitteln“ rechnet
+            // Über die Zeitspanne der Lücke, nicht über die Kennung des
+            // Aufrufs: Seit dem letzten Lauf können Kapitel aus dem Feed
+            // dazugekommen sein, dann liegen die Aufrufe anders.
+            let reopened = ChapterSections.reopened(slices, gaps: Self.factGapSpans(gaps, in: byID))
+            for (index, part) in reopened { slices[index] = part }
+            open = Set(reopened.keys)
+            // Die Lücken passen nicht mehr zu den Belegen, etwa nach einem
+            // neuen Transkript. Dann bleibt es bei den Fakten, die es gibt. „Neu ermitteln“ rechnet
             // die ganze Folge neu.
             guard !open.isEmpty else {
                 recordFactGaps([], for: episode.id, since: ticket)
@@ -1038,8 +1047,8 @@ extension AppModel {
                 return .stored
             }
         }
-        // Jeder Abschnitt der Folge bekommt seinen Anteil an den Fakten.
-        let quota = max(3, Int((Double(Self.factLimit) / Double(max(1, slices.count))).rounded(.up)))
+        // Jedes Kapitel der Folge bekommt seinen Anteil an den Fakten.
+        let quota = plan.quota
         let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
             candidateBuilder: CandidateListBuilder(excerptLimit: Self.factExcerptLimit, maximumCandidates: chunk)))
         // Für die Zeitmarken: das Modell wählt nur den Beleg, den Satz darin
@@ -1098,7 +1107,17 @@ extension AppModel {
                 continue
             }
             guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
-            for claim in Self.evenlySpaced(claims, count: quota) {
+            // Je Kapitel höchstens `quota`, damit ein Aufruf mit mehreren
+            // Kapiteln nicht alles einem einzigen gibt. Aussagen ohne
+            // bekannten Beleg fallen vorher heraus, sonst zählten sie beim
+            // ersten Kapitel mit und verdrängten dort echte.
+            let placed = claims.filter { $0.evidenceIDs.first.flatMap { byID[$0]?.range } != nil }
+            let perSection = ChapterSections.balanced(
+                placed, across: sections, quota: quota, limit: placed.count
+            ) { claim in
+                claim.evidenceIDs.first.flatMap { byID[$0]?.range?.start } ?? .zero
+            }
+            for claim in perSection {
                 guard let evidenceID = claim.evidenceIDs.first, let source = byID[evidenceID],
                       let range = source.range else { continue }
                 let sentence = timed.flatMap { transcript in
@@ -1157,7 +1176,9 @@ extension AppModel {
         }
         let unique = Dictionary((stored + result).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
             .sorted { $0.range.start.milliseconds < $1.range.start.milliseconds }
-        let kept = Self.evenlySpaced(unique, count: Self.factLimit)
+        // Beim Kürzen bleibt jedes Kapitel vertreten.
+        let kept = ChapterSections.balanced(
+            Array(unique), across: sections, quota: plan.quota, limit: plan.limit) { $0.range.start }
         facts[episode.id] = kept
         var saveFailure: String?
         do {
@@ -1309,15 +1330,30 @@ extension AppModel {
             .joined(separator: "|")
     }
 
+    /// Die Zeitspanne jeder Lücke, vom Anfang ihres ersten bis zum Ende
+    /// ihres letzten Belegs. Lücken, deren Belege es nicht mehr gibt, etwa
+    /// nach einem neuen Transkript, fallen weg.
+    static func factGapSpans(_ gaps: Set<String>, in byID: [EvidenceID: Evidence]) -> [MediaTimeRange] {
+        gaps.compactMap { gap in
+            let parts = gap.split(separator: "|", omittingEmptySubsequences: false)
+            guard parts.count == 3,
+                  let first = byID[EvidenceID(rawValue: String(parts[0]))]?.range,
+                  let last = byID[EvidenceID(rawValue: String(parts[1]))]?.range else { return nil }
+            return MediaTimeRange(start: min(first.start, last.start), end: max(first.end, last.end))
+        }
+    }
+
     /// Ist ein neuer Lauf deutlich schlechter als der vorige? Ja, wenn er
     /// weniger als halb so viele Fakten liefert wie vorher mindestens zwei.
     static func isClearlyWorse(_ fresh: Int, than previous: Int) -> Bool {
         previous >= 2 && fresh * 2 < previous
     }
 
-    /// Höchstens so viele Fakten je Folge.
+    /// So viele Fakten behält jede Folge mindestens. Mit vielen Kapiteln
+    /// wächst die Grenze, siehe ``ChapterSections/factPlan(evidence:sections:chunk:budget:)``.
     static let factLimit = 40
-    /// Höchstens so viele Modellaufrufe je Folge.
+    /// So viele Modellaufrufe bekommt jede Folge. Mit vielen Kapiteln
+    /// werden es mehr, höchstens ``ChapterSections/FactBudget/maximumCalls``.
     static let factChunkLimit = 6
     static let factExcerptLimit = 600
 
@@ -2327,6 +2363,7 @@ extension AppModel {
         }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: [episode]))
         MentionCache.remove(episodes: [episode.id])
+        ChapterSummaryCache.remove(episodes: [episode.id])
         facts[episode.id] = nil
         stages[episode.id] = nil
         stageDetails[episode.id] = nil
@@ -2336,10 +2373,11 @@ extension AppModel {
 
     private func applyRemoval(_ report: LibraryStore.RemovalReport) {
         LocalMediaLocator.removeFiles(for: report.mediaVersionIDs)
-        // Übersetzte Transkripte und erkannte Nennungen sind aus der Folge
-        // entstanden und gehen mit.
+        // Übersetzte Transkripte, erkannte Nennungen und die Sätze je Kapitel
+        // sind aus der Folge entstanden und gehen mit.
         TranslationCache.remove(episodes: report.episodeIDs)
         MentionCache.remove(episodes: report.episodeIDs)
+        ChapterSummaryCache.remove(episodes: report.episodeIDs)
         for id in report.episodeIDs {
             facts[id] = nil
             stages[id] = nil

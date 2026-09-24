@@ -377,10 +377,12 @@ struct PrivacyOverviewView: View {
          """),
         ("sparkles", "Antworten und Fakten mit Apple Intelligence",
          """
-         Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist „Apple-Server nutzen“ \
-         eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server \
-         (Private Cloud Compute). Apple speichert sie nach eigenen Angaben nicht. Den Schalter \
-         findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz.
+         Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel. Ist \
+         „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen \
+         an Apples Server (Private Cloud Compute). Den Satz je Kapitel schreiben Apples Server nur, \
+         wenn das Modell auf dem Gerät fehlt, dann mit den Transkriptstellen des Kapitels. Apple \
+         speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite \
+         und in den Einstellungen unter Intelligenz.
          """),
         ("translate", "Übersetzen",
          """
