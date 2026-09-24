@@ -496,6 +496,22 @@
           }
         }
       }
+    },
+    "unbekannter Zustand" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unbekannter Zustand"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unknown state"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

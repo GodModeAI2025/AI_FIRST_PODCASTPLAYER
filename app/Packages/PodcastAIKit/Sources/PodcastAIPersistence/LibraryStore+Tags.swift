@@ -40,12 +40,21 @@ extension LibraryStore {
 
     /// Plus oder Minus. Minus löscht nichts: Das Tag bleibt sichtbar und
     /// neutral, seine Kapitel-Tags bleiben ebenso.
+    ///
+    /// Plus auf einem erkannten Tag macht es zu einem bestätigten. Sonst
+    /// verschwände es nach einem späteren Minus wieder aus der Wolke, solange
+    /// es nur eine Quelle hat (``Tag/isVisibleInCloud(sourceCount:)``).
     public func setStance(_ stance: TagStance, forTag id: InterestID) throws {
         let identifier = id.rawValue
         let rows = try modelContext.fetch(
             FetchDescriptor<StoredInterest>(predicate: #Predicate { $0.identifier == identifier }))
         guard !rows.isEmpty else { return }
-        for row in rows { row.stanceRaw = stance.rawValue }
+        for row in rows {
+            row.stanceRaw = stance.rawValue
+            if stance == .follow, row.originRaw == InterestOrigin.detected.rawValue {
+                row.originRaw = InterestOrigin.confirmedByUser.rawValue
+            }
+        }
         try modelContext.save()
     }
 

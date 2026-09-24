@@ -48,9 +48,17 @@ public struct TagSelection: Sendable, Equatable {
     public let tier: ModelTier
     /// Wie lange der Aufruf gedauert hat, in Sekunden.
     public let seconds: Double
+    /// Scheiterte das Gerät vorher an der Zeit, wie lange es gebraucht hat.
+    /// Zählt für ``TaggingPace`` wie ein langsamer Aufruf auf dem Gerät.
+    public let timedOutOnDeviceSeconds: Double?
 
-    public init(chosenIDs: [String], tier: ModelTier, seconds: Double) {
+    public init(chosenIDs: [String], tier: ModelTier, seconds: Double, timedOutOnDeviceSeconds: Double? = nil) {
         self.chosenIDs = chosenIDs; self.tier = tier; self.seconds = seconds
+        self.timedOutOnDeviceSeconds = timedOutOnDeviceSeconds
+    }
+
+    func afterOnDeviceTimeout(_ seconds: Double) -> TagSelection {
+        TagSelection(chosenIDs: chosenIDs, tier: tier, seconds: self.seconds, timedOutOnDeviceSeconds: seconds)
     }
 }
 
@@ -215,6 +223,7 @@ public struct TagSelector: Sendable {
                 guard availability.onDevice.isAvailable else { throw Self.mapped(error) }
             }
         }
+        let started = ContinuousClock.now
         do {
             return try await run(localSession(instructions), tier: .onDevice,
                                  prompt: prompt, schema: schema, choices: choices)
@@ -222,8 +231,10 @@ public struct TagSelector: Sendable {
             if error is CancellationError || Task.isCancelled { throw error }
             // Zu langsam: einmal Private Cloud Compute, wenn es erlaubt ist.
             if Self.isTimeout(error), cloudAllowed, !preferCloud {
+                let waited = Self.seconds(ContinuousClock.now - started)
                 return try await run(cloudSession(instructions), tier: .privateCloudCompute,
                                      prompt: prompt, schema: schema, choices: choices)
+                    .afterOnDeviceTimeout(waited)
             }
             throw Self.mapped(error)
         }
@@ -236,10 +247,13 @@ public struct TagSelector: Sendable {
         let started = ContinuousClock.now
         let response = try await session.respond(to: prompt, schema: schema)
         let raw = (try? response.content.value([String].self, forProperty: TagSelectionRules.property)) ?? []
-        let elapsed = ContinuousClock.now - started
-        let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
         return TagSelection(
-            chosenIDs: TagSelectionRules.accepted(raw, from: choices), tier: tier, seconds: seconds)
+            chosenIDs: TagSelectionRules.accepted(raw, from: choices), tier: tier,
+            seconds: Self.seconds(ContinuousClock.now - started))
+    }
+
+    static func seconds(_ elapsed: Duration) -> Double {
+        Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
     }
 
     private func cloudSession(_ instructions: String) throws -> LanguageModelSession {

@@ -85,6 +85,7 @@ extension AppModel {
         guard let backlog = try? await store.chapterTagBacklog(among: [episode.id]),
               backlog.contains(episode.id), !wasRemoved(episode.id, since: ticket) else {
             Self.setTaggingProgress(nil, for: episode.id)
+            if !wasRemoved(episode.id, since: ticket) { tagsCurrent.insert(episode.id) }
             return .nothingToDo
         }
 
@@ -200,9 +201,11 @@ extension AppModel {
                                  transcriptRevision: Revision(revision))
         } catch {
             Self.setTaggingProgress(progress, for: episode.id)
+            tagsFailed.insert(episode.id)
             return .failed
         }
         Self.setTaggingProgress(nil, for: episode.id)
+        tagsCurrent.insert(episode.id)
         // Kein Kapitel bekam ein Tag: es entsteht keine Zeile, und ohne
         // Merkzeichen reihte der nächste Start die Folge wieder ein.
         if progress.tags.isEmpty {
@@ -232,20 +235,31 @@ extension AppModel {
 
     // MARK: - Bibliothek
 
-    /// Reiht Folgen mit Fakten ein, deren Kapitel noch keine Tags aus dem
-    /// aktuellen Transkript haben, neueste zuerst. Nur mit „Fakten
-    /// automatisch sammeln“, denn es ist dieselbe Arbeit im Hintergrund.
+    /// Reiht Folgen ein, deren Kapitel noch keine Tags aus dem aktuellen
+    /// Transkript haben, neueste zuerst. Nur mit „Fakten automatisch
+    /// sammeln“, denn es ist dieselbe Arbeit im Hintergrund.
+    ///
+    /// Die Tags kommen nach den Fakten: Eine Folge wartet, bis sie Fakten hat
+    /// oder ein Lauf ohne Fakten endete. Kann dieses Gerät gar keine Fakten
+    /// sammeln, etwa ohne Gerätemodell, aber mit Private Cloud Compute,
+    /// wartet sie nicht darauf.
     func queueMissingChapterTags(withFacts: Set<EpisodeID>) async {
         guard automaticFacts, isLoaded, tagsModelExpected else { return }
         let settled = StoredEpisodeIDs(key: Self.tagsSettledKey)
+        let factsSettled = StoredEpisodeIDs(key: Self.factsSettledKey)
+        let factsHere = factsModelExpected
         var busy = Set(tagsQueue.map(\.id)).union(factsQueue.map(\.id)).union(taggingInProgress)
         if let gatheringFacts { busy.insert(gatheringFacts.id) }
-        let pool = analyzedEpisodes.intersection(withFacts).filter {
-            !busy.contains($0) && !settled.contains($0) && !tagsFailed.contains($0)
+        let pool = analyzedEpisodes.filter {
+            (!factsHere || withFacts.contains($0) || factsSettled.contains($0))
+                && !busy.contains($0) && !settled.contains($0) && !tagsFailed.contains($0)
+                && !tagsCurrent.contains($0)
         }
         guard !pool.isEmpty,
-              let backlog = try? await store.chapterTagBacklog(among: pool), !backlog.isEmpty,
-              let found = try? await store.episodes(ids: Array(backlog)) else { return }
+              let backlog = try? await store.chapterTagBacklog(among: pool) else { return }
+        // Was nicht offen ist, fragt dieser Start nicht noch einmal ab.
+        tagsCurrent.formUnion(pool.subtracting(backlog))
+        guard !backlog.isEmpty, let found = try? await store.episodes(ids: Array(backlog)) else { return }
         for episode in found.sorted(by: { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) })
         where !tagsQueue.contains(where: { $0.id == episode.id }) {
             tagsQueue.append(episode)
@@ -266,7 +280,9 @@ extension AppModel {
                 continue
             case .failed:
                 // Ein zweiter Anlauf erst beim nächsten Start, ohne die Folge
-                // dauerhaft aufzugeben: der gemerkte Stand bleibt.
+                // dauerhaft aufzugeben: der gemerkte Stand bleibt. Meist ist
+                // das Modell ausgelastet, also etwas Luft vor der nächsten.
+                await pauseBetweenFactRuns()
                 continue
             case .modelUnavailable, .waiting, .cancelled:
                 tagsQueue.insert(next, at: 0)
@@ -278,7 +294,19 @@ extension AppModel {
     /// Nimmt eine gelöschte Folge aus der Einordnung, samt gemerktem Stand.
     func dropFromTagsQueue(_ id: EpisodeID) {
         tagsQueue.removeAll { $0.id == id }
+        tagsCurrent.remove(id)
         Self.setTaggingProgress(nil, for: id)
+    }
+
+    /// Ein neues Transkript: Die Folge bekommt eine neue Gelegenheit, auch
+    /// wenn die letzte Einordnung ohne Tag endete. Meist ordnet sie die
+    /// Arbeit an den Fakten gleich danach ein. Scheitert das, holt es das
+    /// Einreihen nach.
+    func transcriptChangedForTags(_ id: EpisodeID) {
+        tagsCurrent.remove(id)
+        tagsFailed.remove(id)
+        var settled = StoredEpisodeIDs(key: Self.tagsSettledKey)
+        settled.remove(id)
     }
 
     /// Für die leichte Hintergrundaufgabe `com.podcastai.tagging`: nur Tags,
@@ -323,8 +351,14 @@ extension AppModel {
         return "tagsSettled-\(system.majorVersion).\(system.minorVersion)"
     }
 
-    private static let taggingProgressKey = "chapterTaggingProgress"
-    private static let taggingPaceKey = "chapterTaggingPace"
+    static let taggingProgressKey = "chapterTaggingProgress"
+    /// Je Systemversion: Ein neues Modell wird neu gemessen. Sonst bliebe
+    /// ein einmal langsames Gerät bei Private Cloud Compute, denn dort
+    /// entstehen keine neuen Messungen auf dem Gerät.
+    static var taggingPaceKey: String {
+        let system = ProcessInfo.processInfo.operatingSystemVersion
+        return "chapterTaggingPace-\(system.majorVersion).\(system.minorVersion)"
+    }
 
     static func taggingProgress(for id: EpisodeID) -> ChapterTaggingProgress? {
         let stored = UserDefaults.standard.dictionary(forKey: taggingProgressKey) as? [String: Data]
@@ -351,10 +385,12 @@ extension AppModel {
     }
 
     static func recordTaggingPace(_ selections: [TagSelection]) {
-        let local = selections.filter { $0.tier == .onDevice }
+        // Auch ein Aufruf, der auf dem Gerät an der Zeit scheiterte und dann
+        // von Private Cloud Compute kam, zählt als langsamer Aufruf.
+        let local = selections.compactMap { $0.tier == .onDevice ? $0.seconds : $0.timedOutOnDeviceSeconds }
         guard !local.isEmpty else { return }
         var pace = taggingPace
-        for selection in local { pace.record(onDeviceSeconds: selection.seconds) }
+        for seconds in local { pace.record(onDeviceSeconds: seconds) }
         if let data = try? JSONEncoder().encode(pace) {
             UserDefaults.standard.set(data, forKey: taggingPaceKey)
         }

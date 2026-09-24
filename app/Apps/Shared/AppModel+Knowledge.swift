@@ -1443,7 +1443,7 @@ extension AppModel {
     /// Lohnt es, Folgen einzureihen? Wird das Modell nur noch vorbereitet,
     /// warten sie darauf. Fehlt es ganz, etwa weil Apple Intelligence aus
     /// ist, reiht die App nichts ein und sagt im Reiter „Fakten“, warum.
-    private var factsModelExpected: Bool {
+    var factsModelExpected: Bool {
         switch modelStatus.resolve(.extract) {
         case .success: true
         case .failure(let reason): reason == .modelNotReady
@@ -1763,7 +1763,7 @@ extension AppModel {
 
     /// Eine Minute Pause nach einem Fehlschlag. Wer inzwischen selbst eine
     /// Folge anfordert, wartet nicht darauf.
-    private func pauseBetweenFactRuns() async {
+    func pauseBetweenFactRuns() async {
         for _ in 0..<12 {
             if Task.isCancelled { return }
             if let first = factsQueue.first, factsRequested.contains(first.id) { return }

@@ -415,6 +415,18 @@ struct ChapterTagVisibilityTests {
                                   origin: .suggestedBySystem).isVisibleInCloud(sourceCount: 5) == false)
     }
 
+    @Test("Minus nach Plus: das Tag bleibt sichtbar und neutral")
+    func minusAfterPlusStaysVisible() async throws {
+        let store = try store()
+        let detected = try #require(try await store.addDetectedTag(label: "Quantencomputer"))
+        try await store.setStance(.follow, forTag: detected.id)
+        try await store.setStance(.neutral, forTag: detected.id)
+        let tag = try #require(try await store.tags().first { $0.id == detected.id })
+        #expect(tag.stance == .neutral)
+        #expect(tag.origin == .confirmedByUser)
+        #expect(try await store.visibleTags().contains { $0.id == detected.id })
+    }
+
     @Test("Offen sind Folgen ohne Kapitel-Tags und Folgen mit Tags aus einer älteren Revision")
     func backlog() async throws {
         let store = try store()
