@@ -900,8 +900,12 @@ public struct KnowledgeExtractor: Sendable {
         ChatTrace.event("Modell vorgewärmt")
     }
 
+    /// Die vorgewärmte Sitzung, wenn sie zu den Anweisungen passt. Ist das
+    /// Modell inzwischen nicht mehr bereit, bleibt sie liegen, und
+    /// `makeLocalSession` meldet den Grund wie ohne Vorwärmen.
     private static func takePrewarmedSession(instructions: String) -> LanguageModelSession? {
-        prewarmedSession.withLock { stored in
+        guard SystemLanguageModel.default.isAvailable else { return nil }
+        return prewarmedSession.withLock { stored in
             guard let ready = stored, ready.instructions == instructions else { return nil }
             stored = nil
             return ready.session
