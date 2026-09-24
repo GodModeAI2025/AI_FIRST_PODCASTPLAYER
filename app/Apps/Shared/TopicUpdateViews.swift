@@ -647,7 +647,7 @@ struct EditionHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.control) {
             if let feed = model.smartFeeds.first(where: { $0.id == episode.feedID }) {
-                FeedCoverView(feed: feed, edition: episode, size: 148)
+                FeedCoverView(feed: feed, edition: episode, size: 148, createsEditionCover: true)
                     .shadow(color: .black.opacity(0.12), radius: 10, y: 5)
                 if model.coverArt.isGenerating(TopicCoverKey(feedID: feed.id, editionID: episode.id)) {
                     Label {

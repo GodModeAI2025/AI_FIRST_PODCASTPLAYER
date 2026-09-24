@@ -1181,9 +1181,10 @@ struct FocusPlayerView: View {
 
     /// Oben groß das Cover, darunter klein die Quelle der laufenden Stelle.
     ///
-    /// Bei einem Themen-Update ist das Cover das des Updates. Bei „Für dich“
-    /// und im Chat gibt es kein eigenes Cover, dort steht oben das Cover des
-    /// Podcasts, aus dem die Stelle gerade kommt.
+    /// Bei einem Themen-Update ist das Cover das der Ausgabe, bis es da
+    /// ist das des Updates. Bei „Für dich“ und im Chat gibt es kein eigenes
+    /// Cover, dort steht oben das Cover des Podcasts, aus dem die Stelle
+    /// gerade kommt.
     @ViewBuilder
     private func playing(_ plan: ValidatedPlaybackPlan, at index: Int) -> some View {
         let segment = plan.segments[index]
@@ -1344,7 +1345,7 @@ private struct FocusHeroArtwork: View {
                 GeometryReader { proxy in
                     let side = min(proxy.size.width, proxy.size.height)
                     if let feed {
-                        FeedCoverView(feed: feed, edition: edition, size: side)
+                        FeedCoverView(feed: feed, edition: edition, size: side, createsEditionCover: true)
                     } else {
                         EpisodeArtwork(url: podcastArtwork, size: side)
                             .id(podcastArtwork)

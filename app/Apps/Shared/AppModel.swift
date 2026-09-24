@@ -2298,11 +2298,13 @@ public final class AppModel {
                     removedEpisodes.contains(segment.episodeID)
                         || removedSources.contains(segment.sourceID)
                 }
-                if result?.segments.count != episode.segments.count { changed = true }
+                guard result?.segments.count != episode.segments.count else { return result }
+                changed = true
                 // Eine Ausgabe ohne Stelle verschwindet, ihr Bild mit ihr.
-                if result == nil {
-                    coverArt.removeEdition(TopicCoverKey(feedID: feedID, editionID: episode.id))
-                }
+                // Verliert sie nur Stellen, geht das Bild trotzdem: Seine
+                // Namen können aus der gelöschten Folge stammen.
+                let key = TopicCoverKey(feedID: feedID, editionID: episode.id)
+                if result == nil { coverArt.removeEdition(key) } else { coverArt.invalidateEdition(key) }
                 return result
             }
             guard changed else { continue }
@@ -2800,8 +2802,8 @@ public final class AppModel {
         let minimum = policy.minimumMaterial.shortDescription
         let hours = Int(editionRestInterval / 3_600)
         return String(localized: """
-            Eine neue Ausgabe entsteht von selbst, sobald mindestens \(minimum) neues Material zu den Themen da ist \
-            und du die letzte Ausgabe gehört hast oder sie älter als \(hours) Stunden ist. Das prüft die App, \
+            Eine neue Ausgabe entsteht von selbst, sobald mindestens \(minimum) neues Material zu den Tags da ist \
+            und du alle Teile der letzten Ausgabe gehört hast oder sie älter als \(hours) Stunden ist. Das prüft die App, \
             wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ \
             geht jederzeit, auch mit weniger Material.
             """)
@@ -2816,7 +2818,7 @@ public final class AppModel {
         let minimum = policy.minimumMaterial.shortDescription
         if let earliest = earliestAutomaticEdition(for: feed) {
             return String(localized: """
-                Die nächste Ausgabe kommt frühestens \(Self.editionMoment(earliest)) oder sobald du diese gehört hast, \
+                Die nächste Ausgabe kommt frühestens \(Self.editionMoment(earliest)) oder sobald du alle ihre Teile gehört hast, \
                 wenn dann mindestens \(minimum) neues Material da ist.
                 """)
         }

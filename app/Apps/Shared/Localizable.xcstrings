@@ -5587,18 +5587,18 @@
         }
       }
     },
-    "Die nächste Ausgabe kommt frühestens %@ oder sobald du diese gehört hast, wenn dann mindestens %@ neues Material da ist." : {
+    "Die nächste Ausgabe kommt frühestens %@ oder sobald du alle ihre Teile gehört hast, wenn dann mindestens %@ neues Material da ist." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Die nächste Ausgabe kommt frühestens %1$@ oder sobald du diese gehört hast, wenn dann mindestens %2$@ neues Material da ist."
+            "state" : "translated",
+            "value" : "Die nächste Ausgabe kommt frühestens %1$@ oder sobald du alle ihre Teile gehört hast, wenn dann mindestens %2$@ neues Material da ist."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The next edition comes %1$@ at the earliest, or once you've listened to this one, as long as there's at least %2$@ of new material by then."
+            "value" : "The next edition comes %1$@ at the earliest, or once you've listened to all parts of this one, as long as there's at least %2$@ of new material by then."
           }
         }
       }
@@ -6483,18 +6483,18 @@
         }
       }
     },
-    "Eine neue Ausgabe entsteht von selbst, sobald mindestens %@ neues Material zu den Themen da ist und du die letzte Ausgabe gehört hast oder sie älter als %lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material." : {
+    "Eine neue Ausgabe entsteht von selbst, sobald mindestens %@ neues Material zu den Tags da ist und du alle Teile der letzten Ausgabe gehört hast oder sie älter als %lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
-            "state" : "new",
-            "value" : "Eine neue Ausgabe entsteht von selbst, sobald mindestens %1$@ neues Material zu den Themen da ist und du die letzte Ausgabe gehört hast oder sie älter als %2$lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material."
+            "state" : "translated",
+            "value" : "Eine neue Ausgabe entsteht von selbst, sobald mindestens %1$@ neues Material zu den Tags da ist und du alle Teile der letzten Ausgabe gehört hast oder sie älter als %2$lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A new edition is created automatically once there's at least %1$@ of new material on the topics and you've listened to the last edition or it's older than %2$lld hours. The app checks this when it refreshes podcasts or when transcripts are ready. \"Create New Edition\" works at any time, even with less material."
+            "value" : "A new edition is created automatically once there's at least %1$@ of new material on the tags and you've listened to all parts of the last edition or it's older than %2$lld hours. The app checks this when it refreshes podcasts or when transcripts are ready. \"Create New Edition\" works at any time, even with less material."
           }
         }
       }

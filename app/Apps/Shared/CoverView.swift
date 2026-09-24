@@ -234,12 +234,17 @@ enum CoverTitleFit {
 /// Tags gehört.
 ///
 /// Mit `edition` ist es das Cover dieser Ausgabe, wie das einer Folge:
-/// ihr eigenes Bild, bis dahin das des Updates, sonst ihr Layout.
+/// ihr eigenes Bild, bis dahin das des Updates, sonst ihr Layout. Ein
+/// fehlendes Bild einer Ausgabe entsteht nur, wo `createsEditionCover`
+/// gesetzt ist: auf ihrer Seite und im Player. Eine Zeile in der Liste
+/// lädt nur, was schon abgelegt ist. Sonst stieße das Blättern durch
+/// ältere Ausgaben für jede Zeile Namenssuche und Image Playground an.
 struct FeedCoverView: View {
 
     let feed: SmartPodcastFeed
     var edition: PersonalEpisode? = nil
     var size: CGFloat
+    var createsEditionCover = false
     @Environment(AppModel.self) private var model
 
     private var editionKey: TopicCoverKey? {
@@ -259,8 +264,12 @@ struct FeedCoverView: View {
             await model.coverArt.prepare(model.coverRecipe(for: feed))
         }
         .task(id: edition?.id) {
-            guard let edition else { return }
-            await model.prepareCover(for: edition)
+            guard let edition, let editionKey else { return }
+            if createsEditionCover {
+                await model.prepareCover(for: edition)
+            } else {
+                _ = await model.coverArt.hasCover(editionKey)
+            }
         }
     }
 }
@@ -347,6 +356,9 @@ final class TopicCoverArt {
     @ObservationIgnored private var removed: Set<TopicCoverKey> = []
     /// Rezepte, die gerade berechnet werden.
     @ObservationIgnored private var preparing: Set<TopicCoverKey> = []
+    /// Ausgaben, deren Bild gerade entsteht, obwohl ihre Stellen sich
+    /// inzwischen geändert haben. Das fertige Bild wird verworfen.
+    @ObservationIgnored private var stale: Set<TopicCoverKey> = []
     /// Layoutcover als Bild für den Sperrbildschirm, einmal je Layout.
     @ObservationIgnored private var renderedLayouts: [String: CGImage] = [:]
 
@@ -426,7 +438,7 @@ final class TopicCoverArt {
     func remove(_ feedID: SmartFeedID) {
         for key in knownKeys where key.feedID == feedID { forget(key) }
         removed.insert(TopicCoverKey(feedID: feedID))
-        pending.removeAll { $0.feedID == feedID }
+        dropPending { $0.feedID == feedID }
         let store = self.store
         Task.detached(priority: .utility) { store.remove(feedID) }
     }
@@ -436,7 +448,21 @@ final class TopicCoverArt {
         guard key.editionID != nil else { return remove(key.feedID) }
         forget(key)
         removed.insert(key)
-        pending.removeAll { $0.key == key }
+        dropPending { $0.key == key }
+        let store = self.store
+        Task.detached(priority: .utility) { store.remove(key) }
+    }
+
+    /// Eine Ausgabe hat Stellen verloren, weil eine Folge gelöscht oder eine
+    /// Quelle abbestellt wurde. Ihr Bild kann aus deren Namen stammen und
+    /// geht deshalb mit (Regel 5). Anders als beim Löschen darf sofort ein
+    /// neues entstehen, aus den Stellen, die bleiben.
+    func invalidateEdition(_ key: TopicCoverKey) {
+        guard key.editionID != nil else { return }
+        forget(key)
+        dropPending { $0.key == key }
+        // Läuft das Bild gerade, wird es nach dem Fertigwerden verworfen.
+        if generating.contains(key) { stale.insert(key) }
         let store = self.store
         Task.detached(priority: .utility) { store.remove(key) }
     }
@@ -498,6 +524,13 @@ final class TopicCoverArt {
 
     private var knownKeys: Set<TopicCoverKey> {
         Set(covers.keys).union(attempted.keys).union(loads.keys).union(outcomes.keys)
+    }
+
+    /// Nimmt wartende Rezepte heraus. Sie gelten dann auch nicht mehr als
+    /// „entsteht gerade“, sonst drehte sich die Anzeige weiter.
+    private func dropPending(_ matches: (TopicCoverRecipe) -> Bool) {
+        for recipe in pending where matches(recipe) { generating.remove(recipe.key) }
+        pending.removeAll(where: matches)
     }
 
     private func forget(_ key: TopicCoverKey) {
@@ -575,6 +608,13 @@ final class TopicCoverArt {
             availability = .available
             // Während das Bild entstand, wurde sein Besitzer gelöscht.
             guard !removed.contains(key), !removed.contains(TopicCoverKey(feedID: key.feedID)) else {
+                Task.detached(priority: .utility) { store.remove(key) }
+                return .failed
+            }
+            // Während das Bild entstand, verlor die Ausgabe Stellen. Das
+            // nächste Öffnen erzeugt ein neues aus dem, was bleibt.
+            if stale.remove(key) != nil {
+                attempted[key] = nil
                 Task.detached(priority: .utility) { store.remove(key) }
                 return .failed
             }
