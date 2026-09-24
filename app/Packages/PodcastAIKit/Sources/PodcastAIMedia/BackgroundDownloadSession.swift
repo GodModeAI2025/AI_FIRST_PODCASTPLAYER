@@ -239,6 +239,10 @@ extension BackgroundDownloadSession {
             var awaitingResume: [String: Set<TaskRef>] = [:]
             /// Wartet darauf, dass eine angehaltene Übertragung ihren Stand liefert.
             var pending: [String: Pending] = [:]
+            /// Die geprüfte Anfrage je Fassung (`SafeHTTP.request`). Damit
+            /// beginnt eine neue Übertragung, wenn eine angehaltene Wartende
+            /// hatte, nie mit einer Adresse aus einer Weiterleitung.
+            var requests: [String: URLRequest] = [:]
         }
 
         let mediaDirectory: URL
@@ -324,7 +328,10 @@ extension BackgroundDownloadSession {
             own: URLSession, ownTasks: [URLSessionTask],
             other: URLSession, otherTasks: [URLSessionTask], promotes: Bool
         ) {
-            guard isAwaited(key) else { return }
+            guard state.withLock({ state in
+                state.requests[key] = request
+                return !(state.waiters[key]?.isEmpty ?? true)
+            }) else { return }
             if let running = ownTasks.first(where: { $0.taskDescription == key && Self.isActive($0) }) {
                 adopt(TaskRef(own, running), for: key)
                 if running.state == .suspended { running.resume() }
@@ -383,7 +390,6 @@ extension BackgroundDownloadSession {
         /// neue auf ihn, beginnt sie danach.
         func suspend(_ task: URLSessionDownloadTask, in session: URLSession, key: String) {
             let ref = TaskRef(session, task)
-            let request = task.originalRequest
             state.withLock { state in
                 state.suspending.insert(ref)
                 state.awaitingResume[key, default: []].insert(ref)
@@ -394,7 +400,7 @@ extension BackgroundDownloadSession {
                 state.withLock { state in
                     state.awaitingResume[key]?.remove(ref)
                     if state.awaitingResume[key]?.isEmpty == true { state.awaitingResume[key] = nil }
-                    Self.takeOverWaiters(of: ref, key: key, request: request, session: session, in: &state)
+                    Self.takeOverWaiters(of: ref, key: key, session: session, in: &state)
                 }
                 firePending(key)
             })
@@ -404,12 +410,12 @@ extension BackgroundDownloadSession {
         /// nach „Pausieren“ und sofortigem „Fortsetzen“, bekäme er nie ein
         /// Ergebnis. Dann beginnt eine neue mit dem Stand. Nur unter dem Schloss.
         private static func takeOverWaiters(
-            of ref: TaskRef, key: String, request: URLRequest?, session: URLSession, in state: inout State
+            of ref: TaskRef, key: String, session: URLSession, in state: inout State
         ) {
             guard state.current[key] == ref else { return }
             state.current[key] = nil
             guard state.pending[key] == nil, !(state.waiters[key]?.isEmpty ?? true),
-                  let request else { return }
+                  let request = state.requests[key] else { return }
             state.pending[key] = Pending(session: session, request: request)
         }
 
@@ -575,10 +581,10 @@ extension BackgroundDownloadSession {
                 let suspended = state.suspending.remove(ref) != nil
                 let isCurrent = state.current[key] == nil || state.current[key] == ref
                 if suspended {
-                    Self.takeOverWaiters(of: ref, key: key, request: task.originalRequest,
-                                         session: session, in: &state)
+                    Self.takeOverWaiters(of: ref, key: key, session: session, in: &state)
                 } else if isCurrent {
                     state.current[key] = nil
+                    if state.pending[key] == nil { state.requests[key] = nil }
                 }
                 return (outcome, suspended, isCurrent, state.discarded.contains(key))
             }
