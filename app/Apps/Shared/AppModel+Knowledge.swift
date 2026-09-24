@@ -188,10 +188,17 @@ extension AppModel {
     /// Galt die Frage einer Folge, die inzwischen gelöscht ist, kommt keine
     /// Antwort. Stützt sich die Antwort nur auf eine gelöschte Folge, steht
     /// statt ihrer ein Hinweis da, ohne Zitat aus der Folge.
+    ///
+    /// `position` ist die Stelle im Player beim Senden, nur bei einer Frage
+    /// an die Folge, die dort gerade geladen ist. Dann kennt die Antwort
+    /// die Stelle und die Passagen davor, und „Was wurde gerade gesagt?“
+    /// findet sie.
     @discardableResult
-    public func ask(_ question: String, scope: ChatScope) async -> ChatAnswer? {
+    public func ask(_ question: String, scope: ChatScope, position: MediaTime? = nil) async -> ChatAnswer? {
         let ticket = removalCount
-        let composed = await composeAnswer(question, scope: scope)
+        var moment: MediaTime?
+        if case .episode(let id) = scope, episodePlayer.episode?.id == id { moment = position }
+        let composed = await composeAnswer(question, scope: scope, position: moment).asked(at: moment)
         let removed = { (id: EpisodeID) in self.wasRemoved(id, since: ticket) }
         switch scope {
         case .episode(let id) where removed(id):
@@ -215,6 +222,12 @@ extension AppModel {
         return kept
     }
 
+    /// Nimmt eine Antwort aus dem Verlauf. Eine gesicherte Fassung unter
+    /// „Gesicherte Antworten“ bleibt.
+    public func removeChatAnswer(_ id: UUID) {
+        chatAnswers.removeAll { $0.id == id }
+    }
+
     /// Zitiert die Antwort eine Folge, die seit `ticket` gelöscht wurde?
     /// Eine abbestellte Quelle zählt auch dann, wenn ihre Folge nicht in der
     /// geladenen Liste stand und deshalb kein Merkzeichen bekam.
@@ -229,7 +242,7 @@ extension AppModel {
         }
     }
 
-    private func composeAnswer(_ question: String, scope: ChatScope) async -> ChatAnswer {
+    private func composeAnswer(_ question: String, scope: ChatScope, position: MediaTime?) async -> ChatAnswer {
         activity = String(localized: "Antwort wird gesucht …")
         defer { activity = nil }
         // Fragen nach Links, Terminen, Adressen oder Namen beantworten die
@@ -262,7 +275,7 @@ extension AppModel {
         switch scope {
         case .episode(let id):
             pool = (try? await store.evidence(forEpisode: id)) ?? []
-            libraryContext = await episodeContext(id)
+            libraryContext = await episodeContext(id, position: position, pool: pool)
             if pool.isEmpty {
                 // Je nach Zustand: auswertbar, wartend, laufend, gescheitert
                 // oder ohne Ton. Ein Verweis auf einen Knopf, den es nicht
@@ -337,7 +350,11 @@ extension AppModel {
         let limit = budget.maximumCandidates
         let overview = Self.asksForOverview(question)
         let candidates: [Evidence]
-        if overview {
+        if let position, Self.asksAboutCurrentMoment(question) {
+            // „Was wurde gerade gesagt?“ passt auf kein Stichwort. Es zählt
+            // die Nähe zur Stelle im Player, und die bestimmt der Code.
+            candidates = Self.nearest(pool, to: position, limit: limit)
+        } else if overview {
             // Für „worum geht es“ zählt die ganze Folge, gleichmäßig verteilt.
             // Eine Rangfolge braucht es dafür nicht. Vorn stehen so viele
             // Stellen, wie das Gerät fasst, damit auch ein Rückfall aufs
@@ -402,6 +419,41 @@ extension AppModel {
             return ChatAnswer(question: question, scope: scope, text: text, citations: top,
                               coverageCaveat: caveat, modelLabel: nil, citationNumbers: numbers)
         }
+    }
+
+    /// Fragt die Frage nach der Stelle, die gerade läuft? Ganze Wörter und
+    /// Wendungen wie bei ``asksForOverview(_:)``.
+    static func asksAboutCurrentMoment(_ question: String) -> Bool {
+        let words = question.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+        let text = " " + words.joined(separator: " ") + " "
+        return momentPhrases.contains { text.contains(" \($0) ") }
+    }
+
+    private static let momentPhrases = [
+        "gerade", "grad", "eben", "soeben", "jetzt", "momentan", "an dieser stelle", "diese stelle",
+        "hier gesagt", "just", "right now", "currently", "this part", "at this point", "just said",
+    ]
+
+    /// Die Stellen, die der Position am nächsten liegen. Was schon gelaufen
+    /// ist, zählt vor dem, was erst kommt: gefragt wird nach Gehörtem.
+    static func nearest(_ pool: [Evidence], to position: MediaTime, limit: Int) -> [Evidence] {
+        let at = position.milliseconds
+        func distance(_ evidence: Evidence) -> Int64 {
+            guard let range = evidence.range else { return .max }
+            if range.start.milliseconds <= at && at <= range.end.milliseconds { return 0 }
+            if range.end.milliseconds < at { return at - range.end.milliseconds }
+            return (range.start.milliseconds - at) * 3
+        }
+        return Array(pool.filter { $0.range != nil }.sorted { distance($0) < distance($1) }.prefix(limit))
+    }
+
+    /// Die Passagen bis zur Position, die jüngste zuletzt.
+    static func passages(before position: MediaTime, in pool: [Evidence], count: Int) -> [Evidence] {
+        let heard = pool.filter { ($0.range?.start.milliseconds ?? .max) <= position.milliseconds }
+            .sorted { ($0.range?.start.milliseconds ?? 0) < ($1.range?.start.milliseconds ?? 0) }
+        return Array(heard.suffix(count))
     }
 
     /// Will die Frage einen Überblick über das Ganze? Es zählen nur ganze
@@ -491,7 +543,7 @@ extension AppModel {
     }
 
     /// Was der Chat über eine Folge außer dem Transkript wissen soll.
-    func episodeContext(_ id: EpisodeID) async -> String {
+    func episodeContext(_ id: EpisodeID, position: MediaTime? = nil, pool: [Evidence] = []) async -> String {
         guard let episode = (try? await store.episodes(ids: [id]))?.first else { return "" }
         let source = sources.first { $0.id == episode.sourceID }?.title ?? ""
         // Das Knappe zuerst: auf dem Gerät wird der Kontext am Ende gekürzt,
@@ -500,6 +552,17 @@ extension AppModel {
         if let date = episode.publishedAt { lines.append("Erschienen: \(date.formatted(date: .long, time: .omitted))") }
         if let duration = episode.declaredDuration { lines.append("Länge: \(duration.shortDescription)") }
         lines.append("Gehört: \(Int(heardFraction(for: episode) * 100)) %")
+        if let position {
+            // Kontext für das Modell, deshalb deutsch und nicht übersetzt.
+            // Die Stelle kommt vom Player beim Senden der Frage.
+            lines.append("Die Frage kam beim Hören an dieser Stelle: \(position.timecode)")
+            let recent = Self.passages(before: position, in: pool, count: 2)
+            if !recent.isEmpty {
+                lines.append("Zuletzt gehört: " + recent.map {
+                    "\($0.range?.start.timecode ?? "") \(String($0.quotedText.prefix(240)))"
+                }.joined(separator: " | "))
+            }
+        }
         // Gleich nach dem Knappen: Kapitel und Fakten können lang werden,
         // und auf dem Gerät fiele der Block sonst beim Kürzen weg.
         if let mentioned = await mentionContext(for: episode) { lines.append(mentioned) }

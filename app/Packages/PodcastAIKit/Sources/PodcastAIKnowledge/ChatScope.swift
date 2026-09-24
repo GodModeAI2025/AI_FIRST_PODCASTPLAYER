@@ -95,31 +95,6 @@ public struct LibraryFilter: Sendable, Hashable {
     }
 }
 
-/// Der unveränderliche Arbeitsstand einer Frage.
-///
-/// Wird einmal gebildet und danach nicht mehr angefasst. Läuft parallel ein
-/// Refresh, ändert das nichts an der laufenden Antwort — sonst könnte eine
-/// Antwort Belege zitieren, die beim Lesen schon wieder andere sind.
-public struct ChatScopeSnapshot: Sendable {
-    public let scope: ChatScope
-    public let evidence: [Evidence]
-    public let coverage: AnalysisCoverage
-    /// Quellen im Scope, die nicht vollständig analysiert sind.
-    public let incompleteSourceIDs: [SourceID]
-    public let takenAt: Date
-
-    public init(scope: ChatScope, evidence: [Evidence], coverage: AnalysisCoverage,
-                incompleteSourceIDs: [SourceID] = [], takenAt: Date = Date()) {
-        self.scope = scope; self.evidence = evidence; self.coverage = coverage
-        self.incompleteSourceIDs = incompleteSourceIDs; self.takenAt = takenAt
-    }
-
-    /// Darf auf dieser Grundlage „alle“ beantwortet werden?
-    public var supportsExhaustiveAnswer: Bool {
-        coverage.supportsExhaustiveClaims && incompleteSourceIDs.isEmpty
-    }
-}
-
 /// Wovon der Hinweis unter einer Antwort spricht.
 public enum CaveatKind: Sendable, Hashable {
     /// Durchsucht wurden nur Folgen mit Transkript.
@@ -156,13 +131,17 @@ public struct ChatAnswer: Sendable, Identifiable {
     /// Folgen, aus denen der Text etwas nennt, auch ohne Beleg, etwa einen
     /// Link aus den Shownotes. Wird eine davon gelöscht, geht die Antwort mit.
     public let referencedEpisodeIDs: [EpisodeID]
+    /// Wo die Folge im Player stand, als die Frage gestellt wurde. Nur bei
+    /// Fragen an eine Folge, die gerade geladen war. Die Zeit kommt vom
+    /// Player, nie vom Modell.
+    public let askedAtPosition: MediaTime?
 
     public init(
         id: UUID = UUID(), question: String, scope: ChatScope, text: String,
         citations: [Evidence], coverageCaveat: String? = nil,
         caveatKind: CaveatKind = .transcriptCoverage, answeredAt: Date = Date(),
         modelLabel: String? = nil, citationNumbers: [Int: EvidenceID] = [:],
-        referencedEpisodeIDs: [EpisodeID] = []
+        referencedEpisodeIDs: [EpisodeID] = [], askedAtPosition: MediaTime? = nil
     ) {
         self.id = id; self.question = question; self.scope = scope; self.text = text
         self.citations = citations; self.coverageCaveat = coverageCaveat
@@ -170,6 +149,16 @@ public struct ChatAnswer: Sendable, Identifiable {
         self.answeredAt = answeredAt; self.modelLabel = modelLabel
         self.citationNumbers = citationNumbers
         self.referencedEpisodeIDs = referencedEpisodeIDs
+        self.askedAtPosition = askedAtPosition
+    }
+
+    /// Dieselbe Antwort mit der Stelle, an der gefragt wurde.
+    public func asked(at position: MediaTime?) -> ChatAnswer {
+        ChatAnswer(
+            id: id, question: question, scope: scope, text: text, citations: citations,
+            coverageCaveat: coverageCaveat, caveatKind: caveatKind, answeredAt: answeredAt,
+            modelLabel: modelLabel, citationNumbers: citationNumbers,
+            referencedEpisodeIDs: referencedEpisodeIDs, askedAtPosition: position)
     }
 
     /// Die belegten Stellen, die abgespielt werden können.
@@ -187,56 +176,5 @@ public struct ChatAnswer: Sendable, Identifiable {
             rationales: [:],
             requestSummary: question
         )
-    }
-}
-
-/// Baut die Hinweise, die einer Antwort beigestellt werden.
-public enum CoverageAdvisor {
-
-    /// Der Satz, der unter einer Antwort steht, wenn der Bestand keine
-    /// Vollständigkeitsaussage trägt.
-    ///
-    /// Ohne diesen Hinweis liest sich „drei Stellen“ wie „es gibt genau
-    /// drei“ — und das wäre eine Behauptung, die der Bestand nicht deckt.
-    public static func caveat(
-        for snapshot: ChatScopeSnapshot,
-        questionSuggestsExhaustive: Bool
-    ) -> String? {
-
-        if !snapshot.incompleteSourceIDs.isEmpty {
-            let count = snapshot.incompleteSourceIDs.count
-            return count == 1
-                ? String(localized: "Bei einer Quelle im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben.",
-                         bundle: .module)
-                : String(localized: "Bei \(count) Quellen im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben.",
-                         bundle: .module)
-        }
-        if questionSuggestsExhaustive, !snapshot.coverage.isComplete {
-            return String(localized: """
-                Der gewählte Bereich ist \(snapshot.coverage.label). \
-                Diese Antwort deckt nur den Teil mit Transkript ab.
-                """, bundle: .module)
-        }
-        if snapshot.evidence.isEmpty {
-            return String(localized: "Im gewählten Bereich gibt es keine Folge mit Transkript, auf die sich eine Antwort stützen könnte.",
-                          bundle: .module)
-        }
-        return nil
-    }
-
-    /// Erkennt Fragen, die eine Vollständigkeitsaussage verlangen.
-    ///
-    /// „Was sagt er über X?“ und „Welche **alle** Aussagen gibt es zu X?“
-    /// sind verschiedene Fragen. Die zweite braucht einen vollständig
-    /// erschlossenen Bestand — sonst wird aus einer Stichprobe versehentlich
-    /// eine Bilanz.
-    public static func suggestsExhaustive(_ question: String) -> Bool {
-        let normalized = question.lowercased()
-        let markers = [
-            "alle", "sämtliche", "saemtliche", "jede", "jeden", "jedes",
-            "vollständig", "vollstaendig", "insgesamt", "überall", "ueberall",
-            "wie oft", "wie viele", "all ", "every", "complete",
-        ]
-        return markers.contains { normalized.contains($0) }
     }
 }
