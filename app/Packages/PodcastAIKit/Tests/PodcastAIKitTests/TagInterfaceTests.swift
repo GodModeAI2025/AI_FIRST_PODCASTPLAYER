@@ -175,4 +175,13 @@ struct TagSimilarityTests {
         #expect(TagSimilarity.lexicalScore("ki", "kiverordnung") == nil)
         #expect(TagSimilarity.editDistance("haftung", "haftungg") == 1)
     }
+
+    @Test("Über den Satzvektor nur in derselben Sprache: Datenschutz liegt nicht bei Fußball")
+    func embedding() {
+        let privacy = tag("Datenschutz", "datenschutz")
+        #expect(TagSimilarity.nearTags(to: privacy, in: [privacy, tag("Fußball", "fussball")]).isEmpty)
+        // Verschieden erkannte Sprachen vergleicht der Vektor nicht.
+        #expect(TagSimilarity.language(of: "Datenschutz") == .german)
+        #expect(TagSimilarity.language(of: "") == nil)
+    }
 }
