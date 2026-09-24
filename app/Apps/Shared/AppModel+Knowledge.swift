@@ -33,6 +33,9 @@ extension AppModel {
         Task { [weak self] in
             var pending: Task<Void, Never>?
             for await _ in NotificationCenter.default.notifications(named: .NSPersistentStoreRemoteChange) {
+                // Gemerkte Belege und Wörter können überholt sein. Sofort
+                // vergessen, nicht erst nach der Pause fürs Neuladen.
+                await self?.store.forgetCachedEvidence()
                 pending?.cancel()
                 pending = Task { [weak self] in
                     try? await Task.sleep(for: .seconds(2))
@@ -95,6 +98,7 @@ extension AppModel {
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: removed))
         TranslationCache.remove(episodes: Array(gone.keys))
         MentionCache.remove(episodes: Array(gone.keys))
+        PassageIndex.shared.forget(episodes: gone.keys)
         ChapterSummaryCache.remove(episodes: Array(gone.keys))
         for id in gone.keys {
             facts[id] = nil
@@ -204,6 +208,8 @@ extension AppModel {
         let ticket = removalCount
         var moment: MediaTime?
         if case .episode(let id) = scope, episodePlayer.episode?.id == id { moment = position }
+        let started = ContinuousClock.now
+        defer { ChatTrace.log("Frage gesamt", since: started) }
         guard let answered = await composeAnswer(question, scope: scope, position: moment, number: number),
               !Task.isCancelled else { return nil }
         let composed = answered.asked(at: moment)
@@ -247,6 +253,38 @@ extension AppModel {
         return task
     }
 
+    /// Bereitet die nächste Frage vor, ohne etwas zu zeigen oder abzuspielen.
+    ///
+    /// Lädt den Tokenizer für das Zählen der Token, mit niedriger Priorität.
+    /// Mit `library` liest es dazu die Belege aller Folgen in den Speicher
+    /// des Stores und zerlegt ihre Wörter für die Rangfolge. Innerhalb einer
+    /// Folge braucht es das nicht. Mit `prewarm` lädt es das Gerätemodell
+    /// mit den Anweisungen für Fragen vor, wenn die Antwort dort entsteht.
+    /// Läuft schon eine Vorbereitung, kommt keine zweite dazu.
+    public func prepareForQuestion(prewarm: Bool, library: Bool) {
+        if prewarm {
+            let status = modelStatus
+            Task.detached(priority: .utility) {
+                KnowledgeExtractor().prewarmAnswer(availability: status)
+            }
+        }
+        guard Self.chatPreparation == nil else { return }
+        let store = self.store
+        let limit = Self.evidencePoolLimit
+        Self.chatPreparation = Task.detached(priority: .utility) {
+            await ChatTrace.interval("Chat vorbereiten") {
+                if library {
+                    let pool = (try? await store.evidenceForAnalyzedEpisodes(limit: limit)) ?? []
+                    PassageIndex.shared.prepare(pool)
+                }
+                await KnowledgeExtractor.prepareTokenCounting()
+            }
+            await MainActor.run { AppModel.chatPreparation = nil }
+        }
+    }
+
+    private static var chatPreparation: Task<Void, Never>?
+
     /// Hält die laufende Frage an. Sie hinterlässt keine Antwort und keine
     /// Fehlermeldung, und ihr halber Text verschwindet sofort.
     public func cancelQuestion() {
@@ -284,11 +322,13 @@ extension AppModel {
         // erkannten Nennungen, ohne Modell und auch ohne Apple Intelligence.
         let asked = MentionQuestion.kinds(in: question)
         if !asked.isEmpty {
-            return await mentionAnswer(question, kinds: asked, scope: scope)
+            return await ChatTrace.interval("Nennungen durchsuchen") {
+                await mentionAnswer(question, kinds: asked, scope: scope)
+            }
         }
         // Seit dem Start kann das Modell bereit geworden oder das Kontingent
         // aufgebraucht sein. Die Abfrage ist billig.
-        await refreshModelStatus()
+        await ChatTrace.interval("Modellzustand") { await refreshModelStatus() }
 
         // Das Gerätebudget gilt immer: direkt auf dem Gerät und ebenso, wenn
         // eine Anfrage von Private Cloud Compute aufs Gerät zurückfällt. Hier
@@ -307,10 +347,14 @@ extension AppModel {
         let pool: [Evidence]
         var libraryContext = ""
         var caveat: String?
+        let store = self.store
+        let poolLimit = Self.evidencePoolLimit
         switch scope {
         case .episode(let id):
-            pool = (try? await store.evidence(forEpisode: id)) ?? []
-            libraryContext = await episodeContext(id, position: position, pool: pool)
+            pool = await ChatTrace.interval("Belege holen") { (try? await store.evidence(forEpisode: id)) ?? [] }
+            libraryContext = await ChatTrace.interval("Kontext der Folge") {
+                await episodeContext(id, position: position, pool: pool)
+            }
             if pool.isEmpty {
                 // Je nach Zustand: auswertbar, wartend, laufend, gescheitert
                 // oder ohne Ton. Ein Verweis auf einen Knopf, den es nicht
@@ -323,11 +367,17 @@ extension AppModel {
             for id in ids { all += (try? await store.evidence(forEpisode: id)) ?? [] }
             pool = all
         case .smartFeed, .allAnalyzed:
-            pool = (try? await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)) ?? []
-            libraryContext = await libraryOverview()
-            if let mentioned = await libraryMentionContext(filter: LibraryFilter(), limit: mentionShare) {
-                libraryContext = mentioned + "\n" + libraryContext
+            // Die Belege liest der Store auf seinem eigenen Actor, währenddessen
+            // entstehen hier Überblick und Nennungen.
+            async let fetched = ChatTrace.interval("Belege holen") {
+                (try? await store.evidenceForAnalyzedEpisodes(limit: poolLimit)) ?? []
             }
+            libraryContext = await ChatTrace.interval("Überblick") { await libraryOverview() }
+            let mentioned = await ChatTrace.interval("Nennungen für den Kontext") {
+                await libraryMentionContext(filter: LibraryFilter(), limit: mentionShare)
+            }
+            if let mentioned { libraryContext = mentioned + "\n" + libraryContext }
+            pool = await fetched
             let known = episodes.values.flatMap { $0 }.count
             let analyzed = analyzedEpisodes.count
             if known > analyzed {
@@ -341,14 +391,17 @@ extension AppModel {
             let now = Date()
             let admitted = ((try? await store.episodes(ids: Array(analyzedEpisodes))) ?? [])
                 .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }
-            var all: [Evidence] = []
-            for episode in admitted { all += (try? await store.evidence(forEpisode: episode.id)) ?? [] }
             // Wie bei allem Ausgewerteten nur Belege mit Zeitmarke.
-            pool = all.filter { $0.range != nil }
-            libraryContext = await libraryOverview(filter: filter)
-            if let mentioned = await libraryMentionContext(filter: filter, limit: mentionShare) {
-                libraryContext = mentioned + "\n" + libraryContext
+            let admittedIDs = admitted.map(\.id)
+            async let fetched = ChatTrace.interval("Belege holen") {
+                (try? await store.timedEvidence(forEpisodes: admittedIDs, poolLimit: poolLimit)) ?? []
             }
+            libraryContext = await ChatTrace.interval("Überblick") { await libraryOverview(filter: filter) }
+            let mentioned = await ChatTrace.interval("Nennungen für den Kontext") {
+                await libraryMentionContext(filter: filter, limit: mentionShare)
+            }
+            if let mentioned { libraryContext = mentioned + "\n" + libraryContext }
+            pool = await fetched
             let known = episodes.values.joined()
                 .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }.count
             if admitted.isEmpty && known == 0 {
@@ -382,24 +435,54 @@ extension AppModel {
                 citations: [], coverageCaveat: caveat)
         }
 
+        let overview = Self.asksForOverview(question)
+        let atMoment = position != nil && Self.asksAboutCurrentMoment(question)
+        // Die Rangfolge braucht das Budget nicht: sie läuft mit der Decke
+        // und wird danach gekürzt. Die ersten n der Liste bis zur Decke sind
+        // dieselben wie die besten n. So läuft sie, während die Token
+        // gezählt werden.
+        // Einbettungen kosten je Stelle einige zehn Millisekunden. Deshalb
+        // läuft die Suche nicht auf dem Hauptthread, und nur eine begrenzte
+        // Auswahl aus den besten Stichworttreffern wird eingebettet.
+        let ranking: Task<[Evidence], Never>?
+        if atMoment || overview {
+            ranking = nil
+        } else {
+            let embeddingLimit = Self.embeddingBudget
+            let ceilingLimit = ceiling.maximumCandidates
+            ranking = Task.detached(priority: .userInitiated) {
+                await ChatTrace.interval("Rangfolge") {
+                    PassageRanker().rank(pool, for: question, limit: ceilingLimit, embeddingLimit: embeddingLimit)
+                }
+            }
+        }
+
         // Die Obergrenzen füllen, gezählt in Token an einer Probe aus dem
         // Bestand. Zählt der Tokenizer nicht, gilt die alte Schätzung.
+        // Gerät und PCC zählen zugleich.
         let sample = Self.evenlySpaced(pool, count: AnswerTokenPlan.sampleSize)
         let planner = KnowledgeExtractor()
-        let device = await planner.fittedAnswerBudget(
-            deviceCeiling, tier: .onDevice, question: question, sample: sample,
-            libraryContext: String(libraryContext.prefix(deviceCeiling.libraryContextLimit)))
-        let budget = usesPrivateCloud
-            ? await planner.fittedAnswerBudget(
-                ceiling, tier: .privateCloudCompute, question: question, sample: sample,
-                libraryContext: String(libraryContext.prefix(ceiling.libraryContextLimit)))
-            : device
-        guard !Task.isCancelled else { return nil }
+        let deviceLibrary = String(libraryContext.prefix(deviceCeiling.libraryContextLimit))
+        let cloudLibrary = String(libraryContext.prefix(ceiling.libraryContextLimit))
+        let (device, budget) = await ChatTrace.interval("Token zählen") {
+            async let deviceFit = planner.fittedAnswerBudget(
+                deviceCeiling, tier: .onDevice, question: question, sample: sample, libraryContext: deviceLibrary)
+            async let cloudFit: ContextBudget? = usesPrivateCloud
+                ? planner.fittedAnswerBudget(
+                    ceiling, tier: .privateCloudCompute, question: question, sample: sample,
+                    libraryContext: cloudLibrary)
+                : nil
+            let device = await deviceFit
+            return (device, await cloudFit ?? device)
+        }
+        guard !Task.isCancelled else {
+            ranking?.cancel()
+            return nil
+        }
 
         let limit = budget.maximumCandidates
-        let overview = Self.asksForOverview(question)
         let candidates: [Evidence]
-        if let position, Self.asksAboutCurrentMoment(question) {
+        if let position, atMoment {
             // „Was wurde gerade gesagt?“ passt auf kein Stichwort. Es zählt
             // die Nähe zur Stelle im Player, und die bestimmt der Code.
             candidates = Self.nearest(pool, to: position, limit: limit)
@@ -412,13 +495,7 @@ extension AppModel {
             candidates = Self.coverageFirst(Self.evenlySpaced(ordered, count: limit),
                                             leading: device.maximumCandidates)
         } else {
-            // Einbettungen kosten je Stelle einige zehn Millisekunden. Deshalb
-            // läuft die Suche nicht auf dem Hauptthread, und nur eine begrenzte
-            // Auswahl aus den besten Stichworttreffern wird eingebettet.
-            let embeddingLimit = Self.embeddingBudget
-            candidates = await Task.detached(priority: .userInitiated) {
-                PassageRanker().rank(pool, for: question, limit: limit, embeddingLimit: embeddingLimit)
-            }.value
+            candidates = Array(await ranking?.value.prefix(limit) ?? [])
         }
 
         let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
@@ -2402,6 +2479,7 @@ extension AppModel {
            let report = try? await store.removeAnalysis(
                ofEpisode: episode.id, mediaVersionID: MediaVersionID(stable: audio.absoluteString)),
            !report.evidenceIDs.isEmpty {
+            PassageIndex.shared.forget(evidence: report.evidenceIDs)
             pruneChatAnswers(removedEpisodes: [], removedEvidence: Set(report.evidenceIDs))
             pruneTrails(removedEvidence: Set(report.evidenceIDs), removedEpisodes: [episode.id])
             await refreshRelevantToday()
@@ -2411,6 +2489,7 @@ extension AppModel {
         Self.transcriptCheckpoints.remove(Self.localMediaIDs(of: [episode]))
         MentionCache.remove(episodes: [episode.id])
         ChapterSummaryCache.remove(episodes: [episode.id])
+        PassageIndex.shared.forget(episodes: [episode.id])
         facts[episode.id] = nil
         stages[episode.id] = nil
         stageDetails[episode.id] = nil
@@ -2425,6 +2504,9 @@ extension AppModel {
         TranslationCache.remove(episodes: report.episodeIDs)
         MentionCache.remove(episodes: report.episodeIDs)
         ChapterSummaryCache.remove(episodes: report.episodeIDs)
+        // Zerlegte Wörter und Satzeinbettungen der Stellen ebenso.
+        PassageIndex.shared.forget(episodes: report.episodeIDs)
+        PassageIndex.shared.forget(evidence: report.evidenceIDs)
         for id in report.episodeIDs {
             facts[id] = nil
             stages[id] = nil

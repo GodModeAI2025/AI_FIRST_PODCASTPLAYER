@@ -33,6 +33,10 @@ public actor LibraryStore {
         LibraryStore(modelContainer: container)
     }
 
+    /// Die zuletzt gelesenen Belege mit Zeitmarken, siehe
+    /// ``evidenceForAnalyzedEpisodes(limit:)``.
+    private var timedEvidence: (limit: Int, items: [Evidence])?
+
     /// Liegt die Datenbank nur im Arbeitsspeicher, etwa im UI-Test oder
     /// weil sich die Datei nicht öffnen ließ? Dann ist sie leer, und wer
     /// Dateien daneben mit ihr abgleicht, darf daraus nichts schließen.
@@ -255,6 +259,8 @@ public actor LibraryStore {
     /// Audiodateien der Aufrufer löschen kann, weil eine Kopie der Folge
     /// gelöscht war.
     public func removeDuplicatesWithReport() throws -> RemovalReport {
+        evidenceChanged()
+        defer { evidenceChanged() }
         var report = RemovalReport()
         // Nach jedem Schritt speichern: Eine Abfrage sieht gelöschte Zeilen
         // sonst noch, und der nächste Schritt muss die umgehängten Kinder sehen.
@@ -1006,6 +1012,8 @@ public actor LibraryStore {
     }
 
     public func store(evidence: [Evidence]) throws {
+        evidenceChanged()
+        defer { evidenceChanged() }
         for item in evidence {
             let identifier = item.id.rawValue
             let existing = try modelContext.fetch(
@@ -1117,6 +1125,8 @@ public actor LibraryStore {
     }
 
     private func purgeEpisode(_ key: String, keepTombstone: Bool, into report: inout RemovalReport) throws {
+        evidenceChanged()
+        defer { evidenceChanged() }
         let episodes = try modelContext.fetch(
             FetchDescriptor<StoredEpisode>(predicate: #Predicate { $0.identifier == key }))
         // Ein vorhandenes Löschdatum bleibt, und alle Kopien tragen dasselbe.
@@ -1224,6 +1234,7 @@ public actor LibraryStore {
     /// Nur für Tests: legt einen Beleg ohne Prüfung auf Doppelte an, so wie
     /// es der iCloud-Abgleich zweier Geräte tun kann.
     func insertDuplicateEvidenceForTesting(_ item: Evidence) throws {
+        defer { evidenceChanged() }
         let stored = StoredEvidence(identifier: item.id.rawValue)
         stored.mediaVersionIdentifier = item.mediaVersionID.rawValue
         stored.episodeIdentifier = item.episodeID.rawValue
@@ -1336,6 +1347,26 @@ public actor LibraryStore {
         try modelContext.fetchCount(FetchDescriptor<T>())
     }
 
+    /// Nur für Tests: legt viele Belege auf einmal an, ohne je Beleg nach
+    /// einem vorhandenen zu suchen. Für die Messung mit großer Bibliothek.
+    func insertEvidenceInBulkForTesting(_ items: [Evidence]) throws {
+        defer { evidenceChanged() }
+        for item in items {
+            let stored = StoredEvidence(identifier: item.id.rawValue)
+            stored.mediaVersionIdentifier = item.mediaVersionID.rawValue
+            stored.episodeIdentifier = item.episodeID.rawValue
+            stored.sourceIdentifier = item.sourceID.rawValue
+            stored.transcriptIdentifier = item.transcriptID.rawValue
+            stored.transcriptRevisionValue = item.transcriptRevision.value
+            stored.hasTiming = item.range != nil
+            stored.startMs = Int(item.range?.start.milliseconds ?? 0)
+            stored.endMs = Int(item.range?.end.milliseconds ?? 0)
+            stored.quotedText = item.quotedText
+            modelContext.insert(stored)
+        }
+        try modelContext.save()
+    }
+
     // MARK: - Transkript und Fakten je Folge
 
     /// Das Transkript einer Folge.
@@ -1365,6 +1396,83 @@ public actor LibraryStore {
             newest = transcript
         }
         return newest
+    }
+
+    /// Was ein Transkript ausmacht, ohne seine Segmente zu lesen: Kennung,
+    /// Revision, Zahl der Segmente und Ende des letzten. Ändert sich eines
+    /// davon, ist es ein anderes Transkript.
+    public struct TranscriptFingerprint: Sendable, Equatable {
+        public let id: TranscriptID
+        public let revision: Revision
+        public let segmentCount: Int
+        public let lastEndMs: Int
+
+        public init(id: TranscriptID, revision: Revision, segmentCount: Int, lastEndMs: Int) {
+            self.id = id; self.revision = revision
+            self.segmentCount = segmentCount; self.lastEndMs = lastEndMs
+        }
+
+        /// Dasselbe aus einem geladenen Transkript.
+        public init(_ transcript: Transcript) {
+            self.init(id: transcript.id, revision: transcript.revision,
+                      segmentCount: transcript.segments.count,
+                      lastEndMs: Int(transcript.segments.last?.range.end.milliseconds ?? 0))
+        }
+    }
+
+    /// Der Fingerabdruck des Transkripts, das ``transcript(forEpisode:)``
+    /// liefern würde, nach denselben Regeln gewählt. Liest nur Zahlen, nicht
+    /// die Segmente: Die Nennungen einer Folge brauchten für ihren
+    /// Schlüssel sonst bei jeder Frage das ganze Transkript.
+    public func transcriptFingerprint(forEpisode episodeID: EpisodeID) throws -> TranscriptFingerprint? {
+        let key = episodeID.rawValue
+        let rows = try modelContext.fetch(FetchDescriptor<StoredEpisode>(
+            predicate: #Predicate { $0.identifier == key }))
+        for current in Set(rows.compactMap(\.currentMediaVersionIdentifier)).sorted() {
+            if let row = try latestTranscriptRow(forMedia: current), let print = try fingerprint(of: row) {
+                return print
+            }
+        }
+        var newest: (row: StoredTranscript, print: TranscriptFingerprint)?
+        for id in try mediaVersionIDs(forEpisode: episodeID) {
+            guard let row = try latestTranscriptRow(forMedia: id.rawValue),
+                  let print = try fingerprint(of: row) else { continue }
+            if let best = newest,
+               (best.row.createdAt, best.row.revisionValue) >= (row.createdAt, row.revisionValue) {
+                continue
+            }
+            newest = (row, print)
+        }
+        return newest?.print
+    }
+
+    /// Die jüngste Revision des Transkripts einer Fassung, wie in
+    /// ``transcript(forMedia:)``, aber ohne Segmente.
+    private func latestTranscriptRow(forMedia key: String) throws -> StoredTranscript? {
+        var descriptor = FetchDescriptor<StoredTranscript>(
+            predicate: #Predicate { $0.mediaVersion?.identifier == key })
+        descriptor.sortBy = [SortDescriptor(\.revisionValue, order: .reverse)]
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
+    }
+
+    /// Zahl und Ende der Segmente, gezählt in der Datenbank. `nil` ohne Segmente.
+    private func fingerprint(of row: StoredTranscript) throws -> TranscriptFingerprint? {
+        // Über die Beziehung selbst, nicht über die Kennung des Transkripts:
+        // So nimmt die Datenbank den Index der Beziehung und liest nicht
+        // alle Segmente der Bibliothek.
+        let owner = row.persistentModelID
+        let count = try modelContext.fetchCount(FetchDescriptor<StoredSegment>(
+            predicate: #Predicate { $0.transcript?.persistentModelID == owner }))
+        guard count > 0 else { return nil }
+        var last = FetchDescriptor<StoredSegment>(
+            predicate: #Predicate { $0.transcript?.persistentModelID == owner },
+            sortBy: [SortDescriptor(\.startMs, order: .reverse), SortDescriptor(\.endMs, order: .reverse),
+                     SortDescriptor(\.identifier, order: .reverse)])
+        last.fetchLimit = 1
+        let end = try modelContext.fetch(last).first?.endMs ?? 0
+        return TranscriptFingerprint(id: TranscriptID(rawValue: row.identifier),
+                                     revision: Revision(row.revisionValue), segmentCount: count, lastEndMs: end)
     }
 
     public func save(facts: [EpisodeFact], forEpisode episodeID: EpisodeID) throws {
@@ -1405,12 +1513,57 @@ public actor LibraryStore {
     /// Belege aller Quellen, die für einen Themenfeed infrage kommen.
     /// Die Grenze schützt nur vor einem Ausreißer. 500 schnitten schon bei
     /// einem mittleren Bestand neue Folgen ab, und Themen-Updates sahen sie nie.
+    ///
+    /// Das Ergebnis bleibt bis zur nächsten Änderung an den Belegen gemerkt.
+    /// Jede Frage im Chat las sonst bis zu 20.000 Zeilen neu. Was Belege
+    /// schreibt oder löscht, ruft ``evidenceChanged()``, Änderungen von einem
+    /// anderen Gerät ``forgetCachedEvidence()``.
     public func evidenceForAnalyzedEpisodes(limit: Int = 20_000) throws -> [Evidence] {
+        if let cached = timedEvidence, cached.limit == limit { return cached.items }
         var descriptor = FetchDescriptor<StoredEvidence>(
             predicate: #Predicate { $0.hasTiming == true }
         )
         descriptor.fetchLimit = limit
-        return try modelContext.fetch(descriptor).uniqued(by: \.identifier).map(\.snapshot)
+        let items = try modelContext.fetch(descriptor).uniqued(by: \.identifier).map(\.snapshot)
+        timedEvidence = (limit, items)
+        return items
+    }
+
+    /// Die Belege mit Zeitmarke aus diesen Folgen, Folge für Folge in der
+    /// gegebenen Reihenfolge, je Folge nach Zeit.
+    ///
+    /// Kommt aus den gemerkten Belegen aller Folgen. Bis 0.9 las jede Frage
+    /// an einen Podcast die Belege jeder Folge einzeln. Hat die Grenze des
+    /// Bestands gegriffen, fehlen dort womöglich welche, dann wird wie
+    /// bisher je Folge gelesen.
+    public func timedEvidence(forEpisodes episodeIDs: [EpisodeID], poolLimit: Int = 20_000) throws -> [Evidence] {
+        guard !episodeIDs.isEmpty else { return [] }
+        let known = try evidenceForAnalyzedEpisodes(limit: poolLimit)
+        guard known.count < poolLimit else {
+            var all: [Evidence] = []
+            for id in episodeIDs { all += try evidence(forEpisode: id) }
+            return all.filter { $0.range != nil }
+        }
+        let wanted = Set(episodeIDs)
+        var byEpisode: [EpisodeID: [Evidence]] = [:]
+        for item in known where wanted.contains(item.episodeID) {
+            byEpisode[item.episodeID, default: []].append(item)
+        }
+        return episodeIDs.flatMap { id in
+            (byEpisode.removeValue(forKey: id) ?? [])
+                .sorted { ($0.range?.start.milliseconds ?? 0) < ($1.range?.start.milliseconds ?? 0) }
+        }
+    }
+
+    /// Wirft die gemerkten Belege weg, etwa wenn über iCloud Änderungen
+    /// eines anderen Geräts ankommen. Die nächste Abfrage liest neu.
+    public func forgetCachedEvidence() {
+        evidenceChanged()
+    }
+
+    /// Belege wurden geschrieben oder gelöscht.
+    func evidenceChanged() {
+        timedEvidence = nil
     }
 
     /// Folgen zu einer Menge von Kennungen.

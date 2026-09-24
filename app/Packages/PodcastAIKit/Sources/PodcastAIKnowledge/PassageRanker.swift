@@ -11,13 +11,20 @@
 
 import Foundation
 import PodcastAICore
+import PodcastAIIntelligence
 #if canImport(NaturalLanguage)
 import NaturalLanguage
 #endif
 
 public struct PassageRanker: Sendable {
 
-    public init() {}
+    /// Zerlegte Wörter und Satzeinbettungen je Stelle, zwischen zwei Fragen
+    /// gemerkt. Das Ergebnis ist dasselbe wie ohne.
+    let index: PassageIndex
+
+    public init(index: PassageIndex = .shared) {
+        self.index = index
+    }
 
     /// Die besten `limit` Belege zur Frage, beste zuerst. Stellen ohne jeden
     /// Bezug fallen weg, außer `keepAll` ist gesetzt (etwa für „fasse die
@@ -31,41 +38,19 @@ public struct PassageRanker: Sendable {
     public func rank(_ evidence: [Evidence], for question: String,
                      limit: Int, keepAll: Bool = false, embeddingLimit: Int? = nil) -> [Evidence] {
         guard !evidence.isEmpty else { return [] }
-        let terms = Set(Self.terms(question))
-        let documents = evidence.map { Self.terms($0.quotedText) }
-        let count = Double(documents.count)
-        var documentFrequency: [String: Int] = [:]
-        for document in documents {
-            for term in Set(document) { documentFrequency[term, default: 0] += 1 }
-        }
-        let averageLength = max(1, Double(documents.map(\.count).reduce(0, +)) / count)
-
         // Erster Durchgang: Stichworte für alle Stellen, das ist billig.
-        var keywords = [Double](repeating: 0, count: evidence.count)
-        for (index, document) in documents.enumerated() {
-            var frequencies: [String: Int] = [:]
-            for term in document { frequencies[term, default: 0] += 1 }
-            var keyword = 0.0
-            for term in terms {
-                guard let tf = frequencies[term] else { continue }
-                let df = Double(documentFrequency[term] ?? 0)
-                let idf = log(1 + (count - df + 0.5) / (df + 0.5))
-                let norm = Double(tf) * 2.2 / (Double(tf) + 1.2 * (0.25 + 0.75 * Double(document.count) / averageLength))
-                keyword += idf * norm
-            }
-            keywords[index] = keyword
+        let keywords = ChatTrace.measure("Rangfolge Stichworte") {
+            keywordScores(evidence, for: question)
         }
 
         // Zweiter Durchgang: Einbettungen nur für die Auswahl.
         var semantics = [Double](repeating: 0, count: evidence.count)
         #if canImport(NaturalLanguage)
-        let embedding = Self.embedding(for: question)
-        if let embedding, let questionVector = embedding.vector(for: question) {
-            for index in Self.embeddingSelection(keywords: keywords, limit: embeddingLimit) {
-                guard let vector = embedding.vector(for: String(evidence[index].quotedText.prefix(600)))
-                else { continue }
-                semantics[index] = max(0, Self.cosine(questionVector, vector))
-            }
+        let selection = Self.embeddingSelection(keywords: keywords, limit: embeddingLimit)
+        if let scores = ChatTrace.measure("Rangfolge Einbettungen", {
+            index.semanticScores(question: question, evidence: evidence, selection: selection)
+        }) {
+            semantics = scores
         }
         #endif
 
@@ -77,6 +62,41 @@ public struct PassageRanker: Sendable {
             if keepAll || keyword > 0 || semantic > 0.35 { scored.append((item, score)) }
         }
         return scored.sorted { $0.1 > $1.1 }.prefix(limit).map(\.0)
+    }
+
+    /// Stichworte der Frage in jeder Stelle, gewichtet nach Seltenheit wie
+    /// BM25. Die Wörter der Stellen kommen aus dem Speicher.
+    func keywordScores(_ evidence: [Evidence], for question: String) -> [Double] {
+        let terms = Set(Self.terms(question))
+        let documents = index.terms(for: evidence)
+        let count = Double(documents.count)
+        let averageLength = max(1, Double(documents.reduce(0) { $0 + $1.length }) / count)
+        // Nur die Wörter der Frage zählen, also auch nur ihre Seltenheit.
+        // Sortiert, damit die Summe in jedem Lauf gleich gebildet wird. Die
+        // Reihenfolge einer Menge wechselt von Start zu Start, und damit
+        // wechselte die letzte Stelle der Punktzahl.
+        let keys = terms.sorted().map(PassageIndex.termKey)
+        var documentFrequency = keys.map { _ in 0 }
+        for document in documents {
+            for (position, key) in keys.enumerated() where document.frequency(of: key) > 0 {
+                documentFrequency[position] += 1
+            }
+        }
+
+        var keywords = [Double](repeating: 0, count: evidence.count)
+        for (index, document) in documents.enumerated() {
+            var keyword = 0.0
+            for (position, key) in keys.enumerated() {
+                let tf = document.frequency(of: key)
+                guard tf > 0 else { continue }
+                let df = Double(documentFrequency[position])
+                let idf = log(1 + (count - df + 0.5) / (df + 0.5))
+                let norm = Double(tf) * 2.2 / (Double(tf) + 1.2 * (0.25 + 0.75 * Double(document.length) / averageLength))
+                keyword += idf * norm
+            }
+            keywords[index] = keyword
+        }
+        return keywords
     }
 
     /// Welche Stellen eingebettet werden. Ohne Grenze alle. Mit Grenze die
