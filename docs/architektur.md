@@ -66,14 +66,13 @@ Die Messung steht in den Tests des Pakets und nutzt eine feste Testbibliothek (`
 Zwei Teile:
 
 - `AnswerQualityDeterministicTests` läuft bei jedem `swift test`, ohne Modell. Geprüft wird der Prompt aus `answerRequest`: Shownotes stehen nur im Block BIBLIOTHEK, Transkripte nur im Block KANDIDATEN, beide als Daten markiert, und die Vorgabe zur Sprache steht als Letztes. Gebaute Modellausgaben laufen durch dieselben Schritte wie in `KnowledgeExtractor.answer` (`AnswerPostProcessing`): Verweise ohne Kandidaten und Blocknamen verschwinden, und keine Nummer wird zu einem Beleg außerhalb der Kandidatenliste.
-- `AnswerQualityModelTests` stellt die Fragen dem echten Weg des Chats: `PassageRanker`, dann `KnowledgeExtractor.answer` mit dem Gerätebudget, PCC aus. Gemessen wird mit dem Framework Evaluations aus Xcode 27. Die Suite läuft nur, wenn das Gerätemodell bereit ist, sonst meldet `swift test` sie als übersprungen. Ein Durchlauf dauert auf einem Mac mit M-Chip etwa vier Minuten.
+- `AnswerQualityModelTests` stellt die Fragen dem echten Weg des Chats: `PassageRanker`, dann `KnowledgeExtractor.answer` mit dem Gerätebudget, PCC aus. Gemessen wird mit dem Framework Evaluations aus Xcode 27. Die Suite läuft nur auf Wunsch mit `PODCASTAI_ANSWER_EVAL=1` und nur, wenn das Gerätemodell bereit ist, sonst meldet `swift test` sie als übersprungen. Ein Durchlauf dauert auf einem Mac mit M-Chip etwa vier Minuten.
 
 ```sh
 cd app/Packages/PodcastAIKit
-swift test --filter AnswerQuality                      # beide Teile
-swift test --filter AnswerQualityModel                 # nur die Messung
-PODCASTAI_ANSWER_EVAL=0 swift test                     # Messung überspringen
-PODCASTAI_EVAL_OUT=~/Desktop/eval swift test --filter AnswerQualityModel
+swift test --filter AnswerQuality                                        # feste Prüfungen
+PODCASTAI_ANSWER_EVAL=1 swift test --filter AnswerQualityModel           # Messung mit Modell
+PODCASTAI_ANSWER_EVAL=1 PODCASTAI_EVAL_OUT=~/Desktop/eval swift test --filter AnswerQualityModel
 ```
 
 Die Kennzahlen (`AnswerQualityMetrics`): Belegabdeckung und Präzision gegen die erwarteten Stellen, Trefferquote der Suche (stand die erwartete Stelle überhaupt in der Kandidatenliste), Anteil der inhaltlichen Sätze mit Verweis, verworfene Verweise, Blocknamen und verklebte Sätze im Text, richtige Sprache und ob die Anweisung aus den Shownotes befolgt wurde. Der Test schlägt nur fehl, wenn eine Zusage des Codes bricht: ein Beleg außerhalb der Liste, ein Blockname im Text oder eine befolgte Anweisung. Die übrigen Zahlen sind eine Messung, keine Schwelle. Sie stehen in der Ausgabe von `swift test` und als `answer-quality-report.json` samt `.xcevalresult` im temporären Ordner unter `PodcastAIAnswerQuality`, oder in `PODCASTAI_EVAL_OUT`. Verworfene Verweise lassen sich nur an gebauten Ausgaben zählen, denn `answer` gibt den Text schon aufgeräumt zurück.

@@ -55,8 +55,10 @@ actor AnswerObservationRecorder {
 
 enum AnswerQualityRun {
 
+    /// Nur auf Wunsch: 25 Modellaufrufe dauern etwa vier Minuten, und
+    /// `swift test` läuft nach jeder Änderung.
     static var isEnabled: Bool {
-        guard ProcessInfo.processInfo.environment["PODCASTAI_ANSWER_EVAL"] != "0" else { return false }
+        guard ProcessInfo.processInfo.environment["PODCASTAI_ANSWER_EVAL"] == "1" else { return false }
         return KnowledgeExtractor.currentStatus(allowPrivateCloud: false).onDevice.isAvailable
     }
 
