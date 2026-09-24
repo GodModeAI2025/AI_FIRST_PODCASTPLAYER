@@ -16,8 +16,13 @@
 //    Bezeichnungen liegt sehr nah. Bei einzelnen Wörtern trennt er schlecht,
 //    deshalb gilt eine enge Grenze, und nur bei gleicher erkannter Sprache.
 //
-//  Länder (`region:`) liegen nur über ihren Schlüssel nahe, nie über den
-//  Vektor.
+//  - Die Bezeichnung des einen ist eine Schreibweise des anderen. So
+//    taucht ein Tag wieder auf, das ein anderes Gerät neu angelegt hat,
+//    bevor dort ankam, dass es schon zusammengelegt war.
+//
+//  Länder (`region:`) liegen nie über Tippfehler oder Vektor nahe: Ihre
+//  Schlüssel unterscheiden sich nur im Ländercode, `region:de` und
+//  `region:fr` sähen sonst wie ein Tippfehler aus.
 //
 
 import Foundation
@@ -40,7 +45,13 @@ public enum TagSimilarity {
         var embeddings: [NLLanguage: NLEmbedding] = [:]
         let ownLanguage = language(of: tag.label)
         var scored: [(tag: Tag, score: Double)] = []
+        let ownAliasKeys = Set(tag.aliases.map { TagNormalizer.key(for: $0) })
         for other in tags where other.id != tag.id && !other.normalizedKey.isEmpty && other.normalizedKey != key {
+            if ownAliasKeys.contains(other.normalizedKey)
+                || other.aliases.contains(where: { TagNormalizer.key(for: $0) == key }) {
+                scored.append((other, 0))
+                continue
+            }
             if let score = lexicalScore(key, other.normalizedKey) {
                 scored.append((other, score))
                 continue
@@ -70,6 +81,8 @@ public enum TagSimilarity {
 
     /// Nähe allein über die Schlüssel, oder `nil`. Kleiner ist näher.
     static func lexicalScore(_ lhs: String, _ rhs: String) -> Double? {
+        let region = TagNormalizer.regionPrefix
+        guard !lhs.hasPrefix(region), !rhs.hasPrefix(region) else { return nil }
         let shorter = lhs.count <= rhs.count ? lhs : rhs
         let longer = lhs.count <= rhs.count ? rhs : lhs
         if shorter.count >= 4, longer.hasPrefix(shorter) || longer.hasSuffix(shorter) {

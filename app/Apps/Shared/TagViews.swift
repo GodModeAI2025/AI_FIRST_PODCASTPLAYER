@@ -316,11 +316,20 @@ struct TagDetailView: View {
         }
         .navigationTitle(tag?.label ?? String(localized: "Tag"))
         .accessibilityIdentifier("tag.page")
-        .task(id: TaskInput(revision: model.chapterTagsRevision, tags: model.profile.tags)) {
+        .task(id: model.chapterTagsRevision) {
             let found = await model.chapterTags(forTag: tagID)
             chapters = found
             titles = await model.episodeTitles(Array(Set(found.map(\.episodeID))))
-            if let tag { near = TagSimilarity.nearTags(to: tag, in: model.profile.tags) }
+        }
+        // Nahe Tags hängen nur an Namen, Schlüsseln und Schreibweisen, nicht
+        // an Plus oder Minus. Der Vergleich lädt Sprachdaten und läuft über
+        // alle Tags, deshalb abseits des Hauptthreads.
+        .task(id: similarityInput) {
+            guard let tag else { near = []; return }
+            let all = model.profile.tags
+            near = await Task.detached(priority: .utility) {
+                TagSimilarity.nearTags(to: tag, in: all)
+            }.value
         }
         .confirmationDialog(
             pendingMerge.map { Text("„\($0.label)“ mit „\(tag?.label ?? "")“ zusammenlegen?") } ?? Text(verbatim: ""),
@@ -339,9 +348,9 @@ struct TagDetailView: View {
         }
     }
 
-    private struct TaskInput: Equatable {
-        let revision: Int
-        let tags: [Tag]
+    /// Was die Vorschläge zum Zusammenlegen bestimmt.
+    private var similarityInput: [[String]] {
+        model.profile.tags.map { [$0.id.rawValue, $0.label, $0.normalizedKey] + $0.aliases }
     }
 
     @ViewBuilder

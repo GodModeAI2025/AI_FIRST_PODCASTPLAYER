@@ -53,9 +53,12 @@ struct ChapterTagRelevanceTests {
                                       text: "Roboter bauen.")
         let fallback = evidence("ohne tags", episode: untagged, media: otherMedia, startMs: 0,
                                 text: "Der Datenschutz im Verein.")
+        // Neue Fassung einer eingeordneten Folge, selbst noch ohne Kapitel-Tag.
+        let newVersion = evidence("neue fassung", episode: tagged, media: otherMedia, startMs: 200_000,
+                                  text: "Datenschutz in der neuen Fassung.")
 
         let matches = ChapterTagRelevance.matches(
-            evidence: [inChapter, outside, wrongMedia, neutralChapter, fallback],
+            evidence: [inChapter, outside, wrongMedia, neutralChapter, fallback, newVersion],
             chapterTags: [chapterTag(followed, startMs: 90_000, endMs: 300_000),
                           chapterTag(neutral, startMs: 600_000, endMs: 900_000)],
             profile: profile)
@@ -70,6 +73,8 @@ struct ChapterTagRelevanceTests {
         #expect(!ids.contains(neutralChapter.id))
         // Ohne Kapitel-Tag der Rückfall über das Wort.
         #expect(ids.contains(fallback.id))
+        // Eine Fassung ohne Kapitel-Tag fällt nicht heraus, sie läuft über das Wort.
+        #expect(ids.contains(newVersion.id))
         #expect(matches.first { $0.evidenceID == inChapter.id }?.isModelConfirmed == true)
         #expect(matches.first { $0.evidenceID == fallback.id }?.isModelConfirmed == false)
     }
@@ -144,6 +149,16 @@ struct TagMergeTests {
         #expect(try await store.chapterTags(forTag: InterestID(rawValue: "ki")).count == 2)
     }
 
+    @Test("Die Tags der Beispielfolge entstehen mit genau ihrer Bezeichnung")
+    func demoLabelsAreAdmitted() async throws {
+        // Die UI-Tests finden die Tags über die Bezeichnung (`tag.follow.Haftung`).
+        let store = LibraryStore.make(container: try LibraryStore.makeContainer(inMemory: true))
+        for label in ["Sprachmodelle", "Automatisierung", "Haftung", "KI-Verordnung"] {
+            let tag = try await store.addDetectedTag(label: label)
+            #expect(tag?.label == label, "\(label) wird nicht als Tag angelegt")
+        }
+    }
+
     @Test("Zusammenlegen mit sich selbst oder einem unbekannten Tag ändert nichts")
     func mergeNoOps() async throws {
         let store = try await seededStore()
@@ -174,6 +189,25 @@ struct TagSimilarityTests {
         #expect(TagSimilarity.lexicalScore("modelle", "sprachmodelle") == 0)
         #expect(TagSimilarity.lexicalScore("ki", "kiverordnung") == nil)
         #expect(TagSimilarity.editDistance("haftung", "haftungg") == 1)
+    }
+
+    @Test("Länder liegen nicht nahe beieinander, nur weil ihre Codes kurz sind")
+    func regionsAreNotTypos() {
+        let germany = tag("Deutschland", "region:DE")
+        let tags = [germany, tag("Frankreich", "region:FR"), tag("Dänemark", "region:DK"), tag("USA", "region:US")]
+        #expect(TagSimilarity.nearTags(to: germany, in: tags).isEmpty)
+        #expect(TagSimilarity.lexicalScore("region:de", "region:fr") == nil)
+    }
+
+    @Test("Ein Tag, dessen Name Schreibweise eines anderen ist, liegt nahe")
+    func aliasOfOther() {
+        var survivor = tag("KI", "ki")
+        survivor.aliases = ["Künstliche Intelligenz"]
+        let recreated = PodcastAICore.Tag(
+            id: InterestID(rawValue: "neu"), label: "Künstliche Intelligenz",
+            normalizedKey: TagNormalizer.key(for: "Künstliche Intelligenz"), stance: .neutral, origin: .detected)
+        #expect(TagSimilarity.nearTags(to: survivor, in: [survivor, recreated]).map(\.id) == [recreated.id])
+        #expect(TagSimilarity.nearTags(to: recreated, in: [survivor, recreated]).map(\.id) == [survivor.id])
     }
 
     @Test("Über den Satzvektor nur in derselben Sprache: Datenschutz liegt nicht bei Fußball")

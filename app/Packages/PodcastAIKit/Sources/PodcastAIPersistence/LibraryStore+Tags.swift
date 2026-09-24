@@ -402,6 +402,17 @@ extension LibraryStore {
             .uniqued(by: \.identifier).map(\.snapshot)
     }
 
+    /// Die Kapitel-Tags bestimmter Folgen. „Für dich“ liest nur die Folgen
+    /// seiner Belege, nicht die ganze Tabelle.
+    public func chapterTags(forEpisodes ids: Set<EpisodeID>) throws -> [ChapterTag] {
+        guard !ids.isEmpty else { return [] }
+        let keys = Set(ids.map(\.rawValue))
+        return try modelContext.fetch(FetchDescriptor<StoredChapterTag>(
+            predicate: #Predicate { keys.contains($0.episodeIdentifier) },
+            sortBy: [SortDescriptor(\.episodeIdentifier), SortDescriptor(\.chapterStartMs)]))
+            .uniqued(by: \.identifier).map(\.snapshot)
+    }
+
     /// Alle Kapitel eines Tags, über seine Kennung, neueste Folge zuerst.
     public func chapterTags(forTag id: InterestID) throws -> [ChapterTag] {
         let identifier = id.rawValue

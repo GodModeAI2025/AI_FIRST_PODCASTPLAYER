@@ -18,11 +18,13 @@ public enum ChapterTagRelevance {
 
     /// Treffer für Belege.
     ///
-    /// - Belege aus Folgen mit mindestens einem Kapitel-Tag passen nur über
-    ///   die Kapitel-Tags. Ein Beleg gehört zu einem Kapitel, wenn sein
-    ///   Anfang im Kapitel liegt und er aus derselben Medienfassung stammt.
-    /// - Belege aus Folgen ohne Kapitel-Tag bewertet `scorer` wie bisher
-    ///   über Bezeichnung und Aliasse.
+    /// - Belege aus einer Medienfassung mit mindestens einem Kapitel-Tag
+    ///   passen nur über die Kapitel-Tags. Ein Beleg gehört zu einem Kapitel,
+    ///   wenn sein Anfang im Kapitel liegt.
+    /// - Belege aus einer Fassung ohne Kapitel-Tag bewertet `scorer` wie
+    ///   bisher über Bezeichnung und Aliasse. Das gilt auch für eine neue
+    ///   Fassung einer Folge, deren alte schon eingeordnet war: Bis die neue
+    ///   eingeordnet ist, fiele sie sonst ganz heraus.
     ///
     /// Es zählen nur Tags, denen jemand folgt (`publicationDrivers`). Je Tag
     /// kommen höchstens `scorer.maximumPerInterest` Treffer aus Kapitel-Tags.
@@ -33,13 +35,13 @@ public enum ChapterTagRelevance {
         scorer: RelevanceScorer = RelevanceScorer(),
         now: Date = Date()
     ) -> [RelevanceMatch] {
-        let taggedEpisodes = Set(chapterTags.map(\.episodeID))
-        let untagged = evidence.filter { !taggedEpisodes.contains($0.episodeID) }
+        let taggedMedia = Set(chapterTags.map(\.mediaVersionID))
+        let untagged = evidence.filter { !taggedMedia.contains($0.mediaVersionID) }
         var result = untagged.isEmpty ? [] : scorer.score(evidence: untagged, profile: profile, now: now)
 
         let drivers = Dictionary(
             profile.publicationDrivers(at: now).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        guard !drivers.isEmpty, !taggedEpisodes.isEmpty else { return result }
+        guard !drivers.isEmpty, !taggedMedia.isEmpty else { return result }
 
         var tagsByMedia: [MediaVersionID: [ChapterTag]] = [:]
         for tag in chapterTags where drivers[tag.interestID] != nil {
@@ -48,7 +50,7 @@ public enum ChapterTagRelevance {
 
         var byInterest: [InterestID: [RelevanceMatch]] = [:]
         var seen: Set<String> = []
-        for item in evidence where taggedEpisodes.contains(item.episodeID) {
+        for item in evidence where taggedMedia.contains(item.mediaVersionID) {
             guard let range = item.range, let tags = tagsByMedia[item.mediaVersionID] else { continue }
             let start = range.start.milliseconds
             for tag in tags where contains(tag, start) {

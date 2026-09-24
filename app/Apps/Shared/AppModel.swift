@@ -850,8 +850,9 @@ public final class AppModel {
         do {
             let evidence = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
             // Über Kapitel-Tags, denen jemand folgt. Folgen, die noch kein
-            // Kapitel-Tag haben, laufen über Bezeichnung und Aliasse.
-            let chapterTags = try await store.allChapterTags()
+            // Kapitel-Tag haben, laufen über Bezeichnung und Aliasse. Gelesen
+            // werden nur die Kapitel-Tags der Folgen im Belegvorrat.
+            let chapterTags = try await store.chapterTags(forEpisodes: Set(evidence.map(\.episodeID)))
             chapterTagCounts = try await store.chapterCountsByTag()
             let matches = ChapterTagRelevance.matches(
                 evidence: evidence, chapterTags: chapterTags, profile: profile)
