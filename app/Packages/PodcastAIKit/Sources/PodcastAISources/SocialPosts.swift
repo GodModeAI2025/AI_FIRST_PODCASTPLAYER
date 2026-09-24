@@ -243,7 +243,7 @@ extension SupadataTranscriptClient {
     }
 
     /// Eine GET-Anfrage mit den üblichen Regeln; liefert den Inhalt bei 200.
-    private func get(path: [String], query: [URLQueryItem], apiKey: String) async throws(SupadataError) -> Data {
+    func get(path: [String], query: [URLQueryItem], apiKey: String) async throws(SupadataError) -> Data {
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw .missingKey }
         let base = path.reduce(configuration.baseURL) { $0.appending(path: $1) }

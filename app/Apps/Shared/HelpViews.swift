@@ -452,7 +452,9 @@ extension HelpTopic {
                     und Facebook fügst du dann per Link hinzu; Profile lassen sich nicht abonnieren. Den \
                     Schlüssel trägst du in den Einstellungen unter „YouTube-Transkripte“ ein. Ohne ihn kommt \
                     das Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst. Ein Tipp auf \
-                    eine Stelle öffnet das Video dort, wo es liegt.
+                    eine Stelle öffnet das Video dort, wo es liegt. Mit Schlüssel bekommen auch Podcasts mit \
+                    Ton ihr Transkript zuerst aus den Untertiteln derselben Folge auf YouTube, an den Ton \
+                    angepasst. Passt es nicht sicher, transkribiert die App wie gewohnt auf dem Gerät.
                     """, symbol: "play.rectangle", level: .expert),
             ],
             jumps: [.library]
@@ -560,7 +562,9 @@ extension HelpTopic {
                 HelpTip(title: "YouTube-Transkripte über Supadata", text: """
                     Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne \
                     Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), \
-                    einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und \
+                    einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Für Folgen mit Ton ohne \
+                    eigenes Transkript sucht die App dort mit den Titeln von Podcast und Folge nach derselben \
+                    Folge auf YouTube. Kontodaten, Fragen und \
                     deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses \
                     Geräts.
                     """, symbol: "play.rectangle", level: .expert),

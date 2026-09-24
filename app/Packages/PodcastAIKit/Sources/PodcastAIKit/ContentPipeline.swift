@@ -111,6 +111,45 @@ public enum PassageBuilder {
 
 #if canImport(SwiftData) && canImport(Speech)
 
+/// Untertitel des YouTube-Zwillings einer Audiofolge, geholt von der App
+/// nach ihren Regeln für Schlüssel, Netz und Wartezeiten.
+public struct TwinCaptions: Sendable {
+    public let captions: SupadataTranscript
+    public let videoID: String
+    public let channelID: String?
+
+    public init(captions: SupadataTranscript, videoID: String, channelID: String?) {
+        self.captions = captions
+        self.videoID = videoID
+        self.channelID = channelID
+    }
+}
+
+/// Wie der Abgleich der Untertitel mit dem Ton ausging.
+public enum TwinAlignmentOutcome: Equatable, Sendable {
+    /// Gespeichert. `constant`: überall derselbe Versatz.
+    case aligned(constant: Bool, anchors: Int)
+    /// Die Untertitel sind in einer anderen Sprache als die Folge.
+    case languageMismatch
+    /// Die Datei lässt sich nicht stückweise lesen, oder die Folge ist zu kurz.
+    case unsupportedAudio
+    /// Die Stücke passten nicht sicher genug zu den Untertiteln.
+    case notAligned
+}
+
+/// Schritt 2 der Reihenfolge, von der App eingesetzt. `provide` liefert die
+/// Untertitel oder `nil`; `report` erfährt, wie der Abgleich ausging.
+public struct TwinCaptionHook: Sendable {
+    public let provide: @Sendable (Episode) async -> TwinCaptions?
+    public let report: @Sendable (EpisodeID, TwinCaptions, TwinAlignmentOutcome) -> Void
+
+    public init(provide: @escaping @Sendable (Episode) async -> TwinCaptions?,
+                report: @escaping @Sendable (EpisodeID, TwinCaptions, TwinAlignmentOutcome) -> Void) {
+        self.provide = provide
+        self.report = report
+    }
+}
+
 public actor ContentPipeline {
 
     private let store: LibraryStore
@@ -121,6 +160,7 @@ public actor ContentPipeline {
     private let scorer = RelevanceScorer()
     private let checkpoints: TranscriptCheckpointStore
     private let onProgress: @Sendable (PipelineProgress) -> Void
+    private let twin: TwinCaptionHook?
 
     /// Zwischenstände liegen neben dem Ordner der Audiodateien, nicht darin:
     /// dort zählt die App jede Datei als geladenen Ton.
@@ -143,6 +183,7 @@ public actor ContentPipeline {
     public init(
         store: LibraryStore,
         mediaDirectory: URL,
+        twin: TwinCaptionHook? = nil,
         onProgress: @escaping @Sendable (PipelineProgress) -> Void = { _ in }
     ) {
         self.store = store
@@ -151,6 +192,7 @@ public actor ContentPipeline {
         self.checkpoints = TranscriptCheckpointStore(
             directory: Self.checkpointDirectory(besides: mediaDirectory))
         self.onProgress = onProgress
+        self.twin = twin
     }
 
     /// Erstellt das Transkript einer Folge und daraus die Fundstellen.
@@ -178,6 +220,16 @@ public actor ContentPipeline {
                episode: episode, transcriptURL: transcriptURL, audioURL: audioURL,
                mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale) {
             return evidence
+        }
+        // Sonst die Untertitel desselben Inhalts auf YouTube, falls die App
+        // sie holen darf und sie sich sicher auf den Ton legen lassen.
+        if let twin, let captions = await twin.provide(episode) {
+            try Task.checkCancellation()
+            let (evidence, outcome) = try await processTwinCaptions(
+                captions, episode: episode, audioURL: audioURL,
+                mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale)
+            twin.report(episode.id, captions, outcome)
+            if let evidence { return evidence }
         }
         // Liegt die Datei schon da, wird sie nicht ein zweites Mal geladen.
         let download: DownloadResult
@@ -388,6 +440,198 @@ public actor ContentPipeline {
                 localized: "^[\(evidence.count) Fundstelle](inflect: true)", bundle: .module).characters)
         ))
         return evidence
+    }
+
+    // MARK: Untertitel des YouTube-Zwillings
+
+    /// Länge eines Stücks für den Abgleich.
+    static let twinWindowLength: Int64 = 25_000
+    /// Wo die ersten Stücke liegen, als Anteil der Folge.
+    static let twinWindowPositions = [0.10, 0.50, 0.85]
+    /// Ersatz, wenn ein Stück in Musik oder Werbung fiel.
+    static let twinBackupPositions = [0.30, 0.70]
+    /// Höchstens so viele Stücke je Folge, das Eingrenzen eingeschlossen.
+    static let twinMaxWindows = 7
+    /// Kürzere Folgen transkribiert das Gerät gleich selbst.
+    static let twinMinimumDuration: Int64 = 4 * 60_000
+
+    /// Legt die Untertitel auf die Zeit der Audiodatei und speichert sie.
+    ///
+    /// Ein paar Stücke des Tons transkribiert das Gerät selbst, jedes wird in
+    /// den Untertiteln gesucht (`CaptionAlignment`). Nur wenn mindestens zwei
+    /// sicher passen und die Versätze zusammen Sinn ergeben, entsteht das
+    /// Transkript, mit den Zeiten des Tons. Sonst `nil`, und die Folge wird
+    /// wie bisher geladen und ganz transkribiert. Weiter oben landen nur ein
+    /// Abbruch und Fehler, an denen auch die eigene Erkennung scheitern würde.
+    private func processTwinCaptions(
+        _ twin: TwinCaptions, episode: Episode, audioURL: URL,
+        mediaVersionID: MediaVersionID, sourceID: SourceID, locale: Locale
+    ) async throws -> ([Evidence]?, TwinAlignmentOutcome) {
+        // Untertitel in einer anderen Sprache sind eine Übersetzung, kein Transkript.
+        if let lang = twin.captions.lang, !lang.isEmpty,
+           let wanted = locale.language.languageCode?.identifier,
+           SupadataLanguage.base(lang) != SupadataLanguage.base(wanted) {
+            return (nil, .languageMismatch)
+        }
+        onProgress(PipelineProgress(
+            episodeID: episode.id, stage: .discovered,
+            detail: String(localized: "gleicht Untertitel von YouTube ab", bundle: .module)))
+
+        let cues = CaptionAnalysis.cues(from: twin.captions)
+        let captionWords = CaptionAlignment.words(cues: cues)
+        let local = await downloader.existing(mediaVersionID: mediaVersionID)
+
+        let source: any AudioWindowSource
+        do {
+            if local != nil, let windows = LocalAudioWindows(
+                fileURL: mediaDirectory.appendingPathComponent(mediaVersionID.rawValue)) {
+                source = windows
+            } else {
+                source = try await RemoteMP3Windows.open(url: audioURL, declaredDuration: episode.declaredDuration)
+            }
+        } catch {
+            try Task.checkCancellation()
+            return (nil, .unsupportedAudio)
+        }
+        let total = source.duration.milliseconds
+        guard total >= Self.twinMinimumDuration else { return (nil, .unsupportedAudio) }
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TwinWindows-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        var anchors: [AlignmentAnchor] = []
+        var failed: [Int64] = []
+        var used = 0
+        let length = Self.twinWindowLength
+
+        // Erst drei Stücke über die Folge verteilt. Passte eines davon, gibt
+        // es Ersatz für solche, die in Musik oder Werbung fielen; passte
+        // keines, ist das Video wohl nicht diese Folge. Wechselt der Versatz zwischen
+        // zwei Stücken, etwa durch Werbung im MP3, grenzen weitere Stücke die
+        // Stelle ein.
+        var pending = Self.twinWindowPositions.map { Int64(Double(total) * $0) }
+        var backups = Self.twinBackupPositions.map { Int64(Double(total) * $0) }
+        while used < Self.twinMaxWindows {
+            let requested: Int64
+            if !pending.isEmpty {
+                requested = pending.removeFirst()
+            } else if anchors.count == 1, !backups.isEmpty {
+                requested = backups.removeFirst()
+            } else if let next = CaptionAlignment.nextProbe(anchors: anchors, failedProbes: failed) {
+                requested = next - length / 2
+            } else {
+                break
+            }
+            let start = max(0, min(total - length, requested))
+            used += 1
+            do {
+                if let anchor = try await alignWindow(
+                    at: start, length: length, from: source, into: directory,
+                    captionWords: captionWords, locale: locale) {
+                    anchors.append(anchor)
+                } else {
+                    failed.append(start + length / 2)
+                }
+            } catch AudioWindowError.unsupported {
+                return (nil, .unsupportedAudio)
+            }
+        }
+        try Task.checkCancellation()
+
+        guard case .success(let mapping) = CaptionAlignment.mapping(from: anchors),
+              case .success(let shifted) = CaptionAlignment.shift(
+                cues: cues, by: mapping, audioDuration: MediaDuration(milliseconds: total)) else {
+            return (nil, .notAligned)
+        }
+        let transcript = CaptionTranscriptBuilder.transcript(
+            from: shifted, mediaVersionID: mediaVersionID, locale: locale.identifier,
+            origin: .youTubeCaptionsAligned)
+        let evidence = assembler.evidence(
+            from: transcript, episodeID: episode.id, sourceID: sourceID,
+            ranges: CaptionAnalysis.passages(for: transcript))
+        guard !evidence.isEmpty else { return (nil, .notAligned) }
+        try Task.checkCancellation()
+
+        // Wie beim Transkript des Podcasts: die Fassung ist die Audiodatei
+        // aus dem Feed. Liegt sie schon auf dem Gerät, bleibt sie daran.
+        try await store.save(
+            transcript: transcript,
+            media: MediaVersion(
+                id: mediaVersionID,
+                episodeID: episode.id,
+                remoteURL: audioURL,
+                localRelativePath: local?.localRelativePath,
+                byteCount: local?.byteCount,
+                contentHash: local?.contentHash,
+                duration: local?.duration ?? MediaDuration(milliseconds: total),
+                mimeType: local?.mimeType
+            ),
+            forEpisode: episode.id
+        )
+        onProgress(PipelineProgress(
+            episodeID: episode.id, stage: .transcribed,
+            detail: TranscriptOrigin.youTubeCaptionsAligned.sourceLabel))
+        try await store.store(evidence: evidence)
+        onProgress(PipelineProgress(
+            episodeID: episode.id, stage: .evidenceExtracted,
+            detail: String(AttributedString(
+                localized: "^[\(evidence.count) Fundstelle](inflect: true)", bundle: .module).characters)
+        ))
+        return (evidence, .aligned(constant: mapping.isConstant, anchors: anchors.count))
+    }
+
+    /// Ein Stück holen, selbst transkribieren und in den Untertiteln suchen.
+    /// `nil`, wenn es sich nicht holen oder nicht sicher zuordnen lässt.
+    private func alignWindow(
+        at start: Int64, length: Int64, from source: any AudioWindowSource, into directory: URL,
+        captionWords: [AlignmentWord], locale: Locale
+    ) async throws -> AlignmentAnchor? {
+        do {
+            let window = try await source.window(at: start, length: length, into: directory)
+            defer { try? FileManager.default.removeItem(at: window.fileURL) }
+            let words = try await transcribeWindow(window, locale: locale)
+            return CaptionAlignment.match(window: words, captions: captionWords)?.anchor
+        } catch AudioWindowError.unsupported {
+            throw AudioWindowError.unsupported
+        } catch let error as TranscriptionError {
+            // Ohne Spracherkennung oder Sprachmodell scheiterte auch der
+            // Weg über den ganzen Ton. Das soll die Folge sagen.
+            switch error {
+            case .speechUnavailableOnDevice, .localeNotSupported, .modelUnavailable: throw error
+            default: return nil
+            }
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            try Task.checkCancellation()
+            return nil
+        }
+    }
+
+    /// Transkribiert ein Stück und gibt seine Wörter mit Zeiten in der Folge zurück.
+    private func transcribeWindow(_ window: AudioWindow, locale: Locale) async throws -> [AlignmentWord] {
+        // Eine eigene Erkennung je Stück; eine gebrauchte meldet sich erst
+        // kurz nach dem Ende ihres Stroms frei.
+        let engine = TimedTranscriptionEngine()
+        var words: [AlignmentWord] = []
+        let stream = try await engine.transcribeFile(
+            at: window.fileURL, mediaVersionID: MediaVersionID(stable: window.fileURL.absoluteString),
+            locale: locale)
+        do {
+            for try await result in stream {
+                guard result.isFinal, let range = result.range else { continue }
+                words += CaptionAlignment.words(
+                    text: result.text, start: window.start + range.start.milliseconds,
+                    end: window.start + range.end.milliseconds)
+            }
+            try Task.checkCancellation()
+        } catch {
+            await engine.cancel()
+            throw error
+        }
+        return words.sorted { $0.time < $1.time }
     }
 
     /// Baut Kandidaten für eine persönliche Ausgabe.

@@ -129,6 +129,22 @@
         }
       }
     },
+    "gleicht Untertitel von YouTube ab": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gleicht Untertitel von YouTube ab"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "matching YouTube captions"
+          }
+        }
+      }
+    },
     "transkribiert": {
       "localizations": {
         "de": {

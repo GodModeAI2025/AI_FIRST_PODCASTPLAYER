@@ -129,7 +129,7 @@ extension AppModel {
     }
 
     /// Feed-Adressen vergleichbar machen: Schema, `www.` und Schrägstrich egal.
-    private static func feedKey(_ url: URL) -> String {
+    static func feedKey(_ url: URL) -> String {
         var host = url.host()?.lowercased() ?? ""
         if host.hasPrefix("www.") { host.removeFirst(4) }
         var path = url.path()
