@@ -1,5 +1,18 @@
 # Änderungsverlauf
 
+## App 0.10 · 2026-09-24
+Tags aus dem Inhalt und ein schnellerer Chat:
+- Tags statt Freitext: Die App ordnet jedes Kapitel Themen zu, die in ihm vorkommen, etwa „China“ oder „Datenschutz“. Mit + folgst du einem Tag, mit − nicht mehr, das Tag bleibt sichtbar. Unter „Wissen“ stehen deine Tags statt der Interessen, jedes mit eigener Seite: wo es vorkommt, Schreibweisen, „Zusammenlegen?“ bei ähnlichen Tags. Eingetippte Themen gibt es nicht mehr, deine bisherigen Interessen sind jetzt Tags, denen du folgst.
+- Schreibweisen gelten als ein Tag: USA, Vereinigte Staaten und United States, „iOS 27“ und „ios27“.
+- Neue Tags entstehen nur aus Begriffen, die im Text stehen, und erscheinen, sobald zwei Quellen sie nennen. Die vorhandene Bibliothek wird nach und nach eingeordnet, neueste Folgen zuerst.
+- „Für dich“ und die Themen-Updates wählen über die Tags der Kapitel. Die erste Ausgabe eines neuen Themen-Updates entsteht jetzt gleich beim Anlegen.
+- Chat schneller: Die Arbeit vor dem ersten Wort braucht etwa die Hälfte, beim Tippen ins Eingabefeld wärmt das Gerätemodell vor, und beim Schreiben der Antwort zeichnet sich nur die Antwort neu.
+- Suche im Transkript mit Trefferzahl und Hervorhebung, „strasse“ findet „Straße“. Die Liste springt beim Suchen nicht mehr zur Abspielstelle.
+- „Neu laden“ je Podcast oder Kanal holt Metadaten, Cover und Folgen neu.
+- Mit eigenem Supadata-Schlüssel: Für Podcast-Folgen sucht die App die gleiche Folge auf YouTube und übernimmt deren Untertitel, an die Zeiten der Folge angepasst, statt den Ton zu laden. Beiträge aus TikTok und Instagram lassen sich jetzt wirklich hinzufügen.
+- Gegenpositionen sind entfernt. Gesicherte Antworten daraus bleiben lesbar.
+- „Abos aus einer anderen App übernehmen“ steht nur noch im Menü von „Meine Podcasts“.
+
 ## App 0.9 · 2026-09-24
 Das Fundament aus dem Plan zur Vereinfachung:
 - Metadaten aus der Quelle: Jede Folge zeigt Podcast, Autor, Datum, Dauer, Staffel und Folge, Rubriken und Link, jeder Podcast Beschreibung, Rubriken, Sprache und Website. Beim Aktualisieren kommen sie neu.
