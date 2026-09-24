@@ -53,17 +53,42 @@ public final class DeviceState: Sendable {
         }
         if known.hit || known.value != nil { return known.value }
 
-        if let data = try? Data(contentsOf: fileURL(for: key)),
-           let decoded = try? JSONDecoder().decode(T.self, from: data) {
-            contents.withLock { $0.values[key] = decoded }
+        let url = fileURL(for: key)
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch CocoaError.fileReadNoSuchFile {
+            return migrate(T.self, for: key, legacy: legacy)
+        } catch {
+            // Die Datei liegt da, lässt sich aber gerade nicht lesen, etwa
+            // vor dem ersten Entsperren. Nichts merken und nichts umziehen,
+            // der nächste Zugriff versucht es neu. Wer jetzt trotzdem einen
+            // Wert setzt, überschreibt die Datei damit.
+            return nil
+        }
+        guard let decoded = try? JSONDecoder().decode(T.self, from: data) else {
+            return migrate(T.self, for: key, legacy: legacy)
+        }
+        // Hat inzwischen jemand gesetzt, gilt das, nicht der ältere Stand der Datei.
+        return contents.withLock { contents -> T? in
+            if let newer = contents.values[key] as? T { return newer }
+            if contents.pending[key] != nil || contents.absent.contains(key) { return nil }
+            contents.values[key] = decoded
             return decoded
         }
+    }
+
+    /// Ohne lesbare Datei: der alte Wert aus den Benutzereinstellungen, falls es ihn gibt.
+    private func migrate<T: Codable & Sendable>(_ type: T.Type, for key: String, legacy: () -> T?) -> T? {
         if let old = legacy() {
             set(old, for: key)
             // Erst wenn die Datei liegt, fällt der alte Eintrag weg. Sonst
-            // wäre der Wert nach einem Absturz genau hier verloren.
+            // wäre der Wert nach einem Absturz oder einem gescheiterten
+            // Schreiben verloren.
             flush()
-            UserDefaults.standard.removeObject(forKey: key)
+            if FileManager.default.fileExists(atPath: fileURL(for: key).path(percentEncoded: false)) {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
             return old
         }
         contents.withLock { _ = $0.absent.insert(key) }

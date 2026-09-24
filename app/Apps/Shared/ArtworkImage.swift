@@ -47,7 +47,8 @@ actor ArtworkThumbnails {
     func image(for key: Key) async -> CGImage? {
         if let cached = Self.cached(key) { return cached }
         if let running = loading[key] { return await running.value }
-        let task = Task.detached(priority: .utility) { () -> CGImage? in
+        // Sichtbare Cover vor der Arbeit im Hintergrund, die mit `.utility` läuft.
+        let task = Task.detached(priority: .userInitiated) { () -> CGImage? in
             guard let (data, _) = try? await URLSession.shared.data(for: URLRequest(url: key.url)) else { return nil }
             return Self.downsample(data, maxPixels: key.pixels)
         }
@@ -96,16 +97,29 @@ struct ArtworkImage<Placeholder: View>: View {
     @State private var loaded: (key: ArtworkThumbnails.Key, image: CGImage)?
 
     private var key: ArtworkThumbnails.Key? {
-        url.map {
-            // In Stufen von 32 Pixeln, damit leicht andere Größen dasselbe Bild nutzen.
-            let pixels = Int((side * displayScale / 32).rounded(.up)) * 32
+        // Der erste Durchgang eines `GeometryReader` meldet oft 0: dann der
+        // Platzhalter, kein winziges Bild, das danach groß gezogen wird.
+        guard side > 0 else { return nil }
+        return url.map {
+            // In Stufen von 32 Pixeln, damit leicht andere Größen dasselbe Bild
+            // nutzen. Begrenzt, denn eine Größe aus dem Layout kann auch
+            // unendlich sein.
+            let wanted = side * displayScale
+            let pixels = wanted.isFinite ? Int((min(max(wanted, 32), 4_096) / 32).rounded(.up)) * 32 : 1_024
             return ArtworkThumbnails.Key(url: $0, pixels: pixels, revision: ArtworkRefresh.shared.revision(for: $0))
         }
     }
 
     var body: some View {
         let key = key
-        let image = key.flatMap { key in loaded?.key == key ? loaded?.image : ArtworkThumbnails.cached(key) }
+        // Ändert sich nur die Größe, etwa während einer Animation, bleibt das
+        // geladene Bild stehen, bis das passende da ist. Sonst blitzte der
+        // Platzhalter auf.
+        let exact = key.flatMap { key in loaded?.key == key ? loaded?.image : ArtworkThumbnails.cached(key) }
+        let sameCover = loaded.flatMap { loaded in
+            loaded.key.url == key?.url && loaded.key.revision == key?.revision ? loaded.image : nil
+        }
+        let image = exact ?? sameCover
         ZStack {
             if let image {
                 Image(decorative: image, scale: displayScale).resizable().scaledToFill()
@@ -114,7 +128,7 @@ struct ArtworkImage<Placeholder: View>: View {
             }
         }
         .task(id: key) {
-            guard let key, image == nil, let fresh = await ArtworkThumbnails.shared.image(for: key) else { return }
+            guard let key, exact == nil, let fresh = await ArtworkThumbnails.shared.image(for: key) else { return }
             loaded = (key, fresh)
         }
     }

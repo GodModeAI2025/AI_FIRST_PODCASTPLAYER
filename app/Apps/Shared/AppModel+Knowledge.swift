@@ -16,6 +16,8 @@ import CoreData
 import PodcastAIKit
 #if os(iOS)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 #if canImport(FoundationModels)
 // Nur dieser Typ: FoundationModels hat einen eigenen `Transcript`, der sonst
@@ -1737,6 +1739,9 @@ extension AppModel {
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     self.returningFromBackground = true
+                    // Was dieses Gerät sich gemerkt hat, liegt jetzt auf der
+                    // Platte, falls das System die App gleich beendet.
+                    DeviceState.shared.flush()
                     self.pauseFactsWithoutTime()
                     self.transcriptsEnteredBackground()
                 }
@@ -1749,6 +1754,15 @@ extension AppModel {
                     self.transcriptsBecameActive()
                     Task { await self.resumeFactsInForeground() }
                 }
+            },
+        ]
+        #elseif os(macOS)
+        guard appStateObservers.isEmpty else { return }
+        appStateObservers = [
+            // Beim Beenden die letzten Änderungen dieses Geräts auf die Platte.
+            NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
+                                                   object: nil, queue: .main) { _ in
+                DeviceState.shared.flush()
             },
         ]
         #endif

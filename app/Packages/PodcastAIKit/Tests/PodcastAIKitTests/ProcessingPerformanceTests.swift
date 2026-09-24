@@ -86,6 +86,38 @@ extension LibraryStore {
         state.flush()
         #expect(DeviceState(directory: state.directory).value([String].self, for: key) == ["alt-1", "alt-2"])
     }
+
+    /// Lässt sich die Datei nicht schreiben, bleibt der alte Eintrag stehen.
+    @Test func keepsTheOldValueWhenTheFileCannotBeWritten() throws {
+        // Ein Ordner ohne Schreibrecht: jedes Schreiben scheitert.
+        let blocked = FileManager.default.temporaryDirectory
+            .appending(path: "devicestate-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: blocked, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: blocked.path(percentEncoded: false))
+        let key = "devicestate-test-\(UUID().uuidString)"
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: blocked.path(percentEncoded: false))
+            try? FileManager.default.removeItem(at: blocked)
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        UserDefaults.standard.set(["alt"], forKey: key)
+        let state = DeviceState(directory: blocked)
+        #expect(state.value([String].self, for: key) { UserDefaults.standard.stringArray(forKey: key) } == ["alt"])
+        #expect(UserDefaults.standard.stringArray(forKey: key) == ["alt"])
+    }
+
+    /// Ein Wert, der nach dem Start gesetzt wurde, gilt vor der Datei.
+    @Test func aValueSetLaterWinsOverTheFile() {
+        let state = makeState()
+        defer { try? FileManager.default.removeItem(at: state.directory) }
+        state.set(["alt"], for: "liste")
+        state.flush()
+        let reopened = DeviceState(directory: state.directory)
+        reopened.set(["neu"], for: "liste")
+        #expect(reopened.value([String].self, for: "liste") == ["neu"])
+        reopened.flush()
+        #expect(DeviceState(directory: state.directory).value([String].self, for: "liste") == ["neu"])
+    }
 }
 
 /// Misst, wie lange der Hauptthread steht, während die Oberfläche die

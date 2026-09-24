@@ -1135,14 +1135,16 @@ public final class AppModel {
     func reloadEpisodeLists() async {
         var fresh: [SourceID: [Episode]] = [:]
         for id in sources.map(\.id) {
-            guard let list = try? await store.episodes(forSource: id) else { continue }
+            guard let list = try? await store.episodes(forSource: id),
+                  // Während des Lesens abbestellt: nicht wieder eintragen.
+                  sources.contains(where: { $0.id == id }) else { continue }
             fresh[id] = list
             RemoteMediaRegistry.shared.register(list)
         }
         var next = episodes
         var changed = false
+        // Auch nach dem letzten Lesen kann eine Quelle weggefallen sein.
         for (id, list) in fresh where sources.contains(where: { $0.id == id }) {
-            // Während des Lesens abbestellt: nicht wieder eintragen.
             let shown = withSupadataMetadata(list)
             if next[id] != shown {
                 next[id] = shown
@@ -2712,7 +2714,7 @@ public final class AppModel {
             [ledger, followed = followedTagIDs, labels = tagLabels, threshold = Self.editionHeardThreshold] in
             ProcessingTrace.measure("Zahlen der Themen-Updates") {
                 inputs.map { input in
-                    (input.feed.id, SmartFeedStatistics.compute(
+                    (input.feed.id, input.editions.map(\.id), SmartFeedStatistics.compute(
                         feed: input.feed, chapters: chapters, editions: input.editions, ledger: ledger,
                         followedTagIDs: followed, tagLabels: labels,
                         heardThreshold: threshold))
@@ -2720,7 +2722,10 @@ public final class AppModel {
             }
         }.value
         var next = smartFeedStatistics
-        for (id, statistics) in computed where smartFeeds.contains(where: { $0.id == id }) {
+        for (id, counted, statistics) in computed where smartFeeds.contains(where: { $0.id == id }) {
+            // Kam inzwischen eine Ausgabe dazu, rechnet der Aufruf dafür
+            // neu. Sein Ergebnis darf nicht von diesem älteren überschrieben werden.
+            guard (editions[id] ?? []).map(\.id) == counted else { continue }
             next[id] = statistics
         }
         smartFeedStatistics = next
