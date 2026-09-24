@@ -39,6 +39,9 @@ private struct AutoRefreshModifier: ViewModifier {
         content
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
+                // Ausgaben, die im Hintergrund entstanden sind, bekommen ihr
+                // Cover jetzt: Image Playground arbeitet nur im Vordergrund.
+                Task { await model.prepareMissingEditionCovers() }
                 Task {
                     // Apple Intelligence kann inzwischen bereit, abgeschaltet
                     // oder das Kontingent aufgebraucht sein.

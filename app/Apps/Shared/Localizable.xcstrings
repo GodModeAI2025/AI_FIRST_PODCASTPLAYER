@@ -257,6 +257,22 @@
         }
       }
     },
+    "%@ oder %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ oder %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ or %2$@"
+          }
+        }
+      }
+    },
     "%@ und %@" : {
       "localizations" : {
         "de" : {
@@ -465,6 +481,22 @@
         }
       }
     },
+    "%@: jedes Kapitel, das eines davon behandelt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: jedes Kapitel, das eines davon behandelt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: every chapter that covers one of them"
+          }
+        }
+      }
+    },
     "%@: keine in deinen Podcasts." : {
       "localizations" : {
         "de" : {
@@ -493,6 +525,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@: none in this episode."
+          }
+        }
+      }
+    },
+    "%@: nur Kapitel, die alle %lld behandeln" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: nur Kapitel, die alle %2$lld behandeln"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: only chapters that cover all %2$lld"
+          }
+        }
+      }
+    },
+    "%@: nur Kapitel, die beides behandeln" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: nur Kapitel, die beides behandeln"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: only chapters that cover both"
           }
         }
       }
@@ -577,18 +641,18 @@
         }
       }
     },
-    "%lld Minuten je Ausgabe" : {
+    "%lld Minuten je Teil" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Minuten je Ausgabe"
+            "value" : "%lld Minuten je Teil"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld Minutes per Edition"
+            "value" : "%lld minutes per part"
           }
         }
       }
@@ -653,6 +717,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld passages in this episode"
+          }
+        }
+      }
+    },
+    "%lld Teile" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Teile"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld parts"
           }
         }
       }
@@ -749,6 +829,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld skipped after stopping"
+          }
+        }
+      }
+    },
+    "%lld neue Aussagen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld neue Aussagen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld new statements"
           }
         }
       }
@@ -861,6 +957,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "1 failed"
+          }
+        }
+      }
+    },
+    "1 neue Aussage" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 neue Aussage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 new statement"
           }
         }
       }
@@ -1617,6 +1729,38 @@
         }
       }
     },
+    "Alle Tags, denen du folgst" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Tags, denen du folgst"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All tags you follow"
+          }
+        }
+      }
+    },
+    "Alle Tags, denen du folgst, je Teil %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Tags, denen du folgst, je Teil %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All tags you follow, %@ per part"
+          }
+        }
+      }
+    },
     "Alle Transkripte fertig" : {
       "localizations" : {
         "de" : {
@@ -1981,6 +2125,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tap to play from this line. Use \"…\" to save, copy, or share it."
+          }
+        }
+      }
+    },
+    "Antippen wählt ein Tag aus oder ab. Unter „Weitere Tags“ stehen Tags aus deinen Folgen, denen du nicht folgst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antippen wählt ein Tag aus oder ab. Unter „Weitere Tags“ stehen Tags aus deinen Folgen, denen du nicht folgst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a tag to select or deselect it. “More Tags” lists tags from your episodes that you don’t follow."
           }
         }
       }
@@ -2690,18 +2850,18 @@
         }
       }
     },
-    "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast. Er besteht aus Originalstellen, die du noch nicht gehört hast." : {
+    "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast. Er besteht aus Kapiteln, die du noch nicht gehört hast." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast. Er besteht aus Originalstellen, die du noch nicht gehört hast."
+            "value" : "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast. Er besteht aus Kapiteln, die du noch nicht gehört hast."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PodcastAI builds a podcast of its own from the tags you follow. It is made of original passages you haven't heard yet."
+            "value" : "PodcastAI builds a podcast of its own from the tags you follow. It is made of chapters you haven’t heard yet."
           }
         }
       }
@@ -2910,6 +3070,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select"
+          }
+        }
+      }
+    },
+    "Auszug" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auszug"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excerpt"
           }
         }
       }
@@ -4143,6 +4319,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your Notes"
+          }
+        }
+      }
+    },
+    "Deine Updates" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Updates"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Updates"
           }
         }
       }
@@ -6019,6 +6211,22 @@
         }
       }
     },
+    "Ein Kapitel kommt ganz hinein, wenn es in einen Teil passt. Was nicht mehr passt, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Kapitel kommt ganz hinein, wenn es in einen Teil passt. Was nicht mehr passt, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A chapter goes in whole if it fits into a part. Whatever no longer fits goes into part 2, part 3 and so on, up to five parts at a time."
+          }
+        }
+      }
+    },
     "Ein Podcast" : {
       "localizations" : {
         "de" : {
@@ -6115,6 +6323,38 @@
         }
       }
     },
+    "Ein eigener Podcast aus Tags. Du wählst Tags aus, gefolgte und über „Weitere Tags“ auch andere, und ob ein Kapitel eines davon oder alle zusammen behandeln muss. Mit „Datenschutz“ und „USA“ auf „Alle zusammen“ kommen nur Kapitel, die beides behandeln. Jede Ausgabe besteht aus ungehörten Kapiteln mehrerer Podcasts und bekommt ein eigenes Cover." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein eigener Podcast aus Tags. Du wählst Tags aus, gefolgte und über „Weitere Tags“ auch andere, und ob ein Kapitel eines davon oder alle zusammen behandeln muss. Mit „Datenschutz“ und „USA“ auf „Alle zusammen“ kommen nur Kapitel, die beides behandeln. Jede Ausgabe besteht aus ungehörten Kapiteln mehrerer Podcasts und bekommt ein eigenes Cover."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A podcast of your own made from tags. You pick tags, the ones you follow and others under “More Tags”, and whether a chapter has to cover any of them or all together. With “Privacy” and “USA” on “All together”, only chapters that cover both come in. Each edition is made of unheard chapters from several podcasts and gets its own cover."
+          }
+        }
+      }
+    },
+    "Ein eigener Podcast zu Tags, die du auswählst. Die App stellt seine Ausgaben aus Kapiteln deiner Podcasts zusammen, die du noch nicht gehört hast, in Teilen zu 20 Minuten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein eigener Podcast zu Tags, die du auswählst. Die App stellt seine Ausgaben aus Kapiteln deiner Podcasts zusammen, die du noch nicht gehört hast, in Teilen zu 20 Minuten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A podcast of your own about tags you pick. The app builds its editions from chapters of your podcasts you haven’t heard yet, in parts of 20 minutes."
+          }
+        }
+      }
+    },
     "Eine Antwort aus dem Chat, die du mit ihren Stellen aufbewahrst. Du findest sie unter „Wissen“." : {
       "localizations" : {
         "de" : {
@@ -6143,6 +6383,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "I can't write an answer right now. %@\n\nThese passages match best:"
+          }
+        }
+      }
+    },
+    "Eine Ausgabe dauert so lange, wie du im Update einstellst, anfangs 20 Minuten. Was nicht mehr hineinpasst, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal. Kein Kapitel kommt zweimal vor. Eine neue Ausgabe startet nie von selbst, abgespielt wird erst, wenn du „Abspielen“ antippst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Ausgabe dauert so lange, wie du im Update einstellst, anfangs 20 Minuten. Was nicht mehr hineinpasst, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal. Kein Kapitel kommt zweimal vor. Eine neue Ausgabe startet nie von selbst, abgespielt wird erst, wenn du „Abspielen“ antippst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An edition is as long as you set in the update, 20 minutes to start with. Whatever no longer fits goes into part 2, part 3 and so on, up to five parts at a time. No chapter appears twice. A new edition never starts on its own; it only plays when you tap “Play”."
           }
         }
       }
@@ -6191,38 +6447,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Get a passage with its source and timestamp"
-          }
-        }
-      }
-    },
-    "Eine eigene Folge je Tag aus ungehörten Originalstellen mehrerer Podcasts, mit Kapiteln, Shownotes und Cover." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eine eigene Folge je Tag aus ungehörten Originalstellen mehrerer Podcasts, mit Kapiteln, Shownotes und Cover."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An episode of your own per tag, made of unheard original passages from several podcasts, with chapters, show notes and cover."
-          }
-        }
-      }
-    },
-    "Eine eigene Folge zu Tags, denen du folgst. Die App stellt sie aus Stellen deiner Podcasts zusammen, die du noch nicht gehört hast." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eine eigene Folge zu Tags, denen du folgst. Die App stellt sie aus Stellen deiner Podcasts zusammen, die du noch nicht gehört hast."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An episode of your own about tags you follow. The app puts it together from passages of your podcasts you haven't heard yet."
           }
         }
       }
@@ -8387,22 +8611,6 @@
         }
       }
     },
-    "Hier stehen die Tags, denen du folgst. Antippen wählt eines ab oder wieder aus." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hier stehen die Tags, denen du folgst. Antippen wählt eines ab oder wieder aus."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These are the tags you follow. Tap to deselect or select one again."
-          }
-        }
-      }
-    },
     "Hilfe" : {
       "localizations" : {
         "de" : {
@@ -9107,6 +9315,22 @@
         }
       }
     },
+    "Kapitel 0 jeder Ausgabe ist eine Übersicht ohne Ton: je Kapitel Podcast, Folge, Datum und wie viele neue Aussagen es bringt. Oben im Tab steht je Tag, wie viele neue Aussagen seit der zuletzt gehörten Ausgabe dazugekommen sind. Ein Tipp auf ein Tag öffnet seine Seite, „Original öffnen“ an einem Kapitel die ganze Folge an der Stelle." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitel 0 jeder Ausgabe ist eine Übersicht ohne Ton: je Kapitel Podcast, Folge, Datum und wie viele neue Aussagen es bringt. Oben im Tab steht je Tag, wie viele neue Aussagen seit der zuletzt gehörten Ausgabe dazugekommen sind. Ein Tipp auf ein Tag öffnet seine Seite, „Original öffnen“ an einem Kapitel die ganze Folge an der Stelle."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapter 0 of every edition is an overview without audio: for each chapter the podcast, episode, date and how many new statements it brings. At the top of the tab, each tag shows how many new statements have come in since the last edition you heard. Tapping a tag opens its page; “Open Original” on a chapter opens the whole episode at that point."
+          }
+        }
+      }
+    },
     "Kapitel ab %@" : {
       "localizations" : {
         "de" : {
@@ -9123,18 +9347,34 @@
         }
       }
     },
-    "Kapitel und Quellen" : {
+    "Kapitel mit einem der Tags, je Teil %@" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kapitel und Quellen"
+            "value" : "Kapitel mit einem der Tags, je Teil %@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chapters and Sources"
+            "value" : "Chapters with any of the tags, %@ per part"
+          }
+        }
+      }
+    },
+    "Kapitel passen, wenn sie" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitel passen, wenn sie"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapters match when they have"
           }
         }
       }
@@ -9199,6 +9439,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No network, so downloads and transcripts are waiting"
+          }
+        }
+      }
+    },
+    "Kein Tag passt zur Suche." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Tag passt zur Suche."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No tag matches your search."
           }
         }
       }
@@ -10181,6 +10437,22 @@
         }
       }
     },
+    "Mit einem Tag zählt jedes Kapitel, das es trägt. Für „alle zusammen“ wähle mindestens zwei." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit einem Tag zählt jedes Kapitel, das es trägt. Für „alle zusammen“ wähle mindestens zwei."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With one tag, every chapter that carries it counts. For “all together”, pick at least two."
+          }
+        }
+      }
+    },
     "Mit „Auf dem Gerät behalten“ im Menü bleibt es." : {
       "localizations" : {
         "de" : {
@@ -10533,6 +10805,22 @@
         }
       }
     },
+    "Neu seit dem letzten Hören" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu seit dem letzten Hören"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Since You Last Listened"
+          }
+        }
+      }
+    },
     "Neue Ausgabe nur auf Knopfdruck" : {
       "localizations" : {
         "de" : {
@@ -10577,6 +10865,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New editions are only created when you tap \"Create New Edition\"."
+          }
+        }
+      }
+    },
+    "Neue Aussagen je Tag aus Folgen, die nach der zuletzt gehörten Ausgabe erschienen sind." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Aussagen je Tag aus Folgen, die nach der zuletzt gehörten Ausgabe erschienen sind."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New statements per tag from episodes published after the last edition you heard."
           }
         }
       }
@@ -11349,6 +11653,22 @@
         }
       }
     },
+    "Nur Kapitel mit allen Tags, je Teil %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur Kapitel mit allen Tags, je Teil %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only chapters with all tags, %@ per part"
+          }
+        }
+      }
+    },
     "Nur auf diesem Gerät" : {
       "localizations" : {
         "de" : {
@@ -11873,22 +12193,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Subscribe to Matching Audio Podcast"
-          }
-        }
-      }
-    },
-    "Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. Der Rest rückt nach, sobald du sie gehört hast." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. Der Rest rückt nach, sobald du sie gehört hast."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "If not everything fits, the most important passages come first. The rest moves up once you've heard them."
           }
         }
       }
@@ -13845,6 +14149,38 @@
         }
       }
     },
+    "Teil %lld von %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teil %1$lld von %2$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Part %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Teile" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Teile"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parts"
+          }
+        }
+      }
+    },
     "Teilen" : {
       "localizations" : {
         "de" : {
@@ -14760,6 +15096,22 @@
         }
       }
     },
+    "Verknüpfung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verknüpfung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matching"
+          }
+        }
+      }
+    },
     "Vertiefen" : {
       "localizations" : {
         "de" : {
@@ -15348,6 +15700,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "More Passages in This Episode"
+          }
+        }
+      }
+    },
+    "Weitere Tags" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weitere Tags"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More Tags"
           }
         }
       }
@@ -16744,22 +17112,6 @@
         }
       }
     },
-    "^[%lld Stelle](inflect: true)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld Stelle](inflect: true)"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld passage](inflect: true)"
-          }
-        }
-      }
-    },
     "^[%lld Stelle](inflect: true) aus ^[%lld Podcast](inflect: true)" : {
       "localizations" : {
         "de" : {
@@ -17911,6 +18263,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Translates the text on device into the app's language"
+          }
+        }
+      }
+    },
+    "Übersicht" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Übersicht"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overview"
           }
         }
       }

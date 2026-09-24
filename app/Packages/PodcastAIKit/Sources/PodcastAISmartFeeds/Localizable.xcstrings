@@ -1,6 +1,22 @@
 {
   "sourceLanguage": "de",
   "strings": {
+    "%@ · Teil %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · Teil %2$lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · Part %2$lld"
+          }
+        }
+      }
+    },
     "%@, Teil %lld": {
       "localizations": {
         "de": {
@@ -17,18 +33,18 @@
         }
       }
     },
-    "Alle Tags zusammen": {
+    "Alle zusammen": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alle Tags zusammen"
+            "value": "Alle zusammen"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "All tags together"
+            "value": "All together"
           }
         }
       }
@@ -129,18 +145,18 @@
         }
       }
     },
-    "Eines der Tags": {
+    "Eines davon": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eines der Tags"
+            "value": "Eines davon"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Any of the tags"
+            "value": "Any of them"
           }
         }
       }

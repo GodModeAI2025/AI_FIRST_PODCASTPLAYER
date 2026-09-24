@@ -231,7 +231,10 @@ enum CoverTitleFit {
 
 /// Das Cover eines Themen-Updates: das Bild, sobald es da ist, sonst das
 /// Layout. Wer es zeigt, stößt das Bild an, falls es fehlt oder zu alten
-/// Themen gehört.
+/// Tags gehört.
+///
+/// Mit `edition` ist es das Cover dieser Ausgabe, wie das einer Folge:
+/// ihr eigenes Bild, bis dahin das des Updates, sonst ihr Layout.
 struct FeedCoverView: View {
 
     let feed: SmartPodcastFeed
@@ -239,15 +242,25 @@ struct FeedCoverView: View {
     var size: CGFloat
     @Environment(AppModel.self) private var model
 
+    private var editionKey: TopicCoverKey? {
+        edition.map { TopicCoverKey(feedID: feed.id, editionID: $0.id) }
+    }
+
     var body: some View {
+        let feedKey = TopicCoverKey(feedID: feed.id)
+        let image = editionKey.flatMap { model.coverArt.image(for: $0) } ?? model.coverArt.image(for: feedKey)
         CoverView(
             cover: edition.flatMap { model.cover(for: $0) } ?? NativeCoverRenderer().makeCover(for: feed),
             size: size,
-            image: model.coverArt.image(for: feed.id),
-            isGenerating: model.coverArt.isGenerating(feed.id)
+            image: image,
+            isGenerating: model.coverArt.isGenerating(editionKey ?? feedKey)
         )
         .task(id: model.coverRecipe(for: feed)) {
             await model.coverArt.prepare(model.coverRecipe(for: feed))
+        }
+        .task(id: edition?.id) {
+            guard let edition else { return }
+            await model.prepareCover(for: edition)
         }
     }
 }
@@ -298,23 +311,25 @@ extension View {
 
 // MARK: - Bilder der Themen-Updates
 
-/// Hält die Bildcover der Themen-Updates und erzeugt fehlende.
+/// Hält die Bildcover der Themen-Updates und ihrer Ausgaben und erzeugt
+/// fehlende.
 ///
 /// Erzeugt wird eins nach dem anderen und nur, während die App sichtbar
 /// ist: `ImageCreator` verweigert die Arbeit im Hintergrund. Angestoßen
-/// wird deshalb aus der Oberfläche, wenn ein Cover erscheint, nie aus der
-/// Hintergrundaktualisierung. Ein Themenstand, der schon scheiterte, wird
-/// in diesem Prozess nicht von selbst erneut versucht.
+/// wird deshalb aus der Oberfläche, wenn ein Cover erscheint, nach einer
+/// neuen Ausgabe im Vordergrund und beim Wechsel in den Vordergrund, nie
+/// aus der Hintergrundaktualisierung. Ein Stand, der schon scheiterte,
+/// wird in diesem Prozess nicht von selbst erneut versucht.
 @MainActor
 @Observable
 final class TopicCoverArt {
 
     enum Outcome: Equatable { case created, needsDialog, unavailable, failed, postponed }
 
-    /// Geladene oder frisch erzeugte Bilder, je Update.
-    private(set) var covers: [SmartFeedID: TopicCover] = [:]
-    /// Updates, deren Bild gerade entsteht.
-    private(set) var generating: Set<SmartFeedID> = []
+    /// Geladene oder frisch erzeugte Bilder, je Update und je Ausgabe.
+    private(set) var covers: [TopicCoverKey: TopicCover] = [:]
+    /// Bilder, die gerade entstehen.
+    private(set) var generating: Set<TopicCoverKey> = []
     /// Wie Bilder entstehen können. Steht nach dem ersten Versuch fest.
     private(set) var availability: TopicCoverGenerator.Availability = .unknown
 
@@ -322,19 +337,23 @@ final class TopicCoverArt {
     @ObservationIgnored var onChange: (() -> Void)?
 
     @ObservationIgnored private let store = TopicCoverStore.standard
-    @ObservationIgnored private var loads: [SmartFeedID: Task<Void, Never>] = [:]
-    @ObservationIgnored private var attempted: [SmartFeedID: String] = [:]
+    @ObservationIgnored private var loads: [TopicCoverKey: Task<Void, Never>] = [:]
+    @ObservationIgnored private var attempted: [TopicCoverKey: String] = [:]
     @ObservationIgnored private var pending: [TopicCoverRecipe] = []
-    /// Neue Themen eines Updates, dessen Bild gerade entsteht. Kommen danach dran.
-    @ObservationIgnored private var followUps: [SmartFeedID: TopicCoverRecipe] = [:]
+    /// Neue Tags eines Updates, dessen Bild gerade entsteht. Kommen danach dran.
+    @ObservationIgnored private var followUps: [TopicCoverKey: TopicCoverRecipe] = [:]
     @ObservationIgnored private var worker: Task<Void, Never>?
-    @ObservationIgnored private var outcomes: [SmartFeedID: Outcome] = [:]
-    @ObservationIgnored private var removed: Set<SmartFeedID> = []
+    @ObservationIgnored private var outcomes: [TopicCoverKey: Outcome] = [:]
+    @ObservationIgnored private var removed: Set<TopicCoverKey> = []
+    /// Rezepte, die gerade berechnet werden.
+    @ObservationIgnored private var preparing: Set<TopicCoverKey> = []
     /// Layoutcover als Bild für den Sperrbildschirm, einmal je Layout.
     @ObservationIgnored private var renderedLayouts: [String: CGImage] = [:]
 
-    func image(for feedID: SmartFeedID) -> CGImage? { covers[feedID]?.image }
-    func isGenerating(_ feedID: SmartFeedID) -> Bool { generating.contains(feedID) }
+    func image(for feedID: SmartFeedID) -> CGImage? { covers[TopicCoverKey(feedID: feedID)]?.image }
+    func image(for key: TopicCoverKey) -> CGImage? { covers[key]?.image }
+    func isGenerating(_ feedID: SmartFeedID) -> Bool { generating.contains(TopicCoverKey(feedID: feedID)) }
+    func isGenerating(_ key: TopicCoverKey) -> Bool { generating.contains(key) }
 
     /// Kann jemand ein neues Cover anfordern? Ohne Image Playground bleibt
     /// das Layoutcover, und der Menüpunkt fehlt.
@@ -342,27 +361,48 @@ final class TopicCoverArt {
         availability == .available || TopicCoverGenerator.isDialogAvailable
     }
 
-    /// Lädt das abgelegte Bild und erzeugt eins, wenn keins zu den Themen passt.
+    /// Kann die App überhaupt versuchen, ein Bild selbst zu erzeugen?
+    var mayGenerate: Bool { availability == .unknown || availability == .available }
+
+    /// Lädt das abgelegte Bild und erzeugt eins, wenn keins passt.
     func prepare(_ recipe: TopicCoverRecipe) async {
-        await loadIfNeeded(recipe.feedID)
-        if covers[recipe.feedID]?.stored.matches(recipe) == true { return }
-        guard availability == .unknown || availability == .available,
-              attempted[recipe.feedID] != recipe.digest else { return }
+        let key = recipe.key
+        await loadIfNeeded(key)
+        if covers[key]?.stored.matches(recipe) == true { return }
+        guard mayGenerate, attempted[key] != recipe.digest, !removed.contains(key) else { return }
         enqueue(recipe)
     }
 
+    /// Hat dieser Besitzer schon ein Bild, geladen oder abgelegt? Für eine
+    /// Ausgabe genügt das: Sie ändert sich nicht, ihr Bild bleibt gültig.
+    func hasCover(_ key: TopicCoverKey) async -> Bool {
+        await loadIfNeeded(key)
+        return covers[key] != nil
+    }
+
+    /// Wurde für diesen Besitzer in diesem Prozess schon ein Versuch
+    /// gemacht? Dann lohnt es nicht, das Rezept noch einmal zu berechnen.
+    func wasAttempted(_ key: TopicCoverKey) -> Bool { attempted[key] != nil || generating.contains(key) }
+
+    /// Merkt sich, dass das Rezept für diesen Besitzer gerade entsteht.
+    /// `false`, wenn das schon läuft.
+    func beginPreparing(_ key: TopicCoverKey) -> Bool { preparing.insert(key).inserted }
+    func endPreparing(_ key: TopicCoverKey) { preparing.remove(key) }
+
     /// Ein neues Bild auf Wunsch, auch wenn das alte noch passt.
     func regenerate(_ recipe: TopicCoverRecipe) async -> Outcome {
-        await loadIfNeeded(recipe.feedID)
+        let key = recipe.key
+        await loadIfNeeded(key)
         switch availability {
         case .dialogOnly: return .needsDialog
         case .unavailable: return TopicCoverGenerator.isDialogAvailable ? .needsDialog : .unavailable
         case .unknown, .available: break
         }
-        outcomes[recipe.feedID] = nil
+        outcomes[key] = nil
+        removed.remove(key)
         enqueue(recipe)
-        while generating.contains(recipe.feedID), let worker { await worker.value }
-        return outcomes[recipe.feedID] ?? .failed
+        while generating.contains(key), let worker { await worker.value }
+        return outcomes[key] ?? .failed
     }
 
     /// Übernimmt das Bild aus dem Systemdialog.
@@ -376,54 +416,71 @@ final class TopicCoverArt {
             return TopicCover(stored: stored, image: square)
         }.value
         guard let cover else { return false }
-        covers[recipe.feedID] = cover
-        attempted[recipe.feedID] = recipe.digest
+        covers[recipe.key] = cover
+        attempted[recipe.key] = recipe.digest
         onChange?()
         return true
     }
 
-    /// Ein gelöschtes Update nimmt sein Bild mit.
+    /// Ein gelöschtes Update nimmt sein Bild und die seiner Ausgaben mit.
     func remove(_ feedID: SmartFeedID) {
-        removed.insert(feedID)
-        covers[feedID] = nil
-        attempted[feedID] = nil
-        loads[feedID] = nil
-        followUps[feedID] = nil
+        for key in knownKeys where key.feedID == feedID { forget(key) }
+        removed.insert(TopicCoverKey(feedID: feedID))
         pending.removeAll { $0.feedID == feedID }
         let store = self.store
         Task.detached(priority: .utility) { store.remove(feedID) }
     }
 
-    /// Behält nur die Bilder der Updates, die es noch gibt.
-    ///
-    /// Ein Update, das auf einem anderen Gerät gelöscht wurde, kommt hier
-    /// nicht über `remove(_:)` an, sondern fehlt nach dem Abgleich einfach in
-    /// der Liste. Ein Bild, das gerade entsteht, bleibt: sein Update kann
-    /// eben erst angelegt und noch nicht gespeichert sein.
-    func retain(only live: Set<SmartFeedID>) {
-        let kept = live.union(generating)
-        for feedID in Set(covers.keys).union(attempted.keys) where !kept.contains(feedID) {
-            covers[feedID] = nil
-            attempted[feedID] = nil
-            loads[feedID] = nil
-            outcomes[feedID] = nil
-        }
+    /// Eine gelöschte Ausgabe nimmt ihr Bild mit.
+    func removeEdition(_ key: TopicCoverKey) {
+        guard key.editionID != nil else { return remove(key.feedID) }
+        forget(key)
+        removed.insert(key)
+        pending.removeAll { $0.key == key }
         let store = self.store
-        Task.detached(priority: .utility) { store.removeAll(except: kept) }
+        Task.detached(priority: .utility) { store.remove(key) }
     }
 
-    /// Das Bild für den Sperrbildschirm: das erzeugte, sonst das Layout.
-    func nowPlayingArtwork(for feed: SmartPodcastFeed, layout: CoverAsset) -> EpisodePlayer.FocusArtwork {
-        if let cover = covers[feed.id] {
-            let stamp = Int(cover.stored.createdAt.timeIntervalSince1970)
-            return EpisodePlayer.FocusArtwork(key: "cover-\(feed.id.rawValue)-\(cover.stored.digest)-\(stamp)",
-                                              image: cover.image)
+    /// Behält nur die Bilder der Updates und Ausgaben, die es noch gibt.
+    ///
+    /// Ein Update oder eine Ausgabe, die auf einem anderen Gerät gelöscht
+    /// wurde, kommt hier nicht über `remove(_:)` an, sondern fehlt nach dem
+    /// Abgleich einfach in der Liste. Ein Bild, das gerade entsteht, bleibt:
+    /// sein Besitzer kann eben erst angelegt und noch nicht gespeichert sein.
+    func retain(feeds: Set<SmartFeedID>, editions: Set<TopicCoverKey>) {
+        let keptFeeds = feeds.union(generating.map(\.feedID))
+        let keptEditions = editions.union(generating.filter { $0.editionID != nil })
+        for key in knownKeys {
+            let alive = key.editionID == nil ? keptFeeds.contains(key.feedID) : keptEditions.contains(key)
+            if !alive { forget(key) }
+        }
+        let store = self.store
+        Task.detached(priority: .utility) {
+            store.removeAll(except: keptFeeds)
+            store.removeEditionCovers(except: keptEditions)
+        }
+    }
+
+    /// Das Bild für den Sperrbildschirm: das der Ausgabe, sonst das des
+    /// Updates, sonst das Layout.
+    func nowPlayingArtwork(
+        for feed: SmartPodcastFeed, edition: PersonalEpisode?, layout: CoverAsset
+    ) -> EpisodePlayer.FocusArtwork {
+        let keys = [edition.map { TopicCoverKey(feedID: feed.id, editionID: $0.id) },
+                    TopicCoverKey(feedID: feed.id)].compactMap { $0 }
+        for key in keys {
+            if let cover = covers[key] {
+                let stamp = Int(cover.stored.createdAt.timeIntervalSince1970)
+                return EpisodePlayer.FocusArtwork(
+                    key: "cover-\(feed.id.rawValue)-\(key.editionID?.rawValue ?? "")-\(cover.stored.digest)-\(stamp)",
+                    image: cover.image)
+            }
         }
         // Über Siri gestartet ist das Bild vielleicht noch nicht geladen.
-        if loads[feed.id] == nil {
+        for key in keys where loads[key] == nil {
             Task {
-                await loadIfNeeded(feed.id)
-                if covers[feed.id] != nil { onChange?() }
+                await loadIfNeeded(key)
+                if covers[key] != nil { onChange?() }
             }
         }
         let key = "layout-\(layout.id)-\(layout.paletteIndex)-\(layout.title)-\(layout.subtitle ?? "")"
@@ -439,39 +496,52 @@ final class TopicCoverArt {
 
     // MARK: Laden und Erzeugen
 
-    private func loadIfNeeded(_ feedID: SmartFeedID) async {
-        if let load = loads[feedID] {
+    private var knownKeys: Set<TopicCoverKey> {
+        Set(covers.keys).union(attempted.keys).union(loads.keys).union(outcomes.keys)
+    }
+
+    private func forget(_ key: TopicCoverKey) {
+        covers[key] = nil
+        attempted[key] = nil
+        loads[key] = nil
+        outcomes[key] = nil
+        followUps[key] = nil
+    }
+
+    private func loadIfNeeded(_ key: TopicCoverKey) async {
+        if let load = loads[key] {
             await load.value
             return
         }
         let store = self.store
         let load = Task {
             let found = await Task.detached(priority: .utility) { () -> TopicCover? in
-                guard let stored = store.stored(for: feedID),
+                guard let stored = store.stored(for: key),
                       let image = TopicCoverStore.loadImage(at: stored.url) else { return nil }
                 return TopicCover(stored: stored, image: image)
             }.value
-            if let found, covers[feedID] == nil, !removed.contains(feedID) { covers[feedID] = found }
+            if let found, covers[key] == nil, !removed.contains(key) { covers[key] = found }
         }
-        loads[feedID] = load
+        loads[key] = load
         await load.value
     }
 
     private func enqueue(_ recipe: TopicCoverRecipe) {
-        attempted[recipe.feedID] = recipe.digest
-        // Entsteht das Bild dieses Updates schon, gilt das neueste Rezept.
-        // Wartet es noch, ersetzt es das alte. Läuft es gerade, kommt es
-        // danach dran. Sonst bliebe das Bild zu den alten Themen stehen.
-        if generating.contains(recipe.feedID) {
-            if let index = pending.firstIndex(where: { $0.feedID == recipe.feedID }) {
+        let key = recipe.key
+        attempted[key] = recipe.digest
+        // Entsteht dieses Bild schon, gilt das neueste Rezept. Wartet es
+        // noch, ersetzt es das alte. Läuft es gerade, kommt es danach dran.
+        // Sonst bliebe das Bild zu den alten Tags stehen.
+        if generating.contains(key) {
+            if let index = pending.firstIndex(where: { $0.key == key }) {
                 pending[index] = recipe
             } else {
-                followUps[recipe.feedID] = recipe
+                followUps[key] = recipe
             }
             return
         }
-        removed.remove(recipe.feedID)
-        generating.insert(recipe.feedID)
+        removed.remove(key)
+        generating.insert(key)
         pending.append(recipe)
         if worker == nil {
             worker = Task { await drain() }
@@ -482,12 +552,12 @@ final class TopicCoverArt {
         while !pending.isEmpty {
             let recipe = pending.removeFirst()
             let outcome = await generate(recipe)
-            outcomes[recipe.feedID] = outcome
-            generating.remove(recipe.feedID)
-            // Während das Bild entstand, änderten sich die Themen. Gleich
+            outcomes[recipe.key] = outcome
+            generating.remove(recipe.key)
+            // Während das Bild entstand, änderten sich die Tags. Gleich
             // weiter geht es nur, wenn Image Playground bereitsteht. Nach
             // einem Aufschub versucht es das nächste Erscheinen ohnehin.
-            if let next = followUps.removeValue(forKey: recipe.feedID),
+            if let next = followUps.removeValue(forKey: recipe.key),
                next.digest != recipe.digest, outcome == .created || outcome == .failed {
                 enqueue(next)
             }
@@ -497,17 +567,18 @@ final class TopicCoverArt {
 
     private func generate(_ recipe: TopicCoverRecipe) async -> Outcome {
         let store = self.store
+        let key = recipe.key
         do {
             let cover = try await Task.detached(priority: .userInitiated) {
                 try await store.generate(for: recipe)
             }.value
             availability = .available
-            // Während das Bild entstand, wurde das Update gelöscht.
-            guard !removed.contains(recipe.feedID) else {
-                Task.detached(priority: .utility) { store.remove(recipe.feedID) }
+            // Während das Bild entstand, wurde sein Besitzer gelöscht.
+            guard !removed.contains(key), !removed.contains(TopicCoverKey(feedID: key.feedID)) else {
+                Task.detached(priority: .utility) { store.remove(key) }
                 return .failed
             }
-            covers[recipe.feedID] = cover
+            covers[key] = cover
             onChange?()
             return .created
         } catch TopicCoverGenerator.Failure.unavailable {
@@ -516,17 +587,17 @@ final class TopicCoverArt {
             // Was noch wartet, entsteht auf diesem Weg auch nicht.
             let outcome: Outcome = dialog ? .needsDialog : .unavailable
             for waiting in pending {
-                generating.remove(waiting.feedID)
-                outcomes[waiting.feedID] = outcome
+                generating.remove(waiting.key)
+                outcomes[waiting.key] = outcome
             }
             pending.removeAll()
             return outcome
         } catch TopicCoverGenerator.Failure.notInForeground {
-            // Beim nächsten Erscheinen noch einmal.
-            attempted[recipe.feedID] = nil
+            // Beim nächsten Wechsel in den Vordergrund noch einmal.
+            attempted[key] = nil
             return .postponed
         } catch TopicCoverGenerator.Failure.cancelled {
-            attempted[recipe.feedID] = nil
+            attempted[key] = nil
             return .postponed
         } catch {
             return .failed
@@ -538,12 +609,66 @@ final class TopicCoverArt {
 
 extension AppModel {
 
-    /// Die Themen eines Updates als Begriffe, in der Reihenfolge des Updates.
+    /// Die Tags eines Updates als Begriffe, in der Reihenfolge des Updates.
     func coverRecipe(for feed: SmartPodcastFeed) -> TopicCoverRecipe {
-        let labels = feed.topicIDs.compactMap { id in
-            profile.interests.first { $0.id == id }?.label
+        TopicCoverRecipe(feed: feed, topics: labels(forTags: feed.topicIDs))
+    }
+
+    /// Das Rezept für das Cover einer Ausgabe: ihre Tags und die zwei
+    /// Namen, die in ihren Stellen am häufigsten fallen. Die Namen kommen
+    /// aus den Nennungen der Originalfolgen, ohne Modell.
+    func coverRecipe(for edition: PersonalEpisode, feed: SmartPodcastFeed) async -> TopicCoverRecipe {
+        var tagIDs: [InterestID] = []
+        for id in edition.overviewEntries.flatMap(\.tagIDs) + edition.segments.flatMap(\.topicIDs)
+        where !tagIDs.contains(id) {
+            tagIDs.append(id)
         }
-        return TopicCoverRecipe(feed: feed, topics: labels)
+        let topics = labels(forTags: tagIDs.isEmpty ? feed.topicIDs : tagIDs)
+        let episodeIDs = Array(Set(edition.segments.map(\.episodeID))).sorted { $0.rawValue < $1.rawValue }
+        let episodes = ((try? await store.episodes(ids: episodeIDs.prefix(Self.coverNameEpisodeLimit).map { $0 }))
+            ?? [])
+        var mentions: [EpisodeID: [Mention]] = [:]
+        for episode in episodes {
+            mentions[episode.id] = await self.mentions(for: episode).mentions
+        }
+        let names = EditionCoverNames.mostFrequent(in: edition, mentions: mentions, excluding: topics)
+        return TopicCoverRecipe(edition: edition, feed: feed, topics: topics, names: names)
+    }
+
+    /// So viele Folgen einer Ausgabe werden nach Namen durchsucht. Mehr
+    /// kostet nur Zeit, die zwei häufigsten stehen dann längst fest.
+    static let coverNameEpisodeLimit = 8
+
+    /// Legt das Cover einer Ausgabe an, falls es fehlt. Nur im Vordergrund
+    /// sinnvoll; im Hintergrund lehnt Image Playground ab, und der nächste
+    /// Wechsel in den Vordergrund holt es nach.
+    func prepareCover(for edition: PersonalEpisode) async {
+        guard let feed = smartFeeds.first(where: { $0.id == edition.feedID }) else { return }
+        let key = TopicCoverKey(feedID: feed.id, editionID: edition.id)
+        // Liste, Kopf und Player zeigen dieselbe Ausgabe oft gleichzeitig.
+        // Das Rezept mit seinen Namen entsteht trotzdem nur einmal.
+        guard coverArt.mayGenerate, !coverArt.wasAttempted(key), coverArt.beginPreparing(key) else { return }
+        defer { coverArt.endPreparing(key) }
+        guard !(await coverArt.hasCover(key)) else { return }
+        await coverArt.prepare(await coverRecipe(for: edition, feed: feed))
+    }
+
+    /// Holt die Cover der neuesten Ausgaben nach, etwa von Ausgaben, die im
+    /// Hintergrund entstanden sind. Beim Wechsel in den Vordergrund und
+    /// nach einer neuen Ausgabe. Ältere Ausgaben bekommen ihr Bild, sobald
+    /// sie jemand öffnet.
+    func prepareMissingEditionCovers() async {
+        guard coverArt.mayGenerate else { return }
+        for feed in smartFeeds {
+            for edition in PersonalEpisode.latestRun(in: editions[feed.id] ?? []) {
+                await prepareCover(for: edition)
+            }
+        }
+    }
+
+    /// Bezeichnungen zu Tag-Kennungen, in dieser Reihenfolge.
+    func labels(forTags ids: [InterestID]) -> [String] {
+        ids.compactMap { id in profile.interests.first { $0.id == id }?.label }
     }
 
     /// Die Ausgabe eines Themen-Updates, die dieser Plan abspielt.
@@ -570,15 +695,22 @@ extension AppModel {
         sources.first { $0.id == segment.sourceID }?.artworkURL
     }
 
-    /// Was der Sperrbildschirm zu einem Fokus-Plan zeigt: das Cover des
-    /// Themen-Updates, sonst das Cover des Podcasts der laufenden Stelle.
+    /// Was der Sperrbildschirm zu einem Fokus-Plan zeigt: das Cover der
+    /// Ausgabe, sonst das Cover des Podcasts der laufenden Stelle.
     func focusArtwork(for plan: ValidatedPlaybackPlan, segment: PlanSegment) -> EpisodePlayer.FocusArtwork? {
         if let edition = edition(playing: plan),
            let feed = smartFeeds.first(where: { $0.id == edition.feedID }) {
             let layout = cover(for: edition) ?? NativeCoverRenderer().makeCover(for: feed)
-            return coverArt.nowPlayingArtwork(for: feed, layout: layout)
+            return coverArt.nowPlayingArtwork(for: feed, edition: edition, layout: layout)
         }
         guard let url = podcastArtworkURL(for: segment) else { return nil }
         return EpisodePlayer.FocusArtwork(key: url.absoluteString, url: url)
+    }
+
+    /// „Teil 2 von 3“, bei einem Lauf aus einem Teil nichts.
+    func partLabel(for edition: PersonalEpisode) -> String? {
+        let count = edition.partCount(in: editions[edition.feedID] ?? [])
+        guard count > 1 else { return nil }
+        return String(localized: "Teil \(edition.part) von \(count)")
     }
 }

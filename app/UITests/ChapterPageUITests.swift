@@ -79,11 +79,12 @@ final class ChapterPageUITests: XCTestCase {
         let row = app.staticTexts["Datenschutz kompakt"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
-        let chapters = app.buttons["Kapitel und Quellen"].firstMatch
-        guard chapters.waitForExistence(timeout: 30) else {
+        // Seit 0.11 stehen die Ausgaben wie Folgen unter dem Update.
+        let edition = app.descendants(matching: .any)["edition.row"].firstMatch
+        guard edition.waitForExistence(timeout: 30) else {
             throw XCTSkip("Aus den Beispieldaten ist keine Ausgabe entstanden")
         }
-        chapters.tap()
+        edition.tap()
 
         let open = app.buttons["openOriginal"].firstMatch
         XCTAssertTrue(open.waitForExistence(timeout: 10), "Am Kapitel fehlt „Original öffnen“")

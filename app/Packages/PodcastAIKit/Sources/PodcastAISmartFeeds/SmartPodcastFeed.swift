@@ -83,8 +83,8 @@ public enum TagMatchMode: String, Codable, Sendable, CaseIterable {
 
     public var label: String {
         switch self {
-        case .any: String(localized: "Eines der Tags", bundle: .module)
-        case .all: String(localized: "Alle Tags zusammen", bundle: .module)
+        case .any: String(localized: "Eines davon", bundle: .module)
+        case .all: String(localized: "Alle zusammen", bundle: .module)
         }
     }
 }

@@ -535,6 +535,14 @@ extension PersonalEpisode {
         return editions.filter { $0.runKey == latest.runKey }.sorted { $0.part < $1.part }
     }
 
+    /// Aus wie vielen Teilen der Lauf dieser Ausgabe besteht, für „Teil 2
+    /// von 3“. Ist ein Teil gelöscht, zählt trotzdem der höchste Teil, damit
+    /// aus „Teil 3 von 3“ nicht „Teil 3 von 2“ wird.
+    public func partCount(in editions: [PersonalEpisode]) -> Int {
+        let run = editions.filter { $0.runKey == runKey }
+        return max(part, run.count, run.map(\.part).max() ?? 1)
+    }
+
     /// Wie viel von allen Teilen zusammen gehört ist, nach Länge gewichtet.
     /// Wer nur Teil 1 von fünf gehört hat, hat den Lauf nicht gehört.
     public static func heardFraction(of parts: [PersonalEpisode], in ledger: ListeningLedger) -> Double {

@@ -508,9 +508,24 @@ extension HelpTopic {
                         text: "Tags stammen aus dem Inhalt deiner Folgen. Plus heißt folgen, Minus heißt nicht mehr folgen, das Tag bleibt sichtbar. Gefolgte Tags füllen „Für dich“ und die Themen-Updates.",
                         symbol: "tag", level: .advanced),
                 HelpTip(title: "Themen-Updates", text: """
-                    Eine eigene Folge je Tag aus ungehörten Originalstellen mehrerer Podcasts, mit \
-                    Kapiteln, Shownotes und Cover.
-                    """, symbol: "waveform.circle", level: .expert),
+                    Ein eigener Podcast aus Tags. Du wählst Tags aus, gefolgte und über „Weitere Tags“ \
+                    auch andere, und ob ein Kapitel eines davon oder alle zusammen behandeln muss. Mit \
+                    „Datenschutz“ und „USA“ auf „Alle zusammen“ kommen nur Kapitel, die beides behandeln. \
+                    Jede Ausgabe besteht aus ungehörten Kapiteln mehrerer Podcasts und bekommt ein eigenes \
+                    Cover.
+                    """, symbol: "waveform.circle", level: .advanced),
+                HelpTip(title: "Teile", text: """
+                    Eine Ausgabe dauert so lange, wie du im Update einstellst, anfangs 20 Minuten. Was nicht \
+                    mehr hineinpasst, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal. \
+                    Kein Kapitel kommt zweimal vor. Eine neue Ausgabe startet nie von selbst, abgespielt \
+                    wird erst, wenn du „Abspielen“ antippst.
+                    """, symbol: "square.stack", level: .advanced),
+                HelpTip(title: "Übersicht", text: """
+                    Kapitel 0 jeder Ausgabe ist eine Übersicht ohne Ton: je Kapitel Podcast, Folge, Datum \
+                    und wie viele neue Aussagen es bringt. Oben im Tab steht je Tag, wie viele neue \
+                    Aussagen seit der zuletzt gehörten Ausgabe dazugekommen sind. Ein Tipp auf ein Tag \
+                    öffnet seine Seite, „Original öffnen“ an einem Kapitel die ganze Folge an der Stelle.
+                    """, symbol: "list.bullet.rectangle", level: .expert),
             ],
             jumps: [.topicUpdates, .interests]
         )
@@ -607,8 +622,8 @@ extension HelpTopic {
                     Fragen stellen.
                     """),
                 HelpTerm(word: "Themen-Update", meaning: """
-                    Eine eigene Folge zu Tags, denen du folgst. Die App stellt sie aus Stellen deiner Podcasts \
-                    zusammen, die du noch nicht gehört hast.
+                    Ein eigener Podcast zu Tags, die du auswählst. Die App stellt seine Ausgaben aus Kapiteln \
+                    deiner Podcasts zusammen, die du noch nicht gehört hast, in Teilen zu 20 Minuten.
                     """),
                 HelpTerm(word: "Tag", meaning: """
                     Ein Stichwort aus dem Inhalt einer Folge, etwa „Datenschutz“ oder „USA“. Die App \

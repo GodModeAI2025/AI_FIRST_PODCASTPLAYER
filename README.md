@@ -8,7 +8,7 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 
 **Fortgeschrittene** lesen das Transkript mit, springen per Tipp an jede Stelle, sehen die wichtigsten Fakten einer Folge und stellen Fragen an eine Folge oder an alle zusammen. Jede Folge und jedes Kapitel trägt Tags aus dem Inhalt; mit Plus folgst du einem Tag, mit Minus nicht mehr, und „Für dich“ zeigt die Kapitel zu den Tags, denen du folgst.
 
-**Experten** lassen sich je Thema eine eigene Folge aus ungehörten Originalstellen mehrerer Podcasts bauen, prüfen Thesen gegen belegte Gegenstimmen und exportieren Folgen, Antworten und Notizen als Markdown, etwa nach Obsidian oder Notion. Auf dem Mac dürfen andere Programme nach Freigabe lesend auf das Wissen zugreifen.
+**Experten** lassen sich aus Tags einen eigenen Podcast bauen, etwa „Datenschutz und USA“, mit Ausgaben aus ungehörten Kapiteln mehrerer Podcasts. Sie exportieren Folgen, Antworten und Notizen als Markdown, etwa nach Obsidian oder Notion. Auf dem Mac dürfen andere Programme nach Freigabe lesend auf das Wissen zugreifen.
 
 ## Was die App kann
 
@@ -19,7 +19,7 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 | Transkript | auf dem Gerät mit Apples Spracherkennung, mit Zeitmarken, durchsuchbar, Tipp springt an die Stelle; fremdsprachige Folgen lassen sich auf dem Gerät übersetzen; YouTube-Videos bekommen ihr Transkript aus den vorhandenen Untertiteln, wenn du einen eigenen Supadata-Schlüssel einträgst, sonst aus dem passenden Audio-Podcast; mit dem Schlüssel gehen auch einzelne Beiträge von TikTok, Instagram, X und Facebook |
 | Fakten | Aussagen je Folge, jede mit Zeitmarke auf dem Satz und dem Wortlaut; sie entstehen von selbst im Hintergrund |
 | Chat | Fragen an eine Folge oder an alle Folgen mit Transkript, eingrenzbar auf einen Podcast und die letzten 7 oder 30 Tage; jeder Beleg nennt Podcast, Folge und Zeitmarke und spielt auf Wunsch ab; jede Antwort lässt sich sichern |
-| Themen-Updates | eine eigene Folge je Thema mit Kapiteln, Shownotes und Cover, gebaut aus Originalstellen |
+| Themen-Updates | ein eigener Podcast aus Tags, die ein Kapitel einzeln oder alle zusammen tragen muss; Ausgaben aus ungehörten Kapiteln mehrerer Podcasts in Teilen zu 20 Minuten, jede mit eigenem Cover, einer Übersicht der neuen Aussagen als Kapitel 0 und „Original öffnen“ an jedem Kapitel; oben im Tab die neuen Aussagen je Tag seit dem letzten Hören |
 | Gemerkte Stellen | „Moment merken“ im Player mit eigenem Kommentar, dazu Merken im Transkript, bei Fakten und im Chat; Notizen bleiben, auch wenn die Folge gelöscht wird |
 | Export | Folge mit Shownotes, Kapiteln, Fakten und Transkript; Chat-Antworten mit Belegen; gemerkte Stellen |
 | Abgleich | über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac |

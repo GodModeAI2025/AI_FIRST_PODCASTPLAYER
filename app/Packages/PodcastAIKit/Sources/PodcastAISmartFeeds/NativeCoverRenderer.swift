@@ -89,12 +89,18 @@ public struct NativeCoverRenderer: Sendable {
     public func makeCover(for episode: PersonalEpisode, feedTitle: String) -> CoverAsset {
         let topics = Set(episode.segments.flatMap(\.topicIDs)).count
         let sources = episode.distinctSourceCount
+        // Ab Teil 2 steht der Teil mit auf dem Cover, sonst sähen alle
+        // Teile eines Laufs gleich aus.
+        let date = episode.publishedAt.formatted(date: .abbreviated, time: .omitted)
+        let subtitle = episode.part > 1
+            ? String(localized: "\(date) · Teil \(episode.part)", bundle: .module)
+            : date
 
         return CoverAsset(
             id: "cover-\(episode.batchKey)",
             origin: .nativeLayout,
             title: feedTitle,
-            subtitle: episode.publishedAt.formatted(date: .abbreviated, time: .omitted),
+            subtitle: subtitle,
             paletteIndex: Self.paletteIndex(for: feedTitle),
             altText: Self.altText(feedTitle: feedTitle, segments: episode.segments.count,
                                   sources: sources, topics: topics)

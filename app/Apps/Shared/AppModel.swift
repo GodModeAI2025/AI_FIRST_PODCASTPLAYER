@@ -743,11 +743,11 @@ public final class AppModel {
             // Was der Nutzer selbst angelegt hat. Bis eben lag das alles
             // nur im Speicher und war beim nächsten Start verschwunden.
             smartFeeds = try await store.smartFeeds()
-            // Auf einem anderen Gerät gelöschte Updates nehmen ihr Bild mit.
-            // Nicht bei einem Speicher nur im Arbeitsspeicher: der ist leer,
-            // und alle Bilder gingen verloren.
-            if !store.isInMemory { coverArt.retain(only: Set(smartFeeds.map(\.id))) }
             editions = try await store.editions()
+            // Auf einem anderen Gerät gelöschte Updates und Ausgaben nehmen
+            // ihr Bild mit. Nicht bei einem Speicher nur im Arbeitsspeicher:
+            // der ist leer, und alle Bilder gingen verloren.
+            if !store.isInMemory { retainCoverArt() }
             scheduleStatisticsRefresh()
             highlights = try await store.highlights()
             // Die Systemsuche zeigt den Stand der Datenbank, auch für Notizen,
@@ -2215,11 +2215,11 @@ public final class AppModel {
     /// die fertige Ausgabe wurde als „gelöscht“ verworfen.
     @discardableResult
     public func createSmartFeed(
-        title: String, topicIDs: [InterestID], minutes: Int, sourceIDs: [SourceID] = [],
-        buildFirstEdition: Bool = false
+        title: String, topicIDs: [InterestID], matchMode: TagMatchMode = .any, minutes: Int,
+        sourceIDs: [SourceID] = [], buildFirstEdition: Bool = false
     ) -> SmartFeedID {
         let feed = SmartPodcastFeed(
-            title: title, topicIDs: topicIDs, restrictedToSourceIDs: sourceIDs,
+            title: title, topicIDs: topicIDs, matchMode: matchMode, restrictedToSourceIDs: sourceIDs,
             editionMode: .budgeted(MediaDuration(minutes: minutes))
         )
         smartFeeds.append(feed)
@@ -2274,7 +2274,14 @@ public final class AppModel {
     /// Löscht eine einzelne Ausgabe.
     public func removeEdition(_ episode: PersonalEpisode) {
         editions[episode.feedID]?.removeAll { $0.id == episode.id }
+        coverArt.removeEdition(TopicCoverKey(feedID: episode.feedID, editionID: episode.id))
         persistEditions(for: episode.feedID)
+    }
+
+    /// Behält nur die Bildcover der Updates und Ausgaben, die es gibt.
+    func retainCoverArt() {
+        let editionKeys = editions.values.flatMap { $0 }.map { TopicCoverKey(feedID: $0.feedID, editionID: $0.id) }
+        coverArt.retain(feeds: Set(smartFeeds.map(\.id)), editions: Set(editionKeys))
     }
 
     /// Nimmt aus allen Ausgaben, was aus gelöschten Folgen oder
@@ -2292,6 +2299,10 @@ public final class AppModel {
                         || removedSources.contains(segment.sourceID)
                 }
                 if result?.segments.count != episode.segments.count { changed = true }
+                // Eine Ausgabe ohne Stelle verschwindet, ihr Bild mit ihr.
+                if result == nil {
+                    coverArt.removeEdition(TopicCoverKey(feedID: feedID, editionID: episode.id))
+                }
                 return result
             }
             guard changed else { continue }
@@ -2491,6 +2502,12 @@ public final class AppModel {
                 editions[feedID, default: []].insert(contentsOf: run.parts, at: 0)
                 persistEditions(for: feedID)
                 updateStatistics(for: feed, chapters: chapters)
+                // Das Cover je Teil entsteht gleich, wenn die App vorn ist.
+                // Im Hintergrund lehnt Image Playground ab; dann holt es der
+                // nächste Wechsel in den Vordergrund nach.
+                if appInForeground {
+                    Task { for part in run.parts { await prepareCover(for: part) } }
+                }
                 // Die Zählung für sich, der Titel außerhalb des Markdowns.
                 let segments = run.parts.reduce(0) { $0 + $1.segments.count }
                 let sources = Set(run.parts.flatMap { $0.segments.map(\.sourceID) }).count

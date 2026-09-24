@@ -2,15 +2,17 @@
 //  TopicCoverArtwork.swift
 //  PodcastAISmartFeeds
 //
-//  Das Bildcover eines Themen-Updates, erzeugt mit Image Playground.
+//  Die Bildcover der Themen-Updates, erzeugt mit Image Playground.
 //
-//  Ein Bild je Update, nicht je Ausgabe: das Update ist die Sendung, die
-//  Ausgaben sind ihre Folgen. Das Bild entsteht aus den Themen des Updates,
-//  abstrakt und ohne Schrift, immer im selben Stil. Abgelegt wird es als
-//  Datei unter Application Support, benannt nach Update und einem
-//  Fingerabdruck der Themen. Ändern sich die Themen, passt der Name nicht
-//  mehr, und das Cover gilt als veraltet. Mehr Zustand braucht es nicht,
-//  in der Datenbank ändert sich nichts.
+//  Zwei Arten. Das Update selbst hat ein Bild aus seinen Tags, wie ein
+//  Podcast sein Cover. Seit 0.11 bekommt jede Ausgabe ein eigenes, wie eine
+//  Folge: aus ihren Tags und den zwei Namen, die in ihren Stellen am
+//  häufigsten fallen. Beide sind abstrakt, ohne Schrift und immer im
+//  selben Stil. Abgelegt werden sie als Dateien unter Application Support,
+//  benannt nach Update, gegebenenfalls Ausgabe und einem Fingerabdruck der
+//  Begriffe. Ändern sich die Tags eines Updates, passt der Name nicht mehr,
+//  und das Cover gilt als veraltet. Eine Ausgabe ändert sich nicht, ihr
+//  Bild bleibt, solange es sie gibt. In der Datenbank ändert sich nichts.
 //
 //  `ImageCreator` ist seit Version 27 als veraltet markiert, Apple verweist
 //  auf den Systemdialog. Er bleibt hier der Weg für das automatische Cover,
@@ -31,62 +33,110 @@ import ImagePlayground
 
 // MARK: - Rezept
 
-/// Woraus das Bild eines Updates entsteht.
+/// Wem ein Bildcover gehört: dem Update oder einer seiner Ausgaben.
+public struct TopicCoverKey: Sendable, Hashable {
+    public let feedID: SmartFeedID
+    /// `nil` beim Cover des Updates.
+    public let editionID: PersonalEpisodeID?
+
+    public init(feedID: SmartFeedID, editionID: PersonalEpisodeID? = nil) {
+        self.feedID = feedID; self.editionID = editionID
+    }
+}
+
+/// Woraus das Bild eines Updates oder einer Ausgabe entsteht.
 ///
-/// Die Begriffe sind Themen, keine Sätze. Themen sind Nutzereingaben und
-/// gehen als einzelne Begriffe an Image Playground, nie als Anweisung.
+/// Die Begriffe sind Tags und Namen, keine Sätze. Sie stammen aus dem
+/// Inhalt und gehen als einzelne Begriffe an Image Playground, nie als
+/// Anweisung.
 public struct TopicCoverRecipe: Sendable, Hashable {
 
     public let feedID: SmartFeedID
-    /// Die Themen, bereinigt und gekürzt.
+    /// Gesetzt beim Cover einer Ausgabe.
+    public let editionID: PersonalEpisodeID?
+    /// Die Tags, bereinigt und gekürzt.
     public let concepts: [String]
-    /// Fingerabdruck der Themen, unabhängig von ihrer Reihenfolge.
+    /// Die häufigsten Namen der Ausgabe. Beim Update leer.
+    public let names: [String]
+    /// Fingerabdruck der Begriffe, unabhängig von ihrer Reihenfolge.
     public let digest: String
     /// Der Zusatz für ein abstraktes Bild, in der Sprache des Geräts.
     public let abstractConcept: String
 
     /// Mehr Begriffe machen das Bild nicht besser, nur beliebiger.
     public static let maximumConcepts = 4
-    /// Ein Thema ist ein Begriff. Was länger ist, wird abgeschnitten.
+    /// Bei einer Ausgabe kommen Namen dazu, dafür weniger Tags.
+    public static let maximumEditionTags = 3
+    /// Höchstens so viele Namen je Ausgabe.
+    public static let maximumNames = 2
+    /// Ein Begriff. Was länger ist, wird abgeschnitten.
     public static let maximumConceptLength = 60
-    /// Der Zusatz für den zweiten Versuch. Englisch versteht Image
-    /// Playground überall, auch wenn die Themen in einer Sprache sind, die
+    /// Der Zusatz für den letzten Versuch. Englisch versteht Image
+    /// Playground überall, auch wenn die Tags in einer Sprache sind, die
     /// es nicht unterstützt.
     public static let neutralConcept = "abstract shapes and soft color fields"
 
+    /// Das Cover eines Updates aus seinen Tags.
     public init(feed: SmartPodcastFeed, topics: [String], languageCode: String? = nil) {
-        feedID = feed.id
-        var seen = Set<String>()
-        var cleaned: [String] = []
-        for raw in topics {
-            let label = String(raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                .prefix(Self.maximumConceptLength))
-            let key = label.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-            guard !label.isEmpty, seen.insert(key).inserted else { continue }
-            cleaned.append(label)
-        }
-        // Ein Update ohne benannte Themen bekommt sein Bild aus dem Titel.
-        if cleaned.isEmpty {
-            let title = String(feed.title.trimmingCharacters(in: .whitespacesAndNewlines)
-                .prefix(Self.maximumConceptLength))
-            if !title.isEmpty { cleaned = [title] }
-        }
-        concepts = Array(cleaned.prefix(Self.maximumConcepts))
-        let normalized = concepts
-            .map { $0.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil) }
-            .sorted()
-            .joined(separator: "\n")
+        var concepts = Self.cleaned(topics)
+        // Ein Update ohne benannte Tags bekommt sein Bild aus dem Titel.
+        if concepts.isEmpty { concepts = Self.cleaned([feed.title]) }
+        self.init(feedID: feed.id, editionID: nil,
+                  concepts: Array(concepts.prefix(Self.maximumConcepts)), names: [],
+                  languageCode: languageCode)
+    }
+
+    /// Das Cover einer Ausgabe aus ihren Tags und den häufigsten Namen.
+    /// Ein Name, der schon als Tag dasteht, zählt nicht doppelt.
+    public init(edition: PersonalEpisode, feed: SmartPodcastFeed, topics: [String], names: [String],
+                languageCode: String? = nil) {
+        var concepts = Self.cleaned(topics)
+        if concepts.isEmpty { concepts = Self.cleaned([feed.title]) }
+        concepts = Array(concepts.prefix(Self.maximumEditionTags))
+        let taken = Set(concepts.map(Self.fold))
+        let names = Self.cleaned(names).filter { !taken.contains(Self.fold($0)) }
+        self.init(feedID: edition.feedID, editionID: edition.id, concepts: concepts,
+                  names: Array(names.prefix(Self.maximumNames)), languageCode: languageCode)
+    }
+
+    private init(feedID: SmartFeedID, editionID: PersonalEpisodeID?, concepts: [String], names: [String],
+                 languageCode: String?) {
+        self.feedID = feedID
+        self.editionID = editionID
+        self.concepts = concepts
+        self.names = names
+        let normalized = (concepts + names).map(Self.fold).sorted().joined(separator: "\n")
         digest = String(StableDigest.hex(of: normalized).prefix(12))
         let language = languageCode ?? Locale.current.language.languageCode?.identifier
         abstractConcept = language == "de" ? "abstrakte Formen und weiche Farbflächen" : Self.neutralConcept
     }
 
-    /// Die Versuche der Reihe nach: erst die Themen mit dem Zusatz für ein
-    /// abstraktes Bild, dann nur der neutrale Zusatz. Der zweite Versuch
-    /// greift, wenn Image Playground mit den Themen nichts anfangen kann,
-    /// etwa bei einem Namen oder einer nicht unterstützten Sprache.
+    public var key: TopicCoverKey { TopicCoverKey(feedID: feedID, editionID: editionID) }
+
+    /// Die Versuche der Reihe nach: erst alle Begriffe mit dem Zusatz für
+    /// ein abstraktes Bild, bei einer Ausgabe dann ohne die Namen, zuletzt
+    /// nur der neutrale Zusatz. Die späteren Versuche greifen, wenn Image
+    /// Playground mit den Begriffen nichts anfangen kann, etwa bei einem
+    /// Namen oder einer nicht unterstützten Sprache.
     public var attempts: [[String]] {
-        [concepts + [abstractConcept], [Self.neutralConcept]]
+        guard !names.isEmpty else { return [concepts + [abstractConcept], [Self.neutralConcept]] }
+        return [concepts + names + [abstractConcept], concepts + [abstractConcept], [Self.neutralConcept]]
+    }
+
+    private static func cleaned(_ raw: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for value in raw {
+            let label = String(value.trimmingCharacters(in: .whitespacesAndNewlines)
+                .prefix(maximumConceptLength))
+            guard !label.isEmpty, seen.insert(fold(label)).inserted else { continue }
+            result.append(label)
+        }
+        return result
+    }
+
+    private static func fold(_ value: String) -> String {
+        value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
     }
 }
 
@@ -95,21 +145,33 @@ public struct TopicCoverRecipe: Sendable, Hashable {
 /// Ein abgelegtes Bildcover.
 public struct StoredTopicCover: Sendable, Hashable {
     public let feedID: SmartFeedID
+    /// Gesetzt beim Cover einer Ausgabe.
+    public let editionID: PersonalEpisodeID?
     public let digest: String
     public let url: URL
     public let createdAt: Date
 
-    public init(feedID: SmartFeedID, digest: String, url: URL, createdAt: Date) {
-        self.feedID = feedID; self.digest = digest; self.url = url; self.createdAt = createdAt
+    public init(feedID: SmartFeedID, editionID: PersonalEpisodeID? = nil, digest: String, url: URL,
+                createdAt: Date) {
+        self.feedID = feedID; self.editionID = editionID; self.digest = digest
+        self.url = url; self.createdAt = createdAt
     }
 
-    /// Passt das Bild noch zu den Themen?
+    /// Passt das Bild noch? Beim Update müssen die Tags gleich sein. Eine
+    /// Ausgabe ändert sich nicht, ihr Bild passt, solange es ihr gehört.
     public func matches(_ recipe: TopicCoverRecipe) -> Bool {
-        feedID == recipe.feedID && digest == recipe.digest
+        guard feedID == recipe.feedID, editionID == recipe.editionID else { return false }
+        return editionID != nil || digest == recipe.digest
     }
 }
 
-/// Die Bildcover als Dateien, eins je Update.
+/// Die Bildcover als Dateien: eins je Update und eins je Ausgabe.
+///
+/// Namen: `cover-<Update>-<Fingerabdruck>.png` für das Update,
+/// `cover-<Update>-edition_<Ausgabe>_<Fingerabdruck>.png` für eine
+/// Ausgabe. Die Kennung des Updates ist so kodiert, dass sie keinen
+/// Bindestrich enthält; alles bis zum zweiten Bindestrich gehört also
+/// eindeutig zu einem Update, und Löschen je Update trifft beide Arten.
 public struct TopicCoverStore: Sendable {
 
     public let directory: URL
@@ -134,20 +196,27 @@ public struct TopicCoverStore: Sendable {
 
     /// Das abgelegte Cover eines Updates, auch ein veraltetes.
     public func stored(for feedID: SmartFeedID) -> StoredTopicCover? {
-        let prefix = Self.prefix(for: feedID)
-        return files(for: feedID).compactMap { url -> StoredTopicCover? in
+        stored(for: TopicCoverKey(feedID: feedID))
+    }
+
+    /// Das abgelegte Cover eines Updates oder einer Ausgabe.
+    public func stored(for key: TopicCoverKey) -> StoredTopicCover? {
+        let prefix = Self.prefix(for: key)
+        return files(for: key).compactMap { url -> StoredTopicCover? in
             let name = url.deletingPathExtension().lastPathComponent
             let digest = String(name.dropFirst(prefix.count))
-            guard !digest.isEmpty, !digest.contains("-") else { return nil }
+            guard !digest.isEmpty, !digest.contains("-"), !digest.contains("_") else { return nil }
             let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
-            return StoredTopicCover(feedID: feedID, digest: digest, url: url, createdAt: date)
+            return StoredTopicCover(feedID: key.feedID, editionID: key.editionID, digest: digest,
+                                    url: url, createdAt: date)
         }
         .max { $0.createdAt < $1.createdAt }
     }
 
     /// Legt ein Bild ab, quadratisch zugeschnitten, und entfernt ältere
-    /// Bilder desselben Updates.
+    /// Bilder desselben Besitzers. Die Cover der Ausgaben bleiben, wenn
+    /// das Update ein neues bekommt, und umgekehrt.
     @discardableResult
     public func write(_ image: CGImage, for recipe: TopicCoverRecipe) throws -> StoredTopicCover {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -158,13 +227,14 @@ public struct TopicCoverStore: Sendable {
         CGImageDestinationAddImage(destination, square, nil)
         guard CGImageDestinationFinalize(destination) else { throw StoreError.encodingFailed }
 
-        let url = directory.appendingPathComponent(
-            Self.prefix(for: recipe.feedID) + recipe.digest + ".png")
+        let key = recipe.key
+        let url = directory.appendingPathComponent(Self.prefix(for: key) + recipe.digest + ".png")
         try (data as Data).write(to: url, options: .atomic)
-        for other in files(for: recipe.feedID) where other.lastPathComponent != url.lastPathComponent {
+        for other in files(for: key) where other.lastPathComponent != url.lastPathComponent {
             try? FileManager.default.removeItem(at: other)
         }
-        return StoredTopicCover(feedID: recipe.feedID, digest: recipe.digest, url: url, createdAt: Date())
+        return StoredTopicCover(feedID: recipe.feedID, editionID: recipe.editionID, digest: recipe.digest,
+                                url: url, createdAt: Date())
     }
 
     /// Übernimmt das Ergebnis des Systemdialogs. Die Datei dort ist
@@ -176,21 +246,41 @@ public struct TopicCoverStore: Sendable {
         return TopicCover(stored: stored, image: Self.squared(image))
     }
 
-    /// Entfernt alle Bilder eines Updates.
+    /// Entfernt alle Bilder eines Updates, auch die seiner Ausgaben.
     public func remove(_ feedID: SmartFeedID) {
-        for url in files(for: feedID) { try? FileManager.default.removeItem(at: url) }
+        let prefix = Self.prefix(for: TopicCoverKey(feedID: feedID))
+        for url in pngFiles() where url.lastPathComponent.hasPrefix(prefix) {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    /// Entfernt das Bild einer Ausgabe.
+    public func remove(_ key: TopicCoverKey) {
+        guard key.editionID != nil else { return remove(key.feedID) }
+        for url in files(for: key) { try? FileManager.default.removeItem(at: url) }
     }
 
     /// Entfernt die Bilder aller Updates außer den genannten. Ein Update,
     /// das auf einem anderen Gerät gelöscht wurde, fehlt hier nur in der
     /// Liste, und ohne diesen Abgleich bliebe sein Bild für immer liegen.
+    /// Die Bilder seiner Ausgaben gehen mit.
     public func removeAll(except kept: Set<SmartFeedID>) {
-        let prefixes = kept.map(Self.prefix(for:))
-        let all = (try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: nil)) ?? []
-        for url in all where url.pathExtension == "png" && url.lastPathComponent.hasPrefix("cover-") {
+        let prefixes = kept.map { Self.prefix(for: TopicCoverKey(feedID: $0)) }
+        for url in pngFiles() where url.lastPathComponent.hasPrefix("cover-") {
             let name = url.lastPathComponent
             guard !prefixes.contains(where: { name.hasPrefix($0) }) else { continue }
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    /// Entfernt die Bilder aller Ausgaben außer den genannten. Eine
+    /// Ausgabe verschwindet auch, wenn ihre Folgen gelöscht werden oder ein
+    /// anderes Gerät sie löscht. Die Cover der Updates bleiben unberührt.
+    public func removeEditionCovers(except kept: Set<TopicCoverKey>) {
+        let names = Set(kept.filter { $0.editionID != nil }.map { Self.prefix(for: $0) })
+        for url in pngFiles() where url.lastPathComponent.contains(Self.editionMarker) {
+            let name = url.lastPathComponent
+            guard !names.contains(where: { name.hasPrefix($0) }) else { continue }
             try? FileManager.default.removeItem(at: url)
         }
     }
@@ -220,17 +310,34 @@ public struct TopicCoverStore: Sendable {
         return image.cropping(to: rect) ?? image
     }
 
-    static func prefix(for feedID: SmartFeedID) -> String {
-        let safe = feedID.rawValue.addingPercentEncoding(withAllowedCharacters: .alphanumerics)
-            ?? StableDigest.hex(of: feedID.rawValue)
-        return "cover-\(safe)-"
+    static let editionMarker = "-edition_"
+
+    /// Der Anfang des Dateinamens. Beim Update folgt direkt der
+    /// Fingerabdruck, bei einer Ausgabe erst ihre Kennung.
+    static func prefix(for key: TopicCoverKey) -> String {
+        let safe = key.feedID.rawValue.addingPercentEncoding(withAllowedCharacters: .alphanumerics)
+            ?? StableDigest.hex(of: key.feedID.rawValue)
+        guard let edition = key.editionID else { return "cover-\(safe)-" }
+        let editionPart = String(StableDigest.hex(of: edition.rawValue).prefix(20))
+        return "cover-\(safe)\(editionMarker)\(editionPart)_"
     }
 
-    private func files(for feedID: SmartFeedID) -> [URL] {
-        let prefix = Self.prefix(for: feedID)
+    static func prefix(for feedID: SmartFeedID) -> String { prefix(for: TopicCoverKey(feedID: feedID)) }
+
+    /// Die Bilder genau dieses Besitzers. Beim Update nicht die seiner Ausgaben.
+    private func files(for key: TopicCoverKey) -> [URL] {
+        let prefix = Self.prefix(for: key)
+        return pngFiles().filter { url in
+            let name = url.lastPathComponent
+            guard name.hasPrefix(prefix) else { return false }
+            return key.editionID != nil || !name.contains(Self.editionMarker)
+        }
+    }
+
+    private func pngFiles() -> [URL] {
         let all = (try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
-        return all.filter { $0.lastPathComponent.hasPrefix(prefix) && $0.pathExtension == "png" }
+        return all.filter { $0.pathExtension == "png" }
     }
 }
 
