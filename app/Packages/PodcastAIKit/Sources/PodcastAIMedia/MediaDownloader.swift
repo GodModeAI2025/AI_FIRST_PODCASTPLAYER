@@ -77,23 +77,16 @@ public actor MediaDownloader {
         let staging = temporaryDirectory.appendingPathComponent(
             mediaVersionID.rawValue + "." + UUID().uuidString)
 
-        let saved: SafeHTTP.SavedFile
         if let background {
-            switch try await background.download(
-                url, mediaVersionID: mediaVersionID, to: staging, progress: progress) {
-            case .staged(let byteCount, let mimeType):
-                saved = SafeHTTP.SavedFile(byteCount: byteCount, mimeType: mimeType)
-            case .stored:
-                // Kam an, während niemand wartete, und liegt schon geprüft am Ort.
-                guard let stored = existing(mediaVersionID: mediaVersionID) else {
-                    throw HTTPTransferError.emptyResponse
-                }
-                return stored
+            // Die Sitzung legt die geprüfte Datei selbst am endgültigen Ort ab.
+            try await background.download(url, mediaVersionID: mediaVersionID, progress: progress)
+            guard let stored = existing(mediaVersionID: mediaVersionID) else {
+                throw HTTPTransferError.emptyResponse
             }
-        } else {
-            saved = try await SafeHTTP.save(
-                url, to: staging, using: session, limit: Self.maximumBytes, progress: progress)
+            return stored
         }
+        let saved = try await SafeHTTP.save(
+            url, to: staging, using: session, limit: Self.maximumBytes, progress: progress)
 
         do {
             // Hash über die vollständige Datei, blockweise — die Datei wird

@@ -101,7 +101,7 @@ public enum UserFacingError {
             // Zu viele Anfragen und Zeitüberschreitung vergehen wieder.
             return (400..<500).contains(code) && code != 408 && code != 429
         case HTTPTransferError.tooLarge, HTTPTransferError.rejectedDestination,
-             HTTPTransferError.rejectedRedirect:
+             HTTPTransferError.rejectedRedirect, HTTPTransferError.notMedia:
             return true
         default:
             return false

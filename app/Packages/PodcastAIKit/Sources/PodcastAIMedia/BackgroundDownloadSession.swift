@@ -11,9 +11,11 @@
 //  1. Wer wartet, kann gehen, ohne die Übertragung abzubrechen. Hält die
 //     Warteschlange an, weil die Zeit im Hintergrund endet, lädt das
 //     System weiter. Abgebrochen wird nur ausdrücklich (`cancel`, `suspend`).
-//  2. Kommt eine Datei an, während niemand wartet, etwa nach einem Neustart
-//     der App im Hintergrund, liegt sie danach geprüft am endgültigen Ort.
-//     Das Transkript findet sie dort (`MediaDownloader.existing`).
+//  2. Jede fertige Datei liegt danach geprüft am endgültigen Ort, ob jemand
+//     wartet oder nicht, etwa nach einem Neustart der App im Hintergrund.
+//     Das Transkript findet sie dort (`MediaDownloader.existing`). Ein
+//     Zwischenort je Aufrufer bliebe liegen, wenn der Wartende zwischen
+//     Ankunft und Abschluss geht.
 //  3. Weiterleitungen folgt das System ohne Rückfrage. Geprüft wird deshalb
 //     nach dem Download (`DownloadValidation`), bevor die Datei bleibt.
 //
@@ -21,14 +23,6 @@
 import Foundation
 import Synchronization
 import PodcastAICore
-
-/// Wie eine Übertragung über die Sitzung im Hintergrund ausging.
-public enum BackgroundTransferOutcome: Sendable, Equatable {
-    /// Geprüft an der Stelle, die der Aufrufer genannt hat.
-    case staged(byteCount: Int64, mimeType: String?)
-    /// Kam an, während niemand wartete, und liegt schon am endgültigen Ort.
-    case stored
-}
 
 public final class BackgroundDownloadSession: Sendable {
 
@@ -85,7 +79,7 @@ public final class BackgroundDownloadSession: Sendable {
         session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
     }
 
-    /// Lädt `url` nach `staging`. Läuft für diese Fassung schon eine
+    /// Lädt `url` an den endgültigen Ort der Fassung im Audioordner. Läuft für diese Fassung schon eine
     /// Übertragung, etwa aus einem früheren Start, wartet der Aufrufer auf
     /// sie, statt eine zweite zu beginnen. Liegt ein Stand zum Fortsetzen
     /// vor, setzt sie dort an.
@@ -93,9 +87,9 @@ public final class BackgroundDownloadSession: Sendable {
     /// Wird die umgebende Aufgabe abgebrochen, endet nur das Warten: die
     /// Übertragung läuft weiter und legt ihre Datei am endgültigen Ort ab.
     public func download(
-        _ url: URL, mediaVersionID: MediaVersionID, to staging: URL,
+        _ url: URL, mediaVersionID: MediaVersionID,
         progress: (@Sendable (_ received: Int64, _ expected: Int64?) -> Void)? = nil
-    ) async throws -> BackgroundTransferOutcome {
+    ) async throws {
         // Vor der ersten Anfrage dieselbe Prüfung wie im Vordergrund, samt https.
         let request = try SafeHTTP.request(for: url)
         let key = mediaVersionID.rawValue
@@ -103,7 +97,7 @@ public final class BackgroundDownloadSession: Sendable {
         let delegate = delegate
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                let start = delegate.register(key: key, staging: staging, progress: progress,
+                let start = delegate.register(key: key, progress: progress,
                                               continuation: continuation)
                 guard start, !running else { return }
                 let task: URLSessionDownloadTask
@@ -170,17 +164,16 @@ extension BackgroundDownloadSession {
         static let progressStep: Int64 = 1024 * 1024
 
         struct Waiter {
-            let staging: URL
             let progress: (@Sendable (Int64, Int64?) -> Void)?
-            let continuation: CheckedContinuation<BackgroundTransferOutcome, any Error>
+            let continuation: CheckedContinuation<Void, any Error>
             var lastReported: Int64 = -1
         }
 
         struct State {
             var waiters: [String: Waiter] = [:]
             /// Ergebnis aus `didFinishDownloadingTo`, bis `didCompleteWithError` es abholt.
-            var outcomes: [String: Result<BackgroundTransferOutcome, any Error>] = [:]
-            /// Angekommen, als niemand wartete. Wer danach fragt, bekommt `.stored`.
+            var outcomes: [String: Result<Void, any Error>] = [:]
+            /// Angekommen, als niemand wartete. Wer danach fragt, ist gleich fertig.
             var arrivedUnattended: Set<String> = []
         }
 
@@ -208,8 +201,8 @@ extension BackgroundDownloadSession {
         /// Trägt einen Wartenden ein. `false`, wenn schon entschieden ist:
         /// die Datei liegt längst da, oder die Aufgabe ist abgebrochen.
         func register(
-            key: String, staging: URL, progress: (@Sendable (Int64, Int64?) -> Void)?,
-            continuation: CheckedContinuation<BackgroundTransferOutcome, any Error>
+            key: String, progress: (@Sendable (Int64, Int64?) -> Void)?,
+            continuation: CheckedContinuation<Void, any Error>
         ) -> Bool {
             let destination = mediaDirectory.appendingPathComponent(key)
             return state.withLock { state in
@@ -217,7 +210,7 @@ extension BackgroundDownloadSession {
                 // inzwischen gelöscht haben.
                 if state.arrivedUnattended.remove(key) != nil,
                    FileManager.default.fileExists(atPath: destination.path) {
-                    continuation.resume(returning: .stored)
+                    continuation.resume()
                     return false
                 }
                 if Task.isCancelled {
@@ -226,7 +219,7 @@ extension BackgroundDownloadSession {
                 }
                 // Nur ein Wartender je Fassung. Ein älterer geht leer aus.
                 state.waiters[key]?.continuation.resume(throwing: CancellationError())
-                state.waiters[key] = Waiter(staging: staging, progress: progress, continuation: continuation)
+                state.waiters[key] = Waiter(progress: progress, continuation: continuation)
                 return true
             }
         }
@@ -306,30 +299,26 @@ extension BackgroundDownloadSession {
                 return
             }
             // Die Datei muss hier weg: nach der Rückkehr löscht das System sie.
+            // Immer an den Ort, an dem Wiedergabe und Transkript die Fassung
+            // suchen, ob jemand wartet oder nicht. Verschoben wird erst nach
+            // der Prüfung, also liegt dort nur Vollständiges.
             let arrived: Bool = state.withLock { state in
                 let manager = FileManager.default
-                if let waiter = state.waiters[key] {
-                    do {
-                        try? manager.removeItem(at: waiter.staging)
-                        try manager.moveItem(at: location, to: waiter.staging)
-                        state.outcomes[key] = .success(.staged(byteCount: byteCount, mimeType: response?.mimeType))
-                    } catch {
-                        state.outcomes[key] = .failure(error)
-                    }
-                    return false
-                }
-                // Niemand wartet: gleich an den Ort, an dem Wiedergabe und
-                // Transkript die Fassung suchen. Atomar, wie im Vordergrund.
                 let destination = mediaDirectory.appendingPathComponent(key)
                 do {
                     try? manager.createDirectory(at: mediaDirectory, withIntermediateDirectories: true)
                     try? manager.removeItem(at: destination)
                     try manager.moveItem(at: location, to: destination)
-                    state.arrivedUnattended.insert(key)
-                    return true
                 } catch {
+                    state.outcomes[key] = .failure(error)
                     return false
                 }
+                if state.waiters[key] != nil {
+                    state.outcomes[key] = .success(())
+                } else {
+                    state.arrivedUnattended.insert(key)
+                }
+                return true
             }
             if arrived { onArrival(MediaVersionID(rawValue: key)) }
         }
@@ -338,7 +327,14 @@ extension BackgroundDownloadSession {
             guard let key = task.taskDescription, !key.isEmpty else { return }
             // Ein unterbrochener Download bringt meist einen Stand zum
             // Fortsetzen mit. Der nächste Versuch setzt dort an.
-            if let data = (error as? URLError)?.downloadTaskResumeData {
+            // Nach einer Ablehnung, etwa über der Größengrenze, gilt er nicht.
+            let rejected = state.withLock { state in
+                if case .failure? = state.outcomes[key] { return true }
+                return false
+            }
+            if rejected {
+                discardResumeData(for: key)
+            } else if let data = (error as? URLError)?.downloadTaskResumeData {
                 storeResumeData(data, for: key)
             }
             state.withLock { state in
@@ -347,7 +343,7 @@ extension BackgroundDownloadSession {
                 if let outcome {
                     waiter.continuation.resume(with: outcome)
                 } else if state.arrivedUnattended.remove(key) != nil {
-                    waiter.continuation.resume(returning: .stored)
+                    waiter.continuation.resume()
                 } else if let error {
                     let cancelled = (error as? URLError)?.code == .cancelled
                     waiter.continuation.resume(throwing: cancelled ? CancellationError() : error)
