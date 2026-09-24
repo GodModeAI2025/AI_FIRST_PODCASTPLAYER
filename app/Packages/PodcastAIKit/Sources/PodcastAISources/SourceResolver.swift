@@ -93,6 +93,7 @@ public struct SourceResolver: Sendable {
     static let youTubeHosts: Set<String> = [
         "youtube.com", "www.youtube.com", "m.youtube.com",
         "music.youtube.com", "youtu.be", "www.youtu.be",
+        "youtube-nocookie.com", "www.youtube-nocookie.com",
     ]
 
     /// Baut die offizielle Atom-Feed-Adresse eines Kanals.
@@ -116,6 +117,11 @@ public struct SourceResolver: Sendable {
             if let channelID = components?.queryItems?.first(where: { $0.name == "channel_id" })?.value,
                isValidChannelID(channelID), let feedURL = channelFeedURL(channelID: channelID) {
                 return .youTubeChannel(channelID: channelID, feedURL: feedURL)
+            }
+            // Der Feed einer Playlist ist eine eigene Quelle, kein Podcast-Feed.
+            if let listID = components?.queryItems?.first(where: { $0.name == "playlist_id" })?.value,
+               isValidPlaylistID(listID) {
+                return .youTubePlaylist(playlistID: listID, url: url)
             }
             return .podcastFeed(url)
         }
@@ -149,8 +155,9 @@ public struct SourceResolver: Sendable {
             return .youTubePlaylist(playlistID: listID, url: url)
         }
 
-        // /channel/<UC...> — direkt auflösbar.
-        if segments.count >= 2, segments[0] == "channel", isValidChannelID(segments[1]),
+        // /channel/<UC...> — direkt auflösbar. YouTube Music schreibt
+        // Kanäle als /browse/<UC...>.
+        if segments.count >= 2, ["channel", "browse"].contains(segments[0]), isValidChannelID(segments[1]),
            let feedURL = channelFeedURL(channelID: segments[1]) {
             return .youTubeChannel(channelID: segments[1], feedURL: feedURL)
         }

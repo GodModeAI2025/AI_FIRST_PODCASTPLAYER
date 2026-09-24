@@ -2048,10 +2048,10 @@ extension AppModel {
         }
     }
 
-    /// Nur Podcasts haben eine neueste Folge, die für unterwegs bleibt.
-    /// Einzelne Folgen, Dateien und YouTube-Kanäle nicht.
+    /// Nur abonnierte Podcasts haben eine neueste Folge, die für unterwegs
+    /// bleibt. Einzelne Folgen, Dateien und YouTube-Kanäle nicht.
     func isPodcast(_ sourceID: SourceID) -> Bool {
-        sources.first { $0.id == sourceID }?.kind == .podcastRSS
+        sources.first { $0.id == sourceID }.map { $0.kind == .podcastRSS && $0.isSubscribed } ?? false
     }
 
     /// Hat ein Feed die Audioadresse einer vorgehaltenen Folge geändert,
@@ -2105,7 +2105,7 @@ extension AppModel {
         guard keepNewestAudio, preparationWait == nil else { return nil }
         var busy = Set(analysisQueue.map(\.id)).union(downloading)
         if let analyzing { busy.insert(analyzing.id) }
-        for source in sources where source.kind == .podcastRSS {
+        for source in sources where isPodcast(source.id) {
             guard let episode = AudioRetention.newest(in: episodes[source.id] ?? []),
                   !busy.contains(episode.id), !prefetchFailed.contains(episode.id),
                   !prefetchDeclined.contains(episode.id), !isHeard(episode),

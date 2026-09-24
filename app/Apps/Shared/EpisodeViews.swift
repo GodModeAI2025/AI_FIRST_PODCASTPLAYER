@@ -44,6 +44,23 @@ struct EpisodeListView: View {
         List {
             // Beschreibung, Herausgeber und Rubriken aus dem Feed.
             if let source { SourceMetadataSection(source: source) }
+            // Nur einzelne Folgen geholt: der Podcast ist kein Abo und wird
+            // nicht von selbst aktualisiert. Ein Tipp abonniert ihn, die
+            // geholten Folgen bleiben.
+            if let source, !source.isSubscribed {
+                Section {
+                    NoticeLabel(String(localized: """
+                        Nicht abonniert. Hier stehen die Folgen, die du einzeln geholt hast. \
+                        Neue Folgen kommen erst nach dem Abonnieren.
+                        """), kind: .info)
+                    Button {
+                        Task { await model.subscribeToSource(source) }
+                    } label: {
+                        Label("Abonnieren", systemImage: "plus.circle.fill")
+                    }
+                    .accessibilityIdentifier("source.subscribe")
+                }
+            }
 
             if !(source?.capabilities.supportsTimedKnowledge ?? true),
                let reason = source?.capabilities.limitationReason {
@@ -173,6 +190,11 @@ struct EpisodeListView: View {
                     }
                     .textCase(nil)
                 }
+            } footer: {
+                // Der Feed eines YouTube-Kanals nennt nur die neuesten Videos.
+                if source?.kind == .youTubeChannel {
+                    Text("YouTube nennt nur die 15 neuesten Videos. Ältere lassen sich nicht nachladen. Die App behält jedes Video, das sie einmal gesehen hat.")
+                }
             }
         }
         .navigationTitle(source?.title ?? String(localized: "Folgen"))
@@ -301,7 +323,7 @@ struct EpisodeListView: View {
     /// Nur für Podcast-Feeds mit Ton. Einzelne Folgen und YouTube-Kanäle
     /// haben kein Archiv, das sich so nachholen ließe.
     private var offersBackCatalog: Bool {
-        guard source?.kind == .podcastRSS else { return false }
+        guard source?.kind == .podcastRSS, source?.isSubscribed == true else { return false }
         return model.preparesBackCatalog(sourceID) || model.hasOlderEpisodesToPrepare(in: sourceID)
     }
 

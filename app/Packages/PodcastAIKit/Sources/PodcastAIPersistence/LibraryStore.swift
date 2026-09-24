@@ -354,6 +354,9 @@ public actor LibraryStore {
                 keep.summary = keep.summary ?? copy.summary
                 if keep.categories.isEmpty { keep.categories = copy.categories }
                 keep.isExplicit = keep.isExplicit ?? copy.isExplicit
+                // Hat ein Gerät den Podcast abonniert, während das andere nur
+                // eine einzelne Folge daraus geholt hat, gilt das Abo.
+                keep.isSubscribed = keep.isSubscribed || copy.isSubscribed
                 keep.revisionValue = max(keep.revisionValue, copy.revisionValue)
             }
         }
@@ -1237,6 +1240,7 @@ public actor LibraryStore {
     func insertSourceCopyForTesting(_ source: Source, addedAt: Date) throws {
         let row = StoredSource(identifier: source.id.rawValue, kind: source.kind, title: source.title)
         row.feedURLString = source.feedURL?.absoluteString
+        row.isSubscribed = source.isSubscribed
         row.addedAt = addedAt
         modelContext.insert(row)
         try modelContext.save()

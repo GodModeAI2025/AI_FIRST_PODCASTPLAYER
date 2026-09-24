@@ -761,8 +761,12 @@ public final class AppModel {
     public var freshEpisodes: [Episode] {
         let since = Date().addingTimeInterval(-7 * 86_400)
         let started = Set(episodePlayer.recentEpisodeIDs)
+        // Einzeln geholte Folgen aus einem Podcast ohne Abo sind nicht „neu in
+        // deinen Abos“; sie stehen unter ihrem Podcast.
+        let notSubscribed = Set(sources.lazy.filter { !$0.isSubscribed }.map(\.id))
         return episodes.values.joined()
-            .filter { ($0.publishedAt ?? .distantPast) > since && !started.contains($0.id) }
+            .filter { ($0.publishedAt ?? .distantPast) > since && !started.contains($0.id)
+                && !notSubscribed.contains($0.sourceID) }
             .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
             .prefix(5)
             .map { $0 }
@@ -887,9 +891,10 @@ public final class AppModel {
         return added
     }
 
-    /// Ist dieser Feed schon abonniert?
+    /// Ist dieser Feed schon abonniert? Ein Podcast, aus dem nur einzelne
+    /// Folgen geholt wurden, zählt nicht.
     public func isSubscribed(_ feed: URL) -> Bool {
-        sources.contains { $0.feedURL == feed }
+        sources.contains { $0.isSubscribed && $0.feedURL == feed }
     }
 
     /// Liest einen Podcast für die Vorschau vor dem Abonnieren, ohne ihn anzulegen.
@@ -969,7 +974,7 @@ public final class AppModel {
         let name = source.author?.isEmpty == false ? source.author! : source.title
         let found = await PodcastDirectory.counterparts(forChannel: name)
         // Bereits abonnierte Feeds nicht noch einmal anbieten.
-        let subscribed = Set(sources.compactMap(\.feedURL))
+        let subscribed = Set(sources.filter(\.isSubscribed).compactMap(\.feedURL))
         podcastCounterparts[source.id] = found.filter { !subscribed.contains($0.feedURL) }
     }
 
@@ -1072,8 +1077,10 @@ public final class AppModel {
     }
 
     /// Die jüngsten Folgen einer Quelle, die das Vorbereiten von selbst nimmt.
+    /// Einzeln geholte Folgen nimmt es alle, sie hat jemand bewusst gewählt.
     private func newestCandidates(in list: [Episode]) -> ArraySlice<Episode> {
-        list.filter { $0.audioURL != nil && $0.canBeAnalyzed }.prefix(episodesPerSource)
+        let source = list.first.flatMap { episode in sources.first { $0.id == episode.sourceID } }
+        return ArraySlice(PreparationCandidates.newest(in: list, of: source, perSource: episodesPerSource))
     }
 
     /// Noch ohne Transkript, nicht in Arbeit oder gescheitert und nicht aus

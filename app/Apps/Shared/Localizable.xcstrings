@@ -129,6 +129,22 @@
         }
       }
     },
+    "%@ entfernen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ entfernen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove %@"
+          }
+        }
+      }
+    },
     "%@ gehört" : {
       "localizations" : {
         "de" : {
@@ -2413,6 +2429,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Downloading audio…"
+          }
+        }
+      }
+    },
+    "Audio-Podcast abonniert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio-Podcast abonniert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio podcast subscribed"
           }
         }
       }
@@ -4947,6 +4979,22 @@
         }
       }
     },
+    "Die Folge aus dem Link steht nicht mehr im Feed. Abonnieren bringt die Folgen, die der Feed führt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Folge aus dem Link steht nicht mehr im Feed. Abonnieren bringt die Folgen, die der Feed führt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The episode from the link is no longer in the feed. Subscribing brings the episodes the feed lists."
+          }
+        }
+      }
+    },
     "Die Folge hat noch kein Transkript. Bisher zählen nur die Shownotes, mit dem Transkript kommt mehr dazu." : {
       "localizations" : {
         "de" : {
@@ -5427,6 +5475,22 @@
         }
       }
     },
+    "Diese Folge steht nicht mehr im Feed des Podcasts. Abonnieren geht trotzdem, dann kommen die Folgen, die der Feed führt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Folge steht nicht mehr im Feed des Podcasts. Abonnieren geht trotzdem, dann kommen die Folgen, die der Feed führt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This episode is no longer in the podcast's feed. You can still subscribe and get the episodes the feed lists."
+          }
+        }
+      }
+    },
     "Diese Sprache kann die App hier nicht selbst übersetzen. Versuch es im Übersetzungsfenster des Systems, dort lassen sich auch Sprachen laden." : {
       "localizations" : {
         "de" : {
@@ -5587,18 +5651,34 @@
         }
       }
     },
-    "Diesen Link abonnieren" : {
+    "Diesen Link hinzufügen" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diesen Link abonnieren"
+            "value" : "Diesen Link hinzufügen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Subscribe to This Link"
+            "value" : "Add This Link"
+          }
+        }
+      }
+    },
+    "Diesen Link öffnen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Link öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open This Link"
           }
         }
       }
@@ -6227,6 +6307,22 @@
         }
       }
     },
+    "Empfohlen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empfohlen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recommended"
+          }
+        }
+      }
+    },
     "Ende der Folge" : {
       "localizations" : {
         "de" : {
@@ -6287,6 +6383,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove"
+          }
+        }
+      }
+    },
+    "Entfernen und Daten löschen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernen und Daten löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove and Delete Data"
+          }
+        }
+      }
+    },
+    "Entfernen?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove?"
           }
         }
       }
@@ -6767,6 +6895,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Episode %lld"
+          }
+        }
+      }
+    },
+    "Folge aus dem Link" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folge aus dem Link"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episode from the Link"
+          }
+        }
+      }
+    },
+    "Folge hinzugefügt: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folge hinzugefügt: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episode added: %@"
           }
         }
       }
@@ -8515,6 +8675,38 @@
         }
       }
     },
+    "In deiner Bibliothek" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In deiner Bibliothek"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In your library"
+          }
+        }
+      }
+    },
+    "In deiner Bibliothek, nicht abonniert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In deiner Bibliothek, nicht abonniert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In your library, not subscribed"
+          }
+        }
+      }
+    },
     "In den Kalender" : {
       "localizations" : {
         "de" : {
@@ -8799,6 +8991,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Now Playing"
+          }
+        }
+      }
+    },
+    "Kanal abonnieren" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanal abonnieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe to Channel"
+          }
+        }
+      }
+    },
+    "Kanal abonniert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kanal abonniert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Channel subscribed"
           }
         }
       }
@@ -10437,6 +10661,22 @@
         }
       }
     },
+    "Neueste Videos" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Videos"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest Videos"
+          }
+        }
+      }
+    },
     "Neueste zuerst" : {
       "localizations" : {
         "de" : {
@@ -10465,6 +10705,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not subscribed"
+          }
+        }
+      }
+    },
+    "Nicht abonniert. Hier stehen die Folgen, die du einzeln geholt hast. Neue Folgen kommen erst nach dem Abonnieren." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht abonniert. Hier stehen die Folgen, die du einzeln geholt hast. Neue Folgen kommen erst nach dem Abonnieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not subscribed. These are the episodes you added one by one. New episodes arrive once you subscribe."
           }
         }
       }
@@ -10917,6 +11173,38 @@
         }
       }
     },
+    "Nur diese Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur diese Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just This Episode"
+          }
+        }
+      }
+    },
+    "Nur diese Folge: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur diese Folge: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just this episode: %@"
+          }
+        }
+      }
+    },
     "Nur diese Stelle hören" : {
       "localizations" : {
         "de" : {
@@ -10933,6 +11221,22 @@
         }
       }
     },
+    "Nur dieses Video" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur dieses Video"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Just This Video"
+          }
+        }
+      }
+    },
     "Nur lesend und nur auf diesem Mac. Der Agent startet PodcastAI selbst und spricht über die Standardeingabe mit ihm, einen Netzwerk-Port gibt es nicht. Es gibt kein Werkzeug, das schreibt, löscht oder Wiedergabe startet. Ausgeschaltet beantwortet PodcastAI keine Anfrage mehr, auch nicht in einer laufenden Verbindung." : {
       "localizations" : {
         "de" : {
@@ -10945,6 +11249,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Read-only, and only on this Mac. The agent launches PodcastAI itself and talks to it over standard input. There's no network port. No tool can write, delete, or start playback. When this is off, PodcastAI stops answering requests, even on a connection that's already open."
+          }
+        }
+      }
+    },
+    "Nur mit Ton gibt es Transkript, Fakten und Tags. Den liefert der Audio-Podcast, YouTube nicht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur mit Ton gibt es Transkript, Fakten und Tags. Den liefert der Audio-Podcast, YouTube nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcripts, facts and tags need audio. The audio podcast provides it, YouTube doesn't."
           }
         }
       }
@@ -11301,6 +11621,22 @@
         }
       }
     },
+    "Passenden Audio-Podcast abonnieren" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passenden Audio-Podcast abonnieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe to Matching Audio Podcast"
+          }
+        }
+      }
+    },
     "Passt nicht alles hinein, kommen die wichtigsten Stellen zuerst. Der Rest rückt nach, sobald du sie gehört hast." : {
       "localizations" : {
         "de" : {
@@ -11377,6 +11713,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Player, %@"
+          }
+        }
+      }
+    },
+    "Playlist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist"
+          }
+        }
+      }
+    },
+    "Playlist abonnieren" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist abonnieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe to Playlist"
+          }
+        }
+      }
+    },
+    "Playlist abonniert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist abonniert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist subscribed"
+          }
+        }
+      }
+    },
+    "Playlist von %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist von %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlist by %@"
           }
         }
       }
@@ -13960,6 +14360,22 @@
         }
       }
     },
+    "Video aus dem Link" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video aus dem Link"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video from the Link"
+          }
+        }
+      }
+    },
     "Vollständige Datenschutzerklärung" : {
       "localizations" : {
         "de" : {
@@ -14004,6 +14420,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The app can't translate from %1$@ to %2$@ here on its own. Try the system translation window, where you can also download languages."
+          }
+        }
+      }
+    },
+    "Von YouTube bekommt die App keinen Ton. Sie zeigt Titel, Beschreibung und Kapitel aus der Beschreibung und spielt Videos in der YouTube-App ab." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von YouTube bekommt die App keinen Ton. Sie zeigt Titel, Beschreibung und Kapitel aus der Beschreibung und spielt Videos in der YouTube-App ab."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app gets no audio from YouTube. It shows title, description and chapters from the description, and plays videos in the YouTube app."
           }
         }
       }
@@ -14952,6 +15384,22 @@
         }
       }
     },
+    "YouTube liefert die Videoliste gerade nicht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube liefert die Videoliste gerade nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube isn't returning the video list right now."
+          }
+        }
+      }
+    },
     "YouTube liefert die Videoliste gerade nicht. Der Kanal ist angelegt, die Videos erscheinen beim nächsten Abgleich. Den passenden Audio-Podcast kannst du schon abonnieren." : {
       "localizations" : {
         "de" : {
@@ -14980,6 +15428,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "YouTube isn't returning any data for this channel right now. This happens with YouTube from time to time. Try again later or add the channel's audio podcast directly."
+          }
+        }
+      }
+    },
+    "YouTube nennt nur die 15 neuesten Videos. Ältere lassen sich nicht nachladen. Die App behält jedes Video, das sie einmal gesehen hat." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube nennt nur die 15 neuesten Videos. Ältere lassen sich nicht nachladen. Die App behält jedes Video, das sie einmal gesehen hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube lists only the 15 latest videos. Older ones can't be loaded. The app keeps every video it has seen."
+          }
+        }
+      }
+    },
+    "YouTube nennt nur die 15 neuesten Videos. Ältere lassen sich nicht nachladen. Nach dem Abonnieren behält die App jedes Video, das sie einmal gesehen hat." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube nennt nur die 15 neuesten Videos. Ältere lassen sich nicht nachladen. Nach dem Abonnieren behält die App jedes Video, das sie einmal gesehen hat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube lists only the 15 latest videos. Older ones can't be loaded. Once you subscribe, the app keeps every video it has seen."
+          }
+        }
+      }
+    },
+    "YouTube-Kanal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Kanal"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube channel"
           }
         }
       }
@@ -15224,18 +15720,18 @@
         }
       }
     },
-    "Zu diesem Video ließ sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine einzelnen Videos." : {
+    "Zu diesem Video ließ sich kein Kanal ermitteln. Prüf den Link oder füge den Link des Kanals ein." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zu diesem Video ließ sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine einzelnen Videos."
+            "value" : "Zu diesem Video ließ sich kein Kanal ermitteln. Prüf den Link oder füge den Link des Kanals ein."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't find a channel for this video. PodcastAI subscribes to channels, not individual videos."
+            "value" : "No channel could be found for this video. Check the link or paste the channel's link."
           }
         }
       }
@@ -16999,6 +17495,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "\"Play Next\" puts an episode right after the one that's playing. Click and hold for \"Play Last\". The queue is in the sidebar on the left and in \"My Podcasts\"."
+          }
+        }
+      }
+    },
+    "„Nur diese Folge“ holt die Folge in deine Bibliothek, ohne den Podcast zu abonnieren. Sie steht dann unter dem Podcast, gekennzeichnet als nicht abonniert." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Nur diese Folge“ holt die Folge in deine Bibliothek, ohne den Podcast zu abonnieren. Sie steht dann unter dem Podcast, gekennzeichnet als nicht abonniert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"Just This Episode\" adds the episode to your library without subscribing to the podcast. It then appears under the podcast, marked as not subscribed."
           }
         }
       }
