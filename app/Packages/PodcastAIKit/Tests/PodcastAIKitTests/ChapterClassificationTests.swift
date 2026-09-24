@@ -325,6 +325,47 @@ struct ChapterTaggingProgressTests {
     }
 }
 
+@Suite("Tags je Kapitel: Fassung")
+struct ChapterTagVersionTests {
+
+    func item(_ index: Int, media: MediaVersionID, revision: Int, timed: Bool = true) -> Evidence {
+        Evidence(id: EvidenceID(stable: "\(media.rawValue)-\(revision)-\(index)"), mediaVersionID: media,
+                 episodeID: episode, sourceID: source, transcriptID: TranscriptID(stable: "t"),
+                 transcriptRevision: Revision(revision),
+                 range: timed ? MediaTimeRange(start: MediaTime(milliseconds: Int64(index) * 60_000),
+                                               end: MediaTime(milliseconds: Int64(index + 1) * 60_000)) : nil,
+                 quotedText: "Text")
+    }
+
+    @Test("Die aktuelle Fassung gilt, auch wenn eine überholte die höhere Revision trägt")
+    func currentVersionWins() throws {
+        let old = MediaVersionID(stable: "alt"), new = MediaVersionID(stable: "neu")
+        let evidence = [item(0, media: old, revision: 2), item(1, media: old, revision: 2),
+                        item(0, media: new, revision: 0), item(1, media: new, revision: 0),
+                        item(2, media: new, revision: 0, timed: false)]
+        let chosen = try #require(ChapterTagVersion.evidence(evidence, preferred: new))
+        #expect(chosen.mediaVersionID == new)
+        #expect(chosen.revision == 0)
+        #expect(chosen.evidence.count == 2, "nur Belege mit Zeitmarke, nur aus dieser Fassung")
+        // Ohne bekannte aktuelle Fassung: die mit der höchsten Revision.
+        #expect(ChapterTagVersion.evidence(evidence, preferred: nil)?.mediaVersionID == old)
+        #expect(ChapterTagVersion.evidence(evidence, preferred: MediaVersionID(stable: "fremd"))?.mediaVersionID == old)
+        // Innerhalb der Fassung nur die neueste Revision.
+        let mixed = [item(0, media: new, revision: 0), item(0, media: new, revision: 1)]
+        #expect(ChapterTagVersion.evidence(mixed, preferred: new)?.evidence.map(\.transcriptRevision.value) == [1])
+        #expect(ChapterTagVersion.evidence([], preferred: new) == nil)
+    }
+
+    @Test("Ohne Erlaubnis fürs Netz zieht die Einordnung Private Cloud Compute nie vor")
+    func noCloudWithoutNetwork() {
+        var pace = TaggingPace()
+        for _ in 0..<5 { pace.record(onDeviceSeconds: 90) }
+        let blocked = ModelStatus(onDevice: .available, privateCloudCompute: .unavailable(.offline))
+        #expect(!pace.prefersCloud(blocked))
+        #expect(blocked.resolve(.tag) == .success(.onDevice))
+    }
+}
+
 @Suite("Tags je Kapitel: Speicher")
 struct ChapterTagVisibilityTests {
 

@@ -75,11 +75,14 @@ extension AppModel {
         defer { taggingInProgress.remove(episode.id) }
         let ticket = removalCount
 
-        let timed = ((try? await store.evidence(forEpisode: episode.id)) ?? []).filter { $0.range != nil }
-        guard let revision = timed.map(\.transcriptRevision.value).max() else { return .nothingToDo }
-        let evidence = timed.filter { $0.transcriptRevision.value == revision }
-        guard let mediaVersionID = evidence.first?.mediaVersionID,
-              let backlog = try? await store.chapterTagBacklog(among: [episode.id]),
+        // Nur die aktuelle Fassung, in ihrer neuesten Revision. Revisionen
+        // zählen je Fassung, eine überholte kann die höhere tragen.
+        let stored = (try? await store.evidence(forEpisode: episode.id)) ?? []
+        guard let current = ChapterTagVersion.evidence(stored, preferred: episode.currentMediaVersionID) else {
+            return .nothingToDo
+        }
+        let (mediaVersionID, revision, evidence) = current
+        guard let backlog = try? await store.chapterTagBacklog(among: [episode.id]),
               backlog.contains(episode.id), !wasRemoved(episode.id, since: ticket) else {
             Self.setTaggingProgress(nil, for: episode.id)
             return .nothingToDo
@@ -121,8 +124,11 @@ extension AppModel {
             // Frisch je Kapitel: ein Oberbegriff aus dem vorigen Kapitel ist
             // jetzt ein bekanntes Tag.
             let tags = (try? await store.tags()) ?? []
-            let status = modelStatus
-            let preferCloud = cloudPermitted && Self.taggingPace.prefersCloud(status)
+            // Ohne Erlaubnis fürs Netz kennt die Auswahl Private Cloud
+            // Compute gar nicht, auch nicht als Rückfall nach einem timeout.
+            let status = cloudPermitted ? modelStatus : ModelStatus(
+                onDevice: modelStatus.onDevice, privateCloudCompute: .unavailable(.offline))
+            let preferCloud = Self.taggingPace.prefersCloud(status)
             let title = section.isDerived ? nil : section.title
             let log = TagSelectionLog()
             let picks: [ChapterTagPick]
@@ -248,9 +254,12 @@ extension AppModel {
     }
 
     /// Ordnet eingereihte Folgen ein, bis keine mehr wartet, eine Folge auf
-    /// Fakten wartet, die Zeit endet oder das Modell fehlt.
-    func runTagsBacklog() async {
-        while !Task.isCancelled, tagsMayRun, factsQueue.isEmpty || !factsMayRun, !tagsQueue.isEmpty {
+    /// Fakten wartet, die Zeit endet oder das Modell fehlt. Mit
+    /// `ignoringFacts` auch, wenn Folgen auf Fakten warten, etwa weil nur
+    /// Private Cloud Compute bereitsteht und die Fakten ohnehin warten.
+    func runTagsBacklog(ignoringFacts: Bool = false) async {
+        while !Task.isCancelled, tagsMayRun, ignoringFacts || factsQueue.isEmpty || !factsMayRun,
+              !tagsQueue.isEmpty {
             let next = tagsQueue.removeFirst()
             switch await prepareChapterTags(for: next) {
             case .stored, .nothingToDo:

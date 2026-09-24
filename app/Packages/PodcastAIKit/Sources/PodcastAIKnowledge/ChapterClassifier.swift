@@ -365,6 +365,42 @@ public enum ChapterClassifier {
     }
 }
 
+/// Welche Medienfassung eine Einordnung liest.
+///
+/// Eine Folge kann Belege aus zwei Fassungen haben, etwa wenn der Feed die
+/// Audioadresse geändert hat. Revisionen zählen je Fassung von vorn, eine
+/// überholte Fassung kann also die höhere Revision tragen. Deshalb gilt die
+/// aktuelle Fassung der Folge. Hat sie keine Belege, die Fassung mit der
+/// höchsten Revision, bei Gleichstand die kleinere Kennung.
+public enum ChapterTagVersion {
+
+    /// Die Fassung aus den höchsten Revisionen je Fassung.
+    public static func current(
+        revisions: [MediaVersionID: Int], preferred: MediaVersionID?
+    ) -> MediaVersionID? {
+        if let preferred, revisions[preferred] != nil { return preferred }
+        return revisions.max { lhs, rhs in
+            lhs.value != rhs.value ? lhs.value < rhs.value : lhs.key.rawValue > rhs.key.rawValue
+        }?.key
+    }
+
+    /// Die Belege, die eine Einordnung liest: aktuelle Fassung, höchste
+    /// Revision darin, nur mit Zeitmarke.
+    public static func evidence(
+        _ evidence: [Evidence], preferred: MediaVersionID?
+    ) -> (mediaVersionID: MediaVersionID, revision: Int, evidence: [Evidence])? {
+        let timed = evidence.filter { $0.range != nil }
+        var revisions: [MediaVersionID: Int] = [:]
+        for item in timed {
+            revisions[item.mediaVersionID] = max(revisions[item.mediaVersionID] ?? 0, item.transcriptRevision.value)
+        }
+        guard let media = current(revisions: revisions, preferred: preferred),
+              let revision = revisions[media] else { return nil }
+        let chosen = timed.filter { $0.mediaVersionID == media && $0.transcriptRevision.value == revision }
+        return (media, revision, chosen)
+    }
+}
+
 /// Wie weit die Einordnung einer Folge gekommen ist. Liegt nur auf diesem
 /// Gerät und hält die fertigen Kapitel, bis die Folge ganz eingeordnet ist.
 /// Erst dann gehen die Kapitel-Tags in die Datenbank, in einem Schritt,

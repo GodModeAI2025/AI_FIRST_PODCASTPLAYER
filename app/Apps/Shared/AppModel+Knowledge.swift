@@ -147,7 +147,13 @@ extension AppModel {
     public func refreshModelStatus() async {
         let wasReady = factsModelReady
         modelStatus = ModelStatusProbe.current(allowPrivateCloud: allowPrivateCloudCompute)
-        guard isLoaded, factsModelReady else { return }
+        guard isLoaded else { return }
+        // Nur ein Modell für Tags, etwa Private Cloud Compute ohne Gerätemodell:
+        // die Einordnung darf laufen, die Fakten warten.
+        guard factsModelReady else {
+            if case .success = modelStatus.resolve(.tag) { startFactsWorker() }
+            return
+        }
         // Das Modell ist bereit: was auf Fakten wartet, läuft weiter. Läuft
         // die Arbeit schon oder hat die App gerade keine Zeit dafür, tut der
         // Aufruf nichts.
@@ -157,6 +163,7 @@ extension AppModel {
         // bisher gar nicht eingereiht war, bekommt eine Gelegenheit.
         if !wasReady {
             factsDeferred.removeAll()
+            tagsFailed.removeAll()
             factsBackfilled = false
             await queueMissingFacts()
         }
@@ -1498,8 +1505,13 @@ extension AppModel {
     /// Gerät erst, wenn nach `factsSyncGrace` noch immer keine da sind.
     /// Beim Start gilt das nicht: was dann fehlt, fehlt schon länger.
     func queueMissingFacts() async {
-        guard automaticFacts, isLoaded, factsModelExpected,
-              let withFacts = try? await store.episodeIDsWithFacts() else { return }
+        guard automaticFacts, isLoaded, let withFacts = try? await store.episodeIDsWithFacts() else { return }
+        // Tags brauchen nur ein Modell für Tags. Auf einem Gerät ohne
+        // Gerätemodell, aber mit Private Cloud Compute, gibt es sie trotzdem.
+        guard factsModelExpected else {
+            await queueMissingChapterTags(withFacts: withFacts)
+            return
+        }
         let immediately = !factsBackfilled
         factsBackfilled = true
         let settled = StoredEpisodeIDs(key: Self.factsSettledKey)
@@ -1691,6 +1703,8 @@ extension AppModel {
                 await refreshModelStatus()
                 if case .failure(let reason) = modelStatus.resolve(.extract) {
                     factsWait = String(localized: "wartet: \(reason.message)")
+                    // Tags können mit Private Cloud Compute trotzdem weitergehen.
+                    await runTagsBacklog(ignoringFacts: true)
                     return
                 }
                 factsWait = nil

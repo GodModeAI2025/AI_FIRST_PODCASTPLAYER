@@ -447,27 +447,39 @@ extension LibraryStore {
 
     /// Welche dieser Folgen noch eingeordnet werden müssen: Folgen ohne
     /// Kapitel-Tags und Folgen, deren Kapitel-Tags aus einer älteren
-    /// Revision des Transkripts stammen als ihre Belege.
+    /// Revision des Transkripts stammen als ihre Belege. Verglichen wird in
+    /// der Fassung, die die Einordnung liest (``ChapterTagVersion``), denn
+    /// Revisionen zählen je Fassung.
     public func chapterTagBacklog(among ids: Set<EpisodeID>) throws -> Set<EpisodeID> {
         guard !ids.isEmpty else { return [] }
         let keys = Set(ids.map(\.rawValue))
-        var tagged = FetchDescriptor<StoredChapterTag>(predicate: #Predicate { keys.contains($0.episodeIdentifier) })
-        tagged.propertiesToFetch = [\.episodeIdentifier, \.transcriptRevisionValue]
-        var taggedRevision: [String: Int] = [:]
-        for row in try modelContext.fetch(tagged) {
-            taggedRevision[row.episodeIdentifier] = max(taggedRevision[row.episodeIdentifier] ?? 0,
-                                                        row.transcriptRevisionValue)
-        }
         var evidence = FetchDescriptor<StoredEvidence>(
             predicate: #Predicate { keys.contains($0.episodeIdentifier) && $0.hasTiming == true })
-        evidence.propertiesToFetch = [\.episodeIdentifier, \.transcriptRevisionValue]
-        var evidenceRevision: [String: Int] = [:]
+        evidence.propertiesToFetch = [\.episodeIdentifier, \.mediaVersionIdentifier, \.transcriptRevisionValue]
+        var evidenceRevisions: [String: [MediaVersionID: Int]] = [:]
         for row in try modelContext.fetch(evidence) {
-            evidenceRevision[row.episodeIdentifier] = max(evidenceRevision[row.episodeIdentifier] ?? 0,
-                                                          row.transcriptRevisionValue)
+            let media = MediaVersionID(rawValue: row.mediaVersionIdentifier)
+            evidenceRevisions[row.episodeIdentifier, default: [:]][media] = max(
+                evidenceRevisions[row.episodeIdentifier]?[media] ?? 0, row.transcriptRevisionValue)
         }
-        return Set(evidenceRevision.compactMap { key, revision in
-            guard let done = taggedRevision[key] else { return EpisodeID(rawValue: key) }
+        guard !evidenceRevisions.isEmpty else { return [] }
+        var tagged = FetchDescriptor<StoredChapterTag>(predicate: #Predicate { keys.contains($0.episodeIdentifier) })
+        tagged.propertiesToFetch = [\.episodeIdentifier, \.mediaVersionIdentifier, \.transcriptRevisionValue]
+        var taggedRevisions: [String: [String: Int]] = [:]
+        for row in try modelContext.fetch(tagged) {
+            taggedRevisions[row.episodeIdentifier, default: [:]][row.mediaVersionIdentifier] = max(
+                taggedRevisions[row.episodeIdentifier]?[row.mediaVersionIdentifier] ?? 0, row.transcriptRevisionValue)
+        }
+        var current: [String: MediaVersionID] = [:]
+        var episodes = FetchDescriptor<StoredEpisode>(predicate: #Predicate { keys.contains($0.identifier) })
+        episodes.propertiesToFetch = [\.identifier, \.currentMediaVersionIdentifier]
+        for row in try modelContext.fetch(episodes) {
+            if let media = row.currentMediaVersionIdentifier { current[row.identifier] = MediaVersionID(rawValue: media) }
+        }
+        return Set(evidenceRevisions.compactMap { key, revisions in
+            guard let media = ChapterTagVersion.current(revisions: revisions, preferred: current[key]),
+                  let revision = revisions[media] else { return nil }
+            guard let done = taggedRevisions[key]?[media.rawValue] else { return EpisodeID(rawValue: key) }
             return done < revision ? EpisodeID(rawValue: key) : nil
         })
     }
