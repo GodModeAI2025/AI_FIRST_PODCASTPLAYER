@@ -99,12 +99,17 @@ public enum TaskProfile: String, Sendable, CaseIterable {
     /// Gerätemodell, darf Private Cloud Compute einspringen, sofern es
     /// erlaubt ist (Entscheidung des Product Owners vom 24. September 2026).
     case summarize
+    /// Tags je Kapitel: das Modell wählt Kennungen aus einer Liste, die der
+    /// Code gebaut hat. Läuft auf dem Gerät. Fehlt das Gerätemodell oder ist
+    /// es zu langsam, darf Private Cloud Compute einspringen, sofern es
+    /// erlaubt ist (Entscheidung des Product Owners vom 24. September 2026).
+    case tag
 
     /// Welche Stufe bevorzugt wird. `compare` profitiert von PCC, funktioniert
     /// lokal aber weiterhin — nur mit kleineren Häppchen.
     public var preferredTier: ModelTier {
         switch self {
-        case .extract, .recommend, .proposePlayback, .summarize: .onDevice
+        case .extract, .recommend, .proposePlayback, .summarize, .tag: .onDevice
         case .answer, .compare: .privateCloudCompute
         }
     }
@@ -113,14 +118,15 @@ public enum TaskProfile: String, Sendable, CaseIterable {
     public var hasLocalFallback: Bool { true }
 
     /// Darf Private Cloud Compute einspringen, wenn das Gerätemodell fehlt?
-    /// Nur für den Satz je Kapitel. Fakten und Relevanz bleiben auf dem Gerät.
-    public var hasCloudFallback: Bool { self == .summarize }
+    /// Nur für den Satz und die Tags je Kapitel. Fakten und Relevanz bleiben
+    /// auf dem Gerät.
+    public var hasCloudFallback: Bool { self == .summarize || self == .tag }
 
     /// Kein Profil bekommt Zugriff auf Player, Schlüsselbund, Dateisystem
     /// oder freies Netzwerk. Diese Liste ist die vollständige Werkzeugmenge.
     public var allowedTools: Set<ModelTool> {
         switch self {
-        case .extract, .summarize: []
+        case .extract, .summarize, .tag: []
         case .answer, .compare: [.searchOwnIndex]
         case .recommend: [.readInterestProfile]
         case .proposePlayback: [.searchOwnIndex]

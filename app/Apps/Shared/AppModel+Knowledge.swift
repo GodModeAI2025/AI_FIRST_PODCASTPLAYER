@@ -151,7 +151,13 @@ extension AppModel {
     public func refreshModelStatus() async {
         let wasReady = factsModelReady
         modelStatus = ModelStatusProbe.current(allowPrivateCloud: allowPrivateCloudCompute)
-        guard isLoaded, factsModelReady else { return }
+        guard isLoaded else { return }
+        // Nur ein Modell für Tags, etwa Private Cloud Compute ohne Gerätemodell:
+        // die Einordnung darf laufen, die Fakten warten.
+        guard factsModelReady else {
+            if case .success = modelStatus.resolve(.tag) { startFactsWorker() }
+            return
+        }
         // Das Modell ist bereit: was auf Fakten wartet, läuft weiter. Läuft
         // die Arbeit schon oder hat die App gerade keine Zeit dafür, tut der
         // Aufruf nichts.
@@ -161,6 +167,7 @@ extension AppModel {
         // bisher gar nicht eingereiht war, bekommt eine Gelegenheit.
         if !wasReady {
             factsDeferred.removeAll()
+            tagsFailed.removeAll()
             factsBackfilled = false
             await queueMissingFacts()
         }
@@ -754,8 +761,8 @@ extension AppModel {
                 lines.append(entry)
             }
         }
-        if !profile.confirmed.isEmpty {
-            lines.append("Interessen: " + profile.confirmed.map(\.label).joined(separator: ", "))
+        if !profile.followed.isEmpty {
+            lines.append("Interessen: " + profile.followed.map(\.label).joined(separator: ", "))
         }
         let ownNotes = filter.isUnrestricted
             ? highlights
@@ -1513,7 +1520,7 @@ extension AppModel {
     /// Lohnt es, Folgen einzureihen? Wird das Modell nur noch vorbereitet,
     /// warten sie darauf. Fehlt es ganz, etwa weil Apple Intelligence aus
     /// ist, reiht die App nichts ein und sagt im Reiter „Fakten“, warum.
-    private var factsModelExpected: Bool {
+    var factsModelExpected: Bool {
         switch modelStatus.resolve(.extract) {
         case .success: true
         case .failure(let reason): reason == .modelNotReady
@@ -1536,6 +1543,8 @@ extension AppModel {
     public func requestFacts(for episode: Episode) {
         var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
         settled.remove(episode.id)
+        var tagsSettled = StoredEpisodeIDs(key: Self.tagsSettledKey)
+        tagsSettled.remove(episode.id)
         factsIssues[episode.id] = nil
         enqueueFacts(episode, requested: true)
     }
@@ -1573,8 +1582,13 @@ extension AppModel {
     /// Gerät erst, wenn nach `factsSyncGrace` noch immer keine da sind.
     /// Beim Start gilt das nicht: was dann fehlt, fehlt schon länger.
     func queueMissingFacts() async {
-        guard automaticFacts, isLoaded, factsModelExpected,
-              let withFacts = try? await store.episodeIDsWithFacts() else { return }
+        guard automaticFacts, isLoaded, let withFacts = try? await store.episodeIDsWithFacts() else { return }
+        // Tags brauchen nur ein Modell für Tags. Auf einem Gerät ohne
+        // Gerätemodell, aber mit Private Cloud Compute, gibt es sie trotzdem.
+        guard factsModelExpected else {
+            await queueMissingChapterTags(withFacts: withFacts)
+            return
+        }
         let immediately = !factsBackfilled
         factsBackfilled = true
         let settled = StoredEpisodeIDs(key: Self.factsSettledKey)
@@ -1605,6 +1619,8 @@ extension AppModel {
                 enqueueFacts(episode)
             }
         }
+        // Folgen mit Fakten, deren Kapitel noch keine Tags haben.
+        await queueMissingChapterTags(withFacts: withFacts)
         // Auch was schon wartete, etwa nach abgelaufener Hintergrundzeit.
         startFactsWorker()
     }
@@ -1613,6 +1629,7 @@ extension AppModel {
     /// heraus. Angefordertes und was gerade läuft, bleibt.
     func dropAutomaticFacts() {
         factsQueue.removeAll { !factsRequested.contains($0.id) }
+        tagsQueue.removeAll()
     }
 
     /// Nimmt eine gelöschte Folge aus der Warteschlange der Fakten.
@@ -1624,6 +1641,7 @@ extension AppModel {
         factsMissingSince[id] = nil
         // Auch die gemerkten Lücken sind aus der Folge entstanden.
         Self.setFactGaps([], for: id)
+        dropFromTagsQueue(id)
     }
 
     /// Startet die Arbeit an den Fakten, wenn sie nicht schon läuft. Sie
@@ -1631,7 +1649,8 @@ extension AppModel {
     /// keines auf. Ohne Zeit dafür, also im Hintergrund ohne Zusage des
     /// Systems, wartet die Warteschlange, bis die App wieder vorn ist.
     func startFactsWorker() {
-        guard factsMayRun, factsTask == nil, !factsQueue.isEmpty else { return }
+        guard factsTask == nil,
+              (factsMayRun && !factsQueue.isEmpty) || (tagsMayRun && !tagsQueue.isEmpty) else { return }
         factsTask = Task(priority: .utility) { [weak self] in
             await self?.runFactsQueue()
             // Angehalten, weil die App in den Hintergrund ging. Kam sie
@@ -1728,6 +1747,8 @@ extension AppModel {
     /// das System Hintergrundzeit gibt.
     func pauseFactsWithoutTime() {
         guard !factsMayRun else { return }
+        // Hat nur die Aufgabe für Tags Zeit, halten die Fakten an, die Tags nicht.
+        guard gatheringFacts != nil || !tagsMayRun else { return }
         factsTask?.cancel()
     }
 
@@ -1753,62 +1774,73 @@ extension AppModel {
         }
         // Ein zweiter Versuch je Folge und Lauf, danach erst beim nächsten Start.
         var retried: Set<EpisodeID> = []
-        while !Task.isCancelled, !factsQueue.isEmpty {
-            // Vor jeder Folge: das Modell kann bereit geworden oder weggefallen sein.
-            await refreshModelStatus()
-            if case .failure(let reason) = modelStatus.resolve(.extract) {
-                factsWait = String(localized: "wartet: \(reason.message)")
-                return
-            }
-            factsWait = nil
-            // Während der Prüfung kann die Folge gelöscht worden sein.
-            guard !Task.isCancelled, !factsQueue.isEmpty else { break }
-            let next = factsQueue.removeFirst()
-            let requested = factsRequested.remove(next.id) != nil
-            gatheringFacts = next
-            let outcome = await prepareFacts(for: next, force: requested)
-            gatheringFacts = nil
-            switch outcome {
-            case .stored, .nothingToDo:
-                factsIssues[next.id] = nil
-                factsMissingSince[next.id] = nil
-            case .noFacts(let note):
-                factsIssues[next.id] = note
-                var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
-                settled.insert(next.id)
-            case .failed(let note), .partial(let note):
-                factsIssues[next.id] = note ?? String(localized: "Die Fakten konnten nicht ermittelt werden.")
-                // Wer selbst gefragt hat, hat den Grund gesehen und entscheidet
-                // selbst. Gemerkte Lücken holt ein späterer Lauf trotzdem nach.
-                guard !requested else { continue }
-                // Im Hintergrund nicht zurückstellen: dort ist das Modell eher
-                // ausgelastet. Ist die App wieder vorn, kommt die Folge wieder dran.
-                if retried.insert(next.id).inserted {
-                    factsQueue.append(next)
-                } else if appInForeground {
-                    factsDeferred.insert(next.id)
-                } else {
-                    // Ohne die Wartezeit für Fakten von anderen Geräten.
-                    factsMissingSince[next.id] = .distantPast
+        repeat {
+            while !Task.isCancelled, factsMayRun, !factsQueue.isEmpty {
+                // Vor jeder Folge: das Modell kann bereit geworden oder weggefallen sein.
+                await refreshModelStatus()
+                if case .failure(let reason) = modelStatus.resolve(.extract) {
+                    factsWait = String(localized: "wartet: \(reason.message)")
+                    // Tags können mit Private Cloud Compute trotzdem weitergehen.
+                    await runTagsBacklog(ignoringFacts: true)
+                    return
                 }
-                // Meist ist das Modell ausgelastet. Etwas Luft lassen.
-                await pauseBetweenFactRuns()
-            case .modelUnavailable(let reason):
-                factsQueue.insert(next, at: 0)
-                if requested { factsRequested.insert(next.id) }
-                factsWait = String(localized: "wartet: \(reason.message)")
-                return
-            case .cancelled:
-                factsQueue.insert(next, at: 0)
-                if requested { factsRequested.insert(next.id) }
-                return
+                factsWait = nil
+                // Während der Prüfung kann die Folge gelöscht worden sein.
+                guard !Task.isCancelled, !factsQueue.isEmpty else { break }
+                let next = factsQueue.removeFirst()
+                let requested = factsRequested.remove(next.id) != nil
+                gatheringFacts = next
+                let outcome = await prepareFacts(for: next, force: requested)
+                gatheringFacts = nil
+                // Gleich danach die Tags der Kapitel, dieselbe Folge, dieselbe Arbeit.
+                switch outcome {
+                case .stored, .partial, .noFacts: await prepareChapterTags(for: next)
+                default: break
+                }
+                switch outcome {
+                case .stored, .nothingToDo:
+                    factsIssues[next.id] = nil
+                    factsMissingSince[next.id] = nil
+                case .noFacts(let note):
+                    factsIssues[next.id] = note
+                    var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
+                    settled.insert(next.id)
+                case .failed(let note), .partial(let note):
+                    factsIssues[next.id] = note ?? String(localized: "Die Fakten konnten nicht ermittelt werden.")
+                    // Wer selbst gefragt hat, hat den Grund gesehen und entscheidet
+                    // selbst. Gemerkte Lücken holt ein späterer Lauf trotzdem nach.
+                    guard !requested else { continue }
+                    // Im Hintergrund nicht zurückstellen: dort ist das Modell eher
+                    // ausgelastet. Ist die App wieder vorn, kommt die Folge wieder dran.
+                    if retried.insert(next.id).inserted {
+                        factsQueue.append(next)
+                    } else if appInForeground {
+                        factsDeferred.insert(next.id)
+                    } else {
+                        // Ohne die Wartezeit für Fakten von anderen Geräten.
+                        factsMissingSince[next.id] = .distantPast
+                    }
+                    // Meist ist das Modell ausgelastet. Etwas Luft lassen.
+                    await pauseBetweenFactRuns()
+                case .modelUnavailable(let reason):
+                    factsQueue.insert(next, at: 0)
+                    if requested { factsRequested.insert(next.id) }
+                    factsWait = String(localized: "wartet: \(reason.message)")
+                    return
+                case .cancelled:
+                    factsQueue.insert(next, at: 0)
+                    if requested { factsRequested.insert(next.id) }
+                    return
+                }
             }
-        }
+            // Keine Folge wartet auf Fakten: die Tags, die noch fehlen.
+            await runTagsBacklog()
+        } while !Task.isCancelled && factsMayRun && !factsQueue.isEmpty
     }
 
     /// Eine Minute Pause nach einem Fehlschlag. Wer inzwischen selbst eine
     /// Folge anfordert, wartet nicht darauf.
-    private func pauseBetweenFactRuns() async {
+    func pauseBetweenFactRuns() async {
         for _ in 0..<12 {
             if Task.isCancelled { return }
             if let first = factsQueue.first, factsRequested.contains(first.id) { return }

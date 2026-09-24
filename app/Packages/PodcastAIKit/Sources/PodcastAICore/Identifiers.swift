@@ -54,6 +54,7 @@ public enum SmartFeedSubject {}
 public enum PersonalEpisodeSubject {}
 public enum PlaybackPlanSubject {}
 public enum KnowledgeNodeSubject {}
+public enum ChapterTagSubject {}
 
 public typealias SourceID = TypedID<SourceSubject>
 public typealias EpisodeID = TypedID<EpisodeSubject>
@@ -68,6 +69,7 @@ public typealias SmartFeedID = TypedID<SmartFeedSubject>
 public typealias PersonalEpisodeID = TypedID<PersonalEpisodeSubject>
 public typealias PlaybackPlanID = TypedID<PlaybackPlanSubject>
 public typealias KnowledgeNodeID = TypedID<KnowledgeNodeSubject>
+public typealias ChapterTagID = TypedID<ChapterTagSubject>
 
 /// Deterministischer Hash ohne CryptoKit, damit die Domäne plattformfrei bleibt.
 ///

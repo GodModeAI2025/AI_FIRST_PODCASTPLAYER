@@ -494,6 +494,24 @@ public final class AppModel {
     /// sie ohne Wartezeit ein.
     @ObservationIgnored var factsBackfilled = false
 
+    // MARK: Tags je Kapitel (Ablauf in AppModel+Tagging.swift)
+
+    /// Folgen, deren Kapitel noch Tags bekommen, neueste zuerst. Dieselbe
+    /// Arbeit wie die Fakten nimmt sie mit, wenn keine Folge auf Fakten wartet.
+    @ObservationIgnored var tagsQueue: [Episode] = []
+    /// Folgen, die gerade eingeordnet werden.
+    @ObservationIgnored var taggingInProgress: Set<EpisodeID> = []
+    /// Folgen, deren Einordnung in diesem Start an Last oder Zeit gescheitert
+    /// ist. Die Bibliothek reiht sie erst nach dem nächsten Start wieder ein.
+    @ObservationIgnored var tagsFailed: Set<EpisodeID> = []
+    /// Folgen, deren Kapitel-Tags in diesem Start schon zum aktuellen
+    /// Transkript passen. Das Einreihen fragt für sie nicht jedes Mal alle
+    /// Belege ab. Ein neues Transkript nimmt die Folge wieder heraus.
+    @ObservationIgnored var tagsCurrent: Set<EpisodeID> = []
+    /// Die leichte Hintergrundaufgabe `com.podcastai.tagging` läuft. Sie gibt
+    /// nur den Tags Zeit, nicht den Fakten.
+    @ObservationIgnored var tagGrants = 0
+
     /// Fakten nach dem Transkript von selbst sammeln, auch für ältere
     /// Folgen, denen sie noch fehlen.
     public var automaticFacts: Bool {
@@ -787,6 +805,8 @@ public final class AppModel {
         // wartete, gehörte zum alten Speicher, und gesucht wird ohne Wartezeit.
         restoreAttempted = false
         factsQueue = []
+        tagsQueue = []
+        tagsCurrent = []
         factsBackfilled = false
         await load()
     }
@@ -1694,6 +1714,7 @@ public final class AppModel {
                 return false
             }
             analyzedEpisodes.insert(episode.id)
+            transcriptChangedForTags(episode.id)
             // Die Fakten kommen in ihre eigene Warteschlange, vor dem ersten
             // `await`: eine Löschung danach nimmt sie dort wieder heraus. Das
             // nächste Transkript wartet nicht auf sie.
@@ -1846,6 +1867,7 @@ public final class AppModel {
             captionFailures[episode.id.rawValue] = nil
             supadataRestingUntil = nil
             analyzedEpisodes.insert(episode.id)
+            transcriptChangedForTags(episode.id)
             stages[episode.id] = .evidenceExtracted
             stageDetails[episode.id] = origin.sourceLabel
             // Die Fassung des Videos kennt jetzt ihre Kennung; Stellen daraus
@@ -1953,8 +1975,18 @@ public final class AppModel {
     /// Themen an.
     @discardableResult
     public func addInterest(_ label: String, kind: InterestKind) async -> InterestID? {
-        let interest = Interest(label: label, kind: kind, origin: .confirmedByUser)
+        var interest = Interest(label: label, kind: kind, origin: .confirmedByUser)
         do {
+            // Gibt es das Tag schon unter diesem Schlüssel oder als Alias,
+            // heißt Anlegen folgen. Sonst stünde es bis zum nächsten
+            // Bereinigen doppelt da.
+            if let existing = try await store.resolveTag(label),
+               let known = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+                   .interests.first(where: { $0.id == existing.id }) {
+                interest = known
+                interest.stance = .follow
+                interest.origin = .confirmedByUser
+            }
             try await store.upsert(interest: interest)
             try await reloadProfile()
         } catch {
@@ -1998,6 +2030,20 @@ public final class AppModel {
             }
         }
         return Array(result.prefix(10))
+    }
+
+    /// Plus oder Minus an einem Tag. Minus löscht nichts, das Tag bleibt
+    /// neutral in `profile.tags`, fällt aber aus „Für dich“ und den
+    /// Themen-Updates heraus.
+    public func setTagStance(_ stance: TagStance, for id: InterestID) async {
+        do {
+            try await store.setStance(stance, forTag: id)
+            try await reloadProfile()
+        } catch {
+            lastError = UserFacingError.describe(error)
+            return
+        }
+        await refreshRelevantToday()
     }
 
     public func removeInterest(_ id: InterestID) async {

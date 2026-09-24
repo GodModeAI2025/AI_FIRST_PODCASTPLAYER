@@ -31,6 +31,8 @@ public final class BackgroundWork {
 
     public static let refreshIdentifier = "com.podcastai.refresh"
     public static let analysisIdentifier = "com.podcastai.analysis"
+    /// Leichte Aufgabe nur für die Tags je Kapitel, ohne Strom.
+    public static let taggingIdentifier = "com.podcastai.tagging"
 
     private let model: AppModel
 
@@ -72,6 +74,18 @@ public final class BackgroundWork {
                 self.handleAnalysis(processing)
             }
         }
+
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: Self.taggingIdentifier, using: .main
+        ) { task in
+            MainActor.assumeIsolated {
+                guard let processing = task as? BGProcessingTask else {
+                    task.setTaskCompleted(success: false)
+                    return
+                }
+                self.handleTagging(processing)
+            }
+        }
     }
 
     public func scheduleRefresh() {
@@ -90,6 +104,19 @@ public final class BackgroundWork {
         request.requiresNetworkConnectivity = true
         request.requiresExternalPower = true
         request.earliestBeginDate = Date().addingTimeInterval(60 * 15)
+        submit(request)
+    }
+
+    /// Tags je Kapitel für die übrige Bibliothek. Leichter als die Analyse:
+    /// ein Aufruf wählt nur aus einer Liste, deshalb ohne Strom und ohne
+    /// Netz. Das System darf die Aufgabe trotzdem auf später legen, wenn der
+    /// Akku es verlangt. Ohne Strom bleibt die CPU-Überwachung des Systems
+    /// an; läuft die Zeit ab, bleibt der Stand der Folge gemerkt.
+    public func scheduleTagging() {
+        let request = BGProcessingTaskRequest(identifier: Self.taggingIdentifier)
+        request.requiresNetworkConnectivity = false
+        request.requiresExternalPower = false
+        request.earliestBeginDate = Date().addingTimeInterval(60 * 30)
         submit(request)
     }
 
@@ -153,6 +180,23 @@ public final class BackgroundWork {
         }
     }
 
+    private func handleTagging(_ task: BGProcessingTask) {
+        scheduleTagging()
+
+        let work = Task { @MainActor in
+            await model.ensureLoaded()
+            // Nur Tags. Fakten und Themen-Updates bleiben der Aufgabe mit Strom.
+            await model.processPendingTags()
+        }
+        task.expirationHandler = {
+            work.cancel()
+        }
+        Task { @MainActor in
+            _ = await work.result
+            task.setTaskCompleted(success: !work.isCancelled)
+        }
+    }
+
     #else
 
     /// Auf dem Mac gibt es keinen BGTaskScheduler — dort läuft die App als
@@ -162,6 +206,7 @@ public final class BackgroundWork {
     public func register() {}
     public func scheduleRefresh() {}
     public func scheduleAnalysis() {}
+    public func scheduleTagging() {}
 
     #endif
 }

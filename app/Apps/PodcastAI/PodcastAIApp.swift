@@ -58,6 +58,7 @@ struct PodcastAIApp: App {
                     // Ohne diesen ersten Auftrag lief die Analyse-Aufgabe nie,
                     // und kein Themen-Update entstand im Hintergrund.
                     background.scheduleAnalysis()
+                    background.scheduleTagging()
                     // Erst nach dem Laden: vorher kennt das Modell keine
                     // Quellen, und die Aktualisierung beim Start fiele aus.
                     await AutoRefresh.run(for: model)

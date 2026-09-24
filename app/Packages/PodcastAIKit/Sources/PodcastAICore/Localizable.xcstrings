@@ -1,838 +1,854 @@
 {
-  "sourceLanguage": "de",
-  "strings": {
-    "%lld Min": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Min"
+  "sourceLanguage" : "de",
+  "strings" : {
+    "%lld Min" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Min"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld min"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
           }
         }
       }
     },
-    "%lld Sek": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Sek"
+    "%lld Sek" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Sek"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld sec"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld sec"
           }
         }
       }
     },
-    "%lld Std": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld Std"
+    "%lld Std" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Std"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld hr"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld hr"
           }
         }
       }
     },
-    "%lld Std %lld Min": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld Std %2$lld Min"
+    "%lld Std %lld Min" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld Std %2$lld Min"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld hr %2$lld min"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld hr %2$lld min"
           }
         }
       }
     },
-    "%lld ausgewählte Folgen": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld ausgewählte Folgen"
+    "%lld ausgewählte Folgen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ausgewählte Folgen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld selected episodes"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld selected episodes"
           }
         }
       }
     },
-    "1 ausgewählte Folge": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 ausgewählte Folge"
+    "1 ausgewählte Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 ausgewählte Folge"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 selected episode"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 selected episode"
           }
         }
       }
     },
-    "Ab %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ab %@"
+    "Ab %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ab %@"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Since %@"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Since %@"
           }
         }
       }
     },
-    "Adressen im eigenen Netz werden nicht abgerufen (%@).": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adressen im eigenen Netz werden nicht abgerufen (%@)."
+    "Adressen im eigenen Netz werden nicht abgerufen (%@)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adressen im eigenen Netz werden nicht abgerufen (%@)."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Local network addresses aren't loaded (%@)."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local network addresses aren't loaded (%@)."
           }
         }
       }
     },
-    "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen."
+    "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adressen mit eingebetteten Zugangsdaten werden nicht abgerufen."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Addresses with embedded credentials aren't loaded."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addresses with embedded credentials aren't loaded."
           }
         }
       }
     },
-    "Adressen vom Typ „%@“ werden nicht abgerufen.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Adressen vom Typ „%@“ werden nicht abgerufen."
+    "Adressen vom Typ „%@“ werden nicht abgerufen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adressen vom Typ „%@“ werden nicht abgerufen."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Addresses of type \"%@\" aren't loaded."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Addresses of type \"%@\" aren't loaded."
           }
         }
       }
     },
-    "Außerhalb des gewählten Bereichs": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Außerhalb des gewählten Bereichs"
+    "Außerhalb des gewählten Bereichs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Außerhalb des gewählten Bereichs"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Outside the selected scope"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outside the selected scope"
           }
         }
       }
     },
-    "Bereits bekannt": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bereits bekannt"
+    "Bereits bekannt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereits bekannt"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Already Known"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already Known"
           }
         }
       }
     },
-    "Bereits gehört": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bereits gehört"
+    "Bereits gehört" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereits gehört"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Already played"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already played"
           }
         }
       }
     },
-    "Bezieht sich auf eine veraltete Fassung": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bezieht sich auf eine veraltete Fassung"
+    "Bezieht sich auf eine veraltete Fassung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bezieht sich auf eine veraltete Fassung"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Refers to an outdated version"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refers to an outdated version"
           }
         }
       }
     },
-    "Der Server hat mit Status %@ geantwortet.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der Server hat mit Status %@ geantwortet."
+    "Der Server hat mit Status %@ geantwortet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Server hat mit Status %@ geantwortet."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The server responded with status %@."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server responded with status %@."
           }
         }
       }
     },
-    "Die Adresse hat keinen Server.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Adresse hat keinen Server."
+    "Die Adresse hat keinen Server." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Adresse hat keinen Server."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The address has no host."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address has no host."
           }
         }
       }
     },
-    "Die Antwort war leer.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Antwort war leer."
+    "Die Antwort war leer." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Antwort war leer."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The response was empty."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The response was empty."
           }
         }
       }
     },
-    "Die Antwort überschreitet die Obergrenze von %@.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Antwort überschreitet die Obergrenze von %@."
+    "Die Antwort überschreitet die Obergrenze von %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Antwort überschreitet die Obergrenze von %@."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The response exceeds the %@ limit."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The response exceeds the %@ limit."
           }
         }
       }
     },
-    "Die Weiterleitung wurde abgelehnt: %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die Weiterleitung wurde abgelehnt: %@"
+    "Die Weiterleitung wurde abgelehnt: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Weiterleitung wurde abgelehnt: %@"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The redirect was blocked: %@"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The redirect was blocked: %@"
           }
         }
       }
     },
-    "Diese Adresse wird nicht abgerufen: %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Diese Adresse wird nicht abgerufen: %@"
+    "Diese Adresse wird nicht abgerufen: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Adresse wird nicht abgerufen: %@"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This address won't be loaded: %@"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This address won't be loaded: %@"
           }
         }
       }
     },
-    "Diese Fassung erlaubt keine exakten Sprünge": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Diese Fassung erlaubt keine exakten Sprünge"
+    "Diese Fassung erlaubt keine exakten Sprünge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Fassung erlaubt keine exakten Sprünge"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This version doesn't allow precise seeking"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This version doesn't allow precise seeking"
           }
         }
       }
     },
-    "Direkte IP-Adressen werden nicht abgerufen (%@).": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Direkte IP-Adressen werden nicht abgerufen (%@)."
+    "Direkte IP-Adressen werden nicht abgerufen (%@)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direkte IP-Adressen werden nicht abgerufen (%@)."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Direct IP addresses aren't loaded (%@)."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct IP addresses aren't loaded (%@)."
           }
         }
       }
     },
-    "Eigene Notiz": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eigene Notiz"
+    "Eigene Notiz" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigene Notiz"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your note"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your note"
           }
         }
       }
     },
-    "Fundstelle nicht im freigegebenen Bestand": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fundstelle nicht im freigegebenen Bestand"
+    "Fundstelle nicht im freigegebenen Bestand" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fundstelle nicht im freigegebenen Bestand"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Passage isn't in the permitted material"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passage isn't in the permitted material"
           }
         }
       }
     },
-    "Für diese Stelle liegt kein Zeitbezug vor": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Für diese Stelle liegt kein Zeitbezug vor"
+    "Für diese Stelle liegt kein Zeitbezug vor" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für diese Stelle liegt kein Zeitbezug vor"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No timing available for this passage"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No timing available for this passage"
           }
         }
       }
     },
-    "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes."
+    "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für diesen Kanal sind nur Metadaten und die Wiedergabe im offiziellen Player zugänglich. Ohne Audiozugang entstehen keine Timecodes."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "For this channel, only metadata and playback in the official player are available. Without access to the audio, no timecodes can be created."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For this channel, only metadata and playback in the official player are available. Without access to the audio, no timecodes can be created."
           }
         }
       }
     },
-    "Gesamtes verfügbares Archiv": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gesamtes verfügbares Archiv"
+    "Gesamtes verfügbares Archiv" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesamtes verfügbares Archiv"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Entire available archive"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entire available archive"
           }
         }
       }
     },
-    "KI-Ableitung": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "KI-Ableitung"
+    "KI-Ableitung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KI-Ableitung"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI-derived"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI-derived"
           }
         }
       }
     },
-    "Letzte %lld Folgen": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Letzte %lld Folgen"
+    "Letzte %lld Folgen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte %lld Folgen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Latest %lld episodes"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest %lld episodes"
           }
         }
       }
     },
-    "Letzte Folge": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Letzte Folge"
+    "Letzte Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte Folge"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Latest episode"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest episode"
           }
         }
       }
     },
-    "Medium derzeit nicht verfügbar": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Medium derzeit nicht verfügbar"
+    "Medium derzeit nicht verfügbar" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medium derzeit nicht verfügbar"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Media currently unavailable"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Media currently unavailable"
           }
         }
       }
     },
-    "Mehr davon": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mehr davon"
+    "Mehr davon" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehr davon"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "More Like This"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More Like This"
           }
         }
       }
     },
-    "Nicht aus dieser Quelle": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nicht aus dieser Quelle"
+    "Nicht aus dieser Quelle" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht aus dieser Quelle"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not from This Source"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not from This Source"
           }
         }
       }
     },
-    "Nicht relevant": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nicht relevant"
+    "Nicht relevant" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht relevant"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not Relevant"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Relevant"
           }
         }
       }
     },
-    "Nur die Standardports sind zugelassen, nicht %@.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nur die Standardports sind zugelassen, nicht %@."
+    "Nur die Standardports sind zugelassen, nicht %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur die Standardports sind zugelassen, nicht %@."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Only standard ports are allowed, not %@."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only standard ports are allowed, not %@."
           }
         }
       }
     },
-    "Nur neue Folgen": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nur neue Folgen"
+    "Nur neue Folgen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur neue Folgen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New episodes only"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New episodes only"
           }
         }
       }
     },
-    "Originaltext": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Originaltext"
+    "Originaltext" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Originaltext"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Original text"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original text"
           }
         }
       }
     },
-    "Passt nicht mehr ins Zeitbudget": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Passt nicht mehr ins Zeitbudget"
+    "Passt nicht mehr ins Zeitbudget" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passt nicht mehr ins Zeitbudget"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Doesn't fit in the time budget"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Doesn't fit in the time budget"
           }
         }
       }
     },
-    "Quellenangabe": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Quellenangabe"
+    "Quellenangabe" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quellenangabe"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Source info"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source info"
           }
         }
       }
     },
-    "Transkript des Anbieters": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Transkript des Anbieters"
+    "Transkript des Anbieters" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transkript des Anbieters"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Publisher's transcript"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publisher's transcript"
           }
         }
       }
     },
-    "Untertitel des Beitrags über Supadata": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Untertitel des Beitrags über Supadata"
+    "Untertitel des Beitrags über Supadata" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untertitel des Beitrags über Supadata"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Post captions via Supadata"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post captions via Supadata"
           }
         }
       }
     },
-    "Untertitel von YouTube über Supadata": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Untertitel von YouTube über Supadata"
+    "Untertitel von YouTube über Supadata" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untertitel von YouTube über Supadata"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube captions via Supadata"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube captions via Supadata"
           }
         }
       }
     },
-    "Untertitel von YouTube über Supadata, an die Folge angepasst": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Untertitel von YouTube über Supadata, an die Folge angepasst"
+    "Untertitel von YouTube über Supadata, an die Folge angepasst" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untertitel von YouTube über Supadata, an die Folge angepasst"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube captions via Supadata, matched to this episode"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube captions via Supadata, matched to this episode"
           }
         }
       }
     },
-    "aus älteren Daten übernommen": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "aus älteren Daten übernommen"
+    "aus dem Inhalt erkannt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aus dem Inhalt erkannt"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "carried over from older data"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "detected in the content"
           }
         }
       }
     },
-    "genau erfasst": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "genau erfasst"
+    "aus älteren Daten übernommen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aus älteren Daten übernommen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "tracked precisely"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "carried over from older data"
           }
         }
       }
     },
-    "keines": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "keines"
+    "genau erfasst" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "genau erfasst"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "none"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tracked precisely"
           }
         }
       }
     },
-    "ohne Transkript": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ohne Transkript"
+    "keines" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "keines"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "no transcript"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "none"
           }
         }
       }
     },
-    "teilweise transkribiert (%@)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "teilweise transkribiert (%@)"
+    "ohne Transkript" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ohne Transkript"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "partially transcribed (%@)"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no transcript"
           }
         }
       }
     },
-    "unzulässig": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "unzulässig"
+    "teilweise transkribiert (%@)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "teilweise transkribiert (%@)"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "not allowed"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "partially transcribed (%@)"
           }
         }
       }
     },
-    "vollständig transkribiert": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "vollständig transkribiert"
+    "unzulässig" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unzulässig"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "fully transcribed"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "not allowed"
           }
         }
       }
     },
-    "von PodcastAI vorgeschlagen": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "von PodcastAI vorgeschlagen"
+    "vollständig transkribiert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vollständig transkribiert"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "suggested by PodcastAI"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "fully transcribed"
           }
         }
       }
     },
-    "von dir bestätigt": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "von dir bestätigt"
+    "von PodcastAI vorgeschlagen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "von PodcastAI vorgeschlagen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "confirmed by you"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "suggested by PodcastAI"
+          }
+        }
+      }
+    },
+    "von dir bestätigt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "von dir bestätigt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "confirmed by you"
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }
