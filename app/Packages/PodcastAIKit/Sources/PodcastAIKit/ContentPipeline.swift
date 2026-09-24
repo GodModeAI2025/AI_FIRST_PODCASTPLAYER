@@ -720,5 +720,67 @@ public actor ContentPipeline {
             )
         }
     }
+
+    /// Die Kapitel, aus denen ein Themen-Update wählt.
+    ///
+    /// Hat die Bibliothek Kapitel-Tags, zählen nur sie. Erst wenn es noch
+    /// gar keine gibt, sucht `RelevanceScorer` über Stichworte, und das
+    /// Modell darf dessen Treffer nur verengen. Die Grenze je Tag setzt
+    /// hier niemand; sie greift im Publisher nach dem Hörzustand.
+    ///
+    /// `tags`: die Tags des Updates oder, ohne eigene, die gefolgten.
+    /// Für bloße Zahlen reicht weniger: `titledSections: false` spart die
+    /// Satzvektoren für die Titel abgeleiteter Abschnitte,
+    /// `modelConfirmation: false` die Rückfrage beim Modell.
+    public func editionChapters(
+        tags: Set<InterestID>,
+        profile: InterestProfile,
+        availability: ModelStatus,
+        titledSections: Bool = true,
+        modelConfirmation: Bool = true,
+        titles: [EpisodeID: EditionChapterBuilder.Titles] = [:]
+    ) async throws -> [EditionChapter] {
+        guard !tags.isEmpty else { return [] }
+        let evidence = try await store.evidenceForAnalyzedEpisodes()
+        guard !evidence.isEmpty else { return [] }
+        let chapterTags = try await store.allChapterTags()
+
+        var matches: [RelevanceMatch] = []
+        var episodeIDs: Set<EpisodeID>
+        if chapterTags.isEmpty {
+            let unlimited = RelevanceScorer(threshold: scorer.threshold, maximumPerInterest: .max)
+            matches = unlimited.score(evidence: evidence, profile: profile)
+                .filter { tags.contains($0.interestID) }
+            let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            if modelConfirmation, case .success = availability.resolve(.recommend), !matches.isEmpty {
+                let shortlist = matches.compactMap { byID[$0.evidenceID] }
+                if let selection = try? await KnowledgeExtractor()
+                    .selectRelevant(from: shortlist, profile: profile, availability: availability),
+                   !selection.evidenceIDs.isEmpty {
+                    let confirmed = Set(selection.evidenceIDs)
+                    matches = matches.filter { confirmed.contains($0.evidenceID) }
+                }
+            }
+            episodeIDs = Set(matches.compactMap { byID[$0.evidenceID]?.episodeID })
+        } else {
+            episodeIDs = Set(chapterTags.filter { tags.contains($0.interestID) }.map(\.episodeID))
+        }
+        guard !episodeIDs.isEmpty else { return [] }
+
+        let ordered = episodeIDs.sorted { $0.rawValue < $1.rawValue }
+        let episodes = try await store.episodes(ids: ordered)
+        var facts: [EpisodeFact] = []
+        for id in ordered { facts += try await store.facts(forEpisode: id) }
+        let unmeasured: ChapterSections.JumpMeasure = { _ in nil }
+        let jumps = titledSections ? ChapterSections.embeddingJumps : unmeasured
+        return EditionChapterBuilder.build(
+            evidence: evidence.filter { episodeIDs.contains($0.episodeID) },
+            chapterTags: chapterTags.filter { episodeIDs.contains($0.episodeID) },
+            episodes: Dictionary(episodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }),
+            facts: facts, titles: titles, tags: tags,
+            terms: EditionChapterBuilder.terms(for: profile.interests, tags: tags),
+            keywordMatches: matches,
+            jumps: jumps)
+    }
 }
 #endif

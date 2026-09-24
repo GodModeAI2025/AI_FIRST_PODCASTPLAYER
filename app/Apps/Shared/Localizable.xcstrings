@@ -433,6 +433,22 @@
         }
       }
     },
+    "%@: %@, verteilt auf %lld Teile." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@, verteilt auf %3$lld Teile."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@, split into %3$lld parts."
+          }
+        }
+      }
+    },
     "%@: %@." : {
       "localizations" : {
         "de" : {

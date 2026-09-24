@@ -32,17 +32,17 @@ extension SmartPodcastFeed {
 
 extension PersonalEpisodeSegment {
     public func replacingTopicIDs(_ map: [InterestID: InterestID]) -> PersonalEpisodeSegment {
-        PersonalEpisodeSegment(
-            id: id, episodeID: episodeID, mediaVersionID: mediaVersionID,
-            transcriptRevision: transcriptRevision, evidenceIDs: evidenceIDs,
-            coreRange: coreRange, playbackRange: playbackRange, virtualRange: virtualRange,
-            reason: reason, topicIDs: topicIDs.replacingInterestIDs(map),
-            contextReplay: contextReplay, sourceID: sourceID, sourceTitle: sourceTitle,
-            episodeTitle: episodeTitle, originalPublishedAt: originalPublishedAt)
+        replacing(virtualRange: virtualRange, topicIDs: topicIDs.replacingInterestIDs(map))
     }
 }
 
 extension PersonalEpisode {
+    /// Berührt die Umschreibung diese Ausgabe?
+    public func refersToTopics(in map: [InterestID: InterestID]) -> Bool {
+        segments.contains { $0.topicIDs.contains { map[$0] != nil } }
+            || overviewEntries.contains { $0.tagIDs.contains { map[$0] != nil } }
+    }
+
     /// Dieselbe Ausgabe mit umgeschriebenen Themen. Die Prüfsumme des
     /// Manifests hängt nur an Fassung und Zeiten und bleibt deshalb gleich.
     public func replacingTopicIDs(_ map: [InterestID: InterestID]) -> PersonalEpisode {
@@ -51,6 +51,10 @@ extension PersonalEpisode {
             batchKey: batchKey, title: title, subtitle: subtitle, publishedAt: publishedAt,
             publicationState: publicationState, consumptionState: consumptionState,
             segments: segments.map { $0.replacingTopicIDs(map) }, shownotes: shownotes,
-            coverAssetID: coverAssetID, coverage: coverage)
+            coverAssetID: coverAssetID, coverage: coverage, part: part,
+            overviewEntries: overviewEntries.map {
+                $0.replacing(segmentIDs: $0.segmentIDs, virtualStart: $0.virtualStart,
+                             tagIDs: $0.tagIDs.replacingInterestIDs(map))
+            })
     }
 }

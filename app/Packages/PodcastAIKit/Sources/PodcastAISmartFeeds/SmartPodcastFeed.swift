@@ -74,6 +74,21 @@ public enum PublicationPolicy: Codable, Sendable, Hashable {
     }
 }
 
+/// Wie die Tags eines Themen-Updates zusammenwirken, geprüft je Kapitel.
+public enum TagMatchMode: String, Codable, Sendable, CaseIterable {
+    /// Ein Kapitel passt, wenn es eines der Tags trägt.
+    case any
+    /// Ein Kapitel passt nur, wenn es alle Tags trägt.
+    case all
+
+    public var label: String {
+        switch self {
+        case .any: String(localized: "Eines der Tags", bundle: .module)
+        case .all: String(localized: "Alle Tags zusammen", bundle: .module)
+        }
+    }
+}
+
 /// Ein persönlicher Themenfeed: „Mein KI Update“, „Morning Knowledge“.
 public struct SmartPodcastFeed: Codable, Sendable, Identifiable, Hashable {
 
@@ -84,6 +99,9 @@ public struct SmartPodcastFeed: Codable, Sendable, Identifiable, Hashable {
     /// Die Interessen, aus denen dieser Feed gespeist wird. Mehrere Themen
     /// ergeben einen gemischten Feed, ein Thema einen fokussierten.
     public var topicIDs: [InterestID]
+    /// Ob ein Kapitel eines der Tags tragen muss oder alle. Ältere Feeds
+    /// ohne dieses Feld gelten als „eines davon“.
+    public var matchMode: TagMatchMode
 
     /// Auf welche Quellen der Feed schauen darf. Leer heißt: alle abonnierten.
     /// Ein Feed sucht niemals außerhalb des Bestands — keine Websuche.
@@ -106,7 +124,7 @@ public struct SmartPodcastFeed: Codable, Sendable, Identifiable, Hashable {
 
     public init(
         id: SmartFeedID = SmartFeedID(), title: String, subtitle: String? = nil,
-        topicIDs: [InterestID], restrictedToSourceIDs: [SourceID] = [],
+        topicIDs: [InterestID], matchMode: TagMatchMode = .any, restrictedToSourceIDs: [SourceID] = [],
         unheardFilter: UnheardFilter = .unheardSegments,
         editionMode: EditionMode = .budgeted(MediaDuration(minutes: 20)),
         publicationPolicy: PublicationPolicy = .whenNewSegments(minimumMaterial: MediaDuration(minutes: 5)),
@@ -115,12 +133,38 @@ public struct SmartPodcastFeed: Codable, Sendable, Identifiable, Hashable {
         createdAt: Date = Date(), confirmedCoverAssetID: String? = nil
     ) {
         self.id = id; self.title = title; self.subtitle = subtitle
-        self.topicIDs = topicIDs; self.restrictedToSourceIDs = restrictedToSourceIDs
+        self.topicIDs = topicIDs; self.matchMode = matchMode
+        self.restrictedToSourceIDs = restrictedToSourceIDs
         self.unheardFilter = unheardFilter; self.editionMode = editionMode
         self.publicationPolicy = publicationPolicy; self.notificationsEnabled = notificationsEnabled
         self.profileRevision = profileRevision; self.policyRevision = policyRevision
         self.createdAt = createdAt; self.confirmedCoverAssetID = confirmedCoverAssetID
     }
+
+    /// Liest auch Feeds, die eine ältere Fassung gesichert hat. Neue Felder
+    /// fehlen dort und bekommen ihren Standard, sonst verschwände der Feed
+    /// beim Laden still aus der Liste.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(SmartFeedID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        subtitle = try c.decodeIfPresent(String.self, forKey: .subtitle)
+        topicIDs = try c.decode([InterestID].self, forKey: .topicIDs)
+        matchMode = try c.decodeIfPresent(TagMatchMode.self, forKey: .matchMode) ?? .any
+        restrictedToSourceIDs = try c.decode([SourceID].self, forKey: .restrictedToSourceIDs)
+        unheardFilter = try c.decode(UnheardFilter.self, forKey: .unheardFilter)
+        editionMode = try c.decode(EditionMode.self, forKey: .editionMode)
+        publicationPolicy = try c.decode(PublicationPolicy.self, forKey: .publicationPolicy)
+        notificationsEnabled = try c.decode(Bool.self, forKey: .notificationsEnabled)
+        profileRevision = try c.decode(Revision.self, forKey: .profileRevision)
+        policyRevision = try c.decode(Revision.self, forKey: .policyRevision)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        confirmedCoverAssetID = try c.decodeIfPresent(String.self, forKey: .confirmedCoverAssetID)
+    }
+
+    /// Die Länge eines Teils, je Feed einstellbar. Ohne Budget („Alles
+    /// Ungehörte“) gibt es nur einen Teil.
+    public var partBudget: MediaDuration? { editionMode.budget }
 }
 
 /// Ein Abschnitt einer persönlichen Ausgabe.
@@ -160,6 +204,12 @@ public struct PersonalEpisodeSegment: Codable, Sendable, Hashable, Identifiable 
     public let episodeTitle: String
     /// Datum der **Originalfolge** — nicht das der persönlichen Veröffentlichung.
     public let originalPublishedAt: Date?
+    /// Das Kapitel des Originals, aus dem der Abschnitt stammt. Daran
+    /// erkennt die nächste Ausgabe, dass es schon veröffentlicht ist. Fehlt
+    /// bei Ausgaben vor 0.11.
+    public let chapterRange: MediaTimeRange?
+    /// Titel dieses Kapitels, bei abgeleiteten Abschnitten „Abschnitt 3“.
+    public let chapterTitle: String?
 
     public init(
         id: SegmentID, episodeID: EpisodeID, mediaVersionID: MediaVersionID,
@@ -167,7 +217,8 @@ public struct PersonalEpisodeSegment: Codable, Sendable, Hashable, Identifiable 
         coreRange: MediaTimeRange, playbackRange: MediaTimeRange, virtualRange: MediaTimeRange,
         reason: String, topicIDs: [InterestID], contextReplay: Bool,
         sourceID: SourceID, sourceTitle: String, episodeTitle: String,
-        originalPublishedAt: Date? = nil
+        originalPublishedAt: Date? = nil,
+        chapterRange: MediaTimeRange? = nil, chapterTitle: String? = nil
     ) {
         self.id = id; self.episodeID = episodeID; self.mediaVersionID = mediaVersionID
         self.transcriptRevision = transcriptRevision; self.evidenceIDs = evidenceIDs
@@ -176,6 +227,23 @@ public struct PersonalEpisodeSegment: Codable, Sendable, Hashable, Identifiable 
         self.contextReplay = contextReplay; self.sourceID = sourceID
         self.sourceTitle = sourceTitle; self.episodeTitle = episodeTitle
         self.originalPublishedAt = originalPublishedAt
+        self.chapterRange = chapterRange; self.chapterTitle = chapterTitle
+    }
+
+    /// Derselbe Abschnitt an anderer Stelle der Zeitachse.
+    func moved(to virtual: MediaTimeRange) -> PersonalEpisodeSegment {
+        replacing(virtualRange: virtual, topicIDs: topicIDs)
+    }
+
+    func replacing(virtualRange virtual: MediaTimeRange, topicIDs topics: [InterestID]) -> PersonalEpisodeSegment {
+        PersonalEpisodeSegment(
+            id: id, episodeID: episodeID, mediaVersionID: mediaVersionID,
+            transcriptRevision: transcriptRevision, evidenceIDs: evidenceIDs,
+            coreRange: coreRange, playbackRange: playbackRange, virtualRange: virtual,
+            reason: reason, topicIDs: topics, contextReplay: contextReplay,
+            sourceID: sourceID, sourceTitle: sourceTitle, episodeTitle: episodeTitle,
+            originalPublishedAt: originalPublishedAt,
+            chapterRange: chapterRange, chapterTitle: chapterTitle)
     }
 }
 
@@ -222,6 +290,13 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
     /// Ausgabe nicht alles enthält.
     public let coverage: EditionCoverage
 
+    /// Teil 1, 2, 3 … eines Laufs. Was nicht in die Länge eines Teils
+    /// passt, kommt in den nächsten. Ältere Ausgaben sind Teil 1.
+    public let part: Int
+    /// Die Übersicht am Anfang: je Kapitel Quelle, Folge, Datum und die
+    /// Zahl neuer Aussagen. Leer bei Ausgaben vor 0.11.
+    public let overviewEntries: [EditionOverviewEntry]
+
     public init(
         id: PersonalEpisodeID = PersonalEpisodeID(), feedID: SmartFeedID,
         revision: Revision = .initial, policyRevision: Revision,
@@ -229,7 +304,8 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
         publishedAt: Date = Date(), publicationState: PublicationState = .published,
         consumptionState: ConsumptionState = .unplayed,
         segments: [PersonalEpisodeSegment], shownotes: [ShownotesEntry],
-        coverAssetID: String? = nil, coverage: EditionCoverage
+        coverAssetID: String? = nil, coverage: EditionCoverage,
+        part: Int = 1, overviewEntries: [EditionOverviewEntry] = []
     ) {
         self.id = id; self.feedID = feedID; self.revision = revision
         self.policyRevision = policyRevision; self.batchKey = batchKey
@@ -237,12 +313,50 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
         self.publicationState = publicationState; self.consumptionState = consumptionState
         self.segments = segments; self.shownotes = shownotes
         self.coverAssetID = coverAssetID; self.coverage = coverage
+        self.part = max(1, part); self.overviewEntries = overviewEntries
         // Das Manifest belegt, aus welchen Stellen eine Ausgabe besteht.
         // Auch hier entscheidet die Prüfsumme, nicht nur benennt sie.
         self.manifestHash = SecureDigest.hex(ofOrdered: segments.map {
             "\($0.mediaVersionID.rawValue):\($0.coreRange.start.milliseconds)-\($0.coreRange.end.milliseconds)"
         })
     }
+
+    /// Liest auch Ausgaben älterer Fassungen: ohne Teil gilt Teil 1, ohne
+    /// Übersicht eine leere. Die Prüfsumme kommt aus dem Speicher und wird
+    /// nicht neu gerechnet.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(PersonalEpisodeID.self, forKey: .id)
+        feedID = try c.decode(SmartFeedID.self, forKey: .feedID)
+        revision = try c.decode(Revision.self, forKey: .revision)
+        policyRevision = try c.decode(Revision.self, forKey: .policyRevision)
+        batchKey = try c.decode(String.self, forKey: .batchKey)
+        manifestHash = try c.decode(String.self, forKey: .manifestHash)
+        title = try c.decode(String.self, forKey: .title)
+        subtitle = try c.decodeIfPresent(String.self, forKey: .subtitle)
+        publishedAt = try c.decode(Date.self, forKey: .publishedAt)
+        publicationState = try c.decode(PublicationState.self, forKey: .publicationState)
+        consumptionState = try c.decode(ConsumptionState.self, forKey: .consumptionState)
+        segments = try c.decode([PersonalEpisodeSegment].self, forKey: .segments)
+        shownotes = try c.decode([ShownotesEntry].self, forKey: .shownotes)
+        coverAssetID = try c.decodeIfPresent(String.self, forKey: .coverAssetID)
+        coverage = try c.decode(EditionCoverage.self, forKey: .coverage)
+        part = max(1, try c.decodeIfPresent(Int.self, forKey: .part) ?? 1)
+        overviewEntries = try c.decodeIfPresent([EditionOverviewEntry].self, forKey: .overviewEntries) ?? []
+    }
+
+    /// Neue Aussagen je Tag in diesem Teil, aus der Übersicht gezählt.
+    /// Ein Kapitel mit zwei Tags zählt bei beiden.
+    public var statementsByTag: [InterestID: Int] {
+        var result: [InterestID: Int] = [:]
+        for entry in overviewEntries {
+            for tag in entry.tagIDs { result[tag, default: 0] += entry.newStatementCount }
+        }
+        return result
+    }
+
+    /// Alle neuen Aussagen dieses Teils.
+    public var newStatementCount: Int { overviewEntries.reduce(0) { $0 + $1.newStatementCount } }
 
     /// Gesamtlänge der Ausgabe in ihrer eigenen Zeitachse.
     public var totalMediaDuration: MediaDuration {
@@ -340,5 +454,56 @@ public struct ShownotesEntry: Codable, Sendable, Hashable {
         self.virtualStart = virtualStart; self.title = title; self.sourceTitle = sourceTitle
         self.episodeTitle = episodeTitle; self.originalRange = originalRange
         self.evidenceIDs = evidenceIDs
+    }
+}
+
+/// Eine Zeile der Übersicht am Anfang einer Ausgabe: ein Kapitel des
+/// Originals mit Quelle, Folge, Datum und der Zahl neuer Aussagen.
+///
+/// Eine neue Aussage ist ein Fakt, dessen Beleg im neuen Teil des
+/// Abschnitts liegt. Gezählt wird beim Zusammenstellen. Danach ändert sich
+/// die Zahl nicht mehr, wie das ganze Manifest.
+public struct EditionOverviewEntry: Codable, Sendable, Hashable, Identifiable {
+    /// Die Abschnitte der Ausgabe aus diesem Kapitel. Ein langes Kapitel
+    /// kann mehrere Stellen beisteuern.
+    public let segmentIDs: [SegmentID]
+    public let episodeID: EpisodeID
+    public let sourceID: SourceID
+    public let sourceTitle: String
+    public let episodeTitle: String
+    public let chapterTitle: String?
+    /// Datum der Originalfolge.
+    public let originalPublishedAt: Date?
+    /// Wo das Kapitel in der Ausgabe beginnt.
+    public let virtualStart: MediaTime
+    public let newStatementCount: Int
+    /// Die Tags des Themen-Updates, die dieses Kapitel trägt.
+    public let tagIDs: [InterestID]
+    /// Das ganze Kapitel oder nur die passenden Stellen daraus.
+    public let isWholeChapter: Bool
+
+    public init(
+        segmentIDs: [SegmentID], episodeID: EpisodeID, sourceID: SourceID,
+        sourceTitle: String, episodeTitle: String, chapterTitle: String?,
+        originalPublishedAt: Date?, virtualStart: MediaTime, newStatementCount: Int,
+        tagIDs: [InterestID], isWholeChapter: Bool
+    ) {
+        self.segmentIDs = segmentIDs; self.episodeID = episodeID; self.sourceID = sourceID
+        self.sourceTitle = sourceTitle; self.episodeTitle = episodeTitle
+        self.chapterTitle = chapterTitle; self.originalPublishedAt = originalPublishedAt
+        self.virtualStart = virtualStart; self.newStatementCount = max(0, newStatementCount)
+        self.tagIDs = tagIDs; self.isWholeChapter = isWholeChapter
+    }
+
+    public var id: String { segmentIDs.first?.rawValue ?? episodeID.rawValue }
+
+    func replacing(
+        segmentIDs: [SegmentID], virtualStart: MediaTime, tagIDs: [InterestID]
+    ) -> EditionOverviewEntry {
+        EditionOverviewEntry(
+            segmentIDs: segmentIDs, episodeID: episodeID, sourceID: sourceID,
+            sourceTitle: sourceTitle, episodeTitle: episodeTitle, chapterTitle: chapterTitle,
+            originalPublishedAt: originalPublishedAt, virtualStart: virtualStart,
+            newStatementCount: newStatementCount, tagIDs: tagIDs, isWholeChapter: isWholeChapter)
     }
 }

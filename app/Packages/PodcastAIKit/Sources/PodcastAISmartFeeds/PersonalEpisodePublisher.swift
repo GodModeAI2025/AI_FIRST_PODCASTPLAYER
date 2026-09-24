@@ -525,17 +525,16 @@ extension PersonalEpisodePublisher {
                 end: MediaTime(milliseconds: cursor + length)
             )
             cursor += length + options.transition.milliseconds
-            return PersonalEpisodeSegment(
-                id: segment.id, episodeID: segment.episodeID,
-                mediaVersionID: segment.mediaVersionID,
-                transcriptRevision: segment.transcriptRevision,
-                evidenceIDs: segment.evidenceIDs,
-                coreRange: segment.coreRange, playbackRange: segment.playbackRange,
-                virtualRange: virtual, reason: segment.reason, topicIDs: segment.topicIDs,
-                contextReplay: segment.contextReplay, sourceID: segment.sourceID,
-                sourceTitle: segment.sourceTitle, episodeTitle: segment.episodeTitle,
-                originalPublishedAt: segment.originalPublishedAt
-            )
+            return segment.moved(to: virtual)
+        }
+
+        // Die Übersicht folgt: Kapitel ohne übrigen Abschnitt fallen weg,
+        // die übrigen rücken mit ihren Abschnitten nach vorn.
+        let starts = Dictionary(uniqueKeysWithValues: segments.map { ($0.id, $0.virtualRange.start) })
+        let overview = episode.overviewEntries.compactMap { entry -> EditionOverviewEntry? in
+            let ids = entry.segmentIDs.filter { starts[$0] != nil }
+            guard let first = ids.first, let start = starts[first] else { return nil }
+            return entry.replacing(segmentIDs: ids, virtualStart: start, tagIDs: entry.tagIDs)
         }
 
         let removedCount = episode.segments.count - kept.count
@@ -555,7 +554,8 @@ extension PersonalEpisodePublisher {
             subtitle: EditionTitleBuilder().subtitle(for: segments, coverage: coverage),
             publishedAt: episode.publishedAt, publicationState: episode.publicationState,
             segments: segments, shownotes: ShownotesBuilder().build(from: segments),
-            coverAssetID: episode.coverAssetID, coverage: coverage
+            coverAssetID: episode.coverAssetID, coverage: coverage,
+            part: episode.part, overviewEntries: overview
         )
         pruned.consumptionState = episode.consumptionState
         return pruned

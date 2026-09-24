@@ -235,7 +235,7 @@ extension LibraryStore {
 
         for row in try modelContext.fetch(FetchDescriptor<StoredPersonalEpisode>()) {
             guard let edition = try? Self.decoder.decode(PersonalEpisode.self, from: row.payload),
-                  edition.segments.contains(where: { $0.topicIDs.contains { map[$0] != nil } })
+                  edition.refersToTopics(in: map)
             else { continue }
             let payload = try Self.encoder.encode(edition.replacingTopicIDs(map))
             if payload != row.payload { row.payload = payload }

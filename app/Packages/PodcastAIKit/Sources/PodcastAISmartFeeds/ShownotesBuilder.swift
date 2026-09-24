@@ -36,6 +36,9 @@ public struct ShownotesBuilder: Sendable {
     /// Kurzer Kapiteltitel aus dem Relevanzgrund. Der Grund ist bereits ein
     /// vollständiger Satz; hier wird daraus eine Überschrift.
     private func chapterTitle(for segment: PersonalEpisodeSegment) -> String {
+        if let title = segment.chapterTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+            return Self.truncated(title, to: 70)
+        }
         let reason = segment.reason.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !reason.isEmpty else { return segment.episodeTitle }
 
@@ -55,6 +58,14 @@ public struct ShownotesBuilder: Sendable {
 
         lines.append("")
         lines.append(episode.coverage.label)
+
+        let overview = overviewLines(for: episode)
+        if !overview.isEmpty {
+            lines.append("")
+            lines.append("### " + String(localized: "Übersicht", bundle: .module))
+            lines.append(contentsOf: overview)
+        }
+
         lines.append("")
         lines.append("### " + String(localized: "Kapitel", bundle: .module))
 
@@ -78,6 +89,23 @@ public struct ShownotesBuilder: Sendable {
             lines.append("_\(note)_")
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Je Kapitel eine Zeile: Quelle, Folge, Datum und die Zahl neuer
+    /// Aussagen. Dieselben Werte zeigt die Übersichtskarte.
+    public func overviewLines(for episode: PersonalEpisode) -> [String] {
+        episode.overviewEntries.map { entry in
+            var parts = [entry.sourceTitle, entry.episodeTitle]
+            if let date = entry.originalPublishedAt {
+                parts.append(date.formatted(date: .abbreviated, time: .omitted))
+            }
+            let count = String(AttributedString(localized: """
+                ^[\(entry.newStatementCount) neue Aussage](inflect: true)
+                """, bundle: .module).characters)
+            let heading = entry.chapterTitle.map { "**\(entry.virtualStart.timecode)** \($0)" }
+                ?? "**\(entry.virtualStart.timecode)**"
+            return "- \(heading)  \n  \(parts.joined(separator: " · ")) · \(count)"
+        }
     }
 
     static func truncated(_ string: String, to limit: Int) -> String {

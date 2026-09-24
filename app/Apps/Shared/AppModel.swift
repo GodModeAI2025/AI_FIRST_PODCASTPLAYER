@@ -748,6 +748,7 @@ public final class AppModel {
             // und alle Bilder gingen verloren.
             if !store.isInMemory { coverArt.retain(only: Set(smartFeeds.map(\.id))) }
             editions = try await store.editions()
+            scheduleStatisticsRefresh()
             highlights = try await store.highlights()
             // Die Systemsuche zeigt den Stand der Datenbank, auch für Notizen,
             // die ein anderes Gerät angelegt, geändert oder gelöscht hat. Beim
@@ -2253,6 +2254,7 @@ public final class AppModel {
         editionNotes[feed.id] = nil
         editionChecks[feed.id] = nil
         persistSmartFeeds()
+        scheduleStatisticsRefresh()
     }
 
     /// Löscht einen Themenfeed mit allen seinen Ausgaben. Die Folgen, aus
@@ -2263,6 +2265,7 @@ public final class AppModel {
         editions[feedID] = nil
         editionNotes[feedID] = nil
         editionChecks[feedID] = nil
+        smartFeedStatistics[feedID] = nil
         coverArt.remove(feedID)
         persistSmartFeeds()
         Task { await persist { try await $0.save(editions: [], forFeed: feedID) } }
@@ -2295,6 +2298,8 @@ public final class AppModel {
             editions[feedID] = kept
             persistEditions(for: feedID)
         }
+        // Die Zahlen im Kopf zählen gelöschte Folgen nicht mehr mit.
+        scheduleStatisticsRefresh()
         // Eine abbestellte Quelle grenzt kein Themen-Update mehr ein. War sie
         // die letzte gewählte, bleibt die Auswahl aber stehen: leer hiesse
         // „alle Podcasts“, und das Update holte sich still Stellen von
@@ -2453,60 +2458,50 @@ public final class AppModel {
     ) async -> (text: String, published: Bool) {
         let feedID = feed.id
         do {
-            let pipeline = ContentPipeline(
-                store: store, mediaDirectory: LocalMediaLocator.mediaDirectory
-            )
             // Titel mitgeben, statt sie in der Ausgabe durch „Quelle“ und
             // „Folge“ zu ersetzen. Eine Ausgabe, die ihre eigenen
             // Bestandteile nicht benennen kann, ist kein Podcast — und die
             // Shownotes sind die Stelle, an der das auffällt.
             let known = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
-            let titles = try await store.titles(
-                forEpisodes: Array(Set(known.map(\.episodeID))))
-            // Themen-Updates sind Ton. Stellen aus YouTube-Videos haben keinen,
-            // den die App abspielen dürfte, also bleiben sie draußen.
-            let candidates = try await pipeline.candidates(
-                for: feed, profile: profile, availability: modelStatus,
-                titles: titles.mapValues {
-                    (source: $0.source, episode: $0.episode, published: $0.publishedAt)
-                }
-            ).filter { !RemoteMediaRegistry.shared.isExternal($0.evidence.mediaVersionID) }
-            let existing = Set((editions[feedID] ?? []).map(\.batchKey))
-            // Liegt eine Stelle in einem Kapitel des Originals, schneidet die
-            // Ausgabe an dessen Grenzen.
-            let scope = Set(feed.restrictedToSourceIDs)
-            let chapters = await chapterMarks(for: candidates.filter {
-                scope.isEmpty || scope.contains($0.sourceID)
-            })
-            let outcome = PersonalEpisodePublisher().makeEdition(
-                feed: feed, candidates: candidates, ledger: ledger, chapters: chapters,
-                existingBatchKeys: existing, requestedByUser: requestedByUser
+            let chapters = try await editionChapters(tags: editionTags(for: feed), knownEvidence: known)
+            let outcome = PersonalEpisodePublisher().makeEditions(
+                feed: feed, chapters: chapters, ledger: ledger,
+                previousEditions: editions[feedID] ?? [],
+                followedTagIDs: followedTagIDs, tagLabels: tagLabels,
+                requestedByUser: requestedByUser
             )
             // Themen ohne einen einzigen Treffer in den gewählten Podcasts.
             // Ohne jedes Transkript liegt es nicht am Thema.
             let allowed = Set(feed.restrictedToSourceIDs)
-            let hitTopics = Set(candidates
+            let hitTopics = Set(chapters
                 .filter { allowed.isEmpty || allowed.contains($0.sourceID) }
-                .flatMap(\.topicIDs))
+                .flatMap(\.tagIDs))
             var check = EditionCheck(
                 topicsWithoutHits: known.isEmpty ? [] : feed.topicIDs.filter { !hitTopics.contains($0) })
             if case .belowThreshold(let available, _) = outcome, !requestedByUser { check.waiting = available }
             if smartFeeds.contains(where: { $0.id == feedID }) { editionChecks[feedID] = check }
 
             switch outcome {
-            case .published(let episode):
+            case .published(let run):
                 // Während des Zusammenstellens gelöscht: nichts anlegen.
-                guard await smartFeedStillExists(feedID) else {
+                guard await smartFeedStillExists(feedID), let first = run.parts.first else {
                     return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false)
                 }
-                editions[feedID, default: []].insert(episode, at: 0)
+                // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn.
+                editions[feedID, default: []].insert(contentsOf: run.parts, at: 0)
                 persistEditions(for: feedID)
+                updateStatistics(for: feed, chapters: chapters)
                 // Die Zählung für sich, der Titel außerhalb des Markdowns.
+                let segments = run.parts.reduce(0) { $0 + $1.segments.count }
+                let sources = Set(run.parts.flatMap { $0.segments.map(\.sourceID) }).count
                 let content = String(AttributedString(localized: """
-                    ^[\(episode.segments.count) Stelle](inflect: true) aus \
-                    ^[\(episode.distinctSourceCount) Podcast](inflect: true)
+                    ^[\(segments) Stelle](inflect: true) aus \
+                    ^[\(sources) Podcast](inflect: true)
                     """).characters)
-                return (String(localized: "\(episode.title): \(content)."), true)
+                guard run.parts.count > 1 else {
+                    return (String(localized: "\(first.title): \(content)."), true)
+                }
+                return (String(localized: "\(first.title): \(content), verteilt auf \(run.parts.count) Teile."), true)
             case .noNewMaterial(let count):
                 if known.isEmpty {
                     return (String(localized: """
@@ -2529,7 +2524,7 @@ public final class AppModel {
                         false)
             case .belowThreshold(let available, let required):
                 // Von Hand angefordert gilt keine Mindestmenge. Dann passt
-                // nur keine einzelne Stelle in die gewählte Länge.
+                // nichts in die gewählte Länge.
                 if requestedByUser {
                     return (String(localized: "Keine passende Stelle ist kurz genug für \(feed.editionMode.label)."), false)
                 }
@@ -2562,54 +2557,83 @@ public final class AppModel {
         return stored.contains { $0.id == feedID } && !removedSmartFeeds.contains(feedID)
     }
 
-    /// Höchstens so viele Kapiteldateien lädt eine Ausgabe nach.
-    static let chapterFileLimit = 12
+    /// Die Tags, nach denen ein Update sucht: seine eigenen oder, ohne
+    /// eigene, alle, denen jemand folgt.
+    func editionTags(for feed: SmartPodcastFeed) -> Set<InterestID> {
+        feed.topicIDs.isEmpty ? followedTagIDs : Set(feed.topicIDs)
+    }
 
-    /// Die Kapitelmarken der Originalfolgen, aus denen eine Ausgabe
-    /// schneiden kann. Kapitel aus dem Feed sind schon da. Verweist der Feed
-    /// nur auf eine Kapiteldatei, lädt die App sie für die relevantesten
-    /// Folgen einmal nach und behält sie wie beim Öffnen einer Folge.
-    private func chapterMarks(for candidates: [SegmentCandidate]) async -> [EpisodeID: EpisodeChapters] {
-        var ranked: [EpisodeID] = []
-        for candidate in candidates.sorted(by: { $0.relevanceScore > $1.relevanceScore })
-        where !ranked.contains(candidate.episodeID) {
-            ranked.append(candidate.episodeID)
-        }
-        guard !ranked.isEmpty,
-              let episodes = try? await store.episodes(ids: ranked) else { return [:] }
-        let byID = Dictionary(episodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    private var followedTagIDs: Set<InterestID> { Set(profile.publicationDrivers().map(\.id)) }
 
-        var missing: [(EpisodeID, URL)] = []
-        for id in ranked {
-            guard let episode = byID[id], episode.publisherChapters.isEmpty,
-                  chapterCache[id] == nil, let url = episode.chaptersURL else { continue }
-            missing.append((id, url))
-        }
-        if !isOffline, !missing.isEmpty {
-            let refresher = refresher
-            let loaded = await withTaskGroup(of: (EpisodeID, [Chapter]?).self) { group in
-                for (id, url) in missing.prefix(Self.chapterFileLimit) {
-                    group.addTask { (id, await refresher.loadChapters(from: url)) }
-                }
-                var result: [EpisodeID: [Chapter]] = [:]
-                for await (id, chapters) in group {
-                    if let chapters, !chapters.isEmpty { result[id] = chapters }
-                }
-                return result
-            }
-            for (id, chapters) in loaded {
-                chapterCache[id] = chapters
-                try? await store.save(chapters: chapters, forEpisode: id)
-            }
-        }
+    private var tagLabels: [InterestID: String] {
+        Dictionary(profile.interests.map { ($0.id, $0.label) }, uniquingKeysWith: { first, _ in first })
+    }
 
-        var marks: [EpisodeID: EpisodeChapters] = [:]
-        for (id, episode) in byID {
-            let chapters = episode.publisherChapters.isEmpty ? (chapterCache[id] ?? []) : episode.publisherChapters
-            guard !chapters.isEmpty else { continue }
-            marks[id] = EpisodeChapters(chapters: chapters, duration: episode.declaredDuration)
+    /// Die Kapitel der Bibliothek zu diesen Tags, ohne Stellen aus Videos:
+    /// Themen-Updates sind Ton, und YouTube-Folgen haben keinen, den die
+    /// App abspielen dürfte.
+    private func editionChapters(
+        tags: Set<InterestID>, knownEvidence: [Evidence]? = nil, titledSections: Bool = true
+    ) async throws -> [EditionChapter] {
+        let known = if let knownEvidence { knownEvidence } else {
+            try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
         }
-        return marks
+        let titles = try await store.titles(forEpisodes: Array(Set(known.map(\.episodeID))))
+        let pipeline = ContentPipeline(store: store, mediaDirectory: LocalMediaLocator.mediaDirectory)
+        return try await pipeline.editionChapters(
+            tags: tags, profile: profile, availability: modelStatus,
+            titledSections: titledSections, modelConfirmation: titledSections,
+            titles: titles.mapValues { (source: $0.source, episode: $0.episode, published: $0.publishedAt) }
+        ).filter { !RemoteMediaRegistry.shared.isExternal($0.mediaVersionID) }
+    }
+
+    // MARK: - Zahlen für die Themen-Updates
+
+    /// Neue Aussagen je Tag seit dem letzten Hören, je Themen-Update. Nur
+    /// im Speicher; ``refreshSmartFeedStatistics()`` rechnet sie neu.
+    public internal(set) var smartFeedStatistics: [SmartFeedID: SmartFeedStatistics] = [:]
+
+    /// Der Kopf des Tabs „Themen-Updates“: je Tag die neuen Aussagen über
+    /// alle Updates, die meisten zuerst, Tags ohne neue Aussage nicht.
+    public var topicUpdatesHeader: [TagStatementCount] {
+        SmartFeedStatistics.header(smartFeeds.compactMap { smartFeedStatistics[$0.id] })
+    }
+
+    /// Rechnet die Zahlen aller Themen-Updates neu, in einem Durchgang
+    /// über die Bibliothek. Startet keinen Ton und stellt nichts zusammen.
+    public func refreshSmartFeedStatistics() async {
+        statisticsRefresh?.cancel()
+        statisticsRefresh = nil
+        await computeSmartFeedStatistics()
+    }
+
+    /// Stößt das Neurechnen an. Ein laufendes Rechnen weicht dem neuen.
+    func scheduleStatisticsRefresh() {
+        statisticsRefresh?.cancel()
+        statisticsRefresh = Task { [weak self] in await self?.computeSmartFeedStatistics() }
+    }
+
+    @ObservationIgnored private var statisticsRefresh: Task<Void, Never>?
+
+    private func computeSmartFeedStatistics() async {
+        let feeds = smartFeeds
+        let tags = feeds.reduce(into: Set<InterestID>()) { $0.formUnion(editionTags(for: $1)) }
+        guard !tags.isEmpty else {
+            smartFeedStatistics = [:]
+            return
+        }
+        guard let chapters = try? await editionChapters(tags: tags, titledSections: false),
+              !Task.isCancelled else { return }
+        for feed in feeds { updateStatistics(for: feed, chapters: chapters) }
+        let live = Set(smartFeeds.map(\.id))
+        smartFeedStatistics = smartFeedStatistics.filter { live.contains($0.key) }
+    }
+
+    private func updateStatistics(for feed: SmartPodcastFeed, chapters: [EditionChapter]) {
+        guard smartFeeds.contains(where: { $0.id == feed.id }) else { return }
+        smartFeedStatistics[feed.id] = SmartFeedStatistics.compute(
+            feed: feed, chapters: chapters, editions: editions[feed.id] ?? [], ledger: ledger,
+            followedTagIDs: followedTagIDs, tagLabels: tagLabels)
     }
 
     // MARK: - Wissen
@@ -2726,6 +2750,7 @@ public final class AppModel {
             if earliestAutomaticEdition(for: feed) != nil { continue }
             _ = await buildEdition(feedID: feed.id, requestedByUser: false)
         }
+        scheduleStatisticsRefresh()
     }
 
     /// So lange ruht die Automatik nach einer Ausgabe, die noch nicht gehört ist.

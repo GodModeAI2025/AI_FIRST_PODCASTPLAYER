@@ -1,6 +1,38 @@
 {
   "sourceLanguage": "de",
   "strings": {
+    "%@, Teil %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, Teil %2$lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, Part %2$lld"
+          }
+        }
+      }
+    },
+    "Alle Tags zusammen": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle Tags zusammen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All tags together"
+          }
+        }
+      }
+    },
     "Alles Ungehörte": {
       "localizations": {
         "de": {
@@ -93,6 +125,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "The image couldn't be used."
+          }
+        }
+      }
+    },
+    "Eines der Tags": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eines der Tags"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any of the tags"
           }
         }
       }
@@ -257,6 +305,54 @@
         }
       }
     },
+    "Passt zu %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passt zu %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Matches %@"
+          }
+        }
+      }
+    },
+    "Unbekannte Folge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbekannte Folge"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown Episode"
+          }
+        }
+      }
+    },
+    "Unbekannte Quelle": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unbekannte Quelle"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown Source"
+          }
+        }
+      }
+    },
     "^[%lld Quelle](inflect: true)": {
       "localizations": {
         "de": {
@@ -305,6 +401,22 @@
         }
       }
     },
+    "^[%lld neue Aussage](inflect: true)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld neue Aussage](inflect: true)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld new statement](inflect: true)"
+          }
+        }
+      }
+    },
     "neu für dich, nicht neu veröffentlicht": {
       "localizations": {
         "de": {
@@ -317,6 +429,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "new to you, not newly published"
+          }
+        }
+      }
+    },
+    "Übersicht": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Übersicht"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overview"
           }
         }
       }
