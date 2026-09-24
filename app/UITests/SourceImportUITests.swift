@@ -18,7 +18,7 @@ final class SourceImportUITests: XCTestCase {
         (button.exists ? button : app.buttons[name].firstMatch).tap()
     }
 
-    /// Leere Liste „Meine Podcasts“, Leiste und Hinzufügen-Blatt bieten den Import an.
+    /// Leere Liste „Meine Podcasts“ und Leiste bieten den Import an, das Hinzufügen-Blatt nicht mehr.
     func testImportEntryPoints() {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh"]
@@ -29,8 +29,8 @@ final class SourceImportUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars.buttons["Abos importieren oder exportieren"].firstMatch.exists,
                       "Import und Export fehlen in der Leiste")
         app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["source.importOPML"].waitForExistence(timeout: 5),
-                      "Das Hinzufügen-Blatt bietet keinen Import an")
+        XCTAssertTrue(app.buttons["catalog.trending.card"].firstMatch.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["source.importOPML"].exists, "Das Hinzufügen-Blatt zeigt noch den Import")
     }
 
     /// Ein geteilter @-Link wird über die Kanalseite aufgelöst.

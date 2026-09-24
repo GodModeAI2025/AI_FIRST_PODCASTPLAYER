@@ -61,7 +61,7 @@ final class CatalogUITests: XCTestCase {
 
         let card = app.buttons["catalog.trending.card"].firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 10), "Angesagt fehlt im Blatt")
-        XCTAssertTrue(app.buttons["source.importOPML"].exists, "Der OPML-Import steht nicht mehr vor dem Katalog")
+        XCTAssertFalse(app.buttons["source.importOPML"].exists, "Der Import gehört nicht mehr ins Hinzufügen-Blatt")
         attach(app, "katalog-start")
 
         let news = app.buttons["catalog.category.news"]

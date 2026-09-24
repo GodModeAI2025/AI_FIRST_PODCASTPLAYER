@@ -1310,7 +1310,6 @@ struct AddSourceSheet: View {
     @State private var failure: String?
     /// Das Suchfeld ist beim Öffnen aktiv. Wer das Blatt öffnet, will tippen.
     @FocusState private var fieldFocused: Bool
-    @State private var importingOPML = false
     /// Was zuletzt gescheitert ist, damit „Nochmal versuchen“ es wiederholt.
     @State private var lastAttempt: Attempt?
     /// Die offenen Seiten des Katalogs: Rubrik, Angesagt, Podcast.
@@ -1470,21 +1469,8 @@ struct AddSourceSheet: View {
                 }
 
                 if trimmed.isEmpty {
-                    // Viele Abos auf einmal, aus der bisherigen Podcast-App.
-                    // Steht vor dem Katalog, damit es ohne Scrollen zu sehen ist.
-                    Section {
-                        Button { importingOPML = true } label: {
-                            Label("Abos aus einer anderen App übernehmen", systemImage: "square.and.arrow.down")
-                        }
-                        .accessibilityIdentifier("source.importOPML")
-                    } footer: {
-                        Text("""
-                            Overcast, Pocket Casts und die meisten anderen Podcast-Apps sichern ihre \
-                            Abos in einer Datei (OPML). Die wählst du hier aus, dann kommen alle auf \
-                            einmal herüber.
-                            """)
-                    }
-
+                    // Der Import aus einer anderen App steht nur noch im Menü
+                    // von „Meine Podcasts“, das Blatt beginnt mit dem Katalog.
                     CatalogTrendingSection()
                     Section {
                         CatalogCategoryGrid()
@@ -1509,7 +1495,6 @@ struct AddSourceSheet: View {
                 case .youTube(let link): YouTubeLinkView(link: link)
                 }
             }
-            .opmlImport(isPresented: $importingOPML) { dismiss() }
             .navigationTitle("Hinzufügen")
             .task {
                 // Kurz warten, bis das Blatt steht. Sofort gesetzt, greift der Fokus nicht.
