@@ -1574,8 +1574,23 @@ public final class AppModel {
         // Wer eine Folge herausnimmt, will sie nicht beim nächsten
         // Aktualisieren wieder in der Warteschlange sehen.
         let wasQueued = analysisQueue.contains { $0.id == episodeID }
+        let episode = analysisQueue.first { $0.id == episodeID }
         dropFromAnalysisQueue(episodeID)
         if wasQueued { dismissedFromPreparation.insert(episodeID) }
+        // Sonst lüde der Ton im Hintergrund zu Ende, für eine Folge, die
+        // niemand mehr vorbereitet. Wartet „Laden (offline)“ darauf, bleibt er.
+        if let id = episode.flatMap(Self.downloadID(of:)) {
+            BackgroundDownloads.shared.cancelUnlessAwaited([id])
+        }
+    }
+
+    /// Neu laden einer Quelle von Hand: was dort nach „Alle abbrechen“
+    /// ruht, darf das Vorbereiten wieder nehmen, wie nach dem Aktualisieren
+    /// aller Abos.
+    func wakeRestingPreparation(in sourceID: SourceID) {
+        let ids = Set((episodes[sourceID] ?? []).map(\.id))
+        guard !ids.isEmpty else { return }
+        restingPreparation.removeAll { ids.contains($0) }
     }
 
     /// Nimmt eine Folge aus der Warteschlange, ohne sich das als Wunsch zu

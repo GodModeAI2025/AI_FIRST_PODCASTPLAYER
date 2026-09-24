@@ -234,8 +234,9 @@ extension BackgroundDownloadSession {
             var discarded: Set<String> = []
             /// Angehalten mit Stand zum Fortsetzen. Ihr Ende weckt niemanden.
             var suspending: Set<TaskRef> = []
-            /// Angehalten, der Stand zum Fortsetzen ist aber noch nicht da.
-            var awaitingResume: Set<TaskRef> = []
+            /// Je Fassung die Angehaltenen, deren Stand zum Fortsetzen noch
+            /// nicht da ist. Solange beginnt keine neue Übertragung.
+            var awaitingResume: [String: Set<TaskRef>] = [:]
             /// Wartet darauf, dass eine angehaltene Übertragung ihren Stand liefert.
             var pending: [String: Pending] = [:]
         }
@@ -343,13 +344,12 @@ extension BackgroundDownloadSession {
             }
             // Gerade angehalten und der Stand noch unterwegs, etwa nach
             // „Pausieren“ und schnellem „Fortsetzen“: erst mit ihm beginnen.
+            // Gilt auch, wenn die angehaltene Übertragung schon nicht mehr
+            // in der Liste des Systems steht.
             let waitsForResume: Bool = state.withLock { state in
-                let stillSuspending = ownTasks.contains { $0.taskDescription == key
-                    && state.awaitingResume.contains(TaskRef(own, $0)) }
-                    || otherTasks.contains { $0.taskDescription == key
-                        && state.awaitingResume.contains(TaskRef(other, $0)) }
-                if stillSuspending { state.pending[key] = Pending(session: own, request: request) }
-                return stillSuspending
+                guard !(state.awaitingResume[key]?.isEmpty ?? true) else { return false }
+                state.pending[key] = Pending(session: own, request: request)
+                return true
             }
             if waitsForResume { return }
             start(key: key, request: request, in: own)
@@ -359,42 +359,68 @@ extension BackgroundDownloadSession {
             state.withLock { $0.current[key] = ref }
         }
 
+        /// Beginnt eine Übertragung, außer für die Fassung läuft schon eine.
+        /// Fragen zwei gleichzeitig, etwa das Transkript und die neueste
+        /// Folge, sehen beide beim System noch nichts; der zweite wartet
+        /// dann auf die Übertragung des ersten.
         private func start(key: String, request: URLRequest, in session: URLSession) {
-            let task: URLSessionDownloadTask
-            if let resume = takeResumeData(for: key) {
-                task = session.downloadTask(withResumeData: resume)
-            } else {
-                task = session.downloadTask(with: request)
+            let task: URLSessionDownloadTask? = state.withLock { state in
+                guard state.current[key] == nil else { return nil }
+                let task: URLSessionDownloadTask
+                if let resume = takeResumeData(for: key) {
+                    task = session.downloadTask(withResumeData: resume)
+                } else {
+                    task = session.downloadTask(with: request)
+                }
+                task.taskDescription = key
+                state.current[key] = TaskRef(session, task)
+                return task
             }
-            task.taskDescription = key
-            adopt(TaskRef(session, task), for: key)
-            task.resume()
+            task?.resume()
         }
 
         /// Hält eine Übertragung an und merkt sich ihren Stand. Wartet eine
         /// neue auf ihn, beginnt sie danach.
         func suspend(_ task: URLSessionDownloadTask, in session: URLSession, key: String) {
             let ref = TaskRef(session, task)
+            let request = task.originalRequest
             state.withLock { state in
                 state.suspending.insert(ref)
-                state.awaitingResume.insert(ref)
+                state.awaitingResume[key, default: []].insert(ref)
             }
             task.cancel(byProducingResumeData: { [self] data in
-                if let data, !state.withLock({ $0.discarded.contains(key) }) {
-                    storeResumeData(data, for: key)
-                }
+                if let data { storeResumeData(data, for: key) }
                 // Erst jetzt liegt der Stand bereit. Wer danach beginnt, nimmt ihn.
-                _ = state.withLock { $0.awaitingResume.remove(ref) }
+                state.withLock { state in
+                    state.awaitingResume[key]?.remove(ref)
+                    if state.awaitingResume[key]?.isEmpty == true { state.awaitingResume[key] = nil }
+                    Self.takeOverWaiters(of: ref, key: key, request: request, session: session, in: &state)
+                }
                 firePending(key)
             })
         }
 
+        /// Hatte sich jemand der angehaltenen Übertragung angeschlossen, etwa
+        /// nach „Pausieren“ und sofortigem „Fortsetzen“, bekäme er nie ein
+        /// Ergebnis. Dann beginnt eine neue mit dem Stand. Nur unter dem Schloss.
+        private static func takeOverWaiters(
+            of ref: TaskRef, key: String, request: URLRequest?, session: URLSession, in state: inout State
+        ) {
+            guard state.current[key] == ref else { return }
+            state.current[key] = nil
+            guard state.pending[key] == nil, !(state.waiters[key]?.isEmpty ?? true),
+                  let request else { return }
+            state.pending[key] = Pending(session: session, request: request)
+        }
+
         /// Beginnt die Übertragung, die auf eine angehaltene wartete. Ist
         /// die Datei inzwischen doch fertig geworden, sind alle gleich fertig.
+        /// Solange noch ein Stand zum Fortsetzen unterwegs ist, wartet sie.
         private func firePending(_ key: String) {
             let destination = destination(for: key)
             let next: Pending? = state.withLock { state in
-                guard let pending = state.pending.removeValue(forKey: key),
+                guard state.awaitingResume[key]?.isEmpty ?? true,
+                      let pending = state.pending.removeValue(forKey: key),
                       !(state.waiters[key]?.isEmpty ?? true) else { return nil }
                 if FileManager.default.fileExists(atPath: destination.path) {
                     state.arrivedUnattended.remove(key)
@@ -431,9 +457,15 @@ extension BackgroundDownloadSession {
             resumeDirectory.appendingPathComponent(key)
         }
 
+        /// Unter dem Schloss, damit „Folge löschen“ nicht zwischen Prüfen und
+        /// Schreiben fällt und ein Stand ohne Folge liegen bleibt.
         func storeResumeData(_ data: Data, for key: String) {
-            try? FileManager.default.createDirectory(at: resumeDirectory, withIntermediateDirectories: true)
-            try? data.write(to: resumeFile(for: key), options: .atomic)
+            let file = resumeFile(for: key)
+            state.withLock { state in
+                guard !state.discarded.contains(key) else { return }
+                try? FileManager.default.createDirectory(at: resumeDirectory, withIntermediateDirectories: true)
+                try? data.write(to: file, options: .atomic)
+            }
         }
 
         /// Liest den Stand und löscht ihn: ein zweites Mal gilt er nicht.
@@ -542,7 +574,12 @@ extension BackgroundDownloadSession {
                 let outcome = state.outcomes.removeValue(forKey: ref)
                 let suspended = state.suspending.remove(ref) != nil
                 let isCurrent = state.current[key] == nil || state.current[key] == ref
-                if isCurrent { state.current[key] = nil }
+                if suspended {
+                    Self.takeOverWaiters(of: ref, key: key, request: task.originalRequest,
+                                         session: session, in: &state)
+                } else if isCurrent {
+                    state.current[key] = nil
+                }
                 return (outcome, suspended, isCurrent, state.discarded.contains(key))
             }
             // Stand zum Fortsetzen: nach einer Ablehnung, etwa über der
@@ -557,9 +594,10 @@ extension BackgroundDownloadSession {
                 storeResumeData(data, for: key)
             }
             // Eine angehaltene oder abgelöste Übertragung weckt niemanden.
-            // Wer auf eine angehaltene wartet, beginnt in ihrem Rückruf.
+            // Wer auf eine angehaltene wartet, beginnt, sobald ihr Stand da
+            // ist; `firePending` wartet selbst darauf.
             guard !suspended, isCurrent else {
-                if !suspended { firePending(key) }
+                firePending(key)
                 return
             }
             state.withLock { state in

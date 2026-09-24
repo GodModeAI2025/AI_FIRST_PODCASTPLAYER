@@ -70,4 +70,13 @@ import Foundation
         #expect(delegate.takeResumeData(for: "k") == nil)
         #expect(delegate.state.withLock { $0.discarded.contains("k") })
     }
+
+    /// „Folge löschen“, während eine angehaltene Übertragung ihren Stand
+    /// noch liefert: der kommt danach nicht mehr auf die Platte.
+    @Test func resumeDataAfterDiscardIsNotStored() {
+        let delegate = makeDelegate()
+        delegate.discard(key: "k", onlyIfUnawaited: false)
+        delegate.storeResumeData(Data([1, 2, 3]), for: "k")
+        #expect(delegate.takeResumeData(for: "k") == nil)
+    }
 }
