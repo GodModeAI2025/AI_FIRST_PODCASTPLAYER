@@ -673,6 +673,22 @@
         }
       }
     },
+    "aus dem Inhalt erkannt": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aus dem Inhalt erkannt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "detected in the content"
+          }
+        }
+      }
+    },
     "aus älteren Daten übernommen": {
       "localizations": {
         "de": {

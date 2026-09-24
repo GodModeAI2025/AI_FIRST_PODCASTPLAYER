@@ -357,6 +357,12 @@ public final class StoredListeningState {
     }
 }
 
+/// Ein Interesse, seit 0.10 zugleich ein Tag.
+///
+/// Kein Feld wurde umbenannt. `keywords` hält seitdem die Aliasse eines
+/// Tags, `originRaw` kennt zusätzlich `detected`. Neu sind Haltung,
+/// Schlüssel und erstes Auftreten, alle mit Standardwert, damit das
+/// CloudKit-Schema nur ergänzt wird.
 @Model
 public final class StoredInterest {
     public var identifier: String = ""
@@ -366,6 +372,13 @@ public final class StoredInterest {
     public var keywords: [String] = []
     public var expiresAt: Date?
     public var createdAt: Date = Date()
+    /// `follow` oder `neutral`, siehe ``TagStance``. Alte Zeilen folgen.
+    public var stanceRaw: String = TagStance.follow.rawValue
+    /// Schlüssel aus `TagNormalizer`. Leer bei Zeilen aus der Zeit vor den
+    /// Tags, bis das Bereinigen beim Laden ihn einträgt.
+    public var normalizedKey: String = ""
+    /// Wann das Tag zum ersten Mal an einem Kapitel stand.
+    public var firstSeenAt: Date?
 
     public init(identifier: String, label: String) {
         self.identifier = identifier; self.label = label
@@ -376,8 +389,65 @@ public final class StoredInterest {
             id: InterestID(rawValue: identifier), label: label,
             kind: InterestKind(rawValue: kindRaw) ?? .topic,
             origin: InterestOrigin(rawValue: originRaw) ?? .confirmedByUser,
-            keywords: keywords, expiresAt: expiresAt, createdAt: createdAt
+            keywords: keywords, expiresAt: expiresAt, createdAt: createdAt,
+            stance: TagStance(rawValue: stanceRaw) ?? .follow,
+            normalizedKey: normalizedKey, firstSeenAt: firstSeenAt
         )
+    }
+
+    public var tagSnapshot: Tag { snapshot.tag }
+}
+
+/// Ein Tag an einem Kapitel, seit 0.10.
+///
+/// Verknüpft über Kennungen wie ``StoredFact``, ohne Beziehung. Die Kennung
+/// ist aus Fassung, Kapitelstart und Tag-Schlüssel gerechnet
+/// (``ChapterTag/identifier(mediaVersionID:chapterStartMs:normalizedKey:)``),
+/// also auf jedem Gerät dieselbe. „Folge löschen“ nimmt die Zeilen mit,
+/// „Audio entfernen“ lässt sie stehen.
+@Model
+public final class StoredChapterTag {
+    #Index<StoredChapterTag>([\.identifier], [\.episodeIdentifier], [\.normalizedKey], [\.publishedAt])
+    public var identifier: String = ""
+    public var episodeIdentifier: String = ""
+    public var mediaVersionIdentifier: String = ""
+    public var chapterStartMs: Int = 0
+    public var chapterEndMs: Int = 0
+    public var interestIdentifier: String = ""
+    public var normalizedKey: String = ""
+    public var confidence: Double = 0
+    public var matchedKnown: Bool = false
+    public var sourceIdentifier: String = ""
+    public var publishedAt: Date?
+    public var createdAt: Date = Date()
+    public var transcriptRevisionValue: Int = 0
+
+    public init(identifier: String) { self.identifier = identifier }
+
+    public var snapshot: ChapterTag {
+        ChapterTag(
+            episodeID: EpisodeID(rawValue: episodeIdentifier),
+            mediaVersionID: MediaVersionID(rawValue: mediaVersionIdentifier),
+            chapterStartMs: chapterStartMs, chapterEndMs: chapterEndMs,
+            interestID: InterestID(rawValue: interestIdentifier),
+            normalizedKey: normalizedKey, confidence: confidence, matchedKnown: matchedKnown,
+            sourceID: SourceID(rawValue: sourceIdentifier), publishedAt: publishedAt,
+            createdAt: createdAt, transcriptRevision: Revision(transcriptRevisionValue))
+    }
+
+    func apply(_ tag: ChapterTag) {
+        episodeIdentifier = tag.episodeID.rawValue
+        mediaVersionIdentifier = tag.mediaVersionID.rawValue
+        chapterStartMs = tag.chapterStartMs
+        chapterEndMs = tag.chapterEndMs
+        interestIdentifier = tag.interestID.rawValue
+        normalizedKey = tag.normalizedKey
+        confidence = tag.confidence
+        matchedKnown = tag.matchedKnown
+        sourceIdentifier = tag.sourceID.rawValue
+        publishedAt = tag.publishedAt
+        createdAt = tag.createdAt
+        transcriptRevisionValue = tag.transcriptRevision.value
     }
 }
 

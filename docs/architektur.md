@@ -136,7 +136,7 @@ Was jemand selbst abspielt, mit „Laden (offline)“ holt oder als Transkript a
 
 ## Abgleich
 
-SwiftData spiegelt die Datenbank in den CloudKit-Container `iCloud.com.godmodeai.podcastai`, den iPhone-, iPad- und Mac-App gemeinsam nutzen. Abgeglichen werden Abos, Folgen, Transkripte, Belege, Fakten, Hörzustand mit Fortsetzungsstelle, Interessen, Themen-Updates, gemerkte Stellen und geparkte Fragen. Audiodateien nicht; jedes Gerät lädt den Ton selbst oder streamt ihn.
+SwiftData spiegelt die Datenbank in den CloudKit-Container `iCloud.com.godmodeai.podcastai`, den iPhone-, iPad- und Mac-App gemeinsam nutzen. Abgeglichen werden Abos, Folgen, Transkripte, Belege, Fakten, Hörzustand mit Fortsetzungsstelle, Tags und Kapitel-Tags, Themen-Updates, gemerkte Stellen und geparkte Fragen. Audiodateien nicht; jedes Gerät lädt den Ton selbst oder streamt ihn.
 
 CloudKit kennt keine eindeutigen Schlüssel. Treffen zwei Geräte denselben Datensatz, bereinigt `LibraryStore.removeDuplicates()` die Doppelten beim nächsten Laden.
 
@@ -144,13 +144,23 @@ CloudKit kennt keine eindeutigen Schlüssel. Treffen zwei Geräte denselben Date
 
 | Aktion | Was verschwindet | Was bleibt |
 |---|---|---|
-| Audio entfernen | die Audiodatei | Transkript, Belege, Fakten, Hörzustand, gemerkte Stellen; abgespielt wird aus dem Netz |
-| Folge löschen | Audiodatei, Transkript, Belege, Fakten, Hörzustand dieser Folge, ihre Stellen in Themen-Updates; Chat-Antworten, die sie zitieren; in gesicherten Antworten ihre Belege und ein daraus formulierter Antworttext, leere Karten ganz | ein Merkzeichen, damit der Feed die Folge nicht wieder anlegt; deine Notizen, denn sie tragen Zitat, Folge, Quelle und Zeitmarke selbst |
+| Audio entfernen | die Audiodatei | Transkript, Belege, Fakten, Kapitel-Tags, Hörzustand, gemerkte Stellen; abgespielt wird aus dem Netz |
+| Folge löschen | Audiodatei, Transkript, Belege, Fakten, Kapitel-Tags, Hörzustand dieser Folge, ihre Stellen in Themen-Updates; Chat-Antworten, die sie zitieren; in gesicherten Antworten ihre Belege und ein daraus formulierter Antworttext, leere Karten ganz | ein Merkzeichen, damit der Feed die Folge nicht wieder anlegt; deine Notizen, denn sie tragen Zitat, Folge, Quelle und Zeitmarke selbst |
 | Quelle abbestellen | die Quelle mit allen Folgen und deren Daten, ihre Stellen in Themen-Updates | deine Notizen |
 
 Beides ist in `LibraryStore.removeEpisode`, `removeSource` und `markAudioRemoved` umgesetzt und durch Tests abgesichert. Eine Ausgabe, der dabei alle Stellen verloren gehen, verschwindet ganz; bei den übrigen rückt die Zeitachse zusammen (`PersonalEpisodePublisher.removingSegments`).
 
 Den Ton räumt die App auch von selbst weg, nach drei Schaltern unter Speicher, alle voreingestellt an. Die neueste Folge jedes Podcasts behält ihren Ton auch nach dem Transkript und spielt ohne Netz. Sind Transkripte für neue Folgen aus, lädt die App sie trotzdem, nach denselben Regeln fürs Netz und ohne sie zu transkribieren. Jede andere Folge verliert den Ton nach dem erfolgreichen Auswerten und spielt danach aus dem Netz. Einen Tag, nachdem eine Folge zu Ende gehört ist, geht der Ton auch bei der neuesten. Erscheint eine neuere Folge, verliert die bisherige neueste ihren Ton erst, wenn der Ton der neuen auf dem Gerät liegt (`AudioRetention.keptAsNewest`); so hat ein Podcast unterwegs nicht gerade dann keinen Ton, wenn die neue Folge noch aufs WLAN wartet. Das gilt nur für Podcasts, nicht für einzelne Folgen. Ändert ein Feed die Audioadresse der vorgehaltenen Folge, zieht die Datei zur neuen Fassung um, statt neu geladen zu werden. Scheitert ein von selbst eingereihtes Transkript, geht auch sein Ton wieder vom Gerät; kommt der Fehler bei jedem Versuch wieder (keine Sprache, kein passendes Audioformat, Adresse weg), versucht die App die Folge nicht nach jedem Start neu. Gibt es für die Sprache eines Podcasts kein Modell, gilt das gleich für alle seine eingereihten Folgen. Was mit „Laden (offline)“ geholt wurde, bleibt, bis jemand „Audio entfernen“ wählt. Die Regel steht in `AudioRetention` (PodcastAICore); das Aufräumen in `AppModel.tidyLocalAudio()` und die Zeile unter „Audio liegt auf diesem Gerät“ lesen dasselbe Urteil. Es ist derselbe Weg wie „Audio entfernen“, alle Daten bleiben. Eine Folge im Player wartet, bis sie dort nicht mehr liegt. Welche Folgen jemand aus der Warteschlange genommen, für unterwegs geladen oder als neueste vorgehalten bekommen hat, merkt sich jedes Gerät in den Benutzereinstellungen, nicht in der Datenbank.
+
+## Tags
+
+Seit 0.10 ist jedes Interesse ein Tag. Gespeichert bleibt es als `StoredInterest`, dazu kommen Haltung (`stanceRaw`: `follow` oder `neutral`), Schlüssel (`normalizedKey`) und erstes Auftreten (`firstSeenAt`); `keywords` hält die Aliasse, `originRaw` kennt zusätzlich `detected`. Plus heißt folgen, Minus setzt das Tag auf neutral. Es bleibt sichtbar, zählt aber nicht mehr für „Für dich“ und Themen-Updates.
+
+Den Schlüssel rechnet `TagNormalizer` (PodcastAIKnowledge): klein, ohne Akzente, „ß“ als „ss“, ohne Leerzeichen und Satzzeichen, jedes Wort in seiner Grundform über `NLTagger` (deutsch, dann englisch; ein Lemma, das länger ist als das Wort, gilt nicht). Länder werden zu `region:` und ihrer ISO-Kennung, aus den Namen in `Locale` auf Deutsch und Englisch und einer kleinen festen Liste („USA“, „UK“, „EU“). Der Schlüssel entsteht einmal und bei einer neuen Bezeichnung, nicht bei jedem Laden. Ein neues Tag aus dem Inhalt prüft vorher `SensitiveTopicPolicy`.
+
+`LibraryStore.removeDuplicates()` trägt fehlende Schlüssel ein und legt Tags mit gleichem Schlüssel zusammen. Es bleibt die Zeile mit dem ältesten `createdAt`, bei Gleichstand die kleinere Kennung. Verweise in Kapitel-Tags, Themenfeeds, Ausgaben und gemerkten Stellen zeigen danach auf sie. Das deckt den ersten Start nach 0.10 und Tags ab, die zwei Geräte gleichzeitig angelegt haben.
+
+`StoredChapterTag` verbindet ein Kapitel mit einem Tag, über Kennungen wie `StoredFact`. Die Kennung ist aus Fassung, Kapitelstart und Schlüssel gerechnet und auf jedem Gerät dieselbe. Eine Einordnung ersetzt die Kapitel-Tags ihrer Folge; eine ältere Fassung des Transkripts oder eine gelöschte Folge schreibt nichts.
 
 ## Themen-Updates
 

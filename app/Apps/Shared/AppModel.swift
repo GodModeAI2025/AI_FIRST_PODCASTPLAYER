@@ -1994,6 +1994,20 @@ public final class AppModel {
         return Array(result.prefix(10))
     }
 
+    /// Plus oder Minus an einem Tag. Minus löscht nichts, das Tag bleibt
+    /// neutral in `profile.tags`, fällt aber aus „Für dich“ und den
+    /// Themen-Updates heraus.
+    public func setTagStance(_ stance: TagStance, for id: InterestID) async {
+        do {
+            try await store.setStance(stance, forTag: id)
+            try await reloadProfile()
+        } catch {
+            lastError = UserFacingError.describe(error)
+            return
+        }
+        await refreshRelevantToday()
+    }
+
     public func removeInterest(_ id: InterestID) async {
         do {
             try await store.removeInterest(id)

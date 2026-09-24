@@ -45,7 +45,7 @@ public actor LibraryStore {
         StoredTranscript.self, StoredSegment.self, StoredListeningState.self,
         StoredInterest.self, StoredEvidence.self, StoredHighlight.self,
         StoredSmartFeed.self, StoredPersonalEpisode.self, StoredKnowledgeTrail.self,
-        StoredFact.self,
+        StoredFact.self, StoredChapterTag.self,
     ]
 
     public static let schema = Schema(modelTypes)
@@ -299,12 +299,24 @@ public actor LibraryStore {
             order: [RowOrder.ascending { $0.createdAt },
                     RowOrder.ascending { $0.statement }])
         try modelContext.save()
+
+        // Tags: fehlende Schlüssel eintragen, Tags mit gleichem Schlüssel
+        // zusammenlegen und alle Verweise auf die Kennung umschreiben, die
+        // bleibt. Erst danach die Kapitel-Tags, denn nach dem Umschreiben
+        // sind Kopien vom anderen Gerät gleich.
+        try settleTags()
+        try removeLeafDuplicates(StoredChapterTag.self, key: \.identifier,
+            order: [RowOrder.ascending { $0.createdAt },
+                    RowOrder.descending { $0.confidence },
+                    RowOrder.ascending { $0.interestIdentifier }])
+        try removeChapterTagsOfRemovedEpisodes()
+        try modelContext.save()
         return report
     }
 
     /// Gruppiert Zeilen nach Schlüssel und ordnet jede Gruppe. Zurück kommen
     /// nur Gruppen, in denen die erste Zeile eindeutig vor der zweiten steht.
-    private func duplicateGroups<T: PersistentModel>(
+    func duplicateGroups<T: PersistentModel>(
         _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step]
     ) throws -> [(keep: T, drop: [T])] {
         var groups: [String: [T]] = [:]
@@ -328,7 +340,7 @@ public actor LibraryStore {
 
     /// Für Typen ohne Kinder: Die Kopien tragen dieselben Daten wie die
     /// behaltene Zeile und können gehen.
-    private func removeLeafDuplicates<T: PersistentModel>(
+    func removeLeafDuplicates<T: PersistentModel>(
         _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step]
     ) throws {
         for group in try duplicateGroups(type, key: key, order: order) {
@@ -888,22 +900,49 @@ public actor LibraryStore {
             modelContext.insert(fresh)
             rows = [fresh]
         }
+        var renamedKey: String?
         for stored in rows {
+            // Der Schlüssel entsteht einmal und bei jeder neuen Bezeichnung.
+            // Bleibt die Bezeichnung, bleibt er, auch wenn dieses Gerät ihn
+            // heute anders rechnen würde.
+            if stored.label != interest.label {
+                let key = TagNormalizer.key(for: interest.label)
+                if key != stored.normalizedKey { renamedKey = key }
+                stored.normalizedKey = key
+            } else if stored.normalizedKey.isEmpty {
+                stored.normalizedKey = interest.normalizedKey.isEmpty
+                    ? TagNormalizer.key(for: interest.label) : interest.normalizedKey
+            }
             stored.label = interest.label
             stored.kindRaw = interest.kind.rawValue
             stored.originRaw = interest.origin.rawValue
             stored.keywords = interest.keywords
             stored.expiresAt = interest.expiresAt
+            stored.stanceRaw = interest.stance.rawValue
+            stored.firstSeenAt = Self.earlier(stored.firstSeenAt, interest.firstSeenAt)
+        }
+        // Neuer Schlüssel: Die Kapitel-Tags ziehen mit, samt ihrer Kennung,
+        // die aus dem Schlüssel gerechnet ist.
+        if let renamedKey {
+            try moveChapterTags(ofInterest: identifier, toKey: renamedKey)
         }
         try modelContext.save()
     }
 
+    /// Löscht ein Interesse ganz, mit den Kapitel-Tags, die darauf zeigen.
+    /// Minus in der Tag-Wolke löscht nicht, es setzt die Haltung auf neutral
+    /// (``setStance(_:forTag:)``).
     public func removeInterest(_ id: InterestID) throws {
         let identifier = id.rawValue
         for stored in try modelContext.fetch(
             FetchDescriptor<StoredInterest>(predicate: #Predicate { $0.identifier == identifier })
         ) {
             modelContext.delete(stored)
+        }
+        for tag in try modelContext.fetch(
+            FetchDescriptor<StoredChapterTag>(predicate: #Predicate { $0.interestIdentifier == identifier })
+        ) {
+            modelContext.delete(tag)
         }
         try modelContext.save()
     }
@@ -1111,6 +1150,12 @@ public actor LibraryStore {
         for episodeKey in episodeKeys {
             try purgeEpisode(episodeKey, keepTombstone: false, into: &report)
         }
+        // Kapitel-Tags, deren Folge hier nie ankam, etwa weil das andere
+        // Gerät sie noch nicht abgeglichen hat. Sie tragen ihre Quelle selbst.
+        for tag in try modelContext.fetch(
+            FetchDescriptor<StoredChapterTag>(predicate: #Predicate { $0.sourceIdentifier == key })) {
+            modelContext.delete(tag)
+        }
         for source in sources { modelContext.delete(source) }
         try modelContext.save()
         return report
@@ -1152,6 +1197,11 @@ public actor LibraryStore {
         for fact in try modelContext.fetch(
             FetchDescriptor<StoredFact>(predicate: #Predicate { $0.episodeIdentifier == key })) {
             modelContext.delete(fact)
+        }
+        // Kapitel-Tags sind aus der Folge entstanden und gehen mit ihr.
+        for tag in try modelContext.fetch(
+            FetchDescriptor<StoredChapterTag>(predicate: #Predicate { $0.episodeIdentifier == key })) {
+            modelContext.delete(tag)
         }
         // Gemerkte Stellen und Notizen bleiben. Sie sind eigenes Wissen und
         // tragen Zitat und Titel als Kopie, verlieren also nur den Sprung in
@@ -1482,7 +1532,7 @@ public actor LibraryStore {
     //  denen gesucht wird, stehen zusätzlich als Spalten daneben (siehe
     //  `Models.swift`).
 
-    private static let encoder: JSONEncoder = {
+    static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         // Stabile Reihenfolge: zwei gleiche Werte ergeben dasselbe JSON.
         // Sonst sähe jeder Speichervorgang nach einer Änderung aus.
@@ -1491,7 +1541,7 @@ public actor LibraryStore {
         return encoder
     }()
 
-    private static let decoder: JSONDecoder = {
+    static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder

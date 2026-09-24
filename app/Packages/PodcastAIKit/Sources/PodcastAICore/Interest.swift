@@ -15,6 +15,9 @@ public enum InterestOrigin: String, Codable, Sendable {
     case confirmedByUser
     /// Von PodcastAI aus Verhalten oder Inhalten vorgeschlagen, noch nicht bestätigt.
     case suggestedBySystem
+    /// Als Tag aus dem Inhalt eines Kapitels erkannt, seit 0.10. Ein solches
+    /// Tag steht neutral in der Wolke, bis jemand Plus wählt.
+    case detected
 
     public var isConfirmed: Bool { self == .confirmedByUser }
 
@@ -22,6 +25,7 @@ public enum InterestOrigin: String, Codable, Sendable {
         switch self {
         case .confirmedByUser: String(localized: "von dir bestätigt", bundle: .module)
         case .suggestedBySystem: String(localized: "von PodcastAI vorgeschlagen", bundle: .module)
+        case .detected: String(localized: "aus dem Inhalt erkannt", bundle: .module)
         }
     }
 }
@@ -47,14 +51,24 @@ public struct Interest: Hashable, Codable, Sendable, Identifiable {
     /// Bei `.activeProject` optional: ab wann es nicht mehr aktuell ist.
     public var expiresAt: Date?
     public var createdAt: Date
+    /// Seit 0.10 ist jedes Interesse ein Tag. Plus heißt folgen, Minus
+    /// heißt nicht mehr folgen. Das Tag bleibt dann sichtbar und neutral.
+    public var stance: TagStance
+    /// Der Schlüssel, unter dem Schreibweisen desselben Tags zusammenfallen,
+    /// siehe `TagNormalizer`. Leer, solange er nicht berechnet ist.
+    public var normalizedKey: String
+    /// Wann das Tag zum ersten Mal in einem Kapitel erkannt wurde.
+    public var firstSeenAt: Date?
 
     public init(
         id: InterestID = InterestID(), label: String, kind: InterestKind = .topic,
         origin: InterestOrigin = .confirmedByUser, keywords: [String] = [],
-        expiresAt: Date? = nil, createdAt: Date = Date()
+        expiresAt: Date? = nil, createdAt: Date = Date(),
+        stance: TagStance = .follow, normalizedKey: String = "", firstSeenAt: Date? = nil
     ) {
         self.id = id; self.label = label; self.kind = kind; self.origin = origin
         self.keywords = keywords; self.expiresAt = expiresAt; self.createdAt = createdAt
+        self.stance = stance; self.normalizedKey = normalizedKey; self.firstSeenAt = firstSeenAt
     }
 
     public func isActive(at date: Date = Date()) -> Bool {
@@ -62,10 +76,44 @@ public struct Interest: Hashable, Codable, Sendable, Identifiable {
         return date < expiresAt
     }
 
+    /// Folgt jemand diesem Tag? Ein bloßer Vorschlag zählt nicht, ein
+    /// erkanntes Tag erst nach Plus, ein bestätigtes nicht mehr nach Minus.
+    public var isFollowed: Bool {
+        stance == .follow && origin != .suggestedBySystem
+    }
+
     /// Darf dieses Interesse allein eine persönliche Ausgabe auslösen?
-    /// Ein bloß vermutetes Interesse reicht dafür nicht.
+    /// Ein bloß vermutetes Interesse reicht dafür nicht, ein Tag ohne Plus
+    /// auch nicht.
     public func canDrivePublication(at date: Date = Date()) -> Bool {
-        origin.isConfirmed && isActive(at: date)
+        isFollowed && isActive(at: date)
+    }
+
+    /// Dasselbe Interesse als Tag.
+    public var tag: Tag { Tag(self) }
+}
+
+extension Interest {
+    private enum CodingKeys: String, CodingKey {
+        case id, label, kind, origin, keywords, expiresAt, createdAt
+        case stance, normalizedKey, firstSeenAt
+    }
+
+    /// Liest auch Werte aus der Zeit vor den Tags: Haltung, Schlüssel und
+    /// erstes Auftreten fehlen dort.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(InterestID.self, forKey: .id),
+            label: try container.decode(String.self, forKey: .label),
+            kind: try container.decode(InterestKind.self, forKey: .kind),
+            origin: try container.decode(InterestOrigin.self, forKey: .origin),
+            keywords: try container.decodeIfPresent([String].self, forKey: .keywords) ?? [],
+            expiresAt: try container.decodeIfPresent(Date.self, forKey: .expiresAt),
+            createdAt: try container.decode(Date.self, forKey: .createdAt),
+            stance: try container.decodeIfPresent(TagStance.self, forKey: .stance) ?? .follow,
+            normalizedKey: try container.decodeIfPresent(String.self, forKey: .normalizedKey) ?? "",
+            firstSeenAt: try container.decodeIfPresent(Date.self, forKey: .firstSeenAt))
     }
 }
 
@@ -129,15 +177,21 @@ public struct InterestProfile: Codable, Sendable {
     }
 
     public var confirmed: [Interest] { interests.filter { $0.origin.isConfirmed } }
-    public var suggested: [Interest] { interests.filter { !$0.origin.isConfirmed } }
-    public var topics: [Interest] { confirmed.filter { $0.kind == .topic } }
+    /// Nur Vorschläge. Aus dem Inhalt erkannte Tags gehören nicht dazu, sie
+    /// stehen in der Tag-Wolke.
+    public var suggested: [Interest] { interests.filter { $0.origin == .suggestedBySystem } }
+    /// Tags, denen jemand folgt. Nur sie zählen für Relevanz und Themen-Updates.
+    public var topics: [Interest] { interests.filter { $0.isFollowed && $0.kind == .topic } }
+    /// Alle Tags, auch neutrale und erkannte, ohne Vorschläge.
+    public var tags: [Tag] { interests.filter { $0.origin != .suggestedBySystem }.map(\.tag) }
     public var activeProjects: [Interest] { confirmed.filter { $0.kind == .activeProject && $0.isActive() } }
     public var openQuestions: [Interest] { confirmed.filter { $0.kind == .openQuestion } }
 
     public mutating func add(_ interest: Interest) {
         guard !interests.contains(where: { $0.id == interest.id }) else { return }
         // Ein Vorschlag darf nur aufgenommen werden, wenn Lernen erlaubt ist.
-        guard interest.origin.isConfirmed || learningEnabled else { return }
+        // Erkannte Tags stammen aus dem Inhalt, nicht aus dem Verhalten.
+        guard interest.origin != .suggestedBySystem || learningEnabled else { return }
         interests.append(interest)
         revision = revision.next()
     }
@@ -157,7 +211,7 @@ public struct InterestProfile: Codable, Sendable {
 
     /// Setzt das Gelernte zurück, ohne bestätigte Interessen anzutasten.
     public mutating func resetLearning() {
-        interests.removeAll { !$0.origin.isConfirmed }
+        interests.removeAll { $0.origin == .suggestedBySystem }
         epoch += 1
         revision = revision.next()
     }

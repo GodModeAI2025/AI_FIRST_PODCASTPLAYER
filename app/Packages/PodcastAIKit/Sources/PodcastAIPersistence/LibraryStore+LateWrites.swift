@@ -35,6 +35,12 @@ extension LibraryStore {
         report.evidenceIDs = Set(evidence.map(\.identifier)).sorted().map(EvidenceID.init(rawValue:))
         for row in evidence { modelContext.delete(row) }
 
+        // Kapitel-Tags schreibt die Einordnung nach den Fakten, zur selben Fassung.
+        for tag in try modelContext.fetch(FetchDescriptor<StoredChapterTag>(
+            predicate: #Predicate { $0.episodeIdentifier == key && $0.mediaVersionIdentifier == mediaKey })) {
+            modelContext.delete(tag)
+        }
+
         for transcript in try modelContext.fetch(FetchDescriptor<StoredTranscript>(
             predicate: #Predicate { $0.mediaVersion?.identifier == mediaKey })) {
             modelContext.delete(transcript)
