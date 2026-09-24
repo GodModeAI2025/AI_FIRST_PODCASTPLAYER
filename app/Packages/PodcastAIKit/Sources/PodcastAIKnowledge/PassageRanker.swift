@@ -72,7 +72,10 @@ public struct PassageRanker: Sendable {
         let count = Double(documents.count)
         let averageLength = max(1, Double(documents.reduce(0) { $0 + $1.length }) / count)
         // Nur die Wörter der Frage zählen, also auch nur ihre Seltenheit.
-        let keys = terms.map(PassageIndex.termKey)
+        // Sortiert, damit die Summe in jedem Lauf gleich gebildet wird. Die
+        // Reihenfolge einer Menge wechselt von Start zu Start, und damit
+        // wechselte die letzte Stelle der Punktzahl.
+        let keys = terms.sorted().map(PassageIndex.termKey)
         var documentFrequency = keys.map { _ in 0 }
         for document in documents {
             for (position, key) in keys.enumerated() where document.frequency(of: key) > 0 {

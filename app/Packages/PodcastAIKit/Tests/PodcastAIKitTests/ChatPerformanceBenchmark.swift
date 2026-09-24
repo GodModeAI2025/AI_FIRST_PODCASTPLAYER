@@ -329,7 +329,9 @@ struct ChatPerformanceBenchmark {
                 ranker.keywordScores(warmPool, for: other)
             }
             add("Rangfolge Stichworte", \.warm, keywordWarm)
-            #expect(otherKeywords == LegacyRanking.keywordScores(warmPool, for: other))
+            let otherGap = zip(otherKeywords, LegacyRanking.keywordScores(warmPool, for: other))
+                .map { abs($0 - $1) }.max() ?? 0
+            #expect(otherGap < 1e-9)
             #if canImport(NaturalLanguage)
             let otherSelection = PassageRanker.embeddingSelection(keywords: otherKeywords, limit: 64)
             let (_, embedOther) = await ChatBenchmark.measure {

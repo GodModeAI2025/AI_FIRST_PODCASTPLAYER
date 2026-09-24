@@ -49,8 +49,11 @@ struct ChatCacheTests {
         #expect(first.map(\.id) == second.map(\.id))
         #expect(first.map(\.id) == fresh.map(\.id))
         #expect(first.first?.id == Self.pool[27].id)
-        #expect(cached.keywordScores(Self.pool, for: question)
-                == LegacyRanking.keywordScores(Self.pool, for: question))
+        // Der alte Weg summierte in der Reihenfolge einer Menge, die von
+        // Start zu Start wechselt. Gleich bis auf die letzte Stelle.
+        let gap = zip(cached.keywordScores(Self.pool, for: question),
+                      LegacyRanking.keywordScores(Self.pool, for: question)).map { abs($0 - $1) }.max() ?? 0
+        #expect(gap < 1e-9)
     }
 
     @Test("Eine neue Revision des Transkripts wird neu zerlegt")
