@@ -585,6 +585,9 @@ final class TopicCoverArt {
         while !pending.isEmpty {
             let recipe = pending.removeFirst()
             let outcome = await generate(recipe)
+            // Ein verworfenes Bild ist erledigt, auch wenn es gar nicht
+            // fertig wurde. Sonst träfe es später das neue Bild.
+            stale.remove(recipe.key)
             outcomes[recipe.key] = outcome
             generating.remove(recipe.key)
             // Während das Bild entstand, änderten sich die Tags. Gleich
@@ -690,7 +693,13 @@ extension AppModel {
         guard coverArt.mayGenerate, !coverArt.wasAttempted(key), coverArt.beginPreparing(key) else { return }
         defer { coverArt.endPreparing(key) }
         guard !(await coverArt.hasCover(key)) else { return }
-        await coverArt.prepare(await coverRecipe(for: edition, feed: feed))
+        let recipe = await coverRecipe(for: edition, feed: feed)
+        // Während die Namen gezählt wurden, kann die Ausgabe Stellen
+        // verloren haben (Regel 5). Dann stammt das Rezept aus dem alten
+        // Stand, und das nächste Öffnen rechnet neu.
+        let current = editions[feed.id]?.first { $0.id == edition.id }
+        guard current?.segments.map(\.id) == edition.segments.map(\.id) else { return }
+        await coverArt.prepare(recipe)
     }
 
     /// Holt die Cover der neuesten Ausgaben nach, etwa von Ausgaben, die im
