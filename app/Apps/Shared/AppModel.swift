@@ -1044,8 +1044,9 @@ public final class AppModel {
     /// Bricht einen Download für unterwegs ab. Eine halbe Datei bleibt nicht liegen.
     public func cancelDownload(_ episode: Episode) {
         downloadTasks[episode.id]?.cancel()
-        // Die Aufgabe loszulassen hält eine Übertragung im Hintergrund nicht an.
-        if let id = Self.downloadID(of: episode) { BackgroundDownloads.shared.cancel([id]) }
+        // Die Aufgabe loszulassen hält eine Übertragung im Hintergrund nicht
+        // an. Lädt das Transkript dieselbe Datei noch, läuft sie für es weiter.
+        if let id = Self.downloadID(of: episode) { BackgroundDownloads.shared.cancelUnlessAwaited([id]) }
     }
 
     func noteDownloadProgress(_ id: EpisodeID, received: Int64, expected: Int64?) {
@@ -1602,12 +1603,19 @@ public final class AppModel {
     public func pauseQueue() {
         guard !queuePaused else { return }
         queuePaused = true
-        // Ein Download im Hintergrund hält mit an und merkt sich den Stand.
-        if let running = analyzing.flatMap(Self.downloadID(of:)) {
-            BackgroundDownloads.shared.suspend([running])
-        }
+        let running = analysisTask
         pauseTranscripts()
         factsTask?.cancel()
+        // Downloads im Hintergrund halten mit an und merken sich den Stand,
+        // auch die einer Folge, die schon wieder wartet, weil ihre Zeit im
+        // Hintergrund endete. Erst wenn die laufende Folge aufgeräumt hat:
+        // solange sie noch wartet, liefe ihr Download sonst weiter.
+        Task { [weak self] in
+            await running?.value
+            guard let self, self.queuePaused else { return }
+            BackgroundDownloads.shared.suspend(
+                ([self.analyzing].compactMap { $0 } + self.analysisQueue).compactMap(Self.downloadID(of:)))
+        }
     }
 
     /// „Fortsetzen“: die Warteschlange läuft dort weiter, wo sie stand.
@@ -1638,8 +1646,9 @@ public final class AppModel {
         await facts?.value
         let plan = AnalysisQueueControl.cancelAll(
             running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
-        // Auch Downloads, die im Hintergrund weiterliefen.
-        BackgroundDownloads.shared.cancel(
+        // Auch Downloads, die im Hintergrund weiterliefen. Lädt „Laden
+        // (offline)“ oder die neueste Folge dieselbe Datei, bleibt sie.
+        BackgroundDownloads.shared.cancelUnlessAwaited(
             ([analyzing].compactMap { $0 } + analysisQueue).compactMap(Self.downloadID(of:)))
         restingPreparation.insert(contentsOf: plan.restingUntilRefresh)
         for id in plan.removed {

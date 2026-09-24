@@ -28,6 +28,10 @@ final class BackgroundDownloads {
     private let automatic: BackgroundDownloadSession
     /// Abschlussblöcke des Systems je Sitzung.
     private var eventCompletions: [String: () -> Void] = [:]
+    /// Sitzungen, deren Ereignisse schon zugestellt waren, bevor der
+    /// Abschlussblock kam. Beide laufen über den Hauptthread, aber in
+    /// keiner festen Reihenfolge.
+    private var finishedEarly: Set<String> = []
     #endif
     /// Eine Datei ist angekommen, während niemand auf sie wartete.
     var onArrival: ((MediaVersionID) -> Void)?
@@ -40,11 +44,8 @@ final class BackgroundDownloads {
         let arrived: @Sendable (MediaVersionID) -> Void = { id in
             Task { @MainActor in BackgroundDownloads.shared.onArrival?(id) }
         }
-        let directory = LocalMediaLocator.mediaDirectory
-        manual = BackgroundDownloadSession(
-            mode: .manual, mediaDirectory: directory, onEventsFinished: finished, onArrival: arrived)
-        automatic = BackgroundDownloadSession(
-            mode: .automatic, mediaDirectory: directory, onEventsFinished: finished, onArrival: arrived)
+        (manual, automatic) = BackgroundDownloadSession.makePair(
+            mediaDirectory: LocalMediaLocator.mediaDirectory, onEventsFinished: finished, onArrival: arrived)
         #endif
     }
 
@@ -64,22 +65,28 @@ final class BackgroundDownloads {
     }
 
     /// Bricht die Übertragungen dieser Fassungen ab, in beiden Sitzungen.
+    /// Wer noch wartet, bekommt einen Abbruch. Für „Folge löschen“.
     func cancel(_ ids: some Sequence<MediaVersionID>) {
         #if os(iOS)
-        for id in ids {
-            manual.cancel(id)
-            automatic.cancel(id)
-        }
+        // Beide teilen sich den Stand; eine Sitzung erreicht beide.
+        for id in ids { manual.cancel(id) }
         #endif
     }
 
-    /// Hält die Übertragungen an und merkt sich den Stand zum Fortsetzen.
+    /// Bricht nur ab, worauf niemand mehr wartet. Für „Laden abbrechen“ und
+    /// „Alle abbrechen“: lädt dieselbe Datei noch für das Transkript oder
+    /// für „Laden (offline)“, läuft sie weiter.
+    func cancelUnlessAwaited(_ ids: some Sequence<MediaVersionID>) {
+        #if os(iOS)
+        for id in ids { manual.cancelUnlessAwaited(id) }
+        #endif
+    }
+
+    /// Hält die Übertragungen an, auf die niemand mehr wartet, und merkt
+    /// sich den Stand zum Fortsetzen.
     func suspend(_ ids: some Sequence<MediaVersionID>) {
         #if os(iOS)
-        for id in ids {
-            manual.suspend(id)
-            automatic.suspend(id)
-        }
+        for id in ids { manual.suspend(id) }
         #endif
     }
 
@@ -91,11 +98,19 @@ final class BackgroundDownloads {
             completion()
             return
         }
-        eventCompletions[identifier] = completion
+        if finishedEarly.remove(identifier) != nil {
+            completion()
+        } else {
+            eventCompletions[identifier] = completion
+        }
     }
 
     private func eventsFinished(_ identifier: String) {
-        eventCompletions.removeValue(forKey: identifier)?()
+        if let completion = eventCompletions.removeValue(forKey: identifier) {
+            completion()
+        } else {
+            finishedEarly.insert(identifier)
+        }
     }
     #endif
 }
