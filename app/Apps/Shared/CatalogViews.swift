@@ -108,20 +108,17 @@ final class CatalogSubscriptions {
 // MARK: - Bausteine
 
 /// Bild eines Podcasts, mit Mikrofon als Platzhalter, solange es lädt oder
-/// wenn es fehlt. `AsyncImage` lädt über den gemeinsamen `URLCache`.
+/// wenn es fehlt. `ArtworkImage` lädt über den gemeinsamen `URLCache` und
+/// dekodiert nur so groß, wie das Bild angezeigt wird.
 struct PodcastArtwork: View {
     let url: URL?
     let size: CGFloat
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if let image = phase.image {
-                image.resizable().scaledToFill()
-            } else {
-                Image(systemName: "mic")
-                    .font(.system(size: max(12, size / 3)))
-                    .foregroundStyle(.secondary)
-            }
+        ArtworkImage(url: url, side: size) {
+            Image(systemName: "mic")
+                .font(.system(size: max(12, size / 3)))
+                .foregroundStyle(.secondary)
         }
         // Nach „Neu laden“ einer Quelle neu, auch unter derselben Adresse.
         .id(ArtworkRefresh.shared.revision(for: url))

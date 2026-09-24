@@ -51,7 +51,7 @@ final class PodcastCatalog {
         return "PodcastAI/\(version)"
     }
 
-    /// Cover kommen über `AsyncImage` und damit über den gemeinsamen
+    /// Cover kommen über `ArtworkImage` und damit über den gemeinsamen
     /// `URLCache`. Etwas größer als ab Werk, damit Katalog und Mediathek
     /// Bilder nicht dauernd neu laden.
     static func configureImageCache() {

@@ -39,7 +39,10 @@ struct EpisodeListView: View {
     private var episodes: [Episode] { model.episodes[sourceID] ?? [] }
 
     var body: some View {
-        let analyzed = Set(episodes.lazy.map(\.id).filter { model.stages[$0] == .evidenceExtracted })
+        // Nur mit dem Filter „ohne Transkript“ gebraucht. Ohne ihn liest die
+        // Liste die Stufen nicht, und eine neue Stufe zeichnet nur ihre Zeile neu.
+        let analyzed = options.onlyUnanalyzed
+            ? Set(episodes.lazy.map(\.id).filter { model.stages[$0] == .evidenceExtracted }) : []
         let shown = EpisodeArchive.arrange(episodes, options: options, analyzed: analyzed, matches: matches)
         List {
             // „Neu laden“: läuft gerade, hat geklappt oder nicht.
@@ -184,7 +187,7 @@ struct EpisodeListView: View {
                 if !episodes.isEmpty {
                     VStack(alignment: .leading, spacing: Design.Spacing.small) {
                         VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
-                            Text(coverage(analyzed: analyzed.count))
+                            EpisodeCoverageLine(sourceID: sourceID)
                             if matches != nil || options.onlyUnanalyzed {
                                 Text(shown.count == 1 ? "1 Folge angezeigt" : "\(shown.count) Folgen angezeigt")
                             }
@@ -320,16 +323,6 @@ struct EpisodeListView: View {
         let stage = model.stages[episode.id]
         guard stage == nil || stage == .failed else { return false }
         return model.analyzing?.id != episode.id
-    }
-
-    private func coverage(analyzed: Int) -> String {
-        let automatic: EpisodeArchive.Automatic = !model.automaticAnalysis ? .off
-            : model.preparationUnavailable != nil ? .paused
-            : model.preparesBackCatalog(sourceID) ? .all
-            : .newest(model.episodesPerSource)
-        return EpisodeArchive.coverage(
-            total: episodes.count, analyzed: analyzed,
-            analyzable: episodes.contains { model.canTranscribe($0, byHand: false) }, automatic: automatic)
     }
 
     // MARK: Ältere Folgen vorbereiten
@@ -545,6 +538,26 @@ struct EpisodeListView: View {
     /// Nur laden, was eine Audiodatei hat, noch nicht da ist und nicht gerade lädt.
     private func canDownload(_ episode: Episode) -> Bool {
         episode.audioURL != nil && !model.downloading.contains(episode.id) && !model.hasLocalAudio(episode)
+    }
+}
+
+/// „12 von 80 Folgen mit Transkript“. Eine eigene Ansicht, weil sie die
+/// Stufen aller Folgen liest: eine neue Stufe zeichnet nur diese Zeile neu,
+/// nicht die ganze Liste.
+private struct EpisodeCoverageLine: View {
+    let sourceID: SourceID
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let episodes = model.episodes[sourceID] ?? []
+        let analyzed = episodes.count { model.stages[$0.id] == .evidenceExtracted }
+        let automatic: EpisodeArchive.Automatic = !model.automaticAnalysis ? .off
+            : model.preparationUnavailable != nil ? .paused
+            : model.preparesBackCatalog(sourceID) ? .all
+            : .newest(model.episodesPerSource)
+        Text(EpisodeArchive.coverage(
+            total: episodes.count, analyzed: analyzed,
+            analyzable: episodes.contains { model.canTranscribe($0, byHand: false) }, automatic: automatic))
     }
 }
 

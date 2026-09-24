@@ -151,7 +151,7 @@ extension AppModel {
 }
 
 /// Lässt Bilder neu laden, deren Inhalt sich unter derselben Adresse
-/// geändert haben kann. `AsyncImage` lädt über `URLCache.shared` und lädt
+/// geändert haben kann. `ArtworkImage` lädt über `URLCache.shared` und lädt
 /// ein schon gezeigtes Bild nicht von selbst neu. Nach „Neu laden“ fliegt
 /// der Eintrag aus dem Cache, und die Ansicht bekommt eine neue Identität.
 @MainActor @Observable

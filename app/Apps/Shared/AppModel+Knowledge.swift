@@ -1150,7 +1150,10 @@ extension AppModel {
             guard open.contains(index) else { continue }
             let claims: [Claim]
             do {
-                claims = try await Self.extractClaims(from: slice, with: extractor, availability: modelStatus)
+                let availability = modelStatus
+                claims = try await ProcessingTrace.interval("Fakten: Abschnitt") {
+                    try await Self.extractClaims(from: slice, with: extractor, availability: availability)
+                }
             } catch let error as ExtractorError {
                 switch error {
                 case .generationRejected:
@@ -1184,31 +1187,14 @@ extension AppModel {
                 continue
             }
             guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
-            // Je Kapitel höchstens `quota`, damit ein Aufruf mit mehreren
-            // Kapiteln nicht alles einem einzigen gibt. Aussagen ohne
-            // bekannten Beleg fallen vorher heraus, sonst zählten sie beim
-            // ersten Kapitel mit und verdrängten dort echte.
-            let placed = claims.filter { $0.evidenceIDs.first.flatMap { byID[$0]?.range } != nil }
-            let perSection = ChapterSections.balanced(
-                placed, across: sections, quota: quota, limit: placed.count
-            ) { claim in
-                claim.evidenceIDs.first.flatMap { byID[$0]?.range?.start } ?? .zero
-            }
-            for claim in perSection {
-                guard let evidenceID = claim.evidenceIDs.first, let source = byID[evidenceID],
-                      let range = source.range else { continue }
-                let sentence = timed.flatMap { transcript in
-                    transcript.mediaVersionID == source.mediaVersionID
-                        ? FactAnchor.range(for: claim.statement, within: range, in: transcript.segments)
-                        : nil
+            // Die Sätze im Transkript sucht der Code außerhalb des Hauptthreads.
+            let episodeID = episode.id
+            result += await Task.detached(priority: .utility) {
+                ProcessingTrace.measure("Fakten verankern") {
+                    Self.placeFacts(claims, episodeID: episodeID, byID: byID, sections: sections,
+                                    quota: quota, transcript: timed, tier: tier)
                 }
-                result.append(EpisodeFact(
-                    id: claim.id.rawValue, episodeID: episode.id, sourceID: source.sourceID,
-                    evidenceID: evidenceID, mediaVersionID: source.mediaVersionID,
-                    // Die Kennung, nicht die Bezeichnung: die Ansicht übersetzt sie in
-                    // die Sprache, in der jemand die Fakten liest.
-                    statement: claim.statement, range: sentence ?? range, modelTier: tier.rawValue))
-            }
+            }.value
         }
         guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
         // Das Kontingent oder die Bereitschaft des Modells kann sich geändert haben.
@@ -1283,6 +1269,42 @@ extension AppModel {
             if !wasRemoved(episode.id, since: ticket) { facts[episode.id] = shown }
         }
         return outcome
+    }
+
+    /// Macht aus den Aussagen eines Abschnitts Fakten mit Zeitmarke.
+    ///
+    /// Je Kapitel höchstens `quota`, damit ein Aufruf mit mehreren Kapiteln
+    /// nicht alles einem einzigen gibt. Aussagen ohne bekannten Beleg fallen
+    /// vorher heraus, sonst zählten sie beim ersten Kapitel mit und
+    /// verdrängten dort echte. Das Modell wählt nur den Beleg, den Satz
+    /// darin findet der Code im Transkript.
+    nonisolated static func placeFacts(
+        _ claims: [Claim], episodeID: EpisodeID, byID: [EvidenceID: Evidence], sections: [ChapterSection],
+        quota: Int, transcript timed: Transcript?, tier: ModelTier
+    ) -> [EpisodeFact] {
+        let placed = claims.filter { $0.evidenceIDs.first.flatMap { byID[$0]?.range } != nil }
+        let perSection = ChapterSections.balanced(
+            placed, across: sections, quota: quota, limit: placed.count
+        ) { claim in
+            claim.evidenceIDs.first.flatMap { byID[$0]?.range?.start } ?? .zero
+        }
+        var result: [EpisodeFact] = []
+        for claim in perSection {
+            guard let evidenceID = claim.evidenceIDs.first, let source = byID[evidenceID],
+                  let range = source.range else { continue }
+            let sentence = timed.flatMap { transcript in
+                transcript.mediaVersionID == source.mediaVersionID
+                    ? FactAnchor.range(for: claim.statement, within: range, in: transcript.segments)
+                    : nil
+            }
+            result.append(EpisodeFact(
+                id: claim.id.rawValue, episodeID: episodeID, sourceID: source.sourceID,
+                evidenceID: evidenceID, mediaVersionID: source.mediaVersionID,
+                // Die Kennung, nicht die Bezeichnung: die Ansicht übersetzt sie in
+                // die Sprache, in der jemand die Fakten liest.
+                statement: claim.statement, range: sentence ?? range, modelTier: tier.rawValue))
+        }
+        return result
     }
 
     /// Ein Lauf wird abgebrochen, etwa weil die Zeit im Hintergrund endet.
@@ -1371,15 +1393,19 @@ extension AppModel {
 
     /// Abschnitte, die das Gerätemodell abgelehnt hat. Nur auf diesem Gerät,
     /// ohne Eintrag in der Datenbank.
-    private static var rejectedFactSlices: Set<String> {
-        Set(UserDefaults.standard.stringArray(forKey: rejectedFactSlicesKey) ?? [])
+    private static var rejectedFactSliceList: [String] {
+        DeviceState.shared.value([String].self, for: rejectedFactSlicesKey) {
+            UserDefaults.standard.stringArray(forKey: rejectedFactSlicesKey)
+        } ?? []
     }
 
+    private static var rejectedFactSlices: Set<String> { Set(rejectedFactSliceList) }
+
     private static func rememberRejectedFactSlice(_ key: String) {
-        var list = UserDefaults.standard.stringArray(forKey: rejectedFactSlicesKey) ?? []
+        var list = rejectedFactSliceList
         guard !list.contains(key) else { return }
         list.append(key)
-        UserDefaults.standard.set(Array(list.suffix(rejectedFactSliceLimit)), forKey: rejectedFactSlicesKey)
+        DeviceState.shared.set(Array(list.suffix(rejectedFactSliceLimit)), for: rejectedFactSlicesKey)
     }
 
     /// Kennung eines Abschnitts. Belege haben stabile Kennungen, erster und
@@ -1402,7 +1428,9 @@ extension AppModel {
     private static let factGapsKey = "com.podcastai.factGaps"
 
     private static var allFactGaps: [String: [String]] {
-        UserDefaults.standard.dictionary(forKey: factGapsKey) as? [String: [String]] ?? [:]
+        DeviceState.shared.value([String: [String]].self, for: factGapsKey) {
+            UserDefaults.standard.dictionary(forKey: factGapsKey) as? [String: [String]]
+        } ?? [:]
     }
 
     static func factGaps(of id: EpisodeID) -> Set<String> {
@@ -1420,7 +1448,7 @@ extension AppModel {
         let previous = all[id.rawValue]
         all[id.rawValue] = gaps.isEmpty ? nil : gaps.sorted()
         guard all[id.rawValue] != previous else { return }
-        UserDefaults.standard.set(all, forKey: factGapsKey)
+        DeviceState.shared.set(all, for: factGapsKey)
     }
 
     /// Merkt sich die Lücken, außer die Folge wurde inzwischen gelöscht.
@@ -1775,11 +1803,14 @@ extension AppModel {
                 let next = factsQueue.removeFirst()
                 let requested = factsRequested.remove(next.id) != nil
                 gatheringFacts = next
-                let outcome = await prepareFacts(for: next, force: requested)
+                let outcome = await ProcessingTrace.interval("Fakten einer Folge") {
+                    await prepareFacts(for: next, force: requested)
+                }
                 gatheringFacts = nil
                 // Gleich danach die Tags der Kapitel, dieselbe Folge, dieselbe Arbeit.
                 switch outcome {
-                case .stored, .partial, .noFacts: await prepareChapterTags(for: next)
+                case .stored, .partial, .noFacts:
+                    await ProcessingTrace.interval("Kapitel-Tags einer Folge") { await prepareChapterTags(for: next) }
                 default: break
                 }
                 switch outcome {
@@ -1872,7 +1903,9 @@ extension AppModel {
         let list = list.compactMap(\.cleaned)
         guard list.contains(where: { $0.range.duration.milliseconds >= 30_000 }),
               let transcript = try? await store.transcript(forEpisode: episodeID) else { return list }
-        return FactAnchor.anchored(list, in: transcript)
+        return await Task.detached(priority: .utility) {
+            ProcessingTrace.measure("Fakten verankern") { FactAnchor.anchored(list, in: transcript) }
+        }.value
     }
 
     /// Was in der Folge zu jedem Fakt wörtlich gesagt wurde: der passende
@@ -2568,13 +2601,13 @@ extension AppModel {
     }
 }
 
-/// Eine gemerkte Liste von Folgen in den Benutzereinstellungen, etwa was
-/// jemand aus der Warteschlange genommen oder für unterwegs geladen hat.
+/// Eine gemerkte Liste von Folgen auf diesem Gerät, etwa was jemand aus
+/// der Warteschlange genommen oder für unterwegs geladen hat.
 typealias StoredEpisodeIDs = StoredIDs<EpisodeSubject>
 
-/// Eine gemerkte Liste von Kennungen in den Benutzereinstellungen, etwa
-/// Folgen oder Podcasts. Nur auf diesem Gerät. Die ältesten Einträge fallen
-/// ab einer Grenze weg.
+/// Eine gemerkte Liste von Kennungen, etwa Folgen oder Podcasts. Nur auf
+/// diesem Gerät, als Datei in `DeviceState`, bis 0.10 in den
+/// Benutzereinstellungen. Die ältesten Einträge fallen ab einer Grenze weg.
 struct StoredIDs<Subject> {
     let key: String
     let limit: Int
@@ -2586,7 +2619,10 @@ struct StoredIDs<Subject> {
     init(key: String, limit: Int = 500) {
         self.key = key
         self.limit = limit
-        ids = (UserDefaults.standard.stringArray(forKey: key) ?? []).map(TypedID<Subject>.init(rawValue:))
+        let stored = DeviceState.shared.value([String].self, for: key) {
+            UserDefaults.standard.stringArray(forKey: key)
+        }
+        ids = (stored ?? []).map(TypedID<Subject>.init(rawValue:))
         lookup = Set(ids)
     }
 
@@ -2632,5 +2668,5 @@ struct StoredIDs<Subject> {
         save()
     }
 
-    private func save() { UserDefaults.standard.set(ids.map(\.rawValue), forKey: key) }
+    private func save() { DeviceState.shared.set(ids.map(\.rawValue), for: key) }
 }

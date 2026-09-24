@@ -272,19 +272,19 @@ extension AppModel {
 
     // MARK: - Fehlversuche
 
+    /// Als Datei in `DeviceState`, bis 0.10 in den Benutzereinstellungen.
     static func loadCaptionFailures() -> [String: CaptionFailure] {
-        guard let data = UserDefaults.standard.data(forKey: captionFailuresKey),
-              let decoded = try? JSONDecoder().decode([String: CaptionFailure].self, from: data) else { return [:] }
-        return decoded
+        DeviceState.shared.value([String: CaptionFailure].self, for: captionFailuresKey) {
+            UserDefaults.standard.data(forKey: captionFailuresKey)
+                .flatMap { try? JSONDecoder().decode([String: CaptionFailure].self, from: $0) }
+        } ?? [:]
     }
 
     static func saveCaptionFailures(_ failures: [String: CaptionFailure]) {
         // Nur die jüngsten 2.000 Folgen. Ein totes Archiv hat viele.
         let kept = failures.count <= 2_000 ? failures
             : Dictionary(uniqueKeysWithValues: failures.sorted { $0.value.at > $1.value.at }.prefix(2_000).map { ($0.key, $0.value) })
-        if let data = try? JSONEncoder().encode(kept) {
-            UserDefaults.standard.set(data, forKey: captionFailuresKey)
-        }
+        DeviceState.shared.set(kept, for: captionFailuresKey)
     }
 
     // MARK: - Metadaten über Supadata

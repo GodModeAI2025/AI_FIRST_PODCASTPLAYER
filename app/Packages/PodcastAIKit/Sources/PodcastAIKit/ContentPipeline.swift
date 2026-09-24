@@ -216,9 +216,11 @@ public actor ContentPipeline {
         // Liefert der Podcast ein Transkript mit Zeitmarken, gilt es zuerst.
         // Klappt das nicht, bleibt es bei der eigenen Spracherkennung.
         if let transcriptURL = episode.timedTranscriptURL,
-           let evidence = try await processPublisherTranscript(
-               episode: episode, transcriptURL: transcriptURL, audioURL: audioURL,
-               mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale) {
+           let evidence = try await ProcessingTrace.interval("Transkript vom Podcast", {
+               try await processPublisherTranscript(
+                   episode: episode, transcriptURL: transcriptURL, audioURL: audioURL,
+                   mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale)
+           }) {
             return evidence
         }
         // Sonst die Untertitel desselben Inhalts auf YouTube, falls die App
@@ -232,9 +234,11 @@ public actor ContentPipeline {
                 let evidence: [Evidence]?
                 do {
                     let outcome: TwinAlignmentOutcome
-                    (evidence, outcome) = try await processTwinCaptions(
-                        captions, episode: episode, audioURL: audioURL,
-                        mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale)
+                    (evidence, outcome) = try await ProcessingTrace.interval("Zwilling abgleichen") {
+                        try await processTwinCaptions(
+                            captions, episode: episode, audioURL: audioURL,
+                            mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale)
+                    }
                     twin.report(episode.id, captions, outcome)
                 } catch {
                     // Ohne Sprachmodell oder Speicher scheitert die Folge ganz.
@@ -251,7 +255,9 @@ public actor ContentPipeline {
         if let existing = await downloader.existing(mediaVersionID: mediaVersionID) {
             download = existing
         } else {
-            download = try await downloader.download(from: audioURL, mediaVersionID: mediaVersionID)
+            download = try await ProcessingTrace.interval("Laden") {
+                try await downloader.download(from: audioURL, mediaVersionID: mediaVersionID)
+            }
         }
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .mediaDownloaded,
@@ -286,6 +292,8 @@ public actor ContentPipeline {
                 segments: segments, analyzedThrough: through))
         }
 
+        let transcription = ProcessingTrace.begin("Transkript")
+        defer { ProcessingTrace.end("Transkript", transcription) }
         do {
             for try await result in try await engine.transcribeFile(
                 at: mediaURL, mediaVersionID: mediaVersionID, locale: locale, startingAt: startingAt
@@ -309,10 +317,12 @@ public actor ContentPipeline {
                 // Deduplizierung billig und schafft einen sicheren Punkt zum
                 // Anhalten. Dort liegt auch der Zwischenstand.
                 if batch.count >= 50 {
+                    let merging = ProcessingTrace.begin("Zwischenstand")
                     segments = assembler.merge(existing: segments, incoming: batch,
                                                mediaVersionID: mediaVersionID)
                     batch.removeAll(keepingCapacity: true)
                     saveCheckpoint(segments, analyzedThrough)
+                    ProcessingTrace.end("Zwischenstand", merging)
                     try Task.checkCancellation()
                 }
             }
@@ -349,28 +359,32 @@ public actor ContentPipeline {
         // kein Zufall: ein Beleg verweist auf Fassung und Transkriptrevision,
         // und ein Verweis auf etwas, das noch nicht da ist, wäre genau die
         // Art von halber Herkunft, die diese Kette verhindern soll.
-        try await store.save(
-            transcript: transcript,
-            media: MediaVersion(
-                id: mediaVersionID,
-                episodeID: episode.id,
-                remoteURL: audioURL,
-                localRelativePath: download.localRelativePath,
-                byteCount: download.byteCount,
-                contentHash: download.contentHash,
-                duration: download.duration,
-                mimeType: download.mimeType
-            ),
-            forEpisode: episode.id
-        )
+        try await ProcessingTrace.interval("Transkript speichern") {
+            try await store.save(
+                transcript: transcript,
+                media: MediaVersion(
+                    id: mediaVersionID,
+                    episodeID: episode.id,
+                    remoteURL: audioURL,
+                    localRelativePath: download.localRelativePath,
+                    byteCount: download.byteCount,
+                    contentHash: download.contentHash,
+                    duration: download.duration,
+                    mimeType: download.mimeType
+                ),
+                forEpisode: episode.id
+            )
+        }
         // Das Transkript steht. Ein Zwischenstand würde nur noch stören.
         checkpoints.remove([mediaVersionID])
 
-        let evidence = assembler.evidence(
-            from: transcript, episodeID: episode.id, sourceID: sourceID,
-            ranges: PassageBuilder.passages(from: transcript)
-        )
-        try await store.store(evidence: evidence)
+        let evidence = ProcessingTrace.measure("Belege bilden") {
+            assembler.evidence(
+                from: transcript, episodeID: episode.id, sourceID: sourceID,
+                ranges: PassageBuilder.passages(from: transcript)
+            )
+        }
+        try await ProcessingTrace.interval("Belege speichern") { try await store.store(evidence: evidence) }
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .evidenceExtracted,
             detail: String(AttributedString(
@@ -425,30 +439,34 @@ public actor ContentPipeline {
         )
         // Liegt die Datei schon auf dem Gerät, bleibt sie an der Fassung.
         let local = await downloader.existing(mediaVersionID: mediaVersionID)
-        try await store.save(
-            transcript: transcript,
-            media: MediaVersion(
-                id: mediaVersionID,
-                episodeID: episode.id,
-                remoteURL: audioURL,
-                localRelativePath: local?.localRelativePath,
-                byteCount: local?.byteCount,
-                contentHash: local?.contentHash,
-                duration: local?.duration ?? episode.declaredDuration,
-                mimeType: local?.mimeType
-            ),
-            forEpisode: episode.id
-        )
+        try await ProcessingTrace.interval("Transkript speichern") {
+            try await store.save(
+                transcript: transcript,
+                media: MediaVersion(
+                    id: mediaVersionID,
+                    episodeID: episode.id,
+                    remoteURL: audioURL,
+                    localRelativePath: local?.localRelativePath,
+                    byteCount: local?.byteCount,
+                    contentHash: local?.contentHash,
+                    duration: local?.duration ?? episode.declaredDuration,
+                    mimeType: local?.mimeType
+                ),
+                forEpisode: episode.id
+            )
+        }
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .transcribed,
             detail: String(localized: "Transkript vom Podcast", bundle: .module)
         ))
 
-        let evidence = assembler.evidence(
-            from: transcript, episodeID: episode.id, sourceID: sourceID,
-            ranges: PassageBuilder.passages(from: transcript)
-        )
-        try await store.store(evidence: evidence)
+        let evidence = ProcessingTrace.measure("Belege bilden") {
+            assembler.evidence(
+                from: transcript, episodeID: episode.id, sourceID: sourceID,
+                ranges: PassageBuilder.passages(from: transcript)
+            )
+        }
+        try await ProcessingTrace.interval("Belege speichern") { try await store.store(evidence: evidence) }
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .evidenceExtracted,
             detail: String(AttributedString(
@@ -569,24 +587,26 @@ public actor ContentPipeline {
 
         // Wie beim Transkript des Podcasts: die Fassung ist die Audiodatei
         // aus dem Feed. Liegt sie schon auf dem Gerät, bleibt sie daran.
-        try await store.save(
-            transcript: transcript,
-            media: MediaVersion(
-                id: mediaVersionID,
-                episodeID: episode.id,
-                remoteURL: audioURL,
-                localRelativePath: local?.localRelativePath,
-                byteCount: local?.byteCount,
-                contentHash: local?.contentHash,
-                duration: local?.duration ?? MediaDuration(milliseconds: total),
-                mimeType: local?.mimeType
-            ),
-            forEpisode: episode.id
-        )
+        try await ProcessingTrace.interval("Transkript speichern") {
+            try await store.save(
+                transcript: transcript,
+                media: MediaVersion(
+                    id: mediaVersionID,
+                    episodeID: episode.id,
+                    remoteURL: audioURL,
+                    localRelativePath: local?.localRelativePath,
+                    byteCount: local?.byteCount,
+                    contentHash: local?.contentHash,
+                    duration: local?.duration ?? MediaDuration(milliseconds: total),
+                    mimeType: local?.mimeType
+                ),
+                forEpisode: episode.id
+            )
+        }
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .transcribed,
             detail: TranscriptOrigin.youTubeCaptionsAligned.sourceLabel))
-        try await store.store(evidence: evidence)
+        try await ProcessingTrace.interval("Belege speichern") { try await store.store(evidence: evidence) }
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .evidenceExtracted,
             detail: String(AttributedString(

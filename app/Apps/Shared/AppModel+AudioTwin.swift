@@ -209,10 +209,12 @@ extension AppModel {
 
     // MARK: - Speichern
 
+    /// Als Datei in `DeviceState`, bis 0.10 in den Benutzereinstellungen.
     static func loadAudioTwinRecords() -> [String: AudioTwinRecord] {
-        guard let data = UserDefaults.standard.data(forKey: audioTwinRecordsKey),
-              let decoded = try? JSONDecoder().decode([String: AudioTwinRecord].self, from: data) else { return [:] }
-        return decoded
+        DeviceState.shared.value([String: AudioTwinRecord].self, for: audioTwinRecordsKey) {
+            UserDefaults.standard.data(forKey: audioTwinRecordsKey)
+                .flatMap { try? JSONDecoder().decode([String: AudioTwinRecord].self, from: $0) }
+        } ?? [:]
     }
 
     static func saveAudioTwinRecords(_ records: [String: AudioTwinRecord]) {
@@ -223,8 +225,6 @@ extension AppModel {
         let kept = records.count <= 2_000 ? records
             : Dictionary(uniqueKeysWithValues: records.sorted { latest($0.value) > latest($1.value) }
                 .prefix(2_000).map { ($0.key, $0.value) })
-        if let data = try? JSONEncoder().encode(kept) {
-            UserDefaults.standard.set(data, forKey: audioTwinRecordsKey)
-        }
+        DeviceState.shared.set(kept, for: audioTwinRecordsKey)
     }
 }

@@ -18,17 +18,22 @@ import PodcastAICore
 import PodcastAIKnowledge
 import PodcastAISmartFeeds
 
-@ModelActor
-public actor LibraryStore {
+public actor LibraryStore: ModelActor {
 
-    /// Der öffentliche Weg, den Store zu bauen.
-    ///
-    /// `@ModelActor` erzeugt `init(modelContainer:)` mit modulinterner
-    /// Sichtbarkeit. Der Typ ist `public`, sein Initialisierer nicht — aus
-    /// einem App-Target heraus lässt er sich damit nicht bauen, und das
-    /// fällt erst beim Übersetzen des App-Targets auf, nicht beim Paket.
-    /// Diese Fabrik steht im selben Modul und darf den erzeugten
-    /// Initialisierer deshalb aufrufen.
+    /// Von Hand statt über `@ModelActor`: der Ausführer des Makros erledigt
+    /// jeden Auftrag auf dem Thread, der ihn einreiht, bei Abfragen aus der
+    /// Oberfläche also auf dem Hauptthread. `StoreExecutor` arbeitet auf
+    /// einer eigenen Queue mit eigenem Kontext.
+    public nonisolated let modelExecutor: any ModelExecutor
+    public nonisolated let modelContainer: ModelContainer
+
+    init(modelContainer: ModelContainer) {
+        self.modelContainer = modelContainer
+        self.modelExecutor = StoreExecutor(modelContainer: modelContainer)
+    }
+
+    /// Der öffentliche Weg, den Store zu bauen. Der Initialisierer bleibt
+    /// modulintern, wie er es unter `@ModelActor` war.
     public static func make(container: ModelContainer) -> LibraryStore {
         LibraryStore(modelContainer: container)
     }

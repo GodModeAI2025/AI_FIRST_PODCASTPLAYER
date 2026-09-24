@@ -132,6 +132,8 @@ public enum AppBootstrap {
         _ = LocalMediaLocator.removeAllFiles()
         AppModel.transcriptCheckpoints.removeAll()
         TopicCoverStore.standard.removeAll(except: [])
+        // Listen dieses Geräts, die als Dateien liegen (`DeviceState`).
+        DeviceState.shared.removeAll()
         let defaults = UserDefaults.standard
         for key in [
             "episodePlaybackPositions", "recentEpisodeIDs", "upNextEpisodeIDs",

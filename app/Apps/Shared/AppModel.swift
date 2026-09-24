@@ -467,7 +467,7 @@ public final class AppModel {
     /// Die Folge, deren Fakten gerade entstehen.
     public internal(set) var gatheringFacts: Episode?
     /// Wie weit die laufende Folge ist, von 0 bis 1.
-    public internal(set) var factsProgress: [EpisodeID: Double] = [:]
+    public var factsProgress: EpisodeProgressMap<Double> { EpisodeProgressMap(episodeProgress, \.factsFraction) }
     /// Warum die Warteschlange der Fakten steht, oder `nil`, wenn sie läuft.
     public internal(set) var factsWait: String?
     /// Was beim letzten Lauf einer Folge fehlte, für den Reiter „Fakten“.
@@ -887,56 +887,73 @@ public final class AppModel {
     /// - Ohne Timecode kein Vorschlag. Ein Beleg, den man nicht nachhören
     ///   kann, gehört nicht auf eine Liste, deren Versprechen das Nachhören ist.
     public func refreshRelevantToday() async {
+        let trace = ProcessingTrace.begin("Für dich")
+        defer { ProcessingTrace.end("Für dich", trace) }
         do {
             let evidence = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
             // Über Kapitel-Tags, denen jemand folgt. Folgen, die noch kein
             // Kapitel-Tag haben, laufen über Bezeichnung und Aliasse. Gelesen
             // werden nur die Kapitel-Tags der Folgen im Belegvorrat.
-            let chapterTags = try await store.chapterTags(forEpisodes: Set(evidence.map(\.episodeID)))
+            let pooled = await Task.detached(priority: .utility) { Set(evidence.map(\.episodeID)) }.value
+            let chapterTags = try await store.chapterTags(forEpisodes: pooled)
             chapterTagCounts = try await store.chapterCountsByTag()
-            let matches = ChapterTagRelevance.matches(
-                evidence: evidence, chapterTags: chapterTags, profile: profile)
-            guard !matches.isEmpty else {
+            // Bewerten, sortieren und das Gehörte abziehen läuft außerhalb
+            // des Hauptthreads: der Vorrat hat bis zu 20.000 Belege.
+            let picked = await Task.detached(priority: .utility) { [profile, ledger, dismissedRelevant] in
+                ProcessingTrace.measure("Für dich: Treffer") {
+                    Self.relevantPicks(evidence: evidence, chapterTags: chapterTags, profile: profile,
+                                       ledger: ledger, dismissed: dismissedRelevant)
+                }
+            }.value
+            guard !picked.isEmpty else {
                 relevantToday = []
                 return
             }
-
-            let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-            let titles = try await store.titles(
-                forEpisodes: Array(Set(evidence.map(\.episodeID))))
-
-            // Was der Nutzer als „Nicht relevant“ aussortiert hat, bleibt weg.
-            var seen = dismissedRelevant
-            var items: [RelevantItem] = []
-            // Der beste Treffer je Beleg gewinnt: ein Beleg, der zu drei
-            // Themen passt, erscheint einmal, nicht dreimal.
-            for match in matches.sorted(by: { $0.score > $1.score }) {
-                guard !seen.contains(match.evidenceID.rawValue) else { continue }
-                guard let item = byID[match.evidenceID], let range = item.range else { continue }
-                // `unheardPortion` statt eines nackten Abdeckungsvergleichs:
-                // es berücksichtigt auch ausdrücklich Übersprungenes und
-                // verwirft Reststücke, die zu kurz für Inhalt sind.
-                guard !ledger.unheardPortion(of: range, in: item.mediaVersionID).isEmpty
-                else { continue }
-                seen.insert(match.evidenceID.rawValue)
+            let titles = try await store.titles(forEpisodes: Array(Set(picked.map(\.item.episodeID))))
+            relevantToday = picked.map { pick in
+                let item = pick.item
                 let title = titles[item.episodeID]
-                items.append(RelevantItem(
+                return RelevantItem(
                     id: item.id,
                     sourceTitle: title?.source ?? String(localized: "Unbekannter Podcast"),
                     episodeTitle: title?.episode ?? String(localized: "Unbekannte Folge"),
-                    range: range,
+                    range: pick.range,
                     excerpt: item.quotedText,
-                    relevance: match.personalRelevance(),
+                    relevance: pick.match.personalRelevance(),
                     episodeID: item.episodeID,
                     mediaVersionID: item.mediaVersionID,
                     publishedAt: title?.publishedAt,
-                    mentioned: match.matchedTerms
-                ))
+                    mentioned: pick.match.matchedTerms
+                )
             }
-            relevantToday = items
         } catch {
             lastError = UserFacingError.describe(error)
         }
+    }
+
+    /// Die Belege für „Für dich“, bester Treffer zuerst. Was der Nutzer als
+    /// „Nicht relevant“ aussortiert hat, bleibt weg. Der beste Treffer je
+    /// Beleg gewinnt: ein Beleg, der zu drei Themen passt, erscheint einmal,
+    /// nicht dreimal. `unheardPortion` statt eines nackten
+    /// Abdeckungsvergleichs: es berücksichtigt auch ausdrücklich
+    /// Übersprungenes und verwirft Reststücke, die zu kurz für Inhalt sind.
+    nonisolated static func relevantPicks(
+        evidence: [Evidence], chapterTags: [ChapterTag], profile: InterestProfile,
+        ledger: ListeningLedger, dismissed: Set<String>
+    ) -> [(item: Evidence, range: MediaTimeRange, match: RelevanceMatch)] {
+        let matches = ChapterTagRelevance.matches(evidence: evidence, chapterTags: chapterTags, profile: profile)
+        guard !matches.isEmpty else { return [] }
+        let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var seen = dismissed
+        var picked: [(item: Evidence, range: MediaTimeRange, match: RelevanceMatch)] = []
+        for match in matches.sorted(by: { $0.score > $1.score }) {
+            guard !seen.contains(match.evidenceID.rawValue) else { continue }
+            guard let item = byID[match.evidenceID], let range = item.range else { continue }
+            guard !ledger.unheardPortion(of: range, in: item.mediaVersionID).isEmpty else { continue }
+            seen.insert(match.evidenceID.rawValue)
+            picked.append((item, range, match))
+        }
+        return picked
     }
 
     // MARK: - Quellen
@@ -1112,14 +1129,27 @@ public final class AppModel {
     }
 
     /// Liest die Folgenlisten aller Quellen neu aus der Datenbank.
+    ///
+    /// Alle Listen in einem Schritt und nur, was sich geändert hat: jede
+    /// einzelne Zuweisung ließe jede Ansicht neu zeichnen, die Folgen zeigt.
     func reloadEpisodeLists() async {
+        var fresh: [SourceID: [Episode]] = [:]
         for id in sources.map(\.id) {
-            guard let list = try? await store.episodes(forSource: id),
-                  // Während des Lesens abbestellt: nicht wieder eintragen.
-                  sources.contains(where: { $0.id == id }) else { continue }
-            episodes[id] = withSupadataMetadata(list)
+            guard let list = try? await store.episodes(forSource: id) else { continue }
+            fresh[id] = list
             RemoteMediaRegistry.shared.register(list)
         }
+        var next = episodes
+        var changed = false
+        for (id, list) in fresh where sources.contains(where: { $0.id == id }) {
+            // Während des Lesens abbestellt: nicht wieder eintragen.
+            let shown = withSupadataMetadata(list)
+            if next[id] != shown {
+                next[id] = shown
+                changed = true
+            }
+        }
+        if changed { episodes = next }
     }
 
     // MARK: - Folgen erschließen
@@ -1127,8 +1157,14 @@ public final class AppModel {
     public internal(set) var episodes: [SourceID: [Episode]] = [:]
     /// Welche Folge gerade in welcher Stufe steckt. Die Oberfläche zeigt
     /// damit an, wo die Arbeit steht — statt einer Anzeige ohne Aussage.
-    public internal(set) var stages: [EpisodeID: ProcessingStage] = [:]
-    public internal(set) var stageDetails: [EpisodeID: String] = [:]
+    ///
+    /// Beide stehen je Folge in einem eigenen beobachtbaren Eintrag
+    /// (`EpisodeProgress`). Eine Zeile der Folgenliste liest nur ihre Folge
+    /// und zeichnet sich neu, wenn sich deren Stufe ändert, nicht bei jeder
+    /// Änderung irgendeiner Folge.
+    public var stages: EpisodeProgressMap<ProcessingStage> { EpisodeProgressMap(episodeProgress, \.stage) }
+    public var stageDetails: EpisodeProgressMap<String> { EpisodeProgressMap(episodeProgress, \.detail) }
+    @ObservationIgnored let episodeProgress = EpisodeProgressBoard()
 
     public func loadEpisodes(for sourceID: SourceID) async {
         do {
@@ -1570,7 +1606,9 @@ public final class AppModel {
         // anmelden. Eine Aktualisierung im Hintergrund reiht deshalb ein,
         // startet aber nichts; die Warteschlange läuft beim nächsten Öffnen.
         guard analysisTask == nil, appInForeground else { return }
-        analysisTask = Task { [weak self] in
+        // Niedrige Priorität: wer auf das Ergebnis wartet, hebt sonst die
+        // Erkennung auf die Priorität der Oberfläche an.
+        analysisTask = Task(priority: .utility) { [weak self] in
             guard let self else { return }
             let background = BackgroundContinuation.begin(
                 title: self.analysisQueue.first?.title ?? "",
@@ -1677,7 +1715,9 @@ public final class AppModel {
             // die Untertitel des YouTube-Zwillings, nur mit eigenem Schlüssel.
             twin: twinCaptionHook(for: episode),
             onProgress:{ [weak self] progress in
+                let hop = ProcessingTrace.begin("Sprung auf den Hauptakteur")
                 Task { @MainActor in
+                    defer { ProcessingTrace.end("Sprung auf den Hauptakteur", hop) }
                     // Eine gelöschte Folge taucht nicht wieder unter „Erschließen“ auf.
                     guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }
                     // Nur ein Schritt im Transkript: die Anzeige des Systems
@@ -1686,6 +1726,7 @@ public final class AppModel {
                         background.update(progress.stage, fraction: fraction)
                         return
                     }
+                    ProcessingTrace.event("Neue Stufe")
                     self.stages[progress.episodeID] = progress.stage
                     // Nach dem Download ändert sich der belegte Speicher.
                     if progress.stage == .mediaDownloaded { self.mediaStorageChanged += 1 }
@@ -1697,7 +1738,7 @@ public final class AppModel {
             }
         )
         // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
-        let run = Task {
+        let run = Task(priority: .utility) {
             _ = try await pipeline.process(
                 episode: episode, audioURL: audioURL,
                 sourceID: episode.sourceID, locale: locale
@@ -1849,13 +1890,18 @@ public final class AppModel {
         let origin: TranscriptOrigin = isYouTubeVideo(episode) ? .youTubeCaptions : .postCaptions
         let fallbackLocale = sources.first { $0.id == episode.sourceID }?.language ?? AppLanguage.current.rawValue
         // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
-        let run = Task {
-            let captions = try await client.transcript(videoURL: watchURL, apiKey: key,
-                                                       preferredLanguages: preferred)
-            guard let result = CaptionAnalysis.build(
-                captions: captions, episodeID: episode.id, sourceID: episode.sourceID,
-                watchURL: watchURL, fallbackLocale: fallbackLocale,
-                declaredDuration: episode.declaredDuration, origin: origin) else {
+        // Losgelöst vom Hauptakteur: das Aufbereiten der Untertitel rechnet.
+        let run = Task.detached(priority: .utility) {
+            let captions = try await ProcessingTrace.interval("Untertitel von Supadata") {
+                try await client.transcript(videoURL: watchURL, apiKey: key, preferredLanguages: preferred)
+            }
+            let built = ProcessingTrace.measure("Untertitel aufbereiten") {
+                CaptionAnalysis.build(
+                    captions: captions, episodeID: episode.id, sourceID: episode.sourceID,
+                    watchURL: watchURL, fallbackLocale: fallbackLocale,
+                    declaredDuration: episode.declaredDuration, origin: origin)
+            }
+            guard let result = built else {
                 throw SupadataError.noTranscript
             }
             try Task.checkCancellation()
@@ -2477,12 +2523,18 @@ public final class AppModel {
             // Shownotes sind die Stelle, an der das auffällt.
             let known = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
             let chapters = try await editionChapters(tags: editionTags(for: feed), knownEvidence: known)
-            let outcome = PersonalEpisodePublisher().makeEditions(
-                feed: feed, chapters: chapters, ledger: ledger,
-                previousEditions: editions[feedID] ?? [],
-                followedTagIDs: followedTagIDs, tagLabels: tagLabels,
-                requestedByUser: requestedByUser
-            )
+            // Auswählen und Aufteilen rechnet außerhalb des Hauptthreads.
+            let outcome = await Task.detached(priority: .utility) {
+                [ledger, previous = editions[feedID] ?? [], followed = followedTagIDs, labels = tagLabels] in
+                ProcessingTrace.measure("Themen-Update zusammenstellen") {
+                    PersonalEpisodePublisher().makeEditions(
+                        feed: feed, chapters: chapters, ledger: ledger,
+                        previousEditions: previous,
+                        followedTagIDs: followed, tagLabels: labels,
+                        requestedByUser: requestedByUser
+                    )
+                }
+            }.value
             // Themen ohne einen einzigen Treffer in den gewählten Podcasts.
             // Ohne jedes Transkript liegt es nicht am Thema.
             let allowed = Set(feed.restrictedToSourceIDs)
@@ -2503,7 +2555,7 @@ public final class AppModel {
                 // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn.
                 editions[feedID, default: []].insert(contentsOf: run.parts, at: 0)
                 persistEditions(for: feedID)
-                updateStatistics(for: feed, chapters: chapters)
+                await updateStatistics(for: [feed], chapters: chapters)
                 // Das Cover je Teil entsteht gleich, wenn die App vorn ist.
                 // Im Hintergrund lehnt Image Playground ab; dann holt es der
                 // nächste Wechsel in den Vordergrund nach.
@@ -2646,17 +2698,32 @@ public final class AppModel {
         }
         guard let chapters = try? await editionChapters(tags: tags, titledSections: false),
               !Task.isCancelled else { return }
-        for feed in feeds { updateStatistics(for: feed, chapters: chapters) }
+        await updateStatistics(for: feeds, chapters: chapters)
+        guard !Task.isCancelled else { return }
         let live = Set(smartFeeds.map(\.id))
         smartFeedStatistics = smartFeedStatistics.filter { live.contains($0.key) }
     }
 
-    private func updateStatistics(for feed: SmartPodcastFeed, chapters: [EditionChapter]) {
-        guard smartFeeds.contains(where: { $0.id == feed.id }) else { return }
-        smartFeedStatistics[feed.id] = SmartFeedStatistics.compute(
-            feed: feed, chapters: chapters, editions: editions[feed.id] ?? [], ledger: ledger,
-            followedTagIDs: followedTagIDs, tagLabels: tagLabels,
-            heardThreshold: Self.editionHeardThreshold)
+    /// Rechnet die Zahlen außerhalb des Hauptthreads und schreibt sie in
+    /// einem Schritt, damit der Tab nur einmal neu zeichnet.
+    private func updateStatistics(for feeds: [SmartPodcastFeed], chapters: [EditionChapter]) async {
+        let inputs = feeds.map { (feed: $0, editions: editions[$0.id] ?? []) }
+        let computed = await Task.detached(priority: .utility) {
+            [ledger, followed = followedTagIDs, labels = tagLabels, threshold = Self.editionHeardThreshold] in
+            ProcessingTrace.measure("Zahlen der Themen-Updates") {
+                inputs.map { input in
+                    (input.feed.id, SmartFeedStatistics.compute(
+                        feed: input.feed, chapters: chapters, editions: input.editions, ledger: ledger,
+                        followedTagIDs: followed, tagLabels: labels,
+                        heardThreshold: threshold))
+                }
+            }
+        }.value
+        var next = smartFeedStatistics
+        for (id, statistics) in computed where smartFeeds.contains(where: { $0.id == id }) {
+            next[id] = statistics
+        }
+        smartFeedStatistics = next
     }
 
     // MARK: - Wissen

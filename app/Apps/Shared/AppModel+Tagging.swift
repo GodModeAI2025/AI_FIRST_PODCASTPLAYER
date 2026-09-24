@@ -275,7 +275,10 @@ extension AppModel {
         while !Task.isCancelled, tagsMayRun, ignoringFacts || factsQueue.isEmpty || !factsMayRun,
               !tagsQueue.isEmpty {
             let next = tagsQueue.removeFirst()
-            switch await prepareChapterTags(for: next) {
+            let outcome = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
+                await prepareChapterTags(for: next)
+            }
+            switch outcome {
             case .stored, .nothingToDo:
                 continue
             case .failed:
@@ -360,21 +363,29 @@ extension AppModel {
         return "chapterTaggingPace-\(system.majorVersion).\(system.minorVersion)"
     }
 
+    /// Der Stand aller angefangenen Folgen, als Datei in `DeviceState`. Er
+    /// trägt die fertigen Kapitel-Tags und wächst mit jeder angefangenen Folge.
+    private static var allTaggingProgress: [String: ChapterTaggingProgress] {
+        DeviceState.shared.value([String: ChapterTaggingProgress].self, for: taggingProgressKey) {
+            (UserDefaults.standard.dictionary(forKey: taggingProgressKey) as? [String: Data])?
+                .compactMapValues { try? JSONDecoder().decode(ChapterTaggingProgress.self, from: $0) }
+        } ?? [:]
+    }
+
     static func taggingProgress(for id: EpisodeID) -> ChapterTaggingProgress? {
-        let stored = UserDefaults.standard.dictionary(forKey: taggingProgressKey) as? [String: Data]
-        guard let data = stored?[id.rawValue] else { return nil }
-        return try? JSONDecoder().decode(ChapterTaggingProgress.self, from: data)
+        allTaggingProgress[id.rawValue]
     }
 
     static func setTaggingProgress(_ progress: ChapterTaggingProgress?, for id: EpisodeID) {
-        var stored = UserDefaults.standard.dictionary(forKey: taggingProgressKey) as? [String: Data] ?? [:]
-        if let progress, progress.isStarted, let data = try? JSONEncoder().encode(progress) {
-            stored[id.rawValue] = data
+        var stored = allTaggingProgress
+        if let progress, progress.isStarted {
+            guard stored[id.rawValue] != progress else { return }
+            stored[id.rawValue] = progress
         } else {
             guard stored[id.rawValue] != nil else { return }
             stored[id.rawValue] = nil
         }
-        UserDefaults.standard.set(stored, forKey: taggingProgressKey)
+        DeviceState.shared.set(stored, for: taggingProgressKey)
     }
 
     /// Wie schnell das Gerätemodell auf diesem Gerät Tags wählt.

@@ -103,6 +103,9 @@ public enum TranscriptionError: Error, LocalizedError {
 
 public actor TimedTranscriptionEngine {
 
+    /// Priorität für Erkennung und Einlesen der Datei.
+    public static let analysisPriority: TaskPriority = .utility
+
     private var analyzer: SpeechAnalyzer?
     private var transcriber: SpeechTranscriber?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
@@ -139,7 +142,13 @@ public actor TimedTranscriptionEngine {
         }
 
         let transcriber = makeTranscriber(locale: locale)
-        let analyzer = SpeechAnalyzer(modules: [transcriber])
+        // Eine Datei im Hintergrund, keine Diktierfunktion: mit niedriger
+        // Priorität, damit Oberfläche und Wiedergabe den Vorrang behalten.
+        // Das Modell bleibt kurz geladen, denn die Warteschlange nimmt meist
+        // gleich die nächste Folge.
+        let analyzer = SpeechAnalyzer(
+            modules: [transcriber],
+            options: SpeechAnalyzer.Options(priority: Self.analysisPriority, modelRetention: .lingering))
         self.transcriber = transcriber
         self.analyzer = analyzer
 
@@ -160,7 +169,7 @@ public actor TimedTranscriptionEngine {
 
         // Puffer einspeisen. Die Sampleposition wird mitgeführt, damit auch
         // ohne Zeitattribut ein Medienbezug vorliegt.
-        let feeding = Task { [weak self] in
+        let feeding = Task(priority: Self.analysisPriority) { [weak self] in
             do {
                 let converter = BufferConverter()
                 var framesFed: AVAudioFramePosition = 0

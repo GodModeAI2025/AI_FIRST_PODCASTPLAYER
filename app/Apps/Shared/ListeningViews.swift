@@ -1506,14 +1506,11 @@ struct EpisodeArtwork: View {
     let size: CGFloat
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if let image = phase.image {
-                image.resizable().scaledToFill()
-            } else {
-                ZStack {
-                    Rectangle().fill(.quaternary)
-                    Image(systemName: "waveform").foregroundStyle(.secondary)
-                }
+        // Verkleinert und außerhalb des Hauptthreads dekodiert (`ArtworkImage`).
+        ArtworkImage(url: url, side: size) {
+            ZStack {
+                Rectangle().fill(.quaternary)
+                Image(systemName: "waveform").foregroundStyle(.secondary)
             }
         }
         // Nach „Neu laden“ einer Quelle neu, auch unter derselben Adresse.
