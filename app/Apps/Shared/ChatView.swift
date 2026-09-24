@@ -27,6 +27,8 @@ struct ChatView: View {
     @State private var followsPlayer = false
     /// Eingrenzung der Mediathek auf einen Podcast und einen Zeitraum.
     @State private var filter = LibraryFilter()
+    /// Eine Folge, die jemand über „Mehr aus dieser Folge“ gewählt hat.
+    @State private var chosenEpisode: EpisodeID?
     /// Innerhalb einer Folge ist der Bereich fest.
     private let pinnedScope: ChatScope?
     private var fixedScope: Bool { pinnedScope != nil }
@@ -43,6 +45,7 @@ struct ChatView: View {
     /// stets auf dieselbe Folge.
     private var scope: ChatScope {
         if let pinnedScope { return pinnedScope }
+        if let chosenEpisode { return .episode(chosenEpisode) }
         if followsPlayer, let playing = model.episodePlayer.episode { return .episode(playing.id) }
         return filter.isUnrestricted ? .allAnalyzed : .library(filter)
     }
@@ -54,7 +57,7 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: Design.Spacing.none) {
             if !fixedScope {
-                ScopeBar(followsPlayer: $followsPlayer, filter: $filter)
+                ScopeBar(followsPlayer: $followsPlayer, filter: $filter, chosenEpisode: $chosenEpisode)
                 Divider()
             }
 
@@ -64,7 +67,7 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Design.Spacing.section) {
                         if answers.isEmpty && pendingQuestion == nil {
-                            ChatEmptyState(scope: scope) { suggestion in
+                            ChatEmptyState(scope: scope, asksAboutMoment: playerHoldsScope) { suggestion in
                                 question = suggestion
                                 ask()
                             }
@@ -74,7 +77,8 @@ struct ChatView: View {
                             // Über dem Verlauf stehen Bereich und Modell schon
                             // in der Leiste. Die Antwort wiederholt sie nicht.
                             AnswerCard(answer: answer, focus: $focusedAnswer,
-                                       scrollProxy: proxy, contextShownAbove: !fixedScope)
+                                       scrollProxy: proxy, contextShownAbove: !fixedScope,
+                                       onMoreFromEpisode: fixedScope ? nil : { chosenEpisode = $0 })
                                 .id(answer.id)
                         }
                         if let pendingQuestion {
@@ -95,6 +99,9 @@ struct ChatView: View {
                 }
             }
 
+            if playerHoldsScope, !answers.isEmpty, !isAsking {
+                momentChip
+            }
             askField
         }
         .modifier(ChatTitle(show: !fixedScope))
@@ -103,10 +110,46 @@ struct ChatView: View {
             // und springt nicht mit der nächsten Folge von selbst zurück.
             if playing == nil { followsPlayer = false }
         }
+        .onChange(of: chosenEpisodeGone) { _, gone in
+            // Eine gelöschte Folge kann nicht mehr Bereich sein.
+            if gone { chosenEpisode = nil }
+        }
         .onChange(of: model.sources.map(\.id)) { _, sources in
             // Ein abbestellter Podcast kann nicht mehr Bereich sein.
             if let id = filter.sourceID, !sources.contains(id) { filter.sourceID = nil }
         }
+    }
+
+    /// Ist die Folge, nach der gefragt wird, gerade im Player geladen?
+    /// Dann kennt die Frage die Stelle, an der die Folge steht.
+    private var playerHoldsScope: Bool {
+        guard case .episode(let id) = scope else { return false }
+        return model.episodePlayer.episode?.id == id
+    }
+
+    private var chosenEpisodeGone: Bool {
+        guard let chosenEpisode else { return false }
+        return !model.episodes.values.contains { $0.contains { $0.id == chosenEpisode } }
+    }
+
+    /// Die Frage nach der laufenden Stelle, auch wenn schon Antworten da sind.
+    private var momentChip: some View {
+        Button {
+            question = ChatEmptyState.momentQuestion
+            ask()
+        } label: {
+            Label(ChatEmptyState.momentQuestion, systemImage: "waveform")
+                .font(.callout)
+                .padding(.horizontal, Design.Spacing.control)
+                .padding(.vertical, Design.Spacing.small)
+                .background(.tint.opacity(0.1), in: .capsule)
+                .frame(minHeight: Design.minimumTapTarget)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Spacing.control)
+        .accessibilityHint("Stellt diese Frage")
+        .accessibilityIdentifier("chat.moment")
     }
 
     /// Das Eingabefeld schwebt als Bedienelement über dem Inhalt.
@@ -172,11 +215,13 @@ struct ChatView: View {
         question = ""
         isAsking = true
         let currentScope = scope
+        // Die Stelle im Player gilt so, wie sie beim Senden war.
+        let position = playerHoldsScope ? MediaTime(seconds: model.episodePlayer.currentTime) : nil
         pending = (question: text, scope: currentScope)
         Task {
             // Das Modell nimmt die Antwort selbst in den Verlauf auf. Nur dort
             // lässt sich prüfen, ob während der Suche eine Folge gelöscht wurde.
-            let answer = await model.ask(text, scope: currentScope)
+            let answer = await model.ask(text, scope: currentScope, position: position)
             pending = nil
             isAsking = false
             if let answer {
@@ -210,6 +255,8 @@ struct ScopeBar: View {
 
     @Binding var followsPlayer: Bool
     @Binding var filter: LibraryFilter
+    /// Eine Folge aus „Mehr aus dieser Folge“. Jede andere Wahl hebt sie auf.
+    @Binding var chosenEpisode: EpisodeID?
     @Environment(AppModel.self) private var model
 
     var body: some View {
@@ -218,12 +265,21 @@ struct ScopeBar: View {
                 // Die Auswahl zeigt „Laufende Folge“ nur, solange eine läuft.
                 // Sonst gäbe es keinen passenden Eintrag.
                 Picker("Bereich", selection: Binding(
-                    get: { followsPlayer && currentTitle != nil ? ScopeChoice.currentEpisode : .allAnalyzed },
-                    set: { followsPlayer = $0 == .currentEpisode }
+                    get: {
+                        if chosenEpisode != nil { return ScopeChoice.chosenEpisode }
+                        return followsPlayer && currentTitle != nil ? ScopeChoice.currentEpisode : .allAnalyzed
+                    },
+                    set: { choice in
+                        if choice != .chosenEpisode { chosenEpisode = nil }
+                        followsPlayer = choice == .currentEpisode
+                    }
                 )) {
                     Text("Meine Podcasts").tag(ScopeChoice.allAnalyzed)
                     if let title = currentTitle {
                         Text("Laufende Folge: \(title)").tag(ScopeChoice.currentEpisode)
+                    }
+                    if chosenEpisode != nil {
+                        Text("Folge: \(chosenTitle)").tag(ScopeChoice.chosenEpisode)
                     }
                 }
                 .pickerStyle(.inline)
@@ -233,7 +289,7 @@ struct ScopeBar: View {
                 if !model.sources.isEmpty {
                     Picker("Podcast", selection: Binding(
                         get: { filter.sourceID },
-                        set: { filter.sourceID = $0; followsPlayer = false }
+                        set: { filter.sourceID = $0; followsPlayer = false; chosenEpisode = nil }
                     )) {
                         Text("Alle Podcasts").tag(SourceID?.none)
                         ForEach(model.sources) { source in
@@ -244,7 +300,7 @@ struct ScopeBar: View {
                 }
                 Picker("Zeitraum", selection: Binding(
                     get: { filter.period },
-                    set: { filter.period = $0; followsPlayer = false }
+                    set: { filter.period = $0; followsPlayer = false; chosenEpisode = nil }
                 )) {
                     ForEach(LibraryFilter.Period.allCases, id: \.self) { period in
                         Text(period.label).tag(period)
@@ -281,15 +337,24 @@ struct ScopeBar: View {
         model.episodePlayer.episode.map { String($0.title.prefix(40)) }
     }
 
+    /// Titel der gewählten Folge, gekürzt wie der der laufenden.
+    private var chosenTitle: String {
+        guard let chosenEpisode,
+              let episode = model.episodes.values.lazy.compactMap({ $0.first { $0.id == chosenEpisode } }).first
+        else { return String(localized: "Eine Folge") }
+        return String(episode.title.prefix(40))
+    }
+
     /// Was gerade gefragt wird, in einer Zeile.
     private var summary: String {
+        if chosenEpisode != nil { return String(localized: "Folge: \(chosenTitle)") }
         if followsPlayer, let title = currentTitle { return String(localized: "Laufende Folge: \(title)") }
         if filter.isUnrestricted { return ChatScope.allAnalyzed.label }
         return model.scopeLabel(.library(filter))
     }
 
     enum ScopeChoice: Hashable {
-        case allAnalyzed, currentEpisode
+        case allAnalyzed, currentEpisode, chosenEpisode
     }
 }
 
@@ -308,13 +373,18 @@ extension ModelStatus {
 struct ChatEmptyState: View {
 
     let scope: ChatScope
+    /// Ist die Folge im Player geladen, gibt es die Frage nach der Stelle.
+    var asksAboutMoment = false
     var suggest: (String) -> Void = { _ in }
+
+    static var momentQuestion: String { String(localized: "Was wurde gerade gesagt?") }
 
     private var suggestions: [String] {
         switch scope {
         // „Welche Links …“ und „Welche Termine …“ beantworten die erkannten
         // Nennungen, auch ohne Apple Intelligence.
         case .episode:
+            (asksAboutMoment ? [Self.momentQuestion] : []) +
             [String(localized: "Worum geht es in dieser Folge?"),
              String(localized: "Was sind die wichtigsten Aussagen?"),
              String(localized: "Welche Links werden genannt?"),
@@ -403,6 +473,9 @@ struct AnswerCard: View {
     var scrollProxy: ScrollViewProxy?
     /// Stehen Bereich und Modell schon in der Leiste über dem Verlauf?
     var contextShownAbove = false
+    /// Stellt die nächsten Fragen an eine zitierte Folge. Nur im Chat über
+    /// die Mediathek, innerhalb einer Folge gibt es nichts zu wechseln.
+    var onMoreFromEpisode: ((EpisodeID) -> Void)?
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var exported: String?
@@ -413,6 +486,7 @@ struct AnswerCard: View {
     /// Der Beleg, zu dem ein Verweis im Text gerade geführt hat.
     @State private var highlighted: Int?
     @State private var showingCoverageInfo = false
+    @State private var showingCounterpoints = false
     @AccessibilityFocusState private var focusedCitation: Int?
 
     private var numbered: [(number: Int, evidence: Evidence)] {
@@ -427,9 +501,17 @@ struct AnswerCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.control) {
             HStack(alignment: .firstTextBaseline) {
-                Text(answer.question)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                    Text(answer.question)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    if let position = answer.askedAtPosition {
+                        Text("Gefragt bei \(position.timecode)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Gefragt bei \(TimecodeLabel.spokenSingle(position.timecode))")
+                    }
+                }
                 Spacer()
                 Menu {
                     Button {
@@ -438,14 +520,26 @@ struct AnswerCard: View {
                     Button {
                         copy(answer.text)
                     } label: { Label("Antwort kopieren", systemImage: "doc.on.doc") }
+                    if canSave {
+                        Button {
+                            model.park(answer)
+                        } label: { Label(saveLabel, systemImage: isParked ? "checkmark.circle" : "map") }
+                        .disabled(isParked)
+                    }
+                    Divider()
+                    Button(role: .destructive) {
+                        model.removeChatAnswer(answer.id)
+                    } label: { Label("Aus dem Verlauf entfernen", systemImage: "trash") }
+                    .accessibilityIdentifier("chat.removeAnswer")
                 } label: {
                     // Das Symbol hiess für VoiceOver nur „Weitere“.
                     Image(systemName: "ellipsis.circle")
                         .tappableArea()
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("Antwort teilen oder kopieren")
+                        .accessibilityLabel("Weitere Aktionen zur Antwort")
                 }
-                .accessibilityLabel("Antwort teilen oder kopieren")
+                .accessibilityLabel("Weitere Aktionen zur Antwort")
+                .accessibilityIdentifier("chat.answerMenu")
             }
 
             AnswerText(text: answer.text, citations: Set(numbered.map(\.number)),
@@ -493,7 +587,7 @@ struct AnswerCard: View {
 
             // Jede echte Antwort lässt sich sichern. Ein reiner Hinweis ohne
             // Beleg und ohne Modell („noch kein Transkript“) nicht.
-            if !answer.citations.isEmpty || answer.modelLabel != nil {
+            if canSave {
                 Button {
                     model.park(answer)
                 } label: {
@@ -510,12 +604,48 @@ struct AnswerCard: View {
                 .accessibilityHint("Legt Frage, Antwort, Belege und die Notizen zu diesen Stellen unter „Gesicherte Antworten“ ab")
                 .accessibilityIdentifier("chat.saveTrail")
             }
+
+            // Nur eine formulierte Antwort hat einen Kernsatz, der als These
+            // taugt. Geprüft wird in allen Podcasts, abgespielt wird nichts.
+            if let thesis = counterThesis {
+                Button {
+                    model.checkThesis(thesis)
+                    showingCounterpoints = true
+                } label: {
+                    Label {
+                        Text("Gegenpositionen prüfen")
+                    } icon: {
+                        Image(systemName: "arrow.left.arrow.right").accessibilityHidden(true)
+                    }
+                    .frame(minHeight: Design.minimumTapTarget)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityHint("Prüft den Kernsatz der Antwort als These gegen Stellen aus allen Podcasts")
+                .accessibilityIdentifier("chat.counterpoints")
+            }
         }
         .contentCard()
+        // Für VoiceOver eine Gruppe: Frage, Antwort, Belege und Aktionen
+        // gehören zusammen, auch wenn mehrere Antworten untereinander stehen.
+        .accessibilityElement(children: .contain)
         .task(id: answer.id) {
-            // Innerhalb einer Folge ist die Herkunft klar.
-            guard !answer.scope.isEpisode else { return }
+            // Innerhalb einer Folge fehlt nur der Kopf der Karte. Die Länge
+            // der Folge braucht auch sie, für „34:10 von 58:00“.
             episodes = await model.citedEpisodes(for: answer.citations)
+        }
+        .sheet(isPresented: $showingCounterpoints) {
+            NavigationStack {
+                CounterpointView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Fertig") { showingCounterpoints = false }
+                        }
+                    }
+            }
+            #if os(macOS)
+            .frame(minWidth: 480, minHeight: 520)
+            #endif
+            .sheetFeedback()
         }
         .task(id: highlighted) {
             // Die Hervorhebung zeigt nur, wo man gelandet ist, und geht wieder.
@@ -544,6 +674,7 @@ struct AnswerCard: View {
                     items: group.items,
                     episode: episodes[group.id],
                     showsHeader: !answer.scope.isEpisode,
+                    onMore: answer.scope.isEpisode ? nil : onMoreFromEpisode.map { choose in { choose(group.id) } },
                     isExpanded: Binding(
                         get: { expanded.contains(group.id) },
                         set: { open in
@@ -618,6 +749,14 @@ struct AnswerCard: View {
 
     private var isParked: Bool { model.isParked(answer) }
 
+    private var canSave: Bool { !answer.citations.isEmpty || answer.modelLabel != nil }
+
+    /// Der Kernsatz einer formulierten Antwort, ohne Verweisnummern.
+    private var counterThesis: String? {
+        guard answer.modelLabel != nil, !answer.citations.isEmpty else { return nil }
+        return AnswerLayout.thesis(from: answer.text)
+    }
+
     private var saveLabel: LocalizedStringKey {
         isParked ? "Antwort gesichert" : "Antwort sichern"
     }
@@ -654,6 +793,8 @@ struct CitationRow: View {
     var origin: String?
     /// Kurz hinterlegt, wenn ein Verweis im Antworttext hierher geführt hat.
     var highlighted = false
+    /// Länge der Folge. Bekannt, steht die Stelle als „34:10 von 58:00“ da.
+    var episodeDuration: MediaDuration?
     @Environment(AppModel.self) private var model
     @State private var foreign = false
     @State private var translating = false
@@ -687,6 +828,31 @@ struct CitationRow: View {
         }
         .translationPresentation(isPresented: $translating, text: evidence.quotedText)
         .task(id: evidence.id) { foreign = AppLanguage.current.isForeign(evidence.quotedText) }
+        // Was sonst im Kontextmenü steht, auch für VoiceOver im Rotor.
+        .accessibilityActions {
+            if evidence.isPlayable, let range = evidence.range {
+                Button("Abspielen") {
+                    Task { await model.playEvidenceInEpisode(evidence, at: range.start.seconds) }
+                }
+            }
+            if evidence.range != nil {
+                Button("Merken") {
+                    Task { await model.rememberEvidence(evidence, via: .chat) }
+                }
+            }
+            if foreign {
+                Button("Übersetzen") { translating = true }
+            }
+        }
+    }
+
+    /// „34:10 von 58:00“, wenn die Länge der Folge bekannt ist und die
+    /// Stelle darin liegt. Sonst `nil`, und die Zeile zeigt den Bereich.
+    private func position(_ start: MediaTime) -> (shown: String, spoken: String)? {
+        guard let episodeDuration, episodeDuration.milliseconds > start.milliseconds else { return nil }
+        let total = MediaTime(milliseconds: episodeDuration.milliseconds).timecode
+        return (String(localized: "\(start.timecode) von \(total)"),
+                String(localized: "\(TimecodeLabel.spokenSingle(start.timecode)) von \(TimecodeLabel.spokenSingle(total))"))
     }
 
     private var content: some View {
@@ -711,7 +877,14 @@ struct CitationRow: View {
                     .multilineTextAlignment(.leading)
                 if let range = evidence.range, evidence.isPlayable {
                     HStack(spacing: Design.Spacing.micro) {
-                        TimecodeLabel(range)
+                        if let position = position(range.start) {
+                            Text(position.shown)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                                .accessibilityLabel(position.spoken)
+                        } else {
+                            TimecodeLabel(range)
+                        }
                         Image(systemName: "play.fill").font(.caption2).foregroundStyle(.tint)
                     }
                 } else if let range = evidence.range {
@@ -750,13 +923,18 @@ struct CitationRow: View {
 /// Der Text ist Modellformulierung und damit fremde Daten. Er wird nie als
 /// Markdown gelesen, Links entstehen nur aus Verweisnummern mit Beleg, und
 /// jeder andere Link wird verworfen.
-private struct AnswerText: View {
+///
+/// VoiceOver liest die Antwort als ein Element am Stück, ohne Nummern.
+/// Die Belege erreicht man über die Aktionen „Beleg 3 zeigen“.
+struct AnswerText: View {
 
     let text: String
     /// Nummern, zu denen es einen Beleg gibt. Nur sie werden zu Links.
     let citations: Set<Int>
-    var focus: AccessibilityFocusState<UUID?>.Binding
-    let answerID: UUID
+    /// Eine neue Antwort im Chat bekommt den VoiceOver-Fokus. In einer
+    /// gesicherten Antwort gibt es nichts Neues, dort fehlt die Bindung.
+    var focus: AccessibilityFocusState<UUID?>.Binding?
+    var answerID = UUID()
     let onCitation: (Int) -> Void
 
     var body: some View {
@@ -765,17 +943,17 @@ private struct AnswerText: View {
             ForEach(Array(blocks.enumerated()), id: \.offset) { index, block in
                 switch block {
                 case .lead(let sentence):
-                    focusable(line(sentence).font(.body.weight(.semibold)), first: index == 0)
+                    line(sentence).font(.body.weight(.semibold))
                 case .paragraph(let paragraph):
-                    focusable(line(paragraph).font(.body), first: index == 0)
+                    line(paragraph).font(.body)
                 case .bullets(let items):
                     VStack(alignment: .leading, spacing: Design.Spacing.small) {
-                        ForEach(Array(items.enumerated()), id: \.offset) { position, item in
+                        ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                             HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.small) {
                                 Text(verbatim: "•")
                                     .foregroundStyle(.secondary)
                                     .accessibilityHidden(true)
-                                focusable(line(item), first: index == 0 && position == 0)
+                                line(item)
                             }
                             .font(.body)
                         }
@@ -790,19 +968,37 @@ private struct AnswerText: View {
             onCitation(number)
             return .handled
         })
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(AnswerLayout.spoken(blocks))
+        .accessibilityActions {
+            ForEach(linked, id: \.self) { number in
+                Button("Beleg \(number) zeigen") { onCitation(number) }
+            }
+        }
+        .modifier(AnswerFocus(focus: focus, answerID: answerID))
+    }
+
+    /// Die Nummern im Text, die einen Beleg haben, jede einmal.
+    private var linked: [Int] {
+        var seen: Set<Int> = []
+        return AnswerLayout.citationNumbers(in: text).filter { citations.contains($0) && seen.insert($0).inserted }
     }
 
     private func line(_ text: String) -> Text {
         Text(AnswerLayout.attributed(text, linking: citations))
     }
+}
 
-    /// Eine neue Antwort bekommt den VoiceOver-Fokus auf ihrem ersten Satz.
-    @ViewBuilder
-    private func focusable(_ text: some View, first: Bool) -> some View {
-        if first {
-            text.accessibilityFocused(focus, equals: answerID)
+/// Eine neue Antwort bekommt den VoiceOver-Fokus.
+private struct AnswerFocus: ViewModifier {
+    let focus: AccessibilityFocusState<UUID?>.Binding?
+    let answerID: UUID
+
+    func body(content: Content) -> some View {
+        if let focus {
+            content.accessibilityFocused(focus, equals: answerID)
         } else {
-            text
+            content
         }
     }
 }
@@ -947,6 +1143,53 @@ enum AnswerLayout {
         guard url.scheme == scheme, let host = url.host() else { return nil }
         return Int(host)
     }
+
+    /// Der Text ohne Verweisnummern. Eine Klammer ohne Nummern bleibt.
+    static func removingMarkers(_ text: String) -> String {
+        var result = ""
+        var index = text.startIndex
+        while let open = text[index...].firstIndex(of: "[") {
+            guard let close = text[open...].firstIndex(of: "]") else { break }
+            if numbers(inBrackets: text[text.index(after: open)..<close]).isEmpty {
+                result += text[index...open]
+                index = text.index(after: open)
+                continue
+            }
+            result += text[index..<open]
+            index = text.index(after: close)
+        }
+        result += text[index...]
+        // Wo eine Nummer vor einem Punkt stand, bliebe sonst „Satz .“.
+        return result
+            .replacingOccurrences(of: " +([.,;:!?])", with: "$1", options: .regularExpression)
+            .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Der Kernsatz einer Antwort als These: der erste Abschnitt, bei einem
+    /// Absatz nur dessen erster Satz.
+    @MainActor
+    static func thesis(from text: String) -> String? {
+        let sentence: String?
+        switch blocks(for: text).first {
+        case .lead(let lead): sentence = lead
+        case .paragraph(let paragraph): sentence = sentences(in: paragraph).first ?? paragraph
+        case .bullets(let items): sentence = items.first
+        case nil: sentence = nil
+        }
+        guard let plain = sentence.map(removingMarkers), !plain.isEmpty else { return nil }
+        return plain
+    }
+
+    /// Was VoiceOver liest: alle Abschnitte ohne Verweisnummern.
+    static func spoken(_ blocks: [AnswerBlock]) -> String {
+        blocks.map { block in
+            switch block {
+            case .lead(let text), .paragraph(let text): removingMarkers(text)
+            case .bullets(let items): items.map(removingMarkers).joined(separator: "\n")
+            }
+        }.joined(separator: "\n")
+    }
 }
 
 // MARK: - Belege je Folge
@@ -975,6 +1218,7 @@ struct CitedEpisode: Sendable {
     let title: String
     let publishedAt: Date?
     let artworkURL: URL?
+    var duration: MediaDuration?
 }
 
 /// Eine Karte je Folge: Cover, Podcast, Folge und Datum, darunter die
@@ -985,6 +1229,8 @@ private struct CitedEpisodeCard: View {
     let episode: CitedEpisode?
     /// Innerhalb einer Folge gibt es keinen Kopf und keine eigene Karte.
     let showsHeader: Bool
+    /// „Mehr aus dieser Folge“: die nächsten Fragen gelten nur ihr.
+    var onMore: (() -> Void)?
     @Binding var isExpanded: Bool
     let highlighted: Int?
     let anchor: (Int) -> String
@@ -1008,12 +1254,28 @@ private struct CitedEpisodeCard: View {
             }
             ForEach(visible, id: \.number) { item in
                 CitationRow(number: item.number, evidence: item.evidence,
-                            highlighted: highlighted == item.number)
+                            highlighted: highlighted == item.number,
+                            episodeDuration: episode?.duration)
                     .id(anchor(item.number))
                     .accessibilityFocused(focusedCitation, equals: item.number)
             }
             if isCollapsible {
                 toggle
+            }
+            if showsHeader, let onMore {
+                Button(action: onMore) {
+                    Label {
+                        Text("Mehr aus dieser Folge")
+                    } icon: {
+                        Image(systemName: "text.bubble").accessibilityHidden(true)
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .frame(minHeight: Design.minimumTapTarget, alignment: .leading)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityHint("Stellt die nächsten Fragen nur an diese Folge")
+                .accessibilityIdentifier("chat.moreFromEpisode")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1119,18 +1381,23 @@ extension AppModel {
     /// Podcast, Folge, Datum und Cover je zitierter Folge. Titel und Datum
     /// kommen aus dem Speicher, auch für eine gelöschte Folge. Das Cover ist
     /// das der Folge, sonst das des Podcasts.
-    fileprivate func citedEpisodes(for evidence: [Evidence]) async -> [EpisodeID: CitedEpisode] {
+    func citedEpisodes(for evidence: [Evidence]) async -> [EpisodeID: CitedEpisode] {
         let ids = Array(Set(evidence.map(\.episodeID)))
         guard !ids.isEmpty, let titles = try? await store.titles(forEpisodes: ids) else { return [:] }
         let stored = (try? await store.episodes(ids: ids)) ?? []
         let artwork = Dictionary(stored.map { ($0.id, $0.artworkURL) }, uniquingKeysWith: { first, _ in first })
+        let declared = Dictionary(stored.map { ($0.id, $0.declaredDuration) }, uniquingKeysWith: { first, _ in first })
         var result: [EpisodeID: CitedEpisode] = [:]
         for (id, titles) in titles {
             let sourceID = evidence.first { $0.episodeID == id }?.sourceID
             let podcastArtwork = sources.first { $0.id == sourceID }?.artworkURL
+            // Die Länge aus dem Player ist genauer als die aus dem Feed.
+            let playing = episodePlayer.episode?.id == id && episodePlayer.duration > 0
+                ? MediaDuration(seconds: episodePlayer.duration) : nil
             result[id] = CitedEpisode(
                 podcast: titles.source, title: titles.episode, publishedAt: titles.publishedAt,
-                artworkURL: artwork[id].flatMap { $0 } ?? podcastArtwork)
+                artworkURL: artwork[id].flatMap { $0 } ?? podcastArtwork,
+                duration: playing ?? declared[id].flatMap { $0 })
         }
         return result
     }

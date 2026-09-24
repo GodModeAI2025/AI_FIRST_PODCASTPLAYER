@@ -411,6 +411,12 @@ struct TrailDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var evidence: [Evidence] = []
     @State private var origins: [EpisodeID: String] = [:]
+    /// Länge je Folge, für „34:10 von 58:00“ an den Belegen.
+    @State private var durations: [EpisodeID: MediaDuration] = [:]
+    /// Der Beleg, zu dem ein Verweis im Antworttext gerade geführt hat.
+    @State private var highlighted: Int?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @AccessibilityFocusState private var focusedCitation: Int?
     @State private var loaded = false
     @State private var confirmingDelete = false
     /// Folgen der Notizen, die es noch gibt. `nil`, solange das nicht
@@ -432,6 +438,7 @@ struct TrailDetailView: View {
             guard let trail else { return }
             let found = await model.evidence(of: trail)
             origins = await model.citationOrigins(for: found)
+            durations = (await model.citedEpisodes(for: found)).compactMapValues(\.duration)
             evidence = found
             loaded = true
         }
@@ -439,6 +446,35 @@ struct TrailDetailView: View {
             guard let trail else { return }
             availableEpisodes = await model.availableEpisodeIDs(for: model.notes(of: trail))
         }
+        .task(id: highlighted) {
+            // Die Hervorhebung zeigt nur, wo man gelandet ist, und geht wieder.
+            guard highlighted != nil else { return }
+            do { try await Task.sleep(for: .seconds(2.5)) } catch { return }
+            withAnimation(motion) { highlighted = nil }
+        }
+    }
+
+    private var motion: Animation {
+        Design.Motion.respectingReduceMotion(Design.Motion.smooth, reduceMotion: reduceMotion)
+    }
+
+    private static func anchor(_ number: Int) -> String { "trail-citation-\(number)" }
+
+    /// Ein Verweis im Text führt zu seinem Beleg, wie im Chat. Ton entsteht
+    /// dabei nie, abgespielt wird erst, wenn jemand den Beleg antippt.
+    private func showCitation(_ number: Int, proxy: ScrollViewProxy) {
+        withAnimation(motion) {
+            highlighted = number
+            proxy.scrollTo(Self.anchor(number), anchor: .center)
+        }
+        focusedCitation = number
+    }
+
+    private func citationRow(number: Int, evidence item: Evidence) -> some View {
+        CitationRow(number: number, evidence: item, origin: origins[item.episodeID],
+                    highlighted: highlighted == number, episodeDuration: durations[item.episodeID])
+            .id(Self.anchor(number))
+            .accessibilityFocused($focusedCitation, equals: number)
     }
 
     /// Die Belege mit den Nummern, auf die der Antworttext verweist.
@@ -458,56 +494,61 @@ struct TrailDetailView: View {
         let playable = items.filter { $0.evidence.isPlayable }.count
         let missing = loaded ? trail.evidenceIDs.count - evidence.count : 0
         let notes = model.notes(of: trail)
-        return List {
-            Section {
-                Text(trail.question)
-                    .font(.title3.weight(.semibold))
-                    .textSelection(.enabled)
-                if let answer = trail.answerText {
-                    Text(answer)
-                        .textSelection(.enabled)
-                }
-                Text("Gesichert am \(trail.parkedAt.formatted(date: .long, time: .omitted)). Aufbewahrt, nicht zugestimmt.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if trail.isThesisCheck {
-                thesisSections(trail, playable: playable, missing: missing)
-            } else if !items.isEmpty || missing > 0 {
+        return ScrollViewReader { proxy in
+            List {
                 Section {
-                    ForEach(items, id: \.number) { item in
-                        CitationRow(number: item.number, evidence: item.evidence,
-                                    origin: origins[item.evidence.episodeID])
+                    Text(trail.question)
+                        .font(.title3.weight(.semibold))
+                        .textSelection(.enabled)
+                    if let answer = trail.answerText {
+                        // Gegliedert wie im Chat, jeder Verweis führt zu seinem
+                        // Beleg. Bei einer geprüften These zählen die Stellen
+                        // anders, dort bleiben die Nummern ohne Link.
+                        AnswerText(text: answer,
+                                   citations: trail.isThesisCheck ? [] : Set(items.map(\.number)),
+                                   onCitation: { showCitation($0, proxy: proxy) })
                     }
-                    playButton(trail, playable: playable)
-                } header: {
-                    Text("Belege")
+                    Text("Gesichert am \(trail.parkedAt.formatted(date: .long, time: .omitted)). Aufbewahrt, nicht zugestimmt.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if trail.isThesisCheck {
+                    thesisSections(trail, playable: playable, missing: missing)
+                } else if !items.isEmpty || missing > 0 {
+                    Section {
+                        ForEach(items, id: \.number) { item in
+                            citationRow(number: item.number, evidence: item.evidence)
+                        }
+                        playButton(trail, playable: playable)
+                    } header: {
+                        Text("Belege")
+                    } footer: {
+                        if missing == 1 {
+                            Text("Ein Beleg ist nicht mehr da.")
+                        } else if missing > 1 {
+                            Text("\(missing) Belege sind nicht mehr da.")
+                        }
+                    }
+                }
+
+                if !notes.isEmpty {
+                    Section("Notizen") {
+                        ForEach(notes) { note in
+                            noteRow(note)
+                        }
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        confirmingDelete = true
+                    } label: {
+                        Label("Gesicherte Antwort löschen", systemImage: "trash")
+                    }
                 } footer: {
-                    if missing == 1 {
-                        Text("Ein Beleg ist nicht mehr da.")
-                    } else if missing > 1 {
-                        Text("\(missing) Belege sind nicht mehr da.")
-                    }
+                    Text("Belege und Notizen bleiben erhalten.")
                 }
-            }
-
-            if !notes.isEmpty {
-                Section("Notizen") {
-                    ForEach(notes) { note in
-                        noteRow(note)
-                    }
-                }
-            }
-
-            Section {
-                Button(role: .destructive) {
-                    confirmingDelete = true
-                } label: {
-                    Label("Gesicherte Antwort löschen", systemImage: "trash")
-                }
-            } footer: {
-                Text("Belege und Notizen bleiben erhalten.")
             }
         }
         .confirmationDialog("Gesicherte Antwort löschen?", isPresented: $confirmingDelete,
@@ -533,15 +574,14 @@ struct TrailDetailView: View {
         if !others.isEmpty {
             Section("Stellen zur These") {
                 ForEach(Array(others.enumerated()), id: \.element.id) { offset, item in
-                    CitationRow(number: offset + 1, evidence: item, origin: origins[item.episodeID])
+                    citationRow(number: offset + 1, evidence: item)
                 }
             }
         }
         if !contra.isEmpty {
             Section("Gegenpositionen") {
                 ForEach(Array(contra.enumerated()), id: \.element.id) { offset, item in
-                    CitationRow(number: others.count + offset + 1, evidence: item,
-                                origin: origins[item.episodeID])
+                    citationRow(number: others.count + offset + 1, evidence: item)
                 }
             }
         }

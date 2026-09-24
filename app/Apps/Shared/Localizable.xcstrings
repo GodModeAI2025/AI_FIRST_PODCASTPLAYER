@@ -2049,22 +2049,6 @@
         }
       }
     },
-    "Antwort teilen oder kopieren" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Antwort teilen oder kopieren"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Share or Copy Answer"
-          }
-        }
-      }
-    },
     "Antwort wird gesucht" : {
       "localizations" : {
         "de" : {
@@ -2610,6 +2594,22 @@
         }
       }
     },
+    "Aus dem Verlauf entfernen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus dem Verlauf entfernen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from History"
+          }
+        }
+      }
+    },
     "Aus dem Wortschatz des Systems, auf diesem Gerät berechnet. Nur übernehmen, was passt." : {
       "localizations" : {
         "de" : {
@@ -2998,6 +2998,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sample data"
+          }
+        }
+      }
+    },
+    "Beleg %lld zeigen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beleg %lld zeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Passage %lld"
           }
         }
       }
@@ -5778,6 +5794,22 @@
         }
       }
     },
+    "Eine Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An episode"
+          }
+        }
+      }
+    },
     "Eine Folge wartet" : {
       "localizations" : {
         "de" : {
@@ -6610,6 +6642,22 @@
         }
       }
     },
+    "Folge: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folge: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episode: %@"
+          }
+        }
+      }
+    },
     "Folgen" : {
       "localizations" : {
         "de" : {
@@ -7234,6 +7282,22 @@
         }
       }
     },
+    "Gefragt bei %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gefragt bei %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asked at %@"
+          }
+        }
+      }
+    },
     "Gegenpositionen" : {
       "localizations" : {
         "de" : {
@@ -7246,6 +7310,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Counterpoints"
+          }
+        }
+      }
+    },
+    "Gegenpositionen prüfen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gegenpositionen prüfen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check Counterpoints"
           }
         }
       }
@@ -9316,6 +9396,22 @@
         }
       }
     },
+    "Mehr aus dieser Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehr aus dieser Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More from This Episode"
+          }
+        }
+      }
+    },
     "Mehr laden" : {
       "localizations" : {
         "de" : {
@@ -11348,6 +11444,22 @@
         }
       }
     },
+    "Prüft den Kernsatz der Antwort als These gegen Stellen aus allen Podcasts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prüft den Kernsatz der Antwort als These gegen Stellen aus allen Podcasts"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checks the core sentence of this answer as a thesis against passages from all your podcasts"
+          }
+        }
+      }
+    },
     "Quelle" : {
       "localizations" : {
         "de" : {
@@ -12144,6 +12256,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Puts together a new edition from original passages you haven't heard yet. Doesn't start playback."
+          }
+        }
+      }
+    },
+    "Stellt die nächsten Fragen nur an diese Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stellt die nächsten Fragen nur an diese Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asks your next questions about this episode only"
           }
         }
       }
@@ -13797,6 +13925,22 @@
         }
       }
     },
+    "Was wurde gerade gesagt?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was wurde gerade gesagt?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What was just said?"
+          }
+        }
+      }
+    },
     "Was wurde zuletzt über Datenschutz gesagt?" : {
       "localizations" : {
         "de" : {
@@ -13889,6 +14033,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continue Translating"
+          }
+        }
+      }
+    },
+    "Weitere Aktionen zur Antwort" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weitere Aktionen zur Antwort"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More Answer Actions"
           }
         }
       }

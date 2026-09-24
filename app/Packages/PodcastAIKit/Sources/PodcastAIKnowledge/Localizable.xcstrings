@@ -481,38 +481,6 @@
         }
       }
     },
-    "Bei %lld Quellen im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bei %lld Quellen im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld sources in the selected scope still have episodes without transcripts. There may be more."
-          }
-        }
-      }
-    },
-    "Bei einer Quelle im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bei einer Quelle im gewählten Bereich fehlen noch Transkripte. Es kann mehr geben."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One source in the selected scope still has episodes without transcripts. There may be more."
-          }
-        }
-      }
-    },
     "Dazu gibt es keine weitere Stelle mit Transkript.": {
       "localizations": {
         "de": {
@@ -525,22 +493,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "There are no more transcribed passages on this."
-          }
-        }
-      }
-    },
-    "Der gewählte Bereich ist %@. Diese Antwort deckt nur den Teil mit Transkript ab.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Der gewählte Bereich ist %@. Diese Antwort deckt nur den Teil mit Transkript ab."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Selected scope: %@. This answer only covers the transcribed part."
           }
         }
       }
@@ -621,22 +573,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Counterpoint"
-          }
-        }
-      }
-    },
-    "Im gewählten Bereich gibt es keine Folge mit Transkript, auf die sich eine Antwort stützen könnte.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Im gewählten Bereich gibt es keine Folge mit Transkript, auf die sich eine Antwort stützen könnte."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The selected scope has no transcribed episodes to base an answer on."
           }
         }
       }
