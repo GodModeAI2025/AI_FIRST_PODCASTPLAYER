@@ -44,6 +44,11 @@ public enum UserFacingError {
                 return String(localized: "Die Datei ist größer, als die App lädt. Für sehr lange Folgen lässt sich im Moment kein Transkript erstellen.")
             case .emptyResponse:
                 return String(localized: "Der Server hat nichts geliefert. Später noch einmal versuchen.")
+            case .notMedia:
+                return String(localized: """
+                    Der Server hat statt der Audiodatei eine Webseite oder Text geschickt. \
+                    Den Podcast aktualisieren und später noch einmal versuchen.
+                    """)
             case .rejectedDestination, .rejectedRedirect:
                 return http.errorDescription ?? String(localized: "Diese Adresse wird nicht abgerufen.")
             }

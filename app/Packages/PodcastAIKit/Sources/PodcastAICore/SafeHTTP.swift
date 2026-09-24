@@ -31,6 +31,8 @@ public enum HTTPTransferError: Error, LocalizedError, Equatable {
     case httpStatus(Int)
     case tooLarge(limit: Int64)
     case emptyResponse
+    /// Statt Ton kam eine Webseite, ein Bild oder Text, etwa eine Anmeldeseite.
+    case notMedia
 
     public var errorDescription: String? {
         switch self {
@@ -45,6 +47,8 @@ public enum HTTPTransferError: Error, LocalizedError, Equatable {
                    bundle: .module)
         case .emptyResponse:
             String(localized: "Die Antwort war leer.", bundle: .module)
+        case .notMedia:
+            String(localized: "Der Server hat statt einer Audiodatei eine Webseite oder Text geschickt.", bundle: .module)
         }
     }
 
@@ -193,6 +197,11 @@ public enum SafeHTTP {
     public struct SavedFile: Sendable {
         public let byteCount: Int64
         public let mimeType: String?
+
+        public init(byteCount: Int64, mimeType: String?) {
+            self.byteCount = byteCount
+            self.mimeType = mimeType
+        }
     }
 
     /// `progress` bekommt nach jedem geschriebenen Block die geladenen Byte

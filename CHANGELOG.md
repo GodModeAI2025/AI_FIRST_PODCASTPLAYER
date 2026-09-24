@@ -4,6 +4,7 @@
 Die Warteschlange lässt sich steuern:
 - „Pausieren“ und „Fortsetzen“ in der Warteschlange und per langem Druck auf das Aktivitätssymbol. Pausiert beginnt kein Transkript, die laufende Folge hält an ihrem Zwischenstand an, Fakten und Tags warten ebenso. Die Pause gilt auch nach einem Neustart, das Symbol zeigt „Pausiert“ mit der Zahl der wartenden Folgen.
 - „Alle abbrechen“ leert die Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst beim nächsten Aktualisieren von Hand wieder dazu.
+- Downloads im WLAN laufen im Hintergrund weiter, auch wenn iOS die App anhält: für Transkripte, „Laden (offline)“ und die neueste Folge je Podcast. Das Transkript entsteht danach, sobald die App wieder vorn ist. Über Mobilfunk lädt die App wie bisher nur, solange sie läuft.
 
 ## App 0.10 · 2026-09-24
 Tags aus dem Inhalt und ein schnellerer Chat:

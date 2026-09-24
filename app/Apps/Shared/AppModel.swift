@@ -1044,6 +1044,8 @@ public final class AppModel {
     /// Bricht einen Download für unterwegs ab. Eine halbe Datei bleibt nicht liegen.
     public func cancelDownload(_ episode: Episode) {
         downloadTasks[episode.id]?.cancel()
+        // Die Aufgabe loszulassen hält eine Übertragung im Hintergrund nicht an.
+        if let id = Self.downloadID(of: episode) { BackgroundDownloads.shared.cancel([id]) }
     }
 
     func noteDownloadProgress(_ id: EpisodeID, received: Int64, expected: Int64?) {
@@ -1600,6 +1602,10 @@ public final class AppModel {
     public func pauseQueue() {
         guard !queuePaused else { return }
         queuePaused = true
+        // Ein Download im Hintergrund hält mit an und merkt sich den Stand.
+        if let running = analyzing.flatMap(Self.downloadID(of:)) {
+            BackgroundDownloads.shared.suspend([running])
+        }
         pauseTranscripts()
         factsTask?.cancel()
     }
@@ -1632,6 +1638,9 @@ public final class AppModel {
         await facts?.value
         let plan = AnalysisQueueControl.cancelAll(
             running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
+        // Auch Downloads, die im Hintergrund weiterliefen.
+        BackgroundDownloads.shared.cancel(
+            ([analyzing].compactMap { $0 } + analysisQueue).compactMap(Self.downloadID(of:)))
         restingPreparation.insert(contentsOf: plan.restingUntilRefresh)
         for id in plan.removed {
             automaticallyQueued.remove(id)
@@ -1763,7 +1772,10 @@ public final class AppModel {
             // Zwischen dem Transkript des Podcasts und der eigenen Erkennung:
             // die Untertitel des YouTube-Zwillings, nur mit eigenem Schlüssel.
             twin: twinCaptionHook(for: episode),
-            onProgress:{ [weak self] progress in
+            // Im WLAN lädt die Sitzung des Systems und lädt weiter, wenn die
+            // App anhält. Das Transkript entsteht danach, sobald sie vorn ist.
+            backgroundDownloads: backgroundDownloadSession(automatic: automaticallyQueued.contains(episode.id)),
+            onProgress: { [weak self] progress in
                 Task { @MainActor in
                     // Eine gelöschte Folge taucht nicht wieder unter „Erschließen“ auf.
                     guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }

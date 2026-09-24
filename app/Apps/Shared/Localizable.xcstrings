@@ -4755,6 +4755,22 @@
         }
       }
     },
+    "Der Server hat statt der Audiodatei eine Webseite oder Text geschickt. Den Podcast aktualisieren und später noch einmal versuchen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Server hat statt der Audiodatei eine Webseite oder Text geschickt. Den Podcast aktualisieren und später noch einmal versuchen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instead of the audio file, the server sent a web page or text. Refresh the podcast and try again later."
+          }
+        }
+      }
+    },
     "Der Server ist nicht erreichbar." : {
       "localizations" : {
         "de" : {
