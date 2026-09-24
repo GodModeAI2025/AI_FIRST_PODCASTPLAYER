@@ -234,6 +234,8 @@ extension BackgroundDownloadSession {
             var discarded: Set<String> = []
             /// Angehalten mit Stand zum Fortsetzen. Ihr Ende weckt niemanden.
             var suspending: Set<TaskRef> = []
+            /// Angehalten, der Stand zum Fortsetzen ist aber noch nicht da.
+            var awaitingResume: Set<TaskRef> = []
             /// Wartet darauf, dass eine angehaltene Übertragung ihren Stand liefert.
             var pending: [String: Pending] = [:]
         }
@@ -339,6 +341,17 @@ extension BackgroundDownloadSession {
                 suspend(download, in: other, key: key)
                 return
             }
+            // Gerade angehalten und der Stand noch unterwegs, etwa nach
+            // „Pausieren“ und schnellem „Fortsetzen“: erst mit ihm beginnen.
+            let waitsForResume: Bool = state.withLock { state in
+                let stillSuspending = ownTasks.contains { $0.taskDescription == key
+                    && state.awaitingResume.contains(TaskRef(own, $0)) }
+                    || otherTasks.contains { $0.taskDescription == key
+                        && state.awaitingResume.contains(TaskRef(other, $0)) }
+                if stillSuspending { state.pending[key] = Pending(session: own, request: request) }
+                return stillSuspending
+            }
+            if waitsForResume { return }
             start(key: key, request: request, in: own)
         }
 
@@ -361,11 +374,17 @@ extension BackgroundDownloadSession {
         /// Hält eine Übertragung an und merkt sich ihren Stand. Wartet eine
         /// neue auf ihn, beginnt sie danach.
         func suspend(_ task: URLSessionDownloadTask, in session: URLSession, key: String) {
-            _ = state.withLock { $0.suspending.insert(TaskRef(session, task)) }
+            let ref = TaskRef(session, task)
+            state.withLock { state in
+                state.suspending.insert(ref)
+                state.awaitingResume.insert(ref)
+            }
             task.cancel(byProducingResumeData: { [self] data in
                 if let data, !state.withLock({ $0.discarded.contains(key) }) {
                     storeResumeData(data, for: key)
                 }
+                // Erst jetzt liegt der Stand bereit. Wer danach beginnt, nimmt ihn.
+                _ = state.withLock { $0.awaitingResume.remove(ref) }
                 firePending(key)
             })
         }
