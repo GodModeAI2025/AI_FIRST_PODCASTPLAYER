@@ -140,3 +140,41 @@ Ich empfehle, bei Apple Intelligence zu bleiben. Die Klassifizierung ist eine Au
 2. Je Kapitel gibt es neben den Tags einen Satz, worum es geht, als Zusammenfassung gekennzeichnet.
 3. Fehlt das Gerätemodell oder ist es zu langsam, erzeugt Private Cloud Compute die Tags. Abschaltbar wie heute.
 4. Die App bleibt bei Apple Intelligence. Nach der Tag-Messung in 0.10 wird neu bewertet.
+
+## 13. Erweiterung: einzelne Folgen und YouTube besser abonnieren
+
+Stand heute: Ein direkter Audiolink landet in der Sammelquelle „Einzelne Folgen“ (`Services.swift:333`). Ein YouTube-Video, eine Playlist oder ein @-Name führt zum ganzen Kanal (`SourceResolver.swift:18-38`). Eine einzelne Folge aus Apple Podcasts, aus dem Katalog oder aus einem abonnierten Feed lässt sich nicht allein holen, und ein YouTube-Video nicht ohne seinen Kanal.
+
+### Einzelne Folgen
+
+- **Überall „Nur diese Folge“:** Im Katalog, in der Podcast-Vorschau vor dem Abonnieren und bei eingefügten Links gibt es neben „Abonnieren“ den Knopf „Nur diese Folge“. Die Folge kommt in die Bibliothek, ohne dass der Podcast abonniert wird.
+- **Links, die eine Folge meinen:**
+  - Apple Podcasts mit `?i=<Folgenkennung>`: Lookup über `itunes.apple.com/lookup?id=…&entity=podcastEpisode`, dann die Folge im Feed über `guid` oder Audioadresse suchen.
+  - Direkte Audio- und Videodateien wie heute.
+  - Folgenseiten von Podcast-Hostern (Podigee, Podlove, Transistor, Libsyn und andere): Die Seite nennt Feed und Folge (`og:audio`, `<enclosure>`, `podcast:guid`). Der Code sucht die Folge im Feed.
+  - Overcast und Pocket Casts: Die Links führen über die Folgenseite zum Feed.
+  - YouTube-Video: siehe unten, „Nur dieses Video“.
+- **Ordnung:** Einzelne Folgen stehen unter ihrem echten Podcast mit Cover und Titel, gekennzeichnet als „nicht abonniert“. Die Sammelquelle „Einzelne Folgen“ bleibt nur für Dateien ohne erkennbaren Podcast. Aus jeder solchen Folge lässt sich der Podcast später mit einem Tipp abonnieren. Die schon geladenen Folgen bleiben dabei erhalten.
+- **Gleich behandelt:** Transkript, Fakten, Kapitel, Tags, Chat und Themen-Podcasts gelten auch für einzelne Folgen. Einzelne Folgen wählt der Nutzer bewusst aus, deshalb laufen sie in der Warteschlange vor dem Archiv. Die Regeln für den Ton gelten wie bei allen anderen Folgen.
+- **Teilen in die App:** Eine Share Extension auf iOS und Mac übernimmt Links aus Apple Podcasts, YouTube, Safari und anderen Apps: „An PodcastAI senden“. Dazu kommen Audiodateien aus Dateien und AirDrop. Die Erweiterung legt nichts an. Sie übergibt den Link an die App, und die zeigt die Vorschau mit „Abonnieren“ oder „Nur diese Folge“. Dafür braucht es ein neues Target und eine App Group, dieselbe wie für das Widget.
+- **Datenmodell:** Kein neues `@Model`. `StoredSource` bekommt `isSubscribed: Bool = true`, damit ein Podcast mit einzelnen Folgen nicht als Abo zählt: keine automatische Aktualisierung und kein Abo-Export. Das Feld ist additiv und geht mit demselben Schema-Deploy wie die Tags nach Production.
+
+### YouTube besser abonnieren
+
+- **Jeder Link führt zum Kanal:** `youtube.com/watch`, `youtu.be`, `/shorts/`, `/live/`, `music.youtube.com`, `/@name`, `/channel/UC…`, `/c/…`, `/user/…` und Playlists. Die Vorschau zeigt Kanalbild, Name, Beschreibung und die neuesten Videos. Zur Auswahl stehen „Kanal abonnieren“, „Nur dieses Video“ und, falls vorhanden, „Passenden Audio-Podcast abonnieren“ (heute `PodcastCounterpart`). Den Audio-Podcast empfiehlt die App zuerst, weil es nur mit Ton Transkript, Fakten und Tags gibt.
+- **Playlists abonnieren:** Eine Playlist ist eine eigene Quelle mit Feed `feeds/videos.xml?playlist_id=`. Heute führt eine Playlist zum Kanal.
+- **Abos übernehmen:** Import der Datei `subscriptions.csv` aus Google Takeout (YouTube-Abos). Die Liste zeigt, welche Kanäle einen Audio-Podcast haben. Man wählt aus und abonniert alles auf einmal. Ohne Google-Konto und ohne Schlüssel.
+- **Suche nach Kanälen:** Ohne API-Schlüssel gibt es keine offizielle YouTube-Suche. Die App sucht deshalb den Namen im Katalog, also bei Apple und Podcast Index, und bietet gefundene Audio-Podcasts an. Einen YouTube-Kanal abonniert man über seinen Link oder über das Teilen aus der YouTube-App. Die Share Extension macht das zum normalen Weg.
+- **Mehr aus dem Feed holen:** Der YouTube-Feed liefert nur die 15 neuesten Videos. Die App speichert jedes gesehene Video, damit die Liste über die Zeit wächst. Ältere Videos lassen sich nicht nachladen, und die Kanalseite sagt das.
+- **Kapitel aus der Beschreibung:** Zeitmarken wie `00:00 Intro` in der Videobeschreibung werden zu Kapiteln mit Tags und Satz je Kapitel (siehe 0.9).
+- **Ohne Ton bleibt es bei Metadaten:** YouTube liefert der App keinen Ton, und die App lädt ihn auch nicht über Umwege. Das gilt wegen der Nutzungsbedingungen. Die Kanalseite sagt klar, was es gibt: Titel, Beschreibung, Kapitel, Tags aus Titel und Beschreibung, Abspielen in der YouTube-App. Transkript und Fakten gibt es nur über den passenden Audio-Podcast.
+
+### Einordnung in die Etappen
+
+- **0.9:** „Nur diese Folge“ im Katalog, in der Vorschau und bei Folgenlinks von Apple und Hostern. Einzelne Folgen unter ihrem echten Podcast. YouTube-Links aller Formen mit Vorschau und den drei Möglichkeiten, Playlists als Quelle, Kapitel aus Beschreibungen.
+- **0.10:** Das Feld `isSubscribed` kommt in denselben Schema-Deploy wie die Tags.
+- **0.12:** Die Share Extension mit derselben App Group wie das Widget, dazu der Import von Takeout-Abos.
+
+### Offene Entscheidung
+
+- **YouTube-Untertitel als Transkript:** YouTube bietet Untertitel an, aber nicht über eine offizielle, schlüssellose Schnittstelle. Vorschlag: nicht nutzen und bei „nur Metadaten, Transkript über den Audio-Podcast“ bleiben.
