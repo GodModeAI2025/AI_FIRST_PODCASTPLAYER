@@ -65,11 +65,18 @@ final class GoalFeaturesUITests: XCTestCase {
         let suggestion = app.buttons["Worum geht es in dieser Folge?"]
         XCTAssertTrue(suggestion.waitForExistence(timeout: 5), "Keine Vorschlagsfragen")
         suggestion.tap()
-        // Im Simulator hat die Folge kein Transkript. Die Antwort sagt das,
-        // je nach Zustand anders, aber immer mit dem Hinweis auf die Belege.
-        let answer = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Beleg'")).firstMatch
-        XCTAssertTrue(answer.waitForExistence(timeout: 20), "Keine Antwort im Folgen-Chat")
+        // Unter iOS 27 erstellt der Simulator das Transkript der neuesten
+        // Folge oft schon, während der Test läuft. Dann antwortet das Modell
+        // mit Belegen, sonst steht ein Hinweis auf das fehlende Transkript da.
+        // Beides ist eine Antwortkarte. Das Modell teilt sich das Gerät mit
+        // Fakten und Tags der neuen Folgen und braucht auf einem ausgelasteten
+        // Simulator auch einmal eine halbe Minute.
+        let answer = app.descendants(matching: .any)["chat.answer"].firstMatch
+        let answered = answer.waitForExistence(timeout: 90)
         attach(app, "folgen-chat")
+        XCTAssertTrue(answered, "Keine Antwort im Folgen-Chat")
+        XCTAssertFalse(app.buttons["chat.cancel"].exists, "Die Frage wartet noch, obwohl eine Antwort dasteht")
+        XCTAssertGreaterThan(answer.staticTexts.count, 1, "Die Antwortkarte hat keinen Text außer der Frage")
 
         // Zurück muss zur Liste führen, auch während Transkripte erstellt
         // werden. Früher lag die Aktivitätszeile auf dem Zurück-Knopf.

@@ -53,9 +53,13 @@ enum DemoContent {
         guard ((try? await store.sources()) ?? []).isEmpty else { return }
         let source = Source(id: sourceID, kind: .podcastRSS, title: "Beispiel: Arbeit und KI",
                             author: "PodcastAI Demo", capabilities: .fullPodcast, language: "de")
+        // „Für dich“ ordnet einen Beleg über seinen Anfang einem Kapitel zu,
+        // und jeder Beleg fasst 80 Sekunden. Das Kapitel Datenschutz beginnt
+        // deshalb mit dem Beleg ab 1:20, der den Datenschutz anspricht. So
+        // trägt es zwei Stellen, und die Karte zeigt die Mehrzahl.
         let chapters = [
             Chapter(start: MediaTime(milliseconds: 0), title: "Einstieg", provenance: .original),
-            Chapter(start: MediaTime(milliseconds: 90_000), title: "Datenschutz und Modelle", provenance: .original),
+            Chapter(start: MediaTime(milliseconds: 80_000), title: "Datenschutz und Modelle", provenance: .original),
             Chapter(start: MediaTime(milliseconds: 240_000), title: "Regeln im Team", provenance: .original),
             Chapter(start: MediaTime(milliseconds: 420_000), title: "Haftung und Verordnung", provenance: .original),
         ]

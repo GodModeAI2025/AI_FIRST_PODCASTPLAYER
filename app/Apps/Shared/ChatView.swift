@@ -670,6 +670,7 @@ struct AnswerCard: View {
         // Für VoiceOver eine Gruppe: Frage, Antwort, Belege und Aktionen
         // gehören zusammen, auch wenn mehrere Antworten untereinander stehen.
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.answer")
         .task(id: answer.id) {
             // Innerhalb einer Folge fehlt nur der Kopf der Karte. Die Länge
             // der Folge braucht auch sie, für „34:10 von 58:00“.

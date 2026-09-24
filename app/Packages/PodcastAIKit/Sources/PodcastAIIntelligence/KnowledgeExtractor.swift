@@ -441,14 +441,61 @@ public struct KnowledgeExtractor: Sendable {
         ) { text in
             // Die Probe ist bei gleichem Bestand dieselbe. Ihre Zahl wird
             // gemerkt, der Rahmen mit der Frage wird jedes Mal gezählt.
-            guard text == sampleBlock else { return try await model.tokenCount(for: text) }
-            if let known = Self.countedSamples.withLock({ $0[text] }) { return known }
-            let counted = try await model.tokenCount(for: text)
-            Self.countedSamples.withLock { known in
-                if known.count >= 16 { known.removeAll() }
-                known[text] = counted
+            guard text == sampleBlock else {
+                return try await Self.withinTokenDeadline { try await model.tokenCount(for: text) }
             }
-            return counted
+            if let known = Self.countedSamples.withLock({ $0[text] }) { return known }
+            return try await Self.withinTokenDeadline {
+                let counted = try await model.tokenCount(for: text)
+                Self.countedSamples.withLock { known in
+                    if known.count >= 16 { known.removeAll() }
+                    known[text] = counted
+                }
+                return counted
+            }
+        }
+    }
+
+    /// So lange wartet eine Frage höchstens auf den Tokenizer. Rechnet das
+    /// Gerätemodell gerade für Fakten oder Tags, stand das Zählen im
+    /// Simulator über 20 Sekunden still, und die Frage mit ihm. Danach gilt
+    /// die Schätzung aus ``AnswerTokenPlan``.
+    static let tokenCountDeadline = Duration.seconds(3)
+
+    struct TokenCountTimeout: Error {}
+
+    /// Führt `count` aus und gibt nach ``tokenCountDeadline`` auf. Das
+    /// Zählen läuft dann weiter und merkt sich sein Ergebnis selbst, wenn
+    /// `count` das tut; die nächste Frage findet es vor.
+    static func withinTokenDeadline(
+        _ deadline: Duration = tokenCountDeadline,
+        _ count: @escaping @Sendable () async throws -> Int
+    ) async throws -> Int {
+        let gate = ResumeGate()
+        return try await withCheckedThrowingContinuation { continuation in
+            Task {
+                do {
+                    let counted = try await count()
+                    if gate.claim() { continuation.resume(returning: counted) }
+                } catch {
+                    if gate.claim() { continuation.resume(throwing: error) }
+                }
+            }
+            Task {
+                try? await Task.sleep(for: deadline)
+                if gate.claim() { continuation.resume(throwing: TokenCountTimeout()) }
+            }
+        }
+    }
+
+    /// Lässt nur den ersten von zwei Wegen die Fortsetzung aufnehmen.
+    private final class ResumeGate: Sendable {
+        private let taken = Mutex(false)
+        func claim() -> Bool {
+            taken.withLock { taken in
+                defer { taken = true }
+                return !taken
+            }
         }
     }
 
@@ -468,9 +515,11 @@ public struct KnowledgeExtractor: Sendable {
 
     private static func schemaTokens(_ model: SystemLanguageModel) async -> Int? {
         if let known = countedSchema.withLock({ $0 }) { return known }
-        guard let counted = try? await model.tokenCount(for: AnswerOutput.generationSchema) else { return nil }
-        countedSchema.withLock { $0 = counted }
-        return counted
+        return try? await withinTokenDeadline {
+            let counted = try await model.tokenCount(for: AnswerOutput.generationSchema)
+            countedSchema.withLock { $0 = counted }
+            return counted
+        }
     }
 
     /// Das Fenster von Private Cloud Compute in Token. Einmal gefragt und

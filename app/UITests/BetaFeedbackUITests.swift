@@ -157,34 +157,51 @@ final class BetaFeedbackUITests: XCTestCase {
         XCTAssertTrue(found, "Keine erste Ausgabe nach dem Anlegen. Hinweis: \(note.exists ? note.label : "keiner")")
     }
 
-    /// Derselbe Weg mit einem eingetippten Thema statt der vorhandenen.
-    @MainActor func testTypedTopicUpdateBuildsFirstEditionWithoutTap() {
+    /// Derselbe Weg mit einem Tag, dem gerade erst jemand folgt. Seit 0.10
+    /// wird kein Thema mehr eingetippt: Plus in „Meine Tags“ auf dem
+    /// neutralen Tag „Automatisierung“, dann ein Update nur mit ihm.
+    @MainActor func testNewlyFollowedTagUpdateBuildsFirstEditionWithoutTap() {
         let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh", "-demo-content"]; app.launch()
+        app.tabBars.buttons["Wissen"].tap()
+        let myTags = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Meine Tags'")).firstMatch
+        XCTAssertTrue(myTags.waitForExistence(timeout: 5))
+        myTags.tap()
+        let row = app.descendants(matching: .any)["tags.row.Automatisierung"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "Das neutrale Tag „Automatisierung“ fehlt")
+        row.tap()
+        let follow = app.descendants(matching: .any)["tag.follow.Automatisierung"].firstMatch
+        XCTAssertTrue(follow.waitForExistence(timeout: 5))
+        follow.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["tag.unfollow.Automatisierung"].firstMatch
+            .waitForExistence(timeout: 5), "Plus folgt dem Tag nicht")
+
         app.tabBars.buttons["Themen-Updates"].tap()
         app.navigationBars.buttons["Neu"].firstMatch.tap()
         let name = app.textFields["z. B. Mein KI Update"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
-        name.tap(); name.typeText("Eingetippt")
-        // Die vorausgewählten Themen abwählen, damit nur das neue zählt.
-        for label in ["Datenschutz", "KI im Arbeitsalltag"] {
-            let button = app.buttons[label].firstMatch
-            if button.waitForExistence(timeout: 5) { button.tap() }
-        }
-        let topic = app.textFields["Neues Thema, z. B. KI-Modelle"]
-        topic.tap(); topic.typeText("Automatisierung")
+        name.tap(); name.typeText("Neu gefolgt")
+        // Das neue Tag steht zur Auswahl. Datenschutz abwählen, damit nur
+        // das eben gefolgte Tag zählt.
+        let tag = app.buttons["Automatisierung"].firstMatch
+        XCTAssertTrue(tag.waitForExistence(timeout: 5), "Das eben gefolgte Tag steht nicht zur Auswahl")
+        if !tag.isSelected { tag.tap() }
+        let privacy = app.buttons["Datenschutz"].firstMatch
+        if privacy.waitForExistence(timeout: 5), privacy.isSelected { privacy.tap() }
+        XCTAssertTrue(tag.isSelected, "Das eben gefolgte Tag ist nicht ausgewählt")
         let create = app.navigationBars.buttons["Anlegen"]
         let deadline = Date().addingTimeInterval(10)
         while !create.isEnabled && Date() < deadline { sleep(1) }
+        XCTAssertTrue(create.isEnabled, "Anlegen bleibt gesperrt, obwohl ein Tag ausgewählt ist")
         create.tap()
 
-        let row = app.staticTexts["Eingetippt"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 10))
-        row.tap()
+        let feedRow = app.staticTexts["Neu gefolgt"].firstMatch
+        XCTAssertTrue(feedRow.waitForExistence(timeout: 10))
+        feedRow.tap()
         let latest = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'Neueste Ausgabe'")).firstMatch
         // Die Auswahl durch Apple Intelligence dauert auf einem ausgelasteten
         // Simulator auch einmal eine halbe Minute.
         let found = latest.waitForExistence(timeout: 90)
-        attach(app, "erste-ausgabe-eingetippt")
+        attach(app, "erste-ausgabe-neu-gefolgt")
         let note = app.descendants(matching: .any)["edition.result"].firstMatch
         XCTAssertTrue(found, "Keine erste Ausgabe nach dem Anlegen. Hinweis: \(note.exists ? note.label : "keiner")")
     }

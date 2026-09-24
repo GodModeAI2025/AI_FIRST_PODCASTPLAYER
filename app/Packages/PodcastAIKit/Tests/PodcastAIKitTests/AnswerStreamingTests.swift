@@ -144,6 +144,23 @@ struct AnswerTokenPlanTests {
         #expect(budget.maximumCandidates == expected)
         #expect(expected == 12)
     }
+
+    #if canImport(FoundationModels)
+    @Test("Hängt der Tokenizer, wartet die Frage nur bis zur Frist")
+    func tokenDeadline() async throws {
+        let fast = try await KnowledgeExtractor.withinTokenDeadline(.seconds(2)) { 42 }
+        #expect(fast == 42)
+
+        let started = ContinuousClock.now
+        await #expect(throws: KnowledgeExtractor.TokenCountTimeout.self) {
+            try await KnowledgeExtractor.withinTokenDeadline(.milliseconds(100)) {
+                try? await Task.sleep(for: .seconds(5))
+                return 1
+            }
+        }
+        #expect(ContinuousClock.now - started < .seconds(2))
+    }
+    #endif
 }
 
 /// Zählt Aufrufe aus einer Schließung heraus.
