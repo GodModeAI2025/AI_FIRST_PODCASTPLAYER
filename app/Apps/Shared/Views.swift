@@ -2081,12 +2081,12 @@ struct NewSmartFeedSheet: View {
             dismiss()
             return
         }
-        let feedID = model.createSmartFeed(
-            title: name, topicIDs: topicIDs, minutes: minutes, sourceIDs: sourceIDs)
+        // Die erste Ausgabe baut das Modell, sobald der Feed gesichert ist,
+        // unabhängig von diesem Blatt.
+        model.createSmartFeed(
+            title: name, topicIDs: topicIDs, minutes: minutes, sourceIDs: sourceIDs,
+            buildFirstEdition: true)
         dismiss()
-        // Gleich eine erste Ausgabe bauen: ein leerer Feed direkt nach dem
-        // Anlegen sieht aus wie ein Fehler.
-        await model.buildEdition(feedID: feedID)
     }
 
     /// Der Name, wenn keiner eingetippt ist: die ersten beiden Themen.

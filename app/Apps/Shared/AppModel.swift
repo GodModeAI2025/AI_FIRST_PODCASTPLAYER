@@ -2177,19 +2177,38 @@ public final class AppModel {
 
     /// Legt einen Themenfeed an und gibt seine Kennung zurück.
     ///
-    /// Die Rückgabe ist der Grund, warum der Aufrufer gleich danach eine
-    /// erste Ausgabe bauen kann — ein Feed, der direkt nach dem Anlegen leer
-    /// ist, sieht aus wie ein Fehler.
+    /// Mit `buildFirstEdition` entsteht gleich die erste Ausgabe. Ein Feed,
+    /// der direkt nach dem Anlegen leer ist, sieht aus wie ein Fehler. Das
+    /// Zusammenstellen läuft hier im Modell und nicht im Blatt, das sich
+    /// gerade schließt, und beginnt erst, wenn der Feed in der Datenbank
+    /// steht. Vorher konnte ein Neuladen nach einem iCloud-Abgleich die
+    /// Liste im Speicher durch den Stand ohne den neuen Feed ersetzen, und
+    /// die fertige Ausgabe wurde als „gelöscht“ verworfen.
     @discardableResult
     public func createSmartFeed(
-        title: String, topicIDs: [InterestID], minutes: Int, sourceIDs: [SourceID] = []
+        title: String, topicIDs: [InterestID], minutes: Int, sourceIDs: [SourceID] = [],
+        buildFirstEdition: Bool = false
     ) -> SmartFeedID {
         let feed = SmartPodcastFeed(
             title: title, topicIDs: topicIDs, restrictedToSourceIDs: sourceIDs,
             editionMode: .budgeted(MediaDuration(minutes: minutes))
         )
         smartFeeds.append(feed)
-        persistSmartFeeds()
+        let saving = persistSmartFeeds()
+        guard buildFirstEdition else { return feed.id }
+        // Schon während des Sicherns „wird zusammengestellt“ zeigen, nicht
+        // kurz „Noch keine Ausgabe“.
+        buildingFeeds.insert(feed.id)
+        Task {
+            await saving.value
+            // Ein Neuladen, das vor dem Sichern gelesen hat, kennt den Feed
+            // noch nicht und hat ihn aus der Liste genommen.
+            if !smartFeeds.contains(where: { $0.id == feed.id }), !removedSmartFeeds.contains(feed.id) {
+                smartFeeds.append(feed)
+            }
+            buildingFeeds.remove(feed.id)
+            await buildEdition(feedID: feed.id)
+        }
         return feed.id
     }
 
@@ -2211,6 +2230,7 @@ public final class AppModel {
     /// Löscht einen Themenfeed mit allen seinen Ausgaben. Die Folgen, aus
     /// denen sie bestanden, und der Hörstand bleiben unberührt.
     public func removeSmartFeed(_ feedID: SmartFeedID) {
+        removedSmartFeeds.insert(feedID)
         smartFeeds.removeAll { $0.id == feedID }
         editions[feedID] = nil
         editionNotes[feedID] = nil
@@ -2286,9 +2306,10 @@ public final class AppModel {
     /// Bewusst als eigene, kurze Methoden und nicht als eine große: jede
     /// Änderung sichert genau das, was sie geändert hat. Ein gemerkter
     /// Gedanke schreibt keine Themenfeeds neu.
-    private func persistSmartFeeds() {
+    @discardableResult
+    private func persistSmartFeeds() -> Task<Void, Never> {
         let feeds = smartFeeds
-        Task { await persist { try await $0.save(smartFeeds: feeds) } }
+        return Task { await persist { try await $0.save(smartFeeds: feeds) } }
     }
 
     private func persistEditions(for feedID: SmartFeedID) {
@@ -2338,6 +2359,9 @@ public final class AppModel {
     /// Themenfeeds, für die gerade eine Ausgabe entsteht. Die Oberfläche
     /// zeigt daran „wird zusammengestellt“, statt fertig und leer zu wirken.
     public internal(set) var buildingFeeds: Set<SmartFeedID> = []
+    /// Auf diesem Gerät gelöschte Themenfeeds, damit eine Ausgabe, die
+    /// währenddessen fertig wird, nicht wieder auftaucht.
+    @ObservationIgnored private var removedSmartFeeds: Set<SmartFeedID> = []
     /// Die letzte Rückmeldung je Themenfeed, als Satz für die Oberfläche.
     public internal(set) var editionNotes: [SmartFeedID: String] = [:]
     /// Was die letzte Prüfung je Themenfeed ergeben hat, auch die stille
@@ -2444,7 +2468,7 @@ public final class AppModel {
             switch outcome {
             case .published(let episode):
                 // Während des Zusammenstellens gelöscht: nichts anlegen.
-                guard smartFeeds.contains(where: { $0.id == feedID }) else {
+                guard await smartFeedStillExists(feedID) else {
                     return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false)
                 }
                 editions[feedID, default: []].insert(episode, at: 0)
@@ -2494,6 +2518,20 @@ public final class AppModel {
             if requestedByUser { lastError = UserFacingError.describe(error) }
             return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false)
         }
+    }
+
+    /// Gibt es den Themenfeed noch?
+    ///
+    /// Die Liste im Speicher allein reicht nicht. Ein Neuladen nach einem
+    /// iCloud-Abgleich ersetzt sie durch den Stand der Datenbank, und liest
+    /// es, bevor ein neuer Feed gesichert ist, fehlt er dort kurz. Dann
+    /// entscheidet die Datenbank. Hier gelöscht ist gelöscht, auch wenn das
+    /// Sichern noch läuft.
+    private func smartFeedStillExists(_ feedID: SmartFeedID) async -> Bool {
+        if smartFeeds.contains(where: { $0.id == feedID }) { return true }
+        guard !removedSmartFeeds.contains(feedID) else { return false }
+        let stored = (try? await store.smartFeeds()) ?? []
+        return stored.contains { $0.id == feedID } && !removedSmartFeeds.contains(feedID)
     }
 
     /// Höchstens so viele Kapiteldateien lädt eine Ausgabe nach.
