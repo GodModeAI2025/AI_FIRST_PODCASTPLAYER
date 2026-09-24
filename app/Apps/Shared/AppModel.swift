@@ -696,6 +696,7 @@ public final class AppModel {
         // „Als Nächstes“, Warteschlange und gemerkte Stellen.
         await forgetEpisodesRemovedElsewhere()
         // Was vor dem Beenden auf sein Transkript wartete, wartet wieder.
+        // Loslaufen lässt es `refreshInstalledSpeechModels()` gleich danach.
         await restoreAnalysisQueue()
         // Wofür eine Folge mit Ton auf dem Gerät auch ohne Netz ein
         // Transkript bekommt.
@@ -1355,6 +1356,9 @@ public final class AppModel {
     /// Zwischenstand an.
     func restoreAnalysisQueue() async {
         guard !analysisQueueRestored else { return }
+        // Zwischenstände, die kein Lauf mehr liest, etwa weil ein anderes
+        // Gerät das Transkript schrieb, verfallen hier.
+        Task.detached(priority: .background) { Self.transcriptCheckpoints.removeExpired() }
         let saved = AnalysisQueueSnapshot.decoded(
             from: UserDefaults.standard.data(forKey: Self.analysisQueueKey))
         let ids = saved?.entries.map(\.episodeID) ?? []
@@ -1565,7 +1569,14 @@ public final class AppModel {
             pipelineEpisodeID = nil
         }
         do {
-            try await run.value
+            // Die eigene Aufgabe erbt keinen Abbruch. Hält die Warteschlange
+            // an, bevor `pipelineRun` steht, liefe das Transkript sonst ohne
+            // Träger im Hintergrund weiter.
+            try await withTaskCancellationHandler {
+                try await run.value
+            } onCancel: {
+                run.cancel()
+            }
             if wasRemoved(episode.id, since: ticket) {
                 await purgeLateWrites(of: episode)
                 return false

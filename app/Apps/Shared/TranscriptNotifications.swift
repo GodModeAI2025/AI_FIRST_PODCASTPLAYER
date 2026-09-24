@@ -92,6 +92,11 @@ extension AppModel {
     /// Die Zeit im Hintergrund ist um, während Transkripte liefen: anhalten,
     /// Zwischenstand behalten, Bescheid sagen.
     func transcriptTimeExpired() {
+        // Vorn läuft die Arbeit ohne Hilfe des Systems weiter, etwa wenn
+        // jemand die Anzeige der fortgesetzten Verarbeitung wegwischt. Geht
+        // die App danach in den Hintergrund, hält die kurze Hintergrundzeit
+        // von UIKit sie an, wenn sie endet.
+        guard !appInForeground else { return }
         let pending = hasPendingTranscripts
         pauseTranscripts()
         guard pending else { return }

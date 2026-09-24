@@ -126,6 +126,32 @@ struct TranscriptResumeTests {
         store.remove([media])
         #expect(store.load(mediaVersionID: media, locale: "de_DE") == nil)
     }
+
+    @Test("Beim Start verfallen nur alte Zwischenstände")
+    func expiredCheckpointsArePruned() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("checkpoints-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = TranscriptCheckpointStore(directory: directory)
+        let other = MediaVersionID(rawValue: "fassung-2")
+        try store.save(checkpoint(through: 30))
+        try store.save(TranscriptCheckpoint(
+            mediaVersionID: other, locale: "de_DE", segments: [], analyzedThrough: MediaTime(seconds: 5),
+            savedAt: Date().addingTimeInterval(-TranscriptCheckpointStore.maximumAge - 60)))
+        try Data("kaputt".utf8).write(to: directory.appendingPathComponent("kaputt.json"))
+
+        store.removeExpired()
+        let left = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        #expect(left == ["\(media.rawValue).json"])
+    }
+
+    @Test("Ein Zwischenstand über das Ende der Datei hinaus passt nicht")
+    func checkpointBeyondFileEndIsDiscarded() {
+        let saved = checkpoint(through: 30)
+        #expect(ContentPipeline.checkpoint(saved, fits: nil))
+        #expect(ContentPipeline.checkpoint(saved, fits: MediaDuration(seconds: 29)))
+        #expect(!ContentPipeline.checkpoint(saved, fits: MediaDuration(seconds: 20)))
+    }
 }
 
 @Suite("Warteschlange merken")

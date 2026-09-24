@@ -96,6 +96,22 @@ public struct TranscriptCheckpointStore: Sendable {
         }
     }
 
+    /// Entfernt Zwischenstände, die älter als ``maximumAge`` sind. Einmal je
+    /// Start: einen Stand, dessen Folge nie wieder transkribiert wird, etwa
+    /// weil ein anderes Gerät das Transkript geschrieben hat, lädt sonst
+    /// niemand, und er bliebe für immer liegen.
+    public func removeExpired(now: Date = Date()) {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil)) ?? []
+        for url in files where url.pathExtension == "json" {
+            let checkpoint = (try? Data(contentsOf: url))
+                .flatMap { try? JSONDecoder().decode(TranscriptCheckpoint.self, from: $0) }
+            if checkpoint.map({ now.timeIntervalSince($0.savedAt) >= Self.maximumAge }) ?? true {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+
     /// Entfernt alle Zwischenstände, etwa für einen frischen UI-Test.
     public func removeAll() {
         try? FileManager.default.removeItem(at: directory)

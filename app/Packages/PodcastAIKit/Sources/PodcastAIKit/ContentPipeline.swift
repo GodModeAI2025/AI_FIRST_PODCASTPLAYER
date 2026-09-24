@@ -123,6 +123,17 @@ public actor ContentPipeline {
 
     /// Zwischenstände liegen neben dem Ordner der Audiodateien, nicht darin:
     /// dort zählt die App jede Datei als geladenen Ton.
+    /// So weit darf ein Zwischenstand über die gemessene Länge der Datei
+    /// hinausreichen, bevor er als Stand einer anderen Datei gilt.
+    static let checkpointTolerance = MediaDuration(seconds: 2)
+
+    /// Passt der Zwischenstand zur Länge der Datei? Ohne bekannte Länge ja.
+    static func checkpoint(_ checkpoint: TranscriptCheckpoint, fits duration: MediaDuration?) -> Bool {
+        guard let duration else { return true }
+        return checkpoint.analyzedThrough.milliseconds
+            <= duration.milliseconds + checkpointTolerance.milliseconds
+    }
+
     public static func checkpointDirectory(besides mediaDirectory: URL) -> URL {
         mediaDirectory.deletingLastPathComponent()
             .appendingPathComponent("TranscriptCheckpoints", isDirectory: true)
@@ -178,7 +189,10 @@ public actor ContentPipeline {
 
         // Ein früherer Lauf wurde abgebrochen: mit seinem Stand weiter, kurz
         // vor der Stelle, an der er endete.
-        if let checkpoint = checkpoints.load(mediaVersionID: mediaVersionID, locale: locale.identifier) {
+        // Reicht der Stand über das Ende der Datei hinaus, liegt unter derselben
+        // Adresse inzwischen eine andere Datei. Dann beginnt der Lauf neu.
+        if let checkpoint = checkpoints.load(mediaVersionID: mediaVersionID, locale: locale.identifier),
+           Self.checkpoint(checkpoint, fits: download.duration) {
             let resume = assembler.resumePoint(from: checkpoint)
             segments = resume.segments
             analyzedThrough = resume.analyzedThrough

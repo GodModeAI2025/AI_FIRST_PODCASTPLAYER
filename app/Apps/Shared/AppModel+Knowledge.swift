@@ -1219,7 +1219,9 @@ extension AppModel {
             return .cancelled
         }
         // Ältere Fakten bekommen für die Anzeige ihren Satz, wie beim Laden.
-        facts[episode.id] = stored.isEmpty ? kept : await anchoredFacts(kept, episodeID: episode.id)
+        let shown = stored.isEmpty ? kept : await anchoredFacts(kept, episodeID: episode.id)
+        guard !wasRemoved(episode.id, since: ticket) else { return .cancelled }
+        facts[episode.id] = shown
         recordFactGaps(missing.union(unfinished.map { Self.factSliceID(slices[$0]) }), for: episode.id, since: ticket)
         return .cancelled
     }
