@@ -50,6 +50,21 @@ Regeln:
 
 UI-Tests starten mit `-catalog-fixtures`. Dann antworten Charts, Einzelheiten, beide Suchen und die Feeds der Podcast-Seiten in Debug-Builds aus `CatalogFixtures`, ohne Netz und als stünde das Gerät in Deutschland.
 
+## Einzelne Folgen und YouTube-Links
+
+Ein eingefügter Feed oder eine Audiodatei wird gleich angelegt wie bisher. Meint ein Link eine Folge oder YouTube, zeigt das Blatt erst eine Vorschau (`FeedRefresher.inspect`, `LinkPreviewViews.swift`). Die Regeln stehen netzfrei in `EpisodeLinkResolver.swift` (Paket), der Abruf in `Services+SingleEpisodes.swift`.
+
+| Link | Wie die Folge gefunden wird |
+|---|---|
+| Apple Podcasts mit `?i=` | `lookup?id=<Podcast>&entity=podcastEpisode&limit=200` nennt Feed, GUID und Audioadresse. Apple liefert davon oft nur die neuesten 40 bis 50, eine Abfrage über die Kennung der Folge bleibt leer. Ältere Folgen findet die App über Titel und GUID auf ihrer Seite bei Apple. |
+| Folgenseite eines Hosters | Feed aus `<link rel="alternate">`, die Folge über GUID, Audioadresse (`og:audio`, `<audio>`, `<source>`, `<enclosure>`), die eigene Adresse der Seite (`og:url`, kanonisch) gegen den `<link>` im Feed, zuletzt über einen eindeutigen Titel. Die Startseite des Podcasts gilt nicht als Folge. |
+| Overcast, Pocket Casts | wie eine Folgenseite; ohne Feed-Verweis über die Apple-Kennung auf der Seite. Gegen echte Seiten dieser beiden Apps ist das nicht geprüft, Overcast verlangt für Podcast-Seiten eine Anmeldung. |
+| YouTube | jede Form (watch, youtu.be, shorts, live, embed, music.youtube.com, `@Name`, `/channel/`, `/c/`, `/user/`, Playlist) führt zur Vorschau mit Kanalbild, Name, Beschreibung und neuesten Videos. Zur Wahl stehen der passende Audio-Podcast (zuerst, wenn `PodcastCounterpart` einen findet), „Kanal abonnieren“, bei Playlists „Playlist abonnieren“ und bei Videos „Nur dieses Video“. |
+
+„Nur diese Folge“ legt die Folge unter ihrem echten Podcast an, mit derselben Kennung, die ein Abo vergäbe. Der Podcast steht dann mit `isSubscribed = false` in der Bibliothek, das Feld gab es schon im Schema. Solche Podcasts aktualisiert die App nicht von selbst, exportiert sie nicht als OPML und hält für sie keine neueste Folge auf dem Gerät vor. Alle ihre Folgen mit Ton laufen durch die Erschließung wie neue Folgen eines Abos, also vor den älteren Folgen aus „Ältere Folgen auch vorbereiten“. „Abonnieren“ in der Folgenliste macht daraus ein Abo und behält die geholten Folgen. Liegen nach dem Abgleich zwei Zeilen derselben Quelle vor, gewinnt das Abo. Die Sammelquelle „Einzelne Folgen“ bleibt für Audiodateien ohne erkennbaren Podcast.
+
+Eine Playlist ist eine eigene Quelle mit dem Feed `feeds/videos.xml?playlist_id=`. Der Feed eines Kanals oder einer Playlist nennt nur die 15 neuesten Videos; die App behält jedes Video, das sie einmal gesehen hat, und sagt auf der Kanalseite, dass ältere sich nicht nachladen lassen.
+
 ## Welches Modell wann
 
 | Aufgabe | Bevorzugt | Rückfall |

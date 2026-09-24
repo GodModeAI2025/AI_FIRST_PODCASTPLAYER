@@ -54,9 +54,20 @@ final class BetaFeedbackUITests: XCTestCase {
         attach(app, "mp3")
     }
 
-    func testYouTubeChannelOffersAudioPodcast() {
+    @MainActor func testYouTubeChannelOffersAudioPodcast() {
         let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
         addSource(app, "https://www.youtube.com/channel/UCDx6L69jmKBJbNu5GnkCilg")
+        // Ein YouTube-Link zeigt erst die Vorschau mit den Möglichkeiten.
+        let channel = app.buttons["youtube.subscribeChannel"]
+        XCTAssertTrue(channel.waitForExistence(timeout: 45), "Keine Vorschau zum YouTube-Link")
+        channel.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["youtube.subscribeChannel.done"].waitForExistence(timeout: 45))
+        // Zurück aus der Vorschau, dann schließt „Fertig“ das Blatt.
+        let back = app.navigationBars.buttons["Hinzufügen"].firstMatch
+        if back.exists { back.tap() }
+        let done = app.navigationBars.buttons["Fertig"].firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "„Fertig“ fehlt nach dem Abonnieren")
+        done.tap()
         let row = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Magnussen'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 30))
         row.tap()

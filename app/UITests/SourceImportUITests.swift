@@ -34,7 +34,7 @@ final class SourceImportUITests: XCTestCase {
     }
 
     /// Ein geteilter @-Link wird über die Kanalseite aufgelöst.
-    func testYouTubeHandleLinkAddsChannel() {
+    @MainActor func testYouTubeHandleLinkAddsChannel() {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh"]
         app.launch()
@@ -45,6 +45,17 @@ final class SourceImportUITests: XCTestCase {
         field.tap()
         field.typeText("https://youtube.com/@mkbhd?si=uitest")
         app.buttons["source.addLink"].tap()
+        // Erst die Vorschau des Kanals, dann abonnieren.
+        let channel = app.buttons["youtube.subscribeChannel"]
+        XCTAssertTrue(channel.waitForExistence(timeout: 45), "Keine Vorschau zum @-Link")
+        channel.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["youtube.subscribeChannel.done"].waitForExistence(timeout: 45))
+        // Zurück aus der Vorschau, dann schließt „Fertig“ das Blatt.
+        let back = app.navigationBars.buttons["Hinzufügen"].firstMatch
+        if back.exists { back.tap() }
+        let done = app.navigationBars.buttons["Fertig"].firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "„Fertig“ fehlt nach dem Abonnieren")
+        done.tap()
         XCTAssertTrue(app.staticTexts["Marques Brownlee"].firstMatch.waitForExistence(timeout: 45),
                       "Der Kanal aus dem @-Link fehlt unter Meine Podcasts")
     }

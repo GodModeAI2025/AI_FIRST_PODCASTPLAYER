@@ -18,6 +18,10 @@ enum CatalogRoute: Hashable {
     case podcast(CatalogPodcast)
     case trending
     case category(CatalogCategory)
+    /// Ein Podcast aus einem eingefügten Folgenlink.
+    case linkPodcast(PodcastLinkPreview)
+    /// Ein eingefügter YouTube-Link.
+    case youTube(YouTubeLinkPreview)
 }
 
 /// Öffnet eine Seite des Katalogs im Stapel des Blatts. Als Typ und nicht
@@ -40,10 +44,18 @@ extension EnvironmentValues {
 @MainActor @Observable
 final class CatalogSubscriptions {
     /// Frisch abonniert, mit der Zahl gefundener Folgen.
-    private(set) var added: [URL: Int] = [:]
-    private(set) var working: Set<URL> = []
+    var added: [URL: Int] = [:]
+    var working: Set<URL> = []
     /// Der letzte Fehler beim Abonnieren, für „Nochmal versuchen“.
     var failure: (podcast: CatalogPodcast, message: String)?
+    /// Einzeln geholte Folgen und Videos, je Feed und Folge.
+    var singles: Set<String> = []
+    var workingSingles: Set<String> = []
+    /// Der letzte Fehler aus einer Vorschau zu einem Link.
+    var linkFailure: String?
+
+    /// Wurde in diesem Blatt etwas angelegt? Dann heißt der Knopf „Fertig“.
+    var hasChanges: Bool { !added.isEmpty || !singles.isEmpty }
 
     func state(of podcast: CatalogPodcast, in model: AppModel) -> CatalogPodcastRow.State {
         if let count = added[podcast.feedURL] { return .added(count) }
@@ -63,7 +75,9 @@ final class CatalogSubscriptions {
     @ObservationIgnored private var feedKeyMemo: (feeds: [URL], keys: Set<String>) = ([], [])
 
     private func subscribedFeedKeys(in model: AppModel) -> Set<String> {
-        let feeds = model.sources.compactMap(\.feedURL)
+        // Nur Abos. Aus einem Podcast mit einzeln geholten Folgen lässt sich
+        // weiter abonnieren.
+        let feeds = model.sources.filter(\.isSubscribed).compactMap(\.feedURL)
         if feeds != feedKeyMemo.feeds {
             feedKeyMemo = (feeds, Set(feeds.map(CatalogMerge.feedKey)))
         }
@@ -606,15 +620,16 @@ struct CatalogPodcastDetailView: View {
                 }
             }
 
-            if let episodes = feed?.latest, !episodes.isEmpty {
+            if let feed, !feed.latest.isEmpty {
                 Section {
-                    ForEach(episodes) { episode in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(episode.title).lineLimit(3)
-                            Text(episodeLine(episode))
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        .accessibilityElement(children: .combine)
+                    // „Nur diese Folge“ neben jeder Folge, solange der
+                    // Podcast nicht abonniert ist.
+                    ForEach(feed.latest) { episode in
+                        PreviewEpisodeRow(episode: episode, preview: feed,
+                                          offersSingle: subscriptions.state(of: podcast, in: model) == .open)
+                    }
+                    if let failure = subscriptions.linkFailure {
+                        NoticeLabel(failure, kind: .failure)
                     }
                 } header: {
                     Text("Neueste Folgen")
@@ -726,13 +741,6 @@ struct CatalogPodcastDetailView: View {
             .disabled(working)
             .accessibilityIdentifier("source.preview.subscribe")
         }
-    }
-
-    private func episodeLine(_ episode: PodcastPreview.Item) -> String {
-        [episode.publishedAt.map { $0.formatted(date: .abbreviated, time: .omitted) },
-         CatalogFormat.duration(episode.duration)]
-            .compactMap { $0 }
-            .joined(separator: " · ")
     }
 
     /// Beschreibung, Website und neueste Folgen aus dem Feed. Abgespielt

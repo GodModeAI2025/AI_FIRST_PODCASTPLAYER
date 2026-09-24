@@ -34,6 +34,12 @@ public struct PodcastPreview: Sendable {
         public let title: String
         public let publishedAt: Date?
         public let duration: Int?
+        /// Dieselbe Kennung, aus der beim Abonnieren die Folge entsteht.
+        /// Damit holt „Nur diese Folge“ genau diesen Eintrag.
+        public var key: String = ""
+        /// Hat der Eintrag Ton oder eine Webseite? Nur dann lohnt es, ihn
+        /// einzeln zu holen.
+        public var canBeAdded: Bool = false
     }
     public let summary: String?
     public let episodeCount: Int
@@ -41,30 +47,42 @@ public struct PodcastPreview: Sendable {
     public let latest: [Item]
     public let websiteURL: URL?
     public let language: String?
+    /// Die Adresse, unter der der Feed tatsächlich gelesen wurde. Unter ihr
+    /// legt ein Abo die Quelle an, also auch eine einzeln geholte Folge.
+    public var feedURL: URL?
+    /// Der gelesene Feed, damit „Nur diese Folge“ ihn nicht noch einmal lädt.
+    let feed: ParsedFeed
 
-    init(_ feed: ParsedFeed) {
+    init(_ feed: ParsedFeed, feedURL: URL? = nil) {
+        self.feed = feed
+        self.feedURL = feedURL
         summary = feed.summary
         episodeCount = feed.items.count
         latestDate = feed.items.compactMap(\.publishedAt).max()
         latest = feed.items.enumerated()
             .sorted { ($0.element.publishedAt ?? .distantPast) > ($1.element.publishedAt ?? .distantPast) }
             .prefix(10)
-            .map { Item(id: $0.offset, title: $0.element.title, publishedAt: $0.element.publishedAt,
-                        duration: $0.element.duration) }
+            .map { Self.item($0.element, at: $0.offset) }
         websiteURL = feed.websiteURL.flatMap { NetworkDestination.isAllowed($0) ? SafeHTTP.secureVariant(of: $0) : nil }
         language = feed.language
+    }
+
+    static func item(_ parsed: ParsedItem, at index: Int) -> Item {
+        Item(id: index, title: parsed.title, publishedAt: parsed.publishedAt, duration: parsed.duration,
+             key: FeedRefresher.episodeKey(parsed),
+             canBeAdded: parsed.audioURL != nil || parsed.webPageURL != nil)
     }
 }
 
 public actor FeedRefresher {
 
-    private let store: LibraryStore
-    private let resolver = SourceResolver()
-    private let parser = FeedParser()
-    private let session: URLSession
+    let store: LibraryStore
+    let resolver = SourceResolver()
+    let parser = FeedParser()
+    let session: URLSession
     /// Die zuletzt angesehene Vorschau. Wer gleich danach abonniert, lädt
     /// einen großen Feed nicht ein zweites Mal.
-    private var previewed: (url: URL, feedURL: URL, feed: ParsedFeed, at: Date)?
+    var previewed: (url: URL, feedURL: URL, feed: ParsedFeed, at: Date)?
 
     public init(store: LibraryStore) {
         self.store = store
@@ -226,7 +244,7 @@ public actor FeedRefresher {
             default:
                 throw FeedRefreshError.needsDiscovery
             }
-            return PodcastPreview(feed)
+            return PodcastPreview(feed, feedURL: feedURL)
         } catch {
             throw FeedRefreshError.forSubscription(error, input: url.absoluteString)
         }
@@ -289,7 +307,7 @@ public actor FeedRefresher {
     /// der Startseite des Hosts nach dem verlinkten Feed. Podigee etwa
     /// antwortet auf `/rssfeed` mit einer 404-Seite, verlinkt den echten Feed
     /// `/feed/mp3` aber im Kopf der Startseite.
-    private func fetchFeed(_ url: URL, allowDiscovery: Bool) async throws -> (URL, ParsedFeed) {
+    func fetchFeed(_ url: URL, allowDiscovery: Bool) async throws -> (URL, ParsedFeed) {
         if let kept = previewed {
             // Nur einmal und nur kurz: danach zählt wieder, was der Server sagt.
             if Date().timeIntervalSince(kept.at) > 600 {
@@ -328,7 +346,9 @@ public actor FeedRefresher {
     }
 
     /// Legt eine einzelne Audiodatei als Folge an.
-    private func addSingleEpisode(_ audioURL: URL) async throws -> AddedSource {
+    /// `title` kommt von einer Folgenseite ohne Feed; sonst entsteht der
+    /// Titel aus der Adresse.
+    func addSingleEpisode(_ audioURL: URL, title pageTitle: String? = nil) async throws -> AddedSource {
         let sourceID = SourceID(stable: "single-episodes")
         let sourceTitle = String(localized: "Einzelne Folgen")
         let existing = try await store.sources().first { $0.id == sourceID }
@@ -339,7 +359,8 @@ public actor FeedRefresher {
             ))
         }
         let name = audioURL.deletingPathExtension().lastPathComponent
-        let title = "\(audioURL.host ?? String(localized: "Audio")) · \(name.count > 24 ? String(name.prefix(24)) + "…" : name)"
+        let title = pageTitle.flatMap { $0.isEmpty ? nil : $0 }
+            ?? "\(audioURL.host ?? String(localized: "Audio")) · \(name.count > 24 ? String(name.prefix(24)) + "…" : name)"
         let episode = Episode(
             id: EpisodeID(stable: "\(sourceID.rawValue)|\(audioURL.absoluteString)"),
             sourceID: sourceID, title: title, publishedAt: Date(), audioURL: audioURL
@@ -352,7 +373,9 @@ public actor FeedRefresher {
         var newEpisodes = 0
         var failed: [String] = []
 
-        for source in try await store.sources() where source.isSubscribed {
+        // Nur Abos. Ein Podcast, aus dem nur einzelne Folgen geholt wurden,
+        // bleibt, wie er ist.
+        for source in try await store.sources() where source.refreshesAutomatically {
             guard let feedURL = source.feedURL else { continue }
             do {
                 let parsed = try parser.parse(try await fetch(feedURL))
@@ -366,12 +389,15 @@ public actor FeedRefresher {
         return RefreshResult(newEpisodes: newEpisodes, failedSources: failed)
     }
 
-    private func makeEpisode(_ item: ParsedItem, sourceID: SourceID) -> Episode {
-        // Kennung aus der Feed-GUID. Der Titel taugt nicht: er ändert sich,
-        // und zwei Folgen können gleich heißen.
-        let key = item.guid ?? item.audioURL?.absoluteString ?? item.title
-        return Episode(
-            id: EpisodeID(stable: "\(sourceID.rawValue)|\(key)"),
+    /// Kennung aus der Feed-GUID. Der Titel taugt nicht: er ändert sich,
+    /// und zwei Folgen können gleich heißen.
+    nonisolated static func episodeKey(_ item: ParsedItem) -> String {
+        item.guid ?? item.audioURL?.absoluteString ?? item.title
+    }
+
+    func makeEpisode(_ item: ParsedItem, sourceID: SourceID) -> Episode {
+        Episode(
+            id: EpisodeID(stable: "\(sourceID.rawValue)|\(Self.episodeKey(item))"),
             sourceID: sourceID,
             title: item.title,
             summary: item.summary,
@@ -468,7 +494,7 @@ public actor FeedRefresher {
 
     /// Eine HTML-Seite ist größer als ein Feed, aber nicht beliebig groß.
     /// YouTube-Seiten liegen bei wenigen Megabyte.
-    private static let pageLimit: Int64 = 12 * 1024 * 1024
+    static let pageLimit: Int64 = 12 * 1024 * 1024
 
     /// Holt einen Feed — mit Adressprüfung vor der Anfrage und einer
     /// Obergrenze, die *während* des Lesens greift.
@@ -478,7 +504,7 @@ public actor FeedRefresher {
     /// Ein Feed über der Grenze wird abgeschnitten, nicht abgelehnt: die
     /// neuesten Folgen stehen vorn, und der Parser behält, was bis zum
     /// Schnitt vollständig war.
-    private func fetch(_ url: URL) async throws -> Data {
+    func fetch(_ url: URL) async throws -> Data {
         try await SafeHTTP.load(url, using: session, limit: SafeHTTP.feedLimit, truncating: true)
     }
 }
@@ -490,6 +516,7 @@ public enum FeedRefreshError: Error, LocalizedError {
     case noChannelForHandle(String)
     case notAFeed(String)
     case youTubeFeedUnavailable
+    case episodeNotInFeed
     case appleLinkWithoutFeed
     case spotifyLink
     case hostNotFound
@@ -579,6 +606,11 @@ public enum FeedRefreshError: Error, LocalizedError {
                 YouTube liefert für diesen Kanal gerade keine Daten. Das kommt bei YouTube immer wieder \
                 vor. Später noch einmal versuchen oder direkt den Audio-Podcast des Kanals hinzufügen.
                 """)
+        case .episodeNotInFeed:
+            String(localized: """
+                Diese Folge steht nicht mehr im Feed des Podcasts. Abonnieren geht trotzdem, dann \
+                kommen die Folgen, die der Feed führt.
+                """)
         case .appleLinkWithoutFeed:
             String(localized: """
                 Apple Podcasts nennt zu diesem Link keinen offenen Feed. Such den Podcast oben nach \
@@ -591,8 +623,8 @@ public enum FeedRefreshError: Error, LocalizedError {
                 """)
         case .noChannelForVideo:
             String(localized: """
-                Zu diesem Video ließ sich kein Kanal ermitteln. PodcastAI abonniert Kanäle, keine \
-                einzelnen Videos.
+                Zu diesem Video ließ sich kein Kanal ermitteln. Prüf den Link oder füge den Link \
+                des Kanals ein.
                 """)
         case .noChannelForHandle(let handle):
             String(localized: """

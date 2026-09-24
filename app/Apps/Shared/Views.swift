@@ -1144,12 +1144,25 @@ struct LibraryView: View {
                     }
                     .swipeActions {
                         Button(role: .destructive) { pendingRemoval = source } label: {
-                            Label("Abbestellen", systemImage: "minus.circle")
+                            if source.isSubscribed {
+                                Label("Abbestellen", systemImage: "minus.circle")
+                            } else {
+                                Label("Entfernen", systemImage: "minus.circle")
+                            }
                         }
                     }
                     .contextMenu {
+                        if !source.isSubscribed, source.feedURL != nil {
+                            Button { Task { await model.subscribeToSource(source) } } label: {
+                                Label("Abonnieren", systemImage: "plus.circle")
+                            }
+                        }
                         Button(role: .destructive) { pendingRemoval = source } label: {
-                            Label("Abbestellen und Daten löschen", systemImage: "minus.circle")
+                            if source.isSubscribed {
+                                Label("Abbestellen und Daten löschen", systemImage: "minus.circle")
+                            } else {
+                                Label("Entfernen und Daten löschen", systemImage: "minus.circle")
+                            }
                         }
                     }
                 }
@@ -1157,11 +1170,18 @@ struct LibraryView: View {
         }
         .navigationTitle("Meine Podcasts")
         .activityStatusToolbar()
-        .confirmationDialog("Abbestellen?", isPresented: Binding(
+        .confirmationDialog(removalTitle, isPresented: Binding(
             get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }
         ), titleVisibility: .visible, presenting: pendingRemoval) { source in
-            Button("\(source.title) abbestellen", role: .destructive) {
-                Task { await model.removeSource(source.id) }
+            // Ein Podcast mit nur einzeln geholten Folgen ist kein Abo.
+            if source.isSubscribed {
+                Button("\(source.title) abbestellen", role: .destructive) {
+                    Task { await model.removeSource(source.id) }
+                }
+            } else {
+                Button("\(source.title) entfernen", role: .destructive) {
+                    Task { await model.removeSource(source.id) }
+                }
             }
         } message: { _ in
             Text("Alle Folgen dieses Podcasts werden mit Transkripten, Fakten und Hörstand gelöscht.")
@@ -1208,6 +1228,10 @@ struct LibraryView: View {
 }
 
 extension LibraryView {
+    var removalTitle: LocalizedStringKey {
+        pendingRemoval?.isSubscribed == false ? "Entfernen?" : "Abbestellen?"
+    }
+
     var queueSummary: String {
         let listen = model.upNext.count
         let analyze = model.analysisQueue.count + (model.analyzing == nil ? 0 : 1)
@@ -1236,6 +1260,13 @@ struct SourceRow: View {
             Text(source.title).font(.headline).lineLimit(2)
             if let author = source.author {
                 Text(author).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            // Einzelne Folgen aus einem Podcast, der kein Abo ist.
+            if !source.isSubscribed {
+                Label("Nicht abonniert", systemImage: "circle.dashed")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("source.notSubscribed")
             }
             // Grenzen werden angezeigt, nicht versteckt. Ein Kanal ohne
             // Audiozugang soll nicht so aussehen wie einer mit.
@@ -1285,6 +1316,17 @@ struct AddSourceSheet: View {
     private var trimmed: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isLink: Bool {
         trimmed.contains("://") || trimmed.hasPrefix("www.") || FeedRefresher.firstLink(in: trimmed) != nil
+    }
+
+    /// Führt der Link zu einer Auswahl? YouTube und Folgen aus Apple
+    /// Podcasts zeigen erst eine Vorschau, Feeds und Dateien nicht.
+    private var linkOpensPreview: Bool {
+        let text = FeedRefresher.firstLink(in: trimmed)?.absoluteString ?? trimmed
+        if let url = URL(string: text), EpisodeLinks.appleEpisode(in: url) != nil { return true }
+        switch try? SourceResolver().resolve(text) {
+        case .youTubeChannel?, .youTubeChannelPage?, .youTubeVideo?, .youTubePlaylist?: return true
+        default: return false
+        }
     }
 
     var body: some View {
@@ -1350,7 +1392,11 @@ struct AddSourceSheet: View {
                     Section {
                         Button(action: submit) {
                             HStack {
-                                Label("Diesen Link abonnieren", systemImage: "plus.circle.fill")
+                                if linkOpensPreview {
+                                    Label("Diesen Link öffnen", systemImage: "link.circle.fill")
+                                } else {
+                                    Label("Diesen Link hinzufügen", systemImage: "plus.circle.fill")
+                                }
                                 Spacer()
                                 if addingLink { ProgressView() }
                             }
@@ -1423,6 +1469,8 @@ struct AddSourceSheet: View {
                 case .podcast(let podcast): CatalogPodcastDetailView(podcast: podcast)
                 case .trending: CatalogListView(category: nil)
                 case .category(let category): CatalogListView(category: category)
+                case .linkPodcast(let link): LinkPodcastView(link: link)
+                case .youTube(let link): YouTubeLinkView(link: link)
                 }
             }
             .opmlImport(isPresented: $importingOPML) { dismiss() }
@@ -1438,7 +1486,7 @@ struct AddSourceSheet: View {
             .task(id: trimmed) { await searchAfterPause() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    if subscriptions.added.isEmpty {
+                    if !subscriptions.hasChanges {
                         // Bei einem Namen sucht der Knopf nur, abonniert wird
                         // in der Trefferliste.
                         Button(isLink ? "Hinzufügen" : "Suchen", action: submit)
@@ -1449,7 +1497,7 @@ struct AddSourceSheet: View {
                 }
                 // Nach einem Abo gibt es nichts mehr abzubrechen. Neben
                 // „Fertig“ klang „Abbrechen“, als nähme es das Abo zurück.
-                if subscriptions.added.isEmpty {
+                if !subscriptions.hasChanges {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Abbrechen") { dismiss() }
                     }
@@ -1588,13 +1636,26 @@ struct AddSourceSheet: View {
         }
     }
 
+    /// Feeds und Dateien werden gleich angelegt. Führt der Link zu einer
+    /// Folge oder zu YouTube, kommt erst die Vorschau mit der Auswahl.
     private func subscribeLink(_ text: String) async {
         addingLink = true
         failure = nil
+        subscriptions.linkFailure = nil
         defer { addingLink = false }
         do {
-            try await model.subscribe(to: text)
-            dismiss()
+            switch try await model.inspectLink(text) {
+            case .direct:
+                try await model.subscribe(to: text)
+                dismiss()
+            case .audioFile(let url, let title):
+                try await model.addAudioEpisode(url, title: title)
+                dismiss()
+            case .podcast(let link):
+                path.append(.linkPodcast(link))
+            case .youTube(let link):
+                path.append(.youTube(link))
+            }
         } catch is CancellationError {
             return
         } catch {

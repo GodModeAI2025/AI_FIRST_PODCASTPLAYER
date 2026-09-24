@@ -80,10 +80,7 @@ extension AppModel {
     /// und lokale Dateien haben keinen Feed, den eine andere App lesen könnte.
     var exportableFeeds: [OPMLFeed] {
         sources.compactMap { source in
-            guard source.isSubscribed,
-                  source.kind == .podcastRSS || source.kind == .youTubeChannel,
-                  let feed = source.feedURL,
-                  feed.scheme == "https" || feed.scheme == "http" else { return nil }
+            guard source.isExportableSubscription, let feed = source.feedURL else { return nil }
             return OPMLFeed(title: source.title, feedURL: feed, websiteURL: source.websiteURL)
         }
     }
@@ -105,7 +102,7 @@ extension AppModel {
     /// gerade abonniert wurde. Liegt der Feed unter einer anderen Adresse,
     /// als das Verzeichnis nennt, verschwindet der Vorschlag trotzdem.
     func pruneSubscribedCounterparts(input: String? = nil) {
-        var subscribed = Set(sources.compactMap { $0.feedURL?.absoluteString })
+        var subscribed = Set(sources.filter(\.isSubscribed).compactMap { $0.feedURL?.absoluteString })
         if let input { subscribed.insert(input.trimmingCharacters(in: .whitespacesAndNewlines)) }
         for (sourceID, list) in podcastCounterparts {
             let open = list.filter { !subscribed.contains($0.feedURL.absoluteString) }
