@@ -1,5 +1,8 @@
 # Änderungsverlauf
 
+## App 0.7.3 · 2026-09-24
+- Podcast-Katalog in „Podcast hinzufügen“, ohne Konto und ohne Schlüssel: „Angesagt“ zeigt die Apple-Charts deines Landes, 19 Kategorien mit Symbol öffnen die Charts ihres Genres, jede Seite mit Cover, Beschreibung, den neuesten Folgen und „Abonnieren“. Die Suche fragt Apple und Podcast Index zugleich und zeigt jeden Podcast einmal, so finden sich auch Podcasts, die nicht bei Apple stehen. Aus dem Katalog spielt nichts ab.
+
 ## App 0.7.2 · 2026-09-23
 Aus dem TestFlight-Feedback zu 0.6, 0.7 und 0.7.1, jede Änderung von zwei Prüfern gegengelesen und nachgebessert:
 - Erwähnt: Jede Folge zeigt im Überblick, welche Links, Termine, Adressen, Telefonnummern, E-Mail-Adressen, Personen, Organisationen und Orte in Shownotes und Transkript vorkommen, mit Zeitmarke zum Nachhören. Links öffnen im Browser, Adressen in Karten, Termine landen im Kalender. Im Chat fragst du „Welche Links werden genannt?“ für eine Folge oder über alle, auch ohne Apple Intelligence.
