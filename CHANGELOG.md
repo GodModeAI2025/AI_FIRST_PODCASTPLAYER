@@ -6,6 +6,15 @@ Die Warteschlange lässt sich steuern:
 - „Alle abbrechen“ leert die Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst beim nächsten Aktualisieren von Hand wieder dazu.
 - Downloads im WLAN laufen im Hintergrund weiter, auch wenn iOS die App anhält: für Transkripte, „Laden (offline)“ und die neueste Folge je Podcast. Das Transkript entsteht danach, sobald die App wieder vorn ist. Über Mobilfunk lädt die App wie bisher nur, solange sie läuft.
 
+## App 0.11 · 2026-09-24
+Themen-Podcasts aus Tags, eine flüssige Oberfläche und eine steuerbare Warteschlange:
+- Themen-Updates bestehen aus Tags: „eines davon“ oder „alle zusammen“, etwa Datenschutz und USA für Kapitel, die beides behandeln. Sie nehmen ungehörte Kapitel aus vielen Quellen, Folge für Folge, die neueste zuerst.
+- Jede Ausgabe dauert 20 Minuten, einstellbar. Mehr Stoff wird zu Teil 2, 3 und so weiter, kein Kapitel kommt zweimal.
+- Jede Ausgabe beginnt mit einer Übersicht: je Abschnitt Podcast, Folge, Datum und wie viele neue Aussagen er bringt. Oben im Reiter steht, was es je Tag Neues gibt. Jede Ausgabe bekommt ein eigenes Cover aus Image Playground.
+- Flüssig beim Arbeiten: Die Datenbank arbeitet nicht mehr auf dem Hauptfaden, Auswertungen laufen im Hintergrund mit niedriger Priorität, und jede Folge zeichnet nur ihren eigenen Fortschritt neu. Cover werden verkleinert geladen.
+- Warteschlange steuern: „Pausieren“ und „Fortsetzen“ für alles, was die App vorbereitet, auch nach einem Neustart. „Alle abbrechen“ leert die Liste, Fertiges bleibt. Das Aktivitätssymbol zeigt die Pause.
+- Laden im Hintergrund: Im WLAN lädt die App Folgen weiter, auch wenn sie im Hintergrund ist. Über Mobilfunk wie bisher nur im Vordergrund. Jede Datei wird nach dem Laden geprüft.
+
 ## App 0.10 · 2026-09-24
 Tags aus dem Inhalt und ein schnellerer Chat:
 - Tags statt Freitext: Die App ordnet jedes Kapitel Themen zu, die in ihm vorkommen, etwa „China“ oder „Datenschutz“. Mit + folgst du einem Tag, mit − nicht mehr, das Tag bleibt sichtbar. Unter „Wissen“ stehen deine Tags statt der Interessen, jedes mit eigener Seite: wo es vorkommt, Schreibweisen, „Zusammenlegen?“ bei ähnlichen Tags. Eingetippte Themen gibt es nicht mehr, deine bisherigen Interessen sind jetzt Tags, denen du folgst.

@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 23. September 2026, Version 0.10.
+Stand 23. September 2026, Version 0.11.
 
 ## Geprüft
 
