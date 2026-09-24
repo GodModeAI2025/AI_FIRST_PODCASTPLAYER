@@ -2293,7 +2293,28 @@ struct SourceDetailView: View {
                     if let author = source.author {
                         LabeledContent("Herausgeber", value: author)
                     }
+                    if let categories = source.categories, !categories.isEmpty {
+                        LabeledContent("Rubriken", value: categories.joined(separator: " · "))
+                    }
+                    if let language = SourceFacts.languageName(source.language) {
+                        LabeledContent("Sprache", value: language)
+                    }
+                    if let explicit = source.isExplicit {
+                        LabeledContent("Explizite Inhalte", value: explicit
+                            ? String(localized: "Ja") : String(localized: "Nein"))
+                    }
+                    if let url = source.websiteURL {
+                        LabeledContent("Webseite") {
+                            Link(url.host() ?? url.absoluteString, destination: url)
+                        }
+                    }
                     LabeledContent("Automatische Transkripte", value: source.backfillPolicy.label)
+                }
+                if let summary = source.summary {
+                    Section("Beschreibung") {
+                        Text(summary)
+                            .textSelection(.enabled)
+                    }
                 }
                 Section {
                     // Fähigkeiten einzeln und ehrlich: ein Kanal ohne

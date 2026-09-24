@@ -42,6 +42,9 @@ struct EpisodeListView: View {
         let analyzed = Set(episodes.lazy.map(\.id).filter { model.stages[$0] == .evidenceExtracted })
         let shown = EpisodeArchive.arrange(episodes, options: options, analyzed: analyzed, matches: matches)
         List {
+            // Beschreibung, Herausgeber und Rubriken aus dem Feed.
+            if let source { SourceMetadataSection(source: source) }
+
             if !(source?.capabilities.supportsTimedKnowledge ?? true),
                let reason = source?.capabilities.limitationReason {
                 Section {

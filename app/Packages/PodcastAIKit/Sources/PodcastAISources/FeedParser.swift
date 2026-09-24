@@ -24,6 +24,11 @@ public struct ParsedFeed: Sendable, Equatable {
     public var websiteURL: URL?
     public var artworkURL: URL?
     public var language: String?
+    /// Rubriken aus `itunes:category` samt Unterrubriken und aus `<category>`,
+    /// flach und ohne Doppelte, die übergeordnete vor der untergeordneten.
+    public var categories: [String] = []
+    /// `itunes:explicit`, `nil`, wenn der Feed nichts dazu sagt.
+    public var isExplicit: Bool?
     public var items: [ParsedItem]
     /// Link auf die nächste Seite eines paginierten Archivs (RFC 5005).
     /// Macht den Unterschied zwischen Feedfenster und Gesamtarchiv.
@@ -65,6 +70,15 @@ public struct ParsedItem: Sendable, Equatable {
     public var chaptersURL: URL?
     /// Ausführliche Shownotes als HTML (`content:encoded`).
     public var shownotesHTML: String?
+    /// Autor der Folge (`itunes:author` oder `dc:creator`).
+    public var author: String?
+    /// `itunes:episode` und `itunes:season`, nur positive Zahlen.
+    public var episodeNumber: Int?
+    public var season: Int?
+    /// `itunes:episodeType`: full, trailer oder bonus.
+    public var episodeType: String?
+    /// Stichworte aus `itunes:keywords` und `<category>` der Folge.
+    public var keywords: [String] = []
 
     public init(
         guid: String? = nil, title: String = "", summary: String? = nil,
@@ -79,6 +93,20 @@ public struct ParsedItem: Sendable, Equatable {
         self.audioMimeType = audioMimeType; self.webPageURL = webPageURL
         self.artworkURL = artworkURL; self.transcripts = transcripts
         self.youTubeVideoID = youTubeVideoID
+    }
+
+    /// Das Anbietertranskript mit Zeitmarken, das die App zuerst nimmt:
+    /// WebVTT, dann SRT, dann JSON. VTT und SRT sind am weitesten verbreitet
+    /// und am einfachsten sicher zu lesen.
+    public var preferredTimedTranscript: ParsedTranscriptRef? {
+        let timed = transcripts.filter(\.isTimed)
+        func rank(_ ref: ParsedTranscriptRef) -> Int {
+            let type = ref.mimeType.lowercased()
+            if type.contains("vtt") { return 0 }
+            if type.contains("srt") || type.contains("subrip") { return 1 }
+            return 2
+        }
+        return timed.min { rank($0) < rank($1) }
     }
 
     /// Ein Eintrag ohne Titel und ohne Medium ist kein brauchbarer Eintrag.
@@ -180,6 +208,8 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
     private var currentItem: ParsedItem?
     private var inImage = false
     private var itemCount = 0
+    /// Höchstens so viele Rubriken und Stichworte, gegen entartete Feeds.
+    private static let maximumTerms = 50
 
     /// Namespaces, die uns interessieren. Alles andere wird ignoriert statt
     /// nach Präfix geraten — `media:` bedeutet nicht überall dasselbe.
@@ -191,6 +221,7 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
         static let yt = "http://www.youtube.com/xml/schemas/2015"
         static let psc = "http://podlove.org/simple-chapters"
         static let content = "http://purl.org/rss/1.0/modules/content/"
+        static let dc = "http://purl.org/dc/elements/1.1/"
     }
 
     func finish() -> ParsedFeed {
@@ -222,6 +253,19 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
             itemCount += 1
             currentItem = ParsedItem()
 
+        case (NS.itunes, "image"):
+            // Vor dem allgemeinen `image`: sonst fing jenes auch
+            // `itunes:image` ab, und dessen `href` ging verloren.
+            if let url = Self.url(attributeDict["href"]) {
+                if isInsideItem { currentItem?.artworkURL = url } else { feed.artworkURL = url }
+            }
+
+        case (NS.itunes, "category"):
+            // Verschachtelt: die Unterrubrik steht als Kind der Rubrik.
+            if !isInsideItem, let text = attributeDict["text"] {
+                Self.appendTerm(text, to: &feed.categories)
+            }
+
         case (_, "image"):
             inImage = true
 
@@ -243,11 +287,6 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
 
         case (NS.media, "thumbnail"):
             if let url = Self.url(attributeDict["url"]) {
-                if isInsideItem { currentItem?.artworkURL = url } else { feed.artworkURL = url }
-            }
-
-        case (NS.itunes, "image"):
-            if let url = Self.url(attributeDict["href"]) {
                 if isInsideItem { currentItem?.artworkURL = url } else { feed.artworkURL = url }
             }
 
@@ -363,10 +402,48 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
             currentItem?.duration = FeedDateParser.durationSeconds(from: value)
 
         case (NS.itunes, "author"), (_, "managingeditor"):
-            if !isInsideItem, feed.author == nil { feed.author = value }
+            if isInsideItem {
+                if name == "author", !value.isEmpty { currentItem?.author = value }
+            } else if feed.author == nil, !value.isEmpty {
+                feed.author = value
+            }
+
+        case (NS.dc, "creator"):
+            if isInsideItem, currentItem?.author == nil, !value.isEmpty { currentItem?.author = value }
+
+        case (NS.itunes, "episode"):
+            if let number = Int(value), number > 0 { currentItem?.episodeNumber = number }
+
+        case (NS.itunes, "season"):
+            if let number = Int(value), number > 0 { currentItem?.season = number }
+
+        case (NS.itunes, "episodetype"):
+            let type = value.lowercased()
+            if ["full", "trailer", "bonus"].contains(type) { currentItem?.episodeType = type }
+
+        case (NS.itunes, "keywords"):
+            guard isInsideItem else { break }
+            for keyword in value.split(separator: ",") {
+                Self.appendTerm(String(keyword), to: &currentItem!.keywords)
+            }
+
+        case (NS.itunes, "explicit"):
+            if !isInsideItem { feed.isExplicit = Self.explicitFlag(value) }
+
+        case (nil, "category"), ("", "category"):
+            // Einfaches RSS-`<category>`: beim Kanal eine Rubrik, bei der
+            // Folge ein Stichwort.
+            if isInsideItem {
+                Self.appendTerm(value, to: &currentItem!.keywords)
+            } else {
+                Self.appendTerm(value, to: &feed.categories)
+            }
 
         case (NS.atom, "name"):
-            if !isInsideItem, feed.author == nil, elementStack.contains("author") {
+            guard elementStack.contains("author"), !value.isEmpty else { break }
+            if isInsideItem {
+                if currentItem?.author == nil { currentItem?.author = value }
+            } else if feed.author == nil {
                 feed.author = value
             }
 
@@ -382,8 +459,24 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
         }
     }
 
-    /// Nur `http` und `https`. Ein Feed darf keine `file:`- oder
-    /// `javascript:`-Verweise in die App tragen.
+    /// Nimmt eine Rubrik oder ein Stichwort auf: getrimmt, nicht leer, nicht
+    /// doppelt (ohne Groß- und Kleinschreibung) und mit Obergrenze.
+    private static func appendTerm(_ raw: String, to list: inout [String]) {
+        let term = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty, term.count <= 80, list.count < maximumTerms,
+              !list.contains(where: { $0.caseInsensitiveCompare(term) == .orderedSame }) else { return }
+        list.append(term)
+    }
+
+    /// `itunes:explicit` kennt „true“, „yes“, „explicit“ und „false“, „no“, „clean“.
+    private static func explicitFlag(_ raw: String) -> Bool? {
+        switch raw.lowercased() {
+        case "true", "yes", "explicit": true
+        case "false", "no", "clean": false
+        default: nil
+        }
+    }
+
     /// Podlove-Zeitangaben: `01:02:03.500`, `02:03` oder Sekunden.
     static func chapterTime(_ raw: String) -> MediaTime? {
         let parts = raw.trimmingCharacters(in: .whitespaces).split(separator: ":").map(String.init)
@@ -396,6 +489,8 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
         return MediaTime(milliseconds: Int64((seconds * 1000).rounded()))
     }
 
+    /// Nur `http` und `https`. Ein Feed darf keine `file:`- oder
+    /// `javascript:`-Verweise in die App tragen.
     private static func url(_ string: String?) -> URL? {
         guard let string = string?.trimmingCharacters(in: .whitespacesAndNewlines),
               !string.isEmpty, let url = URL(string: string),

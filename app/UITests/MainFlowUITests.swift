@@ -52,6 +52,41 @@ final class MainFlowUITests: XCTestCase {
         add(shot)
     }
 
+    /// Die Angaben aus dem Feed: oben auf der Seite des Podcasts Beschreibung
+    /// und Rubriken, in der Folge der Block mit Podcast, Datum und Dauer.
+    @MainActor func testFeedMetadataOnPodcastAndEpisode() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-skip-onboarding"]
+        app.launch()
+        app.tabBars.buttons["Meine Podcasts"].tap()
+        let row = app.staticTexts["Planet Money"].firstMatch
+        if !row.waitForExistence(timeout: 5) {
+            app.navigationBars.buttons["Podcast hinzufügen"].firstMatch.tap()
+            let field = app.textFields.firstMatch.exists ? app.textFields.firstMatch : app.textViews.firstMatch
+            XCTAssertTrue(field.waitForExistence(timeout: 5))
+            field.tap()
+            field.typeText("https://feeds.npr.org/510289/podcast.xml")
+            app.buttons["Hinzufügen"].tap()
+            XCTAssertTrue(row.waitForExistence(timeout: 30), "Der Podcast erscheint nicht unter Meine Podcasts")
+        }
+        row.tap()
+
+        let sourceMetadata = app.descendants(matching: .any)["source.metadata"].firstMatch
+        XCTAssertTrue(sourceMetadata.waitForExistence(timeout: 15), "Die Angaben zum Podcast fehlen")
+
+        // Die erste Zeile unter den Angaben ist die neueste Folge.
+        let firstEpisode = app.cells.element(boundBy: 1)
+        XCTAssertTrue(firstEpisode.waitForExistence(timeout: 15), "Keine Folgen sichtbar")
+        firstEpisode.tap()
+        let episodeMetadata = app.descendants(matching: .any)["episode.metadata"].firstMatch
+        XCTAssertTrue(episodeMetadata.waitForExistence(timeout: 10), "Die Angaben zur Folge fehlen")
+        XCTAssertTrue(app.staticTexts["Erschienen"].exists, "Das Datum der Folge fehlt")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "folge-angaben"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
     /// Download, Transkription und Belegextraktion einer echten Folge.
     /// Läuft mehrere Minuten; nur mit RUN_ANALYSIS=1 in der Umgebung.
     func testAnalyzeEpisode() throws {

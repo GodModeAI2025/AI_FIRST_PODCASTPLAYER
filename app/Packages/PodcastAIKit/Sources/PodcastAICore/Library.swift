@@ -84,6 +84,12 @@ public struct Source: Hashable, Codable, Sendable, Identifiable {
     /// Sprache laut Feed (`<language>`, etwa „en“ oder „de-DE“). Bestimmt
     /// das Sprachmodell der Transkription statt der Gerätesprache.
     public var language: String?
+    /// Beschreibung des Podcasts aus dem Feed.
+    public var summary: String?
+    /// Rubriken aus dem Feed, übergeordnete vor untergeordneten.
+    public var categories: [String]?
+    /// `itunes:explicit`, `nil`, wenn der Feed nichts dazu sagt.
+    public var isExplicit: Bool?
 
     /// Abonniert heißt: neue Folgen werden erfasst. Es heißt **nicht**, dass
     /// alles heruntergeladen oder analysiert wird.
@@ -97,12 +103,14 @@ public struct Source: Hashable, Codable, Sendable, Identifiable {
         id: SourceID, kind: SourceKind, title: String, author: String? = nil,
         feedURL: URL? = nil, websiteURL: URL? = nil, artworkURL: URL? = nil,
         capabilities: SourceCapabilities = .fullPodcast, language: String? = nil,
+        summary: String? = nil, categories: [String]? = nil, isExplicit: Bool? = nil,
         isSubscribed: Bool = true, backfillPolicy: BackfillPolicy = .newEpisodesOnly,
         addedAt: Date = Date(), revision: Revision = .initial
     ) {
         self.id = id; self.kind = kind; self.title = title; self.author = author
         self.feedURL = feedURL; self.websiteURL = websiteURL; self.artworkURL = artworkURL
         self.capabilities = capabilities; self.language = language
+        self.summary = summary; self.categories = categories; self.isExplicit = isExplicit
         self.isSubscribed = isSubscribed
         self.backfillPolicy = backfillPolicy; self.addedAt = addedAt; self.revision = revision
     }
@@ -167,6 +175,15 @@ public struct Episode: Hashable, Codable, Sendable, Identifiable {
     /// Die aktuell maßgebliche Medienfassung.
     public var currentMediaVersionID: MediaVersionID?
     public var revision: Revision
+    /// Autor der Folge laut Feed, falls er vom Podcast abweicht.
+    public var author: String?
+    /// Folgen- und Staffelnummer laut Feed (`itunes:episode`, `itunes:season`).
+    public var episodeNumber: Int?
+    public var season: Int?
+    /// `itunes:episodeType`: „full“, „trailer“ oder „bonus“.
+    public var episodeType: String?
+    /// Stichworte aus dem Feed.
+    public var keywords: [String]?
 
     public init(
         id: EpisodeID, sourceID: SourceID, title: String, summary: String? = nil,
@@ -175,8 +192,12 @@ public struct Episode: Hashable, Codable, Sendable, Identifiable {
         timedTranscriptURL: URL? = nil,
         publisherChapters: [Chapter] = [], chaptersURL: URL? = nil, shownotesHTML: String? = nil,
         currentMediaVersionID: MediaVersionID? = nil,
-        revision: Revision = .initial
+        revision: Revision = .initial,
+        author: String? = nil, episodeNumber: Int? = nil, season: Int? = nil,
+        episodeType: String? = nil, keywords: [String]? = nil
     ) {
+        self.author = author; self.episodeNumber = episodeNumber; self.season = season
+        self.episodeType = episodeType; self.keywords = keywords
         self.chaptersURL = chaptersURL; self.shownotesHTML = shownotesHTML
         self.id = id; self.sourceID = sourceID; self.title = title; self.summary = summary
         self.publishedAt = publishedAt; self.declaredDuration = declaredDuration
@@ -207,9 +228,15 @@ public struct Chapter: Hashable, Codable, Sendable {
     public let title: String
     /// Vom Anbieter oder aus der Analyse abgeleitet — bleibt unterscheidbar.
     public let provenance: Provenance
+    /// Bild zum Kapitel aus der Kapiteldatei (`img`), nur http und https.
+    public let imageURL: URL?
+    /// Weiterführender Link zum Kapitel aus der Kapiteldatei (`url`).
+    public let linkURL: URL?
 
-    public init(start: MediaTime, title: String, provenance: Provenance) {
+    public init(start: MediaTime, title: String, provenance: Provenance,
+                imageURL: URL? = nil, linkURL: URL? = nil) {
         self.start = start; self.title = title; self.provenance = provenance
+        self.imageURL = imageURL; self.linkURL = linkURL
     }
 }
 

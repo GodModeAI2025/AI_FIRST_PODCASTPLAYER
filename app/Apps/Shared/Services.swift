@@ -194,7 +194,10 @@ public actor FeedRefresher {
             title: parsed.title.isEmpty ? feedURL.host ?? String(localized: "Unbenannter Podcast") : parsed.title,
             author: parsed.author, feedURL: feedURL,
             websiteURL: parsed.websiteURL, artworkURL: parsed.artworkURL,
-            capabilities: capabilities, language: parsed.language
+            capabilities: capabilities, language: parsed.language,
+            summary: Self.cleanSummary(parsed.summary),
+            categories: parsed.categories.isEmpty ? nil : parsed.categories,
+            isExplicit: parsed.isExplicit
         )
         try await store.upsert(source: source)
 
@@ -356,6 +359,11 @@ public actor FeedRefresher {
             guard let feedURL = source.feedURL else { continue }
             do {
                 let parsed = try parser.parse(try await fetch(feedURL))
+                // Die Metadaten kommen bei jedem Abgleich neu an. Eine alte
+                // Begründung, etwa „YouTube liefert die Videoliste gerade
+                // nicht“, fällt dabei weg.
+                let updated = Self.refreshed(source, from: parsed)
+                if updated != source { try await store.upsert(source: updated) }
                 let episodes = parsed.items.map { makeEpisode($0, sourceID: source.id) }
                 newEpisodes += try await store.upsert(episodes: episodes, forSource: source.id)
             } catch {
@@ -366,26 +374,81 @@ public actor FeedRefresher {
         return RefreshResult(newEpisodes: newEpisodes, failedSources: failed)
     }
 
+    /// Die Quelle mit den Metadaten aus einem frisch gelesenen Feed. Art,
+    /// Adresse, Abo und Datum bleiben. Die Fähigkeiten beginnen neu bei der
+    /// Voreinstellung der Art, damit keine überholte Einschränkung stehen
+    /// bleibt.
+    static func refreshed(_ source: Source, from parsed: ParsedFeed) -> Source {
+        var updated = source
+        if !parsed.title.isEmpty { updated.title = parsed.title }
+        updated.author = parsed.author ?? source.author
+        updated.websiteURL = parsed.websiteURL ?? source.websiteURL
+        updated.artworkURL = parsed.artworkURL ?? source.artworkURL
+        updated.language = parsed.language ?? source.language
+        updated.summary = cleanSummary(parsed.summary) ?? source.summary
+        updated.categories = parsed.categories.isEmpty ? source.categories : parsed.categories
+        updated.isExplicit = parsed.isExplicit ?? source.isExplicit
+
+        var capabilities: SourceCapabilities = switch source.kind {
+        case .youTubeChannel: .youTubeMetadataOnly
+        case .podcastRSS: .fullPodcast
+        case .singleEpisodeLink, .localFile: SourceCapabilities(metadata: true, audioDownload: true)
+        }
+        if parsed.items.contains(where: { $0.transcripts.contains(where: \.isTimed) }) {
+            capabilities.publisherTranscript = true
+        }
+        if parsed.nextPageURL != nil { capabilities.historicalCatalog = true }
+        updated.capabilities = capabilities
+        return updated
+    }
+
+    /// Beschreibung ohne HTML und ohne überflüssige Leerzeichen.
+    static func cleanSummary(_ raw: String?) -> String? {
+        guard var text = raw else { return nil }
+        if text.contains("<") {
+            text = text.replacingOccurrences(of: "<\\s*(br|/p|/li)\\b[^>]*>", with: "\n",
+                                             options: [.regularExpression, .caseInsensitive])
+            text = text.replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
+            text = text.replacingOccurrences(of: "&amp;", with: "&")
+                .replacingOccurrences(of: "&nbsp;", with: " ")
+                .replacingOccurrences(of: "&quot;", with: "\"")
+                .replacingOccurrences(of: "&#39;", with: "'")
+        }
+        text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : String(text.prefix(4_000))
+    }
+
     private func makeEpisode(_ item: ParsedItem, sourceID: SourceID) -> Episode {
         // Kennung aus der Feed-GUID. Der Titel taugt nicht: er ändert sich,
         // und zwei Folgen können gleich heißen.
         let key = item.guid ?? item.audioURL?.absoluteString ?? item.title
+        let duration = item.duration.map { MediaDuration(seconds: Double($0)) }
+        // Kapitel: Podlove im Feed, sonst die Kapiteldatei, sonst die
+        // Zeitmarken in Shownotes oder Beschreibung. Mit einer Kapiteldatei
+        // bleibt die Liste hier leer, sonst lüde die App die Datei nie.
+        var chapters = item.chapters
+        if chapters.isEmpty, item.chaptersURL == nil {
+            chapters = TimestampChapters.parse(item.shownotesHTML, duration: duration)
+            if chapters.isEmpty { chapters = TimestampChapters.parse(item.summary, duration: duration) }
+        }
         return Episode(
             id: EpisodeID(stable: "\(sourceID.rawValue)|\(key)"),
             sourceID: sourceID,
             title: item.title,
             summary: item.summary,
             publishedAt: item.publishedAt,
-            declaredDuration: item.duration.map { MediaDuration(seconds: Double($0)) },
+            declaredDuration: duration,
             artworkURL: item.artworkURL,
             webPageURL: item.webPageURL,
             audioURL: item.audioURL,
             // Nur getaktete Transkripte: ungetakteter Text liefert Wissen,
             // aber keine Timecodes.
-            timedTranscriptURL: item.transcripts.first(where: \.isTimed)?.url,
-            publisherChapters: item.chapters,
+            timedTranscriptURL: item.preferredTimedTranscript?.url,
+            publisherChapters: chapters,
             chaptersURL: item.chaptersURL,
-            shownotesHTML: item.shownotesHTML
+            shownotesHTML: item.shownotesHTML,
+            author: item.author, episodeNumber: item.episodeNumber, season: item.season,
+            episodeType: item.episodeType, keywords: item.keywords.isEmpty ? nil : item.keywords
         )
     }
 

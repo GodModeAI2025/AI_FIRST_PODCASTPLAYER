@@ -208,6 +208,13 @@ struct EpisodeDetailView: View {
                 playControls
             }
 
+            // Die Angaben aus dem Feed, kompakt unter dem Kopf.
+            SwiftUI.Section {
+                EpisodeMetadataBlock(
+                    episode: episode,
+                    source: model.sources.first(where: { $0.id == episode.sourceID }))
+            }
+
             if let stage {
                 SwiftUI.Section("Transkript") {
                     Label {
@@ -465,12 +472,7 @@ struct EpisodeDetailView: View {
                 Text(episode.title)
                     .font(.title3.weight(.semibold))
                     .lineLimit(4)
-                HStack(spacing: Design.Spacing.small) {
-                    if let published = episode.publishedAt { Text(published, style: .date) }
-                    if let duration = episode.declaredDuration { Text(duration.shortDescription) }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                // Datum und Dauer stehen im Block mit den Angaben darunter.
                 HeardProgress(fraction: model.heardFraction(for: episode))
             }
         }

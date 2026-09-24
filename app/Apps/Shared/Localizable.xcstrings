@@ -3306,6 +3306,23 @@
         }
       }
     },
+    "Bonus" : {
+      "comment" : "Art einer Folge im Feed",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonus"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonus"
+          }
+        }
+      }
+    },
     "Charts und Verzeichnis: [Apple Podcasts](https://podcasts.apple.com). Die Suche fragt zusätzlich [Podcast Index](https://podcastindex.org)." : {
       "localizations" : {
         "de" : {
@@ -3910,6 +3927,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Low Data Mode is on, so downloads and transcripts are waiting"
+          }
+        }
+      }
+    },
+    "Dauer" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dauer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duration"
           }
         }
       }
@@ -6242,6 +6275,22 @@
         }
       }
     },
+    "Erschienen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erschienen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Published"
+          }
+        }
+      }
+    },
     "Erst %@ neues Material, nötig sind %@." : {
       "localizations" : {
         "de" : {
@@ -6366,6 +6415,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Explicit"
+          }
+        }
+      }
+    },
+    "Explizite Inhalte" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explizite Inhalte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Explicit Content"
           }
         }
       }
@@ -6590,6 +6655,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Filter and Sort"
+          }
+        }
+      }
+    },
+    "Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episode"
+          }
+        }
+      }
+    },
+    "Folge %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folge %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episode %lld"
           }
         }
       }
@@ -8514,6 +8611,22 @@
         }
       }
     },
+    "Ja" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ja"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes"
+          }
+        }
+      }
+    },
     "Jede Antwort nennt die Stellen, aus denen sie stammt. Ein Tipp auf einen Beleg spielt die Stelle im Original." : {
       "localizations" : {
         "de" : {
@@ -9316,6 +9429,22 @@
         }
       }
     },
+    "Link" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link"
+          }
+        }
+      }
+    },
     "Link wird geprüft …" : {
       "localizations" : {
         "de" : {
@@ -9824,6 +9953,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agent Name"
+          }
+        }
+      }
+    },
+    "Nein" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nein"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No"
           }
         }
       }
@@ -11572,6 +11717,22 @@
         }
       }
     },
+    "Rubriken" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rubriken"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Categories"
+          }
+        }
+      }
+    },
     "Schlaf-Timer" : {
       "localizations" : {
         "de" : {
@@ -12128,6 +12289,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Later"
+          }
+        }
+      }
+    },
+    "Staffel %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Staffel %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Season %lld"
           }
         }
       }
@@ -12964,6 +13141,23 @@
         }
       }
     },
+    "Trailer" : {
+      "comment" : "Art einer Folge im Feed",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trailer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trailer"
+          }
+        }
+      }
+    },
     "Transkript" : {
       "localizations" : {
         "de" : {
@@ -13621,6 +13815,22 @@
         }
       }
     },
+    "Von" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "By"
+          }
+        }
+      }
+    },
     "Von %@ nach %@ kann die App hier nicht selbst übersetzen. Versuch es im Übersetzungsfenster des Systems, dort lassen sich auch Sprachen laden." : {
       "localizations" : {
         "de" : {
@@ -13989,6 +14199,22 @@
         }
       }
     },
+    "Webseite" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Webseite"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Website"
+          }
+        }
+      }
+    },
     "Webseite öffnen" : {
       "localizations" : {
         "de" : {
@@ -14209,6 +14435,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Which numbers and names are mentioned?"
+          }
+        }
+      }
+    },
+    "Weniger" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weniger"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Less"
           }
         }
       }

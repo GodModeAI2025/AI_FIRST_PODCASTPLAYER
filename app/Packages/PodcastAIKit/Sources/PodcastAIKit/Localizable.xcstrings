@@ -17,6 +17,22 @@
         }
       }
     },
+    "Transkript vom Podcast": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkript vom Podcast"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcript from the podcast"
+          }
+        }
+      }
+    },
     "Unbekannte Folge": {
       "localizations": {
         "de": {

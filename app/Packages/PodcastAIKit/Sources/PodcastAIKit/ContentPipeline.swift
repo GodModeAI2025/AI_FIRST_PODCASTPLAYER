@@ -20,6 +20,7 @@ import PodcastAIMedia
 import PodcastAIIntelligence
 import PodcastAIKnowledge
 import PodcastAISmartFeeds
+import PodcastAISources
 
 #if canImport(SwiftData)
 import PodcastAIPersistence
@@ -145,6 +146,15 @@ public actor ContentPipeline {
         let mediaVersionID = MediaVersionID(stable: audioURL.absoluteString)
 
         onProgress(PipelineProgress(episodeID: episode.id, stage: .discovered))
+
+        // Liefert der Podcast ein Transkript mit Zeitmarken, gilt es zuerst.
+        // Klappt das nicht, bleibt es bei der eigenen Spracherkennung.
+        if let transcriptURL = episode.timedTranscriptURL,
+           let evidence = try await processPublisherTranscript(
+               episode: episode, transcriptURL: transcriptURL, audioURL: audioURL,
+               mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale) {
+            return evidence
+        }
         // Liegt die Datei schon da, wird sie nicht ein zweites Mal geladen.
         let download: DownloadResult
         if let existing = await downloader.existing(mediaVersionID: mediaVersionID) {
@@ -212,6 +222,84 @@ public actor ContentPipeline {
             ),
             forEpisode: episode.id
         )
+
+        let evidence = assembler.evidence(
+            from: transcript, episodeID: episode.id, sourceID: sourceID,
+            ranges: PassageBuilder.passages(from: transcript)
+        )
+        try await store.store(evidence: evidence)
+        onProgress(PipelineProgress(
+            episodeID: episode.id, stage: .evidenceExtracted,
+            detail: String(AttributedString(
+                localized: "^[\(evidence.count) Fundstelle](inflect: true)", bundle: .module).characters)
+        ))
+        return evidence
+    }
+
+    /// Session für Anbietertranskripte, mit den Prüfungen aus `SafeHTTP`.
+    private lazy var transcriptSession = SafeHTTP.makeSession { configuration in
+        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForResource = 120
+    }
+
+    /// Weniger Stücke als das gilt nicht als Transkript der Folge.
+    static let minimumPublisherCues = 3
+
+    /// Übernimmt das Transkript des Anbieters (`podcast:transcript`).
+    ///
+    /// Die Zeiten gelten für die Audiodatei aus dem Feed, deshalb hängt das
+    /// Transkript an derselben Fassung wie eine eigene Erkennung. Gibt `nil`
+    /// zurück, wenn die Datei fehlt, nicht lesbar ist oder zu wenig enthält.
+    /// Dann transkribiert die App selbst. Nur ein Abbruch geht weiter nach
+    /// oben.
+    private func processPublisherTranscript(
+        episode: Episode, transcriptURL: URL, audioURL: URL,
+        mediaVersionID: MediaVersionID, sourceID: SourceID, locale: Locale
+    ) async throws -> [Evidence]? {
+        let cues: [PublisherTranscript.Cue]
+        do {
+            let data = try await SafeHTTP.load(transcriptURL, using: transcriptSession, limit: SafeHTTP.textLimit)
+            cues = try PublisherTranscript.parse(data)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            try Task.checkCancellation()
+            return nil
+        }
+        guard cues.count >= Self.minimumPublisherCues else { return nil }
+        try Task.checkCancellation()
+
+        let segments = cues.map { cue in
+            TranscriptSegment(
+                id: TranscriptSegment.stableID(mediaVersionID: mediaVersionID, range: cue.range),
+                range: cue.range, text: cue.text, speakerLabel: cue.speaker)
+        }
+        let analyzedThrough = segments.map(\.range.end).max() ?? .zero
+        let transcript = assembler.finish(
+            segments: segments, mediaVersionID: mediaVersionID,
+            locale: locale.identifier, origin: .publisherTimed,
+            analyzedThrough: analyzedThrough
+        )
+        // Liegt die Datei schon auf dem Gerät, bleibt sie an der Fassung.
+        let local = await downloader.existing(mediaVersionID: mediaVersionID)
+        try await store.save(
+            transcript: transcript,
+            media: MediaVersion(
+                id: mediaVersionID,
+                episodeID: episode.id,
+                remoteURL: audioURL,
+                localRelativePath: local?.localRelativePath,
+                byteCount: local?.byteCount,
+                contentHash: local?.contentHash,
+                duration: local?.duration ?? episode.declaredDuration,
+                mimeType: local?.mimeType
+            ),
+            forEpisode: episode.id
+        )
+        onProgress(PipelineProgress(
+            episodeID: episode.id, stage: .transcribed,
+            detail: String(localized: "Transkript vom Podcast", bundle: .module)
+        ))
 
         let evidence = assembler.evidence(
             from: transcript, episodeID: episode.id, sourceID: sourceID,

@@ -45,6 +45,12 @@ public final class StoredSource {
     public var hasHistoricalCatalog: Bool = false
     public var limitationReason: String?
 
+    // Metadaten aus dem Feed, seit 0.9. Optional oder mit Standardwert,
+    // damit das Schema für CloudKit nur ergänzt wird.
+    public var summary: String?
+    public var categories: [String] = []
+    public var isExplicit: Bool?
+
     /// `.nullify` statt `.cascade`: Löscht ein anderes Gerät beim Bereinigen
     /// von Doppelten diese Zeile, bevor hier die umgehängten Folgen angekommen
     /// sind, verlieren die Folgen nur ihre Quelle und nicht ihre Daten. Beim
@@ -76,6 +82,9 @@ public final class StoredSource {
                 limitationReason: limitationReason
             ),
             language: languageCode,
+            summary: summary,
+            categories: categories.isEmpty ? nil : categories,
+            isExplicit: isExplicit,
             isSubscribed: isSubscribed,
             addedAt: addedAt,
             revision: Revision(revisionValue)
@@ -105,6 +114,13 @@ public final class StoredEpisode {
     /// wieder anlegt. Alles, was aus ihr entstanden ist, ist dann gelöscht.
     public var removedAt: Date?
 
+    // Metadaten aus dem Feed, seit 0.9, alle optional oder mit Standardwert.
+    public var author: String?
+    public var episodeNumber: Int?
+    public var season: Int?
+    public var episodeType: String?
+    public var keywords: [String] = []
+
     public var source: StoredSource?
 
     /// `.nullify` aus demselben Grund wie bei ``StoredSource/episodes``.
@@ -133,7 +149,9 @@ public final class StoredEpisode {
             chaptersURL: chaptersURLString.flatMap(URL.init(string:)),
             shownotesHTML: shownotesHTML,
             currentMediaVersionID: currentMediaVersionIdentifier.map(MediaVersionID.init(rawValue:)),
-            revision: Revision(revisionValue)
+            revision: Revision(revisionValue),
+            author: author, episodeNumber: episodeNumber, season: season,
+            episodeType: episodeType, keywords: keywords.isEmpty ? nil : keywords
         )
     }
 }

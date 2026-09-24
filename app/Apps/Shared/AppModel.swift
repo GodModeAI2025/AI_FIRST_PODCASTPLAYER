@@ -2107,7 +2107,10 @@ public final class AppModel {
                 }
                 return result
             }
-            for (id, chapters) in loaded { chapterCache[id] = chapters }
+            for (id, chapters) in loaded {
+                chapterCache[id] = chapters
+                try? await store.save(chapters: chapters, forEpisode: id)
+            }
         }
 
         var marks: [EpisodeID: EpisodeChapters] = [:]
@@ -2960,8 +2963,24 @@ public final class AppModel {
             if episodePlayer.episode?.id == episode.id { episodePlayer.setChapters(episode.publisherChapters) }
             return
         }
-        guard let url = episode.chaptersURL,
-              let chapters = await refresher.loadChapters(from: url), !chapters.isEmpty else { return }
+        guard let url = episode.chaptersURL else { return }
+        if let cached = chapterCache[episode.id] {
+            if episodePlayer.episode?.id == episode.id { episodePlayer.setChapters(cached) }
+            return
+        }
+        let chapters: [Chapter]
+        if let loaded = await refresher.loadChapters(from: url), !loaded.isEmpty {
+            chapters = loaded
+            // Einmal geladen, bleiben die Kapitel an der Folge gespeichert.
+            try? await store.save(chapters: loaded, forEpisode: episode.id)
+        } else {
+            // Die Datei fehlt oder ist kaputt: dann die Zeitmarken aus den
+            // Shownotes, nur für diese Sitzung.
+            let fallback = TimestampChapters.parse(episode.shownotesHTML, duration: episode.declaredDuration)
+            chapters = fallback.isEmpty
+                ? TimestampChapters.parse(episode.summary, duration: episode.declaredDuration) : fallback
+            guard !chapters.isEmpty else { return }
+        }
         chapterCache[episode.id] = chapters
         if episodePlayer.episode?.id == episode.id { episodePlayer.setChapters(chapters) }
     }

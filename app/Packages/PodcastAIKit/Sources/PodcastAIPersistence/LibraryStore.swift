@@ -351,6 +351,9 @@ public actor LibraryStore {
                 keep.artworkURLString = keep.artworkURLString ?? copy.artworkURLString
                 keep.languageCode = keep.languageCode ?? copy.languageCode
                 keep.limitationReason = keep.limitationReason ?? copy.limitationReason
+                keep.summary = keep.summary ?? copy.summary
+                if keep.categories.isEmpty { keep.categories = copy.categories }
+                keep.isExplicit = keep.isExplicit ?? copy.isExplicit
                 keep.revisionValue = max(keep.revisionValue, copy.revisionValue)
             }
         }
@@ -459,6 +462,11 @@ public actor LibraryStore {
                 keep.chaptersData = keep.chaptersData ?? copy.chaptersData
                 keep.chaptersURLString = keep.chaptersURLString ?? copy.chaptersURLString
                 keep.shownotesHTML = keep.shownotesHTML ?? copy.shownotesHTML
+                keep.author = keep.author ?? copy.author
+                keep.episodeNumber = keep.episodeNumber ?? copy.episodeNumber
+                keep.season = keep.season ?? copy.season
+                keep.episodeType = keep.episodeType ?? copy.episodeType
+                if keep.keywords.isEmpty { keep.keywords = copy.keywords }
                 keep.revisionValue = max(keep.revisionValue, copy.revisionValue)
             }
             merged.append((keep, drop))
@@ -596,6 +604,9 @@ public actor LibraryStore {
             stored.websiteURLString = source.websiteURL?.absoluteString
             stored.artworkURLString = source.artworkURL?.absoluteString
             stored.languageCode = source.language
+            stored.summary = source.summary
+            stored.categories = source.categories ?? []
+            stored.isExplicit = source.isExplicit
             stored.isSubscribed = source.isSubscribed
             stored.canDownloadAudio = source.capabilities.audioDownload
             stored.hasPublisherTranscript = source.capabilities.publisherTranscript
@@ -668,14 +679,48 @@ public actor LibraryStore {
                 stored.audioURLString = episode.audioURL?.absoluteString
                 stored.timedTranscriptURLString = episode.timedTranscriptURL?.absoluteString
                 stored.artworkURLString = episode.artworkURL?.absoluteString
-                stored.chaptersData = episode.publisherChapters.isEmpty
-                    ? nil : try? JSONEncoder().encode(episode.publisherChapters)
+                stored.chaptersData = Self.chaptersData(for: episode, keeping: stored)
                 stored.chaptersURLString = episode.chaptersURL?.absoluteString
                 stored.shownotesHTML = episode.shownotesHTML
+                stored.author = episode.author
+                stored.episodeNumber = episode.episodeNumber
+                stored.season = episode.season
+                stored.episodeType = episode.episodeType
+                stored.keywords = episode.keywords ?? []
             }
         }
         try modelContext.save()
         return inserted
+    }
+
+    /// Die Kapitel, die beim Einlesen gespeichert werden. Kapitel aus dem
+    /// Feed ersetzen die alten. Verweist der Feed nur auf eine Kapiteldatei,
+    /// bleiben die daraus schon geladenen Kapitel stehen, solange die Adresse
+    /// dieselbe ist. Sonst löschte jedes Aktualisieren sie wieder.
+    static func chaptersData(for episode: Episode, keeping stored: StoredEpisode) -> Data? {
+        if !episode.publisherChapters.isEmpty {
+            return try? JSONEncoder().encode(episode.publisherChapters)
+        }
+        if let url = episode.chaptersURL?.absoluteString, url == stored.chaptersURLString {
+            return stored.chaptersData
+        }
+        return nil
+    }
+
+    /// Speichert Kapitel aus einer Kapiteldatei an der Folge, einmal nach dem
+    /// ersten Laden. Danach braucht die Folge die Datei nicht mehr, auch
+    /// nicht offline und nicht auf dem anderen Gerät.
+    public func save(chapters: [Chapter], forEpisode episodeID: EpisodeID) throws {
+        guard !chapters.isEmpty, let data = try? JSONEncoder().encode(chapters) else { return }
+        let identifier = episodeID.rawValue
+        let rows = try modelContext.fetch(
+            FetchDescriptor<StoredEpisode>(predicate: #Predicate { $0.identifier == identifier }))
+        var changed = false
+        for row in rows where row.removedAt == nil && row.chaptersData != data {
+            row.chaptersData = data
+            changed = true
+        }
+        if changed { try modelContext.save() }
     }
 
     /// Die Folgen einer Quelle, neueste zuerst.
