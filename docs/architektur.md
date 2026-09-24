@@ -11,7 +11,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 | PodcastAIMedia | Download, Audio lesen, Formaterkennung für Dateien ohne Endung |
 | PodcastAITranscription | SpeechAnalyzer mit Zeitmarken |
 | PodcastAIIntelligence | Apple Intelligence auf dem Gerät und auf Private Cloud Compute |
-| PodcastAIKnowledge | Relevanz, Suche für den Chat, Gegenpositionen |
+| PodcastAIKnowledge | Relevanz, Suche für den Chat |
 | PodcastAIPlayback | Wiedergabe einzelner Stellen mit Freigabe |
 | PodcastAISmartFeeds | Themen-Updates mit Kapiteln, Shownotes und Cover |
 | PodcastAIExport | Markdown-Export für Folgen, Antworten und gemerkte Stellen |
@@ -115,7 +115,7 @@ Eine Playlist ist eine eigene Quelle mit dem Feed `feeds/videos.xml?playlist_id=
 
 | Aufgabe | Bevorzugt | Rückfall |
 |---|---|---|
-| Fragen beantworten, Positionen vergleichen | Private Cloud Compute | Gerätemodell |
+| Fragen beantworten | Private Cloud Compute | Gerätemodell |
 | Fakten ziehen, Relevanz prüfen | Gerätemodell | keiner |
 | Satz je Kapitel | Gerätemodell | Private Cloud Compute |
 | Tags je Kapitel | Gerätemodell mit `.contentTagging` | Private Cloud Compute, wenn das Gerätemodell fehlt oder zu langsam ist |

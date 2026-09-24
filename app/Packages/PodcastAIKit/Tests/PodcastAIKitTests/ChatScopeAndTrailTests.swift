@@ -179,6 +179,32 @@ struct ChatScopeAndTrailTests {
         #expect(trail.referencedEpisodeIDs == nil)
     }
 
+    @Test("Karten aus der früheren Thesenprüfung bleiben gewöhnliche gesicherte Antworten")
+    func legacyThesisTrailDecodes() throws {
+        let json = """
+        {"id":"thesis-6F9619FF-8B86-D011-B42D-00C04FC964FF","question":"These: Alte Prüfung",
+         "claimIDs":[],"evidenceIDs":["s","c"],"highlightIDs":[],
+         "counterpointEvidenceIDs":["c"],"parkedAt":"2026-01-01T10:00:00Z"}
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let trail = try decoder.decode(KnowledgeTrail.self, from: Data(json.utf8))
+        #expect(trail.question == "These: Alte Prüfung")
+        #expect(trail.evidenceIDs.map(\.rawValue) == ["s", "c"])
+        #expect(trail.answerText == nil)
+
+        // Neue Karten schreiben den alten Schlüssel weiter, leer. Eine ältere
+        // App-Version auf einem anderen Gerät verlangt ihn.
+        let encoded = try JSONEncoder().encode(KnowledgeTrail(question: "Neu", evidenceIDs: [EvidenceID(rawValue: "s")]))
+        let object = try JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        #expect((object?["counterpointEvidenceIDs"] as? [Any])?.isEmpty == true)
+
+        // Fällt ein Beleg weg, geht er auch aus dem alten Feld.
+        let pruned = trail.removing(evidence: [EvidenceID(rawValue: "c")])
+        #expect(pruned?.evidenceIDs.map(\.rawValue) == ["s"])
+        #expect(pruned?.counterpointEvidenceIDs.isEmpty == true)
+    }
+
     @Test("Antworttext und Verweisnummern überstehen das Speichern")
     func trailRoundTripsThroughStore() async throws {
         let store = LibraryStore.make(container: try LibraryStore.makeContainer(inMemory: true))

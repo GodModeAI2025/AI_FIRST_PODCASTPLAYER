@@ -8,7 +8,6 @@
 //  - Jede Anweisung und jeder Prompt, der Text erzeugt, nennt die Sprache
 //    ausdrücklich, auch für Deutsch.
 //  - Wörtliche Zitate bleiben in ihrer Sprache.
-//  - Die Einordnung gegen eine These übersetzt ihre Bezeichnungen nicht.
 //
 
 import Testing
@@ -128,23 +127,5 @@ struct LanguageDirectiveTests {
         let instructions = extractor(.german).claimInstructions()
         #expect(instructions.contains("mit eigenen Worten"))
         #expect(!instructions.contains("Originalsprache"))
-    }
-
-    @Test("Die Einordnung übersetzt ihre Bezeichnungen nicht", arguments: AppLanguage.allCases)
-    func classificationKeepsLabels(language: AppLanguage) {
-        let extractor = extractor(language)
-        let labels = ["contradicts", "supports", "differentPremise", "qualifies"]
-        let instructions = extractor.classificationInstructions(labels: labels)
-        #expect(!instructions.contains(language.directive))
-        #expect(instructions.contains("übersetze sie nicht"))
-        #expect(instructions.contains(labels.joined(separator: ", ")))
-        #expect(!instructions.contains("—"))
-
-        let builder = CandidateListBuilder()
-        let prompt = extractor.classificationPrompt(
-            for: builder.build(from: englishEvidence()), builder: builder,
-            thesis: "Heat pumps do not work in cold climates.")
-        #expect(prompt.hasSuffix(KnowledgeExtractor.labelRule))
-        #expect(!prompt.contains(language.directive))
     }
 }

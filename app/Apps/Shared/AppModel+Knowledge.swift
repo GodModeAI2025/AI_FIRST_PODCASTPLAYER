@@ -648,21 +648,6 @@ extension AppModel {
                              libraryContextLimit: base.libraryContextLimit * 2)
     }
 
-    /// Die alte Schätzung mit drei Zeichen je Token, für die Einordnung der
-    /// Gegenpositionen. Sie bleibt dort die Decke, damit keine Portion größer
-    /// wird als bisher, und `fittedAnswerBudget` kürzt sie nach Token.
-    static func answerBudget(privateCloud: Bool, contextSize: Int, questionLength: Int) -> ContextBudget {
-        if privateCloud { return .privateCloudCompute }
-        let base = ContextBudget.onDevice
-        let excerpt = base.excerptLimit
-        let context = contextSize <= 4_096 ? base.libraryContextLimit : base.libraryContextLimit * 2
-        // Anweisungen und Schema etwa 350 Token, Rahmung etwa 100, Antwort etwa 700.
-        let reserved = 1_150 + min(questionLength, 500) / 3 + context / 3
-        let available = max(0, contextSize - reserved) * 3
-        let candidates = min(base.maximumCandidates, max(4, available / (excerpt + 8)))
-        return ContextBudget(maximumCandidates: candidates, excerptLimit: excerpt, libraryContextLimit: context)
-    }
-
     /// Warum der Chat nicht formulieren konnte, ohne Fehlercode.
     static func chatReason(_ error: any Error) -> String {
         switch error as? ExtractorError {

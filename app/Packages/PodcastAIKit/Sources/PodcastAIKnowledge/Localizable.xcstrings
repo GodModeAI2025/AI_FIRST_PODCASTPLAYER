@@ -481,22 +481,6 @@
         }
       }
     },
-    "Andere Voraussetzung": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Andere Voraussetzung"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Different Premise"
-          }
-        }
-      }
-    },
     "Dazu gibt es keine weitere Stelle mit Transkript.": {
       "localizations": {
         "de": {
@@ -573,54 +557,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "One Podcast"
-          }
-        }
-      }
-    },
-    "Gegenposition": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gegenposition"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Counterpoint"
-          }
-        }
-      }
-    },
-    "In deinen Folgen mit Transkript findet sich keine Gegenposition. Das heißt nicht, dass es keine gibt.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In deinen Folgen mit Transkript findet sich keine Gegenposition. Das heißt nicht, dass es keine gibt."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your transcribed episodes contain no counterpoint. That doesn't mean there isn't one."
-          }
-        }
-      }
-    },
-    "In deinen Folgen mit Transkript findet sich nur die Gegenseite. Das ist keine ausgewogene Prüfung.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In deinen Folgen mit Transkript findet sich nur die Gegenseite. Das ist keine ausgewogene Prüfung."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your transcribed episodes only contain the opposing side. This isn't a balanced check."
           }
         }
       }
@@ -785,38 +721,6 @@
         }
       }
     },
-    "Schränkt ein": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Schränkt ein"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Qualifies the Claim"
-          }
-        }
-      }
-    },
-    "Stützt die These": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stützt die These"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Supports the Claim"
-          }
-        }
-      }
-    },
     "Telefonnummern": {
       "localizations": {
         "de": {
@@ -865,38 +769,6 @@
         }
       }
     },
-    "Unter den eingeordneten Stellen ist keine Gegenposition. Die übrigen sind nicht eingeordnet, darunter kann eine sein.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unter den eingeordneten Stellen ist keine Gegenposition. Die übrigen sind nicht eingeordnet, darunter kann eine sein."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Among the classified passages there is no counterpoint. The rest aren't classified, and one of them could be."
-          }
-        }
-      }
-    },
-    "Unter den eingeordneten Stellen ist nur die Gegenseite. Die übrigen sind nicht eingeordnet, darunter kann auch Stützendes sein.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unter den eingeordneten Stellen ist nur die Gegenseite. Die übrigen sind nicht eingeordnet, darunter kann auch Stützendes sein."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Among the classified passages there is only the opposing side. The rest aren't classified, and some of them could support the claim."
-          }
-        }
-      }
-    },
     "Vertiefen": {
       "localizations": {
         "de": {
@@ -941,38 +813,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "word appears"
-          }
-        }
-      }
-    },
-    "Zu dieser These passt nichts aus deinen Folgen mit Transkript.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zu dieser These passt nichts aus deinen Folgen mit Transkript."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nothing in your transcribed episodes relates to this claim."
-          }
-        }
-      }
-    },
-    "Zum Thema, nicht eingeordnet": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zum Thema, nicht eingeordnet"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "On Topic, Not Classified"
           }
         }
       }

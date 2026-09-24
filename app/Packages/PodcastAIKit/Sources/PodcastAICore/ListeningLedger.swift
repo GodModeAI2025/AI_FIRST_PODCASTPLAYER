@@ -60,6 +60,8 @@ public enum PlaybackRoute: String, Codable, Sendable {
     case chatFocus
     case interestFocus
     case smartFeedEpisode
+    /// Aus der früheren Thesenprüfung (bis 0.9). Entsteht nicht mehr, bleibt
+    /// aber, damit gespeicherte Einträge im Hörprotokoll lesbar bleiben.
     case counterpoint
 }
 

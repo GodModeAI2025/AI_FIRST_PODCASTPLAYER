@@ -91,7 +91,7 @@ Packages/PodcastAIKit/Sources/
   PodcastAIMedia         Download, Audio lesen und wandeln
   PodcastAITranscription SpeechAnalyzer mit Medienzeit
   PodcastAIIntelligence  Apple Intelligence, Gerät und Private Cloud Compute
-  PodcastAIKnowledge     Relevanz, Suche für den Chat, Gegenpositionen
+  PodcastAIKnowledge     Relevanz, Suche für den Chat
   PodcastAIPlayback      Hörplan, Freigaben, Player
   PodcastAISmartFeeds    Persönliche Themenfeeds, Shownotes, Cover
   PodcastAIExport        Markdown für Folgen, Antworten und Notizen

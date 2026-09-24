@@ -151,7 +151,7 @@ struct MacRootView: View {
     }
 
     enum Section: Hashable, CaseIterable, Identifiable {
-        case forYou, feeds, chat, library, queue, knowledge, interests, perspective, trails, player, help
+        case forYou, feeds, chat, library, queue, knowledge, interests, trails, player, help
         var id: Self { self }
 
         /// Dieselben Namen wie die Tabs auf iOS, damit Hinweise wie
@@ -165,7 +165,6 @@ struct MacRootView: View {
             case .queue: String(localized: "Warteschlange")
             case .knowledge: String(localized: "Gemerkte Stellen")
             case .interests: String(localized: "Meine Tags")
-            case .perspective: String(localized: "Gegenpositionen")
             case .trails: String(localized: "Gesicherte Antworten")
             case .player: String(localized: "Wiedergabe")
             case .help: String(localized: "So funktioniert's")
@@ -181,7 +180,6 @@ struct MacRootView: View {
             case .queue: "list.bullet"
             case .knowledge: "bookmark"
             case .interests: "tag"
-            case .perspective: "arrow.left.arrow.right"
             case .trails: "map"
             case .player: "play.circle"
             case .help: "questionmark.circle"
@@ -203,7 +201,7 @@ struct MacRootView: View {
                     }
                 }
                 SwiftUI.Section("Wissen") {
-                    ForEach([Section.chat, .knowledge, .trails, .perspective, .interests]) { item in
+                    ForEach([Section.chat, .knowledge, .trails, .interests]) { item in
                         Label(item.label, systemImage: item.symbol).tag(item)
                     }
                 }
@@ -226,7 +224,6 @@ struct MacRootView: View {
                 case .help: HelpView()
                 case .knowledge: KnowledgeView()
                 case .interests: TagsView()
-                case .perspective: CounterpointView()
                 case .trails: TrailListView()
                 case .player, .none:
                     // Auch eine ganze Folge ist Wiedergabe. Sonst stand hier
@@ -316,7 +313,6 @@ struct MacRootView: View {
         case .topicUpdates: target = .feeds
         case .highlights: target = .knowledge
         case .trails: target = .trails
-        case .counterpoints: target = .perspective
         case .interests: target = .interests
         case .addPodcast, .settings, .privacy: return
         }

@@ -6,9 +6,8 @@
 //
 //  Die Tab Bar verträgt drei bis fünf Einträge. Bei sieben wird jeder
 //  einzelne schmaler, die Beschriftungen brechen um, und der Nutzer muss
-//  lesen statt zu erkennen. Interessen, Gegenpositionen und gesicherte
-//  Antworten sind deshalb keine eigenen Tabs, sondern liegen unter
-//  „Wissen“. Sie gehören inhaltlich zusammen und werden seltener gebraucht
+//  lesen statt zu erkennen. Interessen und gesicherte Antworten sind
+//  deshalb keine eigenen Tabs, sondern liegen unter „Wissen“. Sie gehören inhaltlich zusammen und werden seltener gebraucht
 //  als Hören und „Meine Podcasts“.
 //
 //  „Chat“ ist ein gewöhnlicher Tab ohne Such-Rolle. Hinter einer Lupe
@@ -167,7 +166,7 @@ struct RootView: View {
         case .queue:
             showingQueue = true
             return
-        case .highlights, .trails, .counterpoints, .interests, .addPodcast, .settings, .privacy:
+        case .highlights, .trails, .interests, .addPodcast, .settings, .privacy:
             return
         }
         // Meine Podcasts und Themen-Updates beginnen von vorn, dort geht

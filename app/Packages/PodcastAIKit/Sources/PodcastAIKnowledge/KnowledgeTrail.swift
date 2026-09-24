@@ -146,8 +146,10 @@ public struct SessionBoundaryPolicy: Sendable {
     }
 }
 
-/// Eine gesicherte Antwort: aus dem Chat, aus einer geprüften These oder
-/// von der Abschlusskarte geparkt.
+/// Eine gesicherte Antwort: aus dem Chat oder von der Abschlusskarte geparkt.
+///
+/// Karten aus der früheren Thesenprüfung (bis 0.9) werden wie jede andere
+/// gesicherte Antwort gelesen und gezeigt.
 public struct KnowledgeTrail: Sendable, Identifiable, Codable {
 
     public let id: KnowledgeNodeID
@@ -155,7 +157,12 @@ public struct KnowledgeTrail: Sendable, Identifiable, Codable {
     public let claimIDs: [ClaimID]
     public let evidenceIDs: [EvidenceID]
     public let highlightIDs: [HighlightID]
-    /// Gegenpositionen, sofern der Nutzer danach gefragt hat.
+    /// Stellen, die einer geprüften These widersprachen. Nur Karten aus der
+    /// früheren Thesenprüfung haben welche, neue Karten nie. Das Feld bleibt,
+    /// weil die Karten als JSON über iCloud laufen: Eine ältere App-Version
+    /// auf einem anderen Gerät verlangt den Schlüssel und verlöre sonst jede
+    /// neue Karte. Gezeigt wird es nirgends, alle Stellen stehen auch in
+    /// ``evidenceIDs``.
     public let counterpointEvidenceIDs: [EvidenceID]
     public var userNote: String?
     public let parkedAt: Date
@@ -238,19 +245,6 @@ public struct KnowledgeTrail: Sendable, Identifiable, Codable {
                 return sameEpisode && noted.touchesOrOverlaps(range)
             }
         }.map(\.id)
-    }
-
-    /// Karten aus „Gegenpositionen“ tragen diesen Anfang in ihrer Kennung,
-    /// siehe ``CounterpointCheck/trailID``.
-    static let thesisPrefix = "thesis-"
-
-    /// Stammt die Karte aus einer geprüften These?
-    ///
-    /// Dann sind ihre Stellen keine Belege für eine Antwort. Ein Teil
-    /// widerspricht der These, und die Karte muss das zeigen. Ältere Karten
-    /// erkennt man nur an ihren Gegenpositionen.
-    public var isThesisCheck: Bool {
-        id.rawValue.hasPrefix(Self.thesisPrefix) || !counterpointEvidenceIDs.isEmpty
     }
 
     /// Parken heißt aufbewahren, nicht zustimmen.

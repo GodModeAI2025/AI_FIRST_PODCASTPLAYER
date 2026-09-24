@@ -471,11 +471,8 @@ extension HelpTopic {
             symbol: "bubble.left.and.bubble.right.fill", tint: .teal,
             tips: [
                 HelpTip(title: "Fragen und Chat", text: askText, symbol: "text.bubble", level: .advanced),
-                HelpTip(title: "Gegenpositionen",
-                        text: "Zu einer These zeigt die App belegte Stimmen dafür und dagegen.",
-                        symbol: "arrow.left.arrow.right", level: .expert),
             ],
-            jumps: [.chat, .counterpoints]
+            jumps: [.chat]
         )
     }
 
@@ -633,10 +630,6 @@ extension HelpTopic {
                 HelpTerm(word: "Gesicherte Antwort", meaning: """
                     Eine Antwort aus dem Chat, die du mit ihren Stellen aufbewahrst. Du findest sie unter \
                     „Wissen“.
-                    """),
-                HelpTerm(word: "Gegenpositionen", meaning: """
-                    Du gibst eine Behauptung ein, die App sucht Stellen aus deinen Podcasts, die dafür \
-                    oder dagegen sprechen.
                     """),
                 HelpTerm(word: "Apple-Server (Private Cloud Compute)", meaning: """
                     Rechner von Apple, auf denen Apple Intelligence Fragen mit mehr Text auf einmal \
@@ -954,7 +947,7 @@ private struct HelpSearchResults: View {
 /// an: „Podcast hinzufügen“ öffnet das Blatt, abonniert wird dort.
 enum HelpJump: Hashable, Sendable {
     case library, queue, chat, topicUpdates
-    case highlights, trails, counterpoints, interests
+    case highlights, trails, interests
     case addPodcast, settings, privacy
 
     /// Wie die Hilfe dorthin kommt.
@@ -974,7 +967,7 @@ enum HelpJump: Hashable, Sendable {
         #if os(macOS)
         // Auf dem Mac hat fast jeder Bereich einen Eintrag in der Seitenleiste.
         switch self {
-        case .library, .queue, .chat, .topicUpdates, .highlights, .trails, .counterpoints, .interests: .app
+        case .library, .queue, .chat, .topicUpdates, .highlights, .trails, .interests: .app
         case .addPodcast: .sheet
         case .settings: .settingsWindow
         case .privacy: .push
@@ -984,7 +977,7 @@ enum HelpJump: Hashable, Sendable {
         // oder in den Einstellungen liegt, öffnet die Hilfe selbst.
         switch self {
         case .library, .queue, .chat, .topicUpdates: .app
-        case .highlights, .trails, .counterpoints, .interests, .settings, .privacy: .push
+        case .highlights, .trails, .interests, .settings, .privacy: .push
         case .addPodcast: .sheet
         }
         #endif
@@ -998,7 +991,6 @@ enum HelpJump: Hashable, Sendable {
         case .topicUpdates: "Themen-Updates"
         case .highlights: "Gemerkte Stellen"
         case .trails: "Gesicherte Antworten"
-        case .counterpoints: "Gegenpositionen"
         case .interests: "Meine Tags"
         case .addPodcast: "Podcast hinzufügen"
         case .settings: "Einstellungen"
@@ -1015,7 +1007,6 @@ enum HelpJump: Hashable, Sendable {
         case .topicUpdates: "waveform.circle"
         case .highlights: "bookmark"
         case .trails: "map"
-        case .counterpoints: "arrow.left.arrow.right"
         case .interests: "tag"
         case .addPodcast: "plus"
         case .settings: "gearshape"
@@ -1029,7 +1020,6 @@ enum HelpJump: Hashable, Sendable {
         switch self {
         case .highlights: KnowledgeView()
         case .trails: TrailListView()
-        case .counterpoints: CounterpointView()
         case .interests: TagsView()
         case .privacy: PrivacyOverviewView()
         #if os(iOS)

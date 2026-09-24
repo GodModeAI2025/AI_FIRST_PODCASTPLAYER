@@ -140,6 +140,7 @@ Ich empfehle, bei Apple Intelligence zu bleiben. Die Klassifizierung ist eine Au
 2. Je Kapitel gibt es neben den Tags einen Satz, worum es geht, als Zusammenfassung gekennzeichnet.
 3. Fehlt das Gerätemodell oder ist es zu langsam, erzeugt Private Cloud Compute die Tags. Abschaltbar wie heute.
 4. Die App bleibt bei Apple Intelligence. Nach der Tag-Messung in 0.10 wird neu bewertet.
+5. Gegenpositionen sind aus der App entfernt. Früher gesicherte Thesenprüfungen bleiben als gewöhnliche gesicherte Antworten lesbar.
 
 ## 13. Erweiterung: einzelne Folgen und YouTube besser abonnieren
 

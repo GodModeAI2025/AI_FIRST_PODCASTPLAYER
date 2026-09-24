@@ -641,38 +641,6 @@
         }
       }
     },
-    "%lld Stellen ließen sich nicht einordnen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Stellen ließen sich nicht einordnen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld passages couldn't be classified."
-          }
-        }
-      }
-    },
-    "%lld Stellen sind nicht mehr da." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Stellen sind nicht mehr da."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld passages are no longer available."
-          }
-        }
-      }
-    },
     "%lld Transkripte werden erstellt" : {
       "localizations" : {
         "de" : {
@@ -1149,22 +1117,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import Subscriptions from File"
-          }
-        }
-      }
-    },
-    "Abos aus einer anderen App übernehmen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abos aus einer anderen App übernehmen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Import Subscriptions from Another App"
           }
         }
       }
@@ -3402,22 +3354,6 @@
         }
       }
     },
-    "Blendet die Erklärung aus" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Blendet die Erklärung aus"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hides the explanation"
-          }
-        }
-      }
-    },
     "Bonus" : {
       "comment" : "Art einer Folge im Feed",
       "localizations" : {
@@ -3623,22 +3559,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The model didn't return an answer."
-          }
-        }
-      }
-    },
-    "Das Modell hat keine der Stellen dieser These zugeordnet. Sie passen nur dem Wortlaut nach." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Modell hat keine der Stellen dieser These zugeordnet. Sie passen nur dem Wortlaut nach."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The model didn't link any of these passages to this claim. They only match by wording."
           }
         }
       }
@@ -4207,22 +4127,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your Notes"
-          }
-        }
-      }
-    },
-    "Deine These" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deine These"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your claim"
           }
         }
       }
@@ -5347,22 +5251,6 @@
         }
       }
     },
-    "Die Stellen sind nicht eingeordnet." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Stellen sind nicht eingeordnet."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The passages haven't been classified."
-          }
-        }
-      }
-    },
     "Die Suche geht mit deinem Schlüssel an Supadata und kostet dort wie ein Abruf." : {
       "localizations" : {
         "de" : {
@@ -5987,38 +5875,6 @@
         }
       }
     },
-    "Du gibst eine Behauptung ein, die App sucht Stellen aus deinen Podcasts, die dafür oder dagegen sprechen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Du gibst eine Behauptung ein, die App sucht Stellen aus deinen Podcasts, die dafür oder dagegen sprechen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You enter a claim, and the app finds passages in your podcasts that support or contradict it."
-          }
-        }
-      }
-    },
-    "Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht zusammen und spricht sie nicht nach. Eine gesicherte These ist aufbewahrt, nicht als deine Meinung vermerkt." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht zusammen und spricht sie nicht nach. Eine gesicherte These ist aufbewahrt, nicht als deine Meinung vermerkt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You hear the original passages in context. PodcastAI doesn't summarize them or read them out in another voice. A saved claim is kept, not recorded as your opinion."
-          }
-        }
-      }
-    },
     "Du kannst jetzt in der Folge suchen und Fragen stellen." : {
       "localizations" : {
         "de" : {
@@ -6319,54 +6175,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Get a passage with its source and timestamp"
-          }
-        }
-      }
-    },
-    "Eine Stelle ist nicht mehr da." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eine Stelle ist nicht mehr da."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "One passage is no longer available."
-          }
-        }
-      }
-    },
-    "Eine Stelle ließ sich nicht einordnen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eine Stelle ließ sich nicht einordnen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "One passage couldn't be classified."
-          }
-        }
-      }
-    },
-    "Eine These prüfen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eine These prüfen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Test a claim"
           }
         }
       }
@@ -7347,22 +7155,6 @@
         }
       }
     },
-    "Formuliere, was du für richtig hältst. PodcastAI sucht dazu belegte Positionen aus deinen Podcasts, dafür und dagegen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Formuliere, was du für richtig hältst. PodcastAI sucht dazu belegte Positionen aus deinen Podcasts, dafür und dagegen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "State what you believe is true. PodcastAI finds positions for and against it in your podcasts, each backed by source passages."
-          }
-        }
-      }
-    },
     "Fortgeschrittene" : {
       "localizations" : {
         "de" : {
@@ -7971,54 +7763,6 @@
         }
       }
     },
-    "Gegenpositionen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gegenpositionen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Counterpoints"
-          }
-        }
-      }
-    },
-    "Gegenpositionen prüfen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gegenpositionen prüfen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Check Counterpoints"
-          }
-        }
-      }
-    },
-    "Gegenpositionen zu: %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gegenpositionen zu: %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Counterpoints to: %@"
-          }
-        }
-      }
-    },
     "Gehörte Folgen nach einem Tag vom Gerät entfernen" : {
       "localizations" : {
         "de" : {
@@ -8335,22 +8079,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saved moments can then be found outside PodcastAI too. Turning this off removes existing entries.\n\nPodcastAI provides relevance. Whether that turns into a suggestion is up to the system."
-          }
-        }
-      }
-    },
-    "Geprüft" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Geprüft"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Checked"
           }
         }
       }
@@ -9573,22 +9301,6 @@
         }
       }
     },
-    "Keine Gegenposition gefunden." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keine Gegenposition gefunden."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No counterpoint found."
-          }
-        }
-      }
-    },
     "Keine Internetverbindung" : {
       "localizations" : {
         "de" : {
@@ -10629,22 +10341,6 @@
         }
       }
     },
-    "Nacheinander anhören" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nacheinander anhören"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Play in Sequence"
-          }
-        }
-      }
-    },
     "Name" : {
       "localizations" : {
         "de" : {
@@ -11317,22 +11013,6 @@
         }
       }
     },
-    "Nichts gefunden, was die These stützt." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nichts gefunden, was die These stützt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing found that supports the claim."
-          }
-        }
-      }
-    },
     "Nichts läuft" : {
       "localizations" : {
         "de" : {
@@ -11409,22 +11089,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No episode has a transcript yet. Once transcripts are ready, the update searches them."
-          }
-        }
-      }
-    },
-    "Noch hat keine Folge ein Transkript. Sobald das erste fertig ist, sucht die App darin." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Noch hat keine Folge ein Transkript. Sobald das erste fertig ist, sucht die App darin."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No episode has a transcript yet. Once the first one is ready, the app searches it."
           }
         }
       }
@@ -12149,22 +11813,6 @@
         }
       }
     },
-    "Overcast, Pocket Casts und die meisten anderen Podcast-Apps sichern ihre Abos in einer Datei (OPML). Die wählst du hier aus, dann kommen alle auf einmal herüber." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Overcast, Pocket Casts und die meisten anderen Podcast-Apps sichern ihre Abos in einer Datei (OPML). Die wählst du hier aus, dann kommen alle auf einmal herüber."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Overcast, Pocket Casts, and most other podcast apps save their subscriptions in a file (OPML). Choose that file here to bring them all over at once."
-          }
-        }
-      }
-    },
     "Parken" : {
       "localizations" : {
         "de" : {
@@ -12581,22 +12229,6 @@
         }
       }
     },
-    "PodcastAI sucht belegte Positionen zu deiner These, dafür und dagegen. Ziel ist dein eigenes Urteil, nicht eine bestimmte Meinung." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PodcastAI sucht belegte Positionen zu deiner These, dafür und dagegen. Ziel ist dein eigenes Urteil, nicht eine bestimmte Meinung."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PodcastAI looks for sourced positions on your claim, for and against. The goal is your own judgment, not a particular opinion."
-          }
-        }
-      }
-    },
     "Podcasts" : {
       "localizations" : {
         "de" : {
@@ -12721,22 +12353,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check"
-          }
-        }
-      }
-    },
-    "Prüft den Kernsatz der Antwort als These gegen Stellen aus allen Podcasts" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prüft den Kernsatz der Antwort als These gegen Stellen aus allen Podcasts"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Checks the core sentence of this answer as a thesis against passages from all your podcasts"
           }
         }
       }
@@ -13041,22 +12657,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save and check"
-          }
-        }
-      }
-    },
-    "Sie passen zum Thema der These. Ob sie dafür oder dagegen sprechen, lässt sich so nicht sagen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sie passen zum Thema der These. Ob sie dafür oder dagegen sprechen, lässt sich so nicht sagen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "They match the topic of the claim. Whether they argue for or against it can't be determined this way."
           }
         }
       }
@@ -13601,38 +13201,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save Moments"
-          }
-        }
-      }
-    },
-    "Stellen werden gesucht und eingeordnet …" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stellen werden gesucht und eingeordnet …"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finding and classifying passages…"
-          }
-        }
-      }
-    },
-    "Stellen zur These" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stellen zur These"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Passages on the Claim"
           }
         }
       }
@@ -14449,38 +14017,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Topic Updates with Siri. On a Mac, an AI agent can read your knowledge over MCP, but only if you allow it in PodcastAI › Settings › Agents. That's also where you'll find the entry for the agent."
-          }
-        }
-      }
-    },
-    "These" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claim"
-          }
-        }
-      }
-    },
-    "These: %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These: %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claim: %@"
           }
         }
       }
@@ -16584,22 +16120,6 @@
         }
       }
     },
-    "Zeigt die Erklärung" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zeigt die Erklärung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shows the explanation"
-          }
-        }
-      }
-    },
     "Zeigt eine Übersetzung in die Sprache der App" : {
       "localizations" : {
         "de" : {
@@ -16936,38 +16456,6 @@
         }
       }
     },
-    "Zu dieser These lässt sich nichts abspielen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zu dieser These lässt sich nichts abspielen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "There's nothing to play for this claim."
-          }
-        }
-      }
-    },
-    "Zu einer These zeigt die App belegte Stimmen dafür und dagegen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zu einer These zeigt die App belegte Stimmen dafür und dagegen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "For a claim, the app shows sourced voices for and against it."
-          }
-        }
-      }
-    },
     "Zu „%@“ ließ sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge den Link zu einem Video des Kanals ein." : {
       "localizations" : {
         "de" : {
@@ -16996,22 +16484,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Access"
-          }
-        }
-      }
-    },
-    "Zuordnung vermutet, nicht geprüft" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zuordnung vermutet, nicht geprüft"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stance inferred, not verified"
           }
         }
       }
@@ -17494,22 +16966,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "at %@"
-          }
-        }
-      }
-    },
-    "davon ^[%lld Gegenposition](inflect: true)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "davon ^[%lld Gegenposition](inflect: true)"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "including ^[%lld counterpoint](inflect: true)"
           }
         }
       }

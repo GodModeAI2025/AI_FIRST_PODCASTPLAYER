@@ -3,10 +3,10 @@
 //  PodcastAI
 //
 //  Der Sammelpunkt für alles, was nicht Hören ist: gemerkte Stellen,
-//  gesicherte Antworten, Gegenpositionen, Interessen.
+//  gesicherte Antworten, Interessen.
 //
-//  Vier Bereiche, die eine Tab Bar gesprengt hätten, aber inhaltlich
-//  zusammengehören — hier bekommen sie eine Ebene, statt oben um Platz zu
+//  Bereiche, die eine Tab Bar gesprengt hätten, aber inhaltlich
+//  zusammengehören. Hier bekommen sie eine Ebene, statt oben um Platz zu
 //  konkurrieren.
 //
 
@@ -40,24 +40,6 @@ struct KnowledgeHubView: View {
                 }
             } header: {
                 Text("Gesammelt")
-            }
-
-            Section {
-                NavigationLink(value: HubDestination.counterpoint) {
-                    HubRow(
-                        title: String(localized: "Gegenpositionen"),
-                        detail: String(localized: "Eine These prüfen"),
-                        symbol: "arrow.left.arrow.right",
-                        tint: .purple
-                    )
-                }
-            } header: {
-                Text("Prüfen")
-            } footer: {
-                Text("""
-                    PodcastAI sucht belegte Positionen zu deiner These, dafür und dagegen. \
-                    Ziel ist dein eigenes Urteil, nicht eine bestimmte Meinung.
-                    """)
             }
 
             Section {
@@ -111,7 +93,6 @@ struct KnowledgeHubView: View {
             switch destination {
             case .highlights: KnowledgeView()
             case .trails: TrailListView()
-            case .counterpoint: CounterpointView()
             case .interests: TagsView()
             case .help: HelpView()
             #if os(iOS)
@@ -122,7 +103,7 @@ struct KnowledgeHubView: View {
     }
 
     enum HubDestination: Hashable {
-        case highlights, trails, counterpoint, interests, help
+        case highlights, trails, interests, help
         #if os(iOS)
         case settings
         #endif

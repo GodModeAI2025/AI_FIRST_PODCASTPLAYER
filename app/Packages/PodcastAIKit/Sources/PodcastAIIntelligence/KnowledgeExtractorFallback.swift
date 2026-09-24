@@ -72,13 +72,6 @@ public struct KnowledgeExtractor: Sendable {
         throw ExtractorError.modelUnavailable(Self.reason)
     }
 
-    public func classify(
-        _ evidence: [Evidence], against thesis: String,
-        labels: [String], availability: ModelStatus
-    ) async throws -> [EvidenceID: String] {
-        throw ExtractorError.modelUnavailable(Self.reason)
-    }
-
     public func answer(
         question: String, from evidence: [Evidence], libraryContext: String = "",
         availability: ModelStatus, onPartial: (@Sendable (String) async -> Void)? = nil

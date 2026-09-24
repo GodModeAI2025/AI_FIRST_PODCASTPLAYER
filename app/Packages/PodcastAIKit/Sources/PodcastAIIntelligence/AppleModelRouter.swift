@@ -93,8 +93,6 @@ public enum TaskProfile: String, Sendable, CaseIterable {
     case recommend
     /// Eine Auswahl von Belegen für einen Hörplan vorschlagen.
     case proposePlayback
-    /// Mehrere Folgen vergleichen. Braucht viel Kontext.
-    case compare
     /// Ein Satz je Kapitel, worum es darin geht. Läuft lokal. Fehlt das
     /// Gerätemodell, darf Private Cloud Compute einspringen, sofern es
     /// erlaubt ist (Entscheidung des Product Owners vom 24. September 2026).
@@ -105,12 +103,12 @@ public enum TaskProfile: String, Sendable, CaseIterable {
     /// erlaubt ist (Entscheidung des Product Owners vom 24. September 2026).
     case tag
 
-    /// Welche Stufe bevorzugt wird. `compare` profitiert von PCC, funktioniert
-    /// lokal aber weiterhin — nur mit kleineren Häppchen.
+    /// Welche Stufe bevorzugt wird. `answer` profitiert von PCC, funktioniert
+    /// lokal aber weiterhin, nur mit kleineren Häppchen.
     public var preferredTier: ModelTier {
         switch self {
         case .extract, .recommend, .proposePlayback, .summarize, .tag: .onDevice
-        case .answer, .compare: .privateCloudCompute
+        case .answer: .privateCloudCompute
         }
     }
 
@@ -127,7 +125,7 @@ public enum TaskProfile: String, Sendable, CaseIterable {
     public var allowedTools: Set<ModelTool> {
         switch self {
         case .extract, .summarize, .tag: []
-        case .answer, .compare: [.searchOwnIndex]
+        case .answer: [.searchOwnIndex]
         case .recommend: [.readInterestProfile]
         case .proposePlayback: [.searchOwnIndex]
         }

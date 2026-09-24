@@ -1,243 +1,16 @@
 //
-//  PerspectiveViews.swift
+//  TrailViews.swift
 //  PodcastAI
 //
-//  Widerspruchs-Mixer und Breadcrumb-Trail.
+//  Gesicherte Antworten und die Abschlusskarte einer Hörsession, dazu die
+//  Meldungen an der Wurzel und an jedem Blatt.
 //
-//  Beide Oberflächen tragen dieselbe Zurückhaltung: sie helfen beim eigenen
-//  Urteil, statt eines nahezulegen. Konkret heißt das — die These steht als
-//  These da und nicht als Feststellung, Gegenpositionen kommen nach den
-//  stützenden statt zuerst, und eine unausgewogene Lage wird benannt,
-//  statt sie als Prüfung auszugeben.
+//  Eine gesicherte Antwort ist aufbewahrt, nicht zugestimmt. Das steht an
+//  jeder Karte.
 //
 
 import SwiftUI
 import PodcastAIKit
-
-// MARK: - Widerspruchs-Mixer
-
-struct CounterpointView: View {
-
-    @Environment(AppModel.self) private var model
-    @State private var thesis = ""
-
-    private let mixer = CounterpointMixer()
-
-    private var check: CounterpointCheck? { model.counterpointCheck }
-    private var isChecking: Bool { check?.isRunning ?? false }
-
-    var body: some View {
-        List {
-            Section {
-                TextField("Deine These", text: $thesis, axis: .vertical)
-                    .lineLimit(1...3)
-                Button("Prüfen") { model.checkThesis(thesis) }
-                    .frame(minHeight: Design.minimumTapTarget)
-                    .buttonStyle(.pressable)
-                    .disabled(isChecking || thesis.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            } header: {
-                Text("These")
-            } footer: {
-                Text("""
-                    Formuliere, was du für richtig hältst. PodcastAI sucht dazu belegte \
-                    Positionen aus deinen Podcasts, dafür und dagegen.
-                    """)
-            }
-
-            if let check {
-                // Die geprüfte These steht da, wie sie geprüft wurde. Wird das
-                // Textfeld danach geändert, gehören die Stellen trotzdem zu ihr.
-                Section("Geprüft") {
-                    Text(check.thesis)
-                        .font(.callout)
-                    if check.isRunning {
-                        HStack(spacing: Design.Spacing.small) {
-                            ProgressView()
-                            Text("Stellen werden gesucht und eingeordnet …")
-                                .foregroundStyle(.secondary)
-                        }
-                        .font(.callout)
-                    }
-                }
-
-                if !check.isRunning {
-                    results(check)
-                }
-            }
-        }
-        .navigationTitle("Gegenpositionen")
-        .onAppear {
-            if thesis.isEmpty, let check { thesis = check.thesis }
-        }
-    }
-
-    @ViewBuilder
-    private func results(_ check: CounterpointCheck) -> some View {
-        if let notice = Self.notice(for: check, mixer: mixer) {
-            Section {
-                // Kein Fehler, sondern ein Ergebnis. Deshalb grau und mit „i“,
-                // das Warum hinter dem „i“.
-                NoticeLabel(notice.headline, kind: .info, explanation: notice.explanation)
-                    .font(.callout)
-                    .accessibilityIdentifier("counterpoint.notice")
-            }
-        }
-
-        ForEach(CounterpointRelation.allOrdered, id: \.self) { relation in
-            let group = check.candidates.filter { $0.relation == relation }
-            if !group.isEmpty {
-                Section(relation.label) {
-                    ForEach(group) { candidate in
-                        CounterpointRow(candidate: candidate)
-                    }
-                }
-            }
-        }
-
-        if !check.candidates.isEmpty {
-            // Aus den Karten, nicht aus einem Merker: ist die Karte gelöscht,
-            // lässt sich die Prüfung wieder sichern.
-            let saved = check.isSaved(in: model.trails)
-            Section {
-                Button {
-                    model.playCounterpoints(check.candidates, thesis: check.thesis)
-                } label: {
-                    Label("Nacheinander anhören", systemImage: "play.circle")
-                        .frame(minHeight: Design.minimumTapTarget)
-                }
-                .buttonStyle(.pressable)
-                Button {
-                    model.saveCounterpointCheck()
-                } label: {
-                    Label(saved ? "Antwort gesichert" : "Antwort sichern",
-                          systemImage: saved ? "checkmark" : "map")
-                        .frame(minHeight: Design.minimumTapTarget)
-                }
-                .buttonStyle(.pressable)
-                .disabled(saved)
-            } footer: {
-                Text("""
-                    Du hörst die Originalstellen in ihrem Kontext. PodcastAI fasst sie nicht \
-                    zusammen und spricht sie nicht nach. Eine gesicherte These ist aufbewahrt, \
-                    nicht als deine Meinung vermerkt.
-                    """)
-            }
-        }
-    }
-
-    /// Was über dem Ergebnis steht: in einem Satz, was herauskam, etwa
-    /// „Keine Gegenposition gefunden. 4 Stellen ließen sich nicht einordnen.“
-    /// Die Erklärung dazu steht hinter dem „i“.
-    ///
-    /// Ausgewogen und alles eingeordnet: kein Hinweis. Die Zahl nennt die
-    /// Stellen, die darunter unter „Zum Thema, nicht eingeordnet“ stehen.
-    static func notice(
-        for check: CounterpointCheck, mixer: CounterpointMixer
-    ) -> (headline: String, explanation: String?)? {
-        let candidates = check.candidates
-        // Nichts gefunden: der Grund ist schon die ganze Aussage.
-        guard !candidates.isEmpty else {
-            guard let headline = check.classificationProblem ?? mixer.imbalanceNotice(candidates) else { return nil }
-            return (headline, nil)
-        }
-        let relations = Set(candidates.map(\.relation)).subtracting([.unclassified])
-        let open = candidates.filter { $0.relation == .unclassified }.count
-
-        var sentences: [String] = []
-        if !relations.isEmpty, !relations.contains(.contradicts) {
-            sentences.append(String(localized: "Keine Gegenposition gefunden."))
-        } else if relations.contains(.contradicts),
-                  !relations.contains(.supports), !relations.contains(.differentPremise) {
-            sentences.append(String(localized: "Nichts gefunden, was die These stützt."))
-        }
-        // Zwei Sätze statt einer Beugung: `inflect` passt nur das Hauptwort
-        // an, nicht das Verb.
-        if open == 1 {
-            sentences.append(String(localized: "Eine Stelle ließ sich nicht einordnen."))
-        } else if open > 1 {
-            sentences.append(String(localized: "\(open) Stellen ließen sich nicht einordnen."))
-        }
-        guard !sentences.isEmpty else { return nil }
-
-        // Warum die Seite fehlt, und warum die Einordnung fehlt, sofern es
-        // dafür einen Grund gibt. Sonst, was „nicht eingeordnet“ heißt.
-        var why = [mixer.imbalanceNotice(candidates), check.classificationProblem].compactMap { $0 }
-        if why.isEmpty, open > 0 {
-            why.append(String(localized: """
-                Sie passen zum Thema der These. Ob sie dafür oder dagegen sprechen, \
-                lässt sich so nicht sagen.
-                """))
-        }
-        return (sentences.joined(separator: " "), why.isEmpty ? nil : why.joined(separator: " "))
-    }
-}
-
-extension CounterpointRelation {
-    /// Stützendes zuerst, dann Widerspruch, dann abweichende Voraussetzungen.
-    /// Wer mit der Gegenposition anfängt, hört sie als Angriff. Was nicht
-    /// eingeordnet ist, steht zuletzt.
-    static var allOrdered: [CounterpointRelation] {
-        [.supports, .contradicts, .differentPremise, .qualifies, .unclassified]
-    }
-}
-
-struct CounterpointRow: View {
-
-    let candidate: CounterpointCandidate
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        Button {
-            model.playCounterpoint(candidate)
-        } label: {
-            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                Text(origin)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                Text(candidate.excerpt)
-                    .font(.callout)
-                    .foregroundStyle(.primary)
-                    .lineLimit(4)
-                    .multilineTextAlignment(.leading)
-                if let range = candidate.range {
-                    HStack(spacing: Design.Spacing.micro) {
-                        TimecodeLabel(range.start)
-                        Image(systemName: "play.fill").font(.caption2).foregroundStyle(.tint)
-                    }
-                }
-                if !candidate.isModelConfirmed, candidate.relation != .unclassified {
-                    // Eine vermutete Zuordnung wird als vermutet gezeigt. Sie als
-                    // Tatsache auszugeben wäre genau der Fehler, den dieser
-                    // Modus vermeiden soll.
-                    //
-                    // Ein Hinweis, kein Fehler: grau mit „i“, wie überall.
-                    NoticeLabel("Zuordnung vermutet, nicht geprüft", kind: .info)
-                        .font(.caption2)
-                }
-            }
-            .padding(.vertical, Design.Spacing.micro / 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .disabled(candidate.range == nil || candidate.episodeID == nil)
-        .accessibilityHint("Spielt die Folge ab dieser Stelle")
-        .contextMenu {
-            Button { model.playCounterpoint(candidate) } label: {
-                Label("In der Folge ab hier hören", systemImage: "play.fill")
-            }
-            Button { model.rememberCounterpoint(candidate) } label: {
-                Label("Stelle merken", systemImage: "bookmark")
-            }
-        }
-    }
-
-    /// Podcast und Folge, damit man sieht, wer das gesagt hat.
-    private var origin: String {
-        [candidate.sourceTitle, candidate.episodeTitle].compactMap { $0 }.joined(separator: " · ")
-    }
-}
 
 // MARK: - Breadcrumb Trail
 
@@ -380,19 +153,7 @@ private struct TrailRow: View {
 
     private var details: String {
         let count = trail.evidenceIDs.count
-        var parts: [String] = []
-        if trail.isThesisCheck {
-            // Die Stellen einer geprüften These sind keine Belege, ein Teil
-            // widerspricht ihr.
-            parts.append(String(AttributedString(localized: "^[\(count) Stelle](inflect: true)").characters))
-            let against = trail.counterpointEvidenceIDs.count
-            if against > 0 {
-                parts.append(String(AttributedString(
-                    localized: "davon ^[\(against) Gegenposition](inflect: true)").characters))
-            }
-        } else {
-            parts.append(String(AttributedString(localized: "^[\(count) Beleg](inflect: true)").characters))
-        }
+        var parts = [String(AttributedString(localized: "^[\(count) Beleg](inflect: true)").characters)]
         if noteCount > 0 {
             parts.append(String(AttributedString(localized: "^[\(noteCount) Notiz](inflect: true)").characters))
         }
@@ -502,10 +263,9 @@ struct TrailDetailView: View {
                         .textSelection(.enabled)
                     if let answer = trail.answerText {
                         // Gegliedert wie im Chat, jeder Verweis führt zu seinem
-                        // Beleg. Bei einer geprüften These zählen die Stellen
-                        // anders, dort bleiben die Nummern ohne Link.
+                        // Beleg.
                         AnswerText(text: answer,
-                                   citations: trail.isThesisCheck ? [] : Set(items.map(\.number)),
+                                   citations: Set(items.map(\.number)),
                                    onCitation: { showCitation($0, proxy: proxy) })
                     }
                     Text("Gesichert am \(trail.parkedAt.formatted(date: .long, time: .omitted)). Aufbewahrt, nicht zugestimmt.")
@@ -513,9 +273,7 @@ struct TrailDetailView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                if trail.isThesisCheck {
-                    thesisSections(trail, playable: playable, missing: missing)
-                } else if !items.isEmpty || missing > 0 {
+                if !items.isEmpty || missing > 0 {
                     Section {
                         ForEach(items, id: \.number) { item in
                             citationRow(number: item.number, evidence: item.evidence)
@@ -559,42 +317,6 @@ struct TrailDetailView: View {
             }
         } message: {
             Text("Belege und Notizen bleiben erhalten.")
-        }
-    }
-
-    /// Die Stellen einer geprüften These. Was ihr widerspricht, steht für
-    /// sich unter „Gegenpositionen“, nach den übrigen Stellen wie in der
-    /// Prüfung selbst. Belege für die These sind beide nicht: die übrigen
-    /// stützen sie, setzen anders an oder sind nicht eingeordnet.
-    @ViewBuilder
-    private func thesisSections(_ trail: KnowledgeTrail, playable: Int, missing: Int) -> some View {
-        let against = Set(trail.counterpointEvidenceIDs)
-        let others = evidence.filter { !against.contains($0.id) }
-        let contra = evidence.filter { against.contains($0.id) }
-        if !others.isEmpty {
-            Section("Stellen zur These") {
-                ForEach(Array(others.enumerated()), id: \.element.id) { offset, item in
-                    citationRow(number: offset + 1, evidence: item)
-                }
-            }
-        }
-        if !contra.isEmpty {
-            Section("Gegenpositionen") {
-                ForEach(Array(contra.enumerated()), id: \.element.id) { offset, item in
-                    citationRow(number: others.count + offset + 1, evidence: item)
-                }
-            }
-        }
-        if playable > 0 || missing > 0 {
-            Section {
-                playButton(trail, playable: playable)
-            } footer: {
-                if missing == 1 {
-                    Text("Eine Stelle ist nicht mehr da.")
-                } else if missing > 1 {
-                    Text("\(missing) Stellen sind nicht mehr da.")
-                }
-            }
         }
     }
 

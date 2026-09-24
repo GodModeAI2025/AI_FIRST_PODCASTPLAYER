@@ -1,10 +1,9 @@
 //
-//  FactsAndCounterpointTests.swift
+//  FactsTests.swift
 //  PodcastAIKitTests
 //
-//  Fakten zeigen auf ihren Satz und tragen Schlagworte. Gegenpositionen
-//  behalten ihre Relevanzfolge und behaupten nichts, was nicht eingeordnet
-//  wurde. „Vertiefen“ plant die angekündigten Stellen.
+//  Fakten zeigen auf ihren Satz und tragen Schlagworte. „Vertiefen“ plant
+//  die angekündigten Stellen.
 //
 
 import Testing
@@ -27,11 +26,6 @@ private func passage(_ key: String, _ text: String, from start: Int = 0, to end:
              sourceID: SourceID(stable: "q"), transcriptID: TranscriptID(stable: "t"),
              transcriptRevision: .initial, range: MediaTimeRange(start: ms(start), end: ms(end)),
              quotedText: text)
-}
-
-private func candidate(_ key: String, _ relation: CounterpointRelation, confirmed: Bool = true) -> CounterpointCandidate {
-    CounterpointCandidate(evidenceID: EvidenceID(rawValue: key), relation: relation,
-                          isModelConfirmed: confirmed, sourceTitle: "Quelle", excerpt: key)
 }
 
 @Suite("Fakten: Satz, Wortlaut, Schlagworte")
@@ -236,77 +230,8 @@ struct FactAnchorTests {
     }
 }
 
-@Suite("Gegenpositionen und Vertiefen")
-struct CounterpointAndClosureTests {
-
-    @Test("Innerhalb einer Gruppe bleibt die Relevanzfolge, nicht die Kennung")
-    func mixerKeepsRelevanceOrder() {
-        let input = [
-            candidate("z-best", .contradicts), candidate("a-second", .contradicts),
-            candidate("m-third", .contradicts), candidate("b-fourth", .contradicts),
-        ]
-        let picked = CounterpointMixer().balance(input).map(\.evidenceID.rawValue)
-        #expect(picked == ["z-best", "a-second", "m-third"])
-    }
-
-    @Test("Nicht Eingeordnetes steht am Ende und behauptet keine fehlende Gegenposition")
-    func unclassifiedMakesNoClaim() {
-        let mixer = CounterpointMixer()
-        let unclassified = (1...8).map { candidate("u\($0)", .unclassified, confirmed: false) }
-        let picked = mixer.balance(unclassified)
-        #expect(picked.count == 6)
-        #expect(picked.first?.evidenceID.rawValue == "u1")
-        #expect(mixer.imbalanceNotice(picked) == nil)
-
-        // Nur ein Teil eingeordnet: keine Behauptung über die fehlende Seite,
-        // denn unter den übrigen kann sie sein.
-        let mixed = mixer.balance([candidate("u", .unclassified, confirmed: false), candidate("s", .supports)])
-        #expect(mixed.map(\.relation) == [.supports, .unclassified])
-        let notice = mixer.imbalanceNotice(mixed)
-        #expect(notice?.contains(TestLanguage.pick(de: "nicht eingeordnet", en: "aren't classified")) == true)
-        #expect(notice?.contains("findet sich keine Gegenposition") == false)
-
-        let against = mixer.balance([candidate("u", .unclassified, confirmed: false), candidate("c", .contradicts)])
-        #expect(mixer.imbalanceNotice(against)?.contains(TestLanguage.pick(de: "nicht eingeordnet", en: "aren't classified")) == true)
-        #expect(mixer.imbalanceNotice(against)?.contains("findet sich nur die Gegenseite") == false)
-
-        // Alles eingeordnet und keine Gegenposition: das darf die App sagen.
-        let classified = mixer.balance([candidate("s", .supports), candidate("d", .differentPremise)])
-        #expect(mixer.imbalanceNotice(classified)?.contains(TestLanguage.pick(de: "findet sich keine Gegenposition", en: "no counterpoint")) == true)
-        #expect(mixer.imbalanceNotice([])?.contains(TestLanguage.pick(de: "Folgen mit Transkript", en: "transcribed episodes")) == true)
-    }
-
-    @Test("Ob eine These gesichert ist, ergibt sich aus den Karten")
-    func savedThesisFollowsTrails() {
-        let check = CounterpointCheck(
-            thesis: "Kernkraft ist klimafreundlich", isRunning: false,
-            candidates: [candidate("s", .supports), candidate("c", .contradicts),
-                         candidate("u", .unclassified, confirmed: false)])
-        #expect(!check.isSaved(in: []))
-
-        let trail = check.trail(question: "These: Kernkraft ist klimafreundlich")
-        #expect(trail.id == check.trailID)
-        #expect(trail.evidenceIDs.map(\.rawValue) == ["s", "c", "u"])
-        #expect(trail.counterpointEvidenceIDs.map(\.rawValue) == ["c"])
-        #expect(trail.isThesisCheck)
-        #expect(check.isSaved(in: [trail]))
-
-        // Karte gelöscht: die Prüfung lässt sich wieder sichern.
-        #expect(!check.isSaved(in: []))
-        // Eine neue Prüfung derselben These ist eine eigene Karte.
-        let again = CounterpointCheck(thesis: check.thesis, isRunning: false, candidates: check.candidates)
-        #expect(again.trailID != check.trailID)
-        #expect(!again.isSaved(in: [trail]))
-
-        // Eine Karte aus dem Chat ist keine geprüfte These.
-        #expect(!KnowledgeTrail(question: "Was sagt A?", evidenceIDs: [EvidenceID(rawValue: "s")]).isThesisCheck)
-    }
-
-    @Test("Das Modell wählt nie „nicht eingeordnet“")
-    func unclassifiedIsNotAModelLabel() {
-        #expect(!CounterpointRelation.classifiable.contains(.unclassified))
-        #expect(CounterpointRelation.classifiable.count == CounterpointRelation.allCases.count - 1)
-    }
+@Suite("Vertiefen")
+struct ClosureTests {
 
     @Test("Vertiefen kennt die angekündigten Stellen, nicht das eben Gehörte")
     func closureCarriesFollowUps() {

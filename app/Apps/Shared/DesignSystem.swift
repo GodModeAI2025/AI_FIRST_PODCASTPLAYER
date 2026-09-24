@@ -105,7 +105,7 @@ public enum Design {
     /// Die zwei Arten von Hinweisen in der App. Mehr gibt es nicht.
     ///
     /// Früher stand fast alles in Orange: ein gescheiterter Download genauso
-    /// wie „keine Gegenposition gefunden“ oder ein Satz dazu, was ein
+    /// wie „noch kein Transkript“ oder ein Satz dazu, was ein
     /// YouTube-Kanal nicht liefert. Man konnte nicht sehen, ob etwas kaputt
     /// ist oder nur erklärt wird. Jetzt trägt nur eine echte Störung Farbe.
     public enum Notice: Sendable {
@@ -216,22 +216,14 @@ public extension ButtonStyle where Self == PressableButtonStyle {
 ///
 /// Symbol **und** Text, nie Farbe allein. Die Schriftgröße bestimmt der
 /// Aufrufer mit `.font(_:)`.
-///
-/// Mit `explanation` wird der Hinweis zu einem Knopf: Das „i“ wird farbig,
-/// und ein Tipp zeigt die Erklärung darunter. Oben steht in einem Satz, was
-/// passiert ist, das Warum nur für den, der es wissen will.
 public struct NoticeLabel: View {
 
     private let title: Text
     private let kind: Design.Notice
-    private let explanation: Text?
-    @State private var showsExplanation = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    public init(_ title: Text, kind: Design.Notice = .info, explanation: Text? = nil) {
+    public init(_ title: Text, kind: Design.Notice = .info) {
         self.title = title
         self.kind = kind
-        self.explanation = explanation
     }
 
     public init(_ title: LocalizedStringKey, kind: Design.Notice = .info) {
@@ -241,51 +233,18 @@ public struct NoticeLabel: View {
     /// Für Texte, die schon übersetzt als `String` ankommen, etwa Gründe
     /// aus dem Modell oder aus dem Netz. Sie stehen wörtlich da.
     @_disfavoredOverload
-    public init<S: StringProtocol>(_ title: S, kind: Design.Notice = .info, explanation: String? = nil) {
-        self.init(Text(title), kind: kind, explanation: explanation.map { Text($0) })
+    public init<S: StringProtocol>(_ title: S, kind: Design.Notice = .info) {
+        self.init(Text(title), kind: kind)
     }
 
     public var body: some View {
-        if let explanation {
-            Button {
-                withAnimation(Design.Motion.respectingReduceMotion(Design.Motion.smooth, reduceMotion: reduceMotion)) {
-                    showsExplanation.toggle()
-                }
-            } label: {
-                label(explanation: showsExplanation ? explanation : nil)
-                    .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget, alignment: .leading)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(showsExplanation
-                ? Text("Blendet die Erklärung aus")
-                : Text("Zeigt die Erklärung"))
-        } else {
-            label(explanation: nil)
-        }
-    }
-
-    private func label(explanation: Text?) -> some View {
         Label {
-            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                title
-                    .foregroundStyle(kind.textStyle)
-                    .fixedSize(horizontal: false, vertical: true)
-                if let explanation {
-                    explanation
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .transition(.opacity)
-                }
-            }
+            title
+                .foregroundStyle(kind.textStyle)
+                .fixedSize(horizontal: false, vertical: true)
         } icon: {
-            // Mit Erklärung ist das „i“ der Knopf und trägt die Farbe der App.
-            Image(systemName: self.explanation != nil && kind == .info
-                  ? (showsExplanation ? "info.circle.fill" : "info.circle")
-                  : kind.symbol)
-                .foregroundStyle(self.explanation != nil && kind == .info
-                                 ? AnyShapeStyle(.tint) : AnyShapeStyle(kind.tint))
+            Image(systemName: kind.symbol)
+                .foregroundStyle(kind.tint)
                 .accessibilityHidden(true)
         }
     }

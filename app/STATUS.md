@@ -20,7 +20,7 @@ Stand 23. September 2026, Version 0.9.
 | CloudKit-Schema für alle 13 Datentypen | angelegt und nach Production übertragen |
 | Zusammenführen doppelter Datensätze, Hörstand je Gerät, verwaiste Zeilen | Swift-Tests, zuerst rot gegen den alten Stand |
 | Code-Prüfung | mehrstufig: Funde je Bereich, jeder von zwei Prüfern gegengeprüft, jede Korrektur einzeln nachgeprüft |
-| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben, Sprache der Modelltexte, Archiv, Gegenpositionen, Nennungen, Kapitelschnitt, Behalten des Tons | 271 Swift-Tests im Paket |
+| Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben, Sprache der Modelltexte, Archiv, Nennungen, Kapitelschnitt, Behalten des Tons | 271 Swift-Tests im Paket |
 | Podcastsuche nach Namen, Spotify-Hinweis, Moment merken, OPML-Import, YouTube-@-Links, Archiv, Speicher, Themen-Updates bearbeiten | UI-Tests im Simulator |
 | Erwähnt im Überblick und im Chat einer Folge, ältere Folgen vorbereiten, Netzregeln unter Mobilfunk, neueste Folge behalten | UI-Tests im Simulator |
 | Englische Oberfläche und deutsche Mehrzahl | UI-Tests mit `-AppleLanguages (en)` und `(de)` |
@@ -33,7 +33,7 @@ Stand 23. September 2026, Version 0.9.
 
 | Bereich | Warum offen |
 |---|---|
-| Relevanzauswahl, Chat, Fakten, Gegenpositionen | Auf dem iOS-27-Simulator läuft das Gerätemodell; die Qualität der Antworten zeigt sich erst auf einem Gerät mit Apple Intelligence |
+| Relevanzauswahl, Chat, Fakten | Auf dem iOS-27-Simulator läuft das Gerätemodell; die Qualität der Antworten zeigt sich erst auf einem Gerät mit Apple Intelligence |
 | Abgleich zwischen iPhone, iPad und Mac | Braucht zwei Geräte mit derselben Apple-ID und das Schema in der Produktionsumgebung |
 | Private Cloud Compute | Berechtigung erteilt und in beiden App-IDs eingeschaltet. Chat und Folgen-Chat antworten im iOS-27-Simulator über PCC; die Qualität zeigt sich auf einem Gerät |
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |

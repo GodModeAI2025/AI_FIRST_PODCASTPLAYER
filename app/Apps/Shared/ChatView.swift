@@ -539,7 +539,6 @@ struct AnswerCard: View {
     /// Der Beleg, zu dem ein Verweis im Text gerade geführt hat.
     @State private var highlighted: Int?
     @State private var showingCoverageInfo = false
-    @State private var showingCounterpoints = false
     @AccessibilityFocusState private var focusedCitation: Int?
 
     private var numbered: [(number: Int, evidence: Evidence)] {
@@ -666,25 +665,6 @@ struct AnswerCard: View {
                 .accessibilityHint("Legt Frage, Antwort, Belege und die Notizen zu diesen Stellen unter „Gesicherte Antworten“ ab")
                 .accessibilityIdentifier("chat.saveTrail")
             }
-
-            // Nur eine formulierte Antwort hat einen Kernsatz, der als These
-            // taugt. Geprüft wird in allen Podcasts, abgespielt wird nichts.
-            if let thesis = counterThesis {
-                Button {
-                    model.checkThesis(thesis)
-                    showingCounterpoints = true
-                } label: {
-                    Label {
-                        Text("Gegenpositionen prüfen")
-                    } icon: {
-                        Image(systemName: "arrow.left.arrow.right").accessibilityHidden(true)
-                    }
-                    .frame(minHeight: Design.minimumTapTarget)
-                }
-                .buttonStyle(.borderless)
-                .accessibilityHint("Prüft den Kernsatz der Antwort als These gegen Stellen aus allen Podcasts")
-                .accessibilityIdentifier("chat.counterpoints")
-            }
         }
         .contentCard()
         // Für VoiceOver eine Gruppe: Frage, Antwort, Belege und Aktionen
@@ -694,20 +674,6 @@ struct AnswerCard: View {
             // Innerhalb einer Folge fehlt nur der Kopf der Karte. Die Länge
             // der Folge braucht auch sie, für „34:10 von 58:00“.
             episodes = await model.citedEpisodes(for: answer.citations)
-        }
-        .sheet(isPresented: $showingCounterpoints) {
-            NavigationStack {
-                CounterpointView()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Fertig") { showingCounterpoints = false }
-                        }
-                    }
-            }
-            #if os(macOS)
-            .frame(minWidth: 480, minHeight: 520)
-            #endif
-            .sheetFeedback()
         }
         .task(id: highlighted) {
             // Die Hervorhebung zeigt nur, wo man gelandet ist, und geht wieder.
@@ -812,12 +778,6 @@ struct AnswerCard: View {
     private var isParked: Bool { model.isParked(answer) }
 
     private var canSave: Bool { !answer.citations.isEmpty || answer.modelLabel != nil }
-
-    /// Der Kernsatz einer formulierten Antwort, ohne Verweisnummern.
-    private var counterThesis: String? {
-        guard answer.modelLabel != nil, !answer.citations.isEmpty else { return nil }
-        return AnswerLayout.thesis(from: answer.text)
-    }
 
     private var saveLabel: LocalizedStringKey {
         isParked ? "Antwort gesichert" : "Antwort sichern"
@@ -1230,21 +1190,6 @@ enum AnswerLayout {
             .replacingOccurrences(of: " +([.,;:!?])", with: "$1", options: .regularExpression)
             .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    /// Der Kernsatz einer Antwort als These: der erste Abschnitt, bei einem
-    /// Absatz nur dessen erster Satz.
-    @MainActor
-    static func thesis(from text: String) -> String? {
-        let sentence: String?
-        switch blocks(for: text).first {
-        case .lead(let lead): sentence = lead
-        case .paragraph(let paragraph): sentence = sentences(in: paragraph).first ?? paragraph
-        case .bullets(let items): sentence = items.first
-        case nil: sentence = nil
-        }
-        guard let plain = sentence.map(removingMarkers), !plain.isEmpty else { return nil }
-        return plain
     }
 
     /// Was VoiceOver liest: alle Abschnitte ohne Verweisnummern.
