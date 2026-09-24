@@ -401,6 +401,22 @@
         }
       }
     },
+    "Abschnitt %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abschnitt %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Section %lld"
+          }
+        }
+      }
+    },
     "Adressen": {
       "localizations": {
         "de": {

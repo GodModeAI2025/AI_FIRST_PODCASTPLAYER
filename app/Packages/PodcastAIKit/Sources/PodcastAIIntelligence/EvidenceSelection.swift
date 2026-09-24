@@ -151,11 +151,14 @@ public enum CandidateUsage: Sendable {
     /// Die Antwort ist Text oder eine Zeilenliste und verweist dabei auf
     /// Nummern: Antworten, Aussagen, Einordnungen.
     case referenceNumbers
+    /// Die Antwort ist ein Satz über alle Abschnitte zusammen, ohne Nummer.
+    case summarize
 
     var rule: String {
         switch self {
         case .selectNumbers: "Antworte ausschließlich mit Nummern aus dieser Liste."
         case .referenceNumbers: "Verweise nur auf Nummern aus dieser Liste."
+        case .summarize: "Nenne keine Nummer aus dieser Liste."
         }
     }
 }

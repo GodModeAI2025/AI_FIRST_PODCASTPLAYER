@@ -1055,26 +1055,36 @@ struct PersonalEpisodeView: View {
             Section("Kapitel") {
                 ForEach(Array(episode.shownotes.enumerated()), id: \.offset) { index, entry in
                     VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                        HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.control) {
-                            TimecodeLabel(entry.virtualStart, emphasis: .medium)
-                                // Feste Breite, damit die Titel eine Kante
-                                // bilden statt zu flattern.
-                                .frame(width: 52, alignment: .leading)
-                            Text(entry.title)
-                                .font(.body)
+                        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                            HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.control) {
+                                TimecodeLabel(entry.virtualStart, emphasis: .medium)
+                                    // Feste Breite, damit die Titel eine Kante
+                                    // bilden statt zu flattern.
+                                    .frame(width: 52, alignment: .leading)
+                                Text(entry.title)
+                                    .font(.body)
+                            }
+                            // Jedes Kapitel zeigt seine Originalquelle. Ohne das
+                            // wäre die Ausgabe ein Zusammenschnitt ohne Herkunft.
+                            Text(origin(of: entry, at: index))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 52 + Design.Spacing.control)
                         }
-                        // Jedes Kapitel zeigt seine Originalquelle. Ohne das
-                        // wäre die Ausgabe ein Zusammenschnitt ohne Herkunft.
-                        Text(origin(of: entry, at: index))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 52 + Design.Spacing.control)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(
+                            "\(TimecodeLabel.spokenSingle(entry.virtualStart.timecode)), \(entry.title), aus \(entry.sourceTitle)"
+                        )
+                        // Zurück in die Folge, aus der das Kapitel stammt, an
+                        // dieselbe Stelle. Die Zeit rechnet die Ausgabe aus.
+                        if let original = episode.originalEpisodePosition(forVirtual: entry.virtualStart) {
+                            OpenOriginalButton(episodeID: original.episodeID, position: original.position)
+                                .font(.caption)
+                                .buttonStyle(.borderless)
+                                .padding(.leading, 52 + Design.Spacing.control)
+                        }
                     }
                     .padding(.vertical, Design.Spacing.micro)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(
-                        "\(TimecodeLabel.spokenSingle(entry.virtualStart.timecode)), \(entry.title), aus \(entry.sourceTitle)"
-                    )
                 }
             }
 
@@ -2011,6 +2021,7 @@ struct NewSmartFeedSheet: View {
 struct FocusPlayerView: View {
 
     @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showingNote = false
@@ -2122,6 +2133,15 @@ struct FocusPlayerView: View {
                 segment: segment, position: index + 1, count: plan.segments.count,
                 artworkURL: podcastArtwork)
 
+            // Die ganze Folge, aus der die Stelle stammt, an der Stelle, die
+            // gerade läuft. Das beendet diese Wiedergabe.
+            // Auf dem iPhone liegt der Player in einem Blatt. Es schließt,
+            // damit die Folge nicht hinter einem leeren Player läuft.
+            OpenOriginalButton(episodeID: segment.episodeID, position: originalPosition(of: segment)) {
+                dismiss()
+            }
+            .font(.callout)
+
             // Wie weit die Stelle schon gelaufen ist.
             ProgressView(value: segmentProgress(segment.range))
                 .accessibilityLabel("Fortschritt der Stelle")
@@ -2182,6 +2202,13 @@ struct FocusPlayerView: View {
         }
         // Wechselt die Stelle, gleiten Cover und Quelle über, statt zu springen.
         .animation(reduceMotion ? nil : Design.Motion.smooth, value: index)
+    }
+
+    /// Wo die laufende Stelle im Original gerade steht, wie beim
+    /// Fortschritt. Liegt die Position außerhalb der Stelle, etwa während
+    /// sie vorbereitet wird, ihr Anfang.
+    private func originalPosition(of segment: PlanSegment) -> MediaTime {
+        segment.range.contains(model.playerPosition) ? model.playerPosition : segment.range.start
     }
 
     private func remember() {

@@ -37,6 +37,15 @@ public enum ExtractorError: Error, LocalizedError {
     }
 }
 
+public struct ChapterSummary: Sendable, Hashable {
+    public let text: String
+    public let modelTier: ModelTier
+
+    public init(text: String, modelTier: ModelTier) {
+        self.text = text; self.modelTier = modelTier
+    }
+}
+
 public struct KnowledgeExtractor: Sendable {
 
     private static var reason: ModelUnavailability {
@@ -54,6 +63,12 @@ public struct KnowledgeExtractor: Sendable {
     public func extractClaims(
         from evidence: [Evidence], availability: ModelStatus
     ) async throws -> [Claim] {
+        throw ExtractorError.modelUnavailable(Self.reason)
+    }
+
+    public func summarizeChapter(
+        _ evidence: [Evidence], title: String?, availability: ModelStatus
+    ) async throws -> ChapterSummary? {
         throw ExtractorError.modelUnavailable(Self.reason)
     }
 
