@@ -673,6 +673,22 @@
         }
       }
     },
+    "Untertitel von YouTube über Supadata, an die Folge angepasst": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel von YouTube über Supadata, an die Folge angepasst"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube captions via Supadata, matched to this episode"
+          }
+        }
+      }
+    },
     "aus älteren Daten übernommen": {
       "localizations": {
         "de": {

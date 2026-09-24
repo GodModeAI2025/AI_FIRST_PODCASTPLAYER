@@ -376,6 +376,8 @@ public final class AppModel {
     static let youTubeCaptionsKey = "youTubeCaptionsViaSupadata"
     static let supadataKeyRejectedKey = "supadataKeyRejected"
     static let captionFailuresKey = "youTubeCaptionFailures"
+    static let audioTwinRecordsKey = "audioTwinLookups"
+    static let audioTwinChannelsKey = "audioTwinChannels"
     /// Untertitel von YouTube-Videos über Supadata holen, sofern ein eigener
     /// Schlüssel eingetragen ist. Ab Werk an; ohne Schlüssel passiert nichts.
     public var youTubeCaptionsEnabled: Bool {
@@ -402,6 +404,18 @@ public final class AppModel {
     /// Start wieder angefragt wird. Nur auf diesem Gerät.
     @ObservationIgnored var captionFailures: [String: CaptionFailure] = AppModel.loadCaptionFailures() {
         didSet { Self.saveCaptionFailures(captionFailures) }
+    }
+    /// Was die App je Audiofolge über ihren YouTube-Zwilling weiß: wann
+    /// gesucht wurde, welches Video es ist, woran es zuletzt scheiterte.
+    /// Nur auf diesem Gerät, damit keine Folge öfter als einmal je Woche sucht.
+    @ObservationIgnored var audioTwinRecords: [String: AudioTwinRecord] = AppModel.loadAudioTwinRecords() {
+        didSet { Self.saveAudioTwinRecords(audioTwinRecords) }
+    }
+    /// Je Podcast der YouTube-Kanal, aus dem schon ein Zwilling kam. Bei der
+    /// nächsten Suche gilt er als vertraut.
+    @ObservationIgnored var audioTwinChannels: [String: String] =
+        (UserDefaults.standard.dictionary(forKey: AppModel.audioTwinChannelsKey) as? [String: String]) ?? [:] {
+        didSet { UserDefaults.standard.set(audioTwinChannels, forKey: Self.audioTwinChannelsKey) }
     }
     /// Metadaten über Supadata je Videoadresse. Liegen im Cache-Ordner dieses
     /// Geräts, nicht in der Datenbank: sie füllen nur Lücken des Feeds und
@@ -1625,7 +1639,10 @@ public final class AppModel {
         let pipeline = ContentPipeline(
             store: store,
             mediaDirectory: LocalMediaLocator.mediaDirectory,
-            onProgress: { [weak self] progress in
+            // Zwischen dem Transkript des Podcasts und der eigenen Erkennung:
+            // die Untertitel des YouTube-Zwillings, nur mit eigenem Schlüssel.
+            twin: twinCaptionHook(for: episode),
+            onProgress:{ [weak self] progress in
                 Task { @MainActor in
                     // Eine gelöschte Folge taucht nicht wieder unter „Erschließen“ auf.
                     guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }
@@ -1869,23 +1886,7 @@ public final class AppModel {
         if failure != .cancelled {
             captionFailures[episode.id.rawValue] = CaptionFailure(error: failure, at: Date())
         }
-        switch failure {
-        case .unauthorized:
-            // Aus, bis jemand einen neuen Schlüssel einträgt. Die Einstellungen sagen es.
-            supadataKeyRejected = true
-            supadataKeyCheck = .rejected
-            dropYouTubeItemsThatCannotRun()
-        case .quota, .rateLimited:
-            if case .open(_, let until) = await supadata.breaker {
-                supadataRestingUntil = until ?? Date().addingTimeInterval(supadata.configuration.rateLimitCooldown)
-            }
-            if supadataRestingUntil != nil { dropYouTubeItemsThatCannotRun() }
-        case .missingKey:
-            hasSupadataKey = SupadataKeychain.hasKey
-            dropYouTubeItemsThatCannotRun()
-        default:
-            break
-        }
+        await noteSupadataAccountError(failure)
         // Gibt es die Folge als Ton im abonnierten Audio-Podcast, entsteht das
         // Transkript dort. Nach denselben Regeln fürs Netz wie der Auftrag.
         let inputs = youTubeInputs(for: episode, byHand: !wasAutomatic)

@@ -2337,6 +2337,22 @@
         }
       }
     },
+    "Auch Folgen mit Ton, zu denen der Podcast kein Transkript liefert, bekommen es dann zuerst aus den Untertiteln derselben Folge auf YouTube. Ein paar kurze Stücke des Tons zeigen, ob die Zeiten verschoben sind, etwa durch Werbung, und die App passt sie an. Passt es nicht sicher, lädt sie den Ton und transkribiert ihn wie gewohnt auf dem Gerät. Gesucht wird je Folge höchstens einmal in der Woche." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auch Folgen mit Ton, zu denen der Podcast kein Transkript liefert, bekommen es dann zuerst aus den Untertiteln derselben Folge auf YouTube. Ein paar kurze Stücke des Tons zeigen, ob die Zeiten verschoben sind, etwa durch Werbung, und die App passt sie an. Passt es nicht sicher, lädt sie den Ton und transkribiert ihn wie gewohnt auf dem Gerät. Gesucht wird je Folge höchstens einmal in der Woche."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episodes with audio that come without a transcript from the podcast then first get one from the captions of the same episode on YouTube. A few short pieces of the audio show whether the timing is shifted, for example by ads, and the app adjusts it. If it doesn't fit reliably, the app downloads the audio and transcribes it on the device as usual. It searches at most once a week per episode."
+          }
+        }
+      }
+    },
     "Audio" : {
       "localizations" : {
         "de" : {
@@ -3499,18 +3515,18 @@
         }
       }
     },
-    "Dafür gehen die Links der Videos und Beiträge an supadata.ai, sonst nichts. Kosten und Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts, nicht in iCloud und in keinem Export." : {
+    "Dafür gehen die Links der Videos und Beiträge an supadata.ai, dazu für die Suche nach einer Folge auf YouTube die Titel von Podcast und Folge. Sonst nichts. Kosten und Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts, nicht in iCloud und in keinem Export." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dafür gehen die Links der Videos und Beiträge an supadata.ai, sonst nichts. Kosten und Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts, nicht in iCloud und in keinem Export."
+            "value" : "Dafür gehen die Links der Videos und Beiträge an supadata.ai, dazu für die Suche nach einer Folge auf YouTube die Titel von Podcast und Folge. Sonst nichts. Kosten und Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts, nicht in iCloud und in keinem Export."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Only the links of videos and posts go to supadata.ai, nothing else. Costs and terms are between you and Supadata. The key stays in this device's keychain only, not in iCloud and not in any export."
+            "value" : "The links of videos and posts go to supadata.ai, plus the podcast and episode titles when the app looks for an episode on YouTube. Nothing else. Costs and terms are between you and Supadata. The key stays in this device's keychain only, not in iCloud and not in any export."
           }
         }
       }
@@ -11573,34 +11589,34 @@
         }
       }
     },
-    "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts." : {
+    "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Für Folgen mit Ton ohne eigenes Transkript sucht die App dort mit den Titeln von Podcast und Folge nach derselben Folge auf YouTube. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts."
+            "value" : "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Für Folgen mit Ton ohne eigenes Transkript sucht die App dort mit den Titeln von Podcast und Folge nach derselben Folge auf YouTube. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Only if you enter your own Supadata key: for YouTube videos and individual posts from TikTok, Instagram, X and Facebook, the links go to Supadata (supadata.ai), an independent service, to fetch captions and metadata. Account data, questions and the rest of your data never go there. The key stays in this device's keychain only."
+            "value" : "Only if you enter your own Supadata key: for YouTube videos and individual posts from TikTok, Instagram, X and Facebook, the links go to Supadata (supadata.ai), an independent service, to fetch captions and metadata. For episodes with audio but no transcript of their own, the app searches there for the same episode on YouTube using the podcast and episode titles. Account data, questions and the rest of your data never go there. The key stays in this device's keychain only."
           }
         }
       }
     },
-    "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts. Supadata sieht dabei deine IP-Adresse, und für den Dienst gelten seine eigenen Bedingungen." : {
+    "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Für Folgen mit Ton ohne eigenes Transkript sucht die App dort mit den Titeln von Podcast und Folge nach derselben Folge auf YouTube. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts. Supadata sieht dabei deine IP-Adresse, und für den Dienst gelten seine eigenen Bedingungen." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts. Supadata sieht dabei deine IP-Adresse, und für den Dienst gelten seine eigenen Bedingungen."
+            "value" : "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Für Folgen mit Ton ohne eigenes Transkript sucht die App dort mit den Titeln von Podcast und Folge nach derselben Folge auf YouTube. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts. Supadata sieht dabei deine IP-Adresse, und für den Dienst gelten seine eigenen Bedingungen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Only if you enter your own Supadata key: for YouTube videos and individual posts from TikTok, Instagram, X and Facebook, the links go to Supadata (supadata.ai), an independent service, to fetch captions and metadata. Account data, questions and the rest of your data never go there. The key stays in this device's keychain only. Supadata sees your IP address, and its own terms apply to the service."
+            "value" : "Only if you enter your own Supadata key: for YouTube videos and individual posts from TikTok, Instagram, X and Facebook, the links go to Supadata (supadata.ai), an independent service, to fetch captions and metadata. For episodes with audio but no transcript of their own, the app searches there for the same episode on YouTube using the podcast and episode titles. Account data, questions and the rest of your data never go there. The key stays in this device's keychain only. Supadata sees your IP address, and its own terms apply to the service."
           }
         }
       }
@@ -16056,18 +16072,18 @@
         }
       }
     },
-    "YouTube liefert keinen Ton. Mit einem eigenen Schlüssel von Supadata, einem unabhängigen Dienst, holt die App Untertitel und Metadaten, die es zum Video schon gibt, und macht daraus ein Transkript mit Fakten und Chat. Einzelne Beiträge von TikTok, Instagram, X und Facebook fügst du dann per Link hinzu; Profile lassen sich nicht abonnieren. Den Schlüssel trägst du in den Einstellungen unter „YouTube-Transkripte“ ein. Ohne ihn kommt das Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst. Ein Tipp auf eine Stelle öffnet das Video dort, wo es liegt." : {
+    "YouTube liefert keinen Ton. Mit einem eigenen Schlüssel von Supadata, einem unabhängigen Dienst, holt die App Untertitel und Metadaten, die es zum Video schon gibt, und macht daraus ein Transkript mit Fakten und Chat. Einzelne Beiträge von TikTok, Instagram, X und Facebook fügst du dann per Link hinzu; Profile lassen sich nicht abonnieren. Den Schlüssel trägst du in den Einstellungen unter „YouTube-Transkripte“ ein. Ohne ihn kommt das Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst. Ein Tipp auf eine Stelle öffnet das Video dort, wo es liegt. Mit Schlüssel bekommen auch Podcasts mit Ton ihr Transkript zuerst aus den Untertiteln derselben Folge auf YouTube, an den Ton angepasst. Passt es nicht sicher, transkribiert die App wie gewohnt auf dem Gerät." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "YouTube liefert keinen Ton. Mit einem eigenen Schlüssel von Supadata, einem unabhängigen Dienst, holt die App Untertitel und Metadaten, die es zum Video schon gibt, und macht daraus ein Transkript mit Fakten und Chat. Einzelne Beiträge von TikTok, Instagram, X und Facebook fügst du dann per Link hinzu; Profile lassen sich nicht abonnieren. Den Schlüssel trägst du in den Einstellungen unter „YouTube-Transkripte“ ein. Ohne ihn kommt das Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst. Ein Tipp auf eine Stelle öffnet das Video dort, wo es liegt."
+            "value" : "YouTube liefert keinen Ton. Mit einem eigenen Schlüssel von Supadata, einem unabhängigen Dienst, holt die App Untertitel und Metadaten, die es zum Video schon gibt, und macht daraus ein Transkript mit Fakten und Chat. Einzelne Beiträge von TikTok, Instagram, X und Facebook fügst du dann per Link hinzu; Profile lassen sich nicht abonnieren. Den Schlüssel trägst du in den Einstellungen unter „YouTube-Transkripte“ ein. Ohne ihn kommt das Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst. Ein Tipp auf eine Stelle öffnet das Video dort, wo es liegt. Mit Schlüssel bekommen auch Podcasts mit Ton ihr Transkript zuerst aus den Untertiteln derselben Folge auf YouTube, an den Ton angepasst. Passt es nicht sicher, transkribiert die App wie gewohnt auf dem Gerät."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "YouTube provides no audio. With your own key from Supadata, an independent service, the app fetches the captions and metadata a video already has and turns them into a transcript with facts and chat. You can then add individual posts from TikTok, Instagram, X and Facebook by link; profiles cannot be subscribed to. Enter the key in Settings under \"YouTube transcripts\". Without it, the transcript comes from the matching audio podcast if you subscribe to it. Tapping a passage opens the video where it lives."
+            "value" : "YouTube provides no audio. With your own key from Supadata, an independent service, the app fetches the captions and metadata a video already has and turns them into a transcript with facts and chat. You can then add individual posts from TikTok, Instagram, X and Facebook by link; profiles cannot be subscribed to. Enter the key in Settings under \"YouTube transcripts\". Without it, the transcript comes from the matching audio podcast if you subscribe to it. Tapping a passage opens the video where it lives. With a key, podcasts with audio also get their transcript from the captions of the same episode on YouTube first, adjusted to the audio. If that doesn't fit reliably, the app transcribes on the device as usual."
           }
         }
       }

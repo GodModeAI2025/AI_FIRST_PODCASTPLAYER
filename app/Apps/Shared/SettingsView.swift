@@ -285,9 +285,17 @@ struct YouTubeTranscriptSettingsSection: View {
                     TikTok, Instagram, X und Facebook.
                     """)
                 Text("""
-                    Dafür gehen die Links der Videos und Beiträge an supadata.ai, sonst nichts. Kosten \
-                    und Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im \
-                    Schlüsselbund dieses Geräts, nicht in iCloud und in keinem Export.
+                    Dafür gehen die Links der Videos und Beiträge an supadata.ai, dazu für die Suche nach \
+                    einer Folge auf YouTube die Titel von Podcast und Folge. Sonst nichts. Kosten und \
+                    Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im Schlüsselbund \
+                    dieses Geräts, nicht in iCloud und in keinem Export.
+                    """)
+                Text("""
+                    Auch Folgen mit Ton, zu denen der Podcast kein Transkript liefert, bekommen es dann \
+                    zuerst aus den Untertiteln derselben Folge auf YouTube. Ein paar kurze Stücke des Tons \
+                    zeigen, ob die Zeiten verschoben sind, etwa durch Werbung, und die App passt sie an. \
+                    Passt es nicht sicher, lädt sie den Ton und transkribiert ihn wie gewohnt auf dem Gerät. \
+                    Gesucht wird je Folge höchstens einmal in der Woche.
                     """)
                 Text("""
                     Ohne Schlüssel bekommen YouTube-Folgen ihr Transkript aus dem passenden Audio-Podcast, \
@@ -538,7 +546,9 @@ struct PrivacyOverviewView: View {
          """
          Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne \
          Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), \
-         einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und \
+         einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Für Folgen mit Ton ohne \
+         eigenes Transkript sucht die App dort mit den Titeln von Podcast und Folge nach derselben \
+         Folge auf YouTube. Kontodaten, Fragen und \
          deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses \
          Geräts. Supadata sieht dabei deine IP-Adresse, und für den Dienst gelten seine eigenen \
          Bedingungen.
