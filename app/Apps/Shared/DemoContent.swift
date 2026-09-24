@@ -48,7 +48,7 @@ enum DemoContent {
         "Anmeldung und alle Links findet ihr unter example punkt org slash workshop.",
     ]
 
-    /// Legt Quelle, Folge, Transkript, Belege, Fakten und Interessen an.
+    /// Legt Quelle, Folge, Transkript, Belege, Fakten, Tags und Kapitel-Tags an.
     static func seed(into store: LibraryStore) async {
         guard ((try? await store.sources()) ?? []).isEmpty else { return }
         let source = Source(id: sourceID, kind: .podcastRSS, title: "Beispiel: Arbeit und KI",
@@ -131,12 +131,49 @@ enum DemoContent {
             }
             try await store.save(facts: facts, forEpisode: episodeID)
 
-            try await store.upsert(interest: Interest(label: "Datenschutz", kind: .topic,
-                                                      keywords: ["Datenschutz", "Daten", "persönliche"]))
-            try await store.upsert(interest: Interest(label: "KI im Arbeitsalltag", kind: .activeProject,
-                                                      keywords: ["KI", "Teams", "Regeln", "Automatisierung"]))
+            try await seedTags(into: store, chapters: chapters, media: media, episode: episode)
         } catch {
             NSLog("Demo-Inhalte konnten nicht angelegt werden: %@", error.localizedDescription)
         }
+    }
+
+    /// Tags und Kapitel-Tags ohne Modell, damit Tag-Wolke, Tag-Seite und
+    /// „Für dich“ im Simulator immer dasselbe zeigen. Einem Tag folgt die
+    /// Beispielfolge schon (Datenschutz), die anderen stehen neutral da.
+    /// Die Tags entstehen vor den Kapitel-Tags: Der Speicher nimmt nur
+    /// Kapitel-Tags an, deren Tag er kennt.
+    private static func seedTags(
+        into store: LibraryStore, chapters: [Chapter], media: MediaVersionID, episode: Episode
+    ) async throws {
+        let followed = Interest(label: "Datenschutz", kind: .topic)
+        try await store.upsert(interest: followed)
+        var ids: [String: InterestID] = ["Datenschutz": followed.id]
+        for label in ["Sprachmodelle", "Automatisierung", "Haftung", "KI-Verordnung"] {
+            if let tag = try await store.addDetectedTag(label: label, seenAt: episode.publishedAt ?? Date()) {
+                ids[label] = tag.id
+            }
+        }
+        // Je Kapitel die Tags, die zu seinem Text passen. Das letzte Kapitel
+        // endet mit dem Transkript.
+        let perChapter: [[String]] = [
+            ["Sprachmodelle"],
+            ["Datenschutz", "Sprachmodelle"],
+            ["Automatisierung"],
+            ["Haftung", "KI-Verordnung"],
+        ]
+        let transcriptEnd = lines.count * 40_000
+        var tags: [ChapterTag] = []
+        for (index, labels) in perChapter.enumerated() where index < chapters.count {
+            let start = Int(chapters[index].start.milliseconds)
+            let end = index + 1 < chapters.count ? Int(chapters[index + 1].start.milliseconds) : transcriptEnd
+            for label in labels {
+                guard let id = ids[label] else { continue }
+                tags.append(ChapterTag(
+                    episodeID: episodeID, mediaVersionID: media, chapterStartMs: start, chapterEndMs: end,
+                    interestID: id, normalizedKey: "", confidence: 0.9, matchedKnown: label == "Datenschutz",
+                    sourceID: sourceID, publishedAt: episode.publishedAt, transcriptRevision: .initial))
+            }
+        }
+        try await store.save(chapterTags: tags, forEpisode: episodeID, transcriptRevision: .initial)
     }
 }

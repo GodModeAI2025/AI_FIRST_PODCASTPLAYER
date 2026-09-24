@@ -44,6 +44,12 @@ struct EpisodeDetailView: View {
     }
 
     let episode: Episode
+
+    init(episode: Episode, initialSection: Section = .overview) {
+        self.episode = episode
+        _section = State(initialValue: initialSection)
+    }
+
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -51,7 +57,10 @@ struct EpisodeDetailView: View {
     @State private var passages: [Evidence] = []
     @State private var exported: String?
     @State private var confirmDelete = false
-    @State private var topicTags: [TopicTag] = []
+    /// Die Kapitel-Tags der Folge, aus der Datenbank.
+    @State private var chapterTags: [ChapterTag] = []
+    /// Die Tag-Seite, die ein Tipp in der Tag-Wolke öffnet.
+    @State private var openedTag: InterestID?
     /// Links, Termine, Adressen und Namen der Folge, aus Shownotes und Transkript.
     @State private var mentions: EpisodeMentions?
 
@@ -118,6 +127,8 @@ struct EpisodeDetailView: View {
             mentions = await model.mentions(for: episode)
         }
         .task { await model.loadChapters(for: episode) }
+        .task(id: model.chapterTagsRevision) { chapterTags = await model.chapterTags(for: episode.id) }
+        .navigationDestination(item: $openedTag) { id in TagDetailView(tagID: id) }
         // Fehlen einem Video Beschreibung, Länge oder Bild, holt die App die
         // Metadaten, falls ein Supadata-Schlüssel eingetragen ist.
         .task { model.requestMetadata(for: episode) }
@@ -287,12 +298,11 @@ struct EpisodeDetailView: View {
                 SwiftUI.Section { audioStatus }
             }
 
-            if !facts.isEmpty {
+            let cloud = TagCloud.tags(for: chapterTags, profile: model.profile)
+            if !facts.isEmpty || !cloud.isEmpty {
                 SwiftUI.Section {
-                    if !topicTags.isEmpty {
-                        TopicTagRow(tags: topicTags) { tag in
-                            Task { await model.addInterest(tag.label, kind: .topic) }
-                        }
+                    if !cloud.isEmpty {
+                        TagCloud(tags: cloud) { openedTag = $0 }
                     }
                     ForEach(digestFacts) { fact in FactRow(fact: fact, episode: episode) }
                     if facts.count > 3 {
@@ -301,8 +311,8 @@ struct EpisodeDetailView: View {
                 } header: {
                     Text("Kurz gesagt")
                 } footer: {
-                    if topicTags.contains(where: { !$0.isInterest }) {
-                        Text("Ein Tipp auf ein Thema mit Plus legt es als Interesse an.")
+                    if !cloud.isEmpty {
+                        Text("Tags aus dem Inhalt. Plus folgt einem Tag, Minus beendet das. Ein Tipp auf den Namen öffnet die Tag-Seite.")
                     }
                 }
             }
@@ -359,16 +369,6 @@ struct EpisodeDetailView: View {
                     }
                 }
             }
-        }
-        // Schlagworte aus Fakten, Belegen und Interessen. Neu, sobald sich
-        // eines davon ändert, etwa nach dem Anlegen eines Interesses.
-        .task(id: TopicTagInput(facts: facts.map(\.id), passages: passages.count,
-                                interests: model.profile.confirmed.map(\.id))) {
-            // Höchstens zehn, die eigenen Themen zuerst, danach die
-            // häufigsten anderen Hauptwörter der Folge.
-            topicTags = TopicTagger(maximumTags: TopicTagRow.maximumTags,
-                                    maximumInterests: TopicTagRow.maximumTags)
-                .tags(statements: facts.map(\.statement), passages: passages, profile: model.profile)
         }
     }
 
@@ -464,12 +464,6 @@ struct EpisodeDetailView: View {
         case .remove: "Wird bald entfernt, abgespielt wird dann aus dem Netz."
         case .stays: "Bleibt, bis du „Audio entfernen“ wählst."
         }
-    }
-
-    private struct TopicTagInput: Equatable {
-        let facts: [String]
-        let passages: Int
-        let interests: [InterestID]
     }
 
     /// Zwei oder drei Aussagen über die ganze Folge verteilt, nicht nur
@@ -640,7 +634,8 @@ struct EpisodeDetailView: View {
     /// Je Kapitel Titel, Satz, Fakten und Transkript. Ohne Kapitel aus dem
     /// Feed die Abschnitte, die die App aus dem Transkript bildet.
     private var chapterList: some View {
-        EpisodeChapterList(episode: episode, chapters: chapters, passages: passages, facts: facts)
+        EpisodeChapterList(episode: episode, chapters: chapters, passages: passages, facts: facts,
+                           chapterTags: chapterTags) { openedTag = $0 }
     }
 
     // MARK: Fakten
@@ -1084,48 +1079,6 @@ struct FactWording: View {
         // Eingerückt unter den Text der Aussage, neben dem Symbol.
         .padding(.leading, 28)
         .task(id: text) { foreign = AppLanguage.current.isForeign(text) }
-    }
-}
-
-/// Die Themen einer Folge als Schlagworte. Ein Tipp auf ein neues Thema
-/// legt es als Interesse an; bekannte Interessen tragen ein Häkchen.
-///
-/// Umbrechend statt seitlich gescrollt: Alle Schlagworte sind auf einen
-/// Blick da. Deshalb sind es höchstens ``maximumTags``, die eigenen Themen
-/// zuerst.
-struct TopicTagRow: View {
-    let tags: [TopicTag]
-    let add: (TopicTag) -> Void
-
-    /// Mehr als zehn liest niemand, und die Liste darunter rückt zu weit weg.
-    static let maximumTags = 10
-
-    var body: some View {
-        // Kein Zeilenabstand: Jeder Chip ist zum Antippen 44 Punkt hoch,
-        // die sichtbare Kapsel kleiner. Der Rest ist schon Luft genug.
-        FlowLayout(spacing: Design.Spacing.small, lineSpacing: Design.Spacing.none) {
-            ForEach(tags.prefix(Self.maximumTags)) { tag in
-                Button {
-                    if !tag.isInterest { add(tag) }
-                } label: {
-                    Label(tag.label, systemImage: tag.isInterest ? "checkmark" : "plus")
-                        .font(.caption.weight(.medium))
-                        .padding(.horizontal, Design.Spacing.control)
-                        .padding(.vertical, Design.Spacing.micro + 2)
-                        .background(Capsule().fill(tag.isInterest
-                            ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.12)))
-                        .frame(minHeight: Design.minimumTapTarget)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(tag.isInterest ? Text("\(tag.label), schon ein Interesse")
-                                                   : Text("Thema \(tag.label)"))
-                .accessibilityHint(tag.isInterest ? Text(verbatim: "") : Text("Legt das Thema als Interesse an"))
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Themen der Folge")
     }
 }
 

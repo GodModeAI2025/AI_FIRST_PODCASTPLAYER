@@ -77,17 +77,15 @@ final class BetaFeedbackUITests: XCTestCase {
         attach(app, "youtube")
     }
 
-    func testTopicCanBeCreatedInsideTopicUpdate() {
-        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
+    func testTopicUpdateStartsFromFollowedTags() {
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh", "-demo-content"]; app.launch()
         app.tabBars.buttons["Themen-Updates"].tap()
         app.navigationBars.buttons["Neu"].firstMatch.tap()
         let name = app.textFields["z. B. Mein KI Update"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap(); name.typeText("Neue KI Modelle")
-        let topic = app.textFields["Neues Thema, z. B. KI-Modelle"]
-        topic.tap(); topic.typeText("KI-Modelle")
-        // Feedback zu 0.4: „Anlegen geht nicht“. Ein eingetipptes Thema
-        // zählt jetzt mit, auch ohne vorher auf Hinzufügen zu tippen.
+        // Feedback zu 0.4: „Anlegen geht nicht“. Seit 0.10 sind die Tags,
+        // denen man folgt, vorausgewählt, und Anlegen geht gleich.
         let create = app.navigationBars.buttons["Anlegen"]
         let deadline = Date().addingTimeInterval(10)
         while !create.isEnabled && Date() < deadline { sleep(1) }
@@ -100,14 +98,12 @@ final class BetaFeedbackUITests: XCTestCase {
     /// Ein Themen-Update lässt sich öffnen, neu zusammenstellen, bearbeiten
     /// und löschen. Vorher führte es nur in seine erste Ausgabe.
     func testTopicUpdateCanBeRebuiltEditedAndDeleted() {
-        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh"]; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh", "-demo-content"]; app.launch()
         app.tabBars.buttons["Themen-Updates"].tap()
         app.navigationBars.buttons["Neu"].firstMatch.tap()
         let name = app.textFields["z. B. Mein KI Update"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap(); name.typeText("Wochenupdate")
-        let topic = app.textFields["Neues Thema, z. B. KI-Modelle"]
-        topic.tap(); topic.typeText("Datenschutz")
         let create = app.navigationBars.buttons["Anlegen"]
         let deadline = Date().addingTimeInterval(10)
         while !create.isEnabled && Date() < deadline { sleep(1) }

@@ -6,7 +6,7 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 
 **Einsteiger** suchen ihre Podcasts nach Namen, abonnieren sie mit einem Tipp und hören sie. Kapitel, Shownotes, Cover, Tempo, Schlaf-Timer, AirPlay und eine Warteschlange sind da, wo man sie erwartet. Die App merkt sich, wo du warst, auch wenn du vom iPhone zum Mac wechselst.
 
-**Fortgeschrittene** lesen das Transkript mit, springen per Tipp an jede Stelle, sehen die wichtigsten Fakten einer Folge und stellen Fragen an eine Folge oder an alle zusammen. „Für dich“ zeigt die Stellen, die zu deinen Interessen passen.
+**Fortgeschrittene** lesen das Transkript mit, springen per Tipp an jede Stelle, sehen die wichtigsten Fakten einer Folge und stellen Fragen an eine Folge oder an alle zusammen. Jede Folge und jedes Kapitel trägt Tags aus dem Inhalt; mit Plus folgst du einem Tag, mit Minus nicht mehr, und „Für dich“ zeigt die Kapitel zu den Tags, denen du folgst.
 
 **Experten** lassen sich je Thema eine eigene Folge aus ungehörten Originalstellen mehrerer Podcasts bauen, prüfen Thesen gegen belegte Gegenstimmen und exportieren Folgen, Antworten und Notizen als Markdown, etwa nach Obsidian oder Notion. Auf dem Mac dürfen andere Programme nach Freigabe lesend auf das Wissen zugreifen.
 

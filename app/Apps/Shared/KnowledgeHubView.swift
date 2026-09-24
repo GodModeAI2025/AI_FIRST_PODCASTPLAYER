@@ -63,9 +63,9 @@ struct KnowledgeHubView: View {
             Section {
                 NavigationLink(value: HubDestination.interests) {
                     HubRow(
-                        title: String(localized: "Interessen"),
-                        detail: String(localized: "\(model.profile.confirmed.count) bestätigt"),
-                        symbol: "target",
+                        title: String(localized: "Meine Tags"),
+                        detail: String(localized: "\(model.profile.followed.count) gefolgt"),
+                        symbol: "tag",
                         tint: .blue
                     )
                 }
@@ -112,7 +112,7 @@ struct KnowledgeHubView: View {
             case .highlights: KnowledgeView()
             case .trails: TrailListView()
             case .counterpoint: CounterpointView()
-            case .interests: InterestsView()
+            case .interests: TagsView()
             case .help: HelpView()
             #if os(iOS)
             case .settings: SettingsView()

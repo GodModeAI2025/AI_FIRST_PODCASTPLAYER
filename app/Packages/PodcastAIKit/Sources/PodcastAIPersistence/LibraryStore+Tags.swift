@@ -404,6 +404,72 @@ extension LibraryStore {
             .uniqued(by: \.identifier).map(\.snapshot)
     }
 
+    /// Alle Kapitel-Tags. Grundlage für „Für dich“ und die Themen-Updates.
+    public func allChapterTags() throws -> [ChapterTag] {
+        try modelContext.fetch(FetchDescriptor<StoredChapterTag>(
+            sortBy: [SortDescriptor(\.episodeIdentifier), SortDescriptor(\.chapterStartMs)]))
+            .uniqued(by: \.identifier).map(\.snapshot)
+    }
+
+    /// Die Kapitel-Tags bestimmter Folgen. „Für dich“ liest nur die Folgen
+    /// seiner Belege, nicht die ganze Tabelle.
+    public func chapterTags(forEpisodes ids: Set<EpisodeID>) throws -> [ChapterTag] {
+        guard !ids.isEmpty else { return [] }
+        let keys = Set(ids.map(\.rawValue))
+        return try modelContext.fetch(FetchDescriptor<StoredChapterTag>(
+            predicate: #Predicate { keys.contains($0.episodeIdentifier) },
+            sortBy: [SortDescriptor(\.episodeIdentifier), SortDescriptor(\.chapterStartMs)]))
+            .uniqued(by: \.identifier).map(\.snapshot)
+    }
+
+    /// Alle Kapitel eines Tags, über seine Kennung, neueste Folge zuerst.
+    public func chapterTags(forTag id: InterestID) throws -> [ChapterTag] {
+        let identifier = id.rawValue
+        return try modelContext.fetch(FetchDescriptor<StoredChapterTag>(
+            predicate: #Predicate { $0.interestIdentifier == identifier },
+            sortBy: [SortDescriptor(\.publishedAt, order: .reverse), SortDescriptor(\.identifier)]))
+            .uniqued(by: \.identifier).map(\.snapshot)
+    }
+
+    /// Wie viele Kapitel je Tag. Ein Kapitel zählt einmal, auch wenn es
+    /// nach dem Abgleich doppelt vorliegt.
+    public func chapterCountsByTag() throws -> [InterestID: Int] {
+        var descriptor = FetchDescriptor<StoredChapterTag>()
+        descriptor.propertiesToFetch = [\.interestIdentifier, \.mediaVersionIdentifier, \.chapterStartMs]
+        var chapters: [String: Set<String>] = [:]
+        for row in try modelContext.fetch(descriptor) {
+            chapters[row.interestIdentifier, default: []]
+                .insert("\(row.mediaVersionIdentifier)|\(row.chapterStartMs)")
+        }
+        return Dictionary(uniqueKeysWithValues: chapters.map { (InterestID(rawValue: $0.key), $0.value.count) })
+    }
+
+    /// Legt ein Tag in ein anderes zusammen, auf Wunsch von der Tag-Seite
+    /// („Zusammenlegen?“). Die Bezeichnung des anderen wird ein Alias,
+    /// seine Kapitel-Tags und alle Verweise zeigen danach auf `survivor`
+    /// und tragen dessen Schlüssel. Folgte jemand einem der beiden, folgt
+    /// er dem zusammengelegten.
+    public func mergeTag(_ other: InterestID, into survivor: InterestID) throws {
+        guard other != survivor else { return }
+        let ids = [other.rawValue, survivor.rawValue]
+        let rows = try modelContext.fetch(FetchDescriptor<StoredInterest>(
+            predicate: #Predicate { ids.contains($0.identifier) }))
+        let keeps = rows.filter { $0.identifier == survivor.rawValue }
+        let others = rows.filter { $0.identifier == other.rawValue }
+        guard let first = keeps.first, !others.isEmpty else { return }
+        for keep in keeps { Self.merge(others, into: keep) }
+        let key = first.normalizedKey.isEmpty ? TagNormalizer.key(for: first.label) : first.normalizedKey
+        for keep in keeps where keep.normalizedKey.isEmpty { keep.normalizedKey = key }
+        try rewriteInterestReferences([other: survivor])
+        if !key.isEmpty { try moveChapterTags(ofInterest: survivor.rawValue, toKey: key) }
+        try modelContext.save()
+        for row in others { modelContext.delete(row) }
+        // Trugen beide Tags dasselbe Kapitel, haben die Zeilen jetzt dieselbe
+        // Kennung und werden eine.
+        try settleChapterTags()
+        try modelContext.save()
+    }
+
     /// Kapitel-Tags von Folgen, die im Zeitraum `[start, end)` erschienen
     /// sind. Ohne Erscheinungsdatum zählt, wann das Tag entstand.
     public func chapterTags(publishedFrom start: Date, to end: Date) throws -> [ChapterTag] {

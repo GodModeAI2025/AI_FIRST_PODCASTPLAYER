@@ -46,26 +46,27 @@ struct ForYouView: View {
                 } description: {
                     Text("""
                         Such deine Lieblingssendungen nach Namen und abonniere sie. \
-                        Danach stehen hier neue Folgen und die Stellen zu deinen Themen.
+                        Danach stehen hier neue Folgen und die Stellen zu deinen Tags.
                         """)
                 } actions: {
                     Button("Podcast suchen") { addingSource = true }
                         .buttonStyle(.borderedProminent)
                 }
-            } else if model.profile.confirmed.isEmpty {
+            } else if model.profile.followed.isEmpty {
                 ContentUnavailableView {
                     Label("Wonach suchst du?", systemImage: "sparkles")
                 } description: {
                     Text("""
-                        Leg ein oder zwei Themen an, etwa „Fußball“, „Kochen“ oder „Datenschutz“. \
-                        Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen.
+                        Tags entstehen aus dem Inhalt deiner Folgen. Tippe bei einem Tag auf Plus, \
+                        in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“. \
+                        Dann sammelt PodcastAI hier die passenden Kapitel.
                         """)
                 } actions: {
-                    NavigationLink("Themen anlegen") { InterestsView() }
+                    NavigationLink("Meine Tags") { TagsView() }
                         .buttonStyle(.borderedProminent)
                 }
             } else if model.relevantToday.isEmpty {
-                Section("Zu deinen Themen") {
+                Section("Zu deinen Tags") {
                     Text("Gerade keine ungehörten Stellen. Neue kommen dazu, sobald weitere Transkripte fertig sind.")
                         .foregroundStyle(.secondary)
                 }
@@ -73,11 +74,11 @@ struct ForYouView: View {
                 // Woher die Stellen kommen, gleich darüber und mit dem Weg
                 // zum Ändern. Sonst stand das nur in der Hilfe.
                 Section {
-                    NavigationLink { InterestsView() } label: {
+                    NavigationLink { TagsView() } label: {
                         LabeledContent {
                             Text("Bearbeiten")
                         } label: {
-                            Label("Ausgewählt nach deinen Interessen", systemImage: "target")
+                            Label("Ausgewählt nach deinen Tags", systemImage: "tag")
                         }
                     }
                     .accessibilityIdentifier("forYou.interests")
@@ -178,7 +179,7 @@ struct RelevantGroup: Identifiable {
         let (icon, spoken): (String, Text) = switch reason {
         case .activeProject: ("briefcase", Text("Vorhaben: \(label)"))
         case .openQuestion: ("questionmark.circle", Text("Frage: \(label)"))
-        default: ("tag", Text("Thema: \(label)"))
+        default: ("tag", Text("Tag: \(label)"))
         }
         return Label(label, systemImage: icon)
             .accessibilityLabel(spoken)
@@ -521,7 +522,7 @@ struct SmartFeedListView: View {
                     Label("Noch kein Themen-Update", systemImage: "waveform.circle")
                 } description: {
                     Text("""
-                        Aus deinen Interessen baut PodcastAI einen eigenen Podcast. \
+                        Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast. \
                         Er besteht aus Originalstellen, die du noch nicht gehört hast.
                         """)
                 } actions: {
@@ -671,8 +672,6 @@ struct SmartFeedDetailView: View {
     /// Wann das letzte Zusammenstellen von hier aus fertig war.
     @State private var resultAt: Date?
     @State private var addingSource = false
-    /// Stichwortvorschläge je Thema ohne Treffer.
-    @State private var keywordIdeas: [InterestID: [String]] = [:]
     /// Der Systemdialog von Image Playground, wenn die App selbst kein Bild erzeugen kann.
     @State private var showingPlayground = false
 
@@ -828,36 +827,16 @@ struct SmartFeedDetailView: View {
             }
         }
         .smartFeedDeletionDialog(for: $pendingDeletion) { dismiss() }
-        .task(id: topicsWithoutHits) {
-            var ideas: [InterestID: [String]] = [:]
-            for interest in topicsWithoutHits {
-                ideas[interest.id] = Array(
-                    AppModel.keywordSuggestions(for: interest.label, existing: interest.keywords).prefix(3))
-            }
-            keywordIdeas = ideas
-        }
     }
 
-    /// Ein Thema ohne Treffer sagt das und schlägt Stichworte vor. Ohne
-    /// Stichworte trifft ein Thema nur sein eigenes Wort.
+    /// Ein Tag ohne Treffer sagt das und führt zu seiner Seite.
     private var topicsWithoutHitsSection: some View {
         Section {
             ForEach(topicsWithoutHits) { interest in
                 NavigationLink {
-                    InterestEditView(interest: interest)
+                    TagDetailView(tagID: interest.id)
                 } label: {
-                    VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                        Text("Zu \(interest.label) noch keine passende Stelle")
-                        if let ideas = keywordIdeas[interest.id], !ideas.isEmpty {
-                            Text("Stichworte ergänzen, etwa \(ideas.joined(separator: ", "))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text("Stichworte ergänzen, etwa englische Begriffe oder Abkürzungen")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    Text("Zu \(interest.label) noch keine passende Stelle")
                 }
             }
             Button {
@@ -866,11 +845,11 @@ struct SmartFeedDetailView: View {
                 Label("Passende Podcasts suchen", systemImage: "magnifyingglass")
             }
         } header: {
-            Text("Themen ohne Treffer")
+            Text("Tags ohne Treffer")
         } footer: {
             Text("""
-                Ein Thema findet Stellen, in denen seine Bezeichnung oder eines seiner Stichworte vorkommt, \
-                und nur in Folgen mit Transkript.
+                Ein Tag findet Kapitel, die die App mit ihm eingeordnet hat. Folgen ohne Tags \
+                durchsucht sie nach seinem Namen und seinen Schreibweisen, und nur Folgen mit Transkript.
                 """)
         }
     }
@@ -1706,192 +1685,6 @@ struct AddSourceSheet: View {
     }
 }
 
-// MARK: - Interessen
-
-struct InterestsView: View {
-
-    @Environment(AppModel.self) private var model
-    @State private var newLabel = ""
-
-    var body: some View {
-        List {
-            Section {
-                ForEach(model.profile.topics) { interest in
-                    NavigationLink { InterestEditView(interest: interest) } label: { InterestRow(interest: interest) }
-                }
-                .onDelete { offsets in remove(model.profile.topics, at: offsets) }
-            } header: {
-                Text("Themen")
-            } footer: {
-                Text("Deine Themen füllen „Für dich“ und die Themen-Updates. Antippen, um Stichworte zu ergänzen.")
-            }
-
-            // Vorgeschlagenes bleibt sichtbar getrennt von Bestätigtem.
-            if !model.profile.suggested.isEmpty {
-                Section {
-                    ForEach(model.profile.suggested) { interest in
-                        HStack {
-                            InterestRow(interest: interest)
-                            Spacer()
-                            // Beide Knöpfe taten nichts. „Übernehmen“ war
-                            // ein leerer Block, „Ablehnen“ gab es nicht —
-                            // ein Vorschlag, den man nicht loswird, ist
-                            // keine Transparenz, sondern eine Zumutung.
-                            Button("Übernehmen") { model.confirmSuggestion(interest.id) }
-                                .buttonStyle(.bordered)
-                            Button("Ablehnen") { model.rejectSuggestion(interest.id) }
-                                .buttonStyle(.borderless)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Text("Vorschläge von PodcastAI")
-                } footer: {
-                    Text("Vermutet, nicht bestätigt. Sie wirken erst, wenn du sie übernimmst.")
-                }
-            }
-
-            // Nur Themen. Die Arten „Vorhaben“ und „Frage“ machten das
-            // Anlegen komplizierter (Rückmeldung zu 0.6 und 0.7).
-            Section {
-                TextField("z. B. Datenschutz", text: $newLabel)
-                    .accessibilityIdentifier("interest.new")
-                    .onSubmit(add)
-                Button("Hinzufügen", action: add)
-                    .disabled(newLabel.trimmingCharacters(in: .whitespaces).isEmpty)
-            } header: {
-                Text("Thema hinzufügen")
-            }
-        }
-        .navigationTitle("Interessen")
-    }
-
-    private func add() {
-        let label = newLabel.trimmingCharacters(in: .whitespaces)
-        guard !label.isEmpty else { return }
-        newLabel = ""
-        Task { await model.addInterest(label, kind: .topic) }
-    }
-
-    private func remove(_ interests: [Interest], at offsets: IndexSet) {
-        for index in offsets {
-            let id = interests[index].id
-            Task { await model.removeInterest(id) }
-        }
-    }
-}
-
-struct InterestRow: View {
-
-    let interest: Interest
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
-            Text(interest.label)
-            if !interest.keywords.isEmpty {
-                Text("Stichworte: \(interest.keywords.joined(separator: ", "))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-            }
-            Text(interest.origin.label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-/// Bezeichnung und Stichworte eines Interesses. Ohne Stichworte trifft ein
-/// Thema nur sein eigenes Wort.
-struct InterestEditView: View {
-
-    @Environment(AppModel.self) private var model
-    @State private var interest: Interest
-    @State private var newKeyword = ""
-    @State private var suggestions: [String] = []
-    @State private var saved: Interest
-
-    init(interest: Interest) {
-        _interest = State(initialValue: interest)
-        _saved = State(initialValue: interest)
-    }
-
-    var body: some View {
-        Form {
-            Section("Bezeichnung") {
-                TextField("Bezeichnung", text: $interest.label)
-                    .onSubmit(save)
-            }
-            Section {
-                ForEach(interest.keywords, id: \.self) { Text($0) }
-                    .onDelete { offsets in interest.keywords.remove(atOffsets: offsets); save() }
-                HStack {
-                    TextField("Stichwort hinzufügen", text: $newKeyword)
-                        .accessibilityIdentifier("interest.keyword")
-                        .onSubmit(addKeyword)
-                        #if os(iOS)
-                        .textInputAutocapitalization(.never)
-                        #endif
-                    Button("Hinzufügen", action: addKeyword)
-                        .disabled(newKeyword.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            } header: {
-                Text("Stichworte")
-            } footer: {
-                Text("""
-                    Eine Stelle passt, wenn die Bezeichnung oder eines dieser Stichworte am Wortanfang vorkommt: \
-                    „daten“ trifft „Datenschutz“, „schutz“ trifft es nicht. Begriffe mit bis zu drei Buchstaben \
-                    wie KI zählen nur als ganzes Wort. Bei mehreren Wörtern braucht es den ganzen Ausdruck oder \
-                    zwei der wichtigen Wörter daraus, Füllwörter zählen nicht. Englische Fachbegriffe und \
-                    Abkürzungen hier ergänzen.
-                    """)
-            }
-            if !suggestions.isEmpty {
-                Section {
-                    ForEach(suggestions, id: \.self) { word in
-                        Button { add(word) } label: { Label(word, systemImage: "plus.circle") }
-                    }
-                } header: {
-                    Text("Verwandte Wörter")
-                } footer: {
-                    Text("Aus dem Wortschatz des Systems, auf diesem Gerät berechnet. Nur übernehmen, was passt.")
-                }
-            }
-        }
-        .navigationTitle(interest.label.isEmpty ? String(localized: "Interesse") : interest.label)
-        .task(id: interest.label) { refreshSuggestions() }
-        .onDisappear(perform: save)
-    }
-
-    private func addKeyword() {
-        for part in newKeyword.split(separator: ",") { add(String(part)) }
-        newKeyword = ""
-    }
-
-    private func add(_ word: String) {
-        let clean = word.trimmingCharacters(in: .whitespaces)
-        guard !clean.isEmpty,
-              !interest.keywords.contains(where: { $0.caseInsensitiveCompare(clean) == .orderedSame }) else { return }
-        interest.keywords.append(clean)
-        refreshSuggestions()
-        save()
-    }
-
-    private func refreshSuggestions() {
-        suggestions = AppModel.keywordSuggestions(for: interest.label, existing: interest.keywords)
-    }
-
-    private func save() {
-        let trimmed = interest.label.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        interest.label = trimmed
-        guard interest != saved else { return }
-        saved = interest
-        let snapshot = interest
-        Task { await model.updateInterest(snapshot) }
-    }
-}
-
 /// Legt ein Themen-Update an oder ändert eines.
 struct NewSmartFeedSheet: View {
 
@@ -1903,7 +1696,6 @@ struct NewSmartFeedSheet: View {
     @State private var title = ""
     @State private var selected: Set<InterestID> = []
     @State private var minutes = 20
-    @State private var newTopic = ""
     /// Leer heißt: alle abonnierten Quellen.
     @State private var selectedSources: Set<SourceID> = []
     @State private var prepared = false
@@ -1937,24 +1729,20 @@ struct NewSmartFeedSheet: View {
                             selected.contains(interest.id) ? [.isButton, .isSelected] : .isButton
                         )
                     }
-                    // Themen direkt hier anlegen. Vorher war die Liste leer,
-                    // solange unter „Wissen › Interessen“ nichts stand, und
-                    // „Anlegen“ blieb ohne Hinweis gesperrt.
-                    HStack {
-                        TextField("Neues Thema, z. B. KI-Modelle", text: $newTopic)
-                            .onSubmit(addTopic)
-                        Button("Hinzufügen", action: addTopic)
-                            .disabled(newTopic.trimmingCharacters(in: .whitespaces).isEmpty)
+                    // Eingetippt wird nichts mehr: Tags kommen aus dem Inhalt.
+                    // Ohne gefolgtes Tag führt der Weg dorthin, wo man folgt.
+                    if model.profile.topics.isEmpty {
+                        NavigationLink { TagsView() } label: {
+                            Label("Meine Tags", systemImage: "tag")
+                        }
                     }
                 } header: {
-                    Text("Themen")
+                    Text("Tags")
                 } footer: {
                     if model.profile.topics.isEmpty {
-                        Text("Lege mindestens ein Thema an. Es wird auch unter „Wissen › Interessen“ gespeichert.")
+                        Text("Folge zuerst einem Tag: in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“ auf Plus tippen.")
                     } else {
-                        Text(editing == nil
-                             ? "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen. Stichworte zu einem Thema ergänzt du unter „Wissen › Interessen“."
-                             : "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Sichern mitgenommen.")
+                        Text("Hier stehen die Tags, denen du folgst. Antippen wählt eines ab oder wieder aus.")
                     }
                 }
                 Section {
@@ -2026,19 +1814,15 @@ struct NewSmartFeedSheet: View {
         }
     }
 
-    private var pendingTopic: String { newTopic.trimmingCharacters(in: .whitespaces) }
-
     /// Die Regel des Updates, beim Anlegen die übliche.
     private var publicationPolicy: PublicationPolicy {
         editing?.publicationPolicy ?? SmartPodcastFeed(title: "", topicIDs: []).publicationPolicy
     }
 
-    private var canCreate: Bool {
-        !selected.isEmpty || !pendingTopic.isEmpty
-    }
+    private var canCreate: Bool { !selected.isEmpty }
 
     /// Füllt das Blatt einmal: beim Bearbeiten mit dem Update, sonst mit
-    /// allen Themen.
+    /// allen gefolgten Tags.
     private func prepare() {
         guard !prepared else { return }
         prepared = true
@@ -2060,11 +1844,7 @@ struct NewSmartFeedSheet: View {
     }
 
     private func create() async {
-        var topicIDs = model.profile.topics.map(\.id).filter(selected.contains)
-        if !pendingTopic.isEmpty, let id = await model.addInterest(pendingTopic, kind: .topic) {
-            topicIDs.append(id)
-            newTopic = ""
-        }
+        let topicIDs = model.profile.topics.map(\.id).filter(selected.contains)
         guard !topicIDs.isEmpty else { return }
         let labels = model.profile.topics.filter { topicIDs.contains($0.id) }.map(\.label)
         let name = title.trimmingCharacters(in: .whitespaces).isEmpty
@@ -2095,15 +1875,6 @@ struct NewSmartFeedSheet: View {
         case 0: String(localized: "Mein Update")
         case 1: labels[0]
         default: String(localized: "\(labels[0]) und \(labels[1])")
-        }
-    }
-
-    private func addTopic() {
-        let label = newTopic.trimmingCharacters(in: .whitespaces)
-        guard !label.isEmpty else { return }
-        newTopic = ""
-        Task {
-            if let id = await model.addInterest(label, kind: .topic) { selected.insert(id) }
         }
     }
 }

@@ -147,11 +147,6 @@ struct MobileDataQuestion: ViewModifier {
     }
 }
 
-/// Der Lernschalter.
-///
-/// Er gehört zu den Einstellungen und nicht in die Interessenliste: dort
-/// wäre er eine Option neben Themen, hier ist er eine Entscheidung über die
-/// App.
 struct AutomaticAnalysisSection: View {
 
     @Environment(AppModel.self) private var model
@@ -425,34 +420,9 @@ struct SyncSettingsSection: View {
             Text("Synchronisation")
         } footer: {
             Text("""
-                Abos, Transkripte, Fakten, Hörstand, Interessen, Themen-Updates und gemerkte Stellen \
+                Abos, Transkripte, Fakten, Hörstand, Tags, Themen-Updates und gemerkte Stellen \
                 gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. \
                 Audiodateien lädt jedes Gerät selbst.
-                """)
-        }
-    }
-}
-
-struct LearningSettingsSection: View {
-
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        Section {
-            Toggle("Interessen vorschlagen", isOn: Binding(
-                get: { model.profile.learningEnabled },
-                set: { model.setLearningEnabled($0) }
-            ))
-            Button("Vorschläge zurücksetzen", role: .destructive) {
-                model.resetSuggestions()
-            }
-            .disabled(!model.canResetSuggestions)
-        } header: {
-            Text("Lernen")
-        } footer: {
-            Text("""
-                PodcastAI leitet Themen aus dem ab, was du tatsächlich gehört hast. Vorschläge \
-                wirken erst, wenn du sie übernimmst. Ausgeschaltet entstehen keine neuen.
                 """)
         }
     }
@@ -524,6 +494,13 @@ struct PrivacyOverviewView: View {
          nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite \
          und in den Einstellungen unter Intelligenz.
          """),
+        ("tag", "Tags aus dem Inhalt",
+         """
+         Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf dem \
+         Gerät. Fehlt das Modell dort oder ist es zu langsam, übernehmen das Apples Server, wenn \
+         „Apple-Server nutzen“ an ist. Mit Plus folgst du einem Tag, mit Minus nicht mehr. Welchen \
+         Tags du folgst, liegt auf deinen Geräten und in deiner privaten iCloud-Datenbank.
+         """),
         ("translate", "Übersetzen",
          """
          Transkripte und Shownotes übersetzt die App auf dem Gerät mit Apples Übersetzung, nur wenn \
@@ -534,7 +511,7 @@ struct PrivacyOverviewView: View {
          """),
         ("icloud", "Abgleich über deine iCloud",
          """
-         Abos, Transkripte, Fakten, Notizen, Interessen und Hörstand liegen in deiner privaten \
+         Abos, Transkripte, Fakten, Notizen, Tags und Hörstand liegen in deiner privaten \
          iCloud-Datenbank. Nur deine Geräte mit derselben Apple-ID lesen sie.
          """),
         ("network", "Anfragen ins Netz",
@@ -674,7 +651,6 @@ struct SettingsView: View {
             YouTubeTranscriptSettingsSection()
             SyncSettingsSection()
             StorageSettingsSection()
-            LearningSettingsSection()
             SpotlightSettingsSection()
             LegalSettingsSection()
         }

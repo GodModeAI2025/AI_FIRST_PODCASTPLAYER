@@ -2,8 +2,8 @@
 //  ChapterViews.swift
 //  PodcastAI
 //
-//  Der Reiter „Kapitel“ einer Folge: je Kapitel Titel, ein Satz, worum es
-//  geht, die Fakten daraus und ein Stück Transkript. Liefert der Podcast
+//  Der Reiter „Kapitel“ einer Folge: je Kapitel Titel, seine Tags, ein Satz,
+//  worum es geht, die Fakten daraus und ein Stück Transkript. Liefert der Podcast
 //  keine Kapitel, zeigt er die Abschnitte, die die App aus dem Transkript
 //  gebildet hat. Dazu „Original öffnen“ für Stellen aus anderen Folgen.
 //
@@ -18,6 +18,10 @@ struct EpisodeChapterList: View {
     let chapters: [Chapter]
     let passages: [Evidence]
     let facts: [EpisodeFact]
+    /// Die Kapitel-Tags der Folge. Je Kapitel steht die Tag-Wolke unter dem Titel.
+    let chapterTags: [ChapterTag]
+    /// Öffnet die Seite eines Tags.
+    let openTag: (InterestID) -> Void
     @Environment(AppModel.self) private var model
     @State private var sections: [ChapterSection] = []
     @State private var summaries: [Int64: ChapterSummaryCache.Entry] = [:]
@@ -47,6 +51,13 @@ struct EpisodeChapterList: View {
             ForEach(sections) { section in
                 SwiftUI.Section {
                     ChapterRow(chapter: section.chapter, episode: episode, chapters: sections.map(\.chapter))
+                    // Eigene Zeile: Die Kapitelzeile ist ein Knopf, der abspielt.
+                    let tags = TagCloud.tags(
+                        for: ChapterTagRelevance.tags(chapterTags, in: section.range), profile: model.profile)
+                    if !tags.isEmpty {
+                        TagCloud(tags: tags, open: openTag)
+                            .accessibilityIdentifier("chapter.tags")
+                    }
                     if let text = summaries[section.id]?.text {
                         ChapterSummaryLine(text: text, modelTier: summaries[section.id]?.modelTier)
                     }

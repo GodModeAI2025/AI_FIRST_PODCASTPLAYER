@@ -202,6 +202,18 @@ Die Messung `PODCASTAI_TAG_EVAL=1 swift test --filter TagEval` vergleicht `.gene
 
 Alle Geräte müssen auf 0.10 sein, bevor die Einordnung Tags schreibt. Eine 0.9 kennt `detected` und `stanceRaw` nicht und hielte ein neutrales, erkanntes Tag für ein bestätigtes Interesse.
 
+### Tags in der Oberfläche
+
+Eingetippt wird nichts mehr. Die Felder für neue Themen, das Stichwortfeld, die Einstellung „Interessen vorschlagen“ und die Vorschläge aus `InterestSuggester` sind weg; wer früher einen Vorschlag abgelehnt hat, folgt dem Tag einfach nicht. Die Oberfläche steht in `TagViews.swift`:
+
+- **Tag-Wolke** (`TagCloud`): in „Kurz gesagt“ und unter jeder Kapitelzeile, höchstens zehn Tags, gefolgte vorn und mit Häkchen. Sie liest die gespeicherten Kapitel-Tags (`chapterTags(forEpisode:)`), nicht mehr `TopicTagger`. Ein Kapitel-Tag gehört zum Abschnitt, in dem sein Anfang liegt (`ChapterTagRelevance.tags(_:in:)`). Plus und Minus rufen `AppModel.setTagStance`, ein Tipp auf den Namen öffnet die Tag-Seite.
+- **Meine Tags** (`TagsView`, früher „Interessen“): gefolgte oben, darunter die neutralen nach Zahl ihrer Kapitel (`chapterCountsByTag()`), mit Suche.
+- **Tag-Seite** (`TagDetailView`): Plus oder Minus, die Kapitel mit Quelle und Datum, andere Schreibweisen und „Zusammenlegen?“. Ein Kapitel öffnet die Folge im Reiter „Kapitel“ und spielt nichts. Nahe Tags findet `TagSimilarity` über den Schlüssel (Anfang, Ende, zwei Zeichen Abstand, bei Ländern nur gleicher Schlüssel), über Schreibweisen (der Name des einen ist Alias des anderen, etwa nach einem Zusammenlegen, das ein anderes Gerät noch nicht kannte) und sehr nahe Satzvektoren, abseits des Hauptthreads; zusammengelegt wird nur auf Tippen über `LibraryStore.mergeTag(_:into:)`, das Aliasse, Kapitel-Tags samt Schlüssel und alle Verweise umschreibt.
+
+„Für dich“ und die Themen-Updates wählen über `ChapterTagRelevance`: Eine Stelle passt, wenn ihr Kapitel ein Tag trägt, dem jemand folgt. Medienfassungen ohne jedes Kapitel-Tag laufen wie bisher über `RelevanceScorer` mit Bezeichnung und Aliassen. Treffer über Kapitel-Tags gelten als eingeordnet; das Modell in `ContentPipeline.candidates` prüft nur die übrigen. `topicIDs` in Themenfeeds bleiben Tag-Kennungen, alte Feeds laufen weiter.
+
+Die Beispielfolge (`-demo-content`) legt ohne Modell feste Tags und Kapitel-Tags an: Datenschutz (gefolgt), Sprachmodelle, Automatisierung, Haftung und KI-Verordnung.
+
 ## Themen-Updates
 
 Eine Ausgabe entsteht auf zwei Wegen. Von Hand über „Neue Ausgabe zusammenstellen“ oder Siri, dann ohne Mindestmenge. Von selbst nach dem Aktualisieren der Feeds, nach der Auswertung neuer Folgen und in der Hintergrundaufgabe `com.podcastai.analysis`, dann erst ab fünf Minuten ungehörtem Material und nur, wenn die letzte Ausgabe gehört oder älter als zwölf Stunden ist. Auf dem Mac gibt es keinen `BGTaskScheduler`; dort übernimmt das Aktualisieren beim Start und alle 30 Minuten diese Rolle. Die erste Ausgabe eines neuen Updates stellt das Modell selbst zusammen, sobald der Feed gesichert ist (`createSmartFeed(buildFirstEdition:)`), nicht das Blatt, in dem er angelegt wird. Bestätigt Apple Intelligence keine der Stellen, die über Stichworte gefunden wurden, gilt das als keine Antwort: Die Ausgabe entsteht aus den Stichworttreffern. Keine Ausgabe startet Ton.
