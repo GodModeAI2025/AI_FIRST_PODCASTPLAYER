@@ -1559,6 +1559,16 @@ public actor LibraryStore {
             sortBy: [SortDescriptor(\.startMs)])).uniqued(by: \.identifier).map(\.snapshot)
     }
 
+    /// Die Fakten mehrerer Folgen in einer Abfrage, je Folge nach Zeit.
+    /// Themen-Updates brauchen sie für viele Folgen auf einmal.
+    public func facts(forEpisodes ids: Set<EpisodeID>) throws -> [EpisodeFact] {
+        guard !ids.isEmpty else { return [] }
+        let keys = Set(ids.map(\.rawValue))
+        return try modelContext.fetch(FetchDescriptor<StoredFact>(
+            predicate: #Predicate { keys.contains($0.episodeIdentifier) },
+            sortBy: [SortDescriptor(\.startMs)])).uniqued(by: \.identifier).map(\.snapshot)
+    }
+
     /// Alle Fakten, etwa für den Chat über alle Folgen.
     public func allFacts(limit: Int = 2_000) throws -> [EpisodeFact] {
         var descriptor = FetchDescriptor<StoredFact>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])

@@ -165,6 +165,11 @@ public struct SmartPodcastFeed: Codable, Sendable, Identifiable, Hashable {
     /// Die Länge eines Teils, je Feed einstellbar. Ohne Budget („Alles
     /// Ungehörte“) gibt es nur einen Teil.
     public var partBudget: MediaDuration? { editionMode.budget }
+
+    /// Der Modus, der wirklich gilt. Ohne eigene Tags sucht das Update nach
+    /// allen gefolgten; „alle zusammen“ verlangte dann ein Kapitel, das jedes
+    /// gefolgte Tag trägt, und fände praktisch nie etwas.
+    public var effectiveMatchMode: TagMatchMode { topicIDs.isEmpty ? .any : matchMode }
 }
 
 /// Ein Abschnitt einer persönlichen Ausgabe.
@@ -293,6 +298,10 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
     /// Teil 1, 2, 3 … eines Laufs. Was nicht in die Länge eines Teils
     /// passt, kommt in den nächsten. Ältere Ausgaben sind Teil 1.
     public let part: Int
+    /// Der Schlüssel des Laufs, aus dem der Teil stammt, bei allen Teilen
+    /// gleich. Daran erkennt die Automatik, welche Teile zusammengehören.
+    /// Ältere Ausgaben bilden je einen Lauf für sich.
+    public let runKey: String
     /// Die Übersicht am Anfang: je Kapitel Quelle, Folge, Datum und die
     /// Zahl neuer Aussagen. Leer bei Ausgaben vor 0.11.
     public let overviewEntries: [EditionOverviewEntry]
@@ -305,7 +314,7 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
         consumptionState: ConsumptionState = .unplayed,
         segments: [PersonalEpisodeSegment], shownotes: [ShownotesEntry],
         coverAssetID: String? = nil, coverage: EditionCoverage,
-        part: Int = 1, overviewEntries: [EditionOverviewEntry] = []
+        part: Int = 1, runKey: String? = nil, overviewEntries: [EditionOverviewEntry] = []
     ) {
         self.id = id; self.feedID = feedID; self.revision = revision
         self.policyRevision = policyRevision; self.batchKey = batchKey
@@ -313,7 +322,8 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
         self.publicationState = publicationState; self.consumptionState = consumptionState
         self.segments = segments; self.shownotes = shownotes
         self.coverAssetID = coverAssetID; self.coverage = coverage
-        self.part = max(1, part); self.overviewEntries = overviewEntries
+        self.part = max(1, part); self.runKey = runKey ?? batchKey
+        self.overviewEntries = overviewEntries
         // Das Manifest belegt, aus welchen Stellen eine Ausgabe besteht.
         // Auch hier entscheidet die Prüfsumme, nicht nur benennt sie.
         self.manifestHash = SecureDigest.hex(ofOrdered: segments.map {
@@ -342,6 +352,7 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
         coverAssetID = try c.decodeIfPresent(String.self, forKey: .coverAssetID)
         coverage = try c.decode(EditionCoverage.self, forKey: .coverage)
         part = max(1, try c.decodeIfPresent(Int.self, forKey: .part) ?? 1)
+        runKey = try c.decodeIfPresent(String.self, forKey: .runKey) ?? batchKey
         overviewEntries = try c.decodeIfPresent([EditionOverviewEntry].self, forKey: .overviewEntries) ?? []
     }
 

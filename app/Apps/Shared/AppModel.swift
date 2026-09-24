@@ -2578,7 +2578,10 @@ public final class AppModel {
         let known = if let knownEvidence { knownEvidence } else {
             try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
         }
-        let titles = try await store.titles(forEpisodes: Array(Set(known.map(\.episodeID))))
+        // Für bloße Zahlen braucht es keine Titel.
+        let titles = titledSections
+            ? try await store.titles(forEpisodes: Array(Set(known.map(\.episodeID))))
+            : [:]
         let pipeline = ContentPipeline(store: store, mediaDirectory: LocalMediaLocator.mediaDirectory)
         return try await pipeline.editionChapters(
             tags: tags, profile: profile, availability: modelStatus,
@@ -2633,7 +2636,8 @@ public final class AppModel {
         guard smartFeeds.contains(where: { $0.id == feed.id }) else { return }
         smartFeedStatistics[feed.id] = SmartFeedStatistics.compute(
             feed: feed, chapters: chapters, editions: editions[feed.id] ?? [], ledger: ledger,
-            followedTagIDs: followedTagIDs, tagLabels: tagLabels)
+            followedTagIDs: followedTagIDs, tagLabels: tagLabels,
+            heardThreshold: Self.editionHeardThreshold)
     }
 
     // MARK: - Wissen
@@ -2762,8 +2766,11 @@ public final class AppModel {
     /// nächste Prüfung eine Ausgabe veröffentlichen darf: es gibt noch
     /// keine, die letzte ist gehört oder älter als ``editionRestInterval``.
     func earliestAutomaticEdition(for feed: SmartPodcastFeed, now: Date = Date()) -> Date? {
-        guard let latest = editions[feed.id]?.first,
-              latest.heardFraction(in: ledger) < Self.editionHeardThreshold else { return nil }
+        // Ein Lauf aus mehreren Teilen gilt als Ganzes: Wer nur Teil 1
+        // gehört hat, bekommt nicht schon den nächsten Stapel dazu.
+        let run = PersonalEpisode.latestRun(in: editions[feed.id] ?? [])
+        guard let latest = run.max(by: { $0.publishedAt < $1.publishedAt }),
+              PersonalEpisode.heardFraction(of: run, in: ledger) < Self.editionHeardThreshold else { return nil }
         let earliest = latest.publishedAt.addingTimeInterval(Self.editionRestInterval)
         return earliest > now ? earliest : nil
     }

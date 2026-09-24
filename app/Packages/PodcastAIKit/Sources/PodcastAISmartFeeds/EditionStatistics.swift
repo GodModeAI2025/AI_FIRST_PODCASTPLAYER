@@ -62,19 +62,20 @@ public struct SmartFeedStatistics: Sendable, Hashable {
         editions: [PersonalEpisode],
         ledger: ListeningLedger,
         followedTagIDs: Set<InterestID> = [],
-        tagLabels: [InterestID: String] = [:]
+        tagLabels: [InterestID: String] = [:],
+        heardThreshold: Double = 0.8
     ) -> SmartFeedStatistics {
         let order = feed.topicIDs.isEmpty
             ? followedTagIDs.sorted { (tagLabels[$0] ?? $0.rawValue) < (tagLabels[$1] ?? $1.rawValue) }
             : feed.topicIDs
         let tags = Set(order)
-        let since = lastListened(to: editions, ledger: ledger)
+        let since = lastListened(to: editions, ledger: ledger, heardThreshold: heardThreshold)
         let scope = Set(feed.restrictedToSourceIDs)
 
         var perTag: [InterestID: Int] = [:]
         var seen: Set<String> = []
         for chapter in PersonalEpisodePublisher.unique(chapters)
-        where (scope.isEmpty || scope.contains(chapter.sourceID)) && chapter.matches(tags, mode: feed.matchMode) {
+        where (scope.isEmpty || scope.contains(chapter.sourceID)) && chapter.matches(tags, mode: feed.effectiveMatchMode) {
             if let since {
                 guard let published = chapter.originalPublishedAt, published > since else { continue }
             }

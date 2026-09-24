@@ -51,7 +51,7 @@ extension PersonalEpisode {
             batchKey: batchKey, title: title, subtitle: subtitle, publishedAt: publishedAt,
             publicationState: publicationState, consumptionState: consumptionState,
             segments: segments.map { $0.replacingTopicIDs(map) }, shownotes: shownotes,
-            coverAssetID: coverAssetID, coverage: coverage, part: part,
+            coverAssetID: coverAssetID, coverage: coverage, part: part, runKey: runKey,
             overviewEntries: overviewEntries.map {
                 $0.replacing(segmentIDs: $0.segmentIDs, virtualStart: $0.virtualStart,
                              tagIDs: $0.tagIDs.replacingInterestIDs(map))

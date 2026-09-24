@@ -176,7 +176,7 @@ extension PersonalEpisodePublisher {
         let tags = feed.topicIDs.isEmpty ? followedTagIDs : Set(feed.topicIDs)
         let scope = Set(feed.restrictedToSourceIDs)
         let matching = chapters.filter {
-            (scope.isEmpty || scope.contains($0.sourceID)) && $0.matches(tags, mode: feed.matchMode)
+            (scope.isEmpty || scope.contains($0.sourceID)) && $0.matches(tags, mode: feed.effectiveMatchMode)
         }
         guard !matching.isEmpty else { return .noNewMaterial(candidateCount: 0) }
 
@@ -191,7 +191,7 @@ extension PersonalEpisodePublisher {
             let media = chapter.mediaVersionID
             if feed.unheardFilter == .neverStartedEpisodes, !ledger.heard(in: media).isEmpty { continue }
             let open = ledger.heard(in: media).remainder(of: chapter.range)
-                .subtracting(published.legacy[media] ?? IntervalSet())
+                .subtracting(published.covered[media] ?? IntervalSet())
                 .droppingFragments(shorterThan: options.minimumSegmentDuration)
             guard !open.isEmpty else { continue }
             let matched = feed.topicIDs.isEmpty
@@ -210,6 +210,19 @@ extension PersonalEpisodePublisher {
         //    greift erst hier, nach dem Hörzustand: vorher hätten gehörte
         //    Kapitel ungehörten den Platz genommen.
         items.sort(by: ChapterItem.newestFirst)
+        // Zwei Kapitel, die sich überschneiden (etwa aus zwei Einordnungen
+        // derselben Folge auf zwei Geräten): die Überschneidung bekommt
+        // nur das erste. Kein Stück Ton kommt in einem Lauf zweimal vor.
+        var claimed: [MediaVersionID: IntervalSet] = [:]
+        items = items.compactMap { item in
+            let media = item.chapter.mediaVersionID
+            let open = item.open.subtracting(claimed[media] ?? IntervalSet())
+                .droppingFragments(shorterThan: options.minimumSegmentDuration)
+            claimed[media, default: IntervalSet()].insert(item.chapter.range)
+            guard !open.isEmpty else { return nil }
+            return ChapterItem(chapter: item.chapter, open: open, tags: item.tags)
+        }
+        guard !items.isEmpty else { return .noNewMaterial(candidateCount: matching.count) }
         var perTag: [InterestID: Int] = [:]
         var capped = 0
         items = items.filter { item in
@@ -342,10 +355,12 @@ extension PersonalEpisodePublisher {
         }
         var pieces: [(core: MediaTimeRange, playback: MediaTimeRange)] = []
         var total: Int64 = 0
+        var firstCore: MediaTimeRange?
         for passage in hits.isEmpty ? item.chapter.passages : hits {
             guard let range = passage.range else { continue }
             guard let core = item.open.intersection(IntervalSet(range)).ranges
                 .max(by: { $0.duration < $1.duration }) else { continue }
+            if firstCore == nil { firstCore = core }
             var next = (core: core, playback: playback(for: core))
             // Berührt der Vorlauf die vorige Stelle, wird es eine Stelle.
             if let last = pieces.last, next.playback.start <= last.core.end {
@@ -361,8 +376,9 @@ extension PersonalEpisodePublisher {
             }
             total = length(pieces)
         }
-        // Schon die erste Stelle ist länger als ein Teil: dann gekürzt.
-        if pieces.isEmpty, let first = item.open.ranges.first {
+        // Schon die erste Stelle ist länger als ein Teil: dann gekürzt,
+        // und zwar diese Stelle, nicht der Anfang des Kapitels.
+        if pieces.isEmpty, let first = firstCore ?? item.open.ranges.first {
             let playbackStart = playback(for: first).start
             let room = MediaDuration(milliseconds: Int64(Double(budget) * options.playbackRate))
             let played = MediaTimeRange(start: playbackStart, end: first.end).clamped(toDuration: room)
@@ -437,7 +453,7 @@ extension PersonalEpisodePublisher {
             publishedAt: now.addingTimeInterval(-Double(part - 1)),
             segments: segments, shownotes: ShownotesBuilder().build(from: segments),
             coverAssetID: feed.confirmedCoverAssetID, coverage: coverage,
-            part: part, overviewEntries: overview)
+            part: part, runKey: batchKey, overviewEntries: overview)
     }
 
     static func reason(tags: [InterestID], labels: [InterestID: String], chapter: EditionChapter) -> String {
@@ -483,18 +499,22 @@ struct ChapterItem {
 /// Abschnitte seit 0.11 tragen ihr Kapitel. Ein Kapitel gilt als
 /// veröffentlicht, wenn es sich mit einem davon zu mehr als der Hälfte des
 /// kürzeren deckt; so trifft es auch, wenn sich abgeleitete Grenzen leicht
-/// verschoben haben. Ältere Abschnitte kennen nur ihre Stelle, die wird wie
-/// Gehörtes abgezogen.
+/// verschoben haben. Was ein Kapitel mit weniger Überschneidung noch mit
+/// einem veröffentlichten teilt, wird wie Gehörtes abgezogen, ebenso die
+/// Stellen älterer Abschnitte, die nur ihre Stelle kennen.
 struct PublishedChapters {
     var chapters: [MediaVersionID: [MediaTimeRange]] = [:]
-    var legacy: [MediaVersionID: IntervalSet] = [:]
+    /// Alles, was schon in einer Ausgabe steckt: ganze Kapitel und die
+    /// Stellen älterer Abschnitte.
+    var covered: [MediaVersionID: IntervalSet] = [:]
 
     init(_ editions: [PersonalEpisode]) {
         for segment in editions.flatMap(\.segments) {
             if let range = segment.chapterRange {
                 chapters[segment.mediaVersionID, default: []].append(range)
+                covered[segment.mediaVersionID, default: IntervalSet()].insert(range)
             } else {
-                legacy[segment.mediaVersionID, default: IntervalSet()].insert(segment.coreRange)
+                covered[segment.mediaVersionID, default: IntervalSet()].insert(segment.coreRange)
             }
         }
     }
@@ -505,6 +525,28 @@ struct PublishedChapters {
             let shorter = min(earlier.duration.milliseconds, chapter.range.duration.milliseconds)
             return shorter > 0 && overlap.duration.milliseconds * 2 > shorter
         }
+    }
+}
+
+extension PersonalEpisode {
+    /// Die Teile des jüngsten Laufs, Teil 1 zuerst. Leer ohne Ausgabe.
+    public static func latestRun(in editions: [PersonalEpisode]) -> [PersonalEpisode] {
+        guard let latest = editions.max(by: { $0.publishedAt < $1.publishedAt }) else { return [] }
+        return editions.filter { $0.runKey == latest.runKey }.sorted { $0.part < $1.part }
+    }
+
+    /// Wie viel von allen Teilen zusammen gehört ist, nach Länge gewichtet.
+    /// Wer nur Teil 1 von fünf gehört hat, hat den Lauf nicht gehört.
+    public static func heardFraction(of parts: [PersonalEpisode], in ledger: ListeningLedger) -> Double {
+        var total: Double = 0
+        var heard: Double = 0
+        for part in parts {
+            let length = Double(part.segments.reduce(Int64(0)) { $0 + $1.coreRange.duration.milliseconds })
+            guard length > 0 else { continue }
+            total += length
+            heard += length * part.heardFraction(in: ledger)
+        }
+        return total > 0 ? heard / total : 0
     }
 }
 

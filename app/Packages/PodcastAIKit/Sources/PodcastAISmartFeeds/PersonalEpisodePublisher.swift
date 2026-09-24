@@ -555,7 +555,7 @@ extension PersonalEpisodePublisher {
             publishedAt: episode.publishedAt, publicationState: episode.publicationState,
             segments: segments, shownotes: ShownotesBuilder().build(from: segments),
             coverAssetID: episode.coverAssetID, coverage: coverage,
-            part: episode.part, overviewEntries: overview
+            part: episode.part, runKey: episode.runKey, overviewEntries: overview
         )
         pruned.consumptionState = episode.consumptionState
         return pruned

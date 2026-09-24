@@ -769,8 +769,7 @@ public actor ContentPipeline {
 
         let ordered = episodeIDs.sorted { $0.rawValue < $1.rawValue }
         let episodes = try await store.episodes(ids: ordered)
-        var facts: [EpisodeFact] = []
-        for id in ordered { facts += try await store.facts(forEpisode: id) }
+        let facts = try await store.facts(forEpisodes: episodeIDs)
         let unmeasured: ChapterSections.JumpMeasure = { _ in nil }
         let jumps = titledSections ? ChapterSections.embeddingJumps : unmeasured
         return EditionChapterBuilder.build(
