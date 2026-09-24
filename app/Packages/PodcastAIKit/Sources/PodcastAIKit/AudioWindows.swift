@@ -21,6 +21,7 @@ import Foundation
 import AVFoundation
 import PodcastAICore
 import PodcastAIMedia
+import PodcastAISources
 
 /// Ein Stück der Folge als Datei.
 struct AudioWindow: Sendable {
@@ -114,8 +115,7 @@ struct RemoteMP3Windows: AudioWindowSource {
     /// fester Bitrate ist, der Server keine Stücke liefert oder die Länge
     /// nicht zur angegebenen Dauer passt.
     static func open(url: URL, declaredDuration: MediaDuration?, fetch: @escaping Fetch = liveFetch()) async throws -> RemoteMP3Windows {
-        let path = url.path().lowercased()
-        for suffix in [".m4a", ".mp4", ".aac", ".m4b", ".ogg", ".opus", ".wav", ".flac"] where path.hasSuffix(suffix) {
+        guard AudioTwinPlanner.audioAllowsAlignment(audioURL: url, onDevice: false, declaredDuration: nil) else {
             throw AudioWindowError.unsupported
         }
         let head = try await fetch(url, 0...(headBytes - 1), headBytes + 1024)

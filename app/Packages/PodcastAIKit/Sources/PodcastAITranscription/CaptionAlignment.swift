@@ -115,8 +115,9 @@ public enum CaptionAlignment {
         /// Höchstens so viele Wechsel des Versatzes, etwa Werbeblöcke.
         public var maxSteps = 3
         /// Zwischen zwei Ankern mit verschiedenem Versatz wird linear
-        /// übergeleitet. Weiter als so auseinander gilt das nicht mehr.
-        public var maxStepSpan: Int64 = 10 * 60_000
+        /// übergeleitet. Weiter als so auseinander gilt das nicht mehr: dort
+        /// lägen Zitate um bis zu die Hälfte des Wechsels daneben.
+        public var maxStepSpan: Int64 = 4 * 60_000
         /// Bis zu dieser Strecke lohnt kein weiteres Stück zum Eingrenzen.
         public var refineUntil: Int64 = 3 * 60_000
         /// Höchstens dieser Anteil der Zeilen darf außerhalb des Tons landen.

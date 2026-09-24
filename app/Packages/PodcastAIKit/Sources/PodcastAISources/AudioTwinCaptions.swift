@@ -273,6 +273,24 @@ public enum AudioTwinPlanner {
         }
     }
 
+    /// Kürzere Folgen transkribiert das Gerät gleich selbst.
+    public static let minimumDuration = MediaDuration(minutes: 4)
+
+    /// Endungen, deren Ton sich nicht stückweise aus dem Netz lesen lässt.
+    /// Nur MP3 mit fester Bitrate geht; ob sie fest ist, zeigt erst die Datei.
+    public static let unsupportedRemoteExtensions = [".m4a", ".mp4", ".aac", ".m4b", ".ogg", ".opus", ".wav", ".flac"]
+
+    /// Lohnt der Zwilling für diese Datei überhaupt? Geprüft, bevor etwas an
+    /// Supadata geht, damit kein Abruf für eine Folge anfällt, deren Ton
+    /// sich ohnehin nicht abgleichen lässt. Liegt der Ton auf dem Gerät,
+    /// geht jedes Format.
+    public static func audioAllowsAlignment(audioURL: URL, onDevice: Bool, declaredDuration: MediaDuration?) -> Bool {
+        if let declaredDuration, declaredDuration < minimumDuration { return false }
+        guard !onDevice else { return true }
+        let path = audioURL.path().lowercased()
+        return !unsupportedRemoteExtensions.contains { path.hasSuffix($0) }
+    }
+
     /// Darf gesucht werden? Einmal je Woche und Folge, auch von Hand.
     public static func maySearch(_ record: AudioTwinRecord?, now: Date) -> Bool {
         guard let searched = record?.searchedAt else { return true }

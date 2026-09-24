@@ -165,6 +165,18 @@ struct AudioTwinPlannerTests {
         #expect(AudioTwinPlanner.steps(noPublisher) == [.localTranscription])
     }
 
+    @Test("Kein Abruf für Ton, der sich nicht abgleichen lässt")
+    func audioFormatPrecheck() {
+        let mp3 = URL(string: "https://example.com/folge.mp3?ref=feed")!
+        let m4a = URL(string: "https://example.com/folge.M4A")!
+        #expect(AudioTwinPlanner.audioAllowsAlignment(audioURL: mp3, onDevice: false, declaredDuration: nil))
+        #expect(!AudioTwinPlanner.audioAllowsAlignment(audioURL: m4a, onDevice: false, declaredDuration: nil))
+        // Auf dem Gerät geht jedes Format.
+        #expect(AudioTwinPlanner.audioAllowsAlignment(audioURL: m4a, onDevice: true, declaredDuration: nil))
+        #expect(!AudioTwinPlanner.audioAllowsAlignment(audioURL: mp3, onDevice: true,
+                                                       declaredDuration: MediaDuration(minutes: 3)))
+    }
+
     @Test("Ohne erlaubtes Netz kein Zwilling, abonnierter Kanal vor Suche")
     func networkAndSources() {
         var inputs = AudioTwinPlanner.Inputs(supadataAllowed: true, networkAllowed: false,
@@ -309,7 +321,11 @@ struct CaptionAlignmentTests {
         let refined = try #require(anchor(at: 900_000))
         #expect(abs(refined.offset - 120_000) <= 1_000)
 
-        let mapping = try CaptionAlignment.mapping(from: [first, second, third, refined]).get()
+        // Noch sechseinhalb Minuten offen: zu weit, um überzuleiten.
+        #expect(CaptionAlignment.mapping(from: [first, second, third, refined]) == .failure(.stepTooWide))
+        let closer = try #require(anchor(at: 700_000))
+        #expect(abs(closer.offset - 30_000) <= 1_000)
+        let mapping = try CaptionAlignment.mapping(from: [first, second, third, refined, closer]).get()
         #expect(!mapping.isConstant)
         // Vor der Werbung 30 s, danach 120 s.
         #expect(abs(mapping.audioTime(forCaption: 300_000) - 330_000) <= 1_000)

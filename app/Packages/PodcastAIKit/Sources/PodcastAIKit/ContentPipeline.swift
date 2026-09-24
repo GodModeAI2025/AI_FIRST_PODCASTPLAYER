@@ -467,8 +467,6 @@ public actor ContentPipeline {
     static let twinBackupPositions = [0.30, 0.70]
     /// Höchstens so viele Stücke je Folge, das Eingrenzen eingeschlossen.
     static let twinMaxWindows = 7
-    /// Kürzere Folgen transkribiert das Gerät gleich selbst.
-    static let twinMinimumDuration: Int64 = 4 * 60_000
 
     /// Legt die Untertitel auf die Zeit der Audiodatei und speichert sie.
     ///
@@ -509,7 +507,7 @@ public actor ContentPipeline {
             return (nil, .unsupportedAudio)
         }
         let total = source.duration.milliseconds
-        guard total >= Self.twinMinimumDuration else { return (nil, .unsupportedAudio) }
+        guard total >= AudioTwinPlanner.minimumDuration.milliseconds else { return (nil, .unsupportedAudio) }
 
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("TwinWindows-\(UUID().uuidString)", isDirectory: true)
