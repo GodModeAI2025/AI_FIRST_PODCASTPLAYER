@@ -107,11 +107,11 @@ public enum PublisherTranscript {
         guard parts.count == 2 || parts.count == 3 else { return nil }
         var seconds = 0.0
         for (index, part) in parts.enumerated() {
-            guard let number = Double(part), number >= 0 else { return nil }
+            guard let number = Double(part), number.isFinite, number >= 0 else { return nil }
             if index > 0, number >= 60 { return nil }
             seconds = seconds * 60 + number
         }
-        return MediaTime(milliseconds: Int64((seconds * 1000).rounded()))
+        return MediaTime.fromUntrustedSeconds(seconds)
     }
 
     /// Der Name aus `<v Name>` oder `<v.klasse Name>`.
@@ -141,12 +141,13 @@ public enum PublisherTranscript {
         let file = try JSONDecoder().decode(JSONFile.self, from: data)
         return file.segments.prefix(maximumCues).compactMap { entry -> Cue? in
             let body = (entry.body ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !body.isEmpty, entry.startTime >= 0, entry.endTime > entry.startTime else { return nil }
+            guard !body.isEmpty,
+                  let start = MediaTime.fromUntrustedSeconds(entry.startTime),
+                  let end = MediaTime.fromUntrustedSeconds(entry.endTime),
+                  end > start else { return nil }
             let speaker = entry.speaker?.trimmingCharacters(in: .whitespaces)
             return Cue(
-                range: MediaTimeRange(
-                    start: MediaTime(milliseconds: Int64((entry.startTime * 1000).rounded())),
-                    end: MediaTime(milliseconds: Int64((entry.endTime * 1000).rounded()))),
+                range: MediaTimeRange(start: start, end: end),
                 text: body,
                 speaker: speaker?.isEmpty == false ? String(speaker!.prefix(80)) : nil)
         }
@@ -185,6 +186,23 @@ public enum PublisherTranscript {
             }
         }
         if let current { result.append(current) }
+        return collapsingSameRange(result)
+    }
+
+    /// Zwei Stücke mit genau demselben Zeitbereich, etwa zwei Sprecher in
+    /// einem Untertitel, bekämen dieselbe Segmentkennung. Sie werden zu
+    /// einem Stück, der Sprecher bleibt nur, wenn beide gleich sind. Die
+    /// Stücke sind nach Zeit sortiert, gleiche liegen also nebeneinander.
+    static func collapsingSameRange(_ cues: [Cue]) -> [Cue] {
+        var result: [Cue] = []
+        for cue in cues {
+            if let open = result.last, open.range == cue.range {
+                result[result.count - 1] = Cue(range: open.range, text: open.text + " " + cue.text,
+                                    speaker: open.speaker == cue.speaker ? open.speaker : nil)
+            } else {
+                result.append(cue)
+            }
+        }
         return result
     }
 }

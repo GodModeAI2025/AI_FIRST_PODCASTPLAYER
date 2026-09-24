@@ -1450,8 +1450,6 @@ public final class AppModel {
                 return false
             }
             analyzedEpisodes.insert(episode.id)
-            // Das Sprachmodell dafür liegt jetzt auf dem Gerät.
-            installedSpeechModels.insert(locale.identifier)
             // Die Fakten kommen in ihre eigene Warteschlange, vor dem ersten
             // `await`: eine Löschung danach nimmt sie dort wieder heraus. Das
             // nächste Transkript wartet nicht auf sie.
@@ -1466,6 +1464,13 @@ public final class AppModel {
             // Regeln nach dem Transkript, nicht mehr die fürs Vorhalten.
             prefetchedNewest.remove(episode.id)
             await removeAudioAfterAnalysisIfWanted(episode)
+            // Das Sprachmodell liegt jetzt auf dem Gerät, aber nur, wenn die
+            // App selbst transkribiert hat. Für das Transkript vom Podcast
+            // wurde keins geladen. Erst hier gefragt: das `await` darf nicht
+            // zwischen Löschprüfung und Einreihen der Fakten liegen.
+            if await TimedTranscriptionEngine.hasInstalledModel(for: locale) {
+                installedSpeechModels.insert(locale.identifier)
+            }
             await refreshRelevantToday()
             return false
         } catch {

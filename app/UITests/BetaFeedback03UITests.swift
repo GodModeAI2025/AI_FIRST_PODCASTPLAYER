@@ -31,7 +31,7 @@ final class BetaFeedback03UITests: XCTestCase {
 
     /// „Feed abonnieren geht nicht“: feeds.transistor.fm/ai-to-the-dna.
     /// Danach eine Folge öffnen, abspielen und den Player sehen.
-    func testTransistorFeedEpisodeDetailAndPlayback() {
+    @MainActor func testTransistorFeedEpisodeDetailAndPlayback() {
         let app = XCUIApplication(); app.launchArguments = ["-skip-onboarding"]; app.launch()
         let row = app.staticTexts["AI to the DNA"].firstMatch
         app.tabBars.buttons["Meine Podcasts"].tap()
@@ -42,7 +42,7 @@ final class BetaFeedback03UITests: XCTestCase {
         XCTAssertFalse(app.alerts.firstMatch.exists)
         row.tap()
 
-        let firstEpisode = app.cells.element(boundBy: 1)
+        let firstEpisode = app.firstEpisodeCell()
         XCTAssertTrue(firstEpisode.waitForExistence(timeout: 15))
         firstEpisode.tap()
 

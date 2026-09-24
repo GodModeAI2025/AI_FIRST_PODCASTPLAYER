@@ -8,6 +8,21 @@
 import Foundation
 import PodcastAICore
 
+extension MediaTime {
+
+    /// Sekunden aus fremden Daten (Feed, Kapiteldatei, Transkript). `nil`
+    /// bei nicht endlichen, negativen oder absurd großen Werten. `inf` und
+    /// `1e300` lassen sich als Zahl lesen und brächten die Umrechnung in
+    /// Millisekunden zum Absturz.
+    static func fromUntrustedSeconds(_ seconds: Double) -> MediaTime? {
+        guard seconds.isFinite, seconds >= 0, seconds <= maximumUntrustedSeconds else { return nil }
+        return MediaTime(milliseconds: Int64((seconds * 1000).rounded()))
+    }
+
+    /// 1000 Stunden. Keine Folge ist länger.
+    static let maximumUntrustedSeconds: Double = 3_600_000
+}
+
 public enum ChapterFile {
 
     /// Liest eine Kapiteldatei. Kapitel ohne Titel, mit negativer Zeit oder
@@ -17,10 +32,12 @@ public enum ChapterFile {
     public static func parse(_ data: Data) throws -> [Chapter] {
         let file = try JSONDecoder().decode(File.self, from: data)
         return file.chapters
-            .filter { $0.toc != false && !($0.title ?? "").isEmpty && $0.startTime >= 0 }
-            .map { Chapter(start: MediaTime(milliseconds: Int64(($0.startTime * 1000).rounded())),
-                           title: $0.title ?? "", provenance: .original,
-                           imageURL: webURL($0.img), linkURL: webURL($0.url)) }
+            .filter { $0.toc != false && !($0.title ?? "").isEmpty }
+            .compactMap { entry in
+                guard let start = MediaTime.fromUntrustedSeconds(entry.startTime) else { return nil }
+                return Chapter(start: start, title: entry.title ?? "", provenance: .original,
+                               imageURL: webURL(entry.img), linkURL: webURL(entry.url))
+            }
             .sorted { $0.start < $1.start }
     }
 

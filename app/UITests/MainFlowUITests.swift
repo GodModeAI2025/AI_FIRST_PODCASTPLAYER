@@ -74,8 +74,8 @@ final class MainFlowUITests: XCTestCase {
         let sourceMetadata = app.descendants(matching: .any)["source.metadata"].firstMatch
         XCTAssertTrue(sourceMetadata.waitForExistence(timeout: 15), "Die Angaben zum Podcast fehlen")
 
-        // Die erste Zeile unter den Angaben ist die neueste Folge.
-        let firstEpisode = app.cells.element(boundBy: 1)
+        // Die neueste Folge, unter den Angaben und der Kopfzeile.
+        let firstEpisode = app.firstEpisodeCell()
         XCTAssertTrue(firstEpisode.waitForExistence(timeout: 15), "Keine Folgen sichtbar")
         firstEpisode.tap()
         let episodeMetadata = app.descendants(matching: .any)["episode.metadata"].firstMatch
@@ -89,7 +89,7 @@ final class MainFlowUITests: XCTestCase {
 
     /// Download, Transkription und Belegextraktion einer echten Folge.
     /// Läuft mehrere Minuten; nur mit RUN_ANALYSIS=1 in der Umgebung.
-    func testAnalyzeEpisode() throws {
+    @MainActor func testAnalyzeEpisode() throws {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["TEST_RUNNER_RUN_ANALYSIS"] == "1"
                           || ProcessInfo.processInfo.environment["RUN_ANALYSIS"] == "1")
         let app = XCUIApplication()
@@ -107,7 +107,7 @@ final class MainFlowUITests: XCTestCase {
         }
         row.tap()
         // Die Folge öffnen: „Transkript erstellen“ sitzt in der Folgenansicht.
-        let firstEpisode = app.cells.element(boundBy: 1)
+        let firstEpisode = app.firstEpisodeCell()
         XCTAssertTrue(firstEpisode.waitForExistence(timeout: 15))
         firstEpisode.tap()
         let analyze = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Transkript erstellen'")).firstMatch
@@ -128,5 +128,18 @@ final class MainFlowUITests: XCTestCase {
         if alert.exists { XCTFail("Fehlermeldung: \(alert.debugDescription)") }
         XCTAssertFalse(failed.exists, "Transkript fehlgeschlagen: \(failed.label)")
         XCTAssertTrue(done.exists, "Transkript nicht in 15 Minuten fertig")
+    }
+}
+
+extension XCUIApplication {
+
+    /// Die erste Folgenzeile einer Folgenliste. Vor ihr steht eine Zeile
+    /// mit der Kopfzeile, und liefert der Feed Beschreibung oder Rubriken,
+    /// eine weitere mit den Angaben zum Podcast. Einzelne Folgen haben die
+    /// nicht, ein Podcast aus einem Feed fast immer.
+    @MainActor func firstEpisodeCell(timeout: TimeInterval = 15) -> XCUIElement {
+        _ = descendants(matching: .any)["episodes.coverage"].firstMatch.waitForExistence(timeout: timeout)
+        let hasMetadata = descendants(matching: .any)["source.metadata"].firstMatch.exists
+        return cells.element(boundBy: hasMetadata ? 2 : 1)
     }
 }

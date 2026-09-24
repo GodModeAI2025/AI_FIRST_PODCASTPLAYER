@@ -39,9 +39,9 @@ final class GoalFeaturesUITests: XCTestCase {
         add(shot)
     }
 
-    func testEpisodeSectionsAndEpisodeChat() {
+    @MainActor func testEpisodeSectionsAndEpisodeChat() {
         let app = launchWithFeed()
-        let episode = app.cells.element(boundBy: 1)
+        let episode = app.firstEpisodeCell()
         XCTAssertTrue(episode.waitForExistence(timeout: 15))
         episode.tap()
 
@@ -125,9 +125,9 @@ final class GoalFeaturesUITests: XCTestCase {
         app.navigationBars.containing(.button, identifier: "episode.menu").firstMatch
     }
 
-    func testEpisodeExportAndDelete() {
+    @MainActor func testEpisodeExportAndDelete() {
         let app = launchWithFeed()
-        let episode = app.cells.element(boundBy: 1)
+        let episode = app.firstEpisodeCell()
         XCTAssertTrue(episode.waitForExistence(timeout: 15))
         let title = episode.buttons.firstMatch.label
         episode.tap()

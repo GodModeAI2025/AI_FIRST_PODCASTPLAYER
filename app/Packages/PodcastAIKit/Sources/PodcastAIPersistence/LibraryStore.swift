@@ -618,6 +618,36 @@ public actor LibraryStore {
         try modelContext.save()
     }
 
+    /// Schreibt die Angaben aus einem frisch gelesenen Feed an eine
+    /// vorhandene Quelle: Titel, Herausgeber, Adressen, Sprache,
+    /// Beschreibung, Rubriken und Fähigkeiten. Abo und Revision bleiben, wie
+    /// sie in der Datenbank stehen. Ein Abgleich läuft einige Sekunden: wer
+    /// währenddessen abbestellt oder löscht, bekommt die Quelle nicht zurück.
+    /// Gibt es die Quelle nicht mehr, passiert nichts.
+    public func updateFeedMetadata(of source: Source) throws {
+        let identifier = source.id.rawValue
+        let rows = try modelContext.fetch(
+            FetchDescriptor<StoredSource>(predicate: #Predicate { $0.identifier == identifier })
+        )
+        guard !rows.isEmpty else { return }
+        for stored in rows {
+            stored.title = source.title
+            stored.author = source.author
+            stored.websiteURLString = source.websiteURL?.absoluteString
+            stored.artworkURLString = source.artworkURL?.absoluteString
+            stored.languageCode = source.language
+            stored.summary = source.summary
+            stored.categories = source.categories ?? []
+            stored.isExplicit = source.isExplicit
+            stored.canDownloadAudio = source.capabilities.audioDownload
+            stored.hasPublisherTranscript = source.capabilities.publisherTranscript
+            stored.embeddedPlayerOnly = source.capabilities.embeddedPlayerOnly
+            stored.hasHistoricalCatalog = source.capabilities.historicalCatalog
+            stored.limitationReason = source.capabilities.limitationReason
+        }
+        try modelContext.save()
+    }
+
     public func sources() throws -> [Source] {
         try modelContext.fetch(
             FetchDescriptor<StoredSource>(sortBy: [SortDescriptor(\.title), SortDescriptor(\.addedAt)])

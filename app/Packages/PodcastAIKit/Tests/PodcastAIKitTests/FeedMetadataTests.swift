@@ -301,4 +301,90 @@ struct FeedMetadataTests {
         let after = try #require(try await store.episodes(forSource: sourceID).first)
         #expect(after.publisherChapters.isEmpty)
     }
+
+    // MARK: Fremde Zahlen
+
+    @Test("Unendliche oder riesige Zeiten stürzen nicht ab, sie fallen weg")
+    func untrustedTimesDoNotTrap() throws {
+        let srt = """
+        1
+        inf:00:00,000 --> inf:00:01,000
+        Kaputt
+
+        2
+        99999999999999999999:00:00,000 --> 99999999999999999999:00:01,000
+        Riesig
+
+        3
+        00:00:01,000 --> 00:00:02,000
+        Gut.
+        """
+        let cues = try PublisherTranscript.parse(Data(srt.utf8))
+        #expect(cues.map(\.text) == ["Gut."])
+
+        let json = """
+        {"version": "1.0.0", "segments": [
+          {"startTime": 1e300, "endTime": 2e300, "body": "Riesig"},
+          {"startTime": 1, "endTime": 2, "body": "Gut."}
+        ]}
+        """
+        #expect(try PublisherTranscript.parse(Data(json.utf8)).map(\.text) == ["Gut."])
+
+        let chapters = """
+        {"version": "1.2.0", "chapters": [
+          {"startTime": 1e300, "title": "Riesig"},
+          {"startTime": 0, "title": "Intro"}
+        ]}
+        """
+        #expect(try ChapterFile.parse(Data(chapters.utf8)).map(\.title) == ["Intro"])
+    }
+
+    @Test("Zwei Sprecher im selben Zeitbereich werden ein Stück")
+    func sameRangeCuesCollapse() throws {
+        let vtt = """
+        WEBVTT
+
+        00:00:01.000 --> 00:00:03.000
+        <v Anna>Hallo.
+
+        00:00:01.000 --> 00:00:03.000
+        <v Ben>Hallo zurück.
+
+        00:00:04.000 --> 00:00:05.000
+        <v Anna>Los geht es.
+        """
+        let cues = try PublisherTranscript.parse(Data(vtt.utf8))
+        #expect(Set(cues.map(\.range)).count == cues.count)
+        #expect(cues.first?.text == "Hallo. Hallo zurück.")
+        #expect(cues.first?.speaker == nil)
+    }
+
+    // MARK: Abgleich
+
+    @Test("Der Abgleich schreibt Feedangaben, aber kein Abo und keine gelöschte Quelle zurück")
+    func feedMetadataUpdateKeepsSubscriptionAndDeletion() async throws {
+        let store = LibraryStore.make(container: try LibraryStore.makeContainer(inMemory: true))
+        let sourceID = SourceID(stable: "meta-refresh")
+        let original = Source(id: sourceID, kind: .podcastRSS, title: "Alt")
+        try await store.upsert(source: original)
+
+        // Während des Abgleichs abbestellt.
+        var unsubscribed = original
+        unsubscribed.isSubscribed = false
+        try await store.upsert(source: unsubscribed)
+
+        var refreshed = original
+        refreshed.title = "Neu"
+        refreshed.summary = "Beschreibung"
+        try await store.updateFeedMetadata(of: refreshed)
+        let after = try #require(try await store.sources().first { $0.id == sourceID })
+        #expect(after.title == "Neu")
+        #expect(after.summary == "Beschreibung")
+        #expect(after.isSubscribed == false)
+
+        // Während des Abgleichs gelöscht: die Quelle kommt nicht zurück.
+        _ = try await store.removeSource(sourceID)
+        try await store.updateFeedMetadata(of: refreshed)
+        #expect(try await store.sources().contains { $0.id == sourceID } == false)
+    }
 }

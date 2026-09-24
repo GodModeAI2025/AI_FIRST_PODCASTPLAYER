@@ -483,10 +483,10 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
         guard !parts.isEmpty, parts.count <= 3 else { return nil }
         var seconds = 0.0
         for part in parts {
-            guard let value = Double(part) else { return nil }
+            guard let value = Double(part), value.isFinite else { return nil }
             seconds = seconds * 60 + value
         }
-        return MediaTime(milliseconds: Int64((seconds * 1000).rounded()))
+        return MediaTime.fromUntrustedSeconds(seconds)
     }
 
     /// Nur `http` und `https`. Ein Feed darf keine `file:`- oder

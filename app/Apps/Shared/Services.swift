@@ -363,7 +363,9 @@ public actor FeedRefresher {
                 // Begründung, etwa „YouTube liefert die Videoliste gerade
                 // nicht“, fällt dabei weg.
                 let updated = Self.refreshed(source, from: parsed)
-                if updated != source { try await store.upsert(source: updated) }
+                // Nur die Angaben aus dem Feed. Wer während des Abgleichs
+                // abbestellt oder löscht, bekommt die Quelle nicht zurück.
+                if updated != source { try await store.updateFeedMetadata(of: updated) }
                 let episodes = parsed.items.map { makeEpisode($0, sourceID: source.id) }
                 newEpisodes += try await store.upsert(episodes: episodes, forSource: source.id)
             } catch {
