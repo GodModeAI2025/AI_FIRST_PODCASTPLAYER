@@ -54,20 +54,37 @@ extension AppModel {
     /// Den Feed holt die App wie beim Aktualisieren aller Abos auch über
     /// Mobilfunk, er ist klein. Supadata fragt sie dort nur mit Zustimmung.
     public func reloadSource(_ sourceID: SourceID) async {
+        let newEpisodes = await runReload(sourceID)
+        // Neue Folgen bereitet die App vor wie nach dem Aktualisieren aller
+        // Abos, nach denselben Regeln fürs Netz. Abgespielt wird nichts. Erst
+        // nach dem Ergebnis, damit die Seite nicht so lange „Wird neu
+        // geladen …“ zeigt.
+        if newEpisodes > 0 { await prepareNewEpisodes(in: sourceID) }
+    }
+
+    /// Das eigentliche Neuladen. Gibt die Zahl neuer Folgen zurück.
+    private func runReload(_ sourceID: SourceID) async -> Int {
         guard !reloadingSources.contains(sourceID),
-              let shown = sources.first(where: { $0.id == sourceID }), canReload(shown) else { return }
+              let shown = sources.first(where: { $0.id == sourceID }), canReload(shown) else { return 0 }
         guard !isOffline else {
             sourceReloadResults[sourceID] = .failed(String(localized: "Keine Verbindung. Neu laden geht, sobald das Gerät online ist."))
-            return
+            return 0
         }
         reloadingSources.insert(sourceID)
-        defer { reloadingSources.remove(sourceID) }
         sourceReloadResults[sourceID] = nil
+        // Auch unter „Meine Podcasts“ sichtbar, wo es keine Zeile dafür gibt.
+        activity = String(localized: "„\(shown.title)“ wird neu geladen …")
+        var newEpisodes = 0
+        defer {
+            reloadingSources.remove(sourceID)
+            activity = nil
+            AccessibilityNotification.Announcement(sourceReloadResults[sourceID]?.text ?? "").post()
+        }
 
         do {
             // Aus der Datenbank, nicht aus `sources`: dort stehen auch Lücken,
             // die Supadata gefüllt hat, und die gehören nicht in den Feed.
-            guard let stored = try await store.sources().first(where: { $0.id == sourceID }) else { return }
+            guard let stored = try await store.sources().first(where: { $0.id == sourceID }) else { return 0 }
             var result = try await refresher.reload(stored, feedData: Self.fixtureFeed(for: stored))
             if !result.feedHasArtwork, stored.kind == .podcastRSS, let feedURL = stored.feedURL,
                let found = await directoryArtwork(forFeed: feedURL, title: result.source.title),
@@ -98,23 +115,22 @@ extension AppModel {
             }
             sourceReloadResults[sourceID] = stored.refreshesAutomatically
                 ? .done(newEpisodes: result.newEpisodes) : .doneWithoutSubscription
-            AccessibilityNotification.Announcement(sourceReloadResults[sourceID]?.text ?? "").post()
-            // Neue Folgen bereitet die App vor wie nach dem Aktualisieren
-            // aller Abos, nach denselben Regeln fürs Netz. Abgespielt wird nichts.
-            if result.newEpisodes > 0 { await prepareNewEpisodes(in: sourceID) }
+            newEpisodes = result.newEpisodes
         } catch is CancellationError {
-            return
+            return 0
         } catch {
             sourceReloadResults[sourceID] = .failed(
                 String(localized: "Neu laden hat nicht geklappt. \(UserFacingError.describe(error))"))
         }
+        return newEpisodes
     }
 
-    /// Das Bild aus dem Podcast-Verzeichnis, wenn der Feed keins nennt.
-    /// Gesucht wird nach dem Titel; zählt nur ein Treffer mit genau diesem Feed.
+    /// Das Bild aus dem Apple-Podcast-Verzeichnis, wenn der Feed keins
+    /// nennt. Gesucht wird nach dem Titel; zählt nur ein Treffer mit genau
+    /// diesem Feed.
     private func directoryArtwork(forFeed feedURL: URL, title: String) async -> URL? {
         guard title.count >= 2,
-              let results = try? await PodcastCatalog.shared.search(title) else { return nil }
+              let results = try? await PodcastCatalog.shared.searchApple(title) else { return nil }
         let key = CatalogMerge.feedKey(feedURL)
         return results.first { podcast in
             ([podcast.feedURL] + podcast.alternateFeedURLs).contains { CatalogMerge.feedKey($0) == key }

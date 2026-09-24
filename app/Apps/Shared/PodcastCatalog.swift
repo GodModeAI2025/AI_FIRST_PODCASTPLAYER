@@ -72,6 +72,11 @@ final class PodcastCatalog {
         try await client.search(term)
     }
 
+    /// Sucht nur im Apple-Podcast-Verzeichnis.
+    func searchApple(_ term: String) async throws -> [CatalogPodcast] {
+        try await client.searchApple(term)
+    }
+
     /// Eine Seite der Charts. Charts und Einzelheiten hält der Client eine
     /// Viertelstunde.
     func page(of chart: CatalogChart, offset: Int, count: Int) async throws -> CatalogPage {

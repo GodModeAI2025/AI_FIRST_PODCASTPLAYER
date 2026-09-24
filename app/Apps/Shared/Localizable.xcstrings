@@ -18427,6 +18427,22 @@
         }
       }
     },
+    "„%@“ wird neu geladen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ wird neu geladen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reloading “%@”…"
+          }
+        }
+      }
+    },
     "„%@“ wird über Mobilfunk auf das Gerät geladen." : {
       "localizations" : {
         "de" : {
