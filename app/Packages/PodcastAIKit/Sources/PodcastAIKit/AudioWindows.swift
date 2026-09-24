@@ -125,7 +125,7 @@ struct RemoteMP3Windows: AudioWindowSource {
 
         var data = head.data
         var dataOffset: Int64 = 0
-        if Int64(id3) + 4_096 > Int64(data.count) {
+        if Int64(id3) + 8_192 > Int64(data.count) {
             // Ein großes Cover im ID3-Block: der Ton beginnt weiter hinten.
             let start = Int64(id3)
             guard start < total else { throw AudioWindowError.unsupported }

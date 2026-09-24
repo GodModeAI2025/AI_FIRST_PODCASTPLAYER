@@ -324,9 +324,9 @@ public enum CaptionAlignment {
 
     /// Wo ein weiteres Stück den Wechsel des Versatzes am besten eingrenzt:
     /// in der Mitte zwischen zwei Ankern mit verschiedenem Versatz, die
-    /// weiter als `refineUntil` auseinanderliegen. `nil`, wenn nichts mehr
-    /// einzugrenzen ist. Stellen, die schon versucht wurden und nichts
-    /// ergaben, kommen nicht noch einmal.
+    /// weiter als `refineUntil` auseinanderliegen. Fiel die Mitte schon in
+    /// Werbung oder Musik, ein Viertel davor oder dahinter. `nil`, wenn
+    /// nichts mehr einzugrenzen ist.
     public static func nextProbe(
         anchors: [AlignmentAnchor], failedProbes: [Int64], parameters: Parameters = Parameters()
     ) -> Int64? {
@@ -335,9 +335,12 @@ public enum CaptionAlignment {
             let span = upper.audioTime - lower.audioTime
             guard abs(upper.offset - lower.offset) > parameters.sameOffsetTolerance,
                   span > parameters.refineUntil else { continue }
-            let middle = lower.audioTime + span / 2
-            if failedProbes.contains(where: { abs($0 - middle) < span / 4 }) { continue }
-            return middle
+            let candidates = [span / 2, span / 4, 3 * span / 4].map { lower.audioTime + $0 }
+            if let free = candidates.first(where: { candidate in
+                !failedProbes.contains { abs($0 - candidate) < span / 8 }
+            }) {
+                return free
+            }
         }
         return nil
     }

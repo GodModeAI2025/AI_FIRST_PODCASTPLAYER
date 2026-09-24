@@ -223,13 +223,28 @@ public actor ContentPipeline {
         }
         // Sonst die Untertitel desselben Inhalts auf YouTube, falls die App
         // sie holen darf und sie sich sicher auf den Ton legen lassen.
-        if let twin, let captions = await twin.provide(episode) {
+        if let twin {
+            onProgress(PipelineProgress(
+                episodeID: episode.id, stage: .discovered,
+                detail: String(localized: "sucht Untertitel auf YouTube", bundle: .module)))
+            if let captions = await twin.provide(episode) {
+                try Task.checkCancellation()
+                let evidence: [Evidence]?
+                do {
+                    let outcome: TwinAlignmentOutcome
+                    (evidence, outcome) = try await processTwinCaptions(
+                        captions, episode: episode, audioURL: audioURL,
+                        mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale)
+                    twin.report(episode.id, captions, outcome)
+                } catch {
+                    // Ohne Sprachmodell oder Speicher scheitert die Folge ganz.
+                    // Der nächste Versuch soll dafür nicht wieder Untertitel holen.
+                    if !(error is CancellationError) { twin.report(episode.id, captions, .notAligned) }
+                    throw error
+                }
+                if let evidence { return evidence }
+            }
             try Task.checkCancellation()
-            let (evidence, outcome) = try await processTwinCaptions(
-                captions, episode: episode, audioURL: audioURL,
-                mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale)
-            twin.report(episode.id, captions, outcome)
-            if let evidence { return evidence }
         }
         // Liegt die Datei schon da, wird sie nicht ein zweites Mal geladen.
         let download: DownloadResult

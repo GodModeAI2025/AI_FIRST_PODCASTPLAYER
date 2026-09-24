@@ -145,6 +145,22 @@
         }
       }
     },
+    "sucht Untertitel auf YouTube": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sucht Untertitel auf YouTube"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "looking for YouTube captions"
+          }
+        }
+      }
+    },
     "transkribiert": {
       "localizations": {
         "de": {

@@ -48,8 +48,10 @@ extension AppModel {
         guard let podcast = sources.first(where: { $0.id == episode.sourceID }) else { return nil }
         let channels = linkedYouTubeChannels(for: podcast)
         guard !channels.isEmpty else { return nil }
+        // Videos, deren Untertitel gerade erst scheiterten, bringen hier auch nichts.
         let videos = channels.flatMap { episodes[$0.id] ?? [] }
             .filter { $0.audioURL == nil && YouTubeLinks.videoID(in: $0.webPageURL) != nil }
+            .filter { !captionsCoolingDown($0.id) }
         return AudioTwinMatcher.fromChannel(episode: episode, videos: videos,
                                             ignoring: [podcast.title] + channels.map(\.title))
     }
@@ -154,9 +156,13 @@ extension AppModel {
     }
 
     /// Supadata oder das Netz scheiterten. Ein Abbruch ist kein Fehlschlag.
+    /// Schlüssel, Kontingent und Drosselung betreffen jede Folge; dafür gibt
+    /// es den Schutzschalter und die Ruhe des Dienstes, nicht eine Woche
+    /// Pause für diese eine Folge.
     private func noteTwinError(_ error: SupadataError, for id: EpisodeID) async {
         guard error != .cancelled else { return }
-        noteTwinFailure(id, kind: error.isTransient ? .passing : .lasting)
+        let accountWide: Bool = if case .rateLimited = error { true } else { error.affectsAccount }
+        if !accountWide { noteTwinFailure(id, kind: error.isTransient ? .passing : .lasting) }
         await noteSupadataAccountError(error)
     }
 

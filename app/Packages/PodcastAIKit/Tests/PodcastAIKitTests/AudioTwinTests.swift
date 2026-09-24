@@ -319,6 +319,21 @@ struct CaptionAlignmentTests {
         #expect(inside > mapping.audioTime(forCaption: 600_000) && inside < mapping.audioTime(forCaption: 800_000))
     }
 
+    @Test("Eingrenzen: fiel die Mitte in Werbung, ein Viertel daneben, dann nichts mehr")
+    func probesAroundFailedMiddle() {
+        let anchors = [AlignmentAnchor(audioTime: 200_000, offset: 30_000),
+                       AlignmentAnchor(audioTime: 1_000_000, offset: 120_000)]
+        #expect(CaptionAlignment.nextProbe(anchors: anchors, failedProbes: []) == 600_000)
+        #expect(CaptionAlignment.nextProbe(anchors: anchors, failedProbes: [600_000]) == 400_000)
+        #expect(CaptionAlignment.nextProbe(anchors: anchors, failedProbes: [600_000, 400_000]) == 800_000)
+        #expect(CaptionAlignment.nextProbe(anchors: anchors, failedProbes: [600_000, 400_000, 800_000]) == nil)
+        // Gleicher Versatz oder schon eng genug: nichts einzugrenzen.
+        #expect(CaptionAlignment.nextProbe(anchors: [anchors[0], AlignmentAnchor(audioTime: 1_000_000, offset: 31_000)],
+                                           failedProbes: []) == nil)
+        #expect(CaptionAlignment.nextProbe(anchors: [anchors[0], AlignmentAnchor(audioTime: 350_000, offset: 120_000)],
+                                           failedProbes: []) == nil)
+    }
+
     @Test("Stücke aus einer anderen Folge: kein Anker, keine Zuordnung")
     func rejectsForeignAudio() {
         let other = SyntheticEpisode(count: 4_500, seed: 99)
