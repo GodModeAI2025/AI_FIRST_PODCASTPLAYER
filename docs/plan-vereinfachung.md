@@ -113,7 +113,7 @@ Ich empfehle, bei Apple Intelligence zu bleiben. Die Klassifizierung ist eine Au
 7. **Neue Tags sichtbar ab:** Vorschlag: ab zwei Quellen.
 8. **Ausgabenlänge:** Vorschlag: fest 20 Minuten, in den Feed-Einstellungen änderbar.
 9. **`RelevanceScorer` als Rückfall:** Vorschlag: ja, für Geräte ohne Apple Intelligence.
-10. **YouTube ohne Ton:** Vorschlag: auf der Folgenseite offen sagen, dass es dort nur Metadaten und Beschreibungskapitel gibt, außer es gibt ein Publisher-Transkript oder einen passenden Audio-Podcast.
+10. **YouTube ohne Ton:** Entschieden (siehe Abschnitt 13): Untertitel über Supadata mit eigenem Schlüssel, sonst der passende Audio-Podcast, sonst sagt die Folgenseite offen, dass es nur Metadaten und Beschreibungskapitel gibt.
 
 ## 11. Ergänzungen aus der Gegenprüfung
 
@@ -164,10 +164,11 @@ Stand heute: Ein direkter Audiolink landet in der Sammelquelle „Einzelne Folge
 - **Jeder Link führt zum Kanal:** `youtube.com/watch`, `youtu.be`, `/shorts/`, `/live/`, `music.youtube.com`, `/@name`, `/channel/UC…`, `/c/…`, `/user/…` und Playlists. Die Vorschau zeigt Kanalbild, Name, Beschreibung und die neuesten Videos. Zur Auswahl stehen „Kanal abonnieren“, „Nur dieses Video“ und, falls vorhanden, „Passenden Audio-Podcast abonnieren“ (heute `PodcastCounterpart`). Den Audio-Podcast empfiehlt die App zuerst, weil es nur mit Ton Transkript, Fakten und Tags gibt.
 - **Playlists abonnieren:** Eine Playlist ist eine eigene Quelle mit Feed `feeds/videos.xml?playlist_id=`. Heute führt eine Playlist zum Kanal.
 - **Abos übernehmen:** Import der Datei `subscriptions.csv` aus Google Takeout (YouTube-Abos). Die Liste zeigt, welche Kanäle einen Audio-Podcast haben. Man wählt aus und abonniert alles auf einmal. Ohne Google-Konto und ohne Schlüssel.
-- **Suche nach Kanälen:** Ohne API-Schlüssel gibt es keine offizielle YouTube-Suche. Die App sucht deshalb den Namen im Katalog, also bei Apple und Podcast Index, und bietet gefundene Audio-Podcasts an. Einen YouTube-Kanal abonniert man über seinen Link oder über das Teilen aus der YouTube-App. Die Share Extension macht das zum normalen Weg.
-- **Mehr aus dem Feed holen:** Der YouTube-Feed liefert nur die 15 neuesten Videos. Die App speichert jedes gesehene Video, damit die Liste über die Zeit wächst. Ältere Videos lassen sich nicht nachladen, und die Kanalseite sagt das.
+- **Suche nach Kanälen:** Ohne API-Schlüssel gibt es keine offizielle YouTube-Suche. Die App sucht deshalb den Namen im Katalog, also bei Apple und Podcast Index, und bietet gefundene Audio-Podcasts an. Einen YouTube-Kanal abonniert man über seinen Link oder über das Teilen aus der YouTube-App. Die Share Extension macht das zum normalen Weg. Mit eigenem Supadata-Schlüssel gibt es zusätzlich die Kanalsuche über Supadata, nur auf Tippen.
+- **Mehr aus dem Feed holen:** Der YouTube-Feed liefert nur die 15 neuesten Videos. Die App speichert jedes gesehene Video, damit die Liste über die Zeit wächst. Ohne Schlüssel lassen sich ältere Videos nicht nachladen, und die Kanalseite sagt das; mit eigenem Supadata-Schlüssel lädt „20 ältere Videos über Supadata laden“ sie nach.
 - **Kapitel aus der Beschreibung:** Zeitmarken wie `00:00 Intro` in der Videobeschreibung werden zu Kapiteln mit Tags und Satz je Kapitel (siehe 0.9).
-- **Ohne Ton bleibt es bei Metadaten:** YouTube liefert der App keinen Ton, und die App lädt ihn auch nicht über Umwege. Das gilt wegen der Nutzungsbedingungen. Die Kanalseite sagt klar, was es gibt: Titel, Beschreibung, Kapitel, Tags aus Titel und Beschreibung, Abspielen in der YouTube-App. Transkript und Fakten gibt es nur über den passenden Audio-Podcast.
+- **Einzelne Beiträge aus sozialen Netzen:** Mit eigenem Supadata-Schlüssel kommen einzelne Beiträge von TikTok, Instagram, X und Facebook per Link als Folge unter ihrem Urheber dazu, „nicht abonniert“, mit Metadaten und vorhandenen Untertiteln. Profile lassen sich nicht abonnieren; Supadata beschreibt keine Profile, und die App liest Profilseiten nicht aus.
+- **Ohne Ton, aber mit Untertiteln:** YouTube liefert der App keinen Ton, und die App lädt ihn auch nicht über Umwege. Das gilt wegen der Nutzungsbedingungen. Transkript und Fakten kommen aus den vorhandenen Untertiteln über Supadata, wenn der Nutzer einen eigenen Schlüssel einträgt, sonst aus dem passenden Audio-Podcast. Ohne beides sagt die Kanalseite klar, was es gibt: Titel, Beschreibung, Kapitel, Tags aus Titel und Beschreibung, Abspielen in der YouTube-App.
 
 ### Einordnung in die Etappen
 
@@ -175,6 +176,6 @@ Stand heute: Ein direkter Audiolink landet in der Sammelquelle „Einzelne Folge
 - **0.10:** Das Feld `isSubscribed` kommt in denselben Schema-Deploy wie die Tags.
 - **0.12:** Die Share Extension mit derselben App Group wie das Widget, dazu der Import von Takeout-Abos.
 
-### Offene Entscheidung
+### Entscheidung (24. September 2026)
 
-- **YouTube-Untertitel als Transkript:** YouTube bietet Untertitel an, aber nicht über eine offizielle, schlüssellose Schnittstelle. Vorschlag: nicht nutzen und bei „nur Metadaten, Transkript über den Audio-Podcast“ bleiben.
+- **YouTube-Untertitel als Transkript:** Entschieden: Die App holt vorhandene Untertitel über Supadata (`mode=native`), nur mit einem eigenen Schlüssel des Nutzers aus den Einstellungen, gespeichert im Schlüsselbund. Die App bringt keinen Schlüssel mit. Scheitert es oder fehlt der Schlüssel, kommt das Transkript aus dem passenden Audio-Podcast, sonst bleibt es bei Metadaten. Umgesetzt in 0.9, Einzelheiten in `docs/architektur.md`.

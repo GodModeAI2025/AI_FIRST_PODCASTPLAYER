@@ -625,6 +625,54 @@
         }
       }
     },
+    "Transkript des Anbieters": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transkript des Anbieters"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publisher's transcript"
+          }
+        }
+      }
+    },
+    "Untertitel des Beitrags über Supadata": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel des Beitrags über Supadata"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Post captions via Supadata"
+          }
+        }
+      }
+    },
+    "Untertitel von YouTube über Supadata": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Untertitel von YouTube über Supadata"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube captions via Supadata"
+          }
+        }
+      }
+    },
     "aus älteren Daten übernommen": {
       "localizations": {
         "de": {

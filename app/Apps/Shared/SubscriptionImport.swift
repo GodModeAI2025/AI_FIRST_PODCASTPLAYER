@@ -91,7 +91,7 @@ extension AppModel {
     /// mitbringt, soll nicht sofort 90 Folgen laden und auswerten lassen.
     func importSubscription(from input: String) async throws -> AddedSource {
         let added = try await refresher.addSource(from: input)
-        sources = try await store.sources()
+        sources = withSupadataMetadata(sources: try await store.sources())
         pruneSubscribedCounterparts(input: input)
         return added
     }

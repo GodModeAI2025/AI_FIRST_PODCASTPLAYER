@@ -64,8 +64,14 @@ struct EpisodeDetailView: View {
     }
     private var chapters: [Chapter] {
         if isCurrent, !player.chapters.isEmpty { return player.chapters }
-        if !episode.publisherChapters.isEmpty { return episode.publisherChapters }
+        if !shown.publisherChapters.isEmpty { return shown.publisherChapters }
         return model.chapterCache[episode.id] ?? []
+    }
+    /// Die Folge mit den Lücken, die Metadaten über Supadata gefüllt haben.
+    /// `metadataRevision` lässt die Ansicht neu zeichnen, sobald sie da sind.
+    private var shown: Episode {
+        _ = model.metadataRevision
+        return model.withSupadataMetadata(episode)
     }
     private var facts: [EpisodeFact] { model.facts[episode.id] ?? [] }
     /// Der tatsächliche Dateistatus, bei jedem Zeichnen neu. Vorher galt
@@ -112,6 +118,9 @@ struct EpisodeDetailView: View {
             mentions = await model.mentions(for: episode)
         }
         .task { await model.loadChapters(for: episode) }
+        // Fehlen einem Video Beschreibung, Länge oder Bild, holt die App die
+        // Metadaten, falls ein Supadata-Schlüssel eingetragen ist.
+        .task { model.requestMetadata(for: episode) }
         .sheet(item: Binding(get: { exported.map(ExportPreview.init) }, set: { exported = $0?.text })) {
             ExportPreviewSheet(text: $0.text, fileName: episode.title).sheetFeedback()
         }
@@ -330,11 +339,24 @@ struct EpisodeDetailView: View {
                 }
             }
 
-            if let notes = ShownotesText.render(episode.shownotesHTML ?? episode.summary) {
-                SwiftUI.Section("Shownotes") {
+            if let notes = ShownotesText.render(shown.shownotesHTML ?? shown.summary) {
+                SwiftUI.Section {
                     ShownotesContent(
                         notes: notes, plain: String(notes.characters),
                         feedLanguage: model.sources.first(where: { $0.id == episode.sourceID })?.language)
+                } header: {
+                    Text("Shownotes")
+                } footer: {
+                    // Fremde Daten mit Herkunft: was Supadata ergänzt hat, steht da.
+                    if let metadata = model.supadataMetadata(for: episode) {
+                        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                            Label("Metadaten über Supadata", systemImage: "info.circle")
+                            if !metadata.tags.isEmpty {
+                                Text("Stichworte: \(metadata.tags.prefix(12).joined(separator: ", "))")
+                            }
+                        }
+                        .accessibilityIdentifier("episode.supadataMetadata")
+                    }
                 }
             }
         }
@@ -533,7 +555,7 @@ struct EpisodeDetailView: View {
     /// Wartet das Transkript aufs Netz, steht „Jetzt erstellen“ schon in der
     /// Zeile darunter. Ein zweiter Knopf dafür wäre doppelt.
     private var showsTranscriptButton: Bool {
-        episode.audioURL != nil && (stage == nil || stage == .failed) && networkWait == nil
+        model.canTranscribe(episode) && (stage == nil || stage == .failed) && networkWait == nil
     }
 
     @ViewBuilder private var secondaryControls: some View {
@@ -1175,6 +1197,9 @@ struct TranscriptSection: View {
     @State private var translation = ParagraphTranslation()
     /// Die Sprache des Transkripts, wenn sie nicht die der App ist.
     @State private var foreignSource: Locale.Language?
+    /// Woher der Text kommt, wenn nicht aus der Spracherkennung, etwa
+    /// „Untertitel von YouTube über Supadata“.
+    @State private var originLabel: String?
 
     private var filtered: [(start: MediaTime, text: String)] {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
@@ -1240,10 +1265,22 @@ struct TranscriptSection: View {
                         EpisodeAnalysisPrompt(episode: episode)
                     }
                 }
-                if !paragraphs.isEmpty {
-                    Text("Antippen spielt ab dieser Zeile. Über „…“ merkst, kopierst oder teilst du sie.")
+                if let originLabel, !paragraphs.isEmpty {
+                    Label(originLabel, systemImage: "captions.bubble")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("transcript.origin")
+                }
+                if !paragraphs.isEmpty {
+                    if episode.audioURL == nil && episode.opensInYouTube {
+                        Text("Antippen öffnet das Video bei YouTube an dieser Stelle. Über „…“ merkst, kopierst oder teilst du sie.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Antippen spielt ab dieser Zeile. Über „…“ merkst, kopierst oder teilst du sie.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 ForEach(Array(filtered.enumerated()), id: \.element.start) { _, paragraph in
                     HStack(alignment: .top, spacing: Design.Spacing.small) {
@@ -1311,6 +1348,7 @@ struct TranscriptSection: View {
         .task(id: model.stages[episode.id]) {
             if let transcript = await model.transcript(for: episode) {
                 paragraphs = EpisodeDossierExporter.paragraphs(transcript.segments, seconds: 30)
+                originLabel = transcript.origin.sourceLabel
                 let language = AppLanguage.current
                 foreignSource = language.matches(transcript.locale) == false
                     ? AppLanguage.translationSource(transcript.locale) : nil

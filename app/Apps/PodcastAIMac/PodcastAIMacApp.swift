@@ -338,6 +338,7 @@ struct MacSettingsView: View {
             Form {
                 IntelligenceSettingsSection()
                 AutomaticAnalysisSection()
+                YouTubeTranscriptSettingsSection()
             }
             .formStyle(.grouped)
             .tabItem { Label("Intelligenz", systemImage: "sparkles") }

@@ -57,9 +57,28 @@ public enum TranscriptOrigin: String, Codable, Sendable {
     case speechAnalysis
     /// Vom Nutzer korrigiert.
     case userCorrected
+    /// Vorhandene Untertitel eines YouTube-Videos, abgeholt über Supadata.
+    /// Die Zeitmarken beziehen sich auf das Video, nicht auf eine Audiodatei.
+    /// Ältere App-Fassungen kennen den Wert nicht und lesen ihn als
+    /// `speechAnalysis`; das Feld in der Datenbank bleibt ein Text.
+    case youTubeCaptions
+    /// Vorhandene Untertitel eines Beitrags von TikTok, Instagram, X oder
+    /// Facebook, ebenfalls über Supadata.
+    case postCaptions
 
     public var providesMediaTiming: Bool {
         self != .publisherUntimed
+    }
+
+    /// Woher der Text kommt, als Zeile unter dem Transkript. `nil` für das
+    /// Übliche, die Spracherkennung auf dem Gerät.
+    public var sourceLabel: String? {
+        switch self {
+        case .youTubeCaptions: String(localized: "Untertitel von YouTube über Supadata", bundle: .module)
+        case .postCaptions: String(localized: "Untertitel des Beitrags über Supadata", bundle: .module)
+        case .publisherTimed, .publisherUntimed: String(localized: "Transkript des Anbieters", bundle: .module)
+        case .speechAnalysis, .userCorrected: nil
+        }
     }
 }
 

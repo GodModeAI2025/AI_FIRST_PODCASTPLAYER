@@ -62,7 +62,12 @@ struct EpisodeListView: View {
                 }
             }
 
-            if !(source?.capabilities.supportsTimedKnowledge ?? true),
+            if source?.kind == .youTubeChannel {
+                YouTubeChannelTranscriptNotice()
+                if model.allowsSupadataRequests, let source, AppModel.youTubeChannelID(of: source) != nil {
+                    OlderYouTubeVideosSection(sourceID: sourceID)
+                }
+            } else if !(source?.capabilities.supportsTimedKnowledge ?? true),
                let reason = source?.capabilities.limitationReason {
                 Section {
                     // Eine Grenze der Quelle, kein Fehler.
@@ -128,7 +133,7 @@ struct EpisodeListView: View {
                         Button(role: .destructive) { pendingDelete = episode } label: {
                             Label("Löschen", systemImage: "trash")
                         }
-                        if episode.audioURL != nil, model.stages[episode.id] == nil || model.stages[episode.id] == .failed {
+                        if model.canTranscribe(episode), model.stages[episode.id] == nil || model.stages[episode.id] == .failed {
                             Button { model.enqueueAnalysis(episode) } label: {
                                 Label("Transkript erstellen", systemImage: "waveform.badge.magnifyingglass")
                             }
@@ -147,7 +152,7 @@ struct EpisodeListView: View {
                         } else {
                             OpenEpisodeWebButton(episode: episode)
                         }
-                        if episode.audioURL != nil {
+                        if model.canTranscribe(episode) {
                             Button { model.enqueueAnalysis(episode) } label: {
                                 Label("Transkript erstellen", systemImage: "waveform.badge.magnifyingglass")
                             }
@@ -302,7 +307,7 @@ struct EpisodeListView: View {
     /// schon ausgewertet ist oder gerade läuft. Wartet sie schon, etwa von
     /// selbst eingereiht aufs WLAN, rückt sie beim Anfordern nach vorn.
     private func canQueue(_ episode: Episode) -> Bool {
-        guard episode.audioURL != nil else { return false }
+        guard model.canTranscribe(episode) else { return false }
         let stage = model.stages[episode.id]
         guard stage == nil || stage == .failed else { return false }
         return model.analyzing?.id != episode.id
@@ -315,7 +320,7 @@ struct EpisodeListView: View {
             : .newest(model.episodesPerSource)
         return EpisodeArchive.coverage(
             total: episodes.count, analyzed: analyzed,
-            analyzable: episodes.contains { $0.audioURL != nil }, automatic: automatic)
+            analyzable: episodes.contains { model.canTranscribe($0, byHand: false) }, automatic: automatic)
     }
 
     // MARK: Ältere Folgen vorbereiten
@@ -429,7 +434,7 @@ struct EpisodeListView: View {
             }
             .accessibilityIdentifier("episodes.filter")
 
-            if episodes.contains(where: { $0.audioURL != nil }) {
+            if episodes.contains(where: { model.canTranscribe($0) }) {
                 Button(selecting ? "Fertig" : "Auswählen") {
                     selecting.toggle()
                     selection.removeAll()
@@ -602,7 +607,7 @@ struct EpisodeRow: View {
                     .foregroundStyle(.tint)
             }
 
-            if !episode.canBeAnalyzed {
+            if !episode.canBeAnalyzed, !model.canTranscribe(episode), model.stages[episode.id] != .evidenceExtracted {
                 // Ehrlich statt stiller Fehlschlag: ohne Audio und ohne
                 // getaktetes Transkript gibt es keinen Weg zu Timecodes.
                 Label("Kein Audio, deshalb kein Transkript mit Zeitmarken",
@@ -666,6 +671,9 @@ extension AppModel {
     /// kein Transkript und damit auch keine Fakten.
     func analysisUnavailableReason(for episode: Episode) -> String? {
         guard episode.audioURL == nil else { return nil }
+        // YouTube: Untertitel über Supadata, sonst der Audio-Podcast, sonst
+        // ein ruhiger Satz, warum es nur Metadaten gibt.
+        if isCaptionVideo(episode) { return youTubeTranscriptHint(for: episode) }
         if let reason = sources.first(where: { $0.id == episode.sourceID })?.capabilities.limitationReason {
             return String(localized: "Für diese Folge lässt sich kein Transkript erstellen. \(reason)")
         }
@@ -827,6 +835,7 @@ struct EpisodeAnalysisPrompt: View {
                 if case .unavailable(let reason) = phase {
                     Label(reason, systemImage: "speaker.slash")
                         .foregroundStyle(.secondary)
+                    controls(phase)
                 } else if phase == .done {
                     controls(phase)
                 } else {
@@ -873,7 +882,15 @@ struct EpisodeAnalysisPrompt: View {
         case .done:
             emptyTranscriptNote
         case .unavailable:
-            EmptyView()
+            // Bei YouTube ohne Schlüssel: der Weg zur Einstellung.
+            if model.youTubeHintNeedsKey(episode) {
+                NavigationLink {
+                    SupadataSettingsView()
+                } label: {
+                    Label("Supadata-Schlüssel eintragen", systemImage: "key")
+                }
+                .accessibilityIdentifier("episode.supadataSettings")
+            }
         }
     }
 
@@ -1273,5 +1290,39 @@ enum MarkdownFile {
             return "PodcastAI"
         }
         return String(heading.dropFirst(2)).replacingOccurrences(of: "\\", with: "")
+    }
+}
+
+/// Was ein YouTube-Kanal an Transkripten hergibt, oben in seiner Folgenliste.
+/// Mit Schlüssel holt die App die Untertitel; ohne sagt sie das ruhig und
+/// zeigt den Weg zur Einstellung.
+struct YouTubeChannelTranscriptNotice: View {
+
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Section {
+            if !model.youTubeCaptionsEnabled {
+                NoticeLabel("„YouTube-Transkripte über Supadata“ ist in den Einstellungen aus. Es gibt hier Titel, Beschreibung und Kapitel.",
+                            kind: .info)
+                    .font(.callout)
+            } else if model.hasSupadataKey && !model.supadataKeyRejected {
+                Label("Transkripte aus den Untertiteln von YouTube, geholt über Supadata. Ein Tipp auf eine Stelle öffnet das Video dort.",
+                      systemImage: "captions.bubble")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                NoticeLabel(model.supadataKeyRejected
+                            ? "Supadata hat den eingetragenen Schlüssel abgelehnt. Bis du einen neuen einträgst, holt die App keine Untertitel."
+                            : "Zu YouTube-Videos gibt es hier Titel, Beschreibung und Kapitel. Mit eigenem Supadata-Schlüssel gibt es hier ein Transkript.",
+                            kind: .info)
+                    .font(.callout)
+                NavigationLink {
+                    SupadataSettingsView()
+                } label: {
+                    Label("Supadata-Schlüssel eintragen", systemImage: "key")
+                }
+            }
+        }
     }
 }
