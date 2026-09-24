@@ -1,5 +1,16 @@
 # Änderungsverlauf
 
+## App 0.9 · 2026-09-24
+Das Fundament aus dem Plan zur Vereinfachung:
+- Metadaten aus der Quelle: Jede Folge zeigt Podcast, Autor, Datum, Dauer, Staffel und Folge, Rubriken und Link, jeder Podcast Beschreibung, Rubriken, Sprache und Website. Beim Aktualisieren kommen sie neu.
+- Kapitel: Kapiteldateien bleiben gespeichert, Zeitmarken aus Shownotes und YouTube-Beschreibungen werden zu Kapiteln. Transkripte, die der Podcast selbst mitliefert, nutzt die App zuerst.
+- Folge nach Kapiteln: Jedes Kapitel zeigt einen Satz, worum es geht, seine Fakten und ein Stück Transkript. Ohne Kapitel bildet die App Abschnitte. Fakten decken jetzt jedes Kapitel ab.
+- „Original öffnen“ an Kapiteln der Themen-Updates, im Player und an Belegen im Chat.
+- Fortsetzen: Transkripte und Fakten machen nach einem Abbruch dort weiter, wo sie standen, die Warteschlange übersteht einen Neustart. Pausiert iOS die Arbeit im Hintergrund, sagt eine Mitteilung das.
+- Einzelne Folgen: „Nur diese Folge“ im Katalog, in der Vorschau und für Folgenlinks aus Apple Podcasts und von Hostern. Einzelne Folgen stehen unter ihrem Podcast als „nicht abonniert“ und lassen sich später abonnieren.
+- YouTube: Jeder Link, ob Video, Shorts, Live, @-Name oder Playlist, führt zu einer Vorschau mit „Kanal abonnieren“, „Nur dieses Video“ und dem passenden Audio-Podcast. Playlists sind eigene Quellen.
+- Supadata mit eigenem Schlüssel (Einstellungen): Untertitel von YouTube-Videos werden zum Transkript mit Fakten, Kapiteln und Chat, dazu fehlende Metadaten, die Suche nach YouTube-Kanälen und ältere Videos. Einzelne Beiträge aus TikTok und Instagram lassen sich hinzufügen. Supadata ist ein eigener Dienst, der Schlüssel bleibt im Schlüsselbund des Geräts.
+
 ## App 0.8 · 2026-09-24
 Der Chat, nach den Neuerungen der WWDC26:
 - Antworten entstehen sichtbar: der Text erscheint, während Apple Intelligence schreibt, und „Abbrechen“ hält die Frage an, ohne Fehlermeldung.
