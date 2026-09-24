@@ -43,6 +43,15 @@ final class QueueControlUITests: XCTestCase {
         request.tap()
         // Die Frage nach Mitteilungen kommt in UI-Tests nur mit eigenem Schalter.
 
+        // Das Aktivitätssymbol steht auf den obersten Seiten, nicht auf der
+        // Folge. Zurück bis „Meine Podcasts“.
+        let libraryTitle = app.navigationBars["Meine Podcasts"]
+        for _ in 0..<3 where !libraryTitle.exists {
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+            _ = libraryTitle.waitForExistence(timeout: 2)
+        }
+        XCTAssertTrue(libraryTitle.waitForExistence(timeout: 5), "Nicht zurück bei „Meine Podcasts“")
+
         let status = app.buttons["activity.status"].firstMatch
         XCTAssertTrue(status.waitForExistence(timeout: 10), "Kein Aktivitätssymbol für die wartende Folge")
         status.tap()
