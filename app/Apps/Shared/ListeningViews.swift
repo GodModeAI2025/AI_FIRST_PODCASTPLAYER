@@ -2083,6 +2083,12 @@ struct EpisodeMiniBar: View {
 struct QueueView: View {
 
     @Environment(AppModel.self) private var model
+    @State private var confirmingCancel = false
+
+    /// Steht etwas zum Erschließen an, oder ist die Warteschlange pausiert?
+    private var showsProcessingControls: Bool {
+        model.queuePaused || model.queueWaitingCount > 0
+    }
 
     var body: some View {
         List {
@@ -2122,6 +2128,10 @@ struct QueueView: View {
                 Text("Als Nächstes hören")
             }
 
+            if showsProcessingControls {
+                processingControls
+            }
+
             // Transkripte erscheinen hier nur, solange welche entstehen. Sonst
             // stand unter den Folgen ein Block, der mit dem Hören nichts zu tun hat.
             if model.analyzing != nil || !model.analysisQueue.isEmpty {
@@ -2133,9 +2143,35 @@ struct QueueView: View {
             }
         }
         .navigationTitle("Warteschlange")
+        .queueCancelConfirmation(isPresented: $confirmingCancel)
         #if os(iOS)
         .toolbar { EditButton() }
         #endif
+    }
+
+    /// Pausieren, Fortsetzen und „Alle abbrechen“ für Transkripte, Fakten
+    /// und Tags zusammen. Pausiert steht oben, wie viele Folgen warten.
+    private var processingControls: some View {
+        Section {
+            if model.queuePaused {
+                Label(model.queuePausedSummary, systemImage: "pause.circle.fill")
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("queue.pausedNotice")
+            }
+            QueuePauseButton()
+            Button(role: .destructive) { confirmingCancel = true } label: {
+                Label("Alle abbrechen", systemImage: "xmark.circle")
+            }
+            .disabled(model.queueWaitingCount == 0)
+            .accessibilityIdentifier("queue.cancelAll")
+        } header: {
+            Text("Verarbeitung")
+        } footer: {
+            Text("""
+                Pausieren hält Transkripte, Fakten und Tags an, auch nach einem Neustart. Die laufende \
+                Folge behält, was sie schon erkannt hat, und macht dort weiter.
+                """)
+        }
     }
 
     private var transcriptSection: some View {
@@ -2152,6 +2188,7 @@ struct QueueView: View {
             ForEach(model.analysisQueue) { episode in
                 // Der echte Grund: auf WLAN, auf einen zweiten Versuch oder einfach der Reihe nach.
                 QueueRow(episode: episode, detail: model.stageDetails[episode.id] ?? String(localized: "wartet"))
+                    .accessibilityIdentifier("queue.transcript")
                     .swipeActions {
                         Button("Entfernen", role: .destructive) { model.removeFromAnalysisQueue(episode.id) }
                     }

@@ -1688,9 +1688,10 @@ extension AppModel {
     /// Hintergrund nur mit Zeit vom System: in der Aufgabe
     /// `com.podcastai.analysis` oder solange Transkripte unter der
     /// fortgesetzten Verarbeitung entstehen. Der Ton im Hintergrund zählt
-    /// nicht, er hält die App nur für die Wiedergabe wach.
+    /// nicht, er hält die App nur für die Wiedergabe wach. Pausiert oder
+    /// beim Leeren der Warteschlange nie.
     var factsMayRun: Bool {
-        appInForeground || factsGrants > 0
+        !queueHeld && (appInForeground || factsGrants > 0)
     }
 
     /// Beobachtet, wann die App in den Hintergrund geht und wann sie wieder

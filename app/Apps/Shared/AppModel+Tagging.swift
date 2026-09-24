@@ -51,7 +51,8 @@ extension AppModel {
 
     /// Darf die Einordnung jetzt arbeiten? Wie die Fakten, und zusätzlich
     /// in der leichten Hintergrundaufgabe `com.podcastai.tagging`.
-    var tagsMayRun: Bool { factsMayRun || tagGrants > 0 }
+    /// In der Pause arbeitet auch sie nicht.
+    var tagsMayRun: Bool { factsMayRun || (tagGrants > 0 && !queueHeld) }
 
     /// Ist ein Modell für Tags da oder wird es gerade vorbereitet?
     var tagsModelExpected: Bool {

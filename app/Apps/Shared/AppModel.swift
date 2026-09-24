@@ -65,6 +65,26 @@ public final class AppModel {
     /// neu gemerkt.
     @ObservationIgnored private var analysisQueueRestored = false
     @ObservationIgnored private var analysisQueuePersistScheduled = false
+
+    // MARK: Pausieren und Abbrechen (QueueView, ActivityStatus.swift)
+
+    static let queuePausedKey = "analysisQueuePaused"
+    static let restingPreparationKey = "restingAfterCancelAll"
+    /// „Pausieren“ in der Warteschlange: keine Folge beginnt, die laufende
+    /// hält am nächsten sicheren Punkt an und behält ihren Zwischenstand.
+    /// Fakten und Tags stehen genauso. Gilt über einen Neustart hinaus.
+    public private(set) var queuePaused: Bool {
+        didSet { UserDefaults.standard.set(queuePaused, forKey: Self.queuePausedKey) }
+    }
+    /// „Alle abbrechen“ leert gerade die Warteschlange. Solange beginnt nichts.
+    @ObservationIgnored private(set) var cancellingQueue = false
+    /// Pausiert oder beim Leeren: dann beginnt weder Transkript noch Fakt.
+    var queueHeld: Bool { queuePaused || cancellingQueue }
+    /// Nach „Alle abbrechen“: von selbst Eingereihtes, das das Vorbereiten
+    /// erst nach dem nächsten Aktualisieren von Hand wieder nimmt. Sonst
+    /// stünde es nach dem nächsten Takt von `AutoRefresh` wieder da.
+    @ObservationIgnored private var restingPreparation = StoredEpisodeIDs(
+        key: AppModel.restingPreparationKey, limit: 2_000)
     /// Die Frage, ob die App Bescheid sagen darf, wenn Transkripte im
     /// Hintergrund pausieren (`TranscriptNotificationQuestion`).
     public internal(set) var asksForTranscriptNotifications = false
@@ -595,6 +615,7 @@ public final class AppModel {
         // und die App wirkt, als könne sie nichts.
         self.automaticAnalysis = Self.storedFlag(Self.automaticAnalysisKey, default: true)
         self.automaticFacts = Self.storedFlag(Self.automaticFactsKey, default: true)
+        self.queuePaused = Self.storedFlag(Self.queuePausedKey, default: false)
         // Aus, solange dem Build die Berechtigung für Private Cloud Compute
         // fehlt. Ohne sie ginge keine Anfrage an Apples Server, der Schalter
         // stünde aber an.
@@ -1084,7 +1105,10 @@ public final class AppModel {
     /// Transkript, keine Fakten, kein Themen-Update und kein Laden von Ton;
     /// das Einreihen und alles Weitere folgt beim nächsten Öffnen, deshalb
     /// bleibt `lastRefresh` dann stehen.
-    public func refreshAll(feedsOnly: Bool = false) async {
+    /// `byUser`: von Hand angestoßen, per Ziehen oder Menü. Erst dann nimmt
+    /// das Vorbereiten wieder, was nach „Alle abbrechen“ ruht.
+    public func refreshAll(feedsOnly: Bool = false, byUser: Bool = false) async {
+        if byUser { restingPreparation.removeAll() }
         activity = String(localized: "Podcasts werden aktualisiert …")
         defer { activity = nil }
         if !feedsOnly { lastRefresh = Date() }
@@ -1203,6 +1227,7 @@ public final class AppModel {
     private func isOpenForPreparation(_ episode: Episode) -> Bool {
         !analyzedEpisodes.contains(episode.id) && stages[episode.id] == nil
             && !dismissedFromPreparation.contains(episode.id) && !failedInPreparation.contains(episode.id)
+            && !restingPreparation.contains(episode.id)
             // YouTube: nach einem Fehlversuch wartet das Video seine Zeit ab.
             && !captionsCoolingDown(episode.id)
     }
@@ -1422,6 +1447,7 @@ public final class AppModel {
             backlogQueued.remove(episode.id)
             dismissedFromPreparation.remove(episode.id)
             failedInPreparation.remove(episode.id)
+            restingPreparation.remove(episode.id)
             // Beim ersten angeforderten Transkript: darf die App Bescheid
             // sagen, wenn es im Hintergrund pausiert?
             askForTranscriptNotificationsIfNeeded()
@@ -1511,7 +1537,8 @@ public final class AppModel {
             if entry.automatic {
                 let wanted = entry.backlog ? backCatalog.contains(episode.sourceID) : automaticAnalysis
                 guard wanted, !dismissedFromPreparation.contains(episode.id),
-                      !failedInPreparation.contains(episode.id) else { continue }
+                      !failedInPreparation.contains(episode.id),
+                      !restingPreparation.contains(episode.id) else { continue }
                 automaticallyQueued.insert(episode.id)
                 if entry.backlog { backlogQueued.insert(episode.id) }
             }
@@ -1521,9 +1548,10 @@ public final class AppModel {
         persistAnalysisQueue()
     }
 
-    /// Transkripte, die jetzt laufen könnten oder gerade laufen.
+    /// Transkripte, die jetzt laufen könnten oder gerade laufen. Pausiert
+    /// wartet nichts auf Zeit im Hintergrund, also auch keine Mitteilung.
     var hasPendingTranscripts: Bool {
-        analyzing != nil || analysisQueue.contains(where: mayRunNow)
+        !queueHeld && (analyzing != nil || analysisQueue.contains(where: mayRunNow))
     }
 
     /// Hält die Transkripte an, weil die Zeit im Hintergrund endet. Die
@@ -1554,6 +1582,7 @@ public final class AppModel {
     func dropFromAnalysisQueue(_ episodeID: EpisodeID) {
         dismissedFromPreparation.remove(episodeID)
         failedInPreparation.remove(episodeID)
+        restingPreparation.remove(episodeID)
         automaticallyQueued.remove(episodeID)
         backlogQueued.remove(episodeID)
         analysisQueue.removeAll { $0.id == episodeID }
@@ -1564,12 +1593,70 @@ public final class AppModel {
         analysisQueue.move(fromOffsets: offsets, toOffset: destination)
     }
 
+    /// „Pausieren“: keine neue Folge beginnt. Die laufende hält am nächsten
+    /// sicheren Punkt an, sichert ihren Zwischenstand und steht wieder vorn.
+    /// Fakten und Tags halten genauso an. Was von selbst dazukommt, reiht
+    /// sich nur ein.
+    public func pauseQueue() {
+        guard !queuePaused else { return }
+        queuePaused = true
+        pauseTranscripts()
+        factsTask?.cancel()
+    }
+
+    /// „Fortsetzen“: die Warteschlange läuft dort weiter, wo sie stand.
+    public func resumeQueue() {
+        guard queuePaused else { return }
+        queuePaused = false
+        queueConditionsChanged()
+        startFactsWorker()
+    }
+
+    /// „Alle abbrechen“: alle wartenden Transkripte, Fakten und Tags gehen
+    /// aus der Warteschlange. Die laufende Folge hält an; was sie schon
+    /// erkannt hat, bleibt als Zwischenstand, fertige Abschnitte der Fakten
+    /// bleiben gespeichert. Von selbst Eingereihtes ruht bis zum nächsten
+    /// Aktualisieren von Hand. Eine Pause bleibt, wie sie ist.
+    public func cancelQueue() async {
+        guard !cancellingQueue else { return }
+        cancellingQueue = true
+        defer { cancellingQueue = false }
+        // Erst anhalten und warten, bis die laufende Arbeit aufgeräumt ist.
+        // Sie stellt sich dabei wieder vorn in die Warteschlange und geht
+        // unten mit den anderen.
+        let transcripts = analysisTask
+        let facts = factsTask
+        pauseTranscripts()
+        facts?.cancel()
+        await transcripts?.value
+        await facts?.value
+        let plan = AnalysisQueueControl.cancelAll(
+            running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
+        restingPreparation.insert(contentsOf: plan.restingUntilRefresh)
+        for id in plan.removed {
+            automaticallyQueued.remove(id)
+            backlogQueued.remove(id)
+            stageDetails[id] = nil
+            if stages[id] != .failed { stages[id] = nil }
+        }
+        analysisQueue.removeAll()
+        // Fakten kommen erst nach dem nächsten Start wieder von selbst dazu.
+        factsDeferred.formUnion(factsQueue.map(\.id))
+        factsQueue.removeAll()
+        factsRequested.removeAll()
+        tagsQueue.removeAll()
+        factsWait = nil
+        activity = nil
+    }
+
     private func startAnalysisWorker() {
         // Transkripte beginnen nur vorn. Im Hintergrund trägt sie nur die
         // fortgesetzte Verarbeitung, und die lässt sich nur im Vordergrund
         // anmelden. Eine Aktualisierung im Hintergrund reiht deshalb ein,
         // startet aber nichts; die Warteschlange läuft beim nächsten Öffnen.
-        guard analysisTask == nil, appInForeground else { return }
+        guard analysisTask == nil,
+              AnalysisQueueControl.mayStart(paused: queuePaused, inForeground: appInForeground,
+                                            cancelling: cancellingQueue) else { return }
         analysisTask = Task { [weak self] in
             guard let self else { return }
             let background = BackgroundContinuation.begin(

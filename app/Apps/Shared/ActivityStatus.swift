@@ -32,6 +32,7 @@ struct ActivityStatusButton: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.openQueue) private var openQueue
+    @State private var confirmingCancel = false
 
     /// Was läuft oder gleich laufen darf.
     private var pending: Int { model.runnableQueueCount + (model.analyzing == nil ? 0 : 1) }
@@ -41,7 +42,22 @@ struct ActivityStatusButton: View {
     private var facts: Int { model.factsPendingCount }
 
     var body: some View {
-        if model.activity != nil || pending > 0 || waiting > 0 || facts > 0 {
+        if model.queuePaused, model.queueWaitingCount > 0 {
+            // Pausiert: kein Kreisel, der Arbeit vortäuscht, sondern das
+            // Pausenzeichen mit der Zahl der wartenden Folgen.
+            Button { openQueue?() } label: {
+                HStack(spacing: Design.Spacing.micro) {
+                    Image(systemName: "pause.circle")
+                    Text(model.queueWaitingCount, format: .number)
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                }
+            }
+            .accessibilityLabel(model.queuePausedSummary)
+            .accessibilityHint("Öffnet die Warteschlange")
+            .accessibilityIdentifier("activity.status")
+            .contextMenu { controls }
+            .queueCancelConfirmation(isPresented: $confirmingCancel)
+        } else if model.activity != nil || pending > 0 || waiting > 0 || facts > 0 {
             Button { openQueue?() } label: {
                 HStack(spacing: Design.Spacing.micro) {
                     if model.activity != nil || pending > 0 || facts > 0 {
@@ -60,6 +76,21 @@ struct ActivityStatusButton: View {
             .accessibilityLabel(accessibilityText)
             .accessibilityHint("Öffnet die Warteschlange")
             .accessibilityIdentifier("activity.status")
+            .contextMenu { controls }
+            .queueCancelConfirmation(isPresented: $confirmingCancel)
+        }
+    }
+
+    /// Lange drücken: dieselben Knöpfe wie oben in der Warteschlange.
+    @ViewBuilder private var controls: some View {
+        Button { openQueue?() } label: {
+            Label("Warteschlange öffnen", systemImage: "list.bullet")
+        }
+        if model.queueWaitingCount > 0 || model.queuePaused {
+            QueuePauseButton()
+            Button(role: .destructive) { confirmingCancel = true } label: {
+                Label("Alle abbrechen", systemImage: "xmark.circle")
+            }
         }
     }
 
@@ -88,6 +119,74 @@ struct ActivityStatusButton: View {
             return model.preparationWait.map { String(localized: "\(count). \($0.settingsLabel)") } ?? count
         }
         return nil
+    }
+}
+
+/// „Pausieren“ oder „Fortsetzen“, je nach Stand der Warteschlange.
+struct QueuePauseButton: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if model.queuePaused {
+            Button { model.resumeQueue() } label: {
+                Label("Fortsetzen", systemImage: "play.fill")
+            }
+            .accessibilityIdentifier("queue.resume")
+        } else {
+            Button { model.pauseQueue() } label: {
+                Label("Pausieren", systemImage: "pause.fill")
+            }
+            .accessibilityIdentifier("queue.pause")
+        }
+    }
+}
+
+/// Die Rückfrage vor „Alle abbrechen“. Sagt, was bleibt und was wiederkommt.
+private struct QueueCancelConfirmation: ViewModifier {
+    @Environment(AppModel.self) private var model
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog("Warteschlange leeren?", isPresented: $isPresented,
+                                   titleVisibility: .visible) {
+            Button("Alle abbrechen", role: .destructive) {
+                Task { await model.cancelQueue() }
+            }
+            .accessibilityIdentifier("queue.cancelAll.confirm")
+        } message: {
+            Text("""
+                Alle wartenden Transkripte und Fakten gehen aus der Warteschlange. Was schon \
+                erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst wieder \
+                dazu, wenn du von Hand aktualisierst oder sie selbst anforderst.
+                """)
+        }
+    }
+}
+
+extension View {
+    func queueCancelConfirmation(isPresented: Binding<Bool>) -> some View {
+        modifier(QueueCancelConfirmation(isPresented: isPresented))
+    }
+}
+
+extension AppModel {
+    /// Wie viele Folgen auf die Warteschlange warten, Transkripte und Fakten
+    /// zusammen, die angehaltene laufende Folge mitgezählt.
+    var queueWaitingCount: Int {
+        AnalysisQueueControl.waitingCount(
+            running: analyzing != nil, transcripts: analysisQueue.count,
+            facts: factsQueue.count + (gatheringFacts == nil ? 0 : 1))
+    }
+
+    /// „Pausiert, 12 Folgen warten“. Einzahl und Mehrzahl als eigene Sätze,
+    /// weil sich das Verb mit der Zahl ändert.
+    var queuePausedSummary: String {
+        let count = queueWaitingCount
+        switch count {
+        case 0: return String(localized: "Pausiert")
+        case 1: return String(localized: "Pausiert, eine Folge wartet")
+        default: return String(localized: "Pausiert, \(count) Folgen warten")
+        }
     }
 }
 

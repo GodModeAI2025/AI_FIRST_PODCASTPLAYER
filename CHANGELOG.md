@@ -1,5 +1,10 @@
 # Änderungsverlauf
 
+## Nächste Version
+Die Warteschlange lässt sich steuern:
+- „Pausieren“ und „Fortsetzen“ in der Warteschlange und per langem Druck auf das Aktivitätssymbol. Pausiert beginnt kein Transkript, die laufende Folge hält an ihrem Zwischenstand an, Fakten und Tags warten ebenso. Die Pause gilt auch nach einem Neustart, das Symbol zeigt „Pausiert“ mit der Zahl der wartenden Folgen.
+- „Alle abbrechen“ leert die Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst beim nächsten Aktualisieren von Hand wieder dazu.
+
 ## App 0.10 · 2026-09-24
 Tags aus dem Inhalt und ein schnellerer Chat:
 - Tags statt Freitext: Die App ordnet jedes Kapitel Themen zu, die in ihm vorkommen, etwa „China“ oder „Datenschutz“. Mit + folgst du einem Tag, mit − nicht mehr, das Tag bleibt sichtbar. Unter „Wissen“ stehen deine Tags statt der Interessen, jedes mit eigener Seite: wo es vorkommt, Schreibweisen, „Zusammenlegen?“ bei ähnlichen Tags. Eingetippte Themen gibt es nicht mehr, deine bisherigen Interessen sind jetzt Tags, denen du folgst.

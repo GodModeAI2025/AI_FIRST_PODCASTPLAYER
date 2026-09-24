@@ -140,6 +140,7 @@ public enum AppBootstrap {
             AppModel.tagsSettledKey, AppModel.taggingProgressKey, AppModel.taggingPaceKey,
             AppModel.prefetchDeclinedKey, AppModel.prefetchedFilesKey, AppModel.failedPreparationKey,
             AppModel.analysisQueueKey, AppModel.transcriptNotificationsAskedKey,
+            AppModel.queuePausedKey, AppModel.restingPreparationKey,
             // Der Katalog zeigt im Test immer die Sprache der App zuerst.
             "catalog.allLanguages",
         ] {

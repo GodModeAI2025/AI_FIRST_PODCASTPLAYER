@@ -118,7 +118,7 @@ struct ForYouView: View {
         .listStyle(.plain)
         .navigationTitle("Für dich")
         .activityStatusToolbar()
-        .refreshable { await model.refreshAll() }
+        .refreshable { await model.refreshAll(byUser: true) }
         .toolbar {
             NavigationLink { QueueView() } label: {
                 Label("Warteschlange", systemImage: "list.bullet")
@@ -637,7 +637,9 @@ extension LibraryView {
         if listen > 0 {
             parts.append(String(AttributedString(localized: "^[\(listen) Folge](inflect: true) zum Hören").characters))
         }
-        if analyze > 0 {
+        if model.queuePaused, model.queueWaitingCount > 0 {
+            parts.append(model.queuePausedSummary)
+        } else if analyze > 0 {
             parts.append(analyze == 1
                          ? String(localized: "1 Transkript wird erstellt")
                          : String(localized: "\(analyze) Transkripte werden erstellt"))
