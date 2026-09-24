@@ -100,7 +100,7 @@ final class AtlasUITests: XCTestCase {
         app.tabBars.buttons["Wissen"].tap()
         snap(app, "18-wissen")
         for (label, file) in [("Gemerkte Stellen", "19-gemerkte-stellen"), ("Gesicherte Antworten", "20-gesicherte-antworten"),
-                              ("Gegenpositionen", "21-gegenpositionen"), ("Interessen", "22-interessen"),
+                              ("Gegenpositionen", "21-gegenpositionen"), ("Meine Tags", "22-meine-tags"),
                               ("Einstellungen", "23-einstellungen"), ("So funktioniert", "24-hilfe")] {
             let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", label)).firstMatch
             if row.waitForExistence(timeout: 5) {

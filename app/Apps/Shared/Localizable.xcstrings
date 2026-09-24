@@ -145,6 +145,22 @@
         }
       }
     },
+    "%@ folgen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow %@"
+          }
+        }
+      }
+    },
     "%@ gehört" : {
       "localizations" : {
         "de" : {
@@ -177,6 +193,22 @@
         }
       }
     },
+    "%@ hierher zusammenlegen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ hierher zusammenlegen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merge %@ into this tag"
+          }
+        }
+      }
+    },
     "%@ in deinen Podcasts:" : {
       "localizations" : {
         "de" : {
@@ -205,6 +237,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ in this episode:"
+          }
+        }
+      }
+    },
+    "%@ nicht mehr folgen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ nicht mehr folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unfollow %@"
           }
         }
       }
@@ -257,6 +305,22 @@
         }
       }
     },
+    "%@ · ab %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · ab %2$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · from %2$@"
+          }
+        }
+      }
+    },
     "%@ · noch %@" : {
       "localizations" : {
         "de" : {
@@ -301,22 +365,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@, %2$@, from %3$@"
-          }
-        }
-      }
-    },
-    "%@, schon ein Interesse" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@, schon ein Interesse"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@, already an interest"
           }
         }
       }
@@ -657,22 +705,6 @@
         }
       }
     },
-    "%lld bestätigt" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld bestätigt"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld confirmed"
-          }
-        }
-      }
-    },
     "%lld davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. Diese versucht die App nicht noch einmal." : {
       "localizations" : {
         "de" : {
@@ -685,6 +717,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The model declined %lld of them, for example because of its safety rules. The app won't try these again."
+          }
+        }
+      }
+    },
+    "%lld gefolgt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld gefolgt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld followed"
           }
         }
       }
@@ -993,22 +1041,6 @@
         }
       }
     },
-    "Ablehnen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ablehnen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Decline"
-          }
-        }
-      }
-    },
     "Abonnieren" : {
       "localizations" : {
         "de" : {
@@ -1185,34 +1217,34 @@
         }
       }
     },
-    "Abos, Transkripte, Fakten, Hörstand, Interessen, Themen-Updates und gemerkte Stellen gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. Audiodateien lädt jedes Gerät selbst." : {
+    "Abos, Transkripte, Fakten, Hörstand, Tags, Themen-Updates und gemerkte Stellen gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. Audiodateien lädt jedes Gerät selbst." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abos, Transkripte, Fakten, Hörstand, Interessen, Themen-Updates und gemerkte Stellen gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. Audiodateien lädt jedes Gerät selbst."
+            "value" : "Abos, Transkripte, Fakten, Hörstand, Tags, Themen-Updates und gemerkte Stellen gleichen sich über deine private iCloud-Datenbank zwischen iPhone, iPad und Mac ab. Audiodateien lädt jedes Gerät selbst."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Subscriptions, transcripts, facts, listening progress, interests, Topic Updates, and saved moments sync between iPhone, iPad, and Mac through your private iCloud database. Each device downloads audio files on its own."
+            "value" : "Subscriptions, transcripts, facts, listening progress, tags, Topic Updates, and saved moments sync between iPhone, iPad, and Mac through your private iCloud database. Each device downloads audio files on its own."
           }
         }
       }
     },
-    "Abos, Transkripte, Fakten, Notizen, Interessen und Hörstand liegen in deiner privaten iCloud-Datenbank. Nur deine Geräte mit derselben Apple-ID lesen sie." : {
+    "Abos, Transkripte, Fakten, Notizen, Tags und Hörstand liegen in deiner privaten iCloud-Datenbank. Nur deine Geräte mit derselben Apple-ID lesen sie." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abos, Transkripte, Fakten, Notizen, Interessen und Hörstand liegen in deiner privaten iCloud-Datenbank. Nur deine Geräte mit derselben Apple-ID lesen sie."
+            "value" : "Abos, Transkripte, Fakten, Notizen, Tags und Hörstand liegen in deiner privaten iCloud-Datenbank. Nur deine Geräte mit derselben Apple-ID lesen sie."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Subscriptions, transcripts, facts, notes, interests, and listening progress are stored in your private iCloud database. Only your devices signed in with the same Apple Account can read them."
+            "value" : "Subscriptions, transcripts, facts, notes, tags, and listening progress are stored in your private iCloud database. Only your devices signed in with the same Apple Account can read them."
           }
         }
       }
@@ -1809,6 +1841,22 @@
         }
       }
     },
+    "Andere Schreibweisen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Andere Schreibweisen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other spellings"
+          }
+        }
+      }
+    },
     "Anfragen ins Netz" : {
       "localizations" : {
         "de" : {
@@ -1965,38 +2013,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tap to play from this line. Use \"…\" to save, copy, or share it."
-          }
-        }
-      }
-    },
-    "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen. Stichworte zu einem Thema ergänzt du unter „Wissen › Interessen“." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Anlegen mitgenommen. Stichworte zu einem Thema ergänzt du unter „Wissen › Interessen“."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tap to deselect or reselect a topic. A topic you type is added when you tap Create. Add keywords to a topic under \"Knowledge › Interests\"."
-          }
-        }
-      }
-    },
-    "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Sichern mitgenommen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Antippen wählt ein Thema ab oder wieder aus. Ein eingetipptes Thema wird beim Sichern mitgenommen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tap to deselect or reselect a topic. A topic you type is added when you tap Save."
           }
         }
       }
@@ -2658,22 +2674,6 @@
         }
       }
     },
-    "Aus deinen Interessen baut PodcastAI einen eigenen Podcast. Er besteht aus Originalstellen, die du noch nicht gehört hast." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aus deinen Interessen baut PodcastAI einen eigenen Podcast. Er besteht aus Originalstellen, die du noch nicht gehört hast."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PodcastAI builds a podcast of your own from your interests. It's made of original passages you haven't heard yet."
-          }
-        }
-      }
-    },
     "Aus dem Transkript" : {
       "localizations" : {
         "de" : {
@@ -2706,18 +2706,18 @@
         }
       }
     },
-    "Aus dem Wortschatz des Systems, auf diesem Gerät berechnet. Nur übernehmen, was passt." : {
+    "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast. Er besteht aus Originalstellen, die du noch nicht gehört hast." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aus dem Wortschatz des Systems, auf diesem Gerät berechnet. Nur übernehmen, was passt."
+            "value" : "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast. Er besteht aus Originalstellen, die du noch nicht gehört hast."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "From the system vocabulary, computed on this device. Only add what fits."
+            "value" : "PodcastAI builds a podcast of its own from the tags you follow. It is made of original passages you haven't heard yet."
           }
         }
       }
@@ -2850,18 +2850,18 @@
         }
       }
     },
-    "Ausgewählt nach deinen Interessen" : {
+    "Ausgewählt nach deinen Tags" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ausgewählt nach deinen Interessen"
+            "value" : "Ausgewählt nach deinen Tags"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Based on Your Interests"
+            "value" : "Picked by your tags"
           }
         }
       }
@@ -3334,38 +3334,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Determines which passages are shown to you as relevant. You can view and correct it at any time."
-          }
-        }
-      }
-    },
-    "Bestätigte Interessen lesen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bestätigte Interessen lesen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read Confirmed Interests"
-          }
-        }
-      }
-    },
-    "Bezeichnung" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bezeichnung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
           }
         }
       }
@@ -4223,38 +4191,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your Notes"
-          }
-        }
-      }
-    },
-    "Deine Themen füllen „Für dich“ und die Themen-Updates. Antippen, um Stichworte zu ergänzen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deine Themen füllen „Für dich“ und die Themen-Updates. Antippen, um Stichworte zu ergänzen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your topics fill \"For You\" and Topic Updates. Tap to add keywords."
-          }
-        }
-      }
-    },
-    "Deine Themen, jedes mit eigenen Stichworten. Daraus entstehen „Für dich“ und die Themen-Updates." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deine Themen, jedes mit eigenen Stichworten. Daraus entstehen „Für dich“ und die Themen-Updates."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your topics, each with its own keywords. They shape \"For You\" and your Topic Updates."
           }
         }
       }
@@ -5251,6 +5187,22 @@
         }
       }
     },
+    "Die Kapitel beider Tags stehen danach unter einem. Folgst du einem der beiden, folgst du dem zusammengelegten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Kapitel beider Tags stehen danach unter einem. Folgst du einem der beiden, folgst du dem zusammengelegten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afterwards the chapters of both tags are under one. If you follow either of them, you follow the merged tag."
+          }
+        }
+      }
+    },
     "Die Notiz hängt an dieser Stelle. Du findest sie in der Folge und unter Wissen › Gemerkte Stellen. Sie bleibt auch, wenn du die Folge löschst." : {
       "localizations" : {
         "de" : {
@@ -5811,6 +5763,22 @@
         }
       }
     },
+    "Diese Tags sehen ähnlich aus. Zusammengelegt wird nur, wenn du es willst. Der andere Name bleibt als Schreibweise." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Tags sehen ähnlich aus. Zusammengelegt wird nur, wenn du es willst. Der andere Name bleibt als Schreibweise."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These tags look similar. They are only merged if you want. The other name stays as a spelling."
+          }
+        }
+      }
+    },
     "Diese gesicherte Antwort gibt es nicht mehr" : {
       "localizations" : {
         "de" : {
@@ -5939,6 +5907,70 @@
         }
       }
     },
+    "Du folgst" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du folgst"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Following"
+          }
+        }
+      }
+    },
+    "Du folgst diesem Tag nicht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du folgst diesem Tag nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You don't follow this tag."
+          }
+        }
+      }
+    },
+    "Du folgst diesem Tag." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du folgst diesem Tag."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You follow this tag."
+          }
+        }
+      }
+    },
+    "Du folgst noch keinem Tag. Tippe bei einem Tag auf Plus." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du folgst noch keinem Tag. Tippe bei einem Tag auf Plus."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You don't follow any tag yet. Tap the plus on a tag."
+          }
+        }
+      }
+    },
     "Du gibst eine Behauptung ein, die App sucht Stellen aus deinen Podcasts, die dafür oder dagegen sprechen." : {
       "localizations" : {
         "de" : {
@@ -6019,18 +6051,18 @@
         }
       }
     },
-    "Eigene Folgen aus deinen Interessen" : {
+    "Eigene Folgen aus deinen Tags" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eigene Folgen aus deinen Interessen"
+            "value" : "Eigene Folgen aus deinen Tags"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Episodes built from your interests"
+            "value" : "Episodes of your own from your tags"
           }
         }
       }
@@ -6115,34 +6147,50 @@
         }
       }
     },
-    "Ein Thema findet Stellen, in denen seine Bezeichnung oder eines seiner Stichworte vorkommt, und nur in Folgen mit Transkript." : {
+    "Ein Stichwort aus dem Inhalt einer Folge, etwa „Datenschutz“ oder „USA“. Die App ordnet es den Kapiteln zu, eintippen musst du nichts. Plus heißt folgen, Minus heißt nicht mehr folgen. Alle Tags stehen unter „Meine Tags“." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein Thema findet Stellen, in denen seine Bezeichnung oder eines seiner Stichworte vorkommt, und nur in Folgen mit Transkript."
+            "value" : "Ein Stichwort aus dem Inhalt einer Folge, etwa „Datenschutz“ oder „USA“. Die App ordnet es den Kapiteln zu, eintippen musst du nichts. Plus heißt folgen, Minus heißt nicht mehr folgen. Alle Tags stehen unter „Meine Tags“."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A topic finds passages where its name or one of its keywords appears, and only in episodes with a transcript."
+            "value" : "A keyword from the content of an episode, such as “Privacy” or “USA”. The app assigns it to chapters, you don't type anything. Plus means follow, minus means stop following. All tags are under “My Tags”."
           }
         }
       }
     },
-    "Ein Tipp auf ein Thema mit Plus legt es als Interesse an." : {
+    "Ein Tag findet Kapitel, die die App mit ihm eingeordnet hat. Folgen ohne Tags durchsucht sie nach seinem Namen und seinen Schreibweisen, und nur Folgen mit Transkript." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein Tipp auf ein Thema mit Plus legt es als Interesse an."
+            "value" : "Ein Tag findet Kapitel, die die App mit ihm eingeordnet hat. Folgen ohne Tags durchsucht sie nach seinem Namen und seinen Schreibweisen, und nur Folgen mit Transkript."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap a topic with a plus to add it as an interest."
+            "value" : "A tag finds chapters the app has tagged with it. In episodes without tags the app searches for its name and spellings, and only in episodes with a transcript."
+          }
+        }
+      }
+    },
+    "Ein Tipp öffnet die Folge bei ihren Kapiteln. Abgespielt wird erst, wenn du dort ein Kapitel antippst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Tipp öffnet die Folge bei ihren Kapiteln. Abgespielt wird erst, wenn du dort ein Kapitel antippst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tap opens the episode at its chapters. Nothing plays until you tap a chapter there."
           }
         }
       }
@@ -6291,22 +6339,6 @@
         }
       }
     },
-    "Eine Stelle passt, wenn die Bezeichnung oder eines dieser Stichworte am Wortanfang vorkommt: „daten“ trifft „Datenschutz“, „schutz“ trifft es nicht. Begriffe mit bis zu drei Buchstaben wie KI zählen nur als ganzes Wort. Bei mehreren Wörtern braucht es den ganzen Ausdruck oder zwei der wichtigen Wörter daraus, Füllwörter zählen nicht. Englische Fachbegriffe und Abkürzungen hier ergänzen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Eine Stelle passt, wenn die Bezeichnung oder eines dieser Stichworte am Wortanfang vorkommt: „daten“ trifft „Datenschutz“, „schutz“ trifft es nicht. Begriffe mit bis zu drei Buchstaben wie KI zählen nur als ganzes Wort. Bei mehreren Wörtern braucht es den ganzen Ausdruck oder zwei der wichtigen Wörter daraus, Füllwörter zählen nicht. Englische Fachbegriffe und Abkürzungen hier ergänzen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A passage matches when the name or one of these keywords appears at the start of a word: \"data\" matches \"database\", \"base\" doesn't. Terms of up to three letters, like AI, only count as whole words. For several words, it takes the whole phrase or two of its important words; filler words don't count. Add abbreviations and terms in other languages here."
-          }
-        }
-      }
-    },
     "Eine These prüfen" : {
       "localizations" : {
         "de" : {
@@ -6323,34 +6355,34 @@
         }
       }
     },
-    "Eine eigene Folge je Thema aus ungehörten Originalstellen mehrerer Podcasts, mit Kapiteln, Shownotes und Cover." : {
+    "Eine eigene Folge je Tag aus ungehörten Originalstellen mehrerer Podcasts, mit Kapiteln, Shownotes und Cover." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine eigene Folge je Thema aus ungehörten Originalstellen mehrerer Podcasts, mit Kapiteln, Shownotes und Cover."
+            "value" : "Eine eigene Folge je Tag aus ungehörten Originalstellen mehrerer Podcasts, mit Kapiteln, Shownotes und Cover."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A custom episode for each topic, made from unheard original passages across several podcasts, with chapters, show notes, and cover art."
+            "value" : "An episode of your own per tag, made of unheard original passages from several podcasts, with chapters, show notes and cover."
           }
         }
       }
     },
-    "Eine eigene Folge zu einem Thema. Die App stellt sie aus Stellen deiner Podcasts zusammen, die du noch nicht gehört hast." : {
+    "Eine eigene Folge zu Tags, denen du folgst. Die App stellt sie aus Stellen deiner Podcasts zusammen, die du noch nicht gehört hast." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine eigene Folge zu einem Thema. Die App stellt sie aus Stellen deiner Podcasts zusammen, die du noch nicht gehört hast."
+            "value" : "Eine eigene Folge zu Tags, denen du folgst. Die App stellt sie aus Stellen deiner Podcasts zusammen, die du noch nicht gehört hast."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A custom episode about a topic. The app puts it together from passages in your podcasts that you haven't heard yet."
+            "value" : "An episode of your own about tags you follow. The app puts it together from passages of your podcasts you haven't heard yet."
           }
         }
       }
@@ -7203,6 +7235,22 @@
         }
       }
     },
+    "Folge zuerst einem Tag: in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“ auf Plus tippen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folge zuerst einem Tag: in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“ auf Plus tippen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow a tag first: tap the plus in an episode under “In Brief” or in “My Tags”."
+          }
+        }
+      }
+    },
     "Folge öffnen und abspielen. Die App merkt sich die Stelle, auch über iPhone, iPad und Mac hinweg. Im Player: Tempo, Kapitel, Schlaf-Timer, AirPlay." : {
       "localizations" : {
         "de" : {
@@ -7855,6 +7903,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "\"%@\" doesn't have valid access. You can grant access in PodcastAI under Settings › Agents."
+          }
+        }
+      }
+    },
+    "Gefolgte Tags füllen „Für dich“ und die Themen-Updates. Minus beendet das Folgen, das Tag bleibt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gefolgte Tags füllen „Für dich“ und die Themen-Updates. Minus beendet das Folgen, das Tag bleibt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Followed tags fill “For You” and the Topic Updates. Minus stops following, the tag stays."
+          }
+        }
+      }
+    },
+    "Gefolgte Tags lesen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gefolgte Tags lesen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read followed tags"
           }
         }
       }
@@ -8531,6 +8611,22 @@
         }
       }
     },
+    "Hier stehen die Tags, denen du folgst. Antippen wählt eines ab oder wieder aus." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier stehen die Tags, denen du folgst. Antippen wählt eines ab oder wieder aus."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These are the tags you follow. Tap to deselect or select one again."
+          }
+        }
+      }
+    },
     "Hilfe" : {
       "localizations" : {
         "de" : {
@@ -9075,54 +9171,6 @@
         }
       }
     },
-    "Interesse" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interesse"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interest"
-          }
-        }
-      }
-    },
-    "Interessen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interessen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interests"
-          }
-        }
-      }
-    },
-    "Interessen vorschlagen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Interessen vorschlagen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suggest Interests"
-          }
-        }
-      }
-    },
     "Ja" : {
       "localizations" : {
         "de" : {
@@ -9167,6 +9215,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Every episode from this source has a transcript. Turn off the filter to see all of them."
+          }
+        }
+      }
+    },
+    "Jede Folge und jedes Kapitel trägt Tags aus dem Inhalt. Plus heißt folgen, Minus heißt nicht mehr folgen. Gefolgte Tags füllen „Für dich“ und die Themen-Updates." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede Folge und jedes Kapitel trägt Tags aus dem Inhalt. Plus heißt folgen, Minus heißt nicht mehr folgen. Gefolgte Tags füllen „Für dich“ und die Themen-Updates."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every episode and every chapter carries tags from its content. Plus means follow, minus means stop following. Followed tags fill “For You” and the Topic Updates."
           }
         }
       }
@@ -9263,6 +9327,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chapters"
+          }
+        }
+      }
+    },
+    "Kapitel ab %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitel ab %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapter from %@"
           }
         }
       }
@@ -9393,6 +9473,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No `name`."
+          }
+        }
+      }
+    },
+    "Kein gefolgtes Tag passt zur Suche." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein gefolgtes Tag passt zur Suche."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No followed tag matches the search."
           }
         }
       }
@@ -9925,38 +10021,6 @@
         }
       }
     },
-    "Leg ein oder zwei Themen an, etwa „Fußball“, „Kochen“ oder „Datenschutz“. Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Leg ein oder zwei Themen an, etwa „Fußball“, „Kochen“ oder „Datenschutz“. Dann sammelt PodcastAI hier die passenden Stellen aus deinen Folgen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add one or two topics, like \"Soccer\", \"Cooking\", or \"Privacy\". Then PodcastAI gathers the matching passages from your episodes here."
-          }
-        }
-      }
-    },
-    "Lege mindestens ein Thema an. Es wird auch unter „Wissen › Interessen“ gespeichert." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lege mindestens ein Thema an. Es wird auch unter „Wissen › Interessen“ gespeichert."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add at least one topic. It's also saved under \"Knowledge › Interests\"."
-          }
-        }
-      }
-    },
     "Legt Frage, Antwort, Belege und die Notizen zu diesen Stellen unter „Gesicherte Antworten“ ab" : {
       "localizations" : {
         "de" : {
@@ -9969,38 +10033,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saves the question, answer, source passages, and your notes on these passages to \"Saved Answers\""
-          }
-        }
-      }
-    },
-    "Legt das Thema als Interesse an" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Legt das Thema als Interesse an"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Adds the topic as an interest"
-          }
-        }
-      }
-    },
-    "Lernen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lernen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Learning"
           }
         }
       }
@@ -10193,6 +10225,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "My Podcasts"
+          }
+        }
+      }
+    },
+    "Meine Tags" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meine Tags"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My Tags"
           }
         }
       }
@@ -10757,22 +10805,6 @@
         }
       }
     },
-    "Neues Thema, z. B. KI-Modelle" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neues Thema, z. B. KI-Modelle"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New topic, e.g., AI models"
-          }
-        }
-      }
-    },
     "Neueste Ausgabe" : {
       "localizations" : {
         "de" : {
@@ -11061,6 +11093,22 @@
         }
       }
     },
+    "Nicht mehr folgen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht mehr folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unfollow"
+          }
+        }
+      }
+    },
     "Nicht relevant" : {
       "localizations" : {
         "de" : {
@@ -11221,6 +11269,22 @@
         }
       }
     },
+    "Noch in keinem Kapitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch in keinem Kapitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not in any chapter yet."
+          }
+        }
+      }
+    },
     "Noch kein Themen-Update" : {
       "localizations" : {
         "de" : {
@@ -11297,6 +11361,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Podcasts Yet"
+          }
+        }
+      }
+    },
+    "Noch keine Tags" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Tags"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Tags Yet"
           }
         }
       }
@@ -12117,6 +12197,22 @@
         }
       }
     },
+    "Plus: „Für dich“ und die Themen-Updates sammeln Kapitel mit diesem Tag. Minus beendet das, das Tag bleibt sichtbar." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus: „Für dich“ und die Themen-Updates sammeln Kapitel mit diesem Tag. Minus beendet das, das Tag bleibt sichtbar."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus: “For You” and the Topic Updates collect chapters with this tag. Minus stops that, the tag stays visible."
+          }
+        }
+      }
+    },
     "Podcast" : {
       "localizations" : {
         "de" : {
@@ -12289,22 +12385,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "PodcastAI has no sign-in, no ads, and no analytics or tracking services. The app's developer gets none of your data."
-          }
-        }
-      }
-    },
-    "PodcastAI leitet Themen aus dem ab, was du tatsächlich gehört hast. Vorschläge wirken erst, wenn du sie übernimmst. Ausgeschaltet entstehen keine neuen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PodcastAI leitet Themen aus dem ab, was du tatsächlich gehört hast. Vorschläge wirken erst, wenn du sie übernimmst. Ausgeschaltet entstehen keine neuen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PodcastAI derives topics from what you've actually listened to. Suggestions take effect only after you accept them. When this is off, no new ones appear."
           }
         }
       }
@@ -13445,70 +13525,6 @@
         }
       }
     },
-    "Stichwort hinzufügen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stichwort hinzufügen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add Keyword"
-          }
-        }
-      }
-    },
-    "Stichworte" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stichworte"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keywords"
-          }
-        }
-      }
-    },
-    "Stichworte ergänzen, etwa %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stichworte ergänzen, etwa %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add keywords, like %@"
-          }
-        }
-      }
-    },
-    "Stichworte ergänzen, etwa englische Begriffe oder Abkürzungen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stichworte ergänzen, etwa englische Begriffe oder Abkürzungen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add keywords, like abbreviations or terms in other languages"
-          }
-        }
-      }
-    },
     "Stichworte: %@" : {
       "localizations" : {
         "de" : {
@@ -13557,18 +13573,18 @@
         }
       }
     },
-    "Such deine Lieblingssendungen nach Namen und abonniere sie. Danach stehen hier neue Folgen und die Stellen zu deinen Themen." : {
+    "Such deine Lieblingssendungen nach Namen und abonniere sie. Danach stehen hier neue Folgen und die Stellen zu deinen Tags." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Such deine Lieblingssendungen nach Namen und abonniere sie. Danach stehen hier neue Folgen und die Stellen zu deinen Themen."
+            "value" : "Such deine Lieblingssendungen nach Namen und abonniere sie. Danach stehen hier neue Folgen und die Stellen zu deinen Tags."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search for shows you like by name and subscribe to them. New episodes and passages on your topics will then show up here."
+            "value" : "Search for your favorite shows by name and subscribe. New episodes and the passages about your tags then show up here."
           }
         }
       }
@@ -13845,6 +13861,246 @@
         }
       }
     },
+    "Tag" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag"
+          }
+        }
+      }
+    },
+    "Tag %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag %@"
+          }
+        }
+      }
+    },
+    "Tag %@, du folgst" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag %@, du folgst"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag %@, following"
+          }
+        }
+      }
+    },
+    "Tag nicht gefunden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag nicht gefunden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Not Found"
+          }
+        }
+      }
+    },
+    "Tag: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag: %@"
+          }
+        }
+      }
+    },
+    "Tags" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags"
+          }
+        }
+      }
+    },
+    "Tags aus dem Inhalt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags aus dem Inhalt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags from the content"
+          }
+        }
+      }
+    },
+    "Tags aus dem Inhalt. Plus folgt einem Tag, Minus beendet das. Ein Tipp auf den Namen öffnet die Tag-Seite." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags aus dem Inhalt. Plus folgt einem Tag, Minus beendet das. Ein Tipp auf den Namen öffnet die Tag-Seite."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags from the content. Plus follows a tag, minus stops that. Tapping the name opens the tag page."
+          }
+        }
+      }
+    },
+    "Tags durchsuchen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags durchsuchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search tags"
+          }
+        }
+      }
+    },
+    "Tags entstehen aus dem Inhalt deiner Folgen, sobald Transkripte fertig sind. Mit Plus folgst du einem Tag, dann sammelt „Für dich“ die passenden Kapitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags entstehen aus dem Inhalt deiner Folgen, sobald Transkripte fertig sind. Mit Plus folgst du einem Tag, dann sammelt „Für dich“ die passenden Kapitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags come from the content of your episodes once transcripts are ready. Tap the plus to follow a tag, and “For You” collects the matching chapters."
+          }
+        }
+      }
+    },
+    "Tags entstehen aus dem Inhalt deiner Folgen. Tippe bei einem Tag auf Plus, in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“. Dann sammelt PodcastAI hier die passenden Kapitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags entstehen aus dem Inhalt deiner Folgen. Tippe bei einem Tag auf Plus, in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“. Dann sammelt PodcastAI hier die passenden Kapitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags come from the content of your episodes. Tap the plus on a tag, in an episode under “In Brief” or in “My Tags”. PodcastAI then collects the matching chapters here."
+          }
+        }
+      }
+    },
+    "Tags folgen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow tags"
+          }
+        }
+      }
+    },
+    "Tags ohne Treffer" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags ohne Treffer"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags without matches"
+          }
+        }
+      }
+    },
+    "Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf dem Gerät. Fehlt das Modell dort oder ist es zu langsam, übernehmen das Apples Server, wenn „Apple-Server nutzen“ an ist. Mit Plus folgst du einem Tag, mit Minus nicht mehr. Welchen Tags du folgst, liegt auf deinen Geräten und in deiner privaten iCloud-Datenbank." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf dem Gerät. Fehlt das Modell dort oder ist es zu langsam, übernehmen das Apples Server, wenn „Apple-Server nutzen“ an ist. Mit Plus folgst du einem Tag, mit Minus nicht mehr. Welchen Tags du folgst, liegt auf deinen Geräten und in deiner privaten iCloud-Datenbank."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence assigns tags from the transcripts and show notes of your episodes, on the device. If the model is missing there or too slow, Apple's servers take over when “Use Apple Servers” is on. Plus follows a tag, minus stops following it. Which tags you follow is stored on your devices and in your private iCloud database."
+          }
+        }
+      }
+    },
+    "Tags stammen aus dem Inhalt deiner Folgen. Plus heißt folgen, Minus heißt nicht mehr folgen, das Tag bleibt sichtbar. Gefolgte Tags füllen „Für dich“ und die Themen-Updates." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags stammen aus dem Inhalt deiner Folgen. Plus heißt folgen, Minus heißt nicht mehr folgen, das Tag bleibt sichtbar. Gefolgte Tags füllen „Für dich“ und die Themen-Updates."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags come from the content of your episodes. Plus means follow, minus means stop following, the tag stays visible. Followed tags fill “For You” and the Topic Updates."
+          }
+        }
+      }
+    },
     "Teilen" : {
       "localizations" : {
         "de" : {
@@ -13905,118 +14161,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Text copied"
-          }
-        }
-      }
-    },
-    "Thema %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thema %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Topic %@"
-          }
-        }
-      }
-    },
-    "Thema hinzufügen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thema hinzufügen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add Topic"
-          }
-        }
-      }
-    },
-    "Thema: %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thema: %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Topic: %@"
-          }
-        }
-      }
-    },
-    "Themen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Themen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Topics"
-          }
-        }
-      }
-    },
-    "Themen anlegen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Themen anlegen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add Topics"
-          }
-        }
-      }
-    },
-    "Themen der Folge" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Themen der Folge"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Episode Topics"
-          }
-        }
-      }
-    },
-    "Themen ohne Treffer" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Themen ohne Treffer"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Topics Without Matches"
           }
         }
       }
@@ -14776,6 +14920,22 @@
         }
       }
     },
+    "Unter diesen Namen erkennt die App dasselbe Tag." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter diesen Namen erkennt die App dasselbe Tag."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app recognizes the same tag under these names."
+          }
+        }
+      }
+    },
     "Unter dieser Adresse gibt es den Podcast nicht mehr. Vermutlich ist er umgezogen oder wurde eingestellt." : {
       "localizations" : {
         "de" : {
@@ -14888,22 +15048,6 @@
         }
       }
     },
-    "Vermutet, nicht bestätigt. Sie wirken erst, wenn du sie übernimmst." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vermutet, nicht bestätigt. Sie wirken erst, wenn du sie übernimmst."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inferred, not confirmed. They only take effect once you accept them."
-          }
-        }
-      }
-    },
     "Vertiefen" : {
       "localizations" : {
         "de" : {
@@ -14916,22 +15060,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Go Deeper"
-          }
-        }
-      }
-    },
-    "Verwandte Wörter" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verwandte Wörter"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Related Words"
           }
         }
       }
@@ -14980,6 +15108,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Video from the Link"
+          }
+        }
+      }
+    },
+    "Vielleicht wurde es auf einem anderen Gerät zusammengelegt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vielleicht wurde es auf einem anderen Gerät zusammengelegt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It may have been merged on another device."
           }
         }
       }
@@ -15108,38 +15252,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Previous Chapter"
-          }
-        }
-      }
-    },
-    "Vorschläge von PodcastAI" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vorschläge von PodcastAI"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Suggestions from PodcastAI"
-          }
-        }
-      }
-    },
-    "Vorschläge zurücksetzen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vorschläge zurücksetzen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset Suggestions"
           }
         }
       }
@@ -15528,6 +15640,22 @@
         }
       }
     },
+    "Weitere Tags aus deinen Folgen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weitere Tags aus deinen Folgen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More tags from your episodes"
+          }
+        }
+      }
+    },
     "Weitere Treffer" : {
       "localizations" : {
         "de" : {
@@ -15876,6 +16004,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where your data stays"
+          }
+        }
+      }
+    },
+    "Wo es vorkommt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wo es vorkommt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where it appears"
           }
         }
       }
@@ -16424,18 +16568,18 @@
         }
       }
     },
-    "Zu deinen Themen" : {
+    "Zu deinen Tags" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zu deinen Themen"
+            "value" : "Zu deinen Tags"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Matching Your Topics"
+            "value" : "About your tags"
           }
         }
       }
@@ -16744,6 +16888,38 @@
         }
       }
     },
+    "Zusammenlegen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zusammenlegen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merge"
+          }
+        }
+      }
+    },
+    "Zusammenlegen?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zusammenlegen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merge?"
+          }
+        }
+      }
+    },
     "^[%lld Beleg](inflect: true)" : {
       "localizations" : {
         "de" : {
@@ -16820,6 +16996,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "^[%lld episode](inflect: true) to listen to"
+          }
+        }
+      }
+    },
+    "^[%lld Kapitel](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Kapitel](inflect: true)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld chapter](inflect: true)"
           }
         }
       }
@@ -17723,22 +17915,6 @@
         }
       }
     },
-    "z. B. Datenschutz" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "z. B. Datenschutz"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "e.g., Privacy"
-          }
-        }
-      }
-    },
     "z. B. Mein KI Update" : {
       "localizations" : {
         "de" : {
@@ -17931,6 +18107,22 @@
         }
       }
     },
+    "Öffnet die Seite des Tags" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet die Seite des Tags"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the tag page"
+          }
+        }
+      }
+    },
     "Öffnet die Warteschlange" : {
       "localizations" : {
         "de" : {
@@ -18023,22 +18215,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Overview"
-          }
-        }
-      }
-    },
-    "Übernehmen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Übernehmen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accept"
           }
         }
       }
@@ -18247,6 +18423,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete \"%@\""
+          }
+        }
+      }
+    },
+    "„%@“ mit „%@“ zusammenlegen?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%1$@“ mit „%2$@“ zusammenlegen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merge “%1$@” with “%2$@”?"
           }
         }
       }

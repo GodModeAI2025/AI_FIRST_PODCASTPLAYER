@@ -423,13 +423,16 @@ public final class AppModel {
         }
     }
     static let privateCloudKey = "allowPrivateCloudCompute"
-    static let learningEnabledKey = "suggestInterests"
-    static let rejectedSuggestionsKey = "com.podcastai.rejectedSuggestions"
+    /// Schalter und Ablehnungen der Interessenvorschläge bis 0.9. Seit den
+    /// Tags gibt es beides nicht mehr; der Start räumt die Werte weg.
+    static let retiredSuggestionKeys = ["suggestInterests", "com.podcastai.rejectedSuggestions"]
     static let dismissedRelevantKey = "com.podcastai.dismissedRelevant"
-    /// Gibt es abgelehnte Vorschläge, die „Vorschläge zurücksetzen“
-    /// vergessen kann? Gespiegelt, damit der Knopf sich aktualisiert.
-    public private(set) var hasRejectedSuggestions =
-        !(UserDefaults.standard.stringArray(forKey: AppModel.rejectedSuggestionsKey) ?? []).isEmpty
+
+    /// Wie viele Kapitel je Tag. Für „Meine Tags“ und die Tag-Wolke.
+    public internal(set) var chapterTagCounts: [InterestID: Int] = [:]
+    /// Zählt hoch, sobald sich Kapitel-Tags ändern. Ansichten, die Kapitel-Tags
+    /// zeigen, laden dann neu.
+    public internal(set) var chapterTagsRevision = 0
 
     /// Fakten je Folge, wie sie die Folgenansicht, der Chat und der Export zeigen.
     public internal(set) var facts: [EpisodeID: [EpisodeFact]] = [:]
@@ -572,9 +575,9 @@ public final class AppModel {
         self.youTubeCaptionsEnabled = Self.storedFlag(Self.youTubeCaptionsKey, default: true)
         self.supadataKeyRejected = Self.storedFlag(Self.supadataKeyRejectedKey, default: false)
         self.hasSupadataKey = SupadataKeychain.hasKey
-        // Der Schalter „Interessen vorschlagen“ gilt über den Neustart hinaus.
-        // Jedes Neuladen des Profils reicht den Wert von hier weiter.
-        self.profile = InterestProfile(learningEnabled: UserDefaults.standard.bool(forKey: Self.learningEnabledKey))
+        // Vorschläge gibt es seit den Tags nicht mehr. Tags aus dem Inhalt
+        // stehen neutral in der Wolke, bis jemand Plus wählt.
+        for key in Self.retiredSuggestionKeys { UserDefaults.standard.removeObject(forKey: key) }
         self.deviceID = deviceID
         self.policy = PlaybackPolicy(deviceID: deviceID)
         let locator = LocalMediaLocator()
@@ -697,6 +700,8 @@ public final class AppModel {
             let subscribed = Set(sources.map(\.id))
             backCatalog.removeAll { !subscribed.contains($0) }
             try await reloadProfile()
+            // Nach einem Abgleich können neue Kapitel-Tags da sein.
+            chapterTagsRevision += 1
             ledger = try await store.ledger()
             // Was der Nutzer selbst angelegt hat. Bis eben lag das alles
             // nur im Speicher und war beim nächsten Start verschwunden.
@@ -834,8 +839,8 @@ public final class AppModel {
     ///
     /// Drei Regeln, die hier zusammenkommen:
     ///
-    /// - Nur **bestätigte** Interessen führen zu Vorschlägen. Das setzt
-    ///   `RelevanceScorer` durch; hier wird es nicht umgangen.
+    /// - Nur Tags, denen jemand folgt, führen zu Stellen. Das setzen
+    ///   `ChapterTagRelevance` und `RelevanceScorer` durch.
     /// - Was gehört ist, bleibt gehört: Belege, deren Stelle der Hörzustand
     ///   bereits abdeckt, fallen heraus. Sonst böte die App dieselbe Stelle
     ///   jeden Tag erneut an.
@@ -844,10 +849,12 @@ public final class AppModel {
     public func refreshRelevantToday() async {
         do {
             let evidence = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
-            // Vorschläge entstehen aus dem Gehörten, auch wenn noch kein
-            // eigenes Thema trifft. Gerade dann helfen sie am meisten.
-            refreshSuggestions(from: evidence)
-            let matches = RelevanceScorer().score(evidence: evidence, profile: profile)
+            // Über Kapitel-Tags, denen jemand folgt. Folgen, die noch kein
+            // Kapitel-Tag haben, laufen über Bezeichnung und Aliasse.
+            let chapterTags = try await store.allChapterTags()
+            chapterTagCounts = try await store.chapterCountsByTag()
+            let matches = ChapterTagRelevance.matches(
+                evidence: evidence, chapterTags: chapterTags, profile: profile)
             guard !matches.isEmpty else {
                 relevantToday = []
                 return
@@ -1912,15 +1919,9 @@ public final class AppModel {
 
     // MARK: - Interessen
 
-    /// Lädt das Profil aus der Datenbank und behält die Vorschläge.
-    ///
-    /// Vorschläge liegen nur im Speicher. Ohne diesen Schritt verschwänden
-    /// sie, sobald jemand ein Thema anlegt, ändert oder löscht. Ein
-    /// Vorschlag, den inzwischen ein bestätigtes Interesse gleichen Namens
-    /// abdeckt, fällt weg.
+    /// Lädt das Profil, also alle Tags, aus der Datenbank.
     func reloadProfile() async throws {
-        let suggested = profile.suggested
-        var reloaded = try await store.interestProfile(learningEnabled: profile.learningEnabled)
+        var reloaded = try await store.interestProfile(learningEnabled: false)
         // Es gibt nur noch Themen. Aktuelle Vorhaben und offene Fragen aus
         // früheren Versionen oder von einem anderen Gerät werden einmal zu
         // Themen, mit Bezeichnung und Stichworten. Ein Ablaufdatum hatten
@@ -1933,43 +1934,14 @@ public final class AppModel {
                 interest.expiresAt = nil
                 try await store.upsert(interest: interest)
             }
-            reloaded = try await store.interestProfile(learningEnabled: profile.learningEnabled)
-        }
-        let confirmedLabels = Set(reloaded.confirmed.map { $0.label.lowercased() })
-        for interest in suggested where !confirmedLabels.contains(interest.label.lowercased()) {
-            reloaded.add(interest)
+            reloaded = try await store.interestProfile(learningEnabled: false)
         }
         profile = reloaded
+        chapterTagCounts = try await store.chapterCountsByTag()
     }
 
-    /// Legt ein Interesse an. „Für dich“ rechnet danach gleich neu, damit
-    /// ein neues Thema sofort seine Stellen zeigt. Die Oberfläche legt nur
-    /// Themen an.
-    @discardableResult
-    public func addInterest(_ label: String, kind: InterestKind) async -> InterestID? {
-        var interest = Interest(label: label, kind: kind, origin: .confirmedByUser)
-        do {
-            // Gibt es das Tag schon unter diesem Schlüssel oder als Alias,
-            // heißt Anlegen folgen. Sonst stünde es bis zum nächsten
-            // Bereinigen doppelt da.
-            if let existing = try await store.resolveTag(label),
-               let known = try await store.interestProfile(learningEnabled: profile.learningEnabled)
-                   .interests.first(where: { $0.id == existing.id }) {
-                interest = known
-                interest.stance = .follow
-                interest.origin = .confirmedByUser
-            }
-            try await store.upsert(interest: interest)
-            try await reloadProfile()
-        } catch {
-            lastError = UserFacingError.describe(error)
-            return nil
-        }
-        await refreshRelevantToday()
-        return interest.id
-    }
-
-    /// Bezeichnung und Stichworte ändern. „Für dich“ rechnet danach neu.
+    /// Bezeichnung oder Schreibweisen eines Tags ändern. „Für dich“ rechnet danach neu.
+    /// Neue Tags legt die Oberfläche nicht an: Tags stammen aus dem Inhalt.
     public func updateInterest(_ interest: Interest) async {
         do {
             try await store.upsert(interest: interest)
@@ -1979,29 +1951,6 @@ public final class AppModel {
             return
         }
         await refreshRelevantToday()
-    }
-
-    /// Verwandte Wörter aus der Wort-Einbettung des Systems, deutsch und
-    /// englisch. Läuft auf dem Gerät und ist nur ein Vorschlag.
-    public static func keywordSuggestions(for label: String, existing: [String]) -> [String] {
-        let taken = Set(([label] + existing).map { $0.lowercased() })
-        let words = label.lowercased()
-            .split { !$0.isLetter && !$0.isNumber }
-            .map(String.init)
-            .filter { $0.count >= 3 }
-        var result: [String] = []
-        for language in [NLLanguage.german, .english] {
-            guard let embedding = NLEmbedding.wordEmbedding(for: language) else { continue }
-            for word in words where embedding.contains(word) {
-                for (neighbor, distance) in embedding.neighbors(for: word, maximumCount: 8) where distance < 1.0 {
-                    let candidate = neighbor.lowercased()
-                    guard candidate.count >= 3, !taken.contains(candidate), !result.contains(candidate),
-                          !words.contains(candidate) else { continue }
-                    result.append(candidate)
-                }
-            }
-        }
-        return Array(result.prefix(10))
     }
 
     /// Plus oder Minus an einem Tag. Minus löscht nichts, das Tag bleibt
@@ -2025,6 +1974,38 @@ public final class AppModel {
         } catch {
             lastError = UserFacingError.describe(error)
         }
+        chapterTagsRevision += 1
+        await refreshRelevantToday()
+    }
+
+    /// Die Kapitel-Tags einer Folge, nach Kapitelstart.
+    public func chapterTags(for episodeID: EpisodeID) async -> [ChapterTag] {
+        (try? await store.chapterTags(forEpisode: episodeID)) ?? []
+    }
+
+    /// Alle Kapitel eines Tags, neueste Folge zuerst.
+    public func chapterTags(forTag id: InterestID) async -> [ChapterTag] {
+        (try? await store.chapterTags(forTag: id)) ?? []
+    }
+
+    /// Titel von Folge und Quelle, für die Kapitel auf der Tag-Seite.
+    public func episodeTitles(_ ids: [EpisodeID]) async -> [EpisodeID: LibraryStore.EpisodeTitles] {
+        (try? await store.titles(forEpisodes: ids)) ?? [:]
+    }
+
+    /// Legt `other` in `survivor` zusammen, auf Wunsch von der Tag-Seite.
+    public func mergeTag(_ other: InterestID, into survivor: InterestID) async {
+        do {
+            try await store.mergeTag(other, into: survivor)
+            try await reloadProfile()
+            smartFeeds = try await store.smartFeeds()
+            editions = try await store.editions()
+            highlights = try await store.highlights()
+        } catch {
+            lastError = UserFacingError.describe(error)
+            return
+        }
+        chapterTagsRevision += 1
         await refreshRelevantToday()
     }
 
@@ -2651,95 +2632,6 @@ public final class AppModel {
             return
         }
         play(plan, from: .chat)
-    }
-
-    /// Leitet vermutete Interessen aus dem tatsächlich Gehörten ab.
-    ///
-    /// `profile.suggested` war immer leer: die Oberfläche hatte einen
-    /// Abschnitt dafür, erzeugt hat die Vorschläge nie jemand. Damit war die
-    /// Hälfte des Kapitels „Interessenmodell“ eine leere Überschrift.
-    ///
-    /// Nur aus Gehörtem, nicht aus allem Abonnierten — sonst schlägt die App
-    /// vor, was der Nutzer nie angehört hat. Und nie automatisch wirksam:
-    /// `RelevanceScorer` lässt weiterhin nur bestätigte Interessen wirken.
-    func refreshSuggestions(from evidence: [Evidence]) {
-        guard profile.learningEnabled else { return }
-        let heard = evidence.filter { item in
-            guard let range = item.range else { return false }
-            return ledger.heard(in: item.mediaVersionID).covers(range, threshold: 0.6)
-        }
-        guard !heard.isEmpty else { return }
-
-        let rejected = rejectedSuggestions
-        let fresh = InterestSuggester()
-            .suggestions(fromHeard: heard, existing: profile)
-            .filter { !rejected.contains($0.id.rawValue) }
-        guard !fresh.isEmpty else { return }
-        for interest in fresh { profile.add(interest) }
-    }
-
-    /// Schaltet das Ableiten von Interessen ein oder aus.
-    ///
-    /// Ausschalten entfernt die bestehenden Vorschläge gleich mit. Sie
-    /// stehen zu lassen wäre der unangenehmere Zustand: ein Abschnitt
-    /// „Vorschläge von PodcastAI“ unter einem Schalter, der sagt, dass
-    /// nichts vorgeschlagen wird.
-    ///
-    /// Der Schalter wird gespeichert. Eingeschaltet leitet die App gleich
-    /// aus dem bisher Gehörten ab, statt auf die nächste Folge zu warten.
-    public func setLearningEnabled(_ enabled: Bool) {
-        profile.learningEnabled = enabled
-        UserDefaults.standard.set(enabled, forKey: Self.learningEnabledKey)
-        if enabled {
-            Task { await refreshRelevantToday() }
-        } else {
-            for interest in profile.suggested { profile.remove(interest.id) }
-        }
-    }
-
-    /// Verwirft alle Vorschläge und vergisst die Ablehnungen.
-    ///
-    /// Zwei Dinge in einem, und das ist Absicht: wer zurücksetzt, will nicht
-    /// dieselbe Liste ohne die abgelehnten Einträge, sondern einen neuen
-    /// Anlauf.
-    public func resetSuggestions() {
-        for interest in profile.suggested { profile.remove(interest.id) }
-        rejectedSuggestions = []
-        if profile.learningEnabled { Task { await refreshRelevantToday() } }
-    }
-
-    /// Gibt es etwas, das „Vorschläge zurücksetzen“ verwerfen kann?
-    public var canResetSuggestions: Bool {
-        !profile.suggested.isEmpty || hasRejectedSuggestions
-    }
-
-    /// Übernimmt einen Vorschlag. Ab hier wirkt er.
-    public func confirmSuggestion(_ id: InterestID) {
-        profile.confirm(id)
-        Task {
-            if let interest = profile.interests.first(where: { $0.id == id }) {
-                await persist { try await $0.upsert(interest: interest) }
-            }
-            await refreshRelevantToday()
-        }
-    }
-
-    /// Lehnt einen Vorschlag ab. Er kommt nicht wieder: die Kennung ist
-    /// stabil aus dem Begriff gebildet, und abgelehnte Begriffe bleiben
-    /// gemerkt.
-    public func rejectSuggestion(_ id: InterestID) {
-        rejectedSuggestions.insert(id.rawValue)
-        profile.remove(id)
-    }
-
-    /// Abgelehnte Vorschläge, damit derselbe Begriff nicht jede Woche
-    /// erneut auftaucht.
-    private var rejectedSuggestions: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: Self.rejectedSuggestionsKey) ?? []) }
-        set {
-            UserDefaults.standard.set(Array(newValue).sorted(), forKey: Self.rejectedSuggestionsKey)
-            hasRejectedSuggestions = !newValue.isEmpty
-        }
     }
 
     /// Das Cover einer Ausgabe.

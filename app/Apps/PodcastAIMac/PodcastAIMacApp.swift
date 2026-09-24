@@ -164,7 +164,7 @@ struct MacRootView: View {
             case .library: String(localized: "Meine Podcasts")
             case .queue: String(localized: "Warteschlange")
             case .knowledge: String(localized: "Gemerkte Stellen")
-            case .interests: String(localized: "Interessen")
+            case .interests: String(localized: "Meine Tags")
             case .perspective: String(localized: "Gegenpositionen")
             case .trails: String(localized: "Gesicherte Antworten")
             case .player: String(localized: "Wiedergabe")
@@ -180,7 +180,7 @@ struct MacRootView: View {
             case .library: "books.vertical"
             case .queue: "list.bullet"
             case .knowledge: "bookmark"
-            case .interests: "target"
+            case .interests: "tag"
             case .perspective: "arrow.left.arrow.right"
             case .trails: "map"
             case .player: "play.circle"
@@ -196,7 +196,7 @@ struct MacRootView: View {
                 // Eine Seitenleiste verträgt mehr Einträge als eine Tab Bar,
                 // aber nicht beliebig viele ohne Ordnung. „Wissen“ enthält
                 // dieselben Einträge wie der Reiter auf iOS, damit Hinweise
-                // wie „Wissen › Interessen“ auf beiden Geräten stimmen.
+                // wie „Wissen › Meine Tags“ auf beiden Geräten stimmen.
                 SwiftUI.Section("Hören") {
                     ForEach([Section.forYou, .feeds, .library, .queue, .player]) { item in
                         Label(item.label, systemImage: item.symbol).tag(item)
@@ -225,7 +225,7 @@ struct MacRootView: View {
                 case .queue: QueueView()
                 case .help: HelpView()
                 case .knowledge: KnowledgeView()
-                case .interests: InterestsView()
+                case .interests: TagsView()
                 case .perspective: CounterpointView()
                 case .trails: TrailListView()
                 case .player, .none:
@@ -350,13 +350,6 @@ struct MacSettingsView: View {
             }
             .formStyle(.grouped)
             .tabItem { Label("Daten", systemImage: "icloud") }
-            .frame(width: 420)
-
-            Form {
-                LearningSettingsSection()
-            }
-            .formStyle(.grouped)
-            .tabItem { Label("Lernen", systemImage: "target") }
             .frame(width: 420)
 
             NavigationStack {

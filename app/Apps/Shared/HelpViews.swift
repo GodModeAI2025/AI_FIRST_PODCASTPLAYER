@@ -63,7 +63,11 @@ struct OnboardingView: View {
                         Für die neuesten Folgen erstellt die App im WLAN von selbst ein Transkript. \
                         Kapitel, Shownotes und Transkript findest du dann in der Folge.
                         """, symbol: "play.circle")
-                    step(3, "Fragen und sammeln", """
+                    step(3, "Tags folgen", """
+                        Jede Folge und jedes Kapitel trägt Tags aus dem Inhalt. Plus heißt folgen, Minus \
+                        heißt nicht mehr folgen. Gefolgte Tags füllen „Für dich“ und die Themen-Updates.
+                        """, symbol: "tag")
+                    step(4, "Fragen und sammeln", """
                         Im Chat fragst du alle deine Podcasts auf einmal, in einer Folge unter „Fragen“ \
                         nur diese eine. Jede Antwort zeigt die Stelle im Original. Alles lässt sich als \
                         Text exportieren, etwa in deine Notizen.
@@ -498,14 +502,14 @@ extension HelpTopic {
 
     private static var topicUpdates: HelpTopic {
         HelpTopic(
-            kind: .topicUpdates, title: "Themen-Updates", summary: "Eigene Folgen aus deinen Interessen",
+            kind: .topicUpdates, title: "Themen-Updates", summary: "Eigene Folgen aus deinen Tags",
             symbol: "waveform", tint: .red,
             tips: [
-                HelpTip(title: "Interessen",
-                        text: "Deine Themen, jedes mit eigenen Stichworten. Daraus entstehen „Für dich“ und die Themen-Updates.",
-                        symbol: "target", level: .advanced),
+                HelpTip(title: "Tags",
+                        text: "Tags stammen aus dem Inhalt deiner Folgen. Plus heißt folgen, Minus heißt nicht mehr folgen, das Tag bleibt sichtbar. Gefolgte Tags füllen „Für dich“ und die Themen-Updates.",
+                        symbol: "tag", level: .advanced),
                 HelpTip(title: "Themen-Updates", text: """
-                    Eine eigene Folge je Thema aus ungehörten Originalstellen mehrerer Podcasts, mit \
+                    Eine eigene Folge je Tag aus ungehörten Originalstellen mehrerer Podcasts, mit \
                     Kapiteln, Shownotes und Cover.
                     """, symbol: "waveform.circle", level: .expert),
             ],
@@ -602,8 +606,13 @@ extension HelpTopic {
                     Fragen stellen.
                     """),
                 HelpTerm(word: "Themen-Update", meaning: """
-                    Eine eigene Folge zu einem Thema. Die App stellt sie aus Stellen deiner Podcasts \
+                    Eine eigene Folge zu Tags, denen du folgst. Die App stellt sie aus Stellen deiner Podcasts \
                     zusammen, die du noch nicht gehört hast.
+                    """),
+                HelpTerm(word: "Tag", meaning: """
+                    Ein Stichwort aus dem Inhalt einer Folge, etwa „Datenschutz“ oder „USA“. Die App \
+                    ordnet es den Kapiteln zu, eintippen musst du nichts. Plus heißt folgen, Minus heißt \
+                    nicht mehr folgen. Alle Tags stehen unter „Meine Tags“.
                     """),
                 HelpTerm(word: "Gemerkte Stelle", meaning: """
                     Ein Ausschnitt aus einer Folge, den du dir mit Zeitmarke gemerkt hast, auf Wunsch mit \
@@ -986,7 +995,7 @@ enum HelpJump: Hashable, Sendable {
         case .highlights: "Gemerkte Stellen"
         case .trails: "Gesicherte Antworten"
         case .counterpoints: "Gegenpositionen"
-        case .interests: "Interessen"
+        case .interests: "Meine Tags"
         case .addPodcast: "Podcast hinzufügen"
         case .settings: "Einstellungen"
         case .privacy: "Datenschutz in PodcastAI"
@@ -1003,7 +1012,7 @@ enum HelpJump: Hashable, Sendable {
         case .highlights: "bookmark"
         case .trails: "map"
         case .counterpoints: "arrow.left.arrow.right"
-        case .interests: "target"
+        case .interests: "tag"
         case .addPodcast: "plus"
         case .settings: "gearshape"
         case .privacy: "hand.raised"
@@ -1017,7 +1026,7 @@ enum HelpJump: Hashable, Sendable {
         case .highlights: KnowledgeView()
         case .trails: TrailListView()
         case .counterpoints: CounterpointView()
-        case .interests: InterestsView()
+        case .interests: TagsView()
         case .privacy: PrivacyOverviewView()
         #if os(iOS)
         case .settings: SettingsView()

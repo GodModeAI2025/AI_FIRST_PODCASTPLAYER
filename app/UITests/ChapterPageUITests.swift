@@ -70,8 +70,7 @@ final class ChapterPageUITests: XCTestCase {
         let name = app.textFields["z. B. Mein KI Update"]
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap(); name.typeText("Datenschutz kompakt")
-        let topic = app.textFields["Neues Thema, z. B. KI-Modelle"]
-        topic.tap(); topic.typeText("Datenschutz")
+        // Das gefolgte Tag Datenschutz der Beispielfolge ist vorausgewählt.
         let create = app.navigationBars.buttons["Anlegen"]
         let deadline = Date().addingTimeInterval(10)
         while !create.isEnabled && Date() < deadline { sleep(1) }

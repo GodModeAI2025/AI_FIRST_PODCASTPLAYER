@@ -40,7 +40,7 @@ public enum MCPTool: String, CaseIterable, Codable, Sendable {
     /// und wird nicht übersetzt.
     public var summary: String {
         switch self {
-        case .listInterests: "Bestätigte Interessen lesen"
+        case .listInterests: "Tags lesen, denen der Nutzer folgt"
         case .searchEvidence: "In den Transkripten suchen"
         case .getEvidence: "Eine Fundstelle mit Quelle und Timecode abrufen"
         case .listHighlights: "Gemerkte Stellen lesen"
@@ -52,7 +52,7 @@ public enum MCPTool: String, CaseIterable, Codable, Sendable {
     /// Sprache des Geräts und mit den Begriffen der App.
     public var title: String {
         switch self {
-        case .listInterests: String(localized: "Bestätigte Interessen lesen")
+        case .listInterests: String(localized: "Gefolgte Tags lesen")
         case .searchEvidence: String(localized: "In Folgen mit Transkript suchen")
         case .getEvidence: String(localized: "Eine Fundstelle mit Quelle und Zeitmarke abrufen")
         case .listHighlights: String(localized: "Gemerkte Stellen lesen")

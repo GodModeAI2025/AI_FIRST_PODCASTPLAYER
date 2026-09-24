@@ -407,7 +407,10 @@ public actor ContentPipeline {
         let evidence = try await store.evidenceForAnalyzedEpisodes()
         guard !evidence.isEmpty else { return [] }
 
-        var matches = scorer.score(evidence: evidence, profile: profile)
+        // Über Kapitel-Tags; Folgen ohne Kapitel-Tag über Stichworte.
+        var matches = ChapterTagRelevance.matches(
+            evidence: evidence, chapterTags: try await store.allChapterTags(),
+            profile: profile, scorer: scorer)
         let feedTopics = Set(feed.topicIDs)
         if !feedTopics.isEmpty {
             matches = matches.filter { feedTopics.contains($0.interestID) }
@@ -418,8 +421,10 @@ public actor ContentPipeline {
 
         var confirmed: Set<EvidenceID>?
         if case .success = availability.resolve(.recommend) {
-            let shortlist = matches.compactMap { byID[$0.evidenceID] }
-            if let selection = try? await KnowledgeExtractor()
+            // Treffer über Kapitel-Tags sind schon eingeordnet. Das Modell
+            // prüft nur, was über Stichworte kam.
+            let shortlist = matches.filter { !$0.isModelConfirmed }.compactMap { byID[$0.evidenceID] }
+            if !shortlist.isEmpty, let selection = try? await KnowledgeExtractor()
                 .selectRelevant(from: shortlist, profile: profile, availability: availability) {
                 confirmed = Set(selection.evidenceIDs)
             }
@@ -427,13 +432,13 @@ public actor ContentPipeline {
 
         return matches.compactMap { match -> SegmentCandidate? in
             guard let item = byID[match.evidenceID] else { return nil }
-            if let confirmed, !confirmed.contains(match.evidenceID) { return nil }
+            if let confirmed, !match.isModelConfirmed, !confirmed.contains(match.evidenceID) { return nil }
 
             let stamped = RelevanceMatch(
                 evidenceID: match.evidenceID, interestID: match.interestID,
                 interestLabel: match.interestLabel, kind: match.kind,
                 score: match.score, matchedTerms: match.matchedTerms,
-                isModelConfirmed: confirmed?.contains(match.evidenceID) ?? false
+                isModelConfirmed: match.isModelConfirmed || (confirmed?.contains(match.evidenceID) ?? false)
             )
             let title = titles[item.episodeID]
             return SegmentCandidate(
