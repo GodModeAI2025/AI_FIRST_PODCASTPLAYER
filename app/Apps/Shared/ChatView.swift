@@ -24,6 +24,8 @@ struct ChatView: View {
     @State private var pending: (id: UUID, question: String, scope: ChatScope)?
     /// Eine neue Antwort bekommt den VoiceOver-Fokus.
     @AccessibilityFocusState private var focusedAnswer: UUID?
+    /// Steht der Cursor im Fragefeld? Dann wird das Modell vorgewärmt.
+    @FocusState private var inputFocused: Bool
     /// Im eigenständigen Chat: gilt die Frage der Folge, die gerade läuft?
     @State private var followsPlayer = false
     /// Eingrenzung der Mediathek auf einen Podcast und einen Zeitraum.
@@ -83,9 +85,9 @@ struct ChatView: View {
                                 .id(answer.id)
                         }
                         if let pendingQuestion {
-                            PendingAnswerCard(question: pendingQuestion,
-                                              partial: model.partialAnswer,
-                                              cancel: cancel)
+                            // Die Karte liest den wachsenden Text selbst. So rechnet
+                            // je neuem Stand nur sie neu, nicht der ganze Verlauf.
+                            PendingAnswerCard(question: pendingQuestion, cancel: cancel)
                                 .id(Self.pendingID)
                         }
                     }
@@ -108,6 +110,11 @@ struct ChatView: View {
             askField
         }
         .modifier(ChatTitle(show: !fixedScope))
+        // Belege und ihre Wörter liegen bereit, bevor die erste Frage kommt.
+        .task { model.prepareForQuestion(prewarm: false, library: !fixedScope) }
+        .onChange(of: inputFocused) { _, focused in
+            if focused { model.prepareForQuestion(prewarm: true, library: !fixedScope) }
+        }
         .onChange(of: model.episodePlayer.episode?.id) { _, playing in
             // Endet die Wiedergabe, bleibt der Chat bei allem Erschlossenen
             // und springt nicht mit der nächsten Folge von selbst zurück.
@@ -159,6 +166,7 @@ struct ChatView: View {
     private var askField: some View {
         HStack(spacing: Design.Spacing.small) {
             inputField
+                .focused($inputFocused)
                 .textFieldStyle(.plain)
                 .onSubmit(ask)
                 .accessibilityLabel("Frage")
@@ -467,8 +475,10 @@ extension ChatScope {
 /// Antwort, sonst spräche es jeden Zwischenstand.
 private struct PendingAnswerCard: View {
     let question: String
-    let partial: String
     let cancel: () -> Void
+    @Environment(AppModel.self) private var model
+
+    private var partial: String { model.partialAnswer }
 
     private var status: LocalizedStringKey {
         partial.isEmpty ? "Antwort wird gesucht …" : "Antwort wird geschrieben …"

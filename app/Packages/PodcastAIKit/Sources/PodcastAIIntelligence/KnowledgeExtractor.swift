@@ -374,8 +374,10 @@ public struct KnowledgeExtractor: Sendable {
         case .failure(let reason): throw ExtractorError.modelUnavailable(reason)
         }
         let request = { (tier: ModelTier) in
-            configuration.answerRequest(
-                question: question, evidence: evidence, libraryContext: libraryContext, tier: tier)
+            ChatTrace.measure("Prompt bauen") {
+                configuration.answerRequest(
+                    question: question, evidence: evidence, libraryContext: libraryContext, tier: tier)
+            }
         }
         guard !request(preferred).isEmpty else {
             return ComposedAnswer(text: "", claims: [], citations: [:], tier: nil)
@@ -389,7 +391,7 @@ public struct KnowledgeExtractor: Sendable {
         let (content, tier, limit) = try await generate(
             AnswerOutput.self, instructions: answerInstructions(),
             profile: .answer, availability: availability,
-            prompt: { request($0).prompt }, run: run, beforeFallback: clear)
+            prompt: { request($0).prompt }, run: run, beforeFallback: clear, usePrewarmed: true)
 
         // Die Nummern gelten für die Liste, die die antwortende Stufe gesehen hat.
         let candidates = request(tier).candidates
@@ -426,24 +428,49 @@ public struct KnowledgeExtractor: Sendable {
         _ session: LanguageModelSession, prompt: String,
         onPartial: @Sendable (String) async -> Void
     ) async throws -> AnswerOutput {
+        let started = ContinuousClock.now
+        let generation = ChatTrace.signposter.beginInterval("Antwort erzeugen", id: ChatTrace.signposter.makeSignpostID())
+        defer {
+            ChatTrace.signposter.endInterval("Antwort erzeugen", generation)
+            ChatTrace.log("Antwort erzeugen", since: started)
+        }
         let stream = session.streamResponse(to: prompt, generating: AnswerOutput.self)
         var last: GeneratedContent?
         var shown = ""
+        // Neuer Text geht höchstens alle 100 ms hinaus. Jeder Stand ließ die
+        // Ansicht neu rechnen, bei schnellen Modellen dutzende Male je Sekunde.
+        // Der letzte Stand kommt nach dem Ende immer noch.
+        var held: String?
+        var shownAt: ContinuousClock.Instant?
         for try await snapshot in stream {
+            if last == nil {
+                ChatTrace.event("Erstes Token")
+                ChatTrace.log("Zeit bis zum ersten Token", since: started)
+            }
             last = snapshot.rawContent
             let text = partialAnswerText(snapshot.content.answer ?? "")
-            if text != shown {
-                shown = text
-                await onPartial(text)
+            guard text != shown else { continue }
+            let now = ContinuousClock.now
+            if let shownAt, now - shownAt < partialInterval {
+                held = text
+                continue
             }
+            shown = text
+            shownAt = now
+            held = nil
+            await onPartial(text)
         }
         try Task.checkCancellation()
+        if let held { await onPartial(held) }
         guard let last else {
             throw ExtractorError.generationFailed(
                 String(localized: "Die Antwort des Modells war unlesbar. Noch einmal versuchen.", bundle: .module))
         }
         return try AnswerOutput(last)
     }
+
+    /// So oft geht ein neuer Stand der Antwort höchstens hinaus.
+    static let partialInterval = Duration.milliseconds(100)
 
     /// Passt das Budget einer Stufe an das an, was in ihr Fenster passt,
     /// gezählt mit dem Tokenizer des Geräts, siehe ``AnswerTokenPlan``.
@@ -478,13 +505,46 @@ public struct KnowledgeExtractor: Sendable {
         let builder = config.candidateBuilder(for: tier)
         let probe = builder.build(from: Array(sample.prefix(AnswerTokenPlan.sampleSize)))
         let model = SystemLanguageModel.default
-        let schemaTokens = try? await model.tokenCount(for: AnswerOutput.generationSchema)
+        let schemaTokens = await Self.schemaTokens(model)
+        let sampleBlock = builder.promptBlock(for: probe, usage: .referenceNumbers)
         return await AnswerTokenPlan.fitted(
             budget, contextSize: contextSize,
             fixedText: answerInstructions() + "\n\n" + frame, schemaTokens: schemaTokens,
-            sample: builder.promptBlock(for: probe, usage: .referenceNumbers), sampleCount: probe.count,
+            sample: sampleBlock, sampleCount: probe.count,
             margin: margin
-        ) { text in try await model.tokenCount(for: text) }
+        ) { text in
+            // Die Probe ist bei gleichem Bestand dieselbe. Ihre Zahl wird
+            // gemerkt, der Rahmen mit der Frage wird jedes Mal gezählt.
+            guard text == sampleBlock else { return try await model.tokenCount(for: text) }
+            if let known = Self.countedSamples.withLock({ $0[text] }) { return known }
+            let counted = try await model.tokenCount(for: text)
+            Self.countedSamples.withLock { known in
+                if known.count >= 16 { known.removeAll() }
+                known[text] = counted
+            }
+            return counted
+        }
+    }
+
+    /// Was das Antwortschema kostet. Es ändert sich nie, also einmal gezählt.
+    private static let countedSchema = Mutex<Int?>(nil)
+    /// Gezählte Proben, höchstens 16.
+    private static let countedSamples = Mutex<[String: Int]>([:])
+
+    /// Lädt den Tokenizer des Geräts und zählt das Schema, bevor die erste
+    /// Frage kommt. Beim ersten Zählen nach dem Start dauerte das sonst rund
+    /// eine Sekunde, und die Frage wartete darauf.
+    public static func prepareTokenCounting() async {
+        let model = SystemLanguageModel.default
+        guard model.isAvailable else { return }
+        _ = await schemaTokens(model)
+    }
+
+    private static func schemaTokens(_ model: SystemLanguageModel) async -> Int? {
+        if let known = countedSchema.withLock({ $0 }) { return known }
+        guard let counted = try? await model.tokenCount(for: AnswerOutput.generationSchema) else { return nil }
+        countedSchema.withLock { $0 = counted }
+        return counted
     }
 
     /// Das Fenster von Private Cloud Compute in Token. Einmal gefragt und
@@ -664,7 +724,8 @@ public struct KnowledgeExtractor: Sendable {
         profile: TaskProfile, availability: ModelStatus,
         prompt: (ModelTier) -> String,
         run: ((LanguageModelSession, String) async throws -> Content)? = nil,
-        beforeFallback: (() async -> Void)? = nil
+        beforeFallback: (() async -> Void)? = nil,
+        usePrewarmed: Bool = false
     ) async throws -> (Content, ModelTier, PrivateCloudLimit?) {
         guard case .success(let tier) = availability.resolve(profile) else {
             if case .failure(let reason) = availability.resolve(profile) {
@@ -689,9 +750,11 @@ public struct KnowledgeExtractor: Sendable {
                 privateCloudFailure = Self.plainReason(error)
                 limit = Self.privateCloudLimit(error)
             }
+            ChatTrace.event("Rückfall aufs Gerät")
             await beforeFallback?()
         }
-        let session = try makeLocalSession(instructions: instructions)
+        let prewarmed = usePrewarmed ? Self.takePrewarmedSession(instructions: instructions) : nil
+        let session = try prewarmed ?? makeLocalSession(instructions: instructions)
         do {
             return (try await respond(session, prompt(.onDevice)), .onDevice, limit)
         } catch {
@@ -813,6 +876,36 @@ public struct KnowledgeExtractor: Sendable {
         let model = PrivateCloudComputeLanguageModel()
         guard model.isAvailable else { return nil }
         return LanguageModelSession(model: model, instructions: instructions)
+    }
+
+    // MARK: - Vorwärmen
+
+    /// Eine vorgewärmte, noch unbenutzte Sitzung auf dem Gerät mit den
+    /// Anweisungen für Fragen. Die nächste Frage nimmt sie und lässt die
+    /// Stelle leer. Jede Frage bekommt so weiter eine frische Sitzung.
+    private static let prewarmedSession = Mutex<(instructions: String, session: LanguageModelSession)?>(nil)
+
+    /// Lädt das Gerätemodell mit den Anweisungen für Fragen vor, etwa wenn
+    /// jemand ins Fragefeld tippt. Nur wenn die Antwort auf dem Gerät
+    /// entsteht: Ob ein Vorwärmen bei Private Cloud Compute Kontingent
+    /// kostet, sagt Apple nicht. Liegt schon eine passende Sitzung bereit,
+    /// geschieht nichts.
+    public func prewarmAnswer(availability: ModelStatus) {
+        guard case .success(.onDevice) = availability.resolve(.answer) else { return }
+        let instructions = answerInstructions()
+        if Self.prewarmedSession.withLock({ $0?.instructions == instructions }) { return }
+        guard let session = try? makeLocalSession(instructions: instructions) else { return }
+        session.prewarm()
+        Self.prewarmedSession.withLock { $0 = (instructions, session) }
+        ChatTrace.event("Modell vorgewärmt")
+    }
+
+    private static func takePrewarmedSession(instructions: String) -> LanguageModelSession? {
+        prewarmedSession.withLock { stored in
+            guard let ready = stored, ready.instructions == instructions else { return nil }
+            stored = nil
+            return ready.session
+        }
     }
 
     private func makeLocalSession(instructions: String) throws -> LanguageModelSession {

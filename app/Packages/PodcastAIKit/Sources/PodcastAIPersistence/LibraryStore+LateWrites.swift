@@ -26,6 +26,8 @@ extension LibraryStore {
     public func removeAnalysis(
         ofEpisode episodeID: EpisodeID, mediaVersionID: MediaVersionID
     ) throws -> RemovalReport {
+        evidenceChanged()
+        defer { evidenceChanged() }
         var report = RemovalReport()
         let key = episodeID.rawValue
         let mediaKey = mediaVersionID.rawValue

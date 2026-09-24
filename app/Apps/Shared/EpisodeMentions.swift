@@ -43,11 +43,14 @@ enum MentionCache {
 
     /// Was die Nennungen bestimmt. Ändert sich das Transkript, die Fassung,
     /// die Shownotes oder eine Regel, passt der gespeicherte Stand nicht mehr.
-    static func key(for episode: Episode, transcript: Transcript?) -> String {
+    ///
+    /// Der Fingerabdruck reicht dafür. Das ganze Transkript wird nur gelesen,
+    /// wenn neu erkannt werden muss.
+    static func key(for episode: Episode, transcript: LibraryStore.TranscriptFingerprint?) -> String {
         var parts = ["v\(MentionExtractor.version)", episode.id.rawValue]
         if let transcript {
-            parts += [transcript.id.rawValue, "r\(transcript.revision.value)", "\(transcript.segments.count)",
-                      "\(transcript.segments.last?.range.end.milliseconds ?? 0)"]
+            parts += [transcript.id.rawValue, "r\(transcript.revision.value)", "\(transcript.segmentCount)",
+                      "\(transcript.lastEndMs)"]
         } else {
             parts.append("ohne-transkript")
         }
@@ -134,11 +137,12 @@ extension AppModel {
 
     /// Die Nennungen einer Folge: aus dem Speicher, aus der Datei oder neu erkannt.
     func mentions(for episode: Episode) async -> EpisodeMentions {
-        let transcript = await transcript(for: episode)
-        let key = MentionCache.key(for: episode, transcript: transcript)
+        let fingerprint = try? await store.transcriptFingerprint(forEpisode: episode.id)
+        let key = MentionCache.key(for: episode, transcript: fingerprint)
         if let cached = MentionCache.cached(episode.id, key: key) { return cached }
         if let stored = await MentionCache.load(episode.id, key: key) { return stored }
         let ticket = MentionCache.ticket
+        let transcript = fingerprint == nil ? nil : await transcript(for: episode)
         let source = sources.first { $0.id == episode.sourceID }
         let input = MentionExtractor.Input(
             shownotes: episode.shownotesHTML ?? episode.summary,
