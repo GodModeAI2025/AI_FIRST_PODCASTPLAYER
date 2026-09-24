@@ -1025,15 +1025,19 @@ extension AppModel {
         let plan = ChapterSections.factPlan(
             evidence: evidence, sections: sections, chunk: chunk,
             budget: ChapterSections.FactBudget(baseCalls: Self.factChunkLimit, baseLimit: Self.factLimit))
-        let slices = plan.slices
+        var slices = plan.slices
         // Mit Lücken: nur die Abschnitte, die beim letzten Mal fehlten. Was
         // schon da ist, bleibt.
         var open = Set(slices.indices)
         if !stored.isEmpty {
-            open = Set(slices.indices.filter { gaps.contains(Self.factSliceID(slices[$0])) })
-            // Die Lücken passen nicht mehr zu den Abschnitten, etwa nach einem
-            // neuen Transkript oder mit einem Modell, das mehr Text fasst. Dann
-            // bleibt es bei den Fakten, die es gibt. „Neu ermitteln“ rechnet
+            // Über die Zeitspanne der Lücke, nicht über die Kennung des
+            // Aufrufs: Seit dem letzten Lauf können Kapitel aus dem Feed
+            // dazugekommen sein, dann liegen die Aufrufe anders.
+            let reopened = ChapterSections.reopened(slices, gaps: Self.factGapSpans(gaps, in: byID))
+            for (index, part) in reopened { slices[index] = part }
+            open = Set(reopened.keys)
+            // Die Lücken passen nicht mehr zu den Belegen, etwa nach einem
+            // neuen Transkript. Dann bleibt es bei den Fakten, die es gibt. „Neu ermitteln“ rechnet
             // die ganze Folge neu.
             guard !open.isEmpty else {
                 recordFactGaps([], for: episode.id, since: ticket)
@@ -1104,9 +1108,12 @@ extension AppModel {
             }
             guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
             // Je Kapitel höchstens `quota`, damit ein Aufruf mit mehreren
-            // Kapiteln nicht alles einem einzigen gibt.
+            // Kapiteln nicht alles einem einzigen gibt. Aussagen ohne
+            // bekannten Beleg fallen vorher heraus, sonst zählten sie beim
+            // ersten Kapitel mit und verdrängten dort echte.
+            let placed = claims.filter { $0.evidenceIDs.first.flatMap { byID[$0]?.range } != nil }
             let perSection = ChapterSections.balanced(
-                claims, across: sections, quota: quota, limit: claims.count
+                placed, across: sections, quota: quota, limit: placed.count
             ) { claim in
                 claim.evidenceIDs.first.flatMap { byID[$0]?.range?.start } ?? .zero
             }
@@ -1321,6 +1328,19 @@ extension AppModel {
     static func factSliceID(_ slice: [Evidence]) -> String {
         [slice.first?.id.rawValue ?? "", slice.last?.id.rawValue ?? "", String(slice.count)]
             .joined(separator: "|")
+    }
+
+    /// Die Zeitspanne jeder Lücke, vom Anfang ihres ersten bis zum Ende
+    /// ihres letzten Belegs. Lücken, deren Belege es nicht mehr gibt, etwa
+    /// nach einem neuen Transkript, fallen weg.
+    static func factGapSpans(_ gaps: Set<String>, in byID: [EvidenceID: Evidence]) -> [MediaTimeRange] {
+        gaps.compactMap { gap in
+            let parts = gap.split(separator: "|", omittingEmptySubsequences: false)
+            guard parts.count == 3,
+                  let first = byID[EvidenceID(rawValue: String(parts[0]))]?.range,
+                  let last = byID[EvidenceID(rawValue: String(parts[1]))]?.range else { return nil }
+            return MediaTimeRange(start: min(first.start, last.start), end: max(first.end, last.end))
+        }
     }
 
     /// Ist ein neuer Lauf deutlich schlechter als der vorige? Ja, wenn er

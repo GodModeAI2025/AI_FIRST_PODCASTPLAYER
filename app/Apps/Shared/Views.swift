@@ -2136,11 +2136,18 @@ struct FocusPlayerView: View {
             // Die ganze Folge, aus der die Stelle stammt, an der Stelle, die
             // gerade läuft. Das beendet diese Wiedergabe.
             // Auf dem iPhone liegt der Player in einem Blatt. Es schließt,
-            // damit die Folge nicht hinter einem leeren Player läuft.
+            // damit die Folge nicht hinter einem leeren Player läuft. Auf dem
+            // Mac steht er in der Seitenansicht, dort schlösse `dismiss` das
+            // Fenster.
+            #if os(iOS)
             OpenOriginalButton(episodeID: segment.episodeID, position: originalPosition(of: segment)) {
                 dismiss()
             }
             .font(.callout)
+            #else
+            OpenOriginalButton(episodeID: segment.episodeID, position: originalPosition(of: segment))
+                .font(.callout)
+            #endif
 
             // Wie weit die Stelle schon gelaufen ist.
             ProgressView(value: segmentProgress(segment.range))

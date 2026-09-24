@@ -3466,18 +3466,18 @@
         }
       }
     },
-    "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz." : {
+    "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Den Satz je Kapitel schreiben Apples Server nur, wenn das Modell auf dem Gerät fehlt, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Modell auf dem Gerät formuliert Antworten und Fakten. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
+            "value" : "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Den Satz je Kapitel schreiben Apples Server nur, wenn das Modell auf dem Gerät fehlt, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The on-device model writes answers and facts. If \"Use Apple Servers\" is turned on, your question and the matching transcript passages go to Apple's servers (Private Cloud Compute). Apple says it doesn't store them. You'll find the switch at the bottom of this page and in Settings under Intelligence."
+            "value" : "The on-device model writes answers, facts and the one-sentence summary of each chapter. If \"Use Apple Servers\" is turned on, your question and the matching transcript passages go to Apple's servers (Private Cloud Compute). Chapter summaries go to Apple's servers only when the on-device model is missing, and then with that chapter's transcript passages. Apple says it doesn't store them. You'll find the switch at the bottom of this page and in Settings under Intelligence."
           }
         }
       }

@@ -298,6 +298,29 @@ public enum ChapterSections {
         return FactPlan(slices: slices, quota: quota, limit: limit)
     }
 
+    /// Die Aufrufe, die gemerkte Lücken nachholen, je Aufruf nur mit den
+    /// Belegen, die in einer Lücke beginnen.
+    ///
+    /// Eine Lücke ist die Zeitspanne eines früheren Aufrufs, der an Last oder
+    /// Zeit gescheitert ist. Die Aufrufe selbst können sich seitdem
+    /// verschoben haben, etwa weil die Kapiteldatei inzwischen geladen ist
+    /// und aus abgeleiteten Abschnitten Kapitel aus dem Feed wurden. Ein
+    /// Vergleich der Aufrufe fände die Lücke dann nicht mehr, und ihr Teil
+    /// der Folge bliebe ohne Fakten. Über die Zeit findet er sie. Belege
+    /// außerhalb der Lücken bleiben draußen, denn aus ihnen gibt es schon Fakten.
+    public static func reopened(_ slices: [[Evidence]], gaps: [MediaTimeRange]) -> [Int: [Evidence]] {
+        guard !gaps.isEmpty else { return [:] }
+        var result: [Int: [Evidence]] = [:]
+        for (index, slice) in slices.enumerated() {
+            let part = slice.filter { item in
+                guard let start = item.range?.start else { return false }
+                return gaps.contains { $0.contains(start) }
+            }
+            if !part.isEmpty { result[index] = part }
+        }
+        return result
+    }
+
     /// Teilt `total` Plätze so auf, dass keiner mehr bekommt, als er
     /// braucht, und die übrigen möglichst gleich viel. Jeder mit Bedarf
     /// bekommt mindestens einen Platz, auch wenn es dann mehr als `total`

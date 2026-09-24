@@ -258,6 +258,21 @@ struct ChapterSectionTests {
 
     // MARK: Satz je Kapitel
 
+    @Test("Eine Lücke findet ihre Belege auch, wenn die Aufrufe anders liegen")
+    func gapsSurviveNewSlicing() {
+        let all = minutes(12)
+        // Beim letzten Lauf scheiterte der Aufruf mit den Minuten 4 bis 7.
+        let gap = MediaTimeRange(start: all[4].range!.start, end: all[7].range!.end)
+        // Jetzt, mit Kapiteln aus dem Feed, liegen die Aufrufe bei 0–5 und 6–11.
+        let slices = [Array(all[0...5]), Array(all[6...11])]
+        let reopened = ChapterSections.reopened(slices, gaps: [gap])
+        #expect(reopened.keys.sorted() == [0, 1])
+        // Nachgeholt wird nur, was in der Lücke beginnt.
+        #expect(reopened[0]?.map(\.id.rawValue) == ["e4", "e5"])
+        #expect(reopened[1]?.map(\.id.rawValue) == ["e6", "e7"])
+        #expect(ChapterSections.reopened(slices, gaps: []).isEmpty)
+    }
+
     @Test("Der Satz je Kapitel läuft auf dem Gerät, ohne Gerät über PCC, Fakten nie über PCC")
     func summaryRouting() {
         let both = ModelStatus(onDevice: .available, privateCloudCompute: .available)

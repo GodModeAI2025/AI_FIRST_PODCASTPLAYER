@@ -183,7 +183,10 @@ extension AppModel {
                     text: summary?.text, modelTier: summary?.modelTier.rawValue ?? "")
                 entries[key] = entry
                 changed = true
-                if !wasRemoved(episode.id, since: removals) { onSummary(section.id, entry) }
+                // Abgebrochen, weil sich die Kapitel geändert haben: Der Satz
+                // wird gespeichert, aber nicht gemeldet. Ein neues Kapitel mit
+                // demselben Anfang bekäme sonst den Satz des alten.
+                if !Task.isCancelled, !wasRemoved(episode.id, since: removals) { onSummary(section.id, entry) }
             } catch let error as ExtractorError {
                 switch error {
                 case .generationRejected:
