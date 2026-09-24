@@ -166,18 +166,21 @@ public enum EpisodeMatcher {
     /// Podcasts. Sie ist keine Folgenseite, auch wenn manche Feeds sie bei
     /// jeder Folge als `<link>` angeben.
     public static func index(of locator: EpisodeLocator, in items: [ParsedItem], feedWebsite: URL? = nil) -> Int? {
-        let guids = Set(locator.guids.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
-        if !guids.isEmpty, let hit = items.firstIndex(where: { $0.guid.map(guids.contains) ?? false }) {
-            return hit
+        // Die Hinweise gelten in ihrer Reihenfolge. Eine Seite nennt oft
+        // auch andere Folgen („Weitere Folgen“); ihre GUIDs und Player stehen
+        // hinter denen der Folge selbst und dürfen nicht die neueste im Feed
+        // treffen, nur weil der Feed sie zuerst führt.
+        for guid in locator.guids.map({ $0.trimmingCharacters(in: .whitespaces) }) where !guid.isEmpty {
+            if let hit = items.firstIndex(where: { $0.guid == guid }) { return hit }
         }
 
         let audioKeys = locator.audioURLs.map(audioKey)
         if !audioKeys.isEmpty {
-            if let hit = items.firstIndex(where: { item in
-                guard let audio = item.audioURL else { return false }
-                let key = audioKey(audio)
-                return audioKeys.contains { sameAudio($0, key) }
-            }) { return hit }
+            for wanted in audioKeys {
+                if let hit = items.firstIndex(where: { item in
+                    item.audioURL.map { sameAudio(wanted, audioKey($0)) } ?? false
+                }) { return hit }
+            }
             // Nur der Dateiname, wenn er lang und eindeutig ist. Hoster
             // hängen Zähler davor, deren Pfad sich ändert.
             let names = Set(locator.audioURLs.map { $0.lastPathComponent.lowercased() }.filter { $0.count >= 16 })

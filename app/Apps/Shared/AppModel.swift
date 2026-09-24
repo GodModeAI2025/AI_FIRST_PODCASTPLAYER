@@ -738,8 +738,12 @@ public final class AppModel {
     public var freshEpisodes: [Episode] {
         let since = Date().addingTimeInterval(-7 * 86_400)
         let started = Set(episodePlayer.recentEpisodeIDs)
+        // Einzeln geholte Folgen aus einem Podcast ohne Abo sind nicht „neu in
+        // deinen Abos“; sie stehen unter ihrem Podcast.
+        let notSubscribed = Set(sources.lazy.filter { !$0.isSubscribed }.map(\.id))
         return episodes.values.joined()
-            .filter { ($0.publishedAt ?? .distantPast) > since && !started.contains($0.id) }
+            .filter { ($0.publishedAt ?? .distantPast) > since && !started.contains($0.id)
+                && !notSubscribed.contains($0.sourceID) }
             .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
             .prefix(5)
             .map { $0 }

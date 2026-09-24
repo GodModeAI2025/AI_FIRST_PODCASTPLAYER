@@ -645,6 +645,8 @@ struct CatalogPodcastDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .task { await load() }
+        // Ein Fehler beim Holen gehört zu dieser Seite, nicht zur nächsten.
+        .onDisappear { subscriptions.linkFailure = nil }
     }
 
     private var header: some View {

@@ -304,6 +304,8 @@ struct LinkPodcastView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        // Ein Fehler gehört zu dieser Seite, nicht zur nächsten im Blatt.
+        .onDisappear { subscriptions.linkFailure = nil }
     }
 
     @ViewBuilder private var subscribeButton: some View {
@@ -425,5 +427,6 @@ struct YouTubeLinkView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .onDisappear { subscriptions.linkFailure = nil }
     }
 }

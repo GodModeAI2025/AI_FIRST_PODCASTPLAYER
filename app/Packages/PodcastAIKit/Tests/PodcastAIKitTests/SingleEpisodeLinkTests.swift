@@ -226,6 +226,18 @@ struct HosterEpisodePageTests {
         #expect(EpisodeMatcher.index(of: hints.locator, in: feed.items) == 0)
     }
 
+    @Test("Nennt die Seite auch andere Folgen, zählt die erste Angabe, nicht die neueste im Feed")
+    func pageListsOtherEpisodes() throws {
+        let newest = try #require(URL(string: "https://cdn.example.org/neu-folge-mit-langem-namen.mp3"))
+        let older = try #require(URL(string: "https://cdn.example.org/alt-folge-mit-langem-namen.mp3"))
+        let items = [
+            ParsedItem(guid: "neu", title: "Neu", audioURL: newest),
+            ParsedItem(guid: "alt", title: "Alt", audioURL: older),
+        ]
+        #expect(EpisodeMatcher.index(of: EpisodeLocator(guids: ["alt", "neu"]), in: items) == 1)
+        #expect(EpisodeMatcher.index(of: EpisodeLocator(audioURLs: [older, newest]), in: items) == 1)
+    }
+
     @Test("Zwei Folgen mit gleichem Titel: keine wird geraten")
     func ambiguousTitle() {
         let items = [ParsedItem(guid: "a", title: "Update"), ParsedItem(guid: "b", title: "Update")]

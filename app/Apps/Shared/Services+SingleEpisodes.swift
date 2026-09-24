@@ -130,15 +130,21 @@ extension FeedRefresher {
         }
         guard let feedAddress = lookup.feedURL else { throw FeedRefreshError.appleLinkWithoutFeed }
 
-        var locator = lookup.episode ?? EpisodeLocator()
-        if lookup.episode == nil, let data = try? await SafeHTTP.load(link, using: session, limit: Self.pageLimit) {
-            locator = EpisodePageHints.parse(html: String(decoding: data, as: UTF8.self), pageURL: link).locator
-            // Die Seite bei Apple ist keine Folgenseite des Podcasts.
-            locator.pageURLs = []
-        }
         let (feedURL, feed) = try await fetchFeed(feedAddress, allowDiscovery: true)
         previewed = (feedURL, feedURL, feed, Date())
-        let index = locator.isEmpty ? nil : EpisodeMatcher.index(of: locator, in: feed.items, feedWebsite: feed.websiteURL)
+        var index = lookup.episode.flatMap {
+            EpisodeMatcher.index(of: $0, in: feed.items, feedWebsite: feed.websiteURL)
+        }
+        // Nicht unter den neuesten bei Apple, oder GUID und Adresse passen
+        // nicht zum Feed: dann Titel und GUID von der Seite der Folge.
+        if index == nil, let data = try? await SafeHTTP.load(link, using: session, limit: Self.pageLimit) {
+            var locator = EpisodePageHints.parse(html: String(decoding: data, as: UTF8.self), pageURL: link).locator
+            // Die Seite bei Apple ist keine Folgenseite des Podcasts.
+            locator.pageURLs = []
+            if !locator.isEmpty {
+                index = EpisodeMatcher.index(of: locator, in: feed.items, feedWebsite: feed.websiteURL)
+            }
+        }
         return .podcast(Self.linkPreview(feed, feedURL: feedURL, index: index, missing: index == nil,
                                          fallbackTitle: lookup.podcastTitle, fallbackArtwork: lookup.artworkURL))
     }
