@@ -29,7 +29,7 @@ Für die neuesten Folgen jedes Podcasts erstellt die App das Transkript von selb
 
 ## Apple Intelligence
 
-Alles läuft mit Apple Intelligence. Antworten und Vergleiche nutzen Private Cloud Compute, wenn Gerät und App es dürfen; dort passen mehr Stellen in eine Antwort. Fakten und Relevanz entstehen auf dem Gerät. Ein anderer KI-Anbieter kommt nicht zum Einsatz. Ohne Apple Intelligence zeigt die App die passendsten Stellen im Wortlaut, statt etwas zu formulieren.
+Alles läuft mit Apple Intelligence. Antworten und Vergleiche nutzen Private Cloud Compute, wenn Gerät und App es dürfen; dort passen mehr Stellen in eine Antwort. Fakten und Relevanz entstehen auf dem Gerät. Satz und Tags je Kapitel auch, nur wenn das Gerätemodell fehlt oder für die Tags zu langsam ist, springt Private Cloud Compute ein. Ein anderer KI-Anbieter kommt nicht zum Einsatz. Ohne Apple Intelligence zeigt die App die passendsten Stellen im Wortlaut, statt etwas zu formulieren.
 
 ## Datenschutz
 

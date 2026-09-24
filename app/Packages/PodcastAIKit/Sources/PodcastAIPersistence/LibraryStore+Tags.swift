@@ -424,6 +424,54 @@ extension LibraryStore {
             }
     }
 
+    // MARK: - Sichtbarkeit und Einordnung
+
+    /// Aus wie vielen verschiedenen Quellen Kapitel unter jedem Schlüssel
+    /// stammen. Liest nur Schlüssel und Quelle.
+    public func tagSourceCounts() throws -> [String: Int] {
+        var descriptor = FetchDescriptor<StoredChapterTag>()
+        descriptor.propertiesToFetch = [\.normalizedKey, \.sourceIdentifier]
+        var sources: [String: Set<String>] = [:]
+        for row in try modelContext.fetch(descriptor) where !row.normalizedKey.isEmpty {
+            sources[row.normalizedKey, default: []].insert(row.sourceIdentifier)
+        }
+        return sources.mapValues(\.count)
+    }
+
+    /// Die Tags, die die Wolke zeigt: eigene immer, erkannte erst ab zwei
+    /// Quellen oder mit Plus (``Tag/isVisibleInCloud(sourceCount:)``).
+    public func visibleTags() throws -> [Tag] {
+        let counts = try tagSourceCounts()
+        return try tags().filter { $0.isVisibleInCloud(sourceCount: counts[$0.normalizedKey] ?? 0) }
+    }
+
+    /// Welche dieser Folgen noch eingeordnet werden müssen: Folgen ohne
+    /// Kapitel-Tags und Folgen, deren Kapitel-Tags aus einer älteren
+    /// Revision des Transkripts stammen als ihre Belege.
+    public func chapterTagBacklog(among ids: Set<EpisodeID>) throws -> Set<EpisodeID> {
+        guard !ids.isEmpty else { return [] }
+        let keys = Set(ids.map(\.rawValue))
+        var tagged = FetchDescriptor<StoredChapterTag>(predicate: #Predicate { keys.contains($0.episodeIdentifier) })
+        tagged.propertiesToFetch = [\.episodeIdentifier, \.transcriptRevisionValue]
+        var taggedRevision: [String: Int] = [:]
+        for row in try modelContext.fetch(tagged) {
+            taggedRevision[row.episodeIdentifier] = max(taggedRevision[row.episodeIdentifier] ?? 0,
+                                                        row.transcriptRevisionValue)
+        }
+        var evidence = FetchDescriptor<StoredEvidence>(
+            predicate: #Predicate { keys.contains($0.episodeIdentifier) && $0.hasTiming == true })
+        evidence.propertiesToFetch = [\.episodeIdentifier, \.transcriptRevisionValue]
+        var evidenceRevision: [String: Int] = [:]
+        for row in try modelContext.fetch(evidence) {
+            evidenceRevision[row.episodeIdentifier] = max(evidenceRevision[row.episodeIdentifier] ?? 0,
+                                                          row.transcriptRevisionValue)
+        }
+        return Set(evidenceRevision.compactMap { key, revision in
+            guard let done = taggedRevision[key] else { return EpisodeID(rawValue: key) }
+            return done < revision ? EpisodeID(rawValue: key) : nil
+        })
+    }
+
     // MARK: - Nur für Tests
 
     /// Nur für Tests: eine Zeile eines Interesses ohne Prüfung, so wie sie

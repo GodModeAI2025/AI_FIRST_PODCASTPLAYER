@@ -3611,18 +3611,18 @@
         }
       }
     },
-    "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Den Satz je Kapitel schreiben Apples Server nur, wenn das Modell auf dem Gerät fehlt, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz." : {
+    "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel und wählt die Tags der Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Satz und Tags je Kapitel kommen nur von Apples Servern, wenn das Modell auf dem Gerät fehlt oder für die Tags zu langsam ist, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Den Satz je Kapitel schreiben Apples Server nur, wenn das Modell auf dem Gerät fehlt, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
+            "value" : "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel und wählt die Tags der Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Satz und Tags je Kapitel kommen nur von Apples Servern, wenn das Modell auf dem Gerät fehlt oder für die Tags zu langsam ist, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The on-device model writes answers, facts and the one-sentence summary of each chapter. If \"Use Apple Servers\" is turned on, your question and the matching transcript passages go to Apple's servers (Private Cloud Compute). Chapter summaries go to Apple's servers only when the on-device model is missing, and then with that chapter's transcript passages. Apple says it doesn't store them. You'll find the switch at the bottom of this page and in Settings under Intelligence."
+            "value" : "The on-device model writes answers, facts and the one-sentence summary of each chapter, and picks each chapter's tags. If \"Use Apple Servers\" is turned on, your question and the matching transcript passages go to Apple's servers (Private Cloud Compute). Chapter summaries and tags come from Apple's servers only when the on-device model is missing or, for tags, too slow, and then with that chapter's transcript passages. Apple says it doesn't store them. You'll find the switch at the bottom of this page and in Settings under Intelligence."
           }
         }
       }

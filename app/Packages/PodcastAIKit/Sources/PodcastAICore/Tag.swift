@@ -51,6 +51,19 @@ public struct Tag: Hashable, Codable, Sendable, Identifiable {
 
     public var isFollowed: Bool { stance == .follow && origin != .suggestedBySystem }
 
+    /// In so vielen verschiedenen Quellen muss ein erkanntes Tag vorkommen,
+    /// bevor die Wolke es zeigt. Ein Wort aus einem einzigen Podcast ist
+    /// eher dessen Eigenheit als ein Thema.
+    public static let detectedVisibilitySources = 2
+
+    /// Zeigt die Wolke dieses Tag? Eigene Tags immer, erkannte erst ab
+    /// ``detectedVisibilitySources`` Quellen oder wenn jemand Plus gewählt hat.
+    /// `sourceCount` zählt die Quellen mit Kapiteln unter diesem Tag.
+    public func isVisibleInCloud(sourceCount: Int) -> Bool {
+        guard origin == .detected, stance != .follow else { return origin != .suggestedBySystem }
+        return sourceCount >= Self.detectedVisibilitySources
+    }
+
     /// Die Kennung für ein Tag, das die App selbst anlegt. Aus dem Schlüssel
     /// gerechnet, damit zwei Geräte, die dasselbe Tag gleichzeitig erkennen,
     /// dieselbe Zeile anlegen. Bestehende Interessen behalten ihre Kennung.

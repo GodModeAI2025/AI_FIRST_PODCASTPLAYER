@@ -808,7 +808,7 @@ public struct KnowledgeExtractor: Sendable {
         Bundle.main.object(forInfoDictionaryKey: "PodcastAIPrivateCloudComputeEntitled") as? Bool == true
     }
 
-    private static func privateCloudSession(instructions: String) -> LanguageModelSession? {
+    static func privateCloudSession(instructions: String) -> LanguageModelSession? {
         guard privateCloudEntitled else { return nil }
         let model = PrivateCloudComputeLanguageModel()
         guard model.isAvailable else { return nil }

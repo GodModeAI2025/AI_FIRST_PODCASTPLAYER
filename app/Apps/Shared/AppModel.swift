@@ -475,6 +475,20 @@ public final class AppModel {
     /// sie ohne Wartezeit ein.
     @ObservationIgnored var factsBackfilled = false
 
+    // MARK: Tags je Kapitel (Ablauf in AppModel+Tagging.swift)
+
+    /// Folgen, deren Kapitel noch Tags bekommen, neueste zuerst. Dieselbe
+    /// Arbeit wie die Fakten nimmt sie mit, wenn keine Folge auf Fakten wartet.
+    @ObservationIgnored var tagsQueue: [Episode] = []
+    /// Folgen, die gerade eingeordnet werden.
+    @ObservationIgnored var taggingInProgress: Set<EpisodeID> = []
+    /// Folgen, deren Einordnung in diesem Start an Last oder Zeit gescheitert
+    /// ist. Die Bibliothek reiht sie erst nach dem nächsten Start wieder ein.
+    @ObservationIgnored var tagsFailed: Set<EpisodeID> = []
+    /// Die leichte Hintergrundaufgabe `com.podcastai.tagging` läuft. Sie gibt
+    /// nur den Tags Zeit, nicht den Fakten.
+    @ObservationIgnored var tagGrants = 0
+
     /// Fakten nach dem Transkript von selbst sammeln, auch für ältere
     /// Folgen, denen sie noch fehlen.
     public var automaticFacts: Bool {
@@ -768,6 +782,7 @@ public final class AppModel {
         // wartete, gehörte zum alten Speicher, und gesucht wird ohne Wartezeit.
         restoreAttempted = false
         factsQueue = []
+        tagsQueue = []
         factsBackfilled = false
         await load()
     }
