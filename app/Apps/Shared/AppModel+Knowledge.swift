@@ -162,7 +162,7 @@ extension AppModel {
     }
 
     /// Wie viele Token das Gerätemodell für Anweisungen, Prompt und Antwort
-    /// zusammen fasst. Auf iOS 26 und macOS 26 sind es 4.096.
+    /// zusammen fasst. Unter iOS 27 und macOS 27 sind es 8.192.
     static var onDeviceContextSize: Int {
         #if canImport(FoundationModels)
         SystemLanguageModel.default.contextSize
@@ -192,13 +192,20 @@ extension AppModel {
     /// `position` ist die Stelle im Player beim Senden, nur bei einer Frage
     /// an die Folge, die dort gerade geladen ist. Dann kennt die Antwort
     /// die Stelle und die Passagen davor, und „Was wurde gerade gesagt?“
-    /// findet sie.
+    /// findet sie. Wird die Frage abgebrochen, kommt keine Antwort und kein
+    /// Hinweis.
     @discardableResult
     public func ask(_ question: String, scope: ChatScope, position: MediaTime? = nil) async -> ChatAnswer? {
+        let number = questionTicket
+        // Der Text im Entstehen geht in derselben Runde weg, in der die
+        // fertige Antwort in den Verlauf kommt. So springt nichts.
+        defer { if number == questionTicket { partialAnswer = "" } }
         let ticket = removalCount
         var moment: MediaTime?
         if case .episode(let id) = scope, episodePlayer.episode?.id == id { moment = position }
-        let composed = await composeAnswer(question, scope: scope, position: moment).asked(at: moment)
+        guard let answered = await composeAnswer(question, scope: scope, position: moment, number: number),
+              !Task.isCancelled else { return nil }
+        let composed = answered.asked(at: moment)
         let removed = { (id: EpisodeID) in self.wasRemoved(id, since: ticket) }
         switch scope {
         case .episode(let id) where removed(id):
@@ -228,6 +235,32 @@ extension AppModel {
         chatAnswers.removeAll { $0.id == id }
     }
 
+    /// Stellt eine Frage als eigene Aufgabe, die „Abbrechen“ anhalten kann.
+    public func startQuestion(_ question: String, scope: ChatScope,
+                              position: MediaTime? = nil) -> Task<ChatAnswer?, Never> {
+        questionTask?.cancel()
+        questionTicket += 1
+        partialAnswer = ""
+        let task = Task { await self.ask(question, scope: scope, position: position) }
+        questionTask = task
+        return task
+    }
+
+    /// Hält die laufende Frage an. Sie hinterlässt keine Antwort und keine
+    /// Fehlermeldung, und ihr halber Text verschwindet sofort.
+    public func cancelQuestion() {
+        questionTask?.cancel()
+        questionTask = nil
+        questionTicket += 1
+        partialAnswer = ""
+    }
+
+    /// Ein neuer Stand des Antworttexts, nur für die Frage, die noch gilt.
+    func showPartialAnswer(_ text: String, number: Int) {
+        guard number == questionTicket else { return }
+        partialAnswer = text
+    }
+
     /// Zitiert die Antwort eine Folge, die seit `ticket` gelöscht wurde?
     /// Eine abbestellte Quelle zählt auch dann, wenn ihre Folge nicht in der
     /// geladenen Liste stand und deshalb kein Merkzeichen bekam.
@@ -242,7 +275,8 @@ extension AppModel {
         }
     }
 
-    private func composeAnswer(_ question: String, scope: ChatScope, position: MediaTime?) async -> ChatAnswer {
+    private func composeAnswer(_ question: String, scope: ChatScope, position: MediaTime?,
+                               number: Int) async -> ChatAnswer? {
         activity = String(localized: "Antwort wird gesucht …")
         defer { activity = nil }
         // Fragen nach Links, Terminen, Adressen oder Namen beantworten die
@@ -256,18 +290,18 @@ extension AppModel {
         await refreshModelStatus()
 
         // Das Gerätebudget gilt immer: direkt auf dem Gerät und ebenso, wenn
-        // eine Anfrage von Private Cloud Compute aufs Gerät zurückfällt.
-        let device = Self.answerBudget(privateCloud: false,
-                                       contextSize: Self.onDeviceContextSize,
-                                       questionLength: question.count)
-        let budget = answersUsePrivateCloud
-            ? Self.answerBudget(privateCloud: true, contextSize: Self.onDeviceContextSize,
-                                questionLength: question.count)
-            : device
+        // eine Anfrage von Private Cloud Compute aufs Gerät zurückfällt. Hier
+        // stehen nur die Obergrenzen. Wie viele Stellen davon passen, wird
+        // weiter unten in Token gezählt.
+        let usesPrivateCloud = answersUsePrivateCloud
+        let deviceCeiling = Self.answerCeiling(privateCloud: false, contextSize: Self.onDeviceContextSize)
+        let ceiling = usesPrivateCloud
+            ? Self.answerCeiling(privateCloud: true, contextSize: Self.onDeviceContextSize)
+            : deviceCeiling
         // Die Nennungen stehen vorn und bekommen einen festen Anteil des
         // Gerätebudgets. Gekürzt wird am Ende, also am Überblick, auch wenn
         // eine Anfrage aufs Gerät zurückfällt.
-        let mentionShare = device.libraryContextLimit * 2 / 5
+        let mentionShare = deviceCeiling.libraryContextLimit * 2 / 5
 
         let pool: [Evidence]
         var libraryContext = ""
@@ -347,6 +381,20 @@ extension AppModel {
                 citations: [], coverageCaveat: caveat)
         }
 
+        // Die Obergrenzen füllen, gezählt in Token an einer Probe aus dem
+        // Bestand. Zählt der Tokenizer nicht, gilt die alte Schätzung.
+        let sample = Self.evenlySpaced(pool, count: AnswerTokenPlan.sampleSize)
+        let planner = KnowledgeExtractor()
+        let device = await planner.fittedAnswerBudget(
+            deviceCeiling, tier: .onDevice, question: question, sample: sample,
+            libraryContext: String(libraryContext.prefix(deviceCeiling.libraryContextLimit)))
+        let budget = usesPrivateCloud
+            ? await planner.fittedAnswerBudget(
+                ceiling, tier: .privateCloudCompute, question: question, sample: sample,
+                libraryContext: String(libraryContext.prefix(ceiling.libraryContextLimit)))
+            : device
+        guard !Task.isCancelled else { return nil }
+
         let limit = budget.maximumCandidates
         let overview = Self.asksForOverview(question)
         let candidates: [Evidence]
@@ -378,11 +426,15 @@ extension AppModel {
             // festen Budget aus dem Paket und kürzte den Kontext unter das,
             // was hier für das Gerät bestimmt wurde.
             onDeviceBudget: device))
+        // Die Suche läuft losgelöst und hält bei „Abbrechen“ nicht an.
+        guard !Task.isCancelled else { return nil }
+        let status = modelStatus
         do {
             let composed = try await extractor.answer(
                 question: question, from: candidates,
                 libraryContext: String(libraryContext.prefix(budget.libraryContextLimit)),
-                availability: modelStatus)
+                availability: status,
+                onPartial: { [weak self] text in await self?.showPartialAnswer(text, number: number) })
             let byID = Dictionary(candidates.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             var cited = composed.citations.sorted { $0.key < $1.key }.compactMap { byID[$0.value] }
             if cited.isEmpty { cited = composed.claims.flatMap(\.evidenceIDs).compactMap { byID[$0] } }
@@ -391,11 +443,18 @@ extension AppModel {
                 text = composed.claims.map { "• \($0.statement)" }.joined(separator: "\n")
             }
             if text.isEmpty { text = String(localized: "Dazu steht in den Transkripten nichts Belegtes.") }
+            // Kommt die Antwort vom Gerät, weil die Apple-Server ausgeschöpft
+            // oder ausgelastet sind, sagt eine Zeile das. Das Kontingent ist
+            // meist schon vorher bekannt, dann fragt der Extraktor PCC gar nicht.
+            let serverLimit = composed.privateCloudLimit
+                ?? (composed.tier == .onDevice ? status.privateCloudLimit : nil)
             return ChatAnswer(
                 question: question, scope: scope, text: text, citations: cited,
                 coverageCaveat: caveat, modelLabel: composed.tier?.label,
-                citationNumbers: composed.citations)
+                citationNumbers: composed.citations, modelNote: serverLimit?.note())
         } catch {
+            // Abgebrochen: keine Antwort, kein Hinweis, kein neuer Modellzustand.
+            if error is CancellationError || Task.isCancelled { return nil }
             // Ein Fehler kann heißen, dass das Kontingent aufgebraucht oder
             // das Modell nicht mehr bereit ist. Die nächste Frage soll das wissen.
             await refreshModelStatus()
@@ -486,18 +545,27 @@ extension AppModel {
     /// Sekunden Rechenzeit, genug für eine ganze Folge von einer Stunde.
     static let embeddingBudget = 64
 
-    /// Wie viel Kontext eine Antwort bekommt: Stellen, Zeichen je Stelle und
+    /// Die Obergrenze für eine Antwort: Stellen, Zeichen je Stelle und
     /// Zeichen für den Kontext zur Folge oder zur Mediathek.
     ///
-    /// Private Cloud Compute fasst viel und bekommt das Budget aus dem
-    /// Paket. Auf dem Gerät teilen sich Anweisungen, Schema, Kontext, Stellen
-    /// und Antwort das Fenster des Modells, auf iOS 26 und macOS 26 sind das
-    /// 4.096 Token. Dort gilt das Gerätebudget aus dem Paket, in einem
-    /// größeren Fenster doppelt so viel Kontext. Gerechnet wird vorsichtig
-    /// mit drei Zeichen je Token.
-    ///
-    /// Das Ergebnis für das Gerät geht als `onDeviceBudget` an den
-    /// Extraktor. So rechnen App und Paket mit denselben Zahlen.
+    /// Private Cloud Compute bekommt die Grenze aus dem Paket. Auf dem Gerät
+    /// passen in ein Fenster über 4.096 Token bis zu 40 Stellen und doppelt
+    /// so viel Kontext. Wie viele Stellen es wirklich werden, zählt
+    /// `KnowledgeExtractor.fittedAnswerBudget` in Token, siehe
+    /// `AnswerTokenPlan`. Das gezählte Budget für das Gerät geht als
+    /// `onDeviceBudget` an den Extraktor. So rechnen App und Paket mit
+    /// denselben Zahlen.
+    static func answerCeiling(privateCloud: Bool, contextSize: Int) -> ContextBudget {
+        if privateCloud { return .privateCloudCompute }
+        let base = ContextBudget.onDevice
+        guard contextSize > 4_096 else { return base }
+        return ContextBudget(maximumCandidates: 40, excerptLimit: base.excerptLimit,
+                             libraryContextLimit: base.libraryContextLimit * 2)
+    }
+
+    /// Die alte Schätzung mit drei Zeichen je Token, für die Einordnung der
+    /// Gegenpositionen. Sie bleibt dort die Decke, damit keine Portion größer
+    /// wird als bisher, und `fittedAnswerBudget` kürzt sie nach Token.
     static func answerBudget(privateCloud: Bool, contextSize: Int, questionLength: Int) -> ContextBudget {
         if privateCloud { return .privateCloudCompute }
         let base = ContextBudget.onDevice

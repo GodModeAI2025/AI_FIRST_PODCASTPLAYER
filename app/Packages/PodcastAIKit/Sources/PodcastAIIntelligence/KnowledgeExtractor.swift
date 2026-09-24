@@ -20,6 +20,7 @@
 #if canImport(FoundationModels)
 import Foundation
 import FoundationModels
+import Synchronization
 import PodcastAICore
 
 /// Was das Modell bei der Relevanzprüfung zurückgeben darf.
@@ -167,7 +168,7 @@ public struct KnowledgeExtractor: Sendable {
         }
 
         let prompt = relevancePrompt(for: candidates)
-        let (content, _) = try await generate(
+        let (content, _, _) = try await generate(
             RelevanceSelectionOutput.self, instructions: relevanceInstructions(profile: profile),
             profile: .recommend, availability: availability) { _ in prompt }
         let raw = RawSelection(
@@ -192,7 +193,7 @@ public struct KnowledgeExtractor: Sendable {
         guard !candidates.isEmpty else { return [] }
 
         let prompt = claimPrompt(for: candidates)
-        let (response, _) = try await generate(
+        let (response, _, _) = try await generate(
             ClaimExtractionOutput.self, instructions: claimInstructions(),
             profile: .extract, availability: availability) { _ in prompt }
 
@@ -273,7 +274,7 @@ public struct KnowledgeExtractor: Sendable {
         }
         guard !request(preferred).candidates.isEmpty else { return [:] }
 
-        let (response, tier) = try await generate(
+        let (response, tier, _) = try await generate(
             ClassificationOutput.self, instructions: classificationInstructions(labels: labels),
             profile: .compare, availability: availability) { request($0).prompt }
 
@@ -306,11 +307,19 @@ public struct KnowledgeExtractor: Sendable {
     /// Methode trotzdem das Modell: Fragen über die Bibliothek selbst lassen
     /// sich aus ihm beantworten. Gibt es beides nicht, läuft kein Modell, und
     /// die Antwort ist leer und ohne Stufe.
+    ///
+    /// Mit `onPartial` entsteht die Antwort sichtbar: jeder neue Stand des
+    /// Antworttexts geht als reiner Text hinaus, aufgeräumt nach
+    /// ``partialAnswerText(_:)``. Verweise wie [3] bleiben darin Text, geprüft
+    /// wird erst die fertige Antwort. Fällt die Anfrage von Private Cloud
+    /// Compute aufs Gerät zurück, kommt vorher ein leerer Text, damit der
+    /// halbe Satz von PCC nicht stehen bleibt.
     public func answer(
         question: String,
         from evidence: [Evidence],
         libraryContext: String = "",
-        availability: ModelStatus
+        availability: ModelStatus,
+        onPartial: (@Sendable (String) async -> Void)? = nil
     ) async throws -> ComposedAnswer {
         let preferred: ModelTier
         switch availability.resolve(.answer) {
@@ -324,9 +333,16 @@ public struct KnowledgeExtractor: Sendable {
         guard !request(preferred).isEmpty else {
             return ComposedAnswer(text: "", claims: [], citations: [:], tier: nil)
         }
-        let (content, tier) = try await generate(
+        var run: ((LanguageModelSession, String) async throws -> AnswerOutput)?
+        var clear: (() async -> Void)?
+        if let onPartial {
+            run = { session, prompt in try await Self.streamAnswer(session, prompt: prompt, onPartial: onPartial) }
+            clear = { await onPartial("") }
+        }
+        let (content, tier, limit) = try await generate(
             AnswerOutput.self, instructions: answerInstructions(),
-            profile: .answer, availability: availability) { request($0).prompt }
+            profile: .answer, availability: availability,
+            prompt: { request($0).prompt }, run: run, beforeFallback: clear)
 
         // Die Nummern gelten für die Liste, die die antwortende Stufe gesehen hat.
         let candidates = request(tier).candidates
@@ -350,7 +366,91 @@ public struct KnowledgeExtractor: Sendable {
             if let id = byIndex[number] { citations[number] = id }
         }
         return ComposedAnswer(text: text, claims: claims.filter(\.isWellFormed),
-                              citations: citations, tier: tier)
+                              citations: citations, tier: tier,
+                              privateCloudLimit: tier == .onDevice ? limit : nil)
+    }
+
+    /// Streamt eine Antwort und meldet jeden neuen Stand des Antworttexts.
+    ///
+    /// Das Ergebnis ist dasselbe wie bei `respond`: Aus dem letzten Stand
+    /// entsteht die ganze ``AnswerOutput``, und sie geht durch dieselbe
+    /// Prüfung wie bisher.
+    private static func streamAnswer(
+        _ session: LanguageModelSession, prompt: String,
+        onPartial: @Sendable (String) async -> Void
+    ) async throws -> AnswerOutput {
+        let stream = session.streamResponse(to: prompt, generating: AnswerOutput.self)
+        var last: GeneratedContent?
+        var shown = ""
+        for try await snapshot in stream {
+            last = snapshot.rawContent
+            let text = partialAnswerText(snapshot.content.answer ?? "")
+            if text != shown {
+                shown = text
+                await onPartial(text)
+            }
+        }
+        try Task.checkCancellation()
+        guard let last else {
+            throw ExtractorError.generationFailed(
+                String(localized: "Die Antwort des Modells war unlesbar. Noch einmal versuchen.", bundle: .module))
+        }
+        return try AnswerOutput(last)
+    }
+
+    /// Passt das Budget einer Stufe an das an, was in ihr Fenster passt,
+    /// gezählt mit dem Tokenizer des Geräts, siehe ``AnswerTokenPlan``.
+    ///
+    /// Gezählt werden Anweisungen, Rahmen, Bibliothek und Frage, dazu das
+    /// Schema und eine Probe aus bis zu acht Stellen aus `sample`. Das Fenster
+    /// von Private Cloud Compute nennt dessen Modell selbst. Weil PCC einen
+    /// anderen Tokenizer hat, bekommt es einen Aufschlag. Nennt PCC sein
+    /// Fenster nicht, bleibt das Budget, wie es ist.
+    public func fittedAnswerBudget(
+        _ budget: ContextBudget, tier: ModelTier, question: String,
+        sample: [Evidence], libraryContext: String
+    ) async -> ContextBudget {
+        let contextSize: Int
+        let margin: Double
+        switch tier {
+        case .onDevice:
+            contextSize = SystemLanguageModel.default.contextSize
+            margin = 1.0
+        case .privateCloudCompute:
+            guard let size = await Self.privateCloudContextSize() else { return budget }
+            contextSize = size
+            margin = 1.2
+        }
+        var config = configuration
+        config.onDeviceBudget = budget
+        config.privateCloudBudget = budget
+        config.candidateBuilder = CandidateListBuilder(
+            excerptLimit: budget.excerptLimit, maximumCandidates: budget.maximumCandidates)
+        let frame = config.answerRequest(
+            question: question, evidence: [], libraryContext: libraryContext, tier: tier).prompt
+        let builder = config.candidateBuilder(for: tier)
+        let probe = builder.build(from: Array(sample.prefix(AnswerTokenPlan.sampleSize)))
+        let model = SystemLanguageModel.default
+        let schemaTokens = try? await model.tokenCount(for: AnswerOutput.generationSchema)
+        return await AnswerTokenPlan.fitted(
+            budget, contextSize: contextSize,
+            fixedText: answerInstructions() + "\n\n" + frame, schemaTokens: schemaTokens,
+            sample: builder.promptBlock(for: probe, usage: .referenceNumbers), sampleCount: probe.count,
+            margin: margin
+        ) { text in try await model.tokenCount(for: text) }
+    }
+
+    /// Das Fenster von Private Cloud Compute in Token. Einmal gefragt und
+    /// dann gemerkt, denn die Frage kann übers Netz gehen.
+    private static let privateCloudContext = Mutex<Int?>(nil)
+
+    static func privateCloudContextSize() async -> Int? {
+        if let known = privateCloudContext.withLock({ $0 }) { return known }
+        guard privateCloudEntitled else { return nil }
+        let model = PrivateCloudComputeLanguageModel()
+        guard model.isAvailable, let size = try? await model.contextSize, size > 0 else { return nil }
+        privateCloudContext.withLock { $0 = size }
+        return size
     }
 
     /// Die Nummern, auf die ein Antworttext verweist, in der Reihenfolge des Textes.
@@ -480,22 +580,32 @@ public struct KnowledgeExtractor: Sendable {
     /// an Netz, Kontingent oder Dienst, läuft die Anfrage auf dem Gerät, mit
     /// einem Prompt, der in dessen kleineres Kontextfenster passt. Ein
     /// Abbruch ist kein Grund für einen Rückfall und wird weitergereicht.
+    ///
+    /// `run` ersetzt `respond`, etwa durch eine gestreamte Antwort.
+    /// `beforeFallback` läuft, bevor das Gerät nach einem Fehler von PCC
+    /// übernimmt. Der dritte Wert sagt, ob PCC an Kontingent oder Last
+    /// gescheitert ist.
     private func generate<Content: Generable>(
         _ type: Content.Type, instructions: String,
         profile: TaskProfile, availability: ModelStatus,
-        prompt: (ModelTier) -> String
-    ) async throws -> (Content, ModelTier) {
+        prompt: (ModelTier) -> String,
+        run: ((LanguageModelSession, String) async throws -> Content)? = nil,
+        beforeFallback: (() async -> Void)? = nil
+    ) async throws -> (Content, ModelTier, PrivateCloudLimit?) {
         guard case .success(let tier) = availability.resolve(profile) else {
             if case .failure(let reason) = availability.resolve(profile) {
                 throw ExtractorError.modelUnavailable(reason)
             }
             throw ExtractorError.modelUnavailable(.unknown(String(localized: "keine Stufe verfügbar", bundle: .module)))
         }
+        let respond = run ?? { session, text in
+            try await session.respond(to: text, generating: type).content
+        }
         var privateCloudFailure: String?
+        var limit: PrivateCloudLimit?
         if tier == .privateCloudCompute, let session = Self.privateCloudSession(instructions: instructions) {
             do {
-                let response = try await session.respond(to: prompt(.privateCloudCompute), generating: type)
-                return (response.content, .privateCloudCompute)
+                return (try await respond(session, prompt(.privateCloudCompute)), .privateCloudCompute, nil)
             } catch {
                 if error is CancellationError || Task.isCancelled { throw error }
                 guard case .available = availability.onDevice else {
@@ -503,11 +613,13 @@ public struct KnowledgeExtractor: Sendable {
                     throw ExtractorError.generationFailed(Self.plainReason(error))
                 }
                 privateCloudFailure = Self.plainReason(error)
+                limit = Self.privateCloudLimit(error)
             }
+            await beforeFallback?()
         }
         let session = try makeLocalSession(instructions: instructions)
         do {
-            return (try await session.respond(to: prompt(.onDevice), generating: type).content, .onDevice)
+            return (try await respond(session, prompt(.onDevice)), .onDevice, limit)
         } catch {
             if error is CancellationError || Task.isCancelled { throw error }
             var detail = Self.plainReason(error)
@@ -555,12 +667,37 @@ public struct KnowledgeExtractor: Sendable {
             @unknown default: break
             }
         }
+        if let error = error as? PrivateCloudComputeLanguageModel.Error {
+            switch error {
+            case .quotaLimitReached:
+                return ModelUnavailability.quotaExhausted().message
+            case .networkFailure:
+                return ModelUnavailability.offline.message
+            case .serviceUnavailable:
+                return String(localized: "Private Cloud Compute ist gerade nicht erreichbar.", bundle: .module)
+            @unknown default: break
+            }
+        }
         if error is GeneratedContent.ParsingError {
             return String(localized: "Die Antwort des Modells war unlesbar. Noch einmal versuchen.", bundle: .module)
         }
         return String(
             localized: "Das Modell hat keine Antwort geliefert. Auf diesem Gerät ist Apple Intelligence vielleicht noch nicht bereit.",
             bundle: .module)
+    }
+
+    /// Ist Private Cloud Compute an Kontingent oder Last gescheitert? Nur
+    /// diese beiden Gründe nennt die Antwort. Netz und Dienst nicht, dort
+    /// gibt es keinen Zeitpunkt, ab dem es wieder geht.
+    static func privateCloudLimit(_ error: any Error) -> PrivateCloudLimit? {
+        if let error = error as? PrivateCloudComputeLanguageModel.Error,
+           case .quotaLimitReached(let detail) = error {
+            return .quotaExhausted(resetDate: detail.resetDate)
+        }
+        if let error = error as? LanguageModelError, case .rateLimited(let detail) = error {
+            return .rateLimited(resetDate: detail.resetDate)
+        }
+        return nil
     }
 
     /// Scheitert jeder weitere Versuch mit derselben Eingabe genauso?
@@ -639,8 +776,11 @@ public struct KnowledgeExtractor: Sendable {
         let model = PrivateCloudComputeLanguageModel()
         switch model.availability {
         case .available:
-            if case .limitReached = model.quotaUsage.status {
-                return ModelStatus(onDevice: onDevice, privateCloudCompute: .unavailable(.quotaExhausted))
+            let quota = model.quotaUsage
+            if case .limitReached = quota.status {
+                return ModelStatus(
+                    onDevice: onDevice,
+                    privateCloudCompute: .unavailable(.quotaExhausted(resetDate: quota.resetDate)))
             }
             return ModelStatus(onDevice: onDevice, privateCloudCompute: .available)
         case .unavailable(let reason):
@@ -828,6 +968,47 @@ public struct KnowledgeExtractor: Sendable {
                 : "[" + kept.map(String.init).joined(separator: ", ") + "]"
         }
         return tidied(result)
+    }
+
+    /// Der Antworttext, während er entsteht, als reiner Text.
+    ///
+    /// Blocknamen wie „[BIBLIOTHEK]“ fallen weg, auch ein angefangener am
+    /// Ende wie „[BIBLIO“. Verweise wie [3] bleiben stehen, ungeprüft: welche
+    /// Nummer gilt, entscheidet erst ``cleanedAnswerText(_:validNumbers:)``
+    /// an der fertigen Antwort.
+    public static func partialAnswerText(_ raw: String) -> String {
+        let text = withoutOpenBracket(EvidenceSelectionValidator.sanitize(raw, limit: 2_000))
+        return cleanedAnswerText(text, validNumbers: anyNumber)
+    }
+
+    /// Jede Nummer, die eine Kandidatenliste haben kann. Im Entstehen gilt
+    /// jeder Verweis, geprüft wird erst am Ende.
+    private static let anyNumber = Set(1...1_000)
+
+    /// Schneidet eine offene Klammer am Ende ab, solange sie ein Blockname
+    /// oder ein Verweis werden kann. Eckige Klammern stehen in Antworten nur
+    /// für Verweise und Blocknamen, eine kurze offene fällt deshalb immer
+    /// weg. Eine runde nur, wenn ihr Anfang zu einem Blocknamen passt.
+    static func withoutOpenBracket(_ text: String) -> String {
+        guard let open = text.lastIndex(where: { $0 == "[" || $0 == "(" }) else { return text }
+        let tail = text[text.index(after: open)...]
+        let closer: Character = text[open] == "[" ? "]" : ")"
+        guard !tail.contains(closer) else { return text }
+        let hide: Bool
+        if text[open] == "[" {
+            hide = tail.count <= 24
+        } else {
+            let word = tail.lowercased()
+            hide = word.allSatisfy(\.isLetter)
+                && (word.isEmpty || blockNamePrefixes.contains { $0.hasPrefix(word) })
+        }
+        guard hide else { return text }
+        return String(text[..<open]).trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Die Blocknamen klein geschrieben, für den Vergleich mit einem Anfang.
+    private static var blockNamePrefixes: [String] {
+        promptBlockNames.map { $0.lowercased() } + ["bibliothek", "library"]
     }
 
     /// Die Nummern und Blocknamen in einer Klammer. `nil`, wenn etwas

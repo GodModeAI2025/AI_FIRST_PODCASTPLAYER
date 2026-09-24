@@ -135,13 +135,18 @@ public struct ChatAnswer: Sendable, Identifiable {
     /// Fragen an eine Folge, die gerade geladen war. Die Zeit kommt vom
     /// Player, nie vom Modell.
     public let askedAtPosition: MediaTime?
+    /// Warum die Antwort vom Gerät kommt, obwohl die Apple-Server erlaubt
+    /// sind, etwa „Apple-Server heute ausgeschöpft, wieder ab 18:00“. Nur
+    /// für die Anzeige, gesichert und exportiert wird die Zeile nicht.
+    public let modelNote: String?
 
     public init(
         id: UUID = UUID(), question: String, scope: ChatScope, text: String,
         citations: [Evidence], coverageCaveat: String? = nil,
         caveatKind: CaveatKind = .transcriptCoverage, answeredAt: Date = Date(),
         modelLabel: String? = nil, citationNumbers: [Int: EvidenceID] = [:],
-        referencedEpisodeIDs: [EpisodeID] = [], askedAtPosition: MediaTime? = nil
+        referencedEpisodeIDs: [EpisodeID] = [], askedAtPosition: MediaTime? = nil,
+        modelNote: String? = nil
     ) {
         self.id = id; self.question = question; self.scope = scope; self.text = text
         self.citations = citations; self.coverageCaveat = coverageCaveat
@@ -150,6 +155,7 @@ public struct ChatAnswer: Sendable, Identifiable {
         self.citationNumbers = citationNumbers
         self.referencedEpisodeIDs = referencedEpisodeIDs
         self.askedAtPosition = askedAtPosition
+        self.modelNote = modelNote
     }
 
     /// Dieselbe Antwort mit der Stelle, an der gefragt wurde.
@@ -158,7 +164,8 @@ public struct ChatAnswer: Sendable, Identifiable {
             id: id, question: question, scope: scope, text: text, citations: citations,
             coverageCaveat: coverageCaveat, caveatKind: caveatKind, answeredAt: answeredAt,
             modelLabel: modelLabel, citationNumbers: citationNumbers,
-            referencedEpisodeIDs: referencedEpisodeIDs, askedAtPosition: position)
+            referencedEpisodeIDs: referencedEpisodeIDs, askedAtPosition: position,
+            modelNote: modelNote)
     }
 
     /// Die belegten Stellen, die abgespielt werden können.

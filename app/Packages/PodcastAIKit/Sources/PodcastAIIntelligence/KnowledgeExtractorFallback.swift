@@ -66,9 +66,17 @@ public struct KnowledgeExtractor: Sendable {
 
     public func answer(
         question: String, from evidence: [Evidence], libraryContext: String = "",
-        availability: ModelStatus
+        availability: ModelStatus, onPartial: (@Sendable (String) async -> Void)? = nil
     ) async throws -> ComposedAnswer {
         throw ExtractorError.modelUnavailable(Self.reason)
+    }
+
+    /// Ohne Tokenizer bleibt das Budget, wie es ist.
+    public func fittedAnswerBudget(
+        _ budget: ContextBudget, tier: ModelTier, question: String,
+        sample: [Evidence], libraryContext: String
+    ) async -> ContextBudget {
+        budget
     }
 
     public static func currentStatus(allowPrivateCloud: Bool) -> ModelStatus {

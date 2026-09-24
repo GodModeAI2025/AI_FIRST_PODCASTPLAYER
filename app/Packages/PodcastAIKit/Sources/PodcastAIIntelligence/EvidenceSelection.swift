@@ -222,11 +222,14 @@ public struct CandidateListBuilder: Sendable, Equatable {
 
 /// Wie viel Kontext eine Frage auf einer Stufe höchstens bekommt.
 ///
-/// Das Gerätemodell hat ein kleines Kontextfenster (4.096 Token unter OS 26,
-/// 8.192 unter OS 27). Eine Liste, die für Private Cloud Compute bemessen
+/// Das Gerätemodell hat ein kleines Kontextfenster (8.192 Token unter
+/// iOS 27 und macOS 27). Eine Liste, die für Private Cloud Compute bemessen
 /// ist, passt dort nicht hinein. Deshalb gilt die Grenze je Stufe und nicht
 /// je Anfrage: fällt eine Anfrage von PCC aufs Gerät zurück, wird der Prompt
 /// mit dem Gerätebudget neu gebaut.
+///
+/// Die festen Werte hier sind Obergrenzen. Wie viele Stellen tatsächlich
+/// hineingehen, zählt ``AnswerTokenPlan`` in Token.
 public struct ContextBudget: Sendable, Equatable {
     public var maximumCandidates: Int
     public var excerptLimit: Int
@@ -239,7 +242,9 @@ public struct ContextBudget: Sendable, Equatable {
         self.libraryContextLimit = libraryContextLimit
     }
 
-    /// Passt mit Instruktionen, Schema und Antwort auch in 4.096 Token.
+    /// Passt mit Instruktionen, Schema und Antwort auch in 4.096 Token,
+    /// ohne dass jemand zählt. Das Gerät bekommt mehr, wenn die Zählung in
+    /// ``AnswerTokenPlan`` es zulässt.
     public static let onDevice = ContextBudget(
         maximumCandidates: 16, excerptLimit: 420, libraryContextLimit: 1_500)
     public static let privateCloudCompute = ContextBudget(
@@ -373,4 +378,8 @@ public struct ComposedAnswer: Sendable, Equatable {
     /// Die Stufe, die geantwortet hat. `nil`, wenn kein Modell gelaufen ist,
     /// weil es weder Abschnitte noch Bibliothekskontext gab.
     public let tier: ModelTier?
+    /// Warum die Antwort vom Gerät kommt, obwohl Private Cloud Compute
+    /// gefragt wurde: Kontingent aufgebraucht oder Dienst ausgelastet.
+    /// `nil` bei jedem anderen Grund und wenn PCC geantwortet hat.
+    public var privateCloudLimit: PrivateCloudLimit? = nil
 }

@@ -2049,6 +2049,22 @@
         }
       }
     },
+    "Antwort wird geschrieben …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antwort wird geschrieben …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writing the answer…"
+          }
+        }
+      }
+    },
     "Antwort wird gesucht" : {
       "localizations" : {
         "de" : {
@@ -5165,7 +5181,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The newest episode of each podcast stays on the device and plays without a connection. For the others, the app removes the audio after the transcript, and they play from the internet. In an episode, under \"More\": \"Download\" puts the audio on the device and keeps it there until you choose \"Remove Audio\". \"Remove Audio\" deletes only the audio, \"Delete Episode\" deletes the audio, transcript, facts, and listening progress. Your notes stay in Knowledge. Below \"Audio is on this device\", the episode tells you why. You can turn these rules off in Settings under Storage."
+            "value" : "The newest episode of each podcast stays on the device and plays without a connection. For the others, the app removes the audio after the transcript, and they play from the internet. In an episode, under \"More\" : \"Download\" puts the audio on the device and keeps it there until you choose \"Remove Audio\". \"Remove Audio\" deletes only the audio, \"Delete Episode\" deletes the audio, transcript, facts, and listening progress. Your notes stay in Knowledge. Below \"Audio is on this device\", the episode tells you why. You can turn these rules off in Settings under Storage."
           }
         }
       }
@@ -8014,6 +8030,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Personal Hotspot detected, waiting for Wi-Fi without a data limit"
+          }
+        }
+      }
+    },
+    "Hält die Suche nach der Antwort an" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hält die Suche nach der Antwort an"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stops looking for an answer"
           }
         }
       }
