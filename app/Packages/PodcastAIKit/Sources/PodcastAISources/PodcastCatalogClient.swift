@@ -312,7 +312,9 @@ public actor PodcastCatalogClient {
         }
     }
 
-    func searchApple(_ term: String) async throws -> [CatalogPodcast] {
+    /// Nur das Apple-Podcast-Verzeichnis, etwa für das Bild eines Feeds,
+    /// der selbst keins nennt.
+    public func searchApple(_ term: String) async throws -> [CatalogPodcast] {
         let (_, body) = try await fetchInStorefront(missing: Self.searchStorefrontMissingStatuses) {
             Self.appleSearchURL(term, country: $0)
         }

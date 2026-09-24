@@ -1200,15 +1200,25 @@ struct TranscriptSection: View {
     /// Woher der Text kommt, wenn nicht aus der Spracherkennung, etwa
     /// „Untertitel von YouTube über Supadata“.
     @State private var originLabel: String?
+    /// Der Text jeder Zeile für die Suche, einmal je Laden vorbereitet und
+    /// nicht bei jedem Tastendruck oder jedem Takt der Wiedergabe.
+    @State private var searchable: [Int64: String] = [:]
+    /// Solange jemand im Suchfeld tippt, springt die Liste nicht zur
+    /// laufenden Stelle.
+    @FocusState private var searchFocused: Bool
 
-    private var filtered: [(start: MediaTime, text: String)] {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
+    /// Die Suche ohne Leerzeichen am Rand.
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    private func filtered(for trimmed: String) -> [(start: MediaTime, text: String)] {
         guard !trimmed.isEmpty else { return paragraphs }
+        let needle = TranscriptSearch.fold(trimmed)
         // Mit sichtbarer Übersetzung sucht die Suche auch in ihr.
         return paragraphs.filter { paragraph in
-            paragraph.text.localizedCaseInsensitiveContains(trimmed)
-                || (translation.isShown
-                    && translation.texts[paragraph.start.milliseconds]?.localizedCaseInsensitiveContains(trimmed) == true)
+            let key = paragraph.start.milliseconds
+            if (searchable[key] ?? TranscriptSearch.fold(paragraph.text)).contains(needle) { return true }
+            guard translation.isShown, let translated = translation.texts[key] else { return false }
+            return TranscriptSearch.fold(translated).contains(needle)
         }
     }
 
@@ -1224,6 +1234,8 @@ struct TranscriptSection: View {
     }
 
     var body: some View {
+        let trimmed = trimmedQuery
+        let shown = filtered(for: trimmed)
         ScrollViewReader { proxy in
             List {
                 // Die Suche steht im Inhalt, nicht in der Navigationsleiste.
@@ -1233,6 +1245,8 @@ struct TranscriptSection: View {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                         TextField("Im Transkript suchen", text: $query)
                             .textFieldStyle(.plain)
+                            .autocorrectionDisabled()
+                            .focused($searchFocused)
                             .accessibilityIdentifier("transcript.search")
                         if !query.isEmpty {
                             Button { query = "" } label: {
@@ -1241,6 +1255,10 @@ struct TranscriptSection: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel("Suche leeren")
                         }
+                    }
+                    .id(Self.topID)
+                    if !trimmed.isEmpty {
+                        searchResultLine(count: shown.count, query: trimmed)
                     }
                     if foreignSource != nil {
                         TranslationControl(
@@ -1265,13 +1283,14 @@ struct TranscriptSection: View {
                         EpisodeAnalysisPrompt(episode: episode)
                     }
                 }
-                if let originLabel, !paragraphs.isEmpty {
+                // Beim Suchen stehen die Treffer gleich unter dem Feld.
+                if let originLabel, !paragraphs.isEmpty, trimmed.isEmpty {
                     Label(originLabel, systemImage: "captions.bubble")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("transcript.origin")
                 }
-                if !paragraphs.isEmpty {
+                if !paragraphs.isEmpty, trimmed.isEmpty {
                     if episode.audioURL == nil && episode.opensInYouTube {
                         Text("Antippen öffnet das Video bei YouTube an dieser Stelle. Über „…“ merkst, kopierst oder teilst du sie.")
                             .font(.caption)
@@ -1282,7 +1301,7 @@ struct TranscriptSection: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                ForEach(Array(filtered.enumerated()), id: \.element.start) { _, paragraph in
+                ForEach(Array(shown.enumerated()), id: \.element.start) { _, paragraph in
                     HStack(alignment: .top, spacing: Design.Spacing.small) {
                         Button {
                             model.playEpisode(episode, at: paragraph.start.seconds)
@@ -1298,7 +1317,7 @@ struct TranscriptSection: View {
                                             .accessibilityLabel("gemerkt")
                                     }
                                 }
-                                Text(shownText(paragraph))
+                                Text(TranscriptSearch.highlighted(shownText(paragraph), matching: trimmed))
                                     .font(.callout)
                                     .foregroundStyle(isHeard(paragraph.start) ? .secondary : .primary)
                                     .multilineTextAlignment(.leading)
@@ -1310,6 +1329,7 @@ struct TranscriptSection: View {
                         // Schlicht, damit der Text schwarz bleibt und nicht als Link blau erscheint.
                         .buttonStyle(.plain)
                         .accessibilityHint("Spielt ab dieser Zeile")
+                        .accessibilityIdentifier("transcript.line")
 
                         // Sichtbar an jeder Zeile, nicht nur über langes
                         // Drücken oder Wischen, die niemand errät.
@@ -1338,16 +1358,34 @@ struct TranscriptSection: View {
                     .id(paragraph.start.milliseconds)
                 }
             }
+            // Nie zur laufenden Stelle springen, solange gesucht wird oder
+            // das Suchfeld offen ist. Sonst lag das Feld samt Treffern
+            // außerhalb des Bildes, und die Suche wirkte, als täte sie nichts.
             .onChange(of: currentStart) { _, start in
-                guard let start, query.isEmpty else { return }
+                guard let start, trimmedQuery.isEmpty, !searchFocused else { return }
                 withAnimation { proxy.scrollTo(start, anchor: .center) }
+            }
+            // Jede neue Eingabe zeigt die Treffer von oben.
+            .onChange(of: trimmedQuery) { _, now in
+                if !now.isEmpty {
+                    proxy.scrollTo(Self.topID, anchor: .top)
+                } else if !searchFocused, let start = currentStart {
+                    proxy.scrollTo(start, anchor: .center)
+                }
             }
         }
         // Mit der Stufe als Schlüssel: endet die Erschließung, während der
         // Reiter offen ist, erscheint das Transkript ohne Umweg.
         .task(id: model.stages[episode.id]) {
             if let transcript = await model.transcript(for: episode) {
-                paragraphs = EpisodeDossierExporter.paragraphs(transcript.segments, seconds: 30)
+                let fresh = EpisodeDossierExporter.paragraphs(transcript.segments, seconds: 30)
+                // Nur bei neuem Text neu setzen. So bleibt die Liste beim
+                // Tippen ruhig, wenn die Stufe der Folge wechselt.
+                if !fresh.elementsEqual(paragraphs, by: { $0.start == $1.start && $0.text == $1.text }) {
+                    paragraphs = fresh
+                    searchable = Dictionary(fresh.map { ($0.start.milliseconds, TranscriptSearch.fold($0.text)) },
+                                            uniquingKeysWith: { first, _ in first })
+                }
                 originLabel = transcript.origin.sourceLabel
                 let language = AppLanguage.current
                 foreignSource = language.matches(transcript.locale) == false
@@ -1387,6 +1425,86 @@ struct TranscriptSection: View {
         guard let id = episode.streamMediaVersionID else { return false }
         let range = MediaTimeRange(start: start, end: MediaTime(milliseconds: start.milliseconds + 20_000))
         return model.hasHeard(range, in: id)
+    }
+
+    /// Das Suchfeld, als Ziel für den Sprung nach oben.
+    private static let topID = "transcript.top"
+
+    /// „3 Treffer“ oder „Keine Treffer für „…““ mit einem Hinweis, direkt
+    /// unter dem Feld.
+    @ViewBuilder
+    private func searchResultLine(count: Int, query: String) -> some View {
+        if count > 0 {
+            Text("^[\(count) Treffer](inflect: true)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("transcript.hits")
+        } else {
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                Text("Keine Treffer für „\(query)“")
+                    .font(.footnote.weight(.semibold))
+                Text("Groß- und Kleinschreibung und Akzente zählen nicht. Versuch ein kürzeres Wort oder einen Teil davon.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("transcript.hits")
+        }
+    }
+}
+
+/// Suchen im Transkript: ohne Rücksicht auf Groß- und Kleinschreibung,
+/// Akzente und „ß“. „strasse“ findet „Straße“, „cafe“ findet „Café“.
+enum TranscriptSearch {
+
+    /// Der Text in der Form, in der verglichen wird.
+    static func fold(_ text: String) -> String {
+        text.replacingOccurrences(of: "ß", with: "ss")
+            .replacingOccurrences(of: "ẞ", with: "ss")
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
+    }
+
+    /// Der Text mit hervorgehobenen Treffern. Gesucht wird in der gefalteten
+    /// Form, hervorgehoben im Original, Zeichen für Zeichen zurückgeführt.
+    static func highlighted(_ text: String, matching query: String) -> AttributedString {
+        var attributed = AttributedString(text)
+        guard !query.isEmpty else { return attributed }
+        for range in matches(of: query, in: text) {
+            guard let target = Range<AttributedString.Index>(range, in: attributed) else { continue }
+            attributed[target].inlinePresentationIntent = .stronglyEmphasized
+            attributed[target].backgroundColor = Color.yellow.opacity(0.35)
+        }
+        return attributed
+    }
+
+    /// Wo die Suche im Text vorkommt, als Bereiche im Original.
+    static func matches(of query: String, in text: String) -> [Range<String.Index>] {
+        let needle = Array(fold(query))
+        guard !needle.isEmpty else { return [] }
+        // Jedes gefaltete Zeichen weiß, aus welchem Zeichen des Originals es kommt.
+        var folded: [Character] = []
+        var origin: [Range<String.Index>] = []
+        var index = text.startIndex
+        while index < text.endIndex {
+            let next = text.index(after: index)
+            for character in fold(String(text[index..<next])) {
+                folded.append(character)
+                origin.append(index..<next)
+            }
+            index = next
+        }
+        guard folded.count >= needle.count else { return [] }
+        var found: [Range<String.Index>] = []
+        var start = 0
+        while start + needle.count <= folded.count {
+            if folded[start] == needle[0], Array(folded[start..<start + needle.count]) == needle {
+                found.append(origin[start].lowerBound..<origin[start + needle.count - 1].upperBound)
+                start += needle.count
+            } else {
+                start += 1
+            }
+        }
+        return found
     }
 }
 
@@ -1445,6 +1563,8 @@ struct EpisodeArtwork: View {
                 }
             }
         }
+        // Nach „Neu laden“ einer Quelle neu, auch unter derselben Adresse.
+        .id(ArtworkRefresh.shared.revision(for: url))
         .frame(width: size, height: size)
         .clipShape(.rect(cornerRadius: size / 8))
         .accessibilityHidden(true)

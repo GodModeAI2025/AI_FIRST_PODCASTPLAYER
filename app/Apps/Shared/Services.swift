@@ -382,21 +382,73 @@ public actor FeedRefresher {
             guard let feedURL = source.feedURL else { continue }
             do {
                 let parsed = try parser.parse(try await fetch(feedURL))
-                // Die Metadaten kommen bei jedem Abgleich neu an. Eine alte
-                // Begründung, etwa „YouTube liefert die Videoliste gerade
-                // nicht“, fällt dabei weg.
-                let updated = Self.refreshed(source, from: parsed)
-                // Nur die Angaben aus dem Feed. Wer während des Abgleichs
-                // abbestellt oder löscht, bekommt die Quelle nicht zurück.
-                if updated != source { try await store.updateFeedMetadata(of: updated) }
-                let episodes = parsed.items.map { makeEpisode($0, sourceID: source.id) }
-                newEpisodes += try await store.upsert(episodes: episodes, forSource: source.id)
+                newEpisodes += try await apply(parsed, to: source, insertingNewEpisodes: true).newEpisodes
             } catch {
                 // Eine kaputte Quelle darf den Lauf nicht abbrechen.
                 failed.append(source.title)
             }
         }
         return RefreshResult(newEpisodes: newEpisodes, failedSources: failed)
+    }
+
+    /// Was „Neu laden“ für eine Quelle ergeben hat.
+    public struct SourceReload: Sendable {
+        /// Die Quelle mit den frischen Angaben aus dem Feed.
+        public let source: Source
+        public let newEpisodes: Int
+        /// Nennt der Feed selbst ein Bild? Ohne sucht die App im Verzeichnis.
+        public let feedHasArtwork: Bool
+    }
+
+    /// Liest den Feed einer einzelnen Quelle neu: Titel, Beschreibung,
+    /// Herausgeber, Rubriken, Sprache, Bild, Folgen und deren Kapitel. Auf
+    /// demselben Weg wie `refreshAll()`. Abo und Datum bleiben, wie sie sind.
+    ///
+    /// Ist die Quelle kein Abo, kommen keine neuen Folgen dazu; nur die
+    /// schon geholten bekommen ihre frischen Angaben. Sonst wäre sie nach
+    /// dem Neuladen ein Abo, ohne dass jemand abonniert hat.
+    ///
+    /// `feedData` ersetzt den Abruf, nur für UI-Tests mit festen Feeds.
+    public func reload(_ source: Source, feedData: Data? = nil) async throws -> SourceReload {
+        guard let feedURL = source.feedURL else { throw FeedRefreshError.needsDiscovery }
+        let data: Data
+        if let feedData { data = feedData } else { data = try await fetch(feedURL) }
+        let parsed = try parser.parse(data)
+        var result = try await apply(parsed, to: source, insertingNewEpisodes: source.refreshesAutomatically)
+        // YouTube-Feeds nennen kein Kanalbild. Fehlt es, kommt es wie beim
+        // Anlegen von der Kanalseite.
+        if parsed.artworkURL == nil, source.kind == .youTubeChannel,
+           let page = source.websiteURL, YouTubeLinks.videoID(in: page) == nil,
+           let html = try? await SafeHTTP.load(page, using: session, limit: Self.pageLimit,
+                                               headers: ["Cookie": "SOCS=CAI", "Accept-Language": "de"]),
+           let image = Self.metaContent("og:image", in: String(decoding: html, as: UTF8.self))
+                .flatMap(URL.init(string:)),
+           image != result.source.artworkURL {
+            var updated = result.source
+            updated.artworkURL = image
+            try await store.updateFeedMetadata(of: updated)
+            result = SourceReload(source: updated, newEpisodes: result.newEpisodes, feedHasArtwork: true)
+        }
+        return result
+    }
+
+    /// Setzt einen gelesenen Feed an eine Quelle: Metadaten und Folgen.
+    private func apply(_ parsed: ParsedFeed, to source: Source,
+                       insertingNewEpisodes: Bool) async throws -> SourceReload {
+        // Die Metadaten kommen bei jedem Abgleich neu an. Eine alte
+        // Begründung, etwa „YouTube liefert die Videoliste gerade
+        // nicht“, fällt dabei weg.
+        let updated = Self.refreshed(source, from: parsed)
+        // Nur die Angaben aus dem Feed. Wer während des Abgleichs
+        // abbestellt oder löscht, bekommt die Quelle nicht zurück.
+        if updated != source { try await store.updateFeedMetadata(of: updated) }
+        var episodes = parsed.items.map { makeEpisode($0, sourceID: source.id) }
+        if !insertingNewEpisodes {
+            let known = Set(try await store.episodes(forSource: source.id).map(\.id))
+            episodes = episodes.filter { known.contains($0.id) }
+        }
+        let inserted = try await store.upsert(episodes: episodes, forSource: source.id)
+        return SourceReload(source: updated, newEpisodes: inserted, feedHasArtwork: parsed.artworkURL != nil)
     }
 
     /// Die Quelle mit den Metadaten aus einem frisch gelesenen Feed. Art,

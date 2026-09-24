@@ -123,6 +123,8 @@ struct PodcastArtwork: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // Nach „Neu laden“ einer Quelle neu, auch unter derselben Adresse.
+        .id(ArtworkRefresh.shared.revision(for: url))
         .frame(width: size, height: size)
         .background(.quaternary)
         .clipShape(.rect(cornerRadius: size / 6))

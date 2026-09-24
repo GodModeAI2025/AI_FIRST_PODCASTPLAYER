@@ -8499,6 +8499,22 @@
         }
       }
     },
+    "Groß- und Kleinschreibung und Akzente zählen nicht. Versuch ein kürzeres Wort oder einen Teil davon." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groß- und Kleinschreibung und Akzente zählen nicht. Versuch ein kürzeres Wort oder einen Teil davon."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Case and accents don’t matter. Try a shorter word or part of one."
+          }
+        }
+      }
+    },
     "Gültig für ^[%lld Stunde](inflect: true)" : {
       "localizations" : {
         "de" : {
@@ -9573,6 +9589,22 @@
         }
       }
     },
+    "Keine Treffer für „%@“" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Treffer für „%@“"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No matches for “%@”"
+          }
+        }
+      }
+    },
     "Keine Verbindung zum Podcast-Verzeichnis. Prüf die Internetverbindung und versuch es noch einmal." : {
       "localizations" : {
         "de" : {
@@ -9585,6 +9617,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Can't connect to the podcast directory. Check your internet connection and try again."
+          }
+        }
+      }
+    },
+    "Keine Verbindung. Neu laden geht, sobald das Gerät online ist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Verbindung. Neu laden geht, sobald das Gerät online ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No connection. You can reload once the device is online."
           }
         }
       }
@@ -10017,6 +10065,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Learning"
+          }
+        }
+      }
+    },
+    "Liest Feed, Beschreibung, Bild und Folgen dieser Quelle neu" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liest Feed, Beschreibung, Bild und Folgen dieser Quelle neu"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reads this source’s feed, description, artwork and episodes again"
           }
         }
       }
@@ -10613,6 +10677,54 @@
         }
       }
     },
+    "Neu geladen, ^[%lld neue Folge](inflect: true)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu geladen, ^[%lld neue Folge](inflect: true)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reloaded, ^[%lld new episode](inflect: true)."
+          }
+        }
+      }
+    },
+    "Neu geladen, keine neuen Folgen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu geladen, keine neuen Folgen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reloaded, no new episodes."
+          }
+        }
+      }
+    },
+    "Neu geladen. Neue Folgen kommen erst nach dem Abonnieren." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu geladen. Neue Folgen kommen erst nach dem Abonnieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reloaded. New episodes arrive only after you subscribe."
+          }
+        }
+      }
+    },
     "Neu in deinen Abos" : {
       "localizations" : {
         "de" : {
@@ -10625,6 +10737,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New in Your Subscriptions"
+          }
+        }
+      }
+    },
+    "Neu laden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu laden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload"
+          }
+        }
+      }
+    },
+    "Neu laden hat nicht geklappt. %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu laden hat nicht geklappt. %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t reload. %@"
           }
         }
       }
@@ -15832,6 +15976,22 @@
         }
       }
     },
+    "Wird neu geladen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird neu geladen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reloading…"
+          }
+        }
+      }
+    },
     "Wird zusammengestellt …" : {
       "localizations" : {
         "de" : {
@@ -16980,6 +17140,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "^[%1$lld passage](inflect: true) · ^[%2$lld source](inflect: true) · %3$@"
+          }
+        }
+      }
+    },
+    "^[%lld Treffer](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Treffer](inflect: true)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld match](inflect: true)"
           }
         }
       }
@@ -18263,6 +18439,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete \"%@\""
+          }
+        }
+      }
+    },
+    "„%@“ wird neu geladen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ wird neu geladen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reloading “%@”…"
           }
         }
       }
