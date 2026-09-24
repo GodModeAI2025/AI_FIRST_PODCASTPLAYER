@@ -1777,6 +1777,22 @@
         }
       }
     },
+    "Alle abbrechen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle abbrechen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel All"
+          }
+        }
+      }
+    },
     "Alle abwählen" : {
       "localizations" : {
         "de" : {
@@ -1821,6 +1837,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select All"
+          }
+        }
+      }
+    },
+    "Alle wartenden Transkripte und Fakten gehen aus der Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst wieder dazu, wenn du von Hand aktualisierst oder sie selbst anforderst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle wartenden Transkripte und Fakten gehen aus der Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst wieder dazu, wenn du von Hand aktualisierst oder sie selbst anforderst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All waiting transcripts and facts leave the queue. Whatever has already been recognized stays saved. Episodes the app queued on its own only come back when you refresh by hand or request them yourself."
           }
         }
       }
@@ -4719,6 +4751,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The server didn't return anything. Try again later."
+          }
+        }
+      }
+    },
+    "Der Server hat statt der Audiodatei eine Webseite oder Text geschickt. Den Podcast aktualisieren und später noch einmal versuchen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Server hat statt der Audiodatei eine Webseite oder Text geschickt. Den Podcast aktualisieren und später noch einmal versuchen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instead of the audio file, the server sent a web page or text. Refresh the podcast and try again later."
           }
         }
       }
@@ -12229,6 +12277,70 @@
         }
       }
     },
+    "Pausieren hält Transkripte, Fakten und Tags an, auch nach einem Neustart. Die laufende Folge behält, was sie schon erkannt hat, und macht dort weiter." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausieren hält Transkripte, Fakten und Tags an, auch nach einem Neustart. Die laufende Folge behält, was sie schon erkannt hat, und macht dort weiter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausing stops transcripts, facts and tags, even after a restart. The current episode keeps what it has already recognized and picks up from there."
+          }
+        }
+      }
+    },
+    "Pausiert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausiert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused"
+          }
+        }
+      }
+    },
+    "Pausiert, %lld Folgen warten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausiert, %lld Folgen warten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused, %lld episodes waiting"
+          }
+        }
+      }
+    },
+    "Pausiert, eine Folge wartet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausiert, eine Folge wartet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused, one episode waiting"
+          }
+        }
+      }
+    },
     "Player und Warteschlange" : {
       "localizations" : {
         "de" : {
@@ -15064,6 +15176,22 @@
         }
       }
     },
+    "Verarbeitung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verarbeitung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Processing"
+          }
+        }
+      }
+    },
     "Verbinden" : {
       "localizations" : {
         "de" : {
@@ -15332,6 +15460,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Queue"
+          }
+        }
+      }
+    },
+    "Warteschlange leeren?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warteschlange leeren?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear the queue?"
+          }
+        }
+      }
+    },
+    "Warteschlange öffnen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warteschlange öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Queue"
           }
         }
       }

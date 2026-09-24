@@ -241,6 +241,22 @@
         }
       }
     },
+    "Der Server hat statt einer Audiodatei eine Webseite oder Text geschickt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Server hat statt einer Audiodatei eine Webseite oder Text geschickt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instead of an audio file, the server sent a web page or text."
+          }
+        }
+      }
+    },
     "Die Adresse hat keinen Server." : {
       "localizations" : {
         "de" : {

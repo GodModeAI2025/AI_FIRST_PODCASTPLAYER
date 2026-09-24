@@ -1718,9 +1718,10 @@ extension AppModel {
     /// Hintergrund nur mit Zeit vom System: in der Aufgabe
     /// `com.podcastai.analysis` oder solange Transkripte unter der
     /// fortgesetzten Verarbeitung entstehen. Der Ton im Hintergrund zählt
-    /// nicht, er hält die App nur für die Wiedergabe wach.
+    /// nicht, er hält die App nur für die Wiedergabe wach. Pausiert oder
+    /// beim Leeren der Warteschlange nie.
     var factsMayRun: Bool {
-        appInForeground || factsGrants > 0
+        !queueHeld && (appInForeground || factsGrants > 0)
     }
 
     /// Beobachtet, wann die App in den Hintergrund geht und wann sie wieder
@@ -2099,7 +2100,7 @@ extension AppModel {
         if askBeforeMobileData(.download(episode)) { return }
         keptOffline.insert(episode.id)
         let ticket = removalCount
-        switch await loadAudio(of: episode, from: audioURL) {
+        switch await loadAudio(of: episode, from: audioURL, automatic: false) {
         case .loaded:
             // Während des Ladens gelöscht: die Datei gehört zu keiner Folge mehr.
             if wasRemoved(episode.id, since: ticket) {
@@ -2136,7 +2137,9 @@ extension AppModel {
     /// Lädt die Audiodatei einer Folge mit Fortschritt für „23 von 70 MB“.
     /// Als eigene Aufgabe, damit „Laden abbrechen“ genau diesen Download
     /// beendet. Eine halbe Datei bleibt nicht liegen.
-    private func loadAudio(of episode: Episode, from audioURL: URL) async -> AudioLoadOutcome {
+    /// Im WLAN lädt die Sitzung des Systems, auch wenn die App anhält.
+    /// `automatic`: die neueste Folge, die die App von selbst vorhält.
+    private func loadAudio(of episode: Episode, from audioURL: URL, automatic: Bool) async -> AudioLoadOutcome {
         let id = episode.id
         downloading.insert(id)
         downloadProgress[id] = DownloadProgress(received: 0, expected: nil)
@@ -2148,11 +2151,12 @@ extension AppModel {
         let report: @Sendable (Int64, Int64?) -> Void = { [weak self] received, expected in
             Task { @MainActor in self?.noteDownloadProgress(id, received: received, expected: expected) }
         }
+        let background = backgroundDownloadSession(automatic: automatic)
         let run = Task {
             // Derselbe Name wie beim Auswerten: die Wiedergabe findet die Datei.
             try await MediaDownloader(directory: LocalMediaLocator.mediaDirectory)
                 .download(from: audioURL, mediaVersionID: MediaVersionID(stable: audioURL.absoluteString),
-                          progress: report)
+                          background: background, progress: report)
         }
         downloadTasks[id] = run
         do {
@@ -2262,7 +2266,7 @@ extension AppModel {
         prefetchedNewest.insert(episode.id)
         prefetchedFiles[episode.id.rawValue] = MediaVersionID(stable: audioURL.absoluteString).rawValue
         let ticket = removalCount
-        let outcome = await loadAudio(of: episode, from: audioURL)
+        let outcome = await loadAudio(of: episode, from: audioURL, automatic: true)
         let loaded = localAudioFile(for: episode) != nil
         switch outcome {
         case .loaded:
@@ -2486,6 +2490,8 @@ extension AppModel {
         let ids = removed.map(\.id)
         guard !ids.isEmpty else { return }
         markRemoved(ids)
+        // Auch was im Hintergrund noch lädt, gehört zur Folge.
+        BackgroundDownloads.shared.cancel(Self.localMediaIDs(of: removed))
         if let playing = episodePlayer.episode, ids.contains(playing.id) { stopWithoutRecordingHeard() }
         // Erst nach dem Anhalten: `stop()` merkt sich die Stelle noch einmal.
         episodePlayer.forgetPositions(for: ids)

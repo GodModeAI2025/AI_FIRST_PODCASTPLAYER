@@ -161,6 +161,8 @@ public actor ContentPipeline {
     private let checkpoints: TranscriptCheckpointStore
     private let onProgress: @Sendable (PipelineProgress) -> Void
     private let twin: TwinCaptionHook?
+    /// Lädt im WLAN über die Sitzung des Systems, sonst `nil`.
+    private let backgroundDownloads: BackgroundDownloadSession?
 
     /// Zwischenstände liegen neben dem Ordner der Audiodateien, nicht darin:
     /// dort zählt die App jede Datei als geladenen Ton.
@@ -184,6 +186,7 @@ public actor ContentPipeline {
         store: LibraryStore,
         mediaDirectory: URL,
         twin: TwinCaptionHook? = nil,
+        backgroundDownloads: BackgroundDownloadSession? = nil,
         onProgress: @escaping @Sendable (PipelineProgress) -> Void = { _ in }
     ) {
         self.store = store
@@ -193,6 +196,7 @@ public actor ContentPipeline {
             directory: Self.checkpointDirectory(besides: mediaDirectory))
         self.onProgress = onProgress
         self.twin = twin
+        self.backgroundDownloads = backgroundDownloads
     }
 
     /// Erstellt das Transkript einer Folge und daraus die Fundstellen.
@@ -256,7 +260,8 @@ public actor ContentPipeline {
             download = existing
         } else {
             download = try await ProcessingTrace.interval("Laden") {
-                try await downloader.download(from: audioURL, mediaVersionID: mediaVersionID)
+                try await downloader.download(
+                    from: audioURL, mediaVersionID: mediaVersionID, background: backgroundDownloads)
             }
         }
         onProgress(PipelineProgress(

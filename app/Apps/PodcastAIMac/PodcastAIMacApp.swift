@@ -55,7 +55,7 @@ struct PodcastAIMacApp: App {
                 // schlechter als keiner.
                 AddSourceMenuItem()
                 Button("Alle Podcasts aktualisieren") {
-                    Task { await model.refreshAll() }
+                    Task { await model.refreshAll(byUser: true) }
                 }
                 .keyboardShortcut("r", modifiers: .command)
             }
@@ -290,7 +290,7 @@ struct MacRootView: View {
         .onDisappear { windows.closed(windowID) }
         .toolbar {
             ToolbarItem {
-                Button { Task { await model.refreshAll() } } label: {
+                Button { Task { await model.refreshAll(byUser: true) } } label: {
                     Label("Aktualisieren", systemImage: "arrow.clockwise")
                         .frame(minHeight: Design.minimumTapTarget)
                 }

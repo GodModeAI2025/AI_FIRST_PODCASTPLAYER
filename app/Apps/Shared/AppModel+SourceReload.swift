@@ -54,6 +54,7 @@ extension AppModel {
     /// Den Feed holt die App wie beim Aktualisieren aller Abos auch über
     /// Mobilfunk, er ist klein. Supadata fragt sie dort nur mit Zustimmung.
     public func reloadSource(_ sourceID: SourceID) async {
+        wakeRestingPreparation(in: sourceID)
         let newEpisodes = await runReload(sourceID)
         // Neue Folgen bereitet die App vor wie nach dem Aktualisieren aller
         // Abos, nach denselben Regeln fürs Netz. Abgespielt wird nichts. Erst

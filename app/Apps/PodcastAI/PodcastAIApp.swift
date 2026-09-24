@@ -23,6 +23,8 @@ struct PodcastAIApp: App {
 
     @State private var model: AppModel
     @State private var startupIssue: StartupIssue?
+    /// Nimmt die Ereignisse der Downloads im Hintergrund an (`BackgroundDownloads`).
+    @UIApplicationDelegateAdaptor(PodcastAIAppDelegate.self) private var appDelegate
 
     /// Muss gehalten werden: `BGTaskScheduler` behält zwar die Startblöcke,
     /// aber die Planung der nächsten Ausführung läuft über dieses Objekt.
@@ -67,6 +69,18 @@ struct PodcastAIApp: App {
                 // Zuletzt, damit auch appFeedback und die Alerts das Modell sehen.
                 .environment(model)
         }
+    }
+}
+
+/// Nur für Downloads im Hintergrund. Sind sie fertig, während die App
+/// nicht läuft, startet das System sie dafür und reicht einen
+/// Abschlussblock. Den ruft die App, wenn alle Ereignisse zugestellt sind.
+final class PodcastAIAppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        BackgroundDownloads.shared.handleEvents(for: identifier, completion: completionHandler)
     }
 }
 

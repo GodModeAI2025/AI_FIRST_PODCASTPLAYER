@@ -62,8 +62,13 @@ public actor MediaDownloader {
     /// `progress` meldet geladene und angekündigte Byte, etwa für
     /// „23 von 70 MB“. Abbrechen geht über die umgebende Aufgabe; eine halbe
     /// Datei bleibt dabei nicht liegen.
+    ///
+    /// Mit `background` lädt die Sitzung des Systems, im WLAN auch weiter,
+    /// wenn die App anhält. Ein Abbruch der Aufgabe beendet dann nur das
+    /// Warten, nicht die Übertragung (`BackgroundDownloadSession`).
     public func download(
         from url: URL, mediaVersionID: MediaVersionID,
+        background: BackgroundDownloadSession? = nil,
         progress: (@Sendable (_ received: Int64, _ expected: Int64?) -> Void)? = nil
     ) async throws -> DownloadResult {
 
@@ -72,6 +77,14 @@ public actor MediaDownloader {
         let staging = temporaryDirectory.appendingPathComponent(
             mediaVersionID.rawValue + "." + UUID().uuidString)
 
+        if let background {
+            // Die Sitzung legt die geprüfte Datei selbst am endgültigen Ort ab.
+            try await background.download(url, mediaVersionID: mediaVersionID, progress: progress)
+            guard let stored = existing(mediaVersionID: mediaVersionID) else {
+                throw HTTPTransferError.emptyResponse
+            }
+            return stored
+        }
         let saved = try await SafeHTTP.save(
             url, to: staging, using: session, limit: Self.maximumBytes, progress: progress)
 
