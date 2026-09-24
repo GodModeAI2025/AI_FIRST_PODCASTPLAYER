@@ -3178,6 +3178,22 @@
         }
       }
     },
+    "Bescheid sagen, wenn Transkripte pausieren?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bescheid sagen, wenn Transkripte pausieren?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Let You Know When Transcripts Pause?"
+          }
+        }
+      }
+    },
     "Beschreibung" : {
       "localizations" : {
         "de" : {
@@ -6307,6 +6323,22 @@
         }
       }
     },
+    "Erlauben" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erlauben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow"
+          }
+        }
+      }
+    },
     "Erneut versuchen" : {
       "localizations" : {
         "de" : {
@@ -8255,6 +8287,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In Low Data Mode, the app doesn't download anything on its own. \"Create Now\" downloads anyway."
+          }
+        }
+      }
+    },
+    "Im Hintergrund schreibt iOS Transkripte nur eine Zeit lang weiter. Hält es sie an, sagt dir eine Mitteilung, dass sie beim nächsten Öffnen weiterlaufen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Hintergrund schreibt iOS Transkripte nur eine Zeit lang weiter. Hält es sie an, sagt dir eine Mitteilung, dass sie beim nächsten Öffnen weiterlaufen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In the background, iOS only keeps transcripts going for a while. If it pauses them, a notification tells you they will continue the next time you open the app."
           }
         }
       }
@@ -10449,6 +10497,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not signed in to iCloud, so your data stays on this device"
+          }
+        }
+      }
+    },
+    "Nicht jetzt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht jetzt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Now"
           }
         }
       }
@@ -13523,6 +13587,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The app isn't creating transcripts for new episodes right now. %@ You can still request a transcript for a single episode yourself."
+          }
+        }
+      }
+    },
+    "Transkripte pausieren, bis du PodcastAI wieder öffnest." : {
+      "comment" : "Lokale Mitteilung, wenn Transkripte im Hintergrund nicht weiterlaufen",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transkripte pausieren, bis du PodcastAI wieder öffnest."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcripts are paused until you open PodcastAI again."
           }
         }
       }

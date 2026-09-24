@@ -57,9 +57,12 @@ public struct PipelineProgress: Sendable {
     public let episodeID: EpisodeID
     public let stage: ProcessingStage
     public let detail: String?
+    /// Wie weit das Transkript der Folge ist, von 0 bis 1. Nur während der
+    /// Erkennung gesetzt, und nur, wenn die Länge der Datei bekannt ist.
+    public let fraction: Double?
 
-    public init(episodeID: EpisodeID, stage: ProcessingStage, detail: String? = nil) {
-        self.episodeID = episodeID; self.stage = stage; self.detail = detail
+    public init(episodeID: EpisodeID, stage: ProcessingStage, detail: String? = nil, fraction: Double? = nil) {
+        self.episodeID = episodeID; self.stage = stage; self.detail = detail; self.fraction = fraction
     }
 }
 
@@ -116,7 +119,26 @@ public actor ContentPipeline {
     private let engine = TimedTranscriptionEngine()
     private let assembler = TranscriptAssembler()
     private let scorer = RelevanceScorer()
+    private let checkpoints: TranscriptCheckpointStore
     private let onProgress: @Sendable (PipelineProgress) -> Void
+
+    /// Zwischenstände liegen neben dem Ordner der Audiodateien, nicht darin:
+    /// dort zählt die App jede Datei als geladenen Ton.
+    /// So weit darf ein Zwischenstand über die gemessene Länge der Datei
+    /// hinausreichen, bevor er als Stand einer anderen Datei gilt.
+    static let checkpointTolerance = MediaDuration(seconds: 2)
+
+    /// Passt der Zwischenstand zur Länge der Datei? Ohne bekannte Länge ja.
+    static func checkpoint(_ checkpoint: TranscriptCheckpoint, fits duration: MediaDuration?) -> Bool {
+        guard let duration else { return true }
+        return checkpoint.analyzedThrough.milliseconds
+            <= duration.milliseconds + checkpointTolerance.milliseconds
+    }
+
+    public static func checkpointDirectory(besides mediaDirectory: URL) -> URL {
+        mediaDirectory.deletingLastPathComponent()
+            .appendingPathComponent("TranscriptCheckpoints", isDirectory: true)
+    }
 
     public init(
         store: LibraryStore,
@@ -126,6 +148,8 @@ public actor ContentPipeline {
         self.store = store
         self.mediaDirectory = mediaDirectory
         self.downloader = MediaDownloader(directory: mediaDirectory)
+        self.checkpoints = TranscriptCheckpointStore(
+            directory: Self.checkpointDirectory(besides: mediaDirectory))
         self.onProgress = onProgress
     }
 
@@ -170,24 +194,74 @@ public actor ContentPipeline {
         let mediaURL = mediaDirectory.appendingPathComponent(mediaVersionID.rawValue)
         var segments: [TranscriptSegment] = []
         var analyzedThrough = MediaTime.zero
+        var startingAt = MediaTime.zero
         var batch: [(range: MediaTimeRange, text: String, isFinal: Bool)] = []
 
-        for try await result in try await engine.transcribeFile(
-            at: mediaURL, mediaVersionID: mediaVersionID, locale: locale
-        ) {
-            guard result.isFinal, let range = result.range else { continue }
-            batch.append((range: range, text: result.text, isFinal: true))
-            if range.end > analyzedThrough { analyzedThrough = range.end }
+        // Ein früherer Lauf wurde abgebrochen: mit seinem Stand weiter, kurz
+        // vor der Stelle, an der er endete.
+        // Reicht der Stand über das Ende der Datei hinaus, liegt unter derselben
+        // Adresse inzwischen eine andere Datei. Dann beginnt der Lauf neu.
+        if let checkpoint = checkpoints.load(mediaVersionID: mediaVersionID, locale: locale.identifier),
+           Self.checkpoint(checkpoint, fits: download.duration) {
+            let resume = assembler.resumePoint(from: checkpoint)
+            segments = resume.segments
+            analyzedThrough = resume.analyzedThrough
+            startingAt = resume.offset
+        }
 
-            // In Schüben zusammenführen statt je Ergebnis: das hält die
-            // Deduplizierung billig und schafft einen sicheren Punkt zum
-            // Anhalten.
-            if batch.count >= 50 {
+        let totalMs = download.duration?.milliseconds ?? 0
+        var reportedFraction = -1.0
+        let checkpointLocale = locale.identifier
+        let saveCheckpoint = { [checkpoints] (segments: [TranscriptSegment], through: MediaTime) in
+            guard through.milliseconds > 0 else { return }
+            try? checkpoints.save(TranscriptCheckpoint(
+                mediaVersionID: mediaVersionID, locale: checkpointLocale,
+                segments: segments, analyzedThrough: through))
+        }
+
+        do {
+            for try await result in try await engine.transcribeFile(
+                at: mediaURL, mediaVersionID: mediaVersionID, locale: locale, startingAt: startingAt
+            ) {
+                guard result.isFinal, let range = result.range else { continue }
+                batch.append((range: range, text: result.text, isFinal: true))
+                if range.end > analyzedThrough { analyzedThrough = range.end }
+
+                // Fein gemeldet, damit die Anzeige des Systems im Hintergrund
+                // Fortschritt sieht. Ein Prozent reicht als Schritt.
+                if totalMs > 0 {
+                    let fraction = min(1, Double(analyzedThrough.milliseconds) / Double(totalMs))
+                    if fraction - reportedFraction >= 0.01 {
+                        reportedFraction = fraction
+                        onProgress(PipelineProgress(
+                            episodeID: episode.id, stage: .mediaDownloaded, fraction: fraction))
+                    }
+                }
+
+                // In Schüben zusammenführen statt je Ergebnis: das hält die
+                // Deduplizierung billig und schafft einen sicheren Punkt zum
+                // Anhalten. Dort liegt auch der Zwischenstand.
+                if batch.count >= 50 {
+                    segments = assembler.merge(existing: segments, incoming: batch,
+                                               mediaVersionID: mediaVersionID)
+                    batch.removeAll(keepingCapacity: true)
+                    saveCheckpoint(segments, analyzedThrough)
+                    try Task.checkCancellation()
+                }
+            }
+            // Ein abgebrochener Strom endet still. Ohne diese Prüfung sähe
+            // das halbe Transkript wie ein fertiges aus.
+            try Task.checkCancellation()
+        } catch {
+            // Was bis hierher erkannt ist, bleibt für den nächsten Lauf. Die
+            // Erkennung hält sofort an, statt ohne Abnehmer weiterzurechnen.
+            if !batch.isEmpty {
                 segments = assembler.merge(existing: segments, incoming: batch,
                                            mediaVersionID: mediaVersionID)
-                batch.removeAll(keepingCapacity: true)
-                try Task.checkCancellation()
             }
+            saveCheckpoint(segments, analyzedThrough)
+            await engine.cancel()
+            throw error
         }
         if !batch.isEmpty {
             segments = assembler.merge(existing: segments, incoming: batch,
@@ -222,6 +296,8 @@ public actor ContentPipeline {
             ),
             forEpisode: episode.id
         )
+        // Das Transkript steht. Ein Zwischenstand würde nur noch stören.
+        checkpoints.remove([mediaVersionID])
 
         let evidence = assembler.evidence(
             from: transcript, episodeID: episode.id, sourceID: sourceID,

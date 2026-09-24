@@ -35,6 +35,14 @@ Den Satz je Kapitel formuliert Apple Intelligence auf Abruf, wenn jemand den Rei
 
 „Original öffnen“ steht an jedem Kapitel eines Themen-Updates, im Player unter der laufenden Stelle und im Kontextmenü eines Belegs im Chat. Die Zeit im Original rechnet `PersonalEpisode.originalEpisodePosition(forVirtual:)` aus, abgespielt wird über `playEpisode(_:at:)` und nur auf Tippen.
 
+## Hintergrund und Fortsetzen
+
+Transkripte beginnen nur, wenn die App vorn ist. Im Hintergrund trägt sie nur die fortgesetzte Verarbeitung (`BGContinuedProcessingTask`), die sich im Vordergrund anmeldet (`BackgroundContinuation`). Ihre Anzeige bekommt den Fortschritt innerhalb des Transkripts in Schritten von einem Prozent. `BGAppRefresh` holt nur die Feeds (`refreshAll(feedsOnly:)`); Fakten und Themen-Updates laufen in `com.podcastai.analysis`. Endet die Zeit einer dieser Aufgaben, halten Transkripte ohne fortgesetzte Verarbeitung an (`stopTranscriptsWithoutCarrier()`). Endet die fortgesetzte Verarbeitung selbst, während die App vorn ist, laufen die Transkripte weiter; angehalten wird erst, wenn danach im Hintergrund die kurze Hintergrundzeit von UIKit endet.
+
+Ein Transkript sichert alle 50 erkannten Sätze einen Zwischenstand als Datei neben dem Audioordner (`TranscriptCheckpointStore`), nicht in der Datenbank: dort gälte es als fertig und käme per iCloud auf andere Geräte. Der nächste Lauf liest die Datei ab 15 Sekunden vor dem Ende des Zwischenstands, an einer Segmentgrenze, und `TranscriptAssembler.merge` führt beides ohne doppelte Segmente zusammen. Passt ein Zwischenstand nicht mehr zur Länge der Datei, beginnt der Lauf neu. Stände älter als 14 Tage verfallen beim Start. „Folge löschen“ nimmt den Zwischenstand mit. Die Warteschlange samt laufender Folge und der Herkunft jeder Folge (von Hand, von selbst, Archiv) steht in den Benutzereinstellungen (`AnalysisQueueSnapshot`) und kommt nach einem Neustart in derselben Reihenfolge zurück. Wird ein Faktenlauf abgebrochen, bleiben die fertigen Abschnitte gespeichert, die übrigen gelten als Lücken, und der nächste Lauf rechnet nur sie.
+
+Geht die App mit wartenden Transkripten in den Hintergrund und trägt die fortgesetzte Verarbeitung sie nicht, oder läuft ihre Zeit ab, sagt eine lokale Mitteilung: „Transkripte pausieren, bis du PodcastAI wieder öffnest.“ Die Regel steht in `TranscriptPauseNotice`. Um die Erlaubnis fragt die App einmal, beim ersten von Hand angeforderten Transkript, mit einem Satz dazu. Ein Nein bleibt ein Nein.
+
 ## Podcast-Katalog
 
 Das Blatt „Podcast hinzufügen“ ist zugleich der Katalog. Er kommt ohne Schlüssel und ohne Konto aus: Charts, Rubriken und Einzelheiten liefert Apple Podcasts, gesucht wird zusätzlich bei Podcast Index. Der Client steht in `PodcastCatalogClient` (Paket), die Ansichten in `CatalogViews.swift`, die Verbindung zur App in `PodcastCatalog.swift`.
