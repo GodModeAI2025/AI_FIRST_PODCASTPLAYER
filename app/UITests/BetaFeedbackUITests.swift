@@ -131,4 +131,65 @@ final class BetaFeedbackUITests: XCTestCase {
         app.buttons["„Wochenupdate“ löschen"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Noch kein Themen-Update"].firstMatch.waitForExistence(timeout: 10))
     }
+
+    /// Feedback zu 0.9: Nach „Anlegen“ entstand keine erste Ausgabe, erst
+    /// „Neue Ausgabe zusammenstellen“ baute eine. Mit den Beispieldaten
+    /// passt „Datenschutz“ auf mehrere Stellen, also muss die erste Ausgabe
+    /// ohne weiteren Tipp auf der Seite des Updates stehen.
+    @MainActor func testNewTopicUpdateBuildsFirstEditionWithoutTap() {
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh", "-demo-content"]; app.launch()
+        app.tabBars.buttons["Themen-Updates"].tap()
+        app.navigationBars.buttons["Neu"].firstMatch.tap()
+        let name = app.textFields["z. B. Mein KI Update"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap(); name.typeText("Erstausgabe")
+        let create = app.navigationBars.buttons["Anlegen"]
+        let deadline = Date().addingTimeInterval(10)
+        while !create.isEnabled && Date() < deadline { sleep(1) }
+        XCTAssertTrue(create.isEnabled, "Anlegen bleibt gesperrt, obwohl Themen vorausgewählt sind")
+        create.tap()
+
+        let row = app.staticTexts["Erstausgabe"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let latest = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'Neueste Ausgabe'")).firstMatch
+        // Die Auswahl durch Apple Intelligence dauert auf einem ausgelasteten
+        // Simulator auch einmal eine halbe Minute.
+        let found = latest.waitForExistence(timeout: 90)
+        attach(app, "erste-ausgabe")
+        let note = app.descendants(matching: .any)["edition.result"].firstMatch
+        XCTAssertTrue(found, "Keine erste Ausgabe nach dem Anlegen. Hinweis: \(note.exists ? note.label : "keiner")")
+    }
+
+    /// Derselbe Weg mit einem eingetippten Thema statt der vorhandenen.
+    @MainActor func testTypedTopicUpdateBuildsFirstEditionWithoutTap() {
+        let app = XCUIApplication(); app.launchArguments = ["-uitest-fresh", "-demo-content"]; app.launch()
+        app.tabBars.buttons["Themen-Updates"].tap()
+        app.navigationBars.buttons["Neu"].firstMatch.tap()
+        let name = app.textFields["z. B. Mein KI Update"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap(); name.typeText("Eingetippt")
+        // Die vorausgewählten Themen abwählen, damit nur das neue zählt.
+        for label in ["Datenschutz", "KI im Arbeitsalltag"] {
+            let button = app.buttons[label].firstMatch
+            if button.waitForExistence(timeout: 5) { button.tap() }
+        }
+        let topic = app.textFields["Neues Thema, z. B. KI-Modelle"]
+        topic.tap(); topic.typeText("Automatisierung")
+        let create = app.navigationBars.buttons["Anlegen"]
+        let deadline = Date().addingTimeInterval(10)
+        while !create.isEnabled && Date() < deadline { sleep(1) }
+        create.tap()
+
+        let row = app.staticTexts["Eingetippt"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let latest = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'Neueste Ausgabe'")).firstMatch
+        // Die Auswahl durch Apple Intelligence dauert auf einem ausgelasteten
+        // Simulator auch einmal eine halbe Minute.
+        let found = latest.waitForExistence(timeout: 90)
+        attach(app, "erste-ausgabe-eingetippt")
+        let note = app.descendants(matching: .any)["edition.result"].firstMatch
+        XCTAssertTrue(found, "Keine erste Ausgabe nach dem Anlegen. Hinweis: \(note.exists ? note.label : "keiner")")
+    }
 }

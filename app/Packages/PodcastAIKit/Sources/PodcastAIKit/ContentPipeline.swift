@@ -395,8 +395,8 @@ public actor ContentPipeline {
     /// Reihenfolge: deterministische Vorauswahl, dann — sofern verfügbar —
     /// Modellbestätigung. Das Modell kann die Auswahl nur **verengen**, nie
     /// erweitern: es sieht ausschließlich, was die Vorauswahl zugelassen hat.
-    /// Fällt es aus, entsteht die Ausgabe trotzdem und ist als nur
-    /// stichwortbasiert erkennbar.
+    /// Fällt es aus oder wählt es nichts, entsteht die Ausgabe trotzdem und
+    /// ist als nur stichwortbasiert erkennbar.
     public func candidates(
         for feed: SmartPodcastFeed,
         profile: InterestProfile,
@@ -419,8 +419,15 @@ public actor ContentPipeline {
         var confirmed: Set<EvidenceID>?
         if case .success = availability.resolve(.recommend) {
             let shortlist = matches.compactMap { byID[$0.evidenceID] }
+            // Eine leere Auswahl zählt wie keine Antwort. Die Anweisung an
+            // das Modell erlaubt sie ausdrücklich, und sie kann von Anfrage
+            // zu Anfrage anders ausfallen. Dann blieb etwa die erste Ausgabe
+            // eines neuen Updates leer, obwohl Stichworte trafen, und erst
+            // ein zweiter Versuch baute sie. Das Modell darf verengen,
+            // aber nicht auf nichts.
             if let selection = try? await KnowledgeExtractor()
-                .selectRelevant(from: shortlist, profile: profile, availability: availability) {
+                .selectRelevant(from: shortlist, profile: profile, availability: availability),
+               !selection.evidenceIDs.isEmpty {
                 confirmed = Set(selection.evidenceIDs)
             }
         }
