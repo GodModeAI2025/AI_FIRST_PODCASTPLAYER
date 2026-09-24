@@ -101,15 +101,18 @@ struct PlaySmartFeedIntent: AppIntent {
         // gehört oder gibt es keine, wird zuerst eine neue zusammengestellt.
         // Das hat jemand ausdrücklich verlangt, es ist keine Empfehlung.
         // Entsteht keine, sagt Siri warum, statt Gehörtes zu wiederholen.
-        let previous = model.editions[feedID]?.first
-        if previous.map({ $0.heardFraction(in: model.ledger) >= 0.8 }) ?? true {
+        // Hat der letzte Lauf mehrere Teile, kommt der erste ungehörte dran.
+        let previous = PersonalEpisode.latestRun(in: model.editions[feedID] ?? [])
+        var edition = previous.first { $0.heardFraction(in: model.ledger) < 0.8 }
+        if edition == nil {
             let note = await model.buildEdition(feedID: feedID)
-            let latest = model.editions[feedID]?.first
-            if latest == nil || latest?.id == previous?.id {
+            let latest = PersonalEpisode.latestRun(in: model.editions[feedID] ?? []).first
+            if latest == nil || latest?.id == previous.first?.id {
                 return .result(dialog: "„\(feed.title)“: \(note)")
             }
+            edition = latest
         }
-        guard let edition = model.editions[feedID]?.first else {
+        guard let edition else {
             return .result(dialog: "Für „\(feed.title)“ gibt es noch keine Ausgabe.")
         }
 
