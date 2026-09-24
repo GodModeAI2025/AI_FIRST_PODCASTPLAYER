@@ -413,6 +413,11 @@ public final class AppModel {
     /// Zählt hoch, wenn neue Metadaten da sind, damit offene Folgen sie zeigen.
     public internal(set) var metadataRevision = 0
 
+    /// Quellen, die gerade über „Neu laden“ ihren Feed neu lesen.
+    public internal(set) var reloadingSources: Set<SourceID> = []
+    /// Was das letzte „Neu laden“ je Quelle ergeben hat, nur für diese Sitzung.
+    public internal(set) var sourceReloadResults: [SourceID: SourceReloadResult] = [:]
+
     /// Apples Server-Modell auf Private Cloud Compute für Antworten und
     /// Vergleiche nutzen, wenn das Gerät und die App es dürfen. Die Daten
     /// verlassen dabei das Gerät, werden aber nicht gespeichert.

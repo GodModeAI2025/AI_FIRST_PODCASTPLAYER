@@ -371,6 +371,25 @@ extension AppModel {
         Task { await loadMetadata(for: episode) }
     }
 
+    /// „Neu laden“ eines Kanals: holt die Metadaten seiner neuesten Videos
+    /// noch einmal, auch wenn schon welche da sind. Nur mit aktivem
+    /// Schlüssel und nach denselben Regeln fürs Netz wie beim Öffnen einer
+    /// Folge. Gibt zurück, ob gefragt wurde.
+    @discardableResult
+    func refreshSupadataMetadata(in sourceID: SourceID) async -> Bool {
+        guard allowsSupadataRequests, !isOffline, !mobileDataNeedsConsent else { return false }
+        let newest = (episodes[sourceID] ?? [])
+            .filter { SupadataEnrichment.supports($0.webPageURL) }
+            .prefix(episodesPerSource)
+        guard !newest.isEmpty else { return false }
+        for episode in newest {
+            guard allowsSupadataRequests, !Task.isCancelled else { break }
+            if let key = metadataKey(for: episode) { metadataFailures[key] = nil }
+            await loadMetadata(for: episode)
+        }
+        return true
+    }
+
     /// Ein Abruf. Nie blockierend: Fehler merkt sich die App, sonst nichts.
     private func loadMetadata(for episode: Episode) async {
         guard let key = metadataKey(for: episode), let url = URL(string: key),

@@ -42,6 +42,8 @@ struct EpisodeListView: View {
         let analyzed = Set(episodes.lazy.map(\.id).filter { model.stages[$0] == .evidenceExtracted })
         let shown = EpisodeArchive.arrange(episodes, options: options, analyzed: analyzed, matches: matches)
         List {
+            // „Neu laden“: läuft gerade, hat geklappt oder nicht.
+            SourceReloadStatus(sourceID: sourceID)
             // Beschreibung, Herausgeber und Rubriken aus dem Feed.
             if let source { SourceMetadataSection(source: source) }
             // Nur einzelne Folgen geholt: der Podcast ist kein Abo und wird
@@ -212,6 +214,10 @@ struct EpisodeListView: View {
         .searchable(text: $query, prompt: "Titel und Shownotes durchsuchen")
         #endif
         .task(id: SearchRequest(query: query, episodeCount: episodes.count)) { await search() }
+        // Herunterziehen liest den Feed dieser einen Quelle neu.
+        .refreshable {
+            if let source, model.canReload(source) { await model.reloadSource(sourceID) }
+        }
         .toolbar { archiveToolbar }
         .safeAreaInset(edge: .bottom) {
             if selecting { selectionBar(shown) }
@@ -240,6 +246,9 @@ struct EpisodeListView: View {
                 NavigationLink { SourceDetailView(sourceID: sourceID) } label: {
                     Label("Über diese Quelle", systemImage: "info.circle")
                 }
+            }
+            if let source, model.canReload(source) {
+                ToolbarItem { SourceReloadButton(source: source) }
             }
         }
         .overlay {

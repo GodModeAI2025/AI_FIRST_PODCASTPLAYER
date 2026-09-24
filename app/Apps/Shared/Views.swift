@@ -1167,6 +1167,7 @@ struct LibraryView: View {
                                 Label("Abonnieren", systemImage: "plus.circle")
                             }
                         }
+                        SourceReloadButton(source: source)
                         Button(role: .destructive) { pendingRemoval = source } label: {
                             if source.isSubscribed {
                                 Label("Abbestellen und Daten löschen", systemImage: "minus.circle")

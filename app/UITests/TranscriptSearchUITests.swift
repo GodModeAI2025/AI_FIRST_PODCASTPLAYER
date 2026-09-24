@@ -2,7 +2,8 @@
 //  TranscriptSearchUITests.swift
 //  PodcastAIUITests
 //
-//  Die Suche im Reiter „Transkript“ muss die Zeilen filtern.
+//  Die Suche im Reiter „Transkript“ muss die Zeilen filtern, die Zahl der
+//  Treffer nennen und sagen, wenn nichts passt.
 //
 
 import XCTest
@@ -19,8 +20,8 @@ final class TranscriptSearchUITests: XCTestCase {
         add(shot)
     }
 
-    func testSearchFiltersTranscriptLines() {
-        let app = XCUIApplication()
+    /// Öffnet das Transkript der Beispielfolge und gibt das Suchfeld zurück.
+    private func openTranscript(_ app: XCUIApplication) -> XCUIElement {
         app.launchArguments = ["-uitest-fresh", "-demo-content"]
         app.launch()
         let tabButton = app.tabBars.buttons["Meine Podcasts"]
@@ -37,14 +38,47 @@ final class TranscriptSearchUITests: XCTestCase {
 
         let field = app.textFields["transcript.search"]
         XCTAssertTrue(field.waitForExistence(timeout: 10), "Kein Suchfeld im Transkript")
-        let lines = app.buttons.matching(NSPredicate(format: "label MATCHES '^[0-9]+:[0-9]{2}.*'"))
-        let before = lines.count
+        return field
+    }
+
+    /// Jede Zeile trägt die Kennung `transcript.line`. Nach Zeitcodes im
+    /// Namen zu suchen fand nichts: VoiceOver liest sie ausgeschrieben.
+    private func lines(_ app: XCUIApplication) -> XCUIElementQuery {
+        app.buttons.matching(identifier: "transcript.line")
+    }
+
+    func testSearchFiltersTranscriptLines() {
+        let app = XCUIApplication()
+        let field = openTranscript(app)
+        XCTAssertTrue(lines(app).firstMatch.waitForExistence(timeout: 10), "Keine Zeilen im Transkript")
+        let before = lines(app).count
+        XCTAssertGreaterThan(before, 1)
         attach(app, "vorher")
+
         field.tap()
-        field.typeText("Musterstraße")
+        // Klein und ohne „ß“: die Suche faltet beides.
+        field.typeText("musterstrasse")
+        let hits = app.descendants(matching: .any)["transcript.hits"].firstMatch
+        XCTAssertTrue(hits.waitForExistence(timeout: 5), "Keine Zeile mit der Zahl der Treffer")
+        XCTAssertEqual(hits.label, "1 Treffer")
         let hit = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Musterstraße'")).firstMatch
         XCTAssertTrue(hit.waitForExistence(timeout: 5), "Die Suche zeigt den Treffer nicht")
+        XCTAssertTrue(hit.isHittable, "Der Treffer liegt außerhalb des Bildes")
         attach(app, "nachher")
-        XCTAssertLessThan(lines.count, before, "Die Suche filtert nicht: \(before) Zeilen vorher, \(lines.count) nachher")
+        XCTAssertEqual(lines(app).count, 1, "Die Suche filtert nicht: \(before) Zeilen vorher, \(lines(app).count) nachher")
+    }
+
+    func testSearchWithoutMatchesSaysSo() {
+        let app = XCUIApplication()
+        let field = openTranscript(app)
+        XCTAssertTrue(lines(app).firstMatch.waitForExistence(timeout: 10), "Keine Zeilen im Transkript")
+
+        field.tap()
+        field.typeText("  xylophon  ")
+        let hits = app.descendants(matching: .any)["transcript.hits"].firstMatch
+        XCTAssertTrue(hits.waitForExistence(timeout: 5), "Kein Hinweis, dass nichts gefunden wurde")
+        XCTAssertTrue(hits.label.hasPrefix("Keine Treffer für „xylophon“"), "Unerwartet: \(hits.label)")
+        XCTAssertEqual(lines(app).count, 0)
+        attach(app, "keine-treffer")
     }
 }
