@@ -17,6 +17,86 @@
         }
       }
     },
+    "Apple-Server ausgeschöpft, wieder ab %@. Diese Antwort kommt vom Gerät." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple-Server ausgeschöpft, wieder ab %@. Diese Antwort kommt vom Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple servers are used up, back on %@. This answer comes from your device."
+          }
+        }
+      }
+    },
+    "Apple-Server gerade ausgelastet, wieder ab %@. Diese Antwort kommt vom Gerät." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple-Server gerade ausgelastet, wieder ab %@. Diese Antwort kommt vom Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple servers are busy right now, back at %@. This answer comes from your device."
+          }
+        }
+      }
+    },
+    "Apple-Server gerade ausgelastet. Diese Antwort kommt vom Gerät." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple-Server gerade ausgelastet. Diese Antwort kommt vom Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple servers are busy right now. This answer comes from your device."
+          }
+        }
+      }
+    },
+    "Apple-Server gerade ausgeschöpft. Diese Antwort kommt vom Gerät." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple-Server gerade ausgeschöpft. Diese Antwort kommt vom Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple servers are used up for now. This answer comes from your device."
+          }
+        }
+      }
+    },
+    "Apple-Server heute ausgeschöpft, wieder ab %@. Diese Antwort kommt vom Gerät." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple-Server heute ausgeschöpft, wieder ab %@. Diese Antwort kommt vom Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple servers are used up for today, back at %@. This answer comes from your device."
+          }
+        }
+      }
+    },
     "Auf diesem Gerät" : {
       "localizations" : {
         "de" : {
@@ -333,6 +413,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Private Cloud Compute needs an internet connection."
+          }
+        }
+      }
+    },
+    "Private Cloud Compute ist gerade nicht erreichbar." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Private Cloud Compute ist gerade nicht erreichbar."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Private Cloud Compute can't be reached right now."
           }
         }
       }

@@ -38,7 +38,9 @@ public enum ModelUnavailability: Error, Sendable, Equatable {
     case modelNotReady
     case entitlementMissing
     case userConsentMissing
-    case quotaExhausted
+    /// Das Kontingent ist aufgebraucht. `resetDate` sagt, ab wann es wieder
+    /// reicht, falls das System es nennt.
+    case quotaExhausted(resetDate: Date? = nil)
     case offline
     case unknown(String)
 
@@ -156,5 +158,14 @@ public struct ModelStatus: Sendable, Equatable {
             return .failure(reason)
         }
         return .failure(.unknown(String(localized: "keine Stufe verfügbar", bundle: .module)))
+    }
+
+    /// Ist Private Cloud Compute gerade wegen des Kontingents gesperrt? Dann
+    /// antwortet das Gerät, und die Antwort sagt das in einer Zeile.
+    public var privateCloudLimit: PrivateCloudLimit? {
+        if case .unavailable(.quotaExhausted(let resetDate)) = privateCloudCompute {
+            return .quotaExhausted(resetDate: resetDate)
+        }
+        return nil
     }
 }

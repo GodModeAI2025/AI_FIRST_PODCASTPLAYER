@@ -2065,6 +2065,22 @@
         }
       }
     },
+    "Antwort wird geschrieben …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antwort wird geschrieben …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Writing the answer…"
+          }
+        }
+      }
+    },
     "Antwort wird gesucht" : {
       "localizations" : {
         "de" : {
@@ -7934,6 +7950,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Personal Hotspot detected, waiting for Wi-Fi without a data limit"
+          }
+        }
+      }
+    },
+    "Hält die Suche nach der Antwort an" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hält die Suche nach der Antwort an"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stops looking for an answer"
           }
         }
       }

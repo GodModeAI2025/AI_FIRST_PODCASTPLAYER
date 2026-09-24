@@ -20,7 +20,8 @@ struct ChatView: View {
     @State private var isAsking = false
     /// Die Frage, auf die gerade eine Antwort gesucht wird, und ihr Bereich.
     /// Sie steht unten im Verlauf, dort, wo die Antwort erscheinen wird.
-    @State private var pending: (question: String, scope: ChatScope)?
+    /// `id` unterscheidet sie von einer abgebrochenen Frage davor.
+    @State private var pending: (id: UUID, question: String, scope: ChatScope)?
     /// Eine neue Antwort bekommt den VoiceOver-Fokus.
     @AccessibilityFocusState private var focusedAnswer: UUID?
     /// Im eigenständigen Chat: gilt die Frage der Folge, die gerade läuft?
@@ -78,7 +79,9 @@ struct ChatView: View {
                                 .id(answer.id)
                         }
                         if let pendingQuestion {
-                            PendingAnswerCard(question: pendingQuestion)
+                            PendingAnswerCard(question: pendingQuestion,
+                                              partial: model.partialAnswer,
+                                              cancel: cancel)
                                 .id(Self.pendingID)
                         }
                     }
@@ -172,11 +175,16 @@ struct ChatView: View {
         question = ""
         isAsking = true
         let currentScope = scope
-        pending = (question: text, scope: currentScope)
+        let id = UUID()
+        pending = (id: id, question: text, scope: currentScope)
+        // Das Modell nimmt die Antwort selbst in den Verlauf auf. Nur dort
+        // lässt sich prüfen, ob während der Suche eine Folge gelöscht wurde.
+        // Die Aufgabe liegt im Modell, damit „Abbrechen“ sie findet.
+        let task = model.startQuestion(text, scope: currentScope)
         Task {
-            // Das Modell nimmt die Antwort selbst in den Verlauf auf. Nur dort
-            // lässt sich prüfen, ob während der Suche eine Folge gelöscht wurde.
-            let answer = await model.ask(text, scope: currentScope)
+            let answer = await task.value
+            // Abgebrochen und schon neu gefragt: diese Antwort gilt nicht mehr.
+            guard pending?.id == id else { return }
             pending = nil
             isAsking = false
             if let answer {
@@ -192,6 +200,14 @@ struct ChatView: View {
                 AccessibilityNotification.Announcement(message).post()
             }
         }
+    }
+
+    /// Hält die laufende Frage an. Die wartende Karte geht sofort, ohne
+    /// Antwort und ohne Fehlermeldung.
+    private func cancel() {
+        model.cancelQuestion()
+        pending = nil
+        isAsking = false
     }
 }
 
@@ -374,23 +390,50 @@ extension ChatScope {
 }
 
 /// Die gestellte Frage, solange ihre Antwort gesucht wird.
+///
+/// Sobald das Modell schreibt, steht der Text hier und wächst mit. Er ist
+/// reiner Text, Verweise wie [3] werden erst in der fertigen Antwort zu
+/// Belegen. VoiceOver liest ihn nicht vor: angesagt wird nur die fertige
+/// Antwort, sonst spräche es jeden Zwischenstand.
 private struct PendingAnswerCard: View {
     let question: String
+    let partial: String
+    let cancel: () -> Void
+
+    private var status: LocalizedStringKey {
+        partial.isEmpty ? "Antwort wird gesucht …" : "Antwort wird geschrieben …"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.control) {
-            Text(question)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-            HStack(spacing: Design.Spacing.small) {
-                ProgressView()
-                Text("Antwort wird gesucht …")
+            VStack(alignment: .leading, spacing: Design.Spacing.control) {
+                Text(question)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
+                HStack(spacing: Design.Spacing.small) {
+                    ProgressView()
+                    Text(status)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .accessibilityElement(children: .combine)
+
+            if !partial.isEmpty {
+                Text(verbatim: partial)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityHidden(true)
+            }
+
+            Button("Abbrechen", role: .cancel, action: cancel)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .frame(minHeight: Design.minimumTapTarget)
+                .accessibilityHint("Hält die Suche nach der Antwort an")
+                .accessibilityIdentifier("chat.cancel")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentCard()
-        .accessibilityElement(children: .combine)
     }
 }
 
@@ -473,6 +516,15 @@ struct AnswerCard: View {
                 Label(label, systemImage: "sparkles")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+            }
+
+            // Kommt die Antwort vom Gerät, weil die Apple-Server ausgeschöpft
+            // oder ausgelastet sind, steht das hier in einer Zeile.
+            if let note = answer.modelNote {
+                Text(note)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             if !numbered.isEmpty {

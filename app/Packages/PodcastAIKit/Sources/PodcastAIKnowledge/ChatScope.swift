@@ -156,13 +156,17 @@ public struct ChatAnswer: Sendable, Identifiable {
     /// Folgen, aus denen der Text etwas nennt, auch ohne Beleg, etwa einen
     /// Link aus den Shownotes. Wird eine davon gelöscht, geht die Antwort mit.
     public let referencedEpisodeIDs: [EpisodeID]
+    /// Warum die Antwort vom Gerät kommt, obwohl die Apple-Server erlaubt
+    /// sind, etwa „Apple-Server heute ausgeschöpft, wieder ab 18:00“. Nur
+    /// für die Anzeige, gesichert und exportiert wird die Zeile nicht.
+    public let modelNote: String?
 
     public init(
         id: UUID = UUID(), question: String, scope: ChatScope, text: String,
         citations: [Evidence], coverageCaveat: String? = nil,
         caveatKind: CaveatKind = .transcriptCoverage, answeredAt: Date = Date(),
         modelLabel: String? = nil, citationNumbers: [Int: EvidenceID] = [:],
-        referencedEpisodeIDs: [EpisodeID] = []
+        referencedEpisodeIDs: [EpisodeID] = [], modelNote: String? = nil
     ) {
         self.id = id; self.question = question; self.scope = scope; self.text = text
         self.citations = citations; self.coverageCaveat = coverageCaveat
@@ -170,6 +174,7 @@ public struct ChatAnswer: Sendable, Identifiable {
         self.answeredAt = answeredAt; self.modelLabel = modelLabel
         self.citationNumbers = citationNumbers
         self.referencedEpisodeIDs = referencedEpisodeIDs
+        self.modelNote = modelNote
     }
 
     /// Die belegten Stellen, die abgespielt werden können.

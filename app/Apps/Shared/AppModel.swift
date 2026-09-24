@@ -440,6 +440,14 @@ public final class AppModel {
     /// Bisherige Antworten, neueste zuerst. Bleiben beim Wechsel zwischen
     /// Ansichten erhalten.
     public var chatAnswers: [ChatAnswer] = []
+    /// Der Antworttext, während er entsteht, als reiner Text. Leer, solange
+    /// nichts da ist. Die fertige Antwort ersetzt ihn.
+    public internal(set) var partialAnswer = ""
+    /// Die laufende Frage. „Abbrechen“ im Chat hält sie an.
+    @ObservationIgnored var questionTask: Task<ChatAnswer?, Never>?
+    /// Zählt Fragen. Eine abgebrochene Frage läuft noch kurz weiter und
+    /// darf dann den Text der nächsten nicht überschreiben oder löschen.
+    @ObservationIgnored var questionTicket = 0
     /// Wie die Datenbank abgeglichen wird, für die Einstellungen.
     public var syncDescription = String(localized: "Nur auf diesem Gerät")
 
@@ -2432,8 +2440,11 @@ public final class AppModel {
         // das Gerätemodell sie fasst. Fällt Private Cloud Compute aufs
         // Gerät zurück, sieht das Gerät trotzdem jede Stelle.
         await refreshModelStatus()
-        let device = Self.answerBudget(privateCloud: false, contextSize: Self.onDeviceContextSize,
-                                       questionLength: thesis.count)
+        let device = await KnowledgeExtractor().fittedAnswerBudget(
+            Self.answerBudget(privateCloud: false, contextSize: Self.onDeviceContextSize,
+                              questionLength: thesis.count),
+            tier: .onDevice, question: thesis,
+            sample: Self.evenlySpaced(shortlist, count: AnswerTokenPlan.sampleSize), libraryContext: "")
         let portions = Int((Double(shortlist.count) / Double(max(1, device.maximumCandidates))).rounded(.up))
         let size = Int((Double(shortlist.count) / Double(max(1, portions))).rounded(.up))
         let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
