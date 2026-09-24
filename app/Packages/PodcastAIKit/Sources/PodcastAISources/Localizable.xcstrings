@@ -1,6 +1,22 @@
 {
   "sourceLanguage": "de",
   "strings": {
+    "Abgebrochen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abgebrochen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelled."
+          }
+        }
+      }
+    },
     "Bildung": {
       "localizations": {
         "de": {
@@ -29,6 +45,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Comedy"
+          }
+        }
+      }
+    },
+    "Das Kontingent bei Supadata ist aufgebraucht.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Kontingent bei Supadata ist aufgebraucht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your Supadata quota is used up."
           }
         }
       }
@@ -145,6 +177,22 @@
         }
       }
     },
+    "Die Antwort von Supadata ließ sich nicht lesen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Antwort von Supadata ließ sich nicht lesen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata's response could not be read."
+          }
+        }
+      }
+    },
     "Die Datei ist zu groß für eine Abo-Liste.": {
       "localizations": {
         "de": {
@@ -225,6 +273,38 @@
         }
       }
     },
+    "Für YouTube-Transkripte ist kein Supadata-Schlüssel eingetragen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für YouTube-Transkripte ist kein Supadata-Schlüssel eingetragen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Supadata key is set up for YouTube transcripts."
+          }
+        }
+      }
+    },
+    "Für dieses Video gibt Supadata keine Untertitel heraus.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Für dieses Video gibt Supadata keine Untertitel heraus."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata does not provide captions for this video."
+          }
+        }
+      }
+    },
     "Geschichte": {
       "localizations": {
         "de": {
@@ -285,6 +365,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "This file doesn't contain any podcasts."
+          }
+        }
+      }
+    },
+    "Keine Verbindung zu Supadata.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Verbindung zu Supadata."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No connection to Supadata."
           }
         }
       }
@@ -433,6 +529,118 @@
         }
       }
     },
+    "Supadata antwortet gerade nicht richtig.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata antwortet gerade nicht richtig."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata is not responding properly right now."
+          }
+        }
+      }
+    },
+    "Supadata bittet um eine Pause. Die App versucht es später noch einmal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata bittet um eine Pause. Die App versucht es später noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata asks for a pause. The app will try again later."
+          }
+        }
+      }
+    },
+    "Supadata braucht für dieses Video länger. Die App fragt später noch einmal nach.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata braucht für dieses Video länger. Die App fragt später noch einmal nach."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata needs longer for this video. The app will check back later."
+          }
+        }
+      }
+    },
+    "Supadata findet dieses Video nicht.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata findet dieses Video nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata cannot find this video."
+          }
+        }
+      }
+    },
+    "Supadata hat den Schlüssel abgelehnt.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata hat den Schlüssel abgelehnt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata rejected the key."
+          }
+        }
+      }
+    },
+    "Supadata konnte die Untertitel nicht zusammenstellen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata konnte die Untertitel nicht zusammenstellen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata could not put the captions together."
+          }
+        }
+      }
+    },
+    "Supadata konnte mit der Anfrage nichts anfangen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata konnte mit der Anfrage nichts anfangen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supadata could not process the request."
+          }
+        }
+      }
+    },
     "TV und Film": {
       "localizations": {
         "de": {
@@ -509,6 +717,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Science"
+          }
+        }
+      }
+    },
+    "Zu diesem Video gibt es keine Untertitel.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu diesem Video gibt es keine Untertitel."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This video has no captions."
           }
         }
       }

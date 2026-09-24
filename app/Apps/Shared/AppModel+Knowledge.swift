@@ -48,7 +48,7 @@ extension AppModel {
         await load()
         for source in sources where episodes[source.id] != nil {
             if let list = try? await store.episodes(forSource: source.id) {
-                episodes[source.id] = list
+                episodes[source.id] = withSupadataMetadata(list)
                 RemoteMediaRegistry.shared.register(list)
             }
         }

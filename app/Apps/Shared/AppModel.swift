@@ -351,6 +351,48 @@ public final class AppModel {
     /// Netz. Was nicht geprüft ist, gilt als nicht da.
     @ObservationIgnored var installedSpeechModels: Set<String> = []
 
+    // MARK: YouTube-Transkripte über Supadata (Ablauf in AppModel+YouTube.swift)
+
+    static let youTubeCaptionsKey = "youTubeCaptionsViaSupadata"
+    static let supadataKeyRejectedKey = "supadataKeyRejected"
+    static let captionFailuresKey = "youTubeCaptionFailures"
+    /// Untertitel von YouTube-Videos über Supadata holen, sofern ein eigener
+    /// Schlüssel eingetragen ist. Ab Werk an; ohne Schlüssel passiert nichts.
+    public var youTubeCaptionsEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(youTubeCaptionsEnabled, forKey: Self.youTubeCaptionsKey)
+            youTubeCaptionConditionsChanged()
+        }
+    }
+    /// Liegt ein Schlüssel im Schlüsselbund? Der Schlüssel selbst steht nie
+    /// in einer Eigenschaft, nur beim Abruf kurz im Speicher.
+    public internal(set) var hasSupadataKey = false
+    /// Supadata hat den Schlüssel abgelehnt (401). Bis ein neuer kommt, ist
+    /// die Funktion aus. Gespeichert wird nur dieses Merkmal, nicht der Schlüssel.
+    public internal(set) var supadataKeyRejected: Bool {
+        didSet { UserDefaults.standard.set(supadataKeyRejected, forKey: Self.supadataKeyRejectedKey) }
+    }
+    /// Kontingent aufgebraucht oder Drosselung: bis wann Supadata ruht.
+    public internal(set) var supadataRestingUntil: Date?
+    /// Ergebnis von „Prüfen“ in den Einstellungen.
+    var supadataKeyCheck: SupadataKeyCheck = .idle
+    /// Ein Client für die ganze Sitzung: sein Schutzschalter gilt für alle Folgen.
+    @ObservationIgnored let supadata = SupadataTranscriptClient()
+    /// Gescheiterte Versuche je Folge, damit dasselbe Video nicht nach jedem
+    /// Start wieder angefragt wird. Nur auf diesem Gerät.
+    @ObservationIgnored var captionFailures: [String: CaptionFailure] = AppModel.loadCaptionFailures() {
+        didSet { Self.saveCaptionFailures(captionFailures) }
+    }
+    /// Metadaten über Supadata je Videoadresse. Liegen im Cache-Ordner dieses
+    /// Geräts, nicht in der Datenbank: sie füllen nur Lücken des Feeds und
+    /// sollen beim nächsten Einlesen des Feeds nicht mit ihm streiten.
+    @ObservationIgnored var supadataMetadata: [String: SupadataMetadata] = AppModel.loadSupadataMetadata()
+    /// Fehlgeschlagene Abrufe von Metadaten in dieser Sitzung.
+    @ObservationIgnored var metadataFailures: [String: CaptionFailure] = [:]
+    @ObservationIgnored var metadataTask: Task<Void, Never>?
+    /// Zählt hoch, wenn neue Metadaten da sind, damit offene Folgen sie zeigen.
+    public internal(set) var metadataRevision = 0
+
     /// Apples Server-Modell auf Private Cloud Compute für Antworten und
     /// Vergleiche nutzen, wenn das Gerät und die App es dürfen. Die Daten
     /// verlassen dabei das Gerät, werden aber nicht gespeichert.
@@ -507,6 +549,9 @@ public final class AppModel {
         self.removeHeardAudio = Self.storedFlag(Self.removeHeardKey, default: true)
         // An: die neueste Folge spielt unterwegs ohne Netz, der Rest streamt.
         self.keepNewestAudio = Self.storedFlag(Self.keepNewestKey, default: true)
+        self.youTubeCaptionsEnabled = Self.storedFlag(Self.youTubeCaptionsKey, default: true)
+        self.supadataKeyRejected = Self.storedFlag(Self.supadataKeyRejectedKey, default: false)
+        self.hasSupadataKey = SupadataKeychain.hasKey
         // Der Schalter „Interessen vorschlagen“ gilt über den Neustart hinaus.
         // Jedes Neuladen des Profils reicht den Wert von hier weiter.
         self.profile = InterestProfile(learningEnabled: UserDefaults.standard.bool(forKey: Self.learningEnabledKey))
@@ -625,7 +670,7 @@ public final class AppModel {
         }
         let knownHighlights = highlights
         do {
-            sources = try await store.sources()
+            sources = withSupadataMetadata(sources: try await store.sources())
             // Auf einem anderen Gerät abbestellt: ein neues Abo desselben
             // Podcasts beginnt wieder mit den neuesten Folgen, nicht still
             // mit dem ganzen Archiv.
@@ -663,9 +708,11 @@ public final class AppModel {
             // Vorbereiten brauchen sie, nicht nur die gerade geöffnete Liste.
             for source in sources {
                 let list = try await store.episodes(forSource: source.id)
-                episodes[source.id] = list
+                episodes[source.id] = withSupadataMetadata(list)
                 RemoteMediaRegistry.shared.register(list)
             }
+            // Kanalbild und -name aus Metadaten, jetzt, da die Folgen da sind.
+            sources = withSupadataMetadata(sources: sources)
             for id in analyzedEpisodes where stages[id] == nil {
                 stages[id] = .evidenceExtracted
             }
@@ -849,9 +896,14 @@ public final class AppModel {
     /// wenn jemand die Quelle öffnet oder die App neu startet.
     @discardableResult
     public func subscribe(to input: String) async throws -> AddedSource {
+        // Beiträge und Profile aus sozialen Netzen gehen nicht über Feeds,
+        // sondern über Supadata, und nur mit eigenem Schlüssel.
+        if let social = Self.socialLink(in: input) {
+            return try await addSocialPost(social)
+        }
         let known = Set(sources.map(\.id))
         let added = try await refresher.addSource(from: input)
-        sources = try await store.sources()
+        sources = withSupadataMetadata(sources: try await store.sources())
         pruneSubscribedCounterparts(input: input)
         AccessibilityNotification.Announcement(String(localized: "Podcast abonniert: \(added.title)")).post()
         for source in sources where source.kind == .youTubeChannel && podcastCounterparts[source.id] == nil {
@@ -956,7 +1008,7 @@ public final class AppModel {
         lastRefresh = Date()
         do {
             let result = try await refresher.refreshAll()
-            sources = try await store.sources()
+            sources = withSupadataMetadata(sources: try await store.sources())
             // Die neuen Folgen stehen jetzt in der Datenbank. Erst mit den
             // frischen Listen sehen „Neu in deinen Abos“, die offene
             // Folgenliste und das Vorbereiten sie.
@@ -982,7 +1034,7 @@ public final class AppModel {
             guard let list = try? await store.episodes(forSource: id),
                   // Während des Lesens abbestellt: nicht wieder eintragen.
                   sources.contains(where: { $0.id == id }) else { continue }
-            episodes[id] = list
+            episodes[id] = withSupadataMetadata(list)
             RemoteMediaRegistry.shared.register(list)
         }
     }
@@ -997,7 +1049,7 @@ public final class AppModel {
 
     public func loadEpisodes(for sourceID: SourceID) async {
         do {
-            episodes[sourceID] = try await store.episodes(forSource: sourceID)
+            episodes[sourceID] = withSupadataMetadata(try await store.episodes(forSource: sourceID))
             RemoteMediaRegistry.shared.register(episodes[sourceID] ?? [])
             await prepareNewEpisodes(in: sourceID)
         } catch {
@@ -1022,8 +1074,13 @@ public final class AppModel {
         // Datei danach unter der neuen Fassung. Vor dem Einreihen, damit das
         // Transkript sie findet.
         adoptMovedPrefetches()
-        // Auch ohne automatische Transkripte: die neueste Folge vorhalten.
-        defer { prefetchNewestEpisodes() }
+        // Auch ohne automatische Transkripte: die neueste Folge vorhalten
+        // und fehlende Metadaten von YouTube-Videos holen, falls ein
+        // Supadata-Schlüssel eingetragen ist.
+        defer {
+            prefetchNewestEpisodes()
+            fetchMissingMetadata()
+        }
         guard automaticAnalysis, preparationUnavailable == nil else { return }
         let ids = sourceID.map { [$0] } ?? sources.map(\.id)
         // Erst die neuesten Folgen aller Podcasts, dann die älteren. So wartet
@@ -1042,8 +1099,10 @@ public final class AppModel {
     }
 
     /// Die jüngsten Folgen einer Quelle, die das Vorbereiten von selbst nimmt.
+    /// YouTube-Videos zählen mit, wenn Supadata sie holen darf.
     private func newestCandidates(in list: [Episode]) -> ArraySlice<Episode> {
-        list.filter { $0.audioURL != nil && $0.canBeAnalyzed }.prefix(episodesPerSource)
+        list.filter { ($0.audioURL != nil && $0.canBeAnalyzed) || allowsAutomaticCaptions($0) }
+            .prefix(episodesPerSource)
     }
 
     /// Noch ohne Transkript, nicht in Arbeit oder gescheitert und nicht aus
@@ -1051,6 +1110,8 @@ public final class AppModel {
     private func isOpenForPreparation(_ episode: Episode) -> Bool {
         !analyzedEpisodes.contains(episode.id) && stages[episode.id] == nil
             && !dismissedFromPreparation.contains(episode.id) && !failedInPreparation.contains(episode.id)
+            // YouTube: nach einem Fehlversuch wartet das Video seine Zeit ab.
+            && !captionsCoolingDown(episode.id)
     }
 
     // MARK: Ältere Folgen eines Podcasts
@@ -1063,7 +1124,9 @@ public final class AppModel {
     /// Eingereihte zählen mit, laufende, gescheiterte und aus der
     /// Warteschlange genommene nicht.
     public func backCatalogCandidates(in sourceID: SourceID) -> [Episode] {
-        (episodes[sourceID] ?? []).filter { $0.audioURL != nil && $0.canBeAnalyzed && isOpenForPreparation($0) }
+        (episodes[sourceID] ?? []).filter {
+            (($0.audioURL != nil && $0.canBeAnalyzed) || allowsAutomaticCaptions($0)) && isOpenForPreparation($0)
+        }
     }
 
     /// Was „Ältere Folgen auch vorbereiten“ hinzunimmt: die Folgen ohne
@@ -1230,6 +1293,16 @@ public final class AppModel {
     /// eine ältere Folge aus „Ältere Folgen auch vorbereiten“. Sie kommt ans
     /// Ende, neue Folgen reihen sich vor ihr ein.
     public func enqueueAnalysis(_ episode: Episode, automatic: Bool = false, backlog: Bool = false) {
+        // Ein YouTube-Video ohne Weg zu Untertiteln: von Hand angefordert
+        // nimmt die App die passende Folge des Audio-Podcasts, sonst nichts.
+        // Was fehlt, sagt die Folge in einem ruhigen Satz, kein Dialog.
+        if isCaptionVideo(episode), !canTranscribe(episode, byHand: !automatic) {
+            if !automatic, case .counterpartEpisode(let id, _) = youTubeRoute(for: episode, byHand: true),
+               let audio = episodes.values.lazy.flatMap({ $0 }).first(where: { $0.id == id }) {
+                enqueueAnalysis(audio)
+            }
+            return
+        }
         let queued = analysisQueue.firstIndex { $0.id == episode.id }
         if automatic {
             // Schon eingereiht oder in Arbeit: so bleibt es. Sonst würde aus
@@ -1241,8 +1314,8 @@ public final class AppModel {
             // Von Hand angefordert und Mobilfunk aus: erst fragen, falls
             // der Ton dafür aus dem Netz käme. Ein Ja gilt auch für die
             // Transkripte, die schon im Mobilfunk warten, also zählen sie mit.
-            if episode.audioURL != nil, analyzing?.id != episode.id, mobileDataNeedsConsent,
-               !hasAudioForTranscript(episode) {
+            if episode.audioURL != nil || isCaptionVideo(episode), analyzing?.id != episode.id,
+               mobileDataNeedsConsent, !hasAudioForTranscript(episode) {
                 // Wartet sie schon von Hand eingereiht, rückt sie gleich nach
                 // vorn. Nach einem Ja läuft sie dann als Nächste.
                 if let queued, !automaticallyQueued.contains(episode.id) {
@@ -1268,7 +1341,7 @@ public final class AppModel {
                 return
             }
         }
-        guard episode.audioURL != nil,
+        guard episode.audioURL != nil || isCaptionVideo(episode),
               analyzing?.id != episode.id,
               !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
         insertIntoQueue(episode)
@@ -1380,7 +1453,9 @@ public final class AppModel {
     /// Erschließt eine Folge. Gibt `true` zurück, wenn der Fehler
     /// vorübergehend war und ein zweiter Versuch lohnt.
     private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
-        guard let audioURL = episode.audioURL else { return false }
+        guard let audioURL = episode.audioURL else {
+            return isCaptionVideo(episode) ? await runCaptionAnalysis(episode, background: background) : false
+        }
         // Gleich als laufend vormerken, vor dem ersten `await`. Der Worker hat
         // die Folge schon aus der Warteschlange genommen. Ohne diese Zeile
         // stünde sie während der Prüfung unten nirgends, `enqueueAnalysis`
@@ -1518,6 +1593,162 @@ public final class AppModel {
         }
     }
 
+    // MARK: YouTube-Untertitel in der Warteschlange
+
+    /// Holt die Untertitel eines YouTube-Videos über Supadata und macht daraus
+    /// Transkript und Belege. Gibt `true` zurück, wenn ein zweiter Versuch lohnt.
+    ///
+    /// Scheitert es, gibt es keinen Dialog, auch nicht auf Wunsch: die Folge
+    /// sagt in einem Satz, woran es lag, und die Reihenfolge greift weiter
+    /// (Audio-Podcast, sonst nur Metadaten). Der Fehlversuch wird gemerkt,
+    /// damit dasselbe Video nicht nach jedem Start wieder angefragt wird.
+    /// Die Spracherkennung braucht es dafür nicht, und die Frist des
+    /// Clients hält die Warteschlange höchstens anderthalb Minuten auf.
+    private func runCaptionAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
+        analyzing = episode
+        let ticket = removalCount
+        let live = try? await store.episodes(ids: [episode.id])
+        if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
+            analyzing = nil
+            stages[episode.id] = nil
+            stageDetails[episode.id] = nil
+            return false
+        }
+        let wasAutomatic = automaticallyQueued.contains(episode.id)
+        guard let watchURL = captionURL(of: episode), let key = SupadataKeychain.read(),
+              canTranscribe(episode, byHand: true) else {
+            // Inzwischen ohne Schlüssel oder ausgeschaltet: still zurück.
+            automaticallyQueued.remove(episode.id)
+            backlogQueued.remove(episode.id)
+            stages[episode.id] = nil
+            stageDetails[episode.id] = nil
+            hasSupadataKey = SupadataKeychain.hasKey
+            return false
+        }
+        stages[episode.id] = .discovered
+        stageDetails[episode.id] = nil
+        background.update(.discovered)
+        activity = String(localized: "Untertitel für „\(episode.title)“ werden über Supadata geholt …")
+
+        let client = supadata
+        let store = store
+        let preferred = [AppLanguage.current.rawValue]
+        let origin: TranscriptOrigin = isYouTubeVideo(episode) ? .youTubeCaptions : .postCaptions
+        let fallbackLocale = sources.first { $0.id == episode.sourceID }?.language ?? AppLanguage.current.rawValue
+        // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
+        let run = Task {
+            let captions = try await client.transcript(videoURL: watchURL, apiKey: key,
+                                                       preferredLanguages: preferred)
+            guard let result = CaptionAnalysis.build(
+                captions: captions, episodeID: episode.id, sourceID: episode.sourceID,
+                watchURL: watchURL, fallbackLocale: fallbackLocale,
+                declaredDuration: episode.declaredDuration, origin: origin) else {
+                throw SupadataError.noTranscript
+            }
+            try Task.checkCancellation()
+            try await store.save(captions: result, forEpisode: episode.id)
+        }
+        pipelineRun = run
+        pipelineEpisodeID = episode.id
+        defer {
+            pipelineRun = nil
+            pipelineEpisodeID = nil
+        }
+        do {
+            try await run.value
+            if wasRemoved(episode.id, since: ticket) {
+                await purgeLateWrites(of: episode)
+                return false
+            }
+            captionFailures[episode.id.rawValue] = nil
+            supadataRestingUntil = nil
+            analyzedEpisodes.insert(episode.id)
+            stages[episode.id] = .evidenceExtracted
+            stageDetails[episode.id] = origin.sourceLabel
+            // Die Fassung des Videos kennt jetzt ihre Kennung; Stellen daraus
+            // öffnen YouTube statt den Player.
+            if let reloaded = try? await store.episodes(ids: [episode.id]) {
+                RemoteMediaRegistry.shared.register(reloaded)
+            }
+            if automaticFacts { enqueueFacts(episode) }
+            if automaticallyQueued.remove(episode.id) == nil {
+                AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(episode.title)")).post()
+            }
+            backlogQueued.remove(episode.id)
+            await refreshRelevantToday()
+            return false
+        } catch {
+            if wasRemoved(episode.id, since: ticket) {
+                await purgeLateWrites(of: episode)
+                return false
+            }
+            let failure = (error as? SupadataError) ?? (error is CancellationError ? .cancelled : .network)
+            automaticallyQueued.remove(episode.id)
+            backlogQueued.remove(episode.id)
+            // Wie bei Ton: die Folge sagt, woran es lag. Hat das Video keine
+            // Untertitel oder liegt es am Schlüssel, steht dort stattdessen der
+            // ruhige Satz aus `youTubeTranscriptHint`, auch nach einem Neustart.
+            if failure == .cancelled {
+                stages[episode.id] = nil
+                stageDetails[episode.id] = nil
+            } else {
+                stages[episode.id] = .failed
+                stageDetails[episode.id] = failure.errorDescription
+            }
+            await noteCaptionFailure(failure, for: episode, wasAutomatic: wasAutomatic)
+            // Vorübergehend: der Worker versucht es einmal nach kurzer Pause.
+            // Ein offener Schutzschalter lässt den zweiten Versuch ohne Anfrage enden.
+            return failure.isTransient && failure != .cancelled && !failure.affectsAccount
+                && supadataRestingUntil == nil
+        }
+    }
+
+    /// Merkt sich, woran es lag, und nimmt den Rest der Reihenfolge.
+    private func noteCaptionFailure(_ failure: SupadataError, for episode: Episode, wasAutomatic: Bool) async {
+        if failure != .cancelled {
+            captionFailures[episode.id.rawValue] = CaptionFailure(error: failure, at: Date())
+        }
+        switch failure {
+        case .unauthorized:
+            // Aus, bis jemand einen neuen Schlüssel einträgt. Die Einstellungen sagen es.
+            supadataKeyRejected = true
+            supadataKeyCheck = .rejected
+            dropYouTubeItemsThatCannotRun()
+        case .quota, .rateLimited:
+            if case .open(_, let until) = await supadata.breaker {
+                supadataRestingUntil = until ?? Date().addingTimeInterval(supadata.configuration.rateLimitCooldown)
+            }
+            if supadataRestingUntil != nil { dropYouTubeItemsThatCannotRun() }
+        case .missingKey:
+            hasSupadataKey = SupadataKeychain.hasKey
+            dropYouTubeItemsThatCannotRun()
+        default:
+            break
+        }
+        // Gibt es die Folge als Ton im abonnierten Audio-Podcast, entsteht das
+        // Transkript dort. Nach denselben Regeln fürs Netz wie der Auftrag.
+        let inputs = youTubeInputs(for: episode, byHand: !wasAutomatic)
+        if case .counterpartEpisode(let id, _) = YouTubeTranscriptPlanner.fallback(after: failure, inputs: inputs),
+           !analyzedEpisodes.contains(id),
+           let audio = episodes.values.lazy.flatMap({ $0 }).first(where: { $0.id == id }) {
+            enqueueAnalysis(audio, automatic: wasAutomatic)
+        }
+    }
+
+    /// Nimmt YouTube-Folgen aus der Warteschlange, die gerade nicht laufen
+    /// dürfen: ohne Schlüssel, abgelehnt, ausgeschaltet oder Dienst in Ruhe.
+    /// So scheitert nicht eine nach der anderen am selben Grund.
+    func dropYouTubeItemsThatCannotRun() {
+        let blocked = Set(analysisQueue.filter { isCaptionVideo($0) && !canTranscribe($0, byHand: true) }.map(\.id))
+        guard !blocked.isEmpty else { return }
+        analysisQueue.removeAll { blocked.contains($0.id) }
+        for id in blocked {
+            automaticallyQueued.remove(id)
+            backlogQueued.remove(id)
+            stageDetails[id] = nil
+        }
+    }
+
     // MARK: - Interessen
 
     /// Lädt das Profil aus der Datenbank und behält die Vorschläge.
@@ -1616,6 +1847,30 @@ public final class AppModel {
 
     /// Startet einen Hörplan. Der einzige Weg von der Oberfläche zum Ton.
     public func play(_ plan: ValidatedPlaybackPlan, from trigger: PlayTrigger) {
+        // Stellen aus YouTube-Videos spielt nicht die App. Besteht der Plan
+        // nur aus ihnen, öffnet ein Tipp das erste Video an seiner Stelle;
+        // Siri öffnet nichts. Gemischt spielt der Player die übrigen.
+        let registry = RemoteMediaRegistry.shared
+        let videoSegments = plan.segments.filter { registry.isExternal($0.mediaVersionID) }
+        if !videoSegments.isEmpty {
+            if videoSegments.count == plan.segments.count {
+                guard trigger != .intent, let first = plan.segments.first,
+                      let target = registry.externalURL(for: first.mediaVersionID, at: first.range.start) else {
+                    lastError = String(localized: """
+                        Diese Stellen stammen aus YouTube-Videos. Tippe sie in der App an, dann öffnet \
+                        sich das Video an der Stelle.
+                        """)
+                    return
+                }
+                openExternally(target)
+                return
+            }
+            let kept = plan.segments.filter { !registry.isExternal($0.mediaVersionID) }
+            play(ValidatedPlaybackPlan(segments: kept, excluded: plan.excluded,
+                                       requestSummary: plan.requestSummary, route: plan.route),
+                 from: trigger)
+            return
+        }
         // Mobilfunk aus und Stellen kämen aus dem Netz: erst fragen. Siri
         // kann die Frage nicht zeigen und sagt stattdessen, woran es liegt.
         let locator = LocalMediaLocator()
@@ -1989,12 +2244,14 @@ public final class AppModel {
             let known = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
             let titles = try await store.titles(
                 forEpisodes: Array(Set(known.map(\.episodeID))))
+            // Themen-Updates sind Ton. Stellen aus YouTube-Videos haben keinen,
+            // den die App abspielen dürfte, also bleiben sie draußen.
             let candidates = try await pipeline.candidates(
                 for: feed, profile: profile, availability: modelStatus,
                 titles: titles.mapValues {
                     (source: $0.source, episode: $0.episode, published: $0.publishedAt)
                 }
-            )
+            ).filter { !RemoteMediaRegistry.shared.isExternal($0.evidence.mediaVersionID) }
             let existing = Set((editions[feedID] ?? []).map(\.batchKey))
             // Liegt eine Stelle in einem Kapitel des Originals, schneidet die
             // Ausgabe an dessen Grenzen.
@@ -2783,6 +3040,10 @@ public final class AppModel {
     /// kommt der Ton aus der Datei, sonst aus dem Stream.
     public func playEpisode(_ episode: Episode, at seconds: Double? = nil) {
         let local = localAudioFile(for: episode)
+        // Ein YouTube-Video spielt nicht die App: der Tipp öffnet es bei
+        // YouTube, mit Zeitmarke an der Stelle. Zeilen im Transkript, Fakten,
+        // Belege und Notizen führen alle hierher.
+        if local == nil, episode.audioURL == nil, openExternally(episode, at: seconds) { return }
         // Erst prüfen, dann anhalten. Sonst endete ein laufender Fokus-Plan
         // für eine Folge, die gar nicht klingen kann.
         guard local != nil || episode.audioURL != nil else {

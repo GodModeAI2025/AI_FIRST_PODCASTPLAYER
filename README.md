@@ -16,7 +16,7 @@ Ein Podcast-Player für iPhone, iPad und Mac, der zuhört. Er spielt deine Podca
 |---|---|
 | Abonnieren | Suche nach Name, Anbieter oder Thema bei Apple Podcasts und Podcast Index zugleich, dazu ein Katalog mit den Charts von Apple Podcasts für die Region des Geräts, Apples 19 Rubriken als Kategorien und einer Seite je Podcast mit Cover, Beschreibung und neuesten Folgen, Links aus Apple Podcasts, Podcast-Feeds, Webseiten mit Feed, einzelne MP3-Links, YouTube-Kanäle über ihren Feed oder einen @-Link; zu YouTube-Kanälen findet die App den passenden Audio-Podcast. Abos aus anderen Apps kommen per OPML-Datei herüber und lassen sich als OPML exportieren |
 | Hören | Tempo, ±15/30 Sekunden, Kapitel aus dem Feed, Schlaf-Timer, AirPlay, Sperrbildschirm, Warteschlange, Fortsetzung über Geräte hinweg |
-| Transkript | auf dem Gerät mit Apples Spracherkennung, mit Zeitmarken, durchsuchbar, Tipp springt an die Stelle; fremdsprachige Folgen lassen sich auf dem Gerät übersetzen |
+| Transkript | auf dem Gerät mit Apples Spracherkennung, mit Zeitmarken, durchsuchbar, Tipp springt an die Stelle; fremdsprachige Folgen lassen sich auf dem Gerät übersetzen; YouTube-Videos bekommen ihr Transkript aus den vorhandenen Untertiteln, wenn du einen eigenen Supadata-Schlüssel einträgst, sonst aus dem passenden Audio-Podcast; mit dem Schlüssel gehen auch einzelne Beiträge von TikTok, Instagram, X und Facebook |
 | Fakten | Aussagen je Folge, jede mit Zeitmarke auf dem Satz und dem Wortlaut; sie entstehen von selbst im Hintergrund |
 | Chat | Fragen an eine Folge oder an alle Folgen mit Transkript, eingrenzbar auf einen Podcast und die letzten 7 oder 30 Tage; jeder Beleg nennt Podcast, Folge und Zeitmarke und spielt auf Wunsch ab; jede Antwort lässt sich sichern |
 | Themen-Updates | eine eigene Folge je Thema mit Kapiteln, Shownotes und Cover, gebaut aus Originalstellen |
@@ -33,7 +33,7 @@ Alles läuft mit Apple Intelligence. Antworten und Vergleiche nutzen Private Clo
 
 ## Datenschutz
 
-Transkription und Suche laufen auf dem Gerät. Private Cloud Compute verarbeitet Anfragen, ohne sie zu speichern, und ist in den Einstellungen abschaltbar. Deine Daten liegen in deiner privaten iCloud-Datenbank. Es gibt kein Konto bei uns, und du brauchst keinen eigenen API-Schlüssel. Charts und Kategorien kommen von Apple Podcasts, gesucht wird bei Apple und bei Podcast Index (podcastindex.org). Beide sehen dabei Suchbegriff und IP-Adresse. Eine Empfehlung startet nie von selbst Ton.
+Transkription und Suche laufen auf dem Gerät. Private Cloud Compute verarbeitet Anfragen, ohne sie zu speichern, und ist in den Einstellungen abschaltbar. Deine Daten liegen in deiner privaten iCloud-Datenbank. Es gibt kein Konto bei uns, und du brauchst keinen eigenen API-Schlüssel. Nur für Transkripte von YouTube-Videos kannst du einen eigenen Schlüssel von Supadata (supadata.ai) eintragen, einem unabhängigen Dienst; dann gehen die Links der Videos und Beiträge dorthin, um Untertitel und Metadaten abzurufen, sonst nichts, und der Schlüssel bleibt im Schlüsselbund des Geräts. Charts und Kategorien kommen von Apple Podcasts, gesucht wird bei Apple und bei Podcast Index (podcastindex.org). Beide sehen dabei Suchbegriff und IP-Adresse. Eine Empfehlung startet nie von selbst Ton.
 
 ## Voraussetzungen
 

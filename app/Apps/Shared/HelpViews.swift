@@ -445,6 +445,15 @@ extension HelpTopic {
                 HelpTip(title: "Fakten",
                         text: "Aussagen aus der Folge, jede mit Zeitmarke zum Nachhören. Die App prüft sie nicht.",
                         symbol: "checkmark.seal", level: .advanced),
+                HelpTip(title: "YouTube-Videos", text: """
+                    YouTube liefert keinen Ton. Mit einem eigenen Schlüssel von Supadata, einem unabhängigen \
+                    Dienst, holt die App Untertitel und Metadaten, die es zum Video schon gibt, und macht \
+                    daraus ein Transkript mit Fakten und Chat. Einzelne Beiträge von TikTok, Instagram, X \
+                    und Facebook fügst du dann per Link hinzu; Profile lassen sich nicht abonnieren. Den \
+                    Schlüssel trägst du in den Einstellungen unter „YouTube-Transkripte“ ein. Ohne ihn kommt \
+                    das Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst. Ein Tipp auf \
+                    eine Stelle öffnet das Video dort, wo es liegt.
+                    """, symbol: "play.rectangle", level: .expert),
             ],
             jumps: [.library]
         )
@@ -548,6 +557,13 @@ extension HelpTopic {
                     dafür das Gerät nicht.
                     """, symbol: "waveform", level: .beginner),
                 // Derselbe Text wie auf der Seite „Datenschutz“.
+                HelpTip(title: "YouTube-Transkripte über Supadata", text: """
+                    Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne \
+                    Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), \
+                    einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und \
+                    deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses \
+                    Geräts.
+                    """, symbol: "play.rectangle", level: .expert),
                 HelpTip(title: "Podcast-Katalog", text: """
                     Angesagt und Kategorien im Blatt „Podcast hinzufügen“ kommen von Apple Podcasts. Deinen \
                     Suchbegriff schickt die App an Apple und an Podcast Index (podcastindex.org), einen \

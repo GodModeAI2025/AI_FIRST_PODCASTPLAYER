@@ -1228,6 +1228,7 @@ extension LibraryView {
 struct SourceRow: View {
 
     let source: Source
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         HStack(spacing: Design.Spacing.control) {
@@ -1237,9 +1238,15 @@ struct SourceRow: View {
             if let author = source.author {
                 Text(author).font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
+            // Einzelne Beiträge unter ihrem Urheber: kein Abo, nur das Geholte.
+            if !source.isSubscribed {
+                Text("nicht abonniert").font(.caption2).foregroundStyle(.secondary)
+            }
             // Grenzen werden angezeigt, nicht versteckt. Ein Kanal ohne
-            // Audiozugang soll nicht so aussehen wie einer mit.
+            // Audiozugang soll nicht so aussehen wie einer mit. Mit eigenem
+            // Supadata-Schlüssel bekommt ein YouTube-Kanal Transkripte.
             if !source.capabilities.supportsTimedKnowledge,
+               !(source.kind == .youTubeChannel && model.allowsSupadataRequests),
                let reason = source.capabilities.limitationReason {
                 NoticeLabel(reason, kind: .info)
                     .font(.caption2)
@@ -1346,11 +1353,29 @@ struct AddSourceSheet: View {
                     }
                 }
 
-                if isLink {
+                if isLink, let socialHint {
+                    // Ein Profil oder ein Beitrag ohne Schlüssel: ein ruhiger
+                    // Satz statt eines Knopfs, der nur scheitern könnte.
+                    Section {
+                        NoticeLabel(socialHint, kind: .info)
+                            .accessibilityIdentifier("source.socialHint")
+                        if case .post? = AppModel.socialLink(in: trimmed) {
+                            NavigationLink {
+                                SupadataSettingsView()
+                            } label: {
+                                Label("Supadata-Schlüssel eintragen", systemImage: "key")
+                            }
+                        }
+                    }
+                } else if isLink {
                     Section {
                         Button(action: submit) {
                             HStack {
-                                Label("Diesen Link abonnieren", systemImage: "plus.circle.fill")
+                                if AppModel.socialLink(in: trimmed) != nil {
+                                    Label("Diesen Beitrag hinzufügen", systemImage: "plus.circle.fill")
+                                } else {
+                                    Label("Diesen Link abonnieren", systemImage: "plus.circle.fill")
+                                }
                                 Spacer()
                                 if addingLink { ProgressView() }
                             }
@@ -1385,6 +1410,13 @@ struct AddSourceSheet: View {
                     }
                 } else if let searchedTerm, searchedTerm == trimmed, !trimmed.isEmpty {
                     ContentUnavailableView.search(text: trimmed)
+                }
+
+                // Mit eigenem Supadata-Schlüssel: dieselbe Eingabe als Suche
+                // nach YouTube-Kanälen, erst auf Tippen.
+                if !isLink, !trimmed.isEmpty, searchedTerm == trimmed, model.allowsSupadataRequests {
+                    YouTubeChannelSearchSection(term: trimmed)
+                        .id(trimmed)
                 }
 
                 if trimmed.isEmpty {
@@ -1535,8 +1567,20 @@ struct AddSourceSheet: View {
         return sentences.joined(separator: " ")
     }
 
+    /// Warum ein Link aus einem sozialen Netz hier nicht geht, oder `nil`.
+    private var socialHint: String? {
+        switch AppModel.socialLink(in: trimmed) {
+        case .profile?:
+            SupadataFeatureError.profileNotSupported.errorDescription
+        case .post(let platform, _)? where !model.allowsSupadataRequests:
+            SupadataFeatureError.needsKey(platform).errorDescription
+        default:
+            nil
+        }
+    }
+
     private func submit() {
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty, !(isLink && socialHint != nil) else { return }
         fieldFocused = false
         let text = trimmed
         if isLink {

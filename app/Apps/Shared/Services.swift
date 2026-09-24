@@ -810,11 +810,26 @@ public final class RemoteMediaRegistry: @unchecked Sendable {
     public static let shared = RemoteMediaRegistry()
     private let lock = NSLock()
     private var urls: [MediaVersionID: URL] = [:]
+    /// Fassungen, die ein YouTube-Video sind, mit der Kennung des Videos.
+    /// Ihre Stellen spielt nicht die App, sie öffnen das Video bei YouTube.
+    private var youTubeVideos: [MediaVersionID: String] = [:]
+    /// Fassungen, die ein Beitrag von TikTok, Instagram, X oder Facebook sind.
+    private var posts: [MediaVersionID: URL] = [:]
 
     public func register(_ episodes: [Episode]) {
         lock.lock(); defer { lock.unlock() }
         for episode in episodes {
-            guard let audio = episode.audioURL else { continue }
+            guard let audio = episode.audioURL else {
+                if let videoID = YouTubeLinks.videoID(in: episode.webPageURL),
+                   let watch = SourceResolver.watchURL(videoID: videoID) {
+                    youTubeVideos[CaptionAnalysis.mediaVersionID(watchURL: watch)] = videoID
+                    if let current = episode.currentMediaVersionID { youTubeVideos[current] = videoID }
+                } else if let page = episode.webPageURL, case .post(_, let post)? = SocialLinks.classify(page) {
+                    posts[CaptionAnalysis.mediaVersionID(watchURL: post)] = post
+                    if let current = episode.currentMediaVersionID { posts[current] = post }
+                }
+                continue
+            }
             urls[MediaVersionID(stable: audio.absoluteString)] = audio
             if let current = episode.currentMediaVersionID { urls[current] = audio }
         }
@@ -823,6 +838,26 @@ public final class RemoteMediaRegistry: @unchecked Sendable {
     public func url(for id: MediaVersionID) -> URL? {
         lock.lock(); defer { lock.unlock() }
         return urls[id]
+    }
+
+    /// Die Kennung des YouTube-Videos hinter einer Fassung, falls es eines ist.
+    public func youTubeVideoID(for id: MediaVersionID) -> String? {
+        lock.lock(); defer { lock.unlock() }
+        return youTubeVideos[id]
+    }
+
+    /// Spielt nicht die App, sondern die Plattform: ein Video oder ein Beitrag.
+    public func isExternal(_ id: MediaVersionID) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return youTubeVideos[id] != nil || posts[id] != nil
+    }
+
+    /// Wohin ein Tipp auf eine Stelle führt: bei YouTube mit Zeitmarke, bei
+    /// anderen Beiträgen zum Beitrag selbst.
+    public func externalURL(for id: MediaVersionID, at time: MediaTime?) -> URL? {
+        lock.lock(); defer { lock.unlock() }
+        if let videoID = youTubeVideos[id] { return YouTubeLinks.watchURL(videoID: videoID, at: time) }
+        return posts[id]
     }
 }
 

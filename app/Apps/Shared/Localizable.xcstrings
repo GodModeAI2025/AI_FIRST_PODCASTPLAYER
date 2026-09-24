@@ -817,6 +817,22 @@
         }
       }
     },
+    "20 ältere Videos über Supadata laden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "20 ältere Videos über Supadata laden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load 20 older videos via Supadata"
+          }
+        }
+      }
+    },
     "Ab %@ abspielen" : {
       "localizations" : {
         "de" : {
@@ -1969,6 +1985,22 @@
         }
       }
     },
+    "Antippen öffnet das Video bei YouTube an dieser Stelle. Über „…“ merkst, kopierst oder teilst du sie." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antippen öffnet das Video bei YouTube an dieser Stelle. Über „…“ merkst, kopierst oder teilst du sie."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to open the video on YouTube at this point. Use \"…\" to save, copy or share a line."
+          }
+        }
+      }
+    },
     "Antwort da" : {
       "localizations" : {
         "de" : {
@@ -3018,6 +3050,38 @@
         }
       }
     },
+    "Beitrag von %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beitrag von %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post by %@"
+          }
+        }
+      }
+    },
+    "Beiträge von %@ fügt die App mit einem eigenen Supadata-Schlüssel hinzu. Du trägst ihn in den Einstellungen unter „YouTube-Transkripte (Supadata)“ ein." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beiträge von %@ fügt die App mit einem eigenen Supadata-Schlüssel hinzu. Du trägst ihn in den Einstellungen unter „YouTube-Transkripte (Supadata)“ ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app adds %@ posts with your own Supadata key. Enter it in Settings under \"YouTube transcripts (Supadata)\"."
+          }
+        }
+      }
+    },
     "Beleg %lld zeigen" : {
       "localizations" : {
         "de" : {
@@ -3354,6 +3418,22 @@
         }
       }
     },
+    "Dafür gehen die Links der Videos und Beiträge an supadata.ai, sonst nichts. Kosten und Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts, nicht in iCloud und in keinem Export." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dafür gehen die Links der Videos und Beiträge an supadata.ai, sonst nichts. Kosten und Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts, nicht in iCloud und in keinem Export."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the links of videos and posts go to supadata.ai, nothing else. Costs and terms are between you and Supadata. The key stays in this device's keychain only, not in iCloud and not in any export."
+          }
+        }
+      }
+    },
     "Das Audio nimmt die App danach wieder vom Gerät, abgespielt wird dann aus dem Netz." : {
       "localizations" : {
         "de" : {
@@ -3686,6 +3766,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The transcript for this episode is being created. As soon as it's ready, I can answer with source passages from the transcript."
+          }
+        }
+      }
+    },
+    "Das Transkript entsteht aus der passenden Folge des Audio-Podcasts, „%@“. Dort gibt es auch Fakten und den Chat." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Transkript entsteht aus der passenden Folge des Audio-Podcasts, „%@“. Dort gibt es auch Fakten und den Chat."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The transcript comes from the matching episode of the audio podcast, \"%@\". Facts and chat are there too."
           }
         }
       }
@@ -4226,6 +4322,22 @@
         }
       }
     },
+    "Der Feed von YouTube nennt nur die 15 neuesten Videos. Mit deinem Schlüssel holt die App weitere über Supadata, je Video ein Abruf." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Feed von YouTube nennt nur die 15 neuesten Videos. Mit deinem Schlüssel holt die App weitere über Supadata, je Video ein Abruf."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube's feed lists only the 15 newest videos. With your key the app fetches more through Supadata, one request per video."
+          }
+        }
+      }
+    },
     "Der Podcast hat die Audiodatei geändert. Für das Transkript lädt die App die neue Fassung." : {
       "localizations" : {
         "de" : {
@@ -4318,6 +4430,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The switch applies to all podcasts and is also in Settings under Cellular Data."
+          }
+        }
+      }
+    },
+    "Der Schlüssel ließ sich im Schlüsselbund nicht sichern." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Schlüssel ließ sich im Schlüsselbund nicht sichern."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The key could not be saved in the keychain."
           }
         }
       }
@@ -5122,6 +5250,38 @@
         }
       }
     },
+    "Die Suche geht mit deinem Schlüssel an Supadata und kostet dort wie ein Abruf." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Suche geht mit deinem Schlüssel an Supadata und kostet dort wie ein Abruf."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The search goes to Supadata with your key and costs the same as one request there."
+          }
+        }
+      }
+    },
+    "Die Untertitel ließen sich gerade nicht holen. Die App versucht es später wieder." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Untertitel ließen sich gerade nicht holen. Die App versucht es später wieder."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The captions could not be fetched just now. The app will try again later."
+          }
+        }
+      }
+    },
     "Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, dann tippe erneut auf Abspielen." : {
       "localizations" : {
         "de" : {
@@ -5474,6 +5634,22 @@
         }
       }
     },
+    "Diese Stellen stammen aus YouTube-Videos. Tippe sie in der App an, dann öffnet sich das Video an der Stelle." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Stellen stammen aus YouTube-Videos. Tippe sie in der App an, dann öffnet sich das Video an der Stelle."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These passages come from YouTube videos. Tap them in the app to open the video at that point."
+          }
+        }
+      }
+    },
     "Diese gesicherte Antwort gibt es nicht mehr" : {
       "localizations" : {
         "de" : {
@@ -5486,6 +5662,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This Saved Answer No Longer Exists"
+          }
+        }
+      }
+    },
+    "Diesen Beitrag hinzufügen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Beitrag hinzufügen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add This Post"
           }
         }
       }
@@ -5662,6 +5854,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Episodes built from your interests"
+          }
+        }
+      }
+    },
+    "Eigener Supadata-Schlüssel" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigener Supadata-Schlüssel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Supadata key"
+          }
+        }
+      }
+    },
+    "Ein Abo auf TikTok- oder Instagram-Profile ist nicht möglich. Teile einzelne Beiträge, um sie hinzuzufügen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Abo auf TikTok- oder Instagram-Profile ist nicht möglich. Teile einzelne Beiträge, um sie hinzuzufügen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can't subscribe to TikTok or Instagram profiles. Share individual posts to add them."
           }
         }
       }
@@ -8916,6 +9140,22 @@
         }
       }
     },
+    "Keine YouTube-Kanäle gefunden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine YouTube-Kanäle gefunden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No YouTube channels found."
+          }
+        }
+      }
+    },
     "Keine gesicherten Antworten" : {
       "localizations" : {
         "de" : {
@@ -8960,6 +9200,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No matching passage is short enough for %@."
+          }
+        }
+      }
+    },
+    "Keine weiteren Videos gefunden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine weiteren Videos gefunden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No more videos found."
           }
         }
       }
@@ -9572,6 +9828,22 @@
         }
       }
     },
+    "Metadaten über Supadata" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metadaten über Supadata"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metadata via Supadata"
+          }
+        }
+      }
+    },
     "Mit Quelle kopieren" : {
       "localizations" : {
         "de" : {
@@ -9952,6 +10224,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Prepare New Episodes over a Personal Hotspot"
+          }
+        }
+      }
+    },
+    "Neuer Supadata-Schlüssel" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuer Supadata-Schlüssel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Supadata key"
           }
         }
       }
@@ -10708,6 +10996,38 @@
         }
       }
     },
+    "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only if you enter your own Supadata key: for YouTube videos and individual posts from TikTok, Instagram, X and Facebook, the links go to Supadata (supadata.ai), an independent service, to fetch captions and metadata. Account data, questions and the rest of your data never go there. The key stays in this device's keychain only."
+          }
+        }
+      }
+    },
+    "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts. Supadata sieht dabei deine IP-Adresse, und für den Dienst gelten seine eigenen Bedingungen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses Geräts. Supadata sieht dabei deine IP-Adresse, und für den Dienst gelten seine eigenen Bedingungen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only if you enter your own Supadata key: for YouTube videos and individual posts from TikTok, Instagram, X and Facebook, the links go to Supadata (supadata.ai), an independent service, to fetch captions and metadata. Account data, questions and the rest of your data never go there. The key stays in this device's keychain only. Supadata sees your IP address, and its own terms apply to the service."
+          }
+        }
+      }
+    },
     "Nächste Ausgabe" : {
       "localizations" : {
         "de" : {
@@ -10896,6 +11216,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Without a connection, only episodes downloaded to this device can play. None of the episodes queued with \"Play Next\" are downloaded."
+          }
+        }
+      }
+    },
+    "Ohne Schlüssel bekommen YouTube-Folgen ihr Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst, sonst gibt es Titel, Beschreibung und Kapitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne Schlüssel bekommen YouTube-Folgen ihr Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst, sonst gibt es Titel, Beschreibung und Kapitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without a key, YouTube episodes get their transcript from the matching audio podcast if you subscribe to it. Otherwise you get title, description and chapters."
           }
         }
       }
@@ -11588,6 +11924,54 @@
         }
       }
     },
+    "Schlüssel gültig, %lld von %lld Credits in diesem Zeitraum verbraucht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlüssel gültig, %lld von %lld Credits in diesem Zeitraum verbraucht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key valid, %1$lld of %2$lld credits used this period."
+          }
+        }
+      }
+    },
+    "Schlüssel gültig, aber das Kontingent bei Supadata ist aufgebraucht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlüssel gültig, aber das Kontingent bei Supadata ist aufgebraucht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key valid, but your Supadata quota is used up."
+          }
+        }
+      }
+    },
+    "Schlüssel gültig." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlüssel gültig."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key valid."
+          }
+        }
+      }
+    },
     "Schon abonniert" : {
       "localizations" : {
         "de" : {
@@ -11712,6 +12096,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save"
+          }
+        }
+      }
+    },
+    "Sichern und prüfen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sichern und prüfen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save and check"
           }
         }
       }
@@ -12516,6 +12916,182 @@
         }
       }
     },
+    "Supadata hat den Schlüssel abgelehnt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata hat den Schlüssel abgelehnt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata rejected the key."
+          }
+        }
+      }
+    },
+    "Supadata hat den Schlüssel abgelehnt. Bis du einen neuen einträgst, ist die Funktion aus." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata hat den Schlüssel abgelehnt. Bis du einen neuen einträgst, ist die Funktion aus."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata rejected the key. The feature stays off until you enter a new one."
+          }
+        }
+      }
+    },
+    "Supadata hat den eingetragenen Schlüssel abgelehnt. Bis du einen neuen einträgst, holt die App keine Untertitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata hat den eingetragenen Schlüssel abgelehnt. Bis du einen neuen einträgst, holt die App keine Untertitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata rejected the key you entered. Until you enter a new one, the app fetches no captions."
+          }
+        }
+      }
+    },
+    "Supadata hat den eingetragenen Schlüssel abgelehnt. Bis du in den Einstellungen einen neuen einträgst, holt die App keine Untertitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata hat den eingetragenen Schlüssel abgelehnt. Bis du in den Einstellungen einen neuen einträgst, holt die App keine Untertitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata rejected the key you entered. Until you enter a new one in Settings, the app fetches no captions."
+          }
+        }
+      }
+    },
+    "Supadata ist ein unabhängiger Dienst und kein Teil von PodcastAI. Die App fragt ihn nur mit deinem eigenen Schlüssel. Für ihn gelten seine eigenen Bedingungen und seine Datenschutzerklärung." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata ist ein unabhängiger Dienst und kein Teil von PodcastAI. Die App fragt ihn nur mit deinem eigenen Schlüssel. Für ihn gelten seine eigenen Bedingungen und seine Datenschutzerklärung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata is an independent service and not part of PodcastAI. The app only contacts it with your own key. Its own terms and privacy policy apply."
+          }
+        }
+      }
+    },
+    "Supadata ist ein unabhängiger Dienst und kein Teil von PodcastAI. Wer einen eigenen Supadata-Schlüssel hat, kann ihn hier eintragen. Die App holt damit Untertitel und Metadaten, die es zu einem Video schon gibt, und macht daraus ein Transkript mit Zeitmarken, Fakten und Chat. Das gilt für YouTube und für einzelne Beiträge von TikTok, Instagram, X und Facebook." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata ist ein unabhängiger Dienst und kein Teil von PodcastAI. Wer einen eigenen Supadata-Schlüssel hat, kann ihn hier eintragen. Die App holt damit Untertitel und Metadaten, die es zu einem Video schon gibt, und macht daraus ein Transkript mit Zeitmarken, Fakten und Chat. Das gilt für YouTube und für einzelne Beiträge von TikTok, Instagram, X und Facebook."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata is an independent service and not part of PodcastAI. If you have your own Supadata key, you can enter it here. The app then fetches the captions and metadata a video already has and turns them into a transcript with timestamps, facts and chat. This works for YouTube and for individual posts from TikTok, Instagram, X and Facebook."
+          }
+        }
+      }
+    },
+    "Supadata nimmt gerade keine Anfragen an, etwa weil das Kontingent aufgebraucht ist. Die App versucht es später wieder." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata nimmt gerade keine Anfragen an, etwa weil das Kontingent aufgebraucht ist. Die App versucht es später wieder."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata is not accepting requests right now, for example because the quota is used up. The app will try again later."
+          }
+        }
+      }
+    },
+    "Supadata ruht bis %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata ruht bis %@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata is paused until %@."
+          }
+        }
+      }
+    },
+    "Supadata war nicht erreichbar. Über den Schlüssel sagt das nichts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata war nicht erreichbar. Über den Schlüssel sagt das nichts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata could not be reached. That says nothing about the key."
+          }
+        }
+      }
+    },
+    "Supadata-Schlüssel" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata-Schlüssel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata key"
+          }
+        }
+      }
+    },
+    "Supadata-Schlüssel eintragen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Supadata-Schlüssel eintragen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter Supadata key"
+          }
+        }
+      }
+    },
     "Synchronisation" : {
       "localizations" : {
         "de" : {
@@ -13172,6 +13748,22 @@
         }
       }
     },
+    "Transkripte aus den Untertiteln von YouTube, geholt über Supadata. Ein Tipp auf eine Stelle öffnet das Video dort." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transkripte aus den Untertiteln von YouTube, geholt über Supadata. Ein Tipp auf eine Stelle öffnet das Video dort."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcripts from YouTube captions, fetched through Supadata. Tapping a passage opens the video there."
+          }
+        }
+      }
+    },
     "Transkripte entstehen auf dem Gerät" : {
       "localizations" : {
         "de" : {
@@ -13473,6 +14065,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Below an answer in Chat, tap \"Save Answer\". It then sits with its source passages under Knowledge › Saved Answers."
+          }
+        }
+      }
+    },
+    "Untertitel für „%@“ werden über Supadata geholt …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untertitel für „%@“ werden über Supadata geholt …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fetching captions for \"%@\" through Supadata…"
           }
         }
       }
@@ -14341,6 +14949,22 @@
         }
       }
     },
+    "Wird geprüft …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird geprüft …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking…"
+          }
+        }
+      }
+    },
     "Wird nach dem Transkript entfernt, abgespielt wird dann aus dem Netz." : {
       "localizations" : {
         "de" : {
@@ -14581,6 +15205,102 @@
         }
       }
     },
+    "YouTube liefert keinen Ton. Mit einem eigenen Schlüssel von Supadata, einem unabhängigen Dienst, holt die App Untertitel und Metadaten, die es zum Video schon gibt, und macht daraus ein Transkript mit Fakten und Chat. Einzelne Beiträge von TikTok, Instagram, X und Facebook fügst du dann per Link hinzu; Profile lassen sich nicht abonnieren. Den Schlüssel trägst du in den Einstellungen unter „YouTube-Transkripte“ ein. Ohne ihn kommt das Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst. Ein Tipp auf eine Stelle öffnet das Video dort, wo es liegt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube liefert keinen Ton. Mit einem eigenen Schlüssel von Supadata, einem unabhängigen Dienst, holt die App Untertitel und Metadaten, die es zum Video schon gibt, und macht daraus ein Transkript mit Fakten und Chat. Einzelne Beiträge von TikTok, Instagram, X und Facebook fügst du dann per Link hinzu; Profile lassen sich nicht abonnieren. Den Schlüssel trägst du in den Einstellungen unter „YouTube-Transkripte“ ein. Ohne ihn kommt das Transkript aus dem passenden Audio-Podcast, falls du ihn abonnierst. Ein Tipp auf eine Stelle öffnet das Video dort, wo es liegt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube provides no audio. With your own key from Supadata, an independent service, the app fetches the captions and metadata a video already has and turns them into a transcript with facts and chat. You can then add individual posts from TikTok, Instagram, X and Facebook by link; profiles cannot be subscribed to. Enter the key in Settings under \"YouTube transcripts\". Without it, the transcript comes from the matching audio podcast if you subscribe to it. Tapping a passage opens the video where it lives."
+          }
+        }
+      }
+    },
+    "YouTube-Kanäle (Supadata)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Kanäle (Supadata)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube channels (Supadata)"
+          }
+        }
+      }
+    },
+    "YouTube-Transkripte" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Transkripte"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube transcripts"
+          }
+        }
+      }
+    },
+    "YouTube-Transkripte (Supadata)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Transkripte (Supadata)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube transcripts (Supadata)"
+          }
+        }
+      }
+    },
+    "YouTube-Transkripte über Supadata" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Transkripte über Supadata"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube transcripts via Supadata"
+          }
+        }
+      }
+    },
+    "YouTube-Videos" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Videos"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube videos"
+          }
+        }
+      }
+    },
     "Zeig es mir" : {
       "localizations" : {
         "de" : {
@@ -14789,6 +15509,22 @@
         }
       }
     },
+    "Zu YouTube-Videos gibt es hier Titel, Beschreibung und Kapitel. Mit eigenem Supadata-Schlüssel gibt es hier ein Transkript." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu YouTube-Videos gibt es hier Titel, Beschreibung und Kapitel. Mit eigenem Supadata-Schlüssel gibt es hier ein Transkript."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For YouTube videos you get title, description and chapters here. With your own Supadata key you get a transcript."
+          }
+        }
+      }
+    },
     "Zu deinen Themen" : {
       "localizations" : {
         "de" : {
@@ -14805,6 +15541,38 @@
         }
       }
     },
+    "Zu diesem Kanal fehlt die Kennung, ältere Videos lassen sich nicht laden." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu diesem Kanal fehlt die Kennung, ältere Videos lassen sich nicht laden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This channel has no ID in its feed, so older videos cannot be loaded."
+          }
+        }
+      }
+    },
+    "Zu diesem Kanal gibt es einen Audio-Podcast. Abonniert, liefert er Transkripte aus dem Ton." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu diesem Kanal gibt es einen Audio-Podcast. Abonniert, liefert er Transkripte aus dem Ton."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This channel has an audio podcast. Once you subscribe, it provides transcripts from the audio."
+          }
+        }
+      }
+    },
     "Zu diesem Link lässt sich keine Feed-Adresse ermitteln. Füge die Feed-Adresse direkt ein." : {
       "localizations" : {
         "de" : {
@@ -14817,6 +15585,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn't find a feed URL for this link. Paste the feed URL directly."
+          }
+        }
+      }
+    },
+    "Zu diesem Video gibt es hier Titel, Beschreibung und Kapitel. Mit eigenem Supadata-Schlüssel gibt es hier ein Transkript." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu diesem Video gibt es hier Titel, Beschreibung und Kapitel. Mit eigenem Supadata-Schlüssel gibt es hier ein Transkript."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For this video you get title, description and chapters here. With your own Supadata key you get a transcript."
+          }
+        }
+      }
+    },
+    "Zu diesem Video gibt es keine Untertitel. Es gibt hier Titel, Beschreibung und Kapitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zu diesem Video gibt es keine Untertitel. Es gibt hier Titel, Beschreibung und Kapitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This video has no captions. Title, description and chapters are available here."
           }
         }
       }
@@ -15253,6 +16053,22 @@
         }
       }
     },
+    "^[%lld Video](inflect: true) dazugekommen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Video](inflect: true) dazugekommen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld video](inflect: true) added."
+          }
+        }
+      }
+    },
     "^[%lld neue Folge](inflect: true)" : {
       "localizations" : {
         "de" : {
@@ -15527,6 +16343,22 @@
         }
       }
     },
+    "im Schlüsselbund gesichert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "im Schlüsselbund gesichert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "saved in the keychain"
+          }
+        }
+      }
+    },
     "in %lld weiteren Folgen" : {
       "localizations" : {
         "de" : {
@@ -15643,6 +16475,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "new episode %@"
+          }
+        }
+      }
+    },
+    "nicht abonniert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nicht abonniert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "not subscribed"
           }
         }
       }
@@ -16376,6 +17224,22 @@
         }
       }
     },
+    "„%@“ bei YouTube suchen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ bei YouTube suchen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search YouTube for \"%@\""
+          }
+        }
+      }
+    },
     "„%@“ gibt es nicht mehr." : {
       "localizations" : {
         "de" : {
@@ -16596,6 +17460,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "\"Create transcripts for new episodes\" is off in Settings. You create an episode's transcript yourself whenever you need it."
+          }
+        }
+      }
+    },
+    "„YouTube-Transkripte über Supadata“ ist in den Einstellungen aus. Es gibt hier Titel, Beschreibung und Kapitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„YouTube-Transkripte über Supadata“ ist in den Einstellungen aus. Es gibt hier Titel, Beschreibung und Kapitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"YouTube transcripts via Supadata\" is off in Settings. Title, description and chapters are available here."
           }
         }
       }

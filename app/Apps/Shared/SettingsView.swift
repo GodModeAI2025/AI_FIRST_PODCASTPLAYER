@@ -223,6 +223,137 @@ struct AutomaticAnalysisSection: View {
     }
 }
 
+/// Transkripte für YouTube-Videos über Supadata, mit eigenem Schlüssel.
+///
+/// Die App bringt keinen Schlüssel mit. Wer bei Supadata ein Konto hat,
+/// trägt seinen Schlüssel hier ein; er liegt dann nur im Schlüsselbund
+/// dieses Geräts. Ohne Schlüssel ist die Funktion aus, und YouTube-Folgen
+/// bekommen ihr Transkript über den Audio-Podcast oder gar nicht.
+struct YouTubeTranscriptSettingsSection: View {
+
+    @Environment(AppModel.self) private var model
+    @State private var draft = ""
+    @FocusState private var fieldFocused: Bool
+
+    static let supadataWebsite = URL(string: "https://supadata.ai")!
+
+    var body: some View {
+        Section {
+            Toggle("YouTube-Transkripte über Supadata", isOn: Binding(
+                get: { model.youTubeCaptionsEnabled },
+                set: { model.youTubeCaptionsEnabled = $0 }
+            ))
+            .accessibilityIdentifier("settings.youTubeCaptions")
+
+            if model.hasSupadataKey {
+                LabeledContent("Supadata-Schlüssel") {
+                    Text("im Schlüsselbund gesichert")
+                }
+                status
+                HStack {
+                    Button("Prüfen") { Task { await model.checkSupadataKey() } }
+                        .disabled(model.supadataKeyCheck == .checking)
+                        .accessibilityIdentifier("settings.supadataCheck")
+                    Spacer()
+                    Button("Entfernen", role: .destructive) { Task { await model.removeSupadataKey() } }
+                        .accessibilityIdentifier("settings.supadataRemove")
+                }
+                .buttonStyle(.borderless)
+            }
+            // Auch mit Schlüssel: nach einer Ablehnung trägt man hier einen neuen ein.
+            if !model.hasSupadataKey || model.supadataKeyRejected {
+                SecureField(model.hasSupadataKey ? "Neuer Supadata-Schlüssel" : "Eigener Supadata-Schlüssel",
+                            text: $draft)
+                    .autocorrectionDisabled()
+                    .focused($fieldFocused)
+                    .onSubmit(save)
+                    .accessibilityIdentifier("settings.supadataKey")
+                Button("Sichern und prüfen", action: save)
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityIdentifier("settings.supadataSave")
+            }
+            Link(destination: Self.supadataWebsite) { Text(verbatim: "supadata.ai") }
+        } header: {
+            Text("YouTube-Transkripte (Supadata)")
+        } footer: {
+            VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                Text("""
+                    Supadata ist ein unabhängiger Dienst und kein Teil von PodcastAI. Wer einen eigenen \
+                    Supadata-Schlüssel hat, kann ihn hier eintragen. Die App holt damit Untertitel und \
+                    Metadaten, die es zu einem Video schon gibt, und macht daraus ein Transkript mit \
+                    Zeitmarken, Fakten und Chat. Das gilt für YouTube und für einzelne Beiträge von \
+                    TikTok, Instagram, X und Facebook.
+                    """)
+                Text("""
+                    Dafür gehen die Links der Videos und Beiträge an supadata.ai, sonst nichts. Kosten \
+                    und Bedingungen regelst du direkt mit Supadata. Der Schlüssel liegt nur im \
+                    Schlüsselbund dieses Geräts, nicht in iCloud und in keinem Export.
+                    """)
+                Text("""
+                    Ohne Schlüssel bekommen YouTube-Folgen ihr Transkript aus dem passenden Audio-Podcast, \
+                    falls du ihn abonnierst, sonst gibt es Titel, Beschreibung und Kapitel.
+                    """)
+            }
+        }
+    }
+
+    /// Was über den Schlüssel bekannt ist. Eine Ablehnung steht immer da,
+    /// sonst das Ergebnis der letzten Prüfung.
+    @ViewBuilder private var status: some View {
+        if model.supadataKeyRejected {
+            NoticeLabel("Supadata hat den Schlüssel abgelehnt. Bis du einen neuen einträgst, ist die Funktion aus.",
+                        kind: .failure)
+        } else {
+            switch model.supadataKeyCheck {
+            case .idle:
+                if let until = model.supadataRestingUntil, until > Date() {
+                    Label("Supadata ruht bis \(until.formatted(date: .omitted, time: .shortened)).",
+                          systemImage: "hourglass")
+                        .foregroundStyle(.secondary)
+                }
+            case .checking:
+                HStack(spacing: Design.Spacing.small) {
+                    ProgressView().controlSize(.small)
+                    Text("Wird geprüft …").foregroundStyle(.secondary)
+                }
+            case .valid(let used?, let max?):
+                Label("Schlüssel gültig, \(used) von \(max) Credits in diesem Zeitraum verbraucht.",
+                      systemImage: "checkmark.circle")
+                    .foregroundStyle(.secondary)
+            case .valid:
+                Label("Schlüssel gültig.", systemImage: "checkmark.circle")
+                    .foregroundStyle(.secondary)
+            case .exhausted:
+                NoticeLabel("Schlüssel gültig, aber das Kontingent bei Supadata ist aufgebraucht.", kind: .info)
+            case .rejected:
+                NoticeLabel("Supadata hat den Schlüssel abgelehnt.", kind: .failure)
+            case .unreachable:
+                Label("Supadata war nicht erreichbar. Über den Schlüssel sagt das nichts.",
+                      systemImage: "wifi.slash")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func save() {
+        let key = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+        // Das Feld leert sich gleich, der Schlüssel bleibt nicht im Zustand der Ansicht.
+        draft = ""
+        fieldFocused = false
+        Task { await model.saveSupadataKey(key) }
+    }
+}
+
+/// Derselbe Abschnitt als eigene Seite, erreichbar aus einer YouTube-Folge.
+struct SupadataSettingsView: View {
+    var body: some View {
+        Form { YouTubeTranscriptSettingsSection() }
+            .formStyle(.grouped)
+            .navigationTitle("YouTube-Transkripte")
+    }
+}
+
 /// Belegter Speicher und das Entfernen von Audiodateien.
 struct StorageSettingsSection: View {
 
@@ -401,6 +532,15 @@ struct PrivacyOverviewView: View {
          Podcasts fragen Apples Podcast-Verzeichnis, YouTube-Kanäle fragen YouTube. Diese Anbieter \
          sehen dabei, wie bei jedem Abruf, deine IP-Adresse.
          """),
+        ("play.rectangle", "YouTube-Transkripte über Supadata",
+         """
+         Nur wenn du einen eigenen Supadata-Schlüssel einträgst: Für YouTube-Videos und einzelne \
+         Beiträge von TikTok, Instagram, X und Facebook gehen die Links an Supadata (supadata.ai), \
+         einen unabhängigen Dienst, um Untertitel und Metadaten abzurufen. Kontodaten, Fragen und \
+         deine übrigen Daten gehen dorthin nicht. Der Schlüssel liegt nur im Schlüsselbund dieses \
+         Geräts. Supadata sieht dabei deine IP-Adresse, und für den Dienst gelten seine eigenen \
+         Bedingungen.
+         """),
         ("square.grid.2x2", "Podcast-Katalog",
          """
          Angesagt und Kategorien im Blatt „Podcast hinzufügen“ kommen von Apple Podcasts. Deinen \
@@ -478,6 +618,17 @@ struct PrivacyOverviewView: View {
                     gilt seine eigene Datenschutzerklärung.
                     """)
             }
+            Section {
+                Link(destination: YouTubeTranscriptSettingsSection.supadataWebsite) { Text(verbatim: "supadata.ai") }
+            } header: {
+                Text("YouTube-Transkripte (Supadata)")
+            } footer: {
+                Text("""
+                    Supadata ist ein unabhängiger Dienst und kein Teil von PodcastAI. Die App fragt ihn nur \
+                    mit deinem eigenen Schlüssel. Für ihn gelten seine eigenen Bedingungen und seine \
+                    Datenschutzerklärung.
+                    """)
+            }
         }
         .navigationTitle("Datenschutz")
     }
@@ -507,6 +658,7 @@ struct SettingsView: View {
             MobileDataSettingsSection()
             IntelligenceSettingsSection()
             AutomaticAnalysisSection()
+            YouTubeTranscriptSettingsSection()
             SyncSettingsSection()
             StorageSettingsSection()
             LearningSettingsSection()
