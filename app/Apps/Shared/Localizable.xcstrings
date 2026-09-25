@@ -2313,6 +2313,22 @@
         }
       }
     },
+    "Antwort im Chat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antwort im Chat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat answer"
+          }
+        }
+      }
+    },
     "Antwort kopieren" : {
       "localizations" : {
         "de" : {
@@ -2473,6 +2489,22 @@
         }
       }
     },
+    "Apple Intelligence wartet auf eine ruhige Sekunde, dann noch %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence wartet auf eine ruhige Sekunde, dann noch %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence is waiting for a quiet moment, then %lld more"
+          }
+        }
+      }
+    },
     "Apple Intelligence über Private Cloud Compute" : {
       "localizations" : {
         "de" : {
@@ -2485,6 +2517,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Apple Intelligence via Private Cloud Compute"
+          }
+        }
+      }
+    },
+    "Apple Intelligence: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence: %@"
+          }
+        }
+      }
+    },
+    "Apple Intelligence: %@, danach noch %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence: %@, danach noch %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence: %@, then %lld more"
           }
         }
       }
@@ -12957,6 +13021,22 @@
         }
       }
     },
+    "Relevanz prüfen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relevanz prüfen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking relevance"
+          }
+        }
+      }
+    },
     "Rubriken" : {
       "localizations" : {
         "de" : {
@@ -12969,6 +13049,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Categories"
+          }
+        }
+      }
+    },
+    "Satz je Kapitel" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Satz je Kapitel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sentence per chapter"
           }
         }
       }
@@ -13289,6 +13385,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The app waits while Low Data Mode is on."
+          }
+        }
+      }
+    },
+    "Sonstiges" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonstiges"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
           }
         }
       }
@@ -14329,6 +14441,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Follow tags"
+          }
+        }
+      }
+    },
+    "Tags je Kapitel" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags je Kapitel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags per chapter"
           }
         }
       }
