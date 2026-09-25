@@ -14,14 +14,14 @@ final class BetaFeedback11UITests: XCTestCase {
 
     override func setUp() { continueAfterFailure = false }
 
-    private func attach(_ app: XCUIApplication, _ name: String) {
+    @MainActor private func attach(_ app: XCUIApplication, _ name: String) {
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = name
         shot.lifetime = .keepAlways
         add(shot)
     }
 
-    private func launch() -> XCUIApplication {
+    @MainActor private func launch() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh", "-demo-content", "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
         app.launch()

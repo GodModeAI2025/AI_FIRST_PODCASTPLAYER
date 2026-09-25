@@ -82,7 +82,15 @@ struct ForYouView: View {
                 // Woher die Stellen kommen, als Überschrift über allen
                 // Gruppen und mit dem Weg zum Ändern. Sonst stand das nur
                 // in der Hilfe, und die Gruppen darunter hingen in der Luft.
-                Section {} header: { tagsHeader }
+                // Als Zeile, nicht als Kopf eines leeren Abschnitts: den
+                // zeigt eine schlichte Liste nicht verlässlich.
+                Section {
+                    tagsHeader
+                        .listRowInsets(EdgeInsets(top: 0, leading: Design.Spacing.standard,
+                                                  bottom: 0, trailing: Design.Spacing.standard))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
                 ForEach(groupedRelevant) { group in
                     Section {
                         ForEach(group.cards) { card in
