@@ -91,11 +91,32 @@ final class SingleEpisodeUITests: XCTestCase {
         expectNotSubscribed(app, title: "Code und Kaffee")
     }
 
+    /// Die Kennung der neuesten Folge eines Podcasts im Apple-Verzeichnis.
+    nonisolated static func newestEpisodeID(ofPodcast podcastID: Int) -> Int? {
+        guard let url = URL(string:
+            "https://itunes.apple.com/lookup?id=\(podcastID)&entity=podcastEpisode&limit=1") else { return nil }
+        let semaphore = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) var found: Int?
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            defer { semaphore.signal() }
+            guard let data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let results = json["results"] as? [[String: Any]] else { return }
+            found = results.first { ($0["kind"] as? String) == "podcast-episode" }?["trackId"] as? Int
+        }.resume()
+        _ = semaphore.wait(timeout: .now() + 20)
+        return found
+    }
+
     /// Apple Podcasts mit `?i=`: Vorschau mit der Folge, „Nur diese Folge“
     /// und „Abonnieren“.
-    @MainActor func testAppleEpisodeLinkOffersJustThisEpisode() {
+    @MainActor func testAppleEpisodeLinkOffersJustThisEpisode() throws {
+        // Eine feste Folgenkennung veraltet: Apple nennt im Lookup nur die
+        // jüngeren Folgen. Deshalb die neueste Folge zur Laufzeit holen.
+        let episodeID = try XCTUnwrap(Self.newestEpisodeID(ofPodcast: 1200361736),
+                                      "Apple-Verzeichnis nicht erreichbar")
         let app = openAddSheet(["-automaticAnalysis", "NO", "-keepNewestAudio", "NO"])
-        paste("https://podcasts.apple.com/us/podcast/the-daily/id1200361736?i=1000791084583", in: app)
+        paste("https://podcasts.apple.com/us/podcast/the-daily/id1200361736?i=\(episodeID)", in: app)
         let single = app.buttons["link.single"]
         XCTAssertTrue(single.waitForExistence(timeout: 45), "Keine Vorschau zur Folge aus Apple Podcasts")
         XCTAssertTrue(app.buttons["link.subscribe"].exists, "Neben „Nur diese Folge“ fehlt „Abonnieren“")
