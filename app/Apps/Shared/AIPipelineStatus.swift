@@ -7,7 +7,8 @@
 //  zeichnet nur die Zeile neu, die ihn liest, nicht die Listen der App.
 //
 //  Dazu die Signale aus der Oberfläche: Scrollt eine Liste, wartet die Arbeit
-//  im Hintergrund, und im Stromsparmodus ruht sie, solange Ton läuft.
+//  im Hintergrund, und im Stromsparmodus ruht sie, solange Ton läuft
+//  (`EpisodePlayer.isPlaying`, Meldung zum Stromsparmodus).
 //
 
 import SwiftUI
@@ -19,10 +20,17 @@ final class AIPipelineStatus {
 
     private(set) var snapshot = AIPipelineSnapshot()
     @ObservationIgnored private var following: Task<Void, Never>?
+    @ObservationIgnored private var powerObserver: (any NSObjectProtocol)?
 
-    /// Einmal beim Start. Übernimmt jeden neuen Stand in einem Schritt.
-    func follow() {
+    /// Einmal beim Start. Übernimmt jeden neuen Stand in einem Schritt und
+    /// achtet auf den Stromsparmodus.
+    func follow(player: EpisodePlayer) {
         guard following == nil else { return }
+        powerObserver = NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
+        ) { [weak player] _ in
+            MainActor.assumeIsolated { Self.updateHold(playing: player?.isPlaying ?? false) }
+        }
         following = Task { [weak self] in
             for await next in AIScheduler.shared.snapshots {
                 guard let self else { return }
@@ -58,20 +66,6 @@ final class AIPipelineStatus {
     /// Im Stromsparmodus teilt sich das Modell das Gerät nicht mit laufendem Ton.
     static func updateHold(playing: Bool) {
         AIScheduler.shared.setBackgroundHeld(playing && ProcessInfo.processInfo.isLowPowerModeEnabled)
-    }
-}
-
-/// Meldet der Stelle für Apple Intelligence, ob Ton läuft. Im Stromsparmodus
-/// ruht dann die Arbeit im Hintergrund.
-struct AIPlaybackHold: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        Color.clear
-            .onChange(of: model.episodePlayer.isPlaying, initial: true) { _, playing in
-                AIPipelineStatus.updateHold(playing: playing)
-            }
-            .accessibilityHidden(true)
     }
 }
 

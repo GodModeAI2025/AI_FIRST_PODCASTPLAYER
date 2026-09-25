@@ -34,7 +34,11 @@ import AppKit
 public final class EpisodePlayer {
 
     public private(set) var episode: Episode?
-    public private(set) var isPlaying = false
+    public private(set) var isPlaying = false {
+        // Im Stromsparmodus ruht Apple Intelligence im Hintergrund, solange Ton
+        // läuft. Hier und nicht in einer Ansicht: auch eine Pause vom Sperrbildschirm zählt.
+        didSet { if isPlaying != oldValue { AIPipelineStatus.updateHold(playing: isPlaying) } }
+    }
     public private(set) var currentTime: Double = 0
     public private(set) var duration: Double = 0
     public private(set) var chapters: [Chapter] = []

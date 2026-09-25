@@ -163,6 +163,7 @@ public struct TaggingPace: Codable, Sendable, Equatable {
 
 #if canImport(FoundationModels)
 import FoundationModels
+import Synchronization
 
 public struct TagSelector: Sendable {
 
@@ -223,15 +224,17 @@ public struct TagSelector: Sendable {
                 guard availability.onDevice.isAvailable else { throw Self.mapped(error) }
             }
         }
-        let started = ContinuousClock.now
+        // Beginn des Aufrufs selbst, nicht der Wartezeit in `AIScheduler`:
+        // Scrollen oder eine Frage im Chat zählen nicht als langsames Modell.
+        let clock = CallClock()
         do {
             return try await run(localSession(instructions), tier: .onDevice,
-                                 prompt: prompt, schema: schema, choices: choices)
+                                 prompt: prompt, schema: schema, choices: choices, clock: clock)
         } catch {
             if error is CancellationError || Task.isCancelled { throw error }
             // Zu langsam: einmal Private Cloud Compute, wenn es erlaubt ist.
             if Self.isTimeout(error), cloudAllowed, !preferCloud {
-                let waited = Self.seconds(ContinuousClock.now - started)
+                let waited = Self.seconds(ContinuousClock.now - (clock.started ?? .now))
                 return try await run(cloudSession(instructions), tier: .privateCloudCompute,
                                      prompt: prompt, schema: schema, choices: choices)
                     .afterOnDeviceTimeout(waited)
@@ -242,19 +245,29 @@ public struct TagSelector: Sendable {
 
     private func run(
         _ session: LanguageModelSession, tier: ModelTier, prompt: String,
-        schema: GenerationSchema, choices: [TagChoice]
+        schema: GenerationSchema, choices: [TagChoice], clock: CallClock = CallClock()
     ) async throws -> TagSelection {
         // Durch die eine Stelle für Apple Intelligence, im Hintergrund. Gemessen
         // wird nur der Aufruf selbst, nicht die Zeit in der Warteschlange: danach
         // richtet sich `TaggingPace`.
         let (raw, seconds) = try await AIScheduler.shared.run(.tags, priority: .background) {
             let started = ContinuousClock.now
+            clock.started = started
             let response = try await session.respond(to: prompt, schema: schema)
             let raw = (try? response.content.value([String].self, forProperty: TagSelectionRules.property)) ?? []
             return (raw, Self.seconds(ContinuousClock.now - started))
         }
         return TagSelection(
             chosenIDs: TagSelectionRules.accepted(raw, from: choices), tier: tier, seconds: seconds)
+    }
+
+    /// Wann der Aufruf wirklich begann, auch wenn er danach scheitert.
+    final class CallClock: Sendable {
+        private let value = Mutex<ContinuousClock.Instant?>(nil)
+        var started: ContinuousClock.Instant? {
+            get { value.withLock { $0 } }
+            set { value.withLock { $0 = newValue } }
+        }
     }
 
     static func seconds(_ elapsed: Duration) -> Double {

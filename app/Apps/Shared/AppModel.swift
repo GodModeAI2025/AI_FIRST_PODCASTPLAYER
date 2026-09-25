@@ -539,6 +539,8 @@ public final class AppModel {
     @ObservationIgnored var tagGrants = 0
     /// Das Nachholen der Fakten und Tags kam nicht ganz in eine Portion.
     @ObservationIgnored var factsBackfillPending = false
+    /// Ältere Folgen, die in diesem Start zweimal kurz gescheitert sind.
+    @ObservationIgnored var backCatalogSkipped: Set<EpisodeID> = []
     @ObservationIgnored var tagsBackfillPending = false
 
     /// Fakten nach dem Transkript von selbst sammeln, auch für ältere
@@ -1259,7 +1261,7 @@ public final class AppModel {
         guard automaticAnalysis, backCatalog.contains(sourceID), preparationUnavailable == nil else { return }
         let waiting = analysisQueue.count { $0.sourceID == sourceID && backlogQueued.contains($0.id) }
         let open = backCatalogCandidates(in: sourceID).filter { episode in
-            !analysisQueue.contains { $0.id == episode.id }
+            !backCatalogSkipped.contains(episode.id) && !analysisQueue.contains { $0.id == episode.id }
         }
         for episode in AutomaticWorkBudget.refill(open, alreadyWaiting: waiting, batch: backCatalogBatch) {
             enqueueAnalysis(episode, automatic: true, backlog: true)
@@ -1792,6 +1794,10 @@ public final class AppModel {
                 // wenn sie gleich in den Hintergrund geht.
                 self.startDownloadLookahead()
                 let transientFailure = await self.runAnalysis(next, background: background)
+                // Zweimal kurz gescheitert: in diesem Start nicht wieder als ältere Folge.
+                if fromBackCatalog, transientFailure, retried.contains(next.id) {
+                    self.backCatalogSkipped.insert(next.id)
+                }
                 if fromBackCatalog { self.refillBackCatalog(in: next.sourceID) }
                 if transientFailure, !retried.contains(next.id) {
                     retried.insert(next.id)

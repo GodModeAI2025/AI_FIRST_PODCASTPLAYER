@@ -397,7 +397,10 @@ extension BackgroundDownloadSession {
             let blocked: Bool = state.withLock { state in
                 // Angehalten und der Stand noch unterwegs: nicht dazwischenfunken.
                 guard (state.awaitingResume[key]?.isEmpty ?? true), state.pending[key] == nil else { return true }
-                state.discarded.remove(key)
+                // Abgebrochen oder gelöscht, auch zwischen Aufruf und Rückmeldung
+                // des Systems: im Voraus lädt nichts davon. Wieder frei wird die
+                // Fassung erst, wenn jemand ausdrücklich auf sie wartet (`register`).
+                guard !state.discarded.contains(key) else { return true }
                 state.requests[key] = request
                 return false
             }

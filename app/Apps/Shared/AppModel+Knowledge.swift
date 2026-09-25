@@ -1841,6 +1841,9 @@ extension AppModel {
         }
         // Ein zweiter Versuch je Folge und Lauf, danach erst beim nächsten Start.
         var retried: Set<EpisodeID> = []
+        // Hat die letzte Portion etwas fertig gemacht? Nur dann kommt die
+        // nächste. Sonst holte jede Portion dieselben scheiternden Folgen.
+        var progressed = false
         repeat {
             while !Task.isCancelled, factsMayRun, !factsQueue.isEmpty {
                 // Vor jeder Folge: das Modell kann bereit geworden oder weggefallen sein.
@@ -1869,9 +1872,11 @@ extension AppModel {
                 }
                 switch outcome {
                 case .stored, .nothingToDo:
+                    progressed = true
                     factsIssues[next.id] = nil
                     factsMissingSince[next.id] = nil
                 case .noFacts(let note):
+                    progressed = true
                     factsIssues[next.id] = note
                     var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
                     settled.insert(next.id)
@@ -1904,8 +1909,9 @@ extension AppModel {
                 }
             }
             // Die Portion ist durch: die nächste, falls noch Folgen fehlen.
-            if factsQueue.isEmpty, factsBackfillPending, !Task.isCancelled, factsMayRun {
+            if factsQueue.isEmpty, factsBackfillPending, progressed, !Task.isCancelled, factsMayRun {
                 factsBackfillPending = false
+                progressed = false
                 await queueMissingFacts()
                 if !factsQueue.isEmpty { continue }
             }

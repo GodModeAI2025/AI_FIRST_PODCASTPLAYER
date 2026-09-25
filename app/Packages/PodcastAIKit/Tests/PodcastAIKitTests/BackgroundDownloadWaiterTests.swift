@@ -94,6 +94,19 @@ import PodcastAICore
         session.invalidateAndCancel()
     }
 
+    /// „Folge löschen“ oder „Laden abbrechen“ zwischen Aufruf und Rückmeldung
+    /// des Systems: das Laden im Voraus beginnt nichts neu.
+    @Test func unattendedStartRespectsDiscard() throws {
+        let delegate = makeDelegate()
+        delegate.discard(key: "k", onlyIfUnawaited: false)
+        let session = URLSession(configuration: .ephemeral)
+        let request = try SafeHTTP.request(for: URL(string: "https://example.invalid/folge.mp3")!)
+        delegate.startUnattended(key: "k", request: request, in: session, running: [])
+        #expect(delegate.state.withLock { $0.current["k"] } == nil)
+        #expect(delegate.state.withLock { $0.discarded.contains("k") })
+        session.invalidateAndCancel()
+    }
+
     @Test func unattendedStartSkipsFileOnDisk() throws {
         let delegate = makeDelegate()
         try FileManager.default.createDirectory(at: delegate.mediaDirectory, withIntermediateDirectories: true)
