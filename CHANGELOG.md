@@ -13,6 +13,20 @@ Apple Intelligence stört nicht mehr beim Scrollen und nicht mehr den Chat:
 - Die App lädt nach dem eigenen Speichern nicht mehr die ganze Bibliothek neu, nur noch nach Änderungen von anderen Geräten. Fakten einer Folge zeichnen nur noch ihre eigene Seite neu.
 - Automatisches kommt in Portionen: Fakten und Tags für ältere Folgen je zehn auf einmal, „Ältere Folgen auch vorbereiten“ je Podcast drei Folgen im Akkubetrieb und zehn am Strom. Die nächste Portion rückt nach, wenn eine durch ist. Was du selbst anforderst, zählt nicht mit.
 
+## App 0.12 · 2026-09-25
+Aus dem TestFlight-Feedback zu 0.7 bis 0.11, vor allem zu Rucklern und einem langsamen Chat:
+- Apple Intelligence über eine Stelle: Alle Anfragen laufen durch eine Warteschlange, eine nach der anderen. Was du anstößt, geht vor: eine Frage im Chat, der Satz zum Kapitel, „Jetzt ermitteln“. Fakten, Tags und Relevanz im Hintergrund warten, solange du scrollst, und laufen zwei Sekunden danach weiter. Im Stromsparmodus pausieren sie, während eine Folge spielt. Die Warteschlange zeigt, was Apple Intelligence gerade tut.
+- Chat unter Last etwa doppelt so schnell beim ersten Wort (gemessen 6,7 s vorher, 3,6 s nachher).
+- Weniger Arbeit von selbst: Ältere Folgen eines Podcasts kommen höchstens drei auf einmal in die Warteschlange, beim Laden zehn. Fakten und Tags für die vorhandene Bibliothek entstehen in Portionen zu zehn Folgen. Was du selbst anforderst, zählt nicht mit.
+- Laden im Hintergrund: Im WLAN lädt die App den Ton der nächsten drei Folgen schon, während sie vorn ist, und diese Downloads laufen weiter, wenn die App im Hintergrund ist. iOS darf sie nicht mehr auf später verschieben.
+- Die Oberfläche arbeitet weniger auf dem Hauptfaden: Dateiprüfungen, Spracherkennung, Kontextgrößen und das Aufräumen von Fakten laufen im Hintergrund, und nach eigenen Speichervorgängen lädt die App die Bibliothek nicht mehr neu.
+- „Für dich“ übersichtlicher: Überschriften mit Symbol und einer Zeile Erklärung, Karten mit Cover, Podcast und Datum, Titel, zwei Zeilen Auszug und warum sie passt.
+- „Erwähnt“ in kompakten Zeilen: Tippen öffnet, langes Drücken kopiert oder teilt.
+- Besserer Kontrast bei Abspielen und Pause, auch im dunklen Modus. Gesperrte Knöpfe bleiben lesbar, „Transkript wartet“ statt eines grauen Knopfs.
+- Cover: Fehlt das Bild einer Folge, zeigt die App das Cover des Podcasts statt eines Platzhalters.
+- Keine Tags aus Füllwörtern wie „bisschen“ oder „natürlich“.
+- Kein „Keine Folgen“ mehr über der Beschreibung, während ein Podcast lädt, und kein „Passende Podcasts suchen“ auf der Seite eines Themen-Updates.
+
 ## App 0.11 · 2026-09-24
 Themen-Podcasts aus Tags, eine flüssige Oberfläche und eine steuerbare Warteschlange:
 - Themen-Updates bestehen aus Tags: „eines davon“ oder „alle zusammen“, etwa Datenschutz und USA für Kapitel, die beides behandeln. Sie nehmen ungehörte Kapitel aus vielen Quellen, Folge für Folge, die neueste zuerst.
