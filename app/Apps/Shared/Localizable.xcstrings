@@ -593,6 +593,46 @@
         }
       }
     },
+    "%lld Folgen" : {
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Folge"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Folgen"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld episode"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld episodes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld Folgen angezeigt" : {
       "localizations" : {
         "de" : {
@@ -893,6 +933,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$lld. %2$@"
+          }
+        }
+      }
+    },
+    "1 Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 episode"
           }
         }
       }
@@ -2017,6 +2073,22 @@
         }
       }
     },
+    "Angefangene Folgen. Ein Tipp spielt dort weiter." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angefangene Folgen. Ein Tipp spielt dort weiter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episodes you started. Tap to pick up where you left off."
+          }
+        }
+      }
+    },
     "Angesagt" : {
       "localizations" : {
         "de" : {
@@ -2882,6 +2954,22 @@
         }
       }
     },
+    "Aus den Shownotes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus den Shownotes"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From the show notes"
+          }
+        }
+      }
+    },
     "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast. Er besteht aus Kapiteln, die du noch nicht gehört hast." : {
       "localizations" : {
         "de" : {
@@ -3022,22 +3110,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Putting the edition together…"
-          }
-        }
-      }
-    },
-    "Ausgewählt nach deinen Tags" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ausgewählt nach deinen Tags"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Picked by your tags"
           }
         }
       }
@@ -5615,6 +5687,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The app still puts the newest episode on the device for listening on the go."
+          }
+        }
+      }
+    },
+    "Die neuesten Folgen der Podcasts, die du abonniert hast." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die neuesten Folgen der Podcasts, die du abonniert hast."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The latest episodes from the podcasts you subscribe to."
           }
         }
       }
@@ -9395,6 +9483,22 @@
         }
       }
     },
+    "Kapitel aus deinen Folgen, die zu Tags passen, denen du folgst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitel aus deinen Folgen, die zu Tags passen, denen du folgst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapters from your episodes that match the tags you follow."
+          }
+        }
+      }
+    },
     "Kapitel mit einem der Tags, je Teil %@" : {
       "localizations" : {
         "de" : {
@@ -12213,22 +12317,6 @@
         }
       }
     },
-    "Passende Podcasts suchen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Passende Podcasts suchen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Find Matching Podcasts"
-          }
-        }
-      }
-    },
     "Passenden Audio-Podcast abonnieren" : {
       "localizations" : {
         "de" : {
@@ -13057,6 +13145,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Notes"
+          }
+        }
+      }
+    },
+    "Shownotes: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shownotes: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show notes: %@"
           }
         }
       }
@@ -14149,6 +14253,22 @@
         }
       }
     },
+    "Tags bearbeiten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags bearbeiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Tags"
+          }
+        }
+      }
+    },
     "Tags durchsuchen" : {
       "localizations" : {
         "de" : {
@@ -14738,6 +14858,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Transcript from Publisher"
+          }
+        }
+      }
+    },
+    "Transkript wartet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transkript wartet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcript Queued"
           }
         }
       }

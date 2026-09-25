@@ -17,6 +17,7 @@
 
 import SwiftUI
 import ImageIO
+import PodcastAIKit
 
 /// Lädt und verkleinert Cover. Gleiche Anfragen zur selben Zeit laden einmal.
 actor ArtworkThumbnails {
@@ -49,7 +50,11 @@ actor ArtworkThumbnails {
         if let running = loading[key] { return await running.value }
         // Sichtbare Cover vor der Arbeit im Hintergrund, die mit `.utility` läuft.
         let task = Task.detached(priority: .userInitiated) { () -> CGImage? in
-            guard let (data, _) = try? await URLSession.shared.data(for: URLRequest(url: key.url)) else { return nil }
+            // Über https, auch wenn der Feed http nennt. App Transport
+            // Security sperrt http, und das Cover bliebe für immer leer.
+            let request = URLRequest(url: SafeHTTP.secureVariant(of: key.url))
+            guard let (data, response) = try? await URLSession.shared.data(for: request) else { return nil }
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) { return nil }
             return Self.downsample(data, maxPixels: key.pixels)
         }
         loading[key] = task
@@ -86,32 +91,48 @@ final class CGImageBox: Sendable {
     init(_ image: CGImage) { self.image = image }
 }
 
-/// Ein Cover in fester Größe. Solange es lädt oder wenn es fehlt, steht
-/// `placeholder` da.
+/// Ein Cover in fester Größe. Die Adressen gelten in ihrer Reihenfolge:
+/// Lässt sich die erste nicht laden, etwa das Bild einer Folge, steht die
+/// nächste da, etwa das Cover des Podcasts. Solange nichts geladen ist
+/// oder wenn keine Adresse taugt, steht `placeholder` da.
 struct ArtworkImage<Placeholder: View>: View {
-    let url: URL?
+    let urls: [URL]
     let side: CGFloat
     @ViewBuilder let placeholder: () -> Placeholder
 
     @Environment(\.displayScale) private var displayScale
     @State private var loaded: (key: ArtworkThumbnails.Key, image: CGImage)?
+    /// Adressen, die kein Bild geliefert haben. Nur für diese Ansicht.
+    @State private var failed: Set<URL> = []
 
-    private var key: ArtworkThumbnails.Key? {
+    init(url: URL?, side: CGFloat, @ViewBuilder placeholder: @escaping () -> Placeholder) {
+        self.init(urls: [url].compactMap { $0 }, side: side, placeholder: placeholder)
+    }
+
+    init(urls: [URL], side: CGFloat, @ViewBuilder placeholder: @escaping () -> Placeholder) {
+        var seen = Set<URL>()
+        self.urls = urls.filter { seen.insert($0).inserted }
+        self.side = side
+        self.placeholder = placeholder
+    }
+
+    /// Die Adresse, die gerade dran ist.
+    private var current: URL? { urls.first { !failed.contains($0) } }
+
+    private func key(for url: URL) -> ArtworkThumbnails.Key? {
         // Der erste Durchgang eines `GeometryReader` meldet oft 0: dann der
         // Platzhalter, kein winziges Bild, das danach groß gezogen wird.
         guard side > 0 else { return nil }
-        return url.map {
-            // In Stufen von 32 Pixeln, damit leicht andere Größen dasselbe Bild
-            // nutzen. Begrenzt, denn eine Größe aus dem Layout kann auch
-            // unendlich sein.
-            let wanted = side * displayScale
-            let pixels = wanted.isFinite ? Int((min(max(wanted, 32), 4_096) / 32).rounded(.up)) * 32 : 1_024
-            return ArtworkThumbnails.Key(url: $0, pixels: pixels, revision: ArtworkRefresh.shared.revision(for: $0))
-        }
+        // In Stufen von 32 Pixeln, damit leicht andere Größen dasselbe Bild
+        // nutzen. Begrenzt, denn eine Größe aus dem Layout kann auch
+        // unendlich sein.
+        let wanted = side * displayScale
+        let pixels = wanted.isFinite ? Int((min(max(wanted, 32), 4_096) / 32).rounded(.up)) * 32 : 1_024
+        return ArtworkThumbnails.Key(url: url, pixels: pixels, revision: ArtworkRefresh.shared.revision(for: url))
     }
 
     var body: some View {
-        let key = key
+        let key = current.flatMap(key(for:))
         // Ändert sich nur die Größe, etwa während einer Animation, bleibt das
         // geladene Bild stehen, bis das passende da ist. Sonst blitzte der
         // Platzhalter auf.
@@ -119,7 +140,11 @@ struct ArtworkImage<Placeholder: View>: View {
         let sameCover = loaded.flatMap { loaded in
             loaded.key.url == key?.url && loaded.key.revision == key?.revision ? loaded.image : nil
         }
-        let image = exact ?? sameCover
+        // Während das Bild der Folge lädt, das Cover des Podcasts, falls es
+        // schon im Speicher liegt. Das ist fast immer so.
+        let later = urls.drop { $0 != current }.dropFirst().lazy
+            .compactMap { self.key(for: $0).flatMap(ArtworkThumbnails.cached) }.first
+        let image = exact ?? sameCover ?? later
         ZStack {
             if let image {
                 Image(decorative: image, scale: displayScale).resizable().scaledToFill()
@@ -128,8 +153,12 @@ struct ArtworkImage<Placeholder: View>: View {
             }
         }
         .task(id: key) {
-            guard let key, exact == nil, let fresh = await ArtworkThumbnails.shared.image(for: key) else { return }
-            loaded = (key, fresh)
+            guard let key, exact == nil else { return }
+            if let fresh = await ArtworkThumbnails.shared.image(for: key) {
+                loaded = (key, fresh)
+            } else if !Task.isCancelled {
+                failed.insert(key.url)
+            }
         }
     }
 }

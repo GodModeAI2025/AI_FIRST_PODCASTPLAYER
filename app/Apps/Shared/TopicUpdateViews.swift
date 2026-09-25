@@ -272,7 +272,6 @@ struct SmartFeedDetailView: View {
     @State private var requesting = false
     /// Wann das letzte Zusammenstellen von hier aus fertig war.
     @State private var resultAt: Date?
-    @State private var addingSource = false
     @State private var openedTag: InterestID?
     /// Der Systemdialog von Image Playground, wenn die App selbst kein Bild erzeugen kann.
     @State private var showingPlayground = false
@@ -411,7 +410,6 @@ struct SmartFeedDetailView: View {
             }
         }
         .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback() }
-        .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
         .coverPlaygroundSheet(isPresented: $showingPlayground, recipe: feed.map(model.coverRecipe(for:))) { url in
             guard let feed else { return }
             let recipe = model.coverRecipe(for: feed)
@@ -455,11 +453,6 @@ struct SmartFeedDetailView: View {
                 } label: {
                     Text("Zu \(interest.label) noch keine passende Stelle")
                 }
-            }
-            Button {
-                addingSource = true
-            } label: {
-                Label("Passende Podcasts suchen", systemImage: "magnifyingglass")
             }
         } header: {
             Text("Tags ohne Treffer")
@@ -696,8 +689,7 @@ struct EditionHeader: View {
                     .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
+            .buttonStyle(.prominentAction)
             .accessibilityHint(playHint)
         }
         .padding(.vertical, Design.Spacing.small)

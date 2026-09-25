@@ -896,7 +896,16 @@ public actor LibraryStore: ModelActor {
         let interests = try modelContext.fetch(
             FetchDescriptor<StoredInterest>(sortBy: [SortDescriptor(\.createdAt)])
         ).uniqued(by: \.identifier).map(\.snapshot)
+            // Erkannte Tags aus Füllwörtern („natürlich“, „bisschen“), die
+            // ältere Fassungen angelegt haben, zeigt die App nicht mehr.
+            .filter { !Self.isFillerTag($0) }
         return InterestProfile(interests: interests, learningEnabled: learningEnabled)
+    }
+
+    /// Ein erkanntes Tag ohne Plus, dessen Bezeichnung nur aus
+    /// Allerweltswörtern besteht (``TagStopwords``).
+    static func isFillerTag(_ interest: Interest) -> Bool {
+        interest.origin == .detected && interest.stance != .follow && TagStopwords.rejects(interest.label)
     }
 
     public func upsert(interest: Interest) throws {

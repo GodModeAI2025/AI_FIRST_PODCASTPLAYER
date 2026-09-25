@@ -56,8 +56,7 @@ struct OnboardingView: View {
                         Label("Podcast suchen", systemImage: "magnifyingglass")
                             .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
+                    .buttonStyle(.prominentAction)
                     .accessibilityIdentifier("onboarding.search")
                     step(2, "Hören", """
                         Für die neuesten Folgen erstellt die App im WLAN von selbst ein Transkript. \

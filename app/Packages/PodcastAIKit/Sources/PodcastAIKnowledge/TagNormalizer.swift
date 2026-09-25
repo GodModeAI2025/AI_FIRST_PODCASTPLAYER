@@ -74,10 +74,11 @@ public enum TagNormalizer {
     ///
     /// Nein bei Parteien, Wahlen, Religion und anderem, wozu die App keine
     /// Interessen ableitet (``SensitiveTopicPolicy``), bei Sätzen statt
-    /// Begriffen und bei Schlüsseln unter zwei Zeichen. Was jemand selbst
-    /// einträgt, prüft diese Regel nicht.
+    /// Begriffen, bei Füll- und Allerweltswörtern (``TagStopwords``) und bei
+    /// Schlüsseln unter zwei Zeichen. Was jemand selbst einträgt, prüft
+    /// diese Regel nicht.
     public static func admitsDetectedTag(_ label: String) -> Bool {
-        guard TopicTagger.isTagShaped(label),
+        guard TopicTagger.isTagShaped(label), !TagStopwords.rejects(label),
               SensitiveTopicPolicy.allowsInterestDerivation(from: label) else { return false }
         return key(for: label).count >= 2
     }

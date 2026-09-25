@@ -46,12 +46,16 @@ final class MentionsUITests: XCTestCase {
         attach(app, "erwaehnt-ueberblick")
 
         mentions.tap()
-        let spoken = app.staticTexts["example.org/workshop"].firstMatch
-        XCTAssertTrue(spoken.waitForExistence(timeout: 10), "Der gesprochene Link fehlt in der Liste")
-        XCTAssertTrue(app.staticTexts["example.org/ki-arbeit"].firstMatch.exists, "Der Link aus den Shownotes fehlt")
-        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Musterstraße 12'")).firstMatch.exists,
-                      "Die Adresse fehlt")
-        XCTAssertTrue(app.buttons["In den Kalender"].firstMatch.exists, "Beim Termin fehlt „In den Kalender“")
+        // Jede Nennung ist eine Zeile, die beim Tippen öffnet. Ihr Wert steht
+        // im Namen der Zeile.
+        func row(_ text: String) -> XCUIElement {
+            app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
+        }
+        XCTAssertTrue(row("example.org/workshop").waitForExistence(timeout: 10), "Der gesprochene Link fehlt in der Liste")
+        XCTAssertTrue(row("example.org/ki-arbeit").exists, "Der Link aus den Shownotes fehlt")
+        XCTAssertTrue(row("Musterstraße 12").exists, "Die Adresse fehlt")
+        XCTAssertTrue(app.buttons["mention.action.link"].firstMatch.exists, "Ein Link öffnet nicht beim Tippen")
+        XCTAssertTrue(app.buttons["mention.action.date"].firstMatch.exists, "Beim Termin fehlt „In den Kalender“")
         XCTAssertTrue(app.buttons["mention.occurrence"].firstMatch.exists, "Keine Stelle mit Zeitmarke")
         attach(app, "erwaehnt-liste")
         app.navigationBars.buttons.element(boundBy: 0).tap()

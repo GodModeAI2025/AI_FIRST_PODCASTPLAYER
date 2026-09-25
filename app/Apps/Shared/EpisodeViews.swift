@@ -34,6 +34,9 @@ struct EpisodeListView: View {
     @State private var matches: Set<EpisodeID>?
     /// Die Rückfrage vor „Ältere Folgen auch vorbereiten“.
     @State private var confirmBackCatalog = false
+    /// Hat die Liste die Folgen aus der Datenbank einmal gelesen? Vorher
+    /// ist eine leere Liste nur noch nicht geladen.
+    @State private var loadedOnce = false
 
     private var source: Source? { model.sources.first { $0.id == sourceID } }
     private var episodes: [Episode] { model.episodes[sourceID] ?? [] }
@@ -108,6 +111,10 @@ struct EpisodeListView: View {
             }
 
             Section {
+                // Leere Zustände als Zeile unter der Beschreibung, nicht als
+                // Überlagerung der ganzen Liste: darüber stehen Beschreibung
+                // und Hinweise, und die blieben sonst verdeckt.
+                emptyState(shown: shown)
                 ForEach(shown) { episode in
                     row(for: episode)
                     .swipeActions(edge: .leading) {
@@ -242,7 +249,10 @@ struct EpisodeListView: View {
         } message: {
             Text(backCatalogQuestion)
         }
-        .task { await model.loadEpisodes(for: sourceID) }
+        .task {
+            await model.loadEpisodes(for: sourceID)
+            loadedOnce = true
+        }
         // Was mit dieser Quelle geht und wie weit ihr Archiv zurückreicht.
         .toolbar {
             ToolbarItem {
@@ -254,30 +264,47 @@ struct EpisodeListView: View {
                 ToolbarItem { SourceReloadButton(source: source) }
             }
         }
-        .overlay {
-            if episodes.isEmpty {
-                ContentUnavailableView(
+    }
+
+    // MARK: Leere Zustände
+
+    /// „Keine Folgen“ erst, wenn das Laden fertig ist und wirklich nichts
+    /// kam. Während „Wird neu geladen …“ steht, sagt die Zeile oben genug.
+    @ViewBuilder
+    private func emptyState(shown: [Episode]) -> some View {
+        if episodes.isEmpty {
+            if loadedOnce, !model.reloadingSources.contains(sourceID) {
+                emptyRow(ContentUnavailableView(
                     "Keine Folgen",
                     systemImage: "list.bullet",
                     description: Text("In diesem Podcast wurden keine Folgen gefunden.")
-                )
-            } else if shown.isEmpty, matches != nil {
-                ContentUnavailableView(
-                    "Keine Treffer",
-                    systemImage: "magnifyingglass",
-                    description: Text("""
-                        Keine Folge enthält „\(query.trimmingCharacters(in: .whitespaces))“ \
-                        in Titel oder Shownotes.
-                        """)
-                )
-            } else if shown.isEmpty {
-                ContentUnavailableView(
-                    "Alle Transkripte fertig",
-                    systemImage: "checkmark.circle",
-                    description: Text("Jede Folge dieser Quelle hat ein Transkript. Ohne den Filter siehst du alle.")
-                )
+                ))
+                .accessibilityIdentifier("episodes.empty")
             }
+        } else if shown.isEmpty, matches != nil {
+            emptyRow(ContentUnavailableView(
+                "Keine Treffer",
+                systemImage: "magnifyingglass",
+                description: Text("""
+                    Keine Folge enthält „\(query.trimmingCharacters(in: .whitespaces))“ \
+                    in Titel oder Shownotes.
+                    """)
+            ))
+        } else if shown.isEmpty {
+            emptyRow(ContentUnavailableView(
+                "Alle Transkripte fertig",
+                systemImage: "checkmark.circle",
+                description: Text("Jede Folge dieser Quelle hat ein Transkript. Ohne den Filter siehst du alle.")
+            ))
         }
+    }
+
+    private func emptyRow(_ content: some View) -> some View {
+        content
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Design.Spacing.standard)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
     }
 
     // MARK: Ältere Folgen
@@ -465,7 +492,7 @@ struct EpisodeListView: View {
                 Button { analyzeSelection() } label: {
                     Label("Transkripte erstellen", systemImage: "waveform.badge.magnifyingglass")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.prominentAction)
                 .disabled(chosen.isEmpty)
                 .accessibilityIdentifier("episodes.analyzeSelection")
             }
@@ -570,8 +597,8 @@ struct EpisodeRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Design.Spacing.control) {
-            EpisodeArtwork(url: episode.artworkURL
-                           ?? model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+            EpisodeArtwork(url: episode.artworkURL,
+                           fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
                            size: 56)
         VStack(alignment: .leading, spacing: Design.Spacing.small) {
             Text(episode.title)
@@ -878,7 +905,7 @@ struct EpisodeAnalysisPrompt: View {
             Button { model.enqueueAnalysis(episode) } label: {
                 Label("Transkript erstellen", systemImage: "waveform.badge.magnifyingglass")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.prominentAction)
             .accessibilityIdentifier("episode.analyze")
         case .failed(let message):
             if let message {

@@ -198,6 +198,9 @@ public struct TopicTagger: Sendable {
         !RelevanceScorer.stopWords.contains(key)
             && !PassageRanker.stopwords.contains(key)
             && !generic.contains(key)
+            // Füllwörter, Adverbien und Allerweltswörter („natürlich“,
+            // „bisschen“, „Unternehmen“) sind kein Thema.
+            && !TagStopwords.words.contains(key)
             && !key.allSatisfy { $0.isNumber || $0 == " " }
             // Zu Parteien, Wahlen, Religion und ähnlichem schlägt die App
             // keine Interessen vor.

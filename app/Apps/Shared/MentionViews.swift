@@ -91,11 +91,18 @@ struct MentionsListView: View {
                         }
                     }
                 } header: {
-                    Label {
+                    // Art und Zahl, damit man vor dem Scrollen weiß, wie viel kommt.
+                    let count = mentions.mentions.count { $0.kind == kind }
+                    HStack {
                         Text(kind.label)
-                    } icon: {
-                        Image(systemName: kind.symbol).accessibilityHidden(true)
+                        Spacer()
+                        Text(count, format: .number)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(kind.counted(count))
+                    .accessibilityAddTraits(.isHeader)
                 }
             }
         }
@@ -118,52 +125,52 @@ struct MentionsListView: View {
     }
 }
 
-/// Ein Wert mit seiner Aktion und seinen Stellen.
+/// Ein Wert als kompakte Zeile: Symbol, Wert, darunter eine Zeile, wo er
+/// vorkommt. Ein Tipp auf die Zeile öffnet ihn (Browser, Karten, Anruf,
+/// Mail, Kalender). Kopieren und Teilen stehen im Kontextmenü. Stellen aus
+/// dem Transkript folgen darunter mit Zeitmarke, nur sie spielen ab.
 struct MentionRow: View {
     let mention: Mention
     let episode: Episode
     let addToCalendar: () -> Void
-    @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
     @Environment(\.confirm) private var confirm
 
-    /// Mehr Stellen stehen nicht untereinander, der Rest wird gezählt.
-    private static let shownOccurrences = 5
+    /// Mehr Stellen mit Zeitmarke stehen nicht untereinander, der Rest wird gezählt.
+    private static let shownOccurrences = 3
+    /// Breite des Symbols, an ihr richten sich die Stellen darunter aus.
+    private static let iconSide: CGFloat = 30
+
+    private var timed: [Mention.Occurrence] { mention.occurrences.filter { $0.time != nil } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.small) {
-            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                Text(mention.title)
-                    .font(.body)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                if mention.kind == .date, mention.isVague {
-                    Text("Ungefähr, gesagt: „\(mention.display)“")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+        VStack(alignment: .leading, spacing: Design.Spacing.micro) {
             if let action {
-                Button(action: action.perform) {
-                    Label(action.title, systemImage: action.symbol)
-                        .font(.callout)
-                        .frame(minHeight: Design.minimumTapTarget)
+                Button(action: action.perform) { summary(trailing: action.trailingSymbol) }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(Text(action.title))
+                    .accessibilityIdentifier("mention.action.\(mention.kind.rawValue)")
+            } else {
+                summary(trailing: nil)
+            }
+            if !timed.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(timed.prefix(Self.shownOccurrences).enumerated()), id: \.offset) { _, occurrence in
+                        MentionOccurrenceRow(occurrence: occurrence, episode: episode)
+                    }
+                    if timed.count > Self.shownOccurrences {
+                        Text("Dazu \(timed.count - Self.shownOccurrences) weitere.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
-                .accessibilityIdentifier("mention.action")
-            }
-            ForEach(Array(mention.occurrences.prefix(Self.shownOccurrences).enumerated()), id: \.offset) { _, occurrence in
-                MentionOccurrenceRow(occurrence: occurrence, episode: episode)
-            }
-            if mention.occurrences.count > Self.shownOccurrences {
-                Text("Dazu \(mention.occurrences.count - Self.shownOccurrences) weitere.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .padding(.leading, Self.iconSide + Design.Spacing.control)
             }
         }
-        .padding(.vertical, Design.Spacing.micro)
         .contextMenu {
+            if let action {
+                Button(action: action.perform) { Label(action.title, systemImage: action.symbol) }
+            }
             Button {
                 // Nur der Wert, ohne Quelle. Die Meldung sagt das auch so.
                 Clipboard.copy(mention.kind == .date ? mention.title : mention.display)
@@ -171,37 +178,92 @@ struct MentionRow: View {
             } label: {
                 Label("Kopieren", systemImage: "doc.on.doc")
             }
-            if let action {
-                Button(action: action.perform) { Label(action.title, systemImage: action.symbol) }
+            if mention.kind == .link, let url = mention.url {
+                ShareLink(item: url) { Label("Teilen", systemImage: "square.and.arrow.up") }
             }
         }
+    }
+
+    /// Symbol, Wert und eine Zeile Zusammenhang.
+    private func summary(trailing: String?) -> some View {
+        HStack(alignment: .center, spacing: Design.Spacing.control) {
+            Image(systemName: mention.kind.symbol)
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.tint)
+                .frame(width: Self.iconSide, height: Self.iconSide)
+                .background(.tint.opacity(0.12), in: .rect(cornerRadius: Design.Radius.chip, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mention.title)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                if let detail {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            Spacer(minLength: Design.Spacing.small)
+            if let trailing {
+                Image(systemName: trailing)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(minHeight: Design.minimumTapTarget)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Die zweite Zeile: bei einem ungefähren Termin, was gesagt wurde,
+    /// sonst der Satz aus den Shownotes. Stellen aus dem Transkript stehen
+    /// darunter mit Zeitmarke und hier nicht noch einmal.
+    private var detail: String? {
+        if mention.kind == .date, mention.isVague {
+            return String(localized: "Ungefähr, gesagt: „\(mention.display)“")
+        }
+        if let note = mention.occurrences.first(where: { $0.origin == .shownotes }) {
+            let context = note.context.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !context.isEmpty, context != mention.display else {
+                return String(localized: "Aus den Shownotes")
+            }
+            return String(localized: "Shownotes: \(context)")
+        }
+        return nil
     }
 
     private struct Action {
         let title: LocalizedStringKey
         let symbol: String
+        /// Klein am Ende der Zeile: wohin der Tipp führt.
+        let trailingSymbol: String
         let perform: () -> Void
     }
 
-    /// Was ein Tipp auf den Knopf tut. Namen von Personen und
+    /// Was ein Tipp auf die Zeile tut. Namen von Personen und
     /// Organisationen haben keine Aktion, Orte öffnen Karten.
     private var action: Action? {
         switch mention.kind {
         case .link:
             guard let url = mention.url else { return nil }
-            return Action(title: "Im Browser öffnen", symbol: "safari") { openURL(url) }
+            return Action(title: "Im Browser öffnen", symbol: "safari", trailingSymbol: "arrow.up.right") { openURL(url) }
         case .email:
             guard let url = mention.url else { return nil }
-            return Action(title: "E-Mail schreiben", symbol: "envelope") { openURL(url) }
+            return Action(title: "E-Mail schreiben", symbol: "envelope", trailingSymbol: "arrow.up.right") { openURL(url) }
         case .phone:
             guard let url = mention.url else { return nil }
-            return Action(title: "Anrufen", symbol: "phone") { openURL(url) }
+            return Action(title: "Anrufen", symbol: "phone", trailingSymbol: "phone.arrow.up.right") { openURL(url) }
         case .address, .place:
             guard let url = mention.url else { return nil }
-            return Action(title: "In Karten öffnen", symbol: "map") { openURL(url) }
+            return Action(title: "In Karten öffnen", symbol: "map", trailingSymbol: "arrow.up.right") { openURL(url) }
         case .date:
             guard mention.date != nil else { return nil }
-            return Action(title: "In den Kalender", symbol: "calendar.badge.plus", perform: addToCalendar)
+            return Action(title: "In den Kalender", symbol: "calendar.badge.plus",
+                          trailingSymbol: "calendar.badge.plus", perform: addToCalendar)
         case .person, .organization:
             return nil
         }
@@ -233,7 +295,7 @@ private struct MentionOccurrenceRow: View {
                 .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget, alignment: .leading)
                 .contentShape(.rect)
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .accessibilityHint("Spielt die Folge ab dieser Stelle")
             .accessibilityIdentifier("mention.occurrence")
         } else {
@@ -255,7 +317,7 @@ private struct MentionOccurrenceRow: View {
         Text(occurrence.context)
             .font(.caption)
             .foregroundStyle(.secondary)
-            .lineLimit(4)
+            .lineLimit(2)
             .multilineTextAlignment(.leading)
     }
 }

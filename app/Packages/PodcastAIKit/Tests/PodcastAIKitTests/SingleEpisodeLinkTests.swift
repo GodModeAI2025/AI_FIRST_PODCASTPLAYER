@@ -28,6 +28,11 @@ struct YouTubeLinkFormTests {
         let forms = [
             "https://www.youtube.com/watch?v=pOX1l1edBME&si=abc",
             "https://youtu.be/pOX1l1edBME?t=42",
+            // So teilt die YouTube-App: mit Kennung der Freigabe (TestFlight 0.7.1).
+            "https://youtu.be/pOX1l1edBME?si=Ab12Cd34Ef56Gh78",
+            "https://youtu.be/pOX1l1edBME?is=Ab12Cd34Ef56Gh78",
+            "https://youtu.be/pOX1l1edBME?si=Ab12Cd34Ef56Gh78&t=42",
+            "youtu.be/pOX1l1edBME?si=Ab12Cd34Ef56Gh78",
             "https://www.youtube.com/shorts/pOX1l1edBME",
             "https://www.youtube.com/live/pOX1l1edBME?feature=share",
             "https://m.youtube.com/watch?v=pOX1l1edBME",

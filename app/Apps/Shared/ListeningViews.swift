@@ -476,7 +476,7 @@ struct EpisodeDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.control) {
-            EpisodeArtwork(url: episode.artworkURL ?? sourceArtwork, size: 160)
+            EpisodeArtwork(url: episode.artworkURL, fallback: sourceArtwork, size: 160)
                 .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
                 .frame(maxWidth: .infinity, alignment: .center)
             VStack(alignment: .leading, spacing: Design.Spacing.micro) {
@@ -511,8 +511,7 @@ struct EpisodeDetailView: View {
                     Label(playLabel, systemImage: isCurrent && player.isPlayingOrStarting ? "pause.fill" : "play.fill")
                         .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
+                .buttonStyle(.prominentAction)
                 .accessibilityIdentifier("episode.play")
             } else if let url = episode.webPageURL {
                 // Ohne Audiodatei (YouTube) gibt es hier nichts zu hören.
@@ -521,8 +520,7 @@ struct EpisodeDetailView: View {
                     Label(episode.webLinkTitle, systemImage: episode.webLinkSymbol)
                         .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
+                .buttonStyle(.prominentAction)
                 .accessibilityIdentifier("episode.openWeb")
             }
 
@@ -533,10 +531,10 @@ struct EpisodeDetailView: View {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: Design.Spacing.small) { secondaryControls }
                         .labelStyle(IconAboveTitleLabelStyle())
-                        .buttonBorderShape(.roundedRectangle(radius: Design.Radius.card))
+                        .buttonStyle(SecondaryActionButtonStyle(shape: .card))
                     VStack(spacing: Design.Spacing.small) { secondaryControls }
                         .labelStyle(.titleAndIcon)
-                        .buttonBorderShape(.capsule)
+                        .buttonStyle(SecondaryActionButtonStyle(shape: .capsule))
                 }
             }
         }
@@ -592,25 +590,28 @@ struct EpisodeDetailView: View {
         } primaryAction: {
             queue(.next)
         }
-        .buttonStyle(.bordered)
+        .menuStyle(.button)
         .accessibilityLabel("Als Nächstes hören")
         .accessibilityValue(value)
         .accessibilityAction(named: "Ans Ende der Warteschlange") { queue(.last) }
     }
 
     private var transcriptButton: some View {
-        Button {
-            model.enqueueAnalysis(episode)
-        } label: {
-            Label(stage == .failed ? "Transkript erneut erstellen" : "Transkript erstellen",
-                  systemImage: "waveform.badge.magnifyingglass")
-                .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
-        }
-        .buttonStyle(.bordered)
         // Derselbe Schlüssel wie im AppModel, damit der Vergleich auch
         // in einer Übersetzung trifft.
-        .disabled(model.stageDetails[episode.id] == String(localized: "wartet"))
-        .accessibilityLabel(stage == .failed ? "Transkript erneut erstellen" : "Transkript erstellen")
+        let waiting = model.stageDetails[episode.id] == String(localized: "wartet")
+        let title: LocalizedStringKey = waiting ? "Transkript wartet"
+            : stage == .failed ? "Transkript erneut erstellen" : "Transkript erstellen"
+        return Button {
+            model.enqueueAnalysis(episode)
+        } label: {
+            // Gesperrt sagt der Knopf, warum: das Transkript ist schon
+            // angefordert. Ein grauer Knopf mit dem alten Wort sah kaputt aus.
+            Label(title, systemImage: waiting ? "clock" : "waveform.badge.magnifyingglass")
+                .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
+        }
+        .disabled(waiting)
+        .accessibilityLabel(title)
     }
 
     /// Reiht die Folge ein und sagt es VoiceOver, denn sonst ändert sich
@@ -1503,18 +1504,28 @@ struct HeardProgress: View {
 
 struct EpisodeArtwork: View {
     let url: URL?
+    /// Steht da, wenn `url` fehlt oder sich nicht laden lässt: bei einer
+    /// Folge das Cover des Podcasts. Der graue Platzhalter kommt nur, wenn
+    /// beides fehlt.
+    var fallback: URL?
     let size: CGFloat
+
+    init(url: URL?, fallback: URL? = nil, size: CGFloat) {
+        self.url = url
+        self.fallback = fallback
+        self.size = size
+    }
 
     var body: some View {
         // Verkleinert und außerhalb des Hauptthreads dekodiert (`ArtworkImage`).
-        ArtworkImage(url: url, side: size) {
+        ArtworkImage(urls: [url, fallback].compactMap { $0 }, side: size) {
             ZStack {
                 Rectangle().fill(.quaternary)
                 Image(systemName: "waveform").foregroundStyle(.secondary)
             }
         }
         // Nach „Neu laden“ einer Quelle neu, auch unter derselben Adresse.
-        .id(ArtworkRefresh.shared.revision(for: url))
+        .id([ArtworkRefresh.shared.revision(for: url), ArtworkRefresh.shared.revision(for: fallback)])
         .frame(width: size, height: size)
         .clipShape(.rect(cornerRadius: size / 8))
         .accessibilityHidden(true)
@@ -1574,7 +1585,7 @@ struct EpisodePlayerView: View {
             if let episode = player.episode {
                 ScrollView {
                     VStack(spacing: Design.Spacing.control) {
-                        EpisodeArtwork(url: episode.artworkURL ?? artwork(for: episode), size: 260)
+                        EpisodeArtwork(url: episode.artworkURL, fallback: artwork(for: episode), size: 260)
                             .shadow(color: .black.opacity(0.22), radius: 22, y: 12)
                             .padding(.top, Design.Spacing.section)
                         VStack(spacing: Design.Spacing.micro) {
@@ -2012,8 +2023,8 @@ struct EpisodeMiniBar: View {
             HStack(spacing: Design.Spacing.control) {
                 Button { showingPlayer = true } label: {
                     HStack(spacing: Design.Spacing.small) {
-                        EpisodeArtwork(url: episode.artworkURL
-                                       ?? model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                        EpisodeArtwork(url: episode.artworkURL,
+                                       fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
                                        size: 32)
                         VStack(alignment: .leading, spacing: 0) {
                             Text(episode.title)
@@ -2291,8 +2302,8 @@ private struct QueueRow: View {
 
     var body: some View {
         HStack(spacing: Design.Spacing.small) {
-            EpisodeArtwork(url: episode.artworkURL
-                           ?? model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+            EpisodeArtwork(url: episode.artworkURL,
+                           fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
                            size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(episode.title).font(.subheadline.weight(.medium)).lineLimit(2)

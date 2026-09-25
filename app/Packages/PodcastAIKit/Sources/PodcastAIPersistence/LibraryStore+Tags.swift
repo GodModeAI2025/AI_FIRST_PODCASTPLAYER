@@ -29,12 +29,15 @@ extension LibraryStore {
 
     // MARK: - Tags
 
-    /// Alle Tags, auch neutrale und erkannte. Vorschläge nicht.
+    /// Alle Tags, auch neutrale und erkannte. Vorschläge nicht, und keine
+    /// erkannten Tags aus Füllwörtern wie „natürlich“ oder „bisschen“, die
+    /// ältere Fassungen noch angelegt haben (``TagStopwords``). Folgt jemand
+    /// einem solchen Tag, bleibt es.
     public func tags() throws -> [Tag] {
         try modelContext.fetch(FetchDescriptor<StoredInterest>(sortBy: [SortDescriptor(\.createdAt)]))
             .uniqued(by: \.identifier)
             .map(\.snapshot)
-            .filter { $0.origin != .suggestedBySystem }
+            .filter { $0.origin != .suggestedBySystem && !Self.isFillerTag($0) }
             .map(\.tag)
     }
 

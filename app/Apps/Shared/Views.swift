@@ -22,21 +22,27 @@ struct ForYouView: View {
         List {
             let resume = model.continueListening
             if !resume.isEmpty {
-                Section("Weiterhören") {
+                Section {
                     ForEach(resume, id: \.episode.id) { entry in
                         ResumeRow(episode: entry.episode, position: entry.position)
                     }
+                } header: {
+                    ForYouSectionHeader("Weiterhören", symbol: "play.circle",
+                                        explanation: "Angefangene Folgen. Ein Tipp spielt dort weiter.")
                 }
             }
 
             let fresh = model.freshEpisodes
             if !fresh.isEmpty {
-                Section("Neu in deinen Abos") {
+                Section {
                     ForEach(fresh) { episode in
                         NavigationLink { EpisodeDetailView(episode: episode) } label: {
                             FreshEpisodeRow(episode: episode)
                         }
                     }
+                } header: {
+                    ForYouSectionHeader("Neu in deinen Abos", symbol: "tray.and.arrow.down",
+                                        explanation: "Die neuesten Folgen der Podcasts, die du abonniert hast.")
                 }
             }
 
@@ -50,7 +56,7 @@ struct ForYouView: View {
                         """)
                 } actions: {
                     Button("Podcast suchen") { addingSource = true }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.prominentAction)
                 }
             } else if model.profile.followed.isEmpty {
                 ContentUnavailableView {
@@ -63,30 +69,24 @@ struct ForYouView: View {
                         """)
                 } actions: {
                     NavigationLink("Meine Tags") { TagsView() }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.prominentAction)
                 }
             } else if model.relevantToday.isEmpty {
-                Section("Zu deinen Tags") {
+                Section {
                     Text("Gerade keine ungehörten Stellen. Neue kommen dazu, sobald weitere Transkripte fertig sind.")
                         .foregroundStyle(.secondary)
+                } header: {
+                    tagsHeader
                 }
             } else {
-                // Woher die Stellen kommen, gleich darüber und mit dem Weg
-                // zum Ändern. Sonst stand das nur in der Hilfe.
-                Section {
-                    NavigationLink { TagsView() } label: {
-                        LabeledContent {
-                            Text("Bearbeiten")
-                        } label: {
-                            Label("Ausgewählt nach deinen Tags", systemImage: "tag")
-                        }
-                    }
-                    .accessibilityIdentifier("forYou.interests")
-                }
+                // Woher die Stellen kommen, als Überschrift über allen
+                // Gruppen und mit dem Weg zum Ändern. Sonst stand das nur
+                // in der Hilfe, und die Gruppen darunter hingen in der Luft.
+                Section {} header: { tagsHeader }
                 ForEach(groupedRelevant) { group in
                     Section {
                         ForEach(group.cards) { card in
-                            RelevantItemRow(bundle: card)
+                            RelevantItemRow(bundle: card, groupLabel: group.label)
                                 .listRowInsets(EdgeInsets(top: Design.Spacing.small,
                                                           leading: Design.Spacing.standard,
                                                           bottom: Design.Spacing.small,
@@ -136,6 +136,76 @@ struct ForYouView: View {
     }
 }
 
+extension ForYouView {
+    /// Die Überschrift über allen Stellen zu Tags, mit dem Weg zu „Meine Tags“.
+    var tagsHeader: some View {
+        ForYouSectionHeader("Zu deinen Tags", symbol: "tag",
+                            explanation: "Kapitel aus deinen Folgen, die zu Tags passen, denen du folgst.") {
+            NavigationLink { TagsView() } label: {
+                Text("Tags bearbeiten")
+                    .font(.subheadline)
+            }
+            .accessibilityIdentifier("forYou.interests")
+        }
+    }
+}
+
+/// Die Überschrift eines Abschnitts in „Für dich“: Symbol, Titel und ein
+/// Satz, was darunter kommt. Alle Abschnitte sehen gleich aus, damit man
+/// beim Scrollen sieht, wo ein neuer beginnt.
+struct ForYouSectionHeader<Trailing: View>: View {
+    let title: Text
+    let symbol: String
+    let explanation: Text?
+    /// Ein Weg rechts neben dem Titel, etwa „Tags bearbeiten“.
+    @ViewBuilder let trailing: () -> Trailing
+
+    init(_ title: LocalizedStringKey, symbol: String, explanation: LocalizedStringKey? = nil,
+         @ViewBuilder trailing: @escaping () -> Trailing) {
+        self.init(title: Text(title), symbol: symbol, explanation: explanation.map { Text($0) }, trailing: trailing)
+    }
+
+    init(title: Text, symbol: String, explanation: Text?, @ViewBuilder trailing: @escaping () -> Trailing) {
+        self.title = title
+        self.symbol = symbol
+        self.explanation = explanation
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.small) {
+            Image(systemName: symbol)
+                .font(.headline)
+                .foregroundStyle(.tint)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                title
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
+                if let explanation {
+                    explanation
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: Design.Spacing.small)
+            trailing()
+        }
+        .textCase(nil)
+        .padding(.top, Design.Spacing.standard)
+        .padding(.bottom, Design.Spacing.micro)
+    }
+}
+
+extension ForYouSectionHeader where Trailing == EmptyView {
+    init(_ title: LocalizedStringKey, symbol: String, explanation: LocalizedStringKey? = nil) {
+        self.init(title, symbol: symbol, explanation: explanation) { EmptyView() }
+    }
+}
+
 #if os(iOS)
 /// Das Zahnrad in „Für dich“ und „Meine Podcasts“. Einstellungen, Hilfe und
 /// Datenschutz lagen vorher nur ganz unten im Reiter „Wissen“.
@@ -175,14 +245,36 @@ struct RelevantGroup: Identifiable {
     let reason: PersonalRelevance.Reason?
     let cards: [RelevantCard]
 
+    /// Der Tag als Unterüberschrift unter „Zu deinen Tags“, mit der Zahl
+    /// der Folgen darunter. Kleiner als die Abschnitte, damit die Ordnung
+    /// sichtbar bleibt: Abschnitt, Tag, Karte.
     var header: some View {
         let (icon, spoken): (String, Text) = switch reason {
         case .activeProject: ("briefcase", Text("Vorhaben: \(label)"))
         case .openQuestion: ("questionmark.circle", Text("Frage: \(label)"))
-        default: ("tag", Text("Tag: \(label)"))
+        default: ("number", Text("Tag: \(label)"))
         }
-        return Label(label, systemImage: icon)
-            .accessibilityLabel(spoken)
+        let count = cards.count
+        return HStack(spacing: Design.Spacing.small) {
+            Label {
+                Text(verbatim: label)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            } icon: {
+                Image(systemName: icon)
+                    .foregroundStyle(.tint)
+            }
+            Spacer(minLength: Design.Spacing.small)
+            Text(count == 1 ? "1 Folge" : "\(count) Folgen")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .textCase(nil)
+        .padding(.top, Design.Spacing.small)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spoken)
+        .accessibilityValue(count == 1 ? Text("1 Folge") : Text("\(count) Folgen"))
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -248,8 +340,8 @@ struct ResumeRow: View {
     var body: some View {
         Button { model.playEpisode(episode, at: position) } label: {
             HStack(spacing: Design.Spacing.control) {
-                EpisodeArtwork(url: episode.artworkURL
-                               ?? model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                EpisodeArtwork(url: episode.artworkURL,
+                               fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
                                size: 48)
                 VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Text(episode.title).font(.headline).lineLimit(2)
@@ -280,8 +372,8 @@ struct FreshEpisodeRow: View {
 
     var body: some View {
         HStack(spacing: Design.Spacing.control) {
-            EpisodeArtwork(url: episode.artworkURL
-                           ?? model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+            EpisodeArtwork(url: episode.artworkURL,
+                           fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
                            size: 48)
             VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                 Text(episode.title).font(.headline).lineLimit(2)
@@ -312,6 +404,9 @@ struct FreshEpisodeRow: View {
 struct RelevantItemRow: View {
 
     let bundle: RelevantCard
+    /// Der Tag der Gruppe. Er steht schon darüber und auf der Karte nicht
+    /// noch einmal.
+    var groupLabel: String?
     @Environment(AppModel.self) private var model
 
     private var item: RelevantItem { bundle.lead }
@@ -386,7 +481,10 @@ struct RelevantItemRow: View {
     /// Die Begründung auf der Karte. Das Thema steht schon darüber, hier
     /// steht, welche Wörter getroffen haben.
     private var reason: String? {
-        let mentioned = bundle.mentioned
+        let mentioned = bundle.mentioned.filter { term in
+            groupLabel.map { term.caseInsensitiveCompare($0) != .orderedSame } ?? true
+        }
+        if bundle.mentioned.count > 0, mentioned.isEmpty { return nil }
         if !mentioned.isEmpty {
             let terms = mentioned.prefix(3).joined(separator: ", ")
             return String(localized: "erwähnt: \(terms)")
@@ -407,20 +505,31 @@ struct RelevantItemRow: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.small) {
-            // Hierarchie über Gewicht und Farbe, nicht über Schriftwechsel:
-            // Quelle zurückgenommen, Folge als Überschrift, Zitat als Text.
-            HStack(spacing: Design.Spacing.micro) {
-                Text(item.sourceTitle)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tint)
-                    .lineLimit(1)
-                if let published = item.publishedAt {
-                    Text(verbatim: "·").foregroundStyle(.tertiary)
-                    Text(published, format: .relative(presentation: .named))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .fixedSize()
+            // Drei Ebenen: woher (Cover, Podcast, Datum) und welche Folge,
+            // dann die Stelle selbst, dann Zeitmarke und warum sie passt.
+            HStack(alignment: .top, spacing: Design.Spacing.control) {
+                let episode = model.loadedEpisode(item.episodeID)
+                EpisodeArtwork(url: episode?.artworkURL,
+                               fallback: model.sources.first(where: { $0.id == episode?.sourceID })?.artworkURL,
+                               size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: Design.Spacing.micro) {
+                        Text(item.sourceTitle)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
+                            .lineLimit(1)
+                        if let published = item.publishedAt {
+                            Text(verbatim: "·").foregroundStyle(.tertiary)
+                            Text(published, format: .relative(presentation: .named))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .fixedSize()
+                        }
+                    }
+                    Text(item.episodeTitle)
+                        .font(.headline)
+                        .lineLimit(2)
                 }
                 Spacer(minLength: 0)
                 if model.isRemembered(item) {
@@ -433,16 +542,12 @@ struct RelevantItemRow: View {
                     .accessibilityLabel(partlyHeard ? "teilweise gehört" : "noch nicht gehört")
             }
 
-            Text(item.episodeTitle)
-                .font(.headline)
-                .lineLimit(2)
-
             Text(item.excerpt)
                 .font(.callout)
                 .foregroundStyle(.secondary)
-                .lineLimit(3)
+                .lineLimit(2)
 
-            HStack(spacing: Design.Spacing.micro) {
+            HStack(spacing: Design.Spacing.small) {
                 // Der Timecode steht sichtbar dabei. Er ist kein technisches
                 // Detail, sondern das Versprechen: das hier kannst du nachhören.
                 // Als eigener Knopf: nur er spielt ab, ein Tipp auf die Karte
@@ -462,31 +567,23 @@ struct RelevantItemRow: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.borderless)
-                if bundle.hits.count > 1 {
-                    Text(verbatim: "·").foregroundStyle(.tertiary)
-                    Text("\(bundle.hits.count) Stellen in dieser Folge")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if let reason {
                 // „Warum sehe ich das?“ steht hier und nicht hinter einem
                 // Info-Symbol. Wer die Begründung suchen muss, glaubt sie nicht.
-                Label {
-                    Text(reason)
-                } icon: {
-                    Image(systemName: "target")
+                VStack(alignment: .leading, spacing: 0) {
+                    if let reason {
+                        Label(reason, systemImage: "target")
+                            .lineLimit(1)
+                    }
+                    if bundle.hits.count > 1 {
+                        Text("\(bundle.hits.count) Stellen in dieser Folge")
+                    }
                 }
                 .font(.caption)
-                .foregroundStyle(.tint)
-                .padding(.horizontal, Design.Spacing.small)
-                .padding(.vertical, Design.Spacing.micro)
-                .background(.tint.opacity(0.12), in: .capsule)
-                .padding(.top, Design.Spacing.micro)
+                .foregroundStyle(.secondary)
+                .labelStyle(.titleAndIcon)
             }
         }
-        .padding(.vertical, Design.Spacing.small)
+        .padding(.vertical, Design.Spacing.micro)
         // Für VoiceOver eine Einheit statt fünf Fragmente.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityDescription)

@@ -96,6 +96,84 @@ struct TagNormalizerTests {
     }
 }
 
+@Suite("Tags: keine Füllwörter")
+struct TagStopwordTests {
+
+    /// Aus dem TestFlight-Feedback zu 0.7.2 und weitere Wörter derselben Sorte.
+    static let fillers = [
+        "bisschen", "natürlich", "unternehmen", "Unternehmen", "Natürlich", "eigentlich", "irgendwie",
+        "sozusagen", "Ein bisschen", "genau", "halt", "Leute", "Beispiel", "Firma",
+        "actually", "basically", "people", "things", "company", "really", "Of course",
+    ]
+
+    @Test("Füllwörter, Adverbien und Allerweltswörter werden kein erkanntes Tag")
+    func fillersRejected() {
+        for label in Self.fillers {
+            #expect(TagStopwords.rejects(label), "\(label)")
+            #expect(!TagNormalizer.admitsDetectedTag(label), "\(label)")
+            #expect(TagNormalizer.makeDetectedTag(label: label) == nil, "\(label)")
+        }
+    }
+
+    @Test("Echte Themen, Namen und Begriffe mit Ziffern bleiben")
+    func topicsAdmitted() {
+        for label in ["Datenschutz", "Claude", "iOS 27", "Federated Learning", "Apple Intelligence",
+                      "Sprachmodell", "Rechenzentren", "Elektroauto", "Batterie", "KI", "Robotik"] {
+            #expect(!TagStopwords.rejects(label), "\(label)")
+            #expect(TagNormalizer.admitsDetectedTag(label), "\(label)")
+        }
+        // Ein Füllwort neben einem Thema macht das Thema nicht kaputt.
+        #expect(!TagStopwords.rejects("Datenschutz einfach"))
+        #expect(TagStopwords.rejects(""))
+    }
+
+    @Test("Hauptwörter aus den Aussagen: Allerweltswörter fallen weg, das Thema bleibt")
+    func nounCandidatesSkipFillers() {
+        // Großgeschrieben mitten im Satz, wie ein Hauptwort. Trotzdem kein Thema.
+        let statements = [
+            "Viele Unternehmen setzen beim Datenschutz auf Natürlich Sprache, sagt er.",
+            "Kleine Unternehmen prüfen den Datenschutz ein Bisschen genauer.",
+            "Der Datenschutz betrifft Unternehmen und Leute gleichermaßen.",
+        ]
+        let passages = (1...3).map { index in
+            Evidence(id: EvidenceID(stable: "p\(index)"), mediaVersionID: MediaVersionID(stable: "m"),
+                     episodeID: EpisodeID(stable: "e"), sourceID: SourceID(stable: "q"),
+                     transcriptID: TranscriptID(stable: "t"), transcriptRevision: .initial,
+                     range: MediaTimeRange(start: MediaTime(milliseconds: index * 1_000),
+                                           end: MediaTime(milliseconds: index * 1_000 + 500)),
+                     quotedText: "Unternehmen reden über Datenschutz, natürlich ein bisschen.")
+        }
+        let labels = TopicTagger().nounTags(statements: statements, passages: passages).map(\.label)
+        #expect(labels.contains("Datenschutz"))
+        for filler in ["Unternehmen", "Natürlich", "Bisschen", "Leute"] {
+            #expect(!labels.contains(filler), "\(filler)")
+        }
+    }
+
+    @Test("Erkannte Füllwort-Tags aus älteren Fassungen erscheinen nicht mehr, gefolgte und eigene schon")
+    func legacyFillerTagsHidden() async throws {
+        let store = LibraryStore.make(container: try LibraryStore.makeContainer(inMemory: true))
+        let created = Date(timeIntervalSince1970: 1_000)
+        try await store.insertInterestRowForTesting(identifier: "a", label: "natürlich", createdAt: created,
+                                                    normalizedKey: "naturlich", stance: .neutral, origin: .detected)
+        try await store.insertInterestRowForTesting(identifier: "b", label: "Unternehmen", createdAt: created,
+                                                    normalizedKey: "unternehmen", stance: .neutral, origin: .detected)
+        try await store.insertInterestRowForTesting(identifier: "c", label: "Datenschutz", createdAt: created,
+                                                    normalizedKey: "datenschutz", stance: .neutral, origin: .detected)
+        // Wer einem solchen Tag folgt oder es selbst angelegt hat, behält es.
+        try await store.insertInterestRowForTesting(identifier: "d", label: "bisschen", createdAt: created,
+                                                    normalizedKey: "bisschen", stance: .follow, origin: .detected)
+        try await store.insertInterestRowForTesting(identifier: "e", label: "Firma", createdAt: created,
+                                                    normalizedKey: "firma", stance: .follow, origin: .confirmedByUser)
+
+        let profile = try await store.interestProfile(learningEnabled: false)
+        #expect(Set(profile.tags.map(\.label)) == ["Datenschutz", "bisschen", "Firma"])
+        #expect(Set(try await store.tags().map(\.label)) == ["Datenschutz", "bisschen", "Firma"])
+        // Ein neues Füllwort legt nichts an und findet das alte nicht.
+        #expect(try await store.addDetectedTag(label: "Natürlich") == nil)
+    }
+}
+
 @Suite("Tags: Profil")
 struct TagProfileTests {
 

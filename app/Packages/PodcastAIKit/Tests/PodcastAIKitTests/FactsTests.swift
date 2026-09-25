@@ -145,14 +145,16 @@ struct FactAnchorTests {
 
     @Test("Gekürzt wird nur auf eine Form, die vorkommt")
     func topicTagKeepsUnattestedForms() {
+        // „Unternehmen“ taugte hier früher als Beispiel, ist aber ein
+        // Allerweltswort und wird kein Tag mehr (`TagStopwords`).
         let statements = [
-            "Viele Unternehmen testen neue Werkzeuge.",
-            "Kleine Unternehmen zögern noch, sagt ein Unternehmer.",
+            "Viele Rechenzentren testen neue Kühlungen.",
+            "Kleine Rechenzentren zögern noch, sagt ein Betreiber.",
         ]
-        let passages = [passage("p1", "Der Unternehmer spricht über Unternehmen und Regeln.")]
+        let passages = [passage("p1", "Der Betreiber spricht über Rechenzentren und Regeln.")]
         let tags = TopicTagger().tags(statements: statements, passages: passages, profile: InterestProfile())
-        #expect(tags.contains { $0.label == "Unternehmen" })
-        #expect(!tags.contains { $0.label == "Unternehm" })
+        #expect(tags.contains { $0.label == "Rechenzentren" })
+        #expect(!tags.contains { $0.label == "Rechenzentr" })
         #expect(TopicTagger.baseForm(of: "batterien") { $0 == "batterie" } == "batterie")
         #expect(TopicTagger.baseForm(of: "regeln") { _ in false } == "regeln")
         // Unter fünf Buchstaben wird nicht gekürzt.

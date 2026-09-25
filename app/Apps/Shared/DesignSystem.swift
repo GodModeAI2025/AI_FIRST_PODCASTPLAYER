@@ -210,6 +210,93 @@ public extension ButtonStyle where Self == PressableButtonStyle {
     static var pressable: PressableButtonStyle { PressableButtonStyle() }
 }
 
+// MARK: - Hauptknöpfe
+
+/// Der wichtigste Knopf einer Seite, etwa „Abspielen“ in einer Folge.
+///
+/// Mit fester Füllung statt `.borderedProminent`. Dort stand weiße Schrift
+/// auf der hellen Akzentfarbe des dunklen Modus, knapp 2,7 : 1. Hier ist
+/// die Schrift im hellen Modus weiß auf dunklem Indigo, im dunklen Modus
+/// schwarz auf hellem Blau, beides deutlich über 4,5 : 1. Gesperrt steht
+/// die Schrift in der Grundfarbe auf grauer Fläche, lesbar statt blass.
+public struct ProminentActionButtonStyle: ButtonStyle {
+
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        // Eigene View: nur dort füllt SwiftUI `@Environment` (siehe
+        // `PressableButtonStyle`).
+        ActionButtonBody(configuration: configuration, prominent: true)
+    }
+}
+
+/// Ein Nebenknopf neben dem Hauptknopf, etwa „Als Nächstes“ oder
+/// „Transkript erstellen“. Akzentfarbe auf zarter Akzentfläche, gesperrt
+/// Grundfarbe auf grauer Fläche. Die Form kommt vom Aufrufer, weil derselbe
+/// Knopf nebeneinander eckig und untereinander rund steht.
+public struct SecondaryActionButtonStyle: ButtonStyle {
+
+    public enum Shape: Sendable { case capsule, card }
+
+    private let shape: Shape
+
+    public init(shape: Shape = .capsule) {
+        self.shape = shape
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        ActionButtonBody(configuration: configuration, prominent: false, shape: shape)
+    }
+}
+
+private struct ActionButtonBody: View {
+
+    let configuration: ButtonStyleConfiguration
+    let prominent: Bool
+    var shape: SecondaryActionButtonStyle.Shape = .capsule
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundStyle(foreground)
+            // Zusammen mit dem Rand mindestens 44 Punkt hoch.
+            .frame(minHeight: Design.minimumTapTarget - 2 * Design.Spacing.small)
+            .padding(.horizontal, Design.Spacing.standard)
+            .padding(.vertical, Design.Spacing.small)
+            .background(fill, in: backgroundShape)
+            .contentShape(backgroundShape)
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+            .animation(
+                Design.Motion.respectingReduceMotion(Design.Motion.snappy, reduceMotion: reduceMotion),
+                value: configuration.isPressed
+            )
+    }
+
+    private var backgroundShape: AnyShape {
+        if prominent || shape == .capsule { return AnyShape(Capsule()) }
+        return AnyShape(RoundedRectangle(cornerRadius: Design.Radius.card, style: .continuous))
+    }
+
+    private var foreground: Color {
+        guard isEnabled else { return .primary }
+        if prominent { return colorScheme == .dark ? .black : .white }
+        return .accentColor
+    }
+
+    private var fill: Color {
+        guard isEnabled else { return Color.secondary.opacity(0.18) }
+        return prominent ? .accentColor : Color.accentColor.opacity(0.14)
+    }
+}
+
+public extension ButtonStyle where Self == ProminentActionButtonStyle {
+    static var prominentAction: ProminentActionButtonStyle { ProminentActionButtonStyle() }
+}
+
 // MARK: - Hinweis
 
 /// Ein Hinweis in einer der zwei Arten aus ``Design/Notice``.
