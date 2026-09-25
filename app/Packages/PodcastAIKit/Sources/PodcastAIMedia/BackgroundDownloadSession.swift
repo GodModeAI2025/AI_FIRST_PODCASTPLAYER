@@ -87,9 +87,20 @@ public final class BackgroundDownloadSession: Sendable {
     }
 
     private static func makeURLSession(_ mode: Mode, delegate: Delegate) -> URLSession {
+        URLSession(configuration: configuration(for: mode), delegate: delegate, delegateQueue: nil)
+    }
+
+    /// Die Einstellungen einer Sitzung. Eigene Funktion, damit Tests sie prüfen.
+    static func configuration(for mode: Mode) -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.background(withIdentifier: identifier(for: mode))
         configuration.sessionSendsLaunchEvents = true
-        configuration.isDiscretionary = mode == .automatic
+        // Bis 0.11 war die Sitzung für Automatisches zurückhaltend
+        // (`isDiscretionary`): Das System durfte ihre Übertragungen verschieben,
+        // bis das Gerät am Strom hängt, also oft bis in die Nacht. Der Ton wird
+        // aber für das nächste Transkript gebraucht. Was im Hintergrund beginnt,
+        // behandelt das System ohnehin nach eigenem Ermessen; alles, was die
+        // App vorn beginnt, lädt jetzt sofort.
+        configuration.isDiscretionary = false
         // Nur im WLAN ohne Datenlimit. Mobilfunk bleibt dem Vordergrund und
         // der Zustimmung vorbehalten.
         configuration.allowsCellularAccess = false
@@ -102,7 +113,7 @@ public final class BackgroundDownloadSession: Sendable {
         configuration.httpCookieAcceptPolicy = .never
         configuration.urlCredentialStorage = nil
         configuration.timeoutIntervalForResource = 24 * 60 * 60
-        return URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
+        return configuration
     }
 
     /// Lädt `url` an den endgültigen Ort der Fassung im Audioordner. Läuft
@@ -137,6 +148,23 @@ public final class BackgroundDownloadSession: Sendable {
             }
         } onCancel: {
             delegate.detach(key: key, token: token)
+        }
+    }
+
+    /// Beginnt eine Übertragung, auf die niemand wartet, etwa für die
+    /// nächsten Folgen der Warteschlange, solange die App vorn ist. Sie läuft
+    /// weiter, wenn die App in den Hintergrund geht, und legt ihre Datei
+    /// geprüft am endgültigen Ort ab. Läuft für die Fassung schon eine,
+    /// in dieser oder der anderen Sitzung, oder liegt die Datei schon da,
+    /// geschieht nichts. Wer später wartet, schließt sich ihr an.
+    public func prefetch(_ url: URL, mediaVersionID: MediaVersionID) throws {
+        let request = try SafeHTTP.request(for: url)
+        let key = mediaVersionID.rawValue
+        let delegate = delegate, own = session, other = sibling
+        own.getAllTasks { ownTasks in
+            other.getAllTasks { otherTasks in
+                delegate.startUnattended(key: key, request: request, in: own, running: ownTasks + otherTasks)
+            }
         }
     }
 
@@ -360,6 +388,23 @@ extension BackgroundDownloadSession {
             }
             if waitsForResume { return }
             start(key: key, request: request, in: own)
+        }
+
+        /// Beginnt ohne Wartenden, siehe ``BackgroundDownloadSession/prefetch(_:mediaVersionID:)``.
+        func startUnattended(key: String, request: URLRequest, in session: URLSession, running: [URLSessionTask]) {
+            guard !running.contains(where: { $0.taskDescription == key && Self.isActive($0) }),
+                  !FileManager.default.fileExists(atPath: destination(for: key).path) else { return }
+            let blocked: Bool = state.withLock { state in
+                // Angehalten und der Stand noch unterwegs: nicht dazwischenfunken.
+                guard (state.awaitingResume[key]?.isEmpty ?? true), state.pending[key] == nil else { return true }
+                // Abgebrochen oder gelöscht, auch zwischen Aufruf und Rückmeldung
+                // des Systems: im Voraus lädt nichts davon. Wieder frei wird die
+                // Fassung erst, wenn jemand ausdrücklich auf sie wartet (`register`).
+                guard !state.discarded.contains(key) else { return true }
+                state.requests[key] = request
+                return false
+            }
+            if !blocked { start(key: key, request: request, in: session) }
         }
 
         private func adopt(_ ref: TaskRef, for key: String) {

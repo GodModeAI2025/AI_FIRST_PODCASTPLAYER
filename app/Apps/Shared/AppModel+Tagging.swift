@@ -261,10 +261,14 @@ extension AppModel {
         // Was nicht offen ist, fragt dieser Start nicht noch einmal ab.
         tagsCurrent.formUnion(pool.subtracting(backlog))
         guard !backlog.isEmpty, let found = try? await store.episodes(ids: Array(backlog)) else { return }
-        for episode in found.sorted(by: { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) })
-        where !tagsQueue.contains(where: { $0.id == episode.id }) {
-            tagsQueue.append(episode)
-        }
+        // In Portionen, neueste zuerst. `runTagsBacklog` holt die nächste.
+        let newest = found
+            .filter { episode in !tagsQueue.contains(where: { $0.id == episode.id }) }
+            .sorted(by: { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) })
+        let portion = AutomaticWorkBudget.refill(
+            newest, alreadyWaiting: tagsQueue.count, batch: AutomaticWorkBudget.tagsBackfillBatch)
+        tagsBackfillPending = portion.count < newest.count
+        tagsQueue.append(contentsOf: portion)
         startFactsWorker()
     }
 
@@ -273,14 +277,24 @@ extension AppModel {
     /// `ignoringFacts` auch, wenn Folgen auf Fakten warten, etwa weil nur
     /// Private Cloud Compute bereitsteht und die Fakten ohnehin warten.
     func runTagsBacklog(ignoringFacts: Bool = false) async {
-        while !Task.isCancelled, tagsMayRun, ignoringFacts || factsQueue.isEmpty || !factsMayRun,
-              !tagsQueue.isEmpty {
+        while !Task.isCancelled, tagsMayRun, ignoringFacts || factsQueue.isEmpty || !factsMayRun {
+            if tagsQueue.isEmpty {
+                // Die Portion ist durch: die nächste, falls noch Folgen fehlen.
+                guard tagsBackfillPending, let withFacts = try? await store.episodeIDsWithFacts() else { return }
+                tagsBackfillPending = false
+                await queueMissingChapterTags(withFacts: withFacts)
+                if tagsQueue.isEmpty { return }
+            }
             let next = tagsQueue.removeFirst()
             let outcome = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
                 await prepareChapterTags(for: next)
             }
             switch outcome {
-            case .stored, .nothingToDo:
+            case .stored:
+                continue
+            case .nothingToDo:
+                // Sonst holte die nächste Portion dieselbe Folge wieder.
+                tagsCurrent.insert(next.id)
                 continue
             case .failed:
                 // Ein zweiter Anlauf erst beim nächsten Start, ohne die Folge

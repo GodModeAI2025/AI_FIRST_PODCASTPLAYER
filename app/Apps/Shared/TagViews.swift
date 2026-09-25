@@ -208,6 +208,7 @@ struct TagsView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
         .searchable(text: $query, prompt: Text("Tags durchsuchen"))
         .navigationTitle("Meine Tags")
         .accessibilityIdentifier("tags.list")

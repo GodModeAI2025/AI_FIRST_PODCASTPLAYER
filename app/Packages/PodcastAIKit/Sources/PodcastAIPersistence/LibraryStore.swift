@@ -38,6 +38,39 @@ public actor LibraryStore: ModelActor {
         LibraryStore(modelContainer: container)
     }
 
+    /// Name der eigenen Änderungen in der Historie der Datenbank.
+    public static let localAuthor = "com.godmodeai.podcastai.store"
+    /// Bis hier ist die Historie gelesen.
+    private var historyToken: DefaultHistoryToken?
+    private var historyRead = false
+
+    /// Kam seit dem letzten Aufruf eine Änderung von woanders, etwa über
+    /// iCloud von einem anderen Gerät?
+    ///
+    /// `NSPersistentStoreRemoteChange` meldet auch jedes eigene Speichern.
+    /// Bis 0.11 lud die App danach jedes Mal alles neu, nach jedem Abschnitt
+    /// der Fakten und jeder Einordnung, mit allen Folgen aller Quellen. Jetzt
+    /// zählen nur Änderungen, die nicht von diesem Store stammen. Beim
+    /// ersten Aufruf nach dem Start ist der Stand unbekannt: dann ja.
+    public func hasForeignChanges() -> Bool {
+        guard historyRead else {
+            historyRead = true
+            var latest = HistoryDescriptor<DefaultHistoryTransaction>(
+                sortBy: [SortDescriptor(\.transactionIdentifier, order: .reverse)])
+            latest.fetchLimit = 1
+            historyToken = (try? modelContext.fetchHistory(latest))?.first?.token
+            return true
+        }
+        var descriptor = HistoryDescriptor<DefaultHistoryTransaction>()
+        if let token = historyToken { descriptor.predicate = #Predicate { $0.token > token } }
+        guard let transactions = try? modelContext.fetchHistory(descriptor) else { return true }
+        if let newest = transactions.map(\.token).max() { historyToken = newest }
+        // Nur Änderungen an eigenen Daten zählen. Der Abgleich mit iCloud
+        // schreibt nach jedem Speichern auch eigene Verwaltungsdaten; sie
+        // tragen einen fremden Namen, aber keine Änderung an einem Modell.
+        return transactions.contains { $0.author != Self.localAuthor && !$0.changes.isEmpty }
+    }
+
     /// Die zuletzt gelesenen Belege mit Zeitmarken, siehe
     /// ``evidenceForAnalyzedEpisodes(limit:)``.
     private var timedEvidence: (limit: Int, items: [Evidence])?

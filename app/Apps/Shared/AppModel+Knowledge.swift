@@ -12,6 +12,7 @@
 //
 
 import Foundation
+import Synchronization
 import CoreData
 import PodcastAIKit
 #if os(iOS)
@@ -35,9 +36,14 @@ extension AppModel {
         Task { [weak self] in
             var pending: Task<Void, Never>?
             for await _ in NotificationCenter.default.notifications(named: .NSPersistentStoreRemoteChange) {
+                // Die Meldung kommt auch nach jedem eigenen Speichern, etwa
+                // nach jedem Abschnitt der Fakten. Neu geladen wird nur, wenn
+                // etwas von woanders kam; sonst lud die App während der
+                // Auswertung alle paar Sekunden die ganze Bibliothek neu.
+                guard let store = self?.store, await store.hasForeignChanges() else { continue }
                 // Gemerkte Belege und Wörter können überholt sein. Sofort
                 // vergessen, nicht erst nach der Pause fürs Neuladen.
-                await self?.store.forgetCachedEvidence()
+                await store.forgetCachedEvidence()
                 pending?.cancel()
                 pending = Task { [weak self] in
                     try? await Task.sleep(for: .seconds(2))
@@ -152,7 +158,15 @@ extension AppModel {
 
     public func refreshModelStatus() async {
         let wasReady = factsModelReady
-        modelStatus = ModelStatusProbe.current(allowPrivateCloud: allowPrivateCloudCompute)
+        // Die Frage an FoundationModels geht an einen Dienst des Systems und
+        // kann warten, während das Modell rechnet. Nicht auf dem Hauptthread,
+        // und nur ein neuer Stand wird geschrieben: jede Zuweisung zeichnete
+        // sonst alles neu, was den Zustand liest.
+        let allowCloud = allowPrivateCloudCompute
+        let status = await Task.detached(priority: .utility) {
+            ModelStatusProbe.current(allowPrivateCloud: allowCloud)
+        }.value
+        if status != modelStatus { modelStatus = status }
         guard isLoaded else { return }
         // Nur ein Modell für Tags, etwa Private Cloud Compute ohne Gerätemodell:
         // die Einordnung darf laufen, die Fakten warten.
@@ -177,13 +191,21 @@ extension AppModel {
 
     /// Wie viele Token das Gerätemodell für Anweisungen, Prompt und Antwort
     /// zusammen fasst. Unter iOS 27 und macOS 27 sind es 8.192.
-    static var onDeviceContextSize: Int {
+    /// Einmal gefragt und gemerkt: Die Frage geht an einen Dienst des Systems
+    /// und hielt bei jeder Folge den Hauptthread an, während das Modell rechnete.
+    /// Gemerkt wird nur eine echte Größe, solange das Modell noch lädt, gilt 4.096.
+    nonisolated static var onDeviceContextSize: Int {
+        if let known = contextSizeCache.withLock({ $0 }) { return known }
         #if canImport(FoundationModels)
-        SystemLanguageModel.default.contextSize
+        let size = SystemLanguageModel.default.contextSize
         #else
-        4_096
+        let size = 0
         #endif
+        guard size > 0 else { return 4_096 }
+        contextSizeCache.withLock { $0 = size }
+        return size
     }
+    private nonisolated static let contextSizeCache = Mutex<Int?>(nil)
 
     /// Läuft die Antwort gerade über Private Cloud Compute?
     var answersUsePrivateCloud: Bool {
@@ -218,7 +240,14 @@ extension AppModel {
         var moment: MediaTime?
         if case .episode(let id) = scope, episodePlayer.episode?.id == id { moment = position }
         let started = ContinuousClock.now
+        // Mit „Erstes Token“ ergibt das in Instruments die Wartezeit bis zum ersten Wort.
+        ChatTrace.event("Frage gestellt")
         defer { ChatTrace.log("Frage gesamt", since: started) }
+        // Ab jetzt hat die Frage das Modell für sich: laufende Fakten oder Tags
+        // halten an und kommen nach der Antwort wieder dran. Sonst wartete schon
+        // das Zählen der Token hinter einem Abschnitt der Fakten.
+        await AIScheduler.shared.beginUserActivity()
+        defer { Task { await AIScheduler.shared.endUserActivity() } }
         guard let answered = await composeAnswer(question, scope: scope, position: moment, number: number),
               !Task.isCancelled else { return nil }
         let composed = answered.asked(at: moment)
@@ -1060,10 +1089,10 @@ extension AppModel {
         // Lauf die Folge neu, und beim Speichern fallen sie weg. Eine Nummer
         // vorn oder ein Verweis am Ende fällt nur aus dem Text (`cleaned`).
         if !force {
-            stored = ((try? await store.facts(forEpisode: episode.id)) ?? []).compactMap(\.cleaned)
+            stored = await Self.cleanedOffMain((try? await store.facts(forEpisode: episode.id)) ?? [])
             gaps = Self.factGaps(of: episode.id)
         } else {
-            previous = ((try? await store.facts(forEpisode: episode.id)) ?? []).compactMap(\.cleaned)
+            previous = await Self.cleanedOffMain((try? await store.facts(forEpisode: episode.id)) ?? [])
         }
         if !stored.isEmpty, gaps.isEmpty {
             facts[episode.id] = await anchoredFacts(stored, episodeID: episode.id)
@@ -1121,7 +1150,9 @@ extension AppModel {
         // Jedes Kapitel der Folge bekommt seinen Anteil an den Fakten.
         let quota = plan.quota
         let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
-            candidateBuilder: CandidateListBuilder(excerptLimit: Self.factExcerptLimit, maximumCandidates: chunk)))
+            candidateBuilder: CandidateListBuilder(excerptLimit: Self.factExcerptLimit, maximumCandidates: chunk)),
+            // „Jetzt ermitteln“ hat jemand angetippt, das geht vor Arbeit im Hintergrund.
+            priority: force ? .user : .background)
         // Für die Zeitmarken: das Modell wählt nur den Beleg, den Satz darin
         // findet der Code im Transkript.
         let timed = await transcript(for: episode)
@@ -1629,10 +1660,18 @@ extension AppModel {
             analyzedEpisodes.contains($0.key) && !withFacts.contains($0.key)
         }
         if !missing.isEmpty, let found = try? await store.episodes(ids: missing) {
-            for episode in found.sorted(by: { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) })
-            where automaticFacts && analyzedEpisodes.contains(episode.id) {
-                enqueueFacts(episode)
-            }
+            // In Portionen, neueste zuerst: bis 0.11 kam jede Folge der
+            // Bibliothek ohne Fakten auf einmal dazu, und Apple Intelligence
+            // rechnete stundenlang ohne Pause. Ist die Portion durch, holt
+            // `runFactsQueue` die nächste.
+            let newest = found
+                .filter { automaticFacts && analyzedEpisodes.contains($0.id) }
+                .sorted(by: { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) })
+            let waiting = factsQueue.count { !factsRequested.contains($0.id) }
+            let portion = AutomaticWorkBudget.refill(
+                newest, alreadyWaiting: waiting, batch: AutomaticWorkBudget.factsBackfillBatch)
+            factsBackfillPending = portion.count < newest.count
+            for episode in portion { enqueueFacts(episode) }
         }
         // Folgen mit Fakten, deren Kapitel noch keine Tags haben.
         await queueMissingChapterTags(withFacts: withFacts)
@@ -1802,6 +1841,9 @@ extension AppModel {
         }
         // Ein zweiter Versuch je Folge und Lauf, danach erst beim nächsten Start.
         var retried: Set<EpisodeID> = []
+        // Hat die letzte Portion etwas fertig gemacht? Nur dann kommt die
+        // nächste. Sonst holte jede Portion dieselben scheiternden Folgen.
+        var progressed = false
         repeat {
             while !Task.isCancelled, factsMayRun, !factsQueue.isEmpty {
                 // Vor jeder Folge: das Modell kann bereit geworden oder weggefallen sein.
@@ -1830,9 +1872,11 @@ extension AppModel {
                 }
                 switch outcome {
                 case .stored, .nothingToDo:
+                    progressed = true
                     factsIssues[next.id] = nil
                     factsMissingSince[next.id] = nil
                 case .noFacts(let note):
+                    progressed = true
                     factsIssues[next.id] = note
                     var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
                     settled.insert(next.id)
@@ -1863,6 +1907,13 @@ extension AppModel {
                     if requested { factsRequested.insert(next.id) }
                     return
                 }
+            }
+            // Die Portion ist durch: die nächste, falls noch Folgen fehlen.
+            if factsQueue.isEmpty, factsBackfillPending, progressed, !Task.isCancelled, factsMayRun {
+                factsBackfillPending = false
+                progressed = false
+                await queueMissingFacts()
+                if !factsQueue.isEmpty { continue }
             }
             // Keine Folge wartet auf Fakten: die Tags, die noch fehlen.
             await runTagsBacklog()
@@ -1914,8 +1965,14 @@ extension AppModel {
     /// Nummern aneinanderhängen („… 2 | Ich habe …“), zeigt die App nicht.
     /// Steht nur vorn eine Nummer oder am Ende ein Verweis, zeigt sie den
     /// Fakt ohne sie.
+    nonisolated static func cleanedOffMain(_ list: [EpisodeFact]) async -> [EpisodeFact] {
+        guard !list.isEmpty else { return [] }
+        return await Task.detached(priority: .utility) { list.compactMap(\.cleaned) }.value
+    }
+
     func anchoredFacts(_ list: [EpisodeFact], episodeID: EpisodeID) async -> [EpisodeFact] {
-        let list = list.compactMap(\.cleaned)
+        // Aufräumen kostet Regex je Fakt: außerhalb des Hauptthreads.
+        let list = await Self.cleanedOffMain(list)
         guard list.contains(where: { $0.range.duration.milliseconds >= 30_000 }),
               let transcript = try? await store.transcript(forEpisode: episodeID) else { return list }
         return await Task.detached(priority: .utility) {
@@ -2071,9 +2128,13 @@ extension AppModel {
     /// Liegt das Audio auf dem Gerät? Liest den Speicherzähler und die Stufe
     /// mit, damit Ansichten nach Laden, Auswerten oder Entfernen neu prüfen.
     public func hasLocalAudio(_ episode: Episode) -> Bool {
-        _ = mediaStorageChanged
         _ = stages[episode.id]
-        return localAudioFile(for: episode) != nil
+        // Aus der gemerkten Liste der Dateien, nicht je Zeile von der Platte:
+        // Jede Folgenzeile fragte bei jedem Neuzeichnen das Dateisystem.
+        // Die Liste gilt je Stand von `mediaStorageChanged`.
+        let files = localMediaFileNames
+        let ids = [episode.streamMediaVersionID].compactMap { $0 } + Self.localMediaIDs(of: [episode])
+        return ids.contains { files.contains($0.rawValue) }
     }
 
     /// Lädt nur das Audio, damit die Folge auch ohne Netz spielt. Transkribiert

@@ -9,6 +9,7 @@
 import Testing
 import Foundation
 @testable import PodcastAIKit
+@testable import PodcastAIMedia
 
 private let original = URL(string: "https://cdn.example.com/folge.mp3")!
 private let limit: Int64 = 2 * 1024 * 1024 * 1024
@@ -112,5 +113,35 @@ struct DownloadRouteTests {
         // Vorn wartet die Warteschlange auf den Download; er soll gleich laden.
         #expect(DownloadRoute.choose(unmeteredWiFi: true, automatic: true, inForeground: true,
                                      backgroundAvailable: true) == .background(.manual))
+    }
+
+    @Test("Beide Sitzungen laden sofort, nur im WLAN ohne Datenlimit, und wecken die App")
+    func sessionsAreNotDiscretionary() {
+        for mode in [BackgroundDownloadSession.Mode.manual, .automatic] {
+            let configuration = BackgroundDownloadSession.configuration(for: mode)
+            // Zurückhaltend durfte das System den Ton bis zum nächsten Laden am Strom verschieben.
+            #expect(configuration.isDiscretionary == false)
+            #expect(configuration.sessionSendsLaunchEvents)
+            #expect(!configuration.allowsCellularAccess)
+            #expect(!configuration.allowsExpensiveNetworkAccess)
+            #expect(!configuration.allowsConstrainedNetworkAccess)
+            // Dieselbe Kennung nach jedem Start, sonst fänden sich laufende Übertragungen nicht wieder.
+            #expect(configuration.identifier == BackgroundDownloadSession.identifier(for: mode))
+        }
+        #expect(BackgroundDownloadSession.identifier(for: .manual) == "com.godmodeai.podcastai.downloads.manual")
+    }
+
+    @Test("Im Voraus laden: die nächsten, die laufen dürften und keinen Ton haben, nur vorn im WLAN")
+    func lookahead() {
+        let queue = Array(1...10)
+        let needs: (Int) -> Bool = { $0 != 2 && $0 != 5 }
+        #expect(DownloadRoute.lookaheadDownloads(queue, paused: false, inForeground: true, unmeteredWiFi: true,
+                                                 needsDownload: needs) == [1, 3, 4])
+        #expect(DownloadRoute.lookaheadDownloads(queue, paused: true, inForeground: true, unmeteredWiFi: true,
+                                                 needsDownload: needs).isEmpty)
+        #expect(DownloadRoute.lookaheadDownloads(queue, paused: false, inForeground: false, unmeteredWiFi: true,
+                                                 needsDownload: needs).isEmpty)
+        #expect(DownloadRoute.lookaheadDownloads(queue, paused: false, inForeground: true, unmeteredWiFi: false,
+                                                 needsDownload: needs).isEmpty)
     }
 }

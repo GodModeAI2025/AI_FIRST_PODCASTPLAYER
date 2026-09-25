@@ -370,6 +370,7 @@ struct EpisodeDetailView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
     }
 
     /// Warum ein Transkript aufs Netz wartet, obwohl Ton auf dem Gerät liegt:
@@ -718,6 +719,7 @@ struct EpisodeDetailView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
     }
 
     /// Holt die Folge in der Warteschlange der Fakten nach vorn.
@@ -1079,7 +1081,7 @@ struct FactWording: View {
         }
         // Eingerückt unter den Text der Aussage, neben dem Symbol.
         .padding(.leading, 28)
-        .task(id: text) { foreign = AppLanguage.current.isForeign(text) }
+        .task(id: text) { foreign = await AppLanguage.isForeignInBackground(text) }
     }
 }
 
@@ -2140,6 +2142,9 @@ struct QueueView: View {
                 processingControls
             }
 
+            // Eigene Ansicht: nur sie liest den Stand von Apple Intelligence.
+            AIPipelineSection()
+
             // Transkripte erscheinen hier nur, solange welche entstehen. Sonst
             // stand unter den Folgen ein Block, der mit dem Hören nichts zu tun hat.
             if model.analyzing != nil || !model.analysisQueue.isEmpty {
@@ -2831,6 +2836,22 @@ struct NoteActions: View {
             await model.playHighlight(highlight)
             if model.episodePlayer.episode?.id == highlight.episodeID {
                 confirm(NoteFeedback.playing(from: highlight), symbol: "play.fill")
+            }
+        }
+    }
+}
+
+/// Was Apple Intelligence gerade rechnet und wie viel wartet. Liest nur
+/// `AIPipelineStatus`, damit ein neuer Stand nicht die ganze Liste neu zeichnet.
+private struct AIPipelineSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if let summary = model.aiPipeline.summary {
+            Section {
+                Label(summary, systemImage: "sparkles")
+                    .font(.callout)
+                    .accessibilityIdentifier("queue.aiPipeline")
             }
         }
     }

@@ -45,6 +45,8 @@ public final class AppModel {
     public let episodePlayer = EpisodePlayer()
     /// Die Bildcover der Themen-Updates.
     let coverArt = TopicCoverArt()
+    /// Was die eine Stelle für Apple Intelligence gerade tut (`AIScheduler`).
+    let aiPipeline = AIPipelineStatus()
     /// Was als Nächstes gehört wird. Am Ende einer Folge startet die nächste.
     public internal(set) var upNext: [Episode] = [] {
         didSet { UserDefaults.standard.set(upNext.map(\.id.rawValue), forKey: "upNextEpisodeIDs") }
@@ -474,7 +476,8 @@ public final class AppModel {
     public internal(set) var chapterTagsRevision = 0
 
     /// Fakten je Folge, wie sie die Folgenansicht, der Chat und der Export zeigen.
-    public internal(set) var facts: [EpisodeID: [EpisodeFact]] = [:]
+    /// Je Folge beobachtbar, siehe `EpisodeProgress`.
+    public var facts: EpisodeProgressMap<[EpisodeFact]> { EpisodeProgressMap(episodeProgress, \.facts) }
     public internal(set) var factsInProgress: Set<EpisodeID> = []
 
     // MARK: Fakten im Hintergrund (Ablauf in AppModel+Knowledge.swift)
@@ -534,6 +537,11 @@ public final class AppModel {
     /// Die leichte Hintergrundaufgabe `com.podcastai.tagging` läuft. Sie gibt
     /// nur den Tags Zeit, nicht den Fakten.
     @ObservationIgnored var tagGrants = 0
+    /// Das Nachholen der Fakten und Tags kam nicht ganz in eine Portion.
+    @ObservationIgnored var factsBackfillPending = false
+    /// Ältere Folgen, die in diesem Start zweimal kurz gescheitert sind.
+    @ObservationIgnored var backCatalogSkipped: Set<EpisodeID> = []
+    @ObservationIgnored var tagsBackfillPending = false
 
     /// Fakten nach dem Transkript von selbst sammeln, auch für ältere
     /// Folgen, denen sie noch fehlen.
@@ -742,6 +750,7 @@ public final class AppModel {
 
     public func load() async {
         if DemoContent.isRequested { await DemoContent.seed(into: store) }
+        if DemoContent.isRequested, DemoBacklog.isRequested { await DemoBacklog.seed(into: store) }
         // Nach einem iCloud-Abgleich können Datensätze doppelt vorliegen.
         // Wurde dabei eine gelöschte Folge endgültig bereinigt, geht auch
         // ihre Audiodatei.
@@ -777,7 +786,11 @@ public final class AppModel {
             // sonst niemand.
             if !isLoaded || highlights != knownHighlights { reindexSpotlight() }
             trails = try await store.trails()
-            modelStatus = ModelStatusProbe.current(allowPrivateCloud: allowPrivateCloudCompute)
+            let allowCloud = allowPrivateCloudCompute
+            let status = await Task.detached(priority: .utility) {
+                ModelStatusProbe.current(allowPrivateCloud: allowCloud)
+            }.value
+            if status != modelStatus { modelStatus = status }
             // Was schon erschlossen ist, steht in der Datenbank. Ohne diesen
             // Abgleich sah nach jedem Start alles unbearbeitet aus.
             analyzedEpisodes = try await store.analyzedEpisodeIDs()
@@ -1239,11 +1252,32 @@ public final class AppModel {
             let candidates = newestCandidates(in: episodes[id] ?? []).filter(isOpenForPreparation)
             for episode in candidates { enqueueAnalysis(episode, automatic: true) }
         }
-        for id in ids where backCatalog.contains(id) {
-            for episode in backCatalogCandidates(in: id) {
-                enqueueAnalysis(episode, automatic: true, backlog: true)
-            }
+        for id in ids { refillBackCatalog(in: id) }
+    }
+
+    /// Ältere Folgen in Portionen: höchstens `backCatalogBatch` je Podcast
+    /// warten zugleich. Nach jeder fertigen älteren Folge rückt die nächste nach.
+    func refillBackCatalog(in sourceID: SourceID) {
+        guard automaticAnalysis, backCatalog.contains(sourceID), preparationUnavailable == nil else { return }
+        let waiting = analysisQueue.count { $0.sourceID == sourceID && backlogQueued.contains($0.id) }
+        let open = backCatalogCandidates(in: sourceID).filter { episode in
+            !backCatalogSkipped.contains(episode.id) && !analysisQueue.contains { $0.id == episode.id }
         }
+        for episode in AutomaticWorkBudget.refill(open, alreadyWaiting: waiting, batch: backCatalogBatch) {
+            enqueueAnalysis(episode, automatic: true, backlog: true)
+        }
+    }
+
+    /// Wie viele ältere Folgen eines Podcasts zugleich warten dürfen.
+    var backCatalogBatch: Int {
+        #if os(iOS)
+        let device = UIDevice.current
+        if !device.isBatteryMonitoringEnabled { device.isBatteryMonitoringEnabled = true }
+        let charging = device.batteryState == .charging || device.batteryState == .full
+        return AutomaticWorkBudget.backCatalogBatch(charging: charging, isMac: false)
+        #else
+        return AutomaticWorkBudget.backCatalogBatch(charging: true, isMac: true)
+        #endif
     }
 
     /// Die jüngsten Folgen einer Quelle, die das Vorbereiten von selbst nimmt.
@@ -1570,8 +1604,16 @@ public final class AppModel {
         guard let saved else { return }
         let byID = Dictionary(found.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let subscribed = Set(sources.map(\.id))
-        for entry in saved.restorable(known: Set(byID.keys), finished: analyzedEpisodes,
-                                      automaticAllowed: preparationUnavailable == nil) {
+        // Bis 0.11 reihte „Ältere Folgen auch vorbereiten“ ganze Archive ein.
+        // Zurück kommt davon nur die erste Portion je Podcast, den Rest füllt
+        // `refillBackCatalog` nach.
+        let restorable = AutomaticWorkBudget.trimmed(
+            saved.restorable(known: Set(byID.keys), finished: analyzedEpisodes,
+                             automaticAllowed: preparationUnavailable == nil),
+            isBacklog: { $0.automatic && $0.backlog },
+            group: { byID[$0.episodeID]?.sourceID.rawValue ?? "" },
+            batch: backCatalogBatch)
+        for entry in restorable {
             guard let episode = byID[entry.episodeID], episode.audioURL != nil,
                   subscribed.contains(episode.sourceID), analyzing?.id != episode.id,
                   !analysisQueue.contains(where: { $0.id == episode.id }) else { continue }
@@ -1746,7 +1788,17 @@ public final class AppModel {
                 // Ohne Lücke: was nicht mehr wartet, läuft schon.
                 self.analyzing = next
                 background.setSubtitle(next.title)
+                let fromBackCatalog = self.backlogQueued.contains(next.id)
+                // Den Ton der nächsten Folgen schon jetzt über die Sitzung des
+                // Systems laden, solange die App vorn ist. So lädt er weiter,
+                // wenn sie gleich in den Hintergrund geht.
+                self.startDownloadLookahead()
                 let transientFailure = await self.runAnalysis(next, background: background)
+                // Zweimal kurz gescheitert: in diesem Start nicht wieder als ältere Folge.
+                if fromBackCatalog, transientFailure, retried.contains(next.id) {
+                    self.backCatalogSkipped.insert(next.id)
+                }
+                if fromBackCatalog { self.refillBackCatalog(in: next.sourceID) }
                 if transientFailure, !retried.contains(next.id) {
                     retried.insert(next.id)
                     self.insertIntoQueue(next)

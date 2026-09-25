@@ -854,7 +854,7 @@ struct CitationRow: View {
             }
         }
         .translationPresentation(isPresented: $translating, text: evidence.quotedText)
-        .task(id: evidence.id) { foreign = AppLanguage.current.isForeign(evidence.quotedText) }
+        .task(id: evidence.id) { foreign = await AppLanguage.isForeignInBackground(evidence.quotedText) }
         // Was sonst im Kontextmenü steht, auch für VoiceOver im Rotor.
         .accessibilityActions {
             if evidence.isPlayable, let range = evidence.range {

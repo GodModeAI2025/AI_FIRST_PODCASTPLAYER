@@ -38,6 +38,13 @@ extension AppLanguage {
         return Locale(identifier: language.rawValue).language.languageCode?.identifier
     }
 
+    /// Wie ``isForeign(_:)``, aber abseits des Hauptthreads. Die Erkennung
+    /// kostet je Zeile einige Millisekunden, und Zeilen erscheinen beim Scrollen.
+    static func isForeignInBackground(_ text: String) async -> Bool {
+        let language = AppLanguage.current
+        return await Task.detached(priority: .utility) { language.isForeign(text) }.value
+    }
+
     /// Steht der Text sicher in einer anderen Sprache als die App?
     func isForeign(_ text: String) -> Bool {
         guard let code = Self.languageCode(of: text) else { return false }
