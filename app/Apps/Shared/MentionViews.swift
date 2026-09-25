@@ -295,7 +295,7 @@ private struct MentionOccurrenceRow: View {
                 .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget, alignment: .leading)
                 .contentShape(.rect)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
             .accessibilityHint("Spielt die Folge ab dieser Stelle")
             .accessibilityIdentifier("mention.occurrence")
         } else {

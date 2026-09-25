@@ -218,7 +218,7 @@ public extension ButtonStyle where Self == PressableButtonStyle {
 /// auf der hellen Akzentfarbe des dunklen Modus, knapp 2,7 : 1. Hier ist
 /// die Schrift im hellen Modus weiß auf dunklem Indigo, im dunklen Modus
 /// schwarz auf hellem Blau, beides deutlich über 4,5 : 1. Gesperrt steht
-/// die Schrift in der Grundfarbe auf grauer Fläche, lesbar statt blass.
+/// die Schrift gedämpft auf grauer Fläche, lesbar statt blass.
 public struct ProminentActionButtonStyle: ButtonStyle {
 
     public init() {}
@@ -232,7 +232,7 @@ public struct ProminentActionButtonStyle: ButtonStyle {
 
 /// Ein Nebenknopf neben dem Hauptknopf, etwa „Als Nächstes“ oder
 /// „Transkript erstellen“. Akzentfarbe auf zarter Akzentfläche, gesperrt
-/// Grundfarbe auf grauer Fläche. Die Form kommt vom Aufrufer, weil derselbe
+/// gedämpfte Schrift auf grauer Fläche. Die Form kommt vom Aufrufer, weil derselbe
 /// Knopf nebeneinander eckig und untereinander rund steht.
 public struct SecondaryActionButtonStyle: ButtonStyle {
 
@@ -282,7 +282,9 @@ private struct ActionButtonBody: View {
     }
 
     private var foreground: Color {
-        guard isEnabled else { return .primary }
+        // Gedämpft, aber nicht so blass wie `.secondary`: auf der grauen
+        // Fläche wäre das nur gut 3 : 1. So bleibt es über 7 : 1.
+        guard isEnabled else { return Color.primary.opacity(0.72) }
         if prominent { return colorScheme == .dark ? .black : .white }
         return .accentColor
     }

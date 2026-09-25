@@ -260,7 +260,7 @@ struct RelevantGroup: Identifiable {
         let (icon, spoken): (String, Text) = switch reason {
         case .activeProject: ("briefcase", Text("Vorhaben: \(label)"))
         case .openQuestion: ("questionmark.circle", Text("Frage: \(label)"))
-        default: ("number", Text("Tag: \(label)"))
+        default: ("tag", Text("Tag: \(label)"))
         }
         let count = cards.count
         return HStack(spacing: Design.Spacing.small) {

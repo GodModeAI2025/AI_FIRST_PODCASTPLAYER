@@ -24,6 +24,10 @@ public enum TagStopwords {
     /// als Name einer Zeitung auch nein, „Federated Learning“ und „iOS 27“ ja.
     /// Ein Wort mit Ziffer ist nie ein Allerweltswort.
     public static func rejects(_ label: String) -> Bool {
+        // Kürzel wie „US“, „IT“ oder „EU“ sind klein geschrieben englische
+        // Füllwörter, groß geschrieben aber Länder und Fächer.
+        let letters = label.filter(\.isLetter)
+        if (2...3).contains(letters.count), letters.allSatisfy(\.isUppercase) { return false }
         let words = RelevanceScorer.normalize(label).split(separator: " ").map(String.init)
         guard !words.isEmpty else { return true }
         return words.allSatisfy { word in

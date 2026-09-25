@@ -118,7 +118,8 @@ struct TagStopwordTests {
     @Test("Echte Themen, Namen und Begriffe mit Ziffern bleiben")
     func topicsAdmitted() {
         for label in ["Datenschutz", "Claude", "iOS 27", "Federated Learning", "Apple Intelligence",
-                      "Sprachmodell", "Rechenzentren", "Elektroauto", "Batterie", "KI", "Robotik"] {
+                      "Sprachmodell", "Rechenzentren", "Elektroauto", "Batterie", "KI", "Robotik",
+                      "US", "IT", "EU", "UK"] {
             #expect(!TagStopwords.rejects(label), "\(label)")
             #expect(TagNormalizer.admitsDetectedTag(label), "\(label)")
         }
