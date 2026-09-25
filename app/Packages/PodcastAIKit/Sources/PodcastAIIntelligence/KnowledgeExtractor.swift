@@ -148,9 +148,25 @@ public enum ExtractorError: Error, LocalizedError {
 public struct KnowledgeExtractor: Sendable {
 
     private let configuration: ExtractorConfiguration
+    /// Wer auf das Ergebnis wartet. Ohne Angabe gilt, was zum Profil passt:
+    /// Antworten und der Satz je Kapitel für einen Menschen, der Rest im
+    /// Hintergrund. „Jetzt ermitteln“ gibt `.user` mit.
+    private let priority: AIWorkPriority?
 
-    public init(configuration: ExtractorConfiguration = ExtractorConfiguration()) {
+    public init(configuration: ExtractorConfiguration = ExtractorConfiguration(), priority: AIWorkPriority? = nil) {
         self.configuration = configuration
+        self.priority = priority
+    }
+
+    /// Art und Vorrang einer Anfrage in ``AIScheduler``.
+    func schedule(for profile: TaskProfile) -> (AIWorkKind, AIWorkPriority) {
+        switch profile {
+        case .answer: (.answer, priority ?? .user)
+        case .summarize: (.chapterSummary, priority ?? .user)
+        case .extract: (.facts, priority ?? .background)
+        case .recommend, .proposePlayback: (.relevance, priority ?? .background)
+        case .tag: (.tags, priority ?? .background)
+        }
     }
 
     /// Prüft Belege gegen das Interessenprofil.
@@ -462,15 +478,25 @@ public struct KnowledgeExtractor: Sendable {
     /// die Schätzung aus ``AnswerTokenPlan``.
     static let tokenCountDeadline = Duration.seconds(3)
 
+    /// Hat das Gerätemodell eben noch für den Hintergrund gerechnet, etwa bis
+    /// die Frage es angehalten hat, wartet das Zählen nur kurz. In der Messung
+    /// unter Last lief es danach jedes Mal die vollen drei Sekunden in die Frist.
+    static let busyTokenCountDeadline = Duration.milliseconds(300)
+
+    static var currentTokenDeadline: Duration {
+        AIScheduler.shared.modelBusyRecently ? busyTokenCountDeadline : tokenCountDeadline
+    }
+
     struct TokenCountTimeout: Error {}
 
     /// Führt `count` aus und gibt nach ``tokenCountDeadline`` auf. Das
     /// Zählen läuft dann weiter und merkt sich sein Ergebnis selbst, wenn
     /// `count` das tut; die nächste Frage findet es vor.
     static func withinTokenDeadline(
-        _ deadline: Duration = tokenCountDeadline,
+        _ deadline: Duration? = nil,
         _ count: @escaping @Sendable () async throws -> Int
     ) async throws -> Int {
+        let deadline = deadline ?? currentTokenDeadline
         let gate = ResumeGate()
         return try await withCheckedThrowingContinuation { continuation in
             Task {
@@ -668,8 +694,18 @@ public struct KnowledgeExtractor: Sendable {
             }
             throw ExtractorError.modelUnavailable(.unknown(String(localized: "keine Stufe verfügbar", bundle: .module)))
         }
-        let respond = run ?? { session, text in
+        let direct = run ?? { session, text in
             try await session.respond(to: text, generating: type).content
+        }
+        // Jede Anfrage geht durch die eine Stelle: eine zur Zeit, Menschen zuerst.
+        let (kind, order) = schedule(for: profile)
+        let respond = { (session: LanguageModelSession, text: String) async throws -> Content in
+            // Der Aufruf läuft in der Aufgabe der Stelle, während dieser hier
+            // wartet. Nichts greift gleichzeitig darauf zu.
+            let call = UncheckedBox { try await direct(session, text) }
+            return try await AIScheduler.shared.run(kind, priority: order) {
+                UncheckedBox(try await call.value())
+            }.value
         }
         var privateCloudFailure: String?
         var limit: PrivateCloudLimit?

@@ -140,6 +140,8 @@ struct RootView: View {
         // Nie einklappen: der runde Restknopf lag beim Scrollen auf Text
         // und versteckte die übrigen Reiter, „Wissen“ war nicht zu treffen.
         .tabBarMinimizeBehavior(.never)
+        // Eigene, unsichtbare Ansicht: nur sie hängt am Zustand des Players.
+        .background { AIPlaybackHold() }
         .animation(
             Design.Motion.respectingReduceMotion(Design.Motion.snappy,
                                                  reduceMotion: reduceMotion),

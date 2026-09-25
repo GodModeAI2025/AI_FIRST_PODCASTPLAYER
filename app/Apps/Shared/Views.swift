@@ -114,6 +114,7 @@ struct ForYouView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
         .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
         .listStyle(.plain)
         .navigationTitle("Für dich")
@@ -565,6 +566,7 @@ struct LibraryView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
         .navigationTitle("Meine Podcasts")
         .activityStatusToolbar()
         .confirmationDialog(removalTitle, isPresented: Binding(
@@ -1462,6 +1464,7 @@ struct SourceDetailView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
         .navigationTitle(source?.title ?? String(localized: "Quelle"))
     }
 }

@@ -207,6 +207,7 @@ struct EpisodeListView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
         .navigationTitle(source?.title ?? String(localized: "Folgen"))
         // Auf dem iPhone steht die Suche immer da. Sonst erscheint sie erst
         // beim Herunterziehen, und niemand weiß, dass es sie gibt.
@@ -1111,6 +1112,7 @@ struct KnowledgeView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
         .navigationTitle("Gemerkte Stellen")
         .task(id: model.highlights.compactMap(\.episodeID)) {
             model.fillMissingNoteTitles()

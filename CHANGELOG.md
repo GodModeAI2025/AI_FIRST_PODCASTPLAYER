@@ -5,6 +5,13 @@ Die Warteschlange lässt sich steuern:
 - „Pausieren“ und „Fortsetzen“ in der Warteschlange und per langem Druck auf das Aktivitätssymbol. Pausiert beginnt kein Transkript, die laufende Folge hält an ihrem Zwischenstand an, Fakten und Tags warten ebenso. Die Pause gilt auch nach einem Neustart, das Symbol zeigt „Pausiert“ mit der Zahl der wartenden Folgen.
 - „Alle abbrechen“ leert die Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst beim nächsten Aktualisieren von Hand wieder dazu.
 - Downloads im WLAN laufen im Hintergrund weiter, auch wenn iOS die App anhält: für Transkripte, „Laden (offline)“ und die neueste Folge je Podcast. Das Transkript entsteht danach, sobald die App wieder vorn ist. Über Mobilfunk lädt die App wie bisher nur, solange sie läuft.
+- Die nächsten drei Folgen der Warteschlange laden schon, während die aktuelle transkribiert wird. So lädt im Hintergrund nicht nur die laufende Folge zu Ende. iOS verschiebt diese Downloads nicht mehr, bis das Gerät am Strom hängt.
+
+Apple Intelligence stört nicht mehr beim Scrollen und nicht mehr den Chat:
+- Alle Anfragen an Apple Intelligence laufen durch eine Stelle, eine nach der anderen. Eine Frage im Chat, der Satz je Kapitel und „Jetzt ermitteln“ gehen sofort vor; Fakten und Tags im Hintergrund halten dafür an und laufen danach weiter.
+- Solange du scrollst, beginnt keine neue Anfrage im Hintergrund, erst zwei Sekunden danach. Im Stromsparmodus ruht die Arbeit, solange Ton läuft. Die Warteschlange zeigt, was Apple Intelligence gerade rechnet.
+- Die App lädt nach dem eigenen Speichern nicht mehr die ganze Bibliothek neu, nur noch nach Änderungen von anderen Geräten. Fakten einer Folge zeichnen nur noch ihre eigene Seite neu.
+- Automatisches kommt in Portionen: Fakten und Tags für ältere Folgen je zehn auf einmal, „Ältere Folgen auch vorbereiten“ je Podcast drei Folgen im Akkubetrieb und zehn am Strom. Die nächste Portion rückt nach, wenn eine durch ist. Was du selbst anforderst, zählt nicht mit.
 
 ## App 0.11 · 2026-09-24
 Themen-Podcasts aus Tags, eine flüssige Oberfläche und eine steuerbare Warteschlange:

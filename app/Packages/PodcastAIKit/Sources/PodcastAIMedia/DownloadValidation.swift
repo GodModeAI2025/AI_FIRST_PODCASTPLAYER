@@ -96,4 +96,21 @@ public enum DownloadRoute: Equatable, Sendable {
         guard backgroundAvailable, unmeteredWiFi else { return .foreground }
         return .background(automatic && !inForeground ? .automatic : .manual)
     }
+
+    /// So viele Folgen der Warteschlange lädt die App im Voraus über die
+    /// Sitzung des Systems, neben der laufenden.
+    public static let lookahead = 3
+
+    /// Welche Folgen der Warteschlange jetzt im Voraus laden: die ersten
+    /// `limit`, die laufen dürften und deren Ton noch fehlt, in der
+    /// Reihenfolge der Warteschlange. Nur vorn, im WLAN ohne Datenlimit und
+    /// nicht pausiert. Im Hintergrund begonnen, legte das System sie auf
+    /// einen Moment seiner Wahl.
+    public static func lookaheadDownloads<T>(
+        _ queue: [T], limit: Int = lookahead, paused: Bool, inForeground: Bool, unmeteredWiFi: Bool,
+        needsDownload: (T) -> Bool
+    ) -> [T] {
+        guard !paused, inForeground, unmeteredWiFi, limit > 0 else { return [] }
+        return Array(queue.lazy.filter(needsDownload).prefix(limit))
+    }
 }

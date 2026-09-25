@@ -81,6 +81,7 @@ struct SmartFeedListView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
         .navigationTitle("Themen-Updates")
         .activityStatusToolbar()
         .navigationDestination(for: SmartFeedID.self) { feedID in
@@ -383,6 +384,7 @@ struct SmartFeedDetailView: View {
                 }
             }
         }
+        .yieldsAIWhileScrolling()
         .navigationTitle(feed?.title ?? String(localized: "Themen-Update"))
         .navigationDestination(item: $openedTag) { id in TagDetailView(tagID: id) }
         .toolbar {

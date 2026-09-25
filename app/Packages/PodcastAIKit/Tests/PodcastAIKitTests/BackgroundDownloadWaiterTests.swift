@@ -9,6 +9,7 @@
 import Testing
 import Foundation
 @testable import PodcastAIMedia
+import PodcastAICore
 
 @Suite struct BackgroundDownloadWaiterTests {
 
@@ -78,5 +79,29 @@ import Foundation
         delegate.discard(key: "k", onlyIfUnawaited: false)
         delegate.storeResumeData(Data([1, 2, 3]), for: "k")
         #expect(delegate.takeResumeData(for: "k") == nil)
+    }
+
+    @Test func unattendedStartRecordsTransferOnce() throws {
+        let delegate = makeDelegate()
+        let session = URLSession(configuration: .ephemeral)
+        let request = try SafeHTTP.request(for: URL(string: "https://example.invalid/folge.mp3")!)
+        delegate.startUnattended(key: "k", request: request, in: session, running: [])
+        let first = delegate.state.withLock { $0.current["k"] }
+        #expect(first != nil)
+        // Ein zweiter Aufruf beginnt keine zweite Übertragung.
+        delegate.startUnattended(key: "k", request: request, in: session, running: [])
+        #expect(delegate.state.withLock { $0.current["k"] } == first)
+        session.invalidateAndCancel()
+    }
+
+    @Test func unattendedStartSkipsFileOnDisk() throws {
+        let delegate = makeDelegate()
+        try FileManager.default.createDirectory(at: delegate.mediaDirectory, withIntermediateDirectories: true)
+        try Data([1]).write(to: delegate.mediaDirectory.appendingPathComponent("k"))
+        let session = URLSession(configuration: .ephemeral)
+        let request = try SafeHTTP.request(for: URL(string: "https://example.invalid/folge.mp3")!)
+        delegate.startUnattended(key: "k", request: request, in: session, running: [])
+        #expect(delegate.state.withLock { $0.current["k"] } == nil)
+        session.invalidateAndCancel()
     }
 }

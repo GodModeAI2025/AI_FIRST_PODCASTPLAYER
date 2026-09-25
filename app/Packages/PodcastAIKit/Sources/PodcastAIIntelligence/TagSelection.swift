@@ -244,12 +244,17 @@ public struct TagSelector: Sendable {
         _ session: LanguageModelSession, tier: ModelTier, prompt: String,
         schema: GenerationSchema, choices: [TagChoice]
     ) async throws -> TagSelection {
-        let started = ContinuousClock.now
-        let response = try await session.respond(to: prompt, schema: schema)
-        let raw = (try? response.content.value([String].self, forProperty: TagSelectionRules.property)) ?? []
+        // Durch die eine Stelle für Apple Intelligence, im Hintergrund. Gemessen
+        // wird nur der Aufruf selbst, nicht die Zeit in der Warteschlange: danach
+        // richtet sich `TaggingPace`.
+        let (raw, seconds) = try await AIScheduler.shared.run(.tags, priority: .background) {
+            let started = ContinuousClock.now
+            let response = try await session.respond(to: prompt, schema: schema)
+            let raw = (try? response.content.value([String].self, forProperty: TagSelectionRules.property)) ?? []
+            return (raw, Self.seconds(ContinuousClock.now - started))
+        }
         return TagSelection(
-            chosenIDs: TagSelectionRules.accepted(raw, from: choices), tier: tier,
-            seconds: Self.seconds(ContinuousClock.now - started))
+            chosenIDs: TagSelectionRules.accepted(raw, from: choices), tier: tier, seconds: seconds)
     }
 
     static func seconds(_ elapsed: Duration) -> Double {

@@ -126,6 +126,31 @@ extension AppModel {
             automatic: automatic, inForeground: appInForeground)
     }
 
+    /// Lädt den Ton der nächsten Folgen der Warteschlange im Voraus über die
+    /// Sitzung des Systems, solange die App vorn ist.
+    ///
+    /// Transkripte beginnen nur vorn. Bis 0.11 begann deshalb auch der
+    /// Download einer Folge erst, wenn sie an der Reihe war; ging die App in
+    /// den Hintergrund, lud höchstens die laufende zu Ende, und für alle
+    /// anderen gab es nichts, was hätte weiterlaufen können. Jetzt laufen die
+    /// nächsten `DownloadRoute.lookahead` schon mit und laden im Hintergrund
+    /// weiter. Vorn begonnen, lädt das System sie sofort.
+    func startDownloadLookahead() {
+        #if os(iOS)
+        guard let session = backgroundDownloadSession(automatic: false) else { return }
+        let next = DownloadRoute.lookaheadDownloads(
+            analysisQueue, paused: queuePaused, inForeground: appInForeground,
+            unmeteredWiFi: networkLimit == nil && !onMobileData
+        ) { episode in
+            episode.audioURL != nil && mayRunNow(episode) && !hasAudioForTranscript(episode)
+        }
+        for episode in next {
+            guard let url = episode.audioURL, let id = Self.downloadID(of: episode) else { continue }
+            try? session.prefetch(url, mediaVersionID: id)
+        }
+        #endif
+    }
+
     /// Die Fassung, unter der der Ton einer Folge lädt.
     static func downloadID(of episode: Episode) -> MediaVersionID? {
         episode.audioURL.map { MediaVersionID(stable: $0.absoluteString) }

@@ -26,6 +26,10 @@ final class EpisodeProgress {
     var stage: ProcessingStage?
     var detail: String?
     var factsFraction: Double?
+    /// Die Fakten der Folge, wie sie die Ansicht zeigt. Bis 0.11 ein
+    /// Wörterbuch im Modell: ein neuer Fakt einer Folge zeichnete die offene
+    /// Seite jeder anderen Folge neu.
+    var facts: [EpisodeFact]?
 }
 
 /// Alle Einträge. Selbst nicht beobachtbar: ein Eintrag entsteht beim
@@ -34,6 +38,11 @@ final class EpisodeProgress {
 @MainActor
 final class EpisodeProgressBoard {
     private var entries: [EpisodeID: EpisodeProgress] = [:]
+
+    /// Folgen, deren Eintrag bei `keyPath` einen Wert hat.
+    func ids<Value>(having keyPath: KeyPath<EpisodeProgress, Value?>) -> [EpisodeID] {
+        entries.compactMap { $0.value[keyPath: keyPath] == nil ? nil : $0.key }
+    }
 
     func entry(_ id: EpisodeID) -> EpisodeProgress {
         if let entry = entries[id] { return entry }
@@ -54,6 +63,9 @@ public struct EpisodeProgressMap<Value: Equatable> {
         self.board = board
         self.keyPath = keyPath
     }
+
+    /// Die Folgen mit einem Wert, wie `keys` eines Wörterbuchs.
+    public var keys: [EpisodeID] { board.ids(having: keyPath) }
 
     public subscript(id: EpisodeID) -> Value? {
         get { board.entry(id)[keyPath: keyPath] }

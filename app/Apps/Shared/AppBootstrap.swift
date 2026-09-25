@@ -53,6 +53,7 @@ public enum AppBootstrap {
         // Hintergrundzeit vom System, und die App muss wissen, wann sie
         // in den Hintergrund geht.
         model.observeAppState()
+        model.aiPipeline.follow()
         // Die Sitzungen fürs Laden im Hintergrund stehen, bevor das System
         // ihre Ereignisse zustellt, auch nach einem Start im Hintergrund.
         BackgroundDownloads.shared.onArrival = { [weak model] _ in model?.backgroundDownloadArrived() }
