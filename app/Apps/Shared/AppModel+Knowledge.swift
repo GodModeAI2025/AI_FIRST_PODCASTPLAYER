@@ -144,7 +144,10 @@ extension AppModel {
 
     // MARK: - Modellzustand
 
-    public func refreshModelStatus() async {
+    ///
+    /// `notifyingStage`: Die Stufe „Wissen“ erfährt davon und lässt
+    /// Wartendes weiterlaufen. Ihre eigene Prüfung vor jeder Folge fragt ohne.
+    public func refreshModelStatus(notifyingStage: Bool = true) async {
         let wasReady = factsModelReady
         // Die Frage an FoundationModels stellt der Monitor abseits des
         // Hauptthreads. Nur ein neuer Stand wird geschrieben: jede Zuweisung
@@ -152,8 +155,13 @@ extension AppModel {
         let status = await ModelAvailabilityMonitor.shared.refresh(allowPrivateCloud: allowPrivateCloudCompute)
         if status != modelStatus { modelStatus = status }
         // Was die App tut, wenn ein Modell bereit wird: Die Stufe „Wissen“
-        // liest den Zustand selbst beim Monitor. Nur der alte Weg hier.
-        guard isLoaded, knowledgeStage == nil else { return }
+        // liest Änderungen selbst beim Monitor und erfährt hier, dass gefragt
+        // wurde. Der alte Weg bleibt hier.
+        if let knowledgeStage {
+            if notifyingStage { Task { await knowledgeStage.modelChecked(status) } }
+            return
+        }
+        guard isLoaded else { return }
         // Nur ein Modell für Tags, etwa Private Cloud Compute ohne Gerätemodell:
         // die Einordnung darf laufen, die Fakten warten.
         guard factsModelReady else {

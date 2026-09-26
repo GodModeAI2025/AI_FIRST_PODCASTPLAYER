@@ -204,6 +204,9 @@ public actor KnowledgeStage {
     private let marks: DeviceState
     private let monitor: ModelAvailabilityMonitor
     private let host: PipelineHost?
+    /// Das Postfach der Stufe. Es entsteht mit der Stufe, damit kein
+    /// Ereignis wegfällt, das vor `start()` kommt; gelesen wird ab `start()`.
+    private let mailbox: AsyncStream<PipelineEvent>?
     private let work: any KnowledgeWorking
     private let environment: Environment
     private let clock: @Sendable () -> Date
@@ -260,6 +263,7 @@ public actor KnowledgeStage {
         self.marks = marks
         self.monitor = monitor
         self.host = host
+        mailbox = host?.mailbox(for: .knowledge)
         self.work = work
         self.environment = environment
         self.clock = clock
@@ -275,8 +279,7 @@ public actor KnowledgeStage {
     public func start() {
         guard !started else { return }
         started = true
-        if let host {
-            let mailbox = host.mailbox(for: .knowledge)
+        if let mailbox {
             listeners.append(Task { [weak self] in
                 for await event in mailbox { await self?.receive(event) }
             })
@@ -414,6 +417,25 @@ public actor KnowledgeStage {
             requestReconcile()
         }
         kick()
+    }
+
+    /// Jemand hat den Zustand der Modelle neu erfragt, etwa vor einer Frage
+    /// im Chat. Wie bis 0.13: Ruht die Stufe und ist ein Modell bereit, läuft
+    /// Wartendes weiter, auch wenn sich der Zustand nicht geändert hat. Die
+    /// eigene Prüfung vor jeder Folge meldet sich hier nicht, sonst stieße
+    /// sie sich selbst immer wieder an.
+    public func modelChecked(_ status: ModelStatus) {
+        guard slot == nil else { return }
+        if Self.isReady(status, for: .extract) {
+            if waitReason != nil {
+                waitReason = nil
+                publish()
+            }
+            kick()
+        } else if Self.isReady(status, for: .tag), !tagsQueue.isEmpty || tagsBackfillPending {
+            // Nur ein Modell für Tags: Die Einordnung darf laufen.
+            kick()
+        }
     }
 
     // MARK: - Befehle

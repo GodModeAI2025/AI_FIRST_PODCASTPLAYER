@@ -138,7 +138,7 @@ extension AppModel {
             },
             refreshModel: { [weak self] in
                 guard let self else { return ModelAvailabilityMonitor.shared.current }
-                await self.refreshModelStatus()
+                await self.refreshModelStatus(notifyingStage: false)
                 return await MainActor.run { self.modelStatus }
             })
         let stage = KnowledgeStage(

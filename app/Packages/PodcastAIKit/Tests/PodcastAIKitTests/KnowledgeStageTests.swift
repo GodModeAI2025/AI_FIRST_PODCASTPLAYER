@@ -429,6 +429,47 @@ struct KnowledgeStageTests {
         #expect(await harness.stage.snapshot.waitReason == .appleIntelligenceDisabled)
     }
 
+    @Test("Kapitel ohne Tags aus dem Rückstand laufen, wenn keine Fakten warten")
+    func tagBacklog() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let media = MediaVersionID(stable: a.audioURL!.absoluteString)
+        let evidence = try #require(try await store.evidence(forEpisode: a.id).first)
+        try await store.save(facts: [EpisodeFact(
+            id: "fakt-a", episodeID: a.id, sourceID: sourceID, evidenceID: evidence.id, mediaVersionID: media,
+            statement: "Ein Satz über A.", range: try #require(evidence.range), modelTier: "onDevice")],
+            forEpisode: a.id)
+        let harness = await makeHarness(store: store, settings: FakeSettings(analyzed: [a.id]))
+        await harness.stage.reconcile()
+        #expect(await harness.stage.queuedFacts.isEmpty, "Fakten ohne Lücken: nichts zu tun")
+        #expect(await harness.stage.queuedTags == [a.id])
+        harness.gate.setInForeground(true)
+        #expect(await next(harness.work.started) == "tags:A")
+        await harness.stage.untilIdle()
+        #expect(harness.work.calls == ["tags:A:backlog"])
+        // Eingeordnet: Der nächste Abgleich fragt die Folge nicht noch einmal ab.
+        await harness.stage.reconcile()
+        #expect(await harness.stage.queuedTags.isEmpty)
+    }
+
+    @Test("Ein neu erfragtes, bereites Modell lässt Wartendes weiterlaufen, auch ohne Änderung")
+    func modelCheckedResumes() async throws {
+        let a = episode("A", daysAgo: 1)
+        var plan = RecordingWork.Plan()
+        plan.facts[episodeID("A")] = [.modelUnavailable(.modelNotReady)]
+        let harness = await makeHarness(store: try await makeStore([a]), open: true, work: RecordingWork(plan))
+        await harness.stage.request(a)
+        #expect(await next(harness.work.started) == "facts:A")
+        await harness.stage.untilIdle()
+        #expect(await harness.stage.queuedFacts == [a.id])
+        #expect(await harness.stage.snapshot.waitReason == .modelNotReady)
+        await harness.stage.modelChecked(ready)
+        #expect(await next(harness.work.started) == "facts:A")
+        await harness.stage.untilIdle()
+        #expect(await harness.stage.queuedFacts.isEmpty)
+        #expect(harness.work.calls == ["facts:A!", "facts:A!", "tags:A:user"])
+    }
+
     @Test("Fakten und Tags melden sich erst nach dem Lauf, mit der Fassung aus dem Store")
     func announcesAfterWork() async throws {
         let a = episode("A", daysAgo: 1)
