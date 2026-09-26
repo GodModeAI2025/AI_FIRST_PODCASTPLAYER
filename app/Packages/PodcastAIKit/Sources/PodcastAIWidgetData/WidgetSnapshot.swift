@@ -8,8 +8,8 @@
 //  kann, und ein Widget steht auf dem Sperrbildschirm.
 //
 //  Ältere und neuere Fassungen der App lesen dieselbe Datei. Fehlt ein
-//  Feld, gilt es als leer. Die Trends kommen erst mit ihrer Zählung dazu,
-//  bis dahin bleibt `trendingTags` leer und das Widget zeigt nichts dafür.
+//  Feld, gilt es als leer. `trendingTags` füllt die App, sobald sie
+//  „Angesagt“ gerechnet hat; bis dahin zeigt das Widget nichts dafür.
 //
 
 import Foundation

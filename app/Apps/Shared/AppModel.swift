@@ -479,7 +479,9 @@ public final class AppModel {
     public internal(set) var chapterTagsRevision = 0
     /// Tags, die gerade angesagt sind, nach Schlüssel. Rechnet
     /// `refreshTagTrends()` in AppModel+TagTrends.swift.
-    public internal(set) var tagTrends: [TagTrend] = []
+    public internal(set) var tagTrends: [TagTrend] = [] {
+        didSet { publishWidgetSnapshot() }
+    }
     @ObservationIgnored var tagTrendsStamp: TagTrendsStamp?
 
     /// Fakten je Folge, wie sie die Folgenansicht, der Chat und der Export zeigen.

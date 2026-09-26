@@ -152,7 +152,12 @@ extension AppModel {
             generatedAt: generatedAt)
     }
 
-    /// Angesagte Tags fürs Widget. Leer, bis die App Trends zählt; dann
-    /// liefert die Trendzählung sie hier, das Widget zeigt sie von selbst.
-    var widgetTrendingTags: [WidgetSnapshot.TagCount] { [] }
+    /// Angesagte Tags fürs Widget, wie „Angesagt“ in „Meine Tags“ sie
+    /// zuletzt gerechnet hat. Die Zahl ist die der Kapitel in den letzten
+    /// sieben Tagen.
+    var widgetTrendingTags: [WidgetSnapshot.TagCount] {
+        trendingTags.map {
+            WidgetSnapshot.TagCount(tagID: $0.tag.id.rawValue, label: $0.tag.label, count: $0.trend.recentChapters)
+        }
+    }
 }
