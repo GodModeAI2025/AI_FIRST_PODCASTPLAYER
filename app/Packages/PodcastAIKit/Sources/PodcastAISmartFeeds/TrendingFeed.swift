@@ -65,15 +65,6 @@ public enum TrendingFeed {
         return feed.topicIDs.filter { !unfollowed.contains($0) }
     }
 
-    /// Das Update, wie es angelegt wird. Der Titel kommt aus der Sprache
-    /// des Geräts, das es anlegt, und bleibt danach stehen.
-    public static func makeFeed(title: String, tagIDs: [InterestID], createdAt: Date = Date()) -> SmartPodcastFeed {
-        SmartPodcastFeed(
-            id: id, title: title, topicIDs: tagIDs, matchMode: .any,
-            editionMode: .budgeted(MediaDuration(minutes: partMinutes)),
-            createdAt: createdAt)
-    }
-
     /// Was mit dem gespeicherten Update geschehen soll.
     public enum Action: Equatable, Sendable {
         case none

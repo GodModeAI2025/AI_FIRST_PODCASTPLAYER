@@ -77,7 +77,9 @@ extension AppModel {
     /// stellt gleich die erste Ausgabe zusammen, wie beim Anlegen eines
     /// eigenen Updates, sofern etwas angesagt ist. Aus löscht das Update mit
     /// allen seinen Ausgaben; Folgen, Transkripte und Hörstand bleiben.
-    /// Beides spielt nichts ab.
+    /// Solange eine Ausgabe des ausgeschalteten Updates noch entsteht, geht
+    /// es nicht wieder an (``trendingFeedBlockedByOldBuild``). Beides spielt
+    /// nichts ab.
     public func setTrendingFeedEnabled(_ enabled: Bool) {
         guard isLoaded else { return }
         trendingFeedDecided = true
@@ -115,6 +117,30 @@ extension AppModel {
         // „noch nicht gerechnet“, nicht „nichts angesagt“. Sie darf die
         // Tags, die ein anderes Gerät geschrieben hat, nicht löschen.
         guard isLoaded, tagTrendsStamp != nil else { return }
+        guard trendingFeedAction() != .none else { return }
+        guard await storeMatchesSmartFeeds() else { return }
+        // Während des Lesens können neue Trends gekommen sein, und ein
+        // zweiter Abgleich kann schon geschrieben haben. Deshalb entscheidet
+        // der Stand nach dem Lesen, nicht der davor; sonst schriebe ein
+        // später fertiger Abgleich alte Tags über neue.
+        switch trendingFeedAction() {
+        case .none:
+            return
+        case .create(let tags):
+            guard !trendingFeedBlockedByOldBuild else { return }
+            trendingFeedDecided = true
+            addTrendingFeed(tags: tags, buildFirstEdition: false)
+        case .update(let tags):
+            guard var feed = trendingFeed else { return }
+            feed.topicIDs = tags
+            updateSmartFeed(feed)
+            trendingFeedAppliedTags = tags
+        }
+    }
+
+    /// Was mit „Angesagt“ nach dem jetzigen Stand geschehen soll. Merkt sich
+    /// nebenbei, was ohne Schreiben schon feststeht.
+    private func trendingFeedAction() -> TrendingFeed.Action {
         let desired = desiredTrendingFeedTags
         let existing = trendingFeed
         // Kam das Update über iCloud, hat ein anderes Gerät schon befunden.
@@ -123,24 +149,12 @@ extension AppModel {
         let action = TrendingFeed.reconcile(
             existing: existing, desired: desired,
             lastApplied: trendingFeedAppliedTags, decided: trendingFeedDecided)
-        switch action {
-        case .none:
-            // Stimmen die Tags schon, gilt das als geschrieben. Sonst holte
-            // ein späterer Stand eines anderen Geräts einen alten zurück.
-            if let existing, Set(existing.topicIDs) == Set(desired) { trendingFeedAppliedTags = desired }
-        case .create(let tags):
-            guard await storeMatchesSmartFeeds(),
-                  trendingFeed == nil, !trendingFeedDecided else { return }
-            trendingFeedDecided = true
-            addTrendingFeed(tags: tags, buildFirstEdition: false)
-        case .update(let tags):
-            guard await storeMatchesSmartFeeds(), var feed = trendingFeed else { return }
-            // Während des Lesens kann ein zweiter Abgleich geschrieben haben.
-            guard Set(feed.topicIDs) != Set(tags) else { return }
-            feed.topicIDs = tags
-            updateSmartFeed(feed)
-            trendingFeedAppliedTags = tags
+        // Stimmen die Tags schon, gilt das als geschrieben. Sonst holte ein
+        // späterer Stand eines anderen Geräts einen alten zurück.
+        if action == .none, let existing, Set(existing.topicIDs) == Set(desired) {
+            trendingFeedAppliedTags = desired
         }
+        return action
     }
 
     /// Kennt die Liste im Speicher genau die gesicherten Updates? Nur dann
@@ -154,7 +168,20 @@ extension AppModel {
         return Set(stored.map(\.id)) == Set(smartFeeds.map(\.id))
     }
 
+    /// Läuft noch eine Ausgabe für ein ausgeschaltetes „Angesagt“? Dann
+    /// entsteht es erst neu, wenn sie fertig und verworfen ist. Die feste
+    /// Kennung nähme sie sonst als Ausgabe des neuen Updates an, und eine
+    /// zweite liefe daneben.
+    var trendingFeedBlockedByOldBuild: Bool {
+        trendingFeed == nil && buildingFeeds.contains(TrendingFeed.id)
+    }
+
     private func addTrendingFeed(tags: [InterestID], buildFirstEdition: Bool) {
+        guard !trendingFeedBlockedByOldBuild else { return }
+        // Die feste Kennung erbt sonst die letzte Rückmeldung des alten
+        // Updates, etwa „gibt es nicht mehr“ von der verworfenen Ausgabe.
+        editionNotes[TrendingFeed.id] = nil
+        editionChecks[TrendingFeed.id] = nil
         createSmartFeed(
             title: String(localized: "Angesagt"), topicIDs: tags, matchMode: .any,
             minutes: TrendingFeed.partMinutes, buildFirstEdition: buildFirstEdition && !tags.isEmpty,

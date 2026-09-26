@@ -95,7 +95,7 @@ final class TagTrendsUITests: XCTestCase {
         let app = launch()
         tab(app, "Themen-Updates")
 
-        let toggle = element(app, "topicUpdates.trendingFeed.toggle")
+        let toggle = app.switches["topicUpdates.trendingFeed.toggle"].firstMatch
         XCTAssertTrue(toggle.waitForExistence(timeout: 10), "Der Schalter für „Angesagt“ fehlt")
         let row = element(app, "topicUpdates.trendingFeed.row")
         XCTAssertTrue(row.waitForExistence(timeout: 15), "„Angesagt“ entstand nicht von selbst")
@@ -130,6 +130,10 @@ final class TagTrendsUITests: XCTestCase {
         attach(app, "angesagt-aus")
         assertNoAudio(app)
 
+        // Läuft noch eine Ausgabe des ausgeschalteten Updates, bleibt der
+        // Schalter gesperrt, bis sie verworfen ist.
+        let enabled = expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: toggle)
+        wait(for: [enabled], timeout: 30)
         // Der Schalter selbst liegt am rechten Rand der Zeile.
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).tap()
         XCTAssertTrue(row.waitForExistence(timeout: 10), "Eingeschaltet entsteht „Angesagt“ nicht wieder")

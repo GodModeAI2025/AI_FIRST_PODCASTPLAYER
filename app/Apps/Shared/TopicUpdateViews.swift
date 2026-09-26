@@ -229,7 +229,9 @@ struct TrendingTagsLine: View {
 }
 
 /// „Angesagt automatisch zusammenstellen“. Der Schalter zeigt, ob es das
-/// Update gibt; das gilt auf allen Geräten. Er spielt nichts ab.
+/// Update gibt; das gilt auf allen Geräten. Er spielt nichts ab. Nach dem
+/// Ausschalten bleibt er gesperrt, bis eine noch laufende Ausgabe des alten
+/// Updates fertig und verworfen ist.
 struct TrendingFeedToggle: View {
 
     @Environment(AppModel.self) private var model
@@ -241,7 +243,7 @@ struct TrendingFeedToggle: View {
         )) {
             Text("Angesagt automatisch zusammenstellen")
         }
-        .disabled(!model.isLoaded)
+        .disabled(!model.isLoaded || model.trendingFeedBlockedByOldBuild)
         .accessibilityIdentifier("topicUpdates.trendingFeed.toggle")
     }
 }

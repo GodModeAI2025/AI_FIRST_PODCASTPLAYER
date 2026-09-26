@@ -84,12 +84,11 @@ struct TrendingFeedTests {
         // eine neue Fassung neben dem alten „Angesagt“ ein zweites an.
         #expect(TrendingFeed.id.rawValue == "38fc909e8005e7ed532a4d4e1df7acb1")
 
-        let german = TrendingFeed.makeFeed(title: "Angesagt", tagIDs: [euAct], createdAt: Date(timeIntervalSince1970: 0))
-        let english = TrendingFeed.makeFeed(title: "Trending", tagIDs: [chips], createdAt: Date())
-        #expect(german.id == english.id)
+        // So legt `AppModel.createSmartFeed(…, id:)` es an: Titel in der
+        // Sprache des Geräts, sonst die Standardwerte eines Updates.
+        let german = SmartPodcastFeed(id: TrendingFeed.id, title: "Angesagt", topicIDs: [euAct])
+        let english = SmartPodcastFeed(id: TrendingFeed.id, title: "Trending", topicIDs: [chips])
         #expect(german.followsTrends && english.followsTrends)
-        #expect(german.matchMode == .any)
-        #expect(german.editionMode.budget == MediaDuration(minutes: 20))
         #expect(german.publicationPolicy.isAutomatic, "„Angesagt“ folgt derselben Automatik wie jedes Update")
 
         let own = SmartPodcastFeed(title: "Angesagt", topicIDs: [euAct])
@@ -255,6 +254,15 @@ struct TrendingFeedTests {
         let stored = try await store.editions()
         #expect(stored[TrendingFeed.id] == nil)
         #expect(stored[own.id]?.map(\.id) == ownRun.parts.map(\.id))
+    }
+}
+
+extension TrendingFeed {
+    /// Nur für Tests: „Angesagt“, wie es ein Gerät anlegt, mit festem Datum.
+    static func makeFeed(title: String, tagIDs: [InterestID], createdAt: Date = Date()) -> SmartPodcastFeed {
+        SmartPodcastFeed(
+            id: id, title: title, topicIDs: tagIDs, matchMode: .any,
+            editionMode: .budgeted(MediaDuration(minutes: partMinutes)), createdAt: createdAt)
     }
 }
 

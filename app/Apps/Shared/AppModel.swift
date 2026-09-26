@@ -2897,7 +2897,9 @@ public final class AppModel {
     @ObservationIgnored private var statisticsRefresh: Task<Void, Never>?
 
     private func computeSmartFeedStatistics() async {
-        let feeds = smartFeeds
+        // „Angesagt“ zählt wie beim Zusammenstellen ohne Tags mit Minus
+        // (AppModel+TrendingFeed.swift), sonst stünden sie im Kopf des Tabs.
+        let feeds = smartFeeds.map { $0.followsTrends ? trendingFeedForEdition($0) : $0 }
         let tags = feeds.reduce(into: Set<InterestID>()) { $0.formUnion(editionTags(for: $1)) }
         guard !tags.isEmpty else {
             smartFeedStatistics = [:]
