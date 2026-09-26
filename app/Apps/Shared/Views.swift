@@ -59,18 +59,9 @@ struct ForYouView: View {
                         .buttonStyle(.prominentAction)
                 }
             } else if model.profile.followed.isEmpty {
-                ContentUnavailableView {
-                    Label("Wonach suchst du?", systemImage: "sparkles")
-                } description: {
-                    Text("""
-                        Tags entstehen aus dem Inhalt deiner Folgen. Tippe bei einem Tag auf Plus, \
-                        in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“. \
-                        Dann sammelt PodcastAI hier die passenden Kapitel.
-                        """)
-                } actions: {
-                    NavigationLink("Meine Tags") { TagsView() }
-                        .buttonStyle(.prominentAction)
-                }
+                // Ohne gefolgte Tags steht hier nichts. Die Aufforderung
+                // „Wonach suchst du?“ wollte der Product Owner nicht.
+                EmptyView()
             } else if model.relevantToday.isEmpty {
                 Section {
                     Text("Gerade keine ungehörten Stellen. Neue kommen dazu, sobald weitere Transkripte fertig sind.")

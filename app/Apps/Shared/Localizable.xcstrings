@@ -14413,22 +14413,6 @@
         }
       }
     },
-    "Tags entstehen aus dem Inhalt deiner Folgen. Tippe bei einem Tag auf Plus, in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“. Dann sammelt PodcastAI hier die passenden Kapitel." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tags entstehen aus dem Inhalt deiner Folgen. Tippe bei einem Tag auf Plus, in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“. Dann sammelt PodcastAI hier die passenden Kapitel."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tags come from the content of your episodes. Tap the plus on a tag, in an episode under “In Brief” or in “My Tags”. PodcastAI then collects the matching chapters here."
-          }
-        }
-      }
-    },
     "Tags folgen" : {
       "localizations" : {
         "de" : {
@@ -16572,22 +16556,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where do two podcasts contradict each other?"
-          }
-        }
-      }
-    },
-    "Wonach suchst du?" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wonach suchst du?"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What Are You Looking For?"
           }
         }
       }
