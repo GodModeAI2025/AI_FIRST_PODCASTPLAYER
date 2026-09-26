@@ -20,6 +20,8 @@ open PodcastAI.xcodeproj
 
 Signiert wird automatisch mit dem Team Mobile Box (`SP73Z8JWXM`).
 
+Beide Apps betten die Share Extension „An PodcastAI senden“ ein (`PodcastAIShare` in `com.godmodeai.podcastai.mobile.share`, `PodcastAIShareMac` in `com.godmodeai.podcastai.mac.share`). Apps und Erweiterungen teilen die App Group `group.com.godmodeai.podcastai`. Der erste signierte Build danach braucht `-allowProvisioningUpdates` (das TestFlight-Skript setzt es) oder einmal Xcode mit angemeldetem Account, damit die beiden App-IDs entstehen und die Gruppe in die Profile kommt. Ohne Signatur (`CODE_SIGNING_ALLOWED=NO`) bauen beide Schemata auch vorher.
+
 ## Tests
 
 Die Logik im Swift-Paket hat eigene Tests, darunter die Löschregeln und die Suche für den Chat:
@@ -96,11 +98,13 @@ Packages/PodcastAIKit/Sources/
   PodcastAISmartFeeds    Persönliche Themenfeeds, Shownotes, Cover
   PodcastAIExport        Markdown für Folgen, Antworten und Notizen
   PodcastAIPersistence   SwiftData mit iCloud-Abgleich
+  PodcastAIShareInbox    Eingang für „An PodcastAI senden“, eigenes Produkt für die Erweiterung
 
 Apps/
   Shared/                AppModel, Dienste, gemeinsame Ansichten
   PodcastAI/             iOS: fünf Tabs, Mini-Player
   PodcastAIMac/          macOS: Seitenleiste, Menübefehle, MCP-Server
+  ShareExtension/        „An PodcastAI senden“ für iOS und macOS
 
 UITests/                 UI-Tests für iOS
 ```

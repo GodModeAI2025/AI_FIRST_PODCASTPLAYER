@@ -41,6 +41,7 @@ Stand 23. September 2026, Version 0.12.
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
 | Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |
+| „An PodcastAI senden“ | Das Teilen-Menü lässt sich im UI-Test nicht bedienen; geprüft sind Eingang, Vorschau und Audiodatei über Startargumente. Offen: ob die Erweiterung nur bei Links und Audio erscheint, wie Finder und AirDrop Dateien anbieten, ob der Mac die App öffnet, wie lange eine große Datei beim Kopieren braucht. Signierte Builds brauchen einmal neue Profile mit der App Group |
 
 ## Bewusst nicht enthalten
 

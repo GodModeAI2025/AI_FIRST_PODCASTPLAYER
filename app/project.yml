@@ -50,6 +50,7 @@ targets:
       - path: Apps/Shared
     dependencies:
       - package: PodcastAIKit
+      - target: PodcastAIShare
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile
@@ -67,6 +68,7 @@ targets:
       - path: Apps/Shared
     dependencies:
       - package: PodcastAIKit
+      - target: PodcastAIShareMac
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac
@@ -74,6 +76,51 @@ targets:
         INFOPLIST_FILE: Apps/PodcastAIMac/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIMac/PodcastAIMac.entitlements
+
+  # „An PodcastAI senden“: nimmt Links und Audiodateien aus dem Teilen-Menü
+  # und legt sie in den Eingang der App Group. Die Erweiterung legt nichts
+  # an; die App zeigt beim nächsten Öffnen die Vorschau. Sie hängt nur am
+  # kleinen Paketprodukt PodcastAIShareInbox (Foundation, Linkregeln), nicht
+  # an Datenbank, Medien oder Modellen.
+  PodcastAIShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Apps/ShareExtension/Shared
+      - path: Apps/ShareExtension/iOS
+    dependencies:
+      - package: PodcastAIKit
+        product: PodcastAIShareInbox
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile.share
+        PRODUCT_NAME: PodcastAIShare
+        INFOPLIST_FILE: Apps/ShareExtension/iOS/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_ENTITLEMENTS: Apps/ShareExtension/iOS/PodcastAIShare.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+
+  PodcastAIShareMac:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Apps/ShareExtension/Shared
+      - path: Apps/ShareExtension/macOS
+      # Das Symbol der App im Teilen-Menü des Mac.
+      - path: Apps/Shared/Assets.xcassets
+    dependencies:
+      - package: PodcastAIKit
+        product: PodcastAIShareInbox
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac.share
+        PRODUCT_NAME: PodcastAIShare
+        INFOPLIST_FILE: Apps/ShareExtension/macOS/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Apps/ShareExtension/macOS/PodcastAIShareMac.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
 
   PodcastAIUITests:
     type: bundle.ui-testing

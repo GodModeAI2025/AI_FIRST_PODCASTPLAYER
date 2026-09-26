@@ -161,6 +161,8 @@ struct RootView: View {
         }
         .autoRefresh()
         .spotlightPassages()
+        // Links und Audiodateien aus „An PodcastAI senden“.
+        .sharedInbox()
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView().sheetFeedback().environment(model)
         }

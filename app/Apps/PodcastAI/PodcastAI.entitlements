@@ -8,6 +8,9 @@
     <key>com.apple.developer.icloud-services</key>
     <array><string>CloudKit</string></array>
     <key>aps-environment</key><string>development</string>
+    <!-- Gemeinsamer Ordner mit „An PodcastAI senden“ und dem Widget. -->
+    <key>com.apple.security.application-groups</key>
+    <array><string>group.com.godmodeai.podcastai</string></array>
     <!-- Apple Intelligence auf Private Cloud Compute, von Apple für das Team freigegeben. -->
     <key>com.apple.developer.private-cloud-compute</key>
     <true/>

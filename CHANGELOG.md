@@ -1,6 +1,11 @@
 # Änderungsverlauf
 
 ## Nächste Version
+„An PodcastAI senden“ im Teilen-Menü von iPhone, iPad und Mac:
+- Links aus Apple Podcasts, YouTube, Safari und anderen Apps gehen mit einem Tipp an PodcastAI, ebenso Audiodateien aus Dateien oder AirDrop. Die Erweiterung legt nichts an. Beim Öffnen zeigt die App die Vorschau mit „Abonnieren“ oder „Nur diese Folge“; ein geteilter Feed wird nicht gleich abonniert.
+- Auf dem iPhone und iPad darf eine Erweiterung die App nicht öffnen. Dort steht „In PodcastAI geöffnet, sobald du die App startest“, und der Link wartet bis dahin. Der Mac öffnet PodcastAI gleich.
+- Eine geteilte Audiodatei kommt nach „Zur Bibliothek hinzufügen“ unter „Einzelne Folgen“ und bleibt auf dem Gerät, bis du „Audio entfernen“ wählst. Dateien über 2 GB und Formate, die die App nicht lesen kann, lehnt sie mit einem Satz ab.
+
 Die Warteschlange lässt sich steuern:
 - „Pausieren“ und „Fortsetzen“ in der Warteschlange und per langem Druck auf das Aktivitätssymbol. Pausiert beginnt kein Transkript, die laufende Folge hält an ihrem Zwischenstand an, Fakten und Tags warten ebenso. Die Pause gilt auch nach einem Neustart, das Symbol zeigt „Pausiert“ mit der Zahl der wartenden Folgen.
 - „Alle abbrechen“ leert die Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst beim nächsten Aktualisieren von Hand wieder dazu.

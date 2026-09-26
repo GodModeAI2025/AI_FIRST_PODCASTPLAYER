@@ -787,9 +787,19 @@ struct SourceRow: View {
 /// und Kategorien sind die Charts von Apple Podcasts im Land des Geräts.
 struct AddSourceSheet: View {
 
+    /// Ein Link aus „An PodcastAI senden“. Das Blatt sieht ihn gleich an und
+    /// zeigt die Vorschau, legt aber nichts an.
+    var sharedLink: String? = nil
+    /// Schließt das Blatt, wenn es über einem offenen Blatt liegt statt als
+    /// `.sheet`. Dort erreicht `dismiss` es nicht verlässlich.
+    var close: (@MainActor () -> Void)? = nil
+
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @State private var input = ""
+    /// Der geteilte Link wird nur einmal geöffnet, nicht bei jeder Rückkehr
+    /// aus der Vorschau.
+    @State private var openedSharedLink = false
     @State private var results: [CatalogPodcast] = []
     @State private var searchedTerm: String?
     @State private var searching = false
@@ -810,6 +820,7 @@ struct AddSourceSheet: View {
     private enum Attempt: Equatable {
         case search(String)
         case link(String)
+        case shared(String)
     }
 
     private var trimmed: String { input.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -984,6 +995,14 @@ struct AddSourceSheet: View {
             }
             .navigationTitle("Hinzufügen")
             .task {
+                // Ein geteilter Link braucht keine Tastatur, sie läge über der Vorschau.
+                if let sharedLink {
+                    guard !openedSharedLink else { return }
+                    openedSharedLink = true
+                    input = sharedLink
+                    await openShared(sharedLink)
+                    return
+                }
                 // Kurz warten, bis das Blatt steht. Sofort gesetzt, greift der Fokus nicht.
                 try? await Task.sleep(for: .milliseconds(450))
                 fieldFocused = true
@@ -1000,14 +1019,14 @@ struct AddSourceSheet: View {
                         Button(isLink ? "Hinzufügen" : "Suchen", action: submit)
                             .disabled(trimmed.isEmpty || addingLink)
                     } else {
-                        Button("Fertig") { dismiss() }
+                        Button("Fertig") { finish() }
                     }
                 }
                 // Nach einem Abo gibt es nichts mehr abzubrechen. Neben
                 // „Fertig“ klang „Abbrechen“, als nähme es das Abo zurück.
                 if !subscriptions.hasChanges {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Abbrechen") { dismiss() }
+                        Button("Abbrechen") { finish() }
                     }
                 }
             }
@@ -1118,8 +1137,13 @@ struct AddSourceSheet: View {
         switch lastAttempt {
         case .search(let term)?: Task { await search(term) }
         case .link(let text)?: Task { await subscribeLink(text) }
+        case .shared(let text)?: Task { await openShared(text) }
         case nil: break
         }
+    }
+
+    private func finish() {
+        if let close { close() } else { dismiss() }
     }
 
     private func searchAfterPause() async {
@@ -1168,16 +1192,16 @@ struct AddSourceSheet: View {
             // nicht über die Suche nach einem Feed.
             if AppModel.socialLink(in: text) != nil {
                 try await model.subscribe(to: text)
-                dismiss()
+                finish()
                 return
             }
             switch try await model.inspectLink(text) {
             case .direct:
                 try await model.subscribe(to: text)
-                dismiss()
+                finish()
             case .audioFile(let url, let title):
                 try await model.addAudioEpisode(url, title: title)
-                dismiss()
+                finish()
             case .podcast(let link):
                 path.append(.linkPodcast(link))
             case .youTube(let link):
@@ -1188,6 +1212,37 @@ struct AddSourceSheet: View {
         } catch {
             failure = UserFacingError.describe(error)
             lastAttempt = .link(text)
+        }
+    }
+
+    /// Ein geteilter Link: erst ansehen, nichts anlegen. Folgen, YouTube und
+    /// Podcasts zeigen ihre Vorschau mit „Abonnieren“ und „Nur diese Folge“.
+    /// Eine Audiodatei im Netz und Beiträge aus sozialen Netzen bleiben im
+    /// Feld stehen, darunter der Knopf, der sie wie eingefügt hinzufügt.
+    private func openShared(_ text: String) async {
+        guard AppModel.socialLink(in: text) == nil else { return }
+        addingLink = true
+        failure = nil
+        subscriptions.linkFailure = nil
+        defer { addingLink = false }
+        do {
+            switch try await model.inspectLink(text) {
+            case .podcast(let link):
+                path.append(.linkPodcast(link))
+            case .youTube(let link):
+                path.append(.youTube(link))
+            case .direct:
+                if let link = try await model.sharedPodcastPreview(for: text) {
+                    path.append(.linkPodcast(link))
+                }
+            case .audioFile:
+                break
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            failure = UserFacingError.describe(error)
+            lastAttempt = .shared(text)
         }
     }
 }
