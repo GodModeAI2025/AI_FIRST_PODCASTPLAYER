@@ -9,7 +9,8 @@
 //  3“. Eine Ausgabe öffnet sich wie eine Folge: Kapitel 0 ist die
 //  Übersicht ohne Ton, danach die Kapitel mit „Original öffnen“. Der Kopf
 //  des Tabs zählt neue Aussagen je Tag seit dem letzten Hören. Darüber
-//  steht seit 0.12 eine Zeile mit den Tags, die gerade angesagt sind.
+//  steht seit 0.12 eine Zeile mit den Tags, die gerade angesagt sind, dazu
+//  der Schalter für das Update „Angesagt“, das die App aus ihnen führt.
 //
 //  Angelegt wird ein Update aus Tags, nicht aus Freitext: gefolgte Tags als
 //  Kapseln, weitere bekannte Tags über eine Suche, dazu „eines davon“ oder
@@ -41,14 +42,42 @@ struct SmartFeedListView: View {
         _linkedTag = linkedTag
     }
 
+    /// Die Zeile „Angesagt“ und der Schalter erscheinen, sobald etwas
+    /// angesagt ist oder das Update schon besteht.
+    private var showsTrending: Bool { !model.trendingTags.isEmpty || model.trendingFeed != nil }
+
     var body: some View {
         List {
-            if !model.trendingTags.isEmpty {
+            if showsTrending {
                 Section {
-                    TrendingTagsLine(entries: model.trendingTags) { openedTag = $0 }
+                    if !model.trendingTags.isEmpty {
+                        TrendingTagsLine(entries: model.trendingTags) { openedTag = $0 }
+                    }
+                    TrendingFeedToggle()
+                    if let feed = model.trendingFeed {
+                        NavigationLink(value: feed.id) {
+                            SmartFeedRow(feed: feed, editions: model.editions[feed.id] ?? [])
+                        }
+                        .accessibilityIdentifier("topicUpdates.trendingFeed.row")
+                    }
+                } footer: {
+                    Text("""
+                        Ein Themen-Update aus den Tags, die gerade angesagt sind. Seine Tags wechseln mit den \
+                        Trends, Tags mit Minus bleiben draußen. Ausgaben entstehen wie bei deinen Updates und \
+                        spielen nur, wenn du sie antippst.
+                        """)
                 }
             }
-            if model.smartFeeds.isEmpty {
+            if !model.topicUpdatesHeader.isEmpty {
+                Section {
+                    TopicStatisticsHeader(counts: model.topicUpdatesHeader) { openedTag = $0 }
+                } header: {
+                    Text("Neu seit dem letzten Hören")
+                } footer: {
+                    Text("Neue Aussagen je Tag aus Folgen, die nach der zuletzt gehörten Ausgabe erschienen sind.")
+                }
+            }
+            if model.userSmartFeeds.isEmpty {
                 ContentUnavailableView {
                     Label("Noch kein Themen-Update", systemImage: "waveform.circle")
                 } description: {
@@ -59,18 +88,9 @@ struct SmartFeedListView: View {
                 } actions: {
                     Button("Themen-Update anlegen") { showingNewFeed = true }
                 }
-            } else if !model.topicUpdatesHeader.isEmpty {
+            } else {
                 Section {
-                    TopicStatisticsHeader(counts: model.topicUpdatesHeader) { openedTag = $0 }
-                } header: {
-                    Text("Neu seit dem letzten Hören")
-                } footer: {
-                    Text("Neue Aussagen je Tag aus Folgen, die nach der zuletzt gehörten Ausgabe erschienen sind.")
-                }
-            }
-            if !model.smartFeeds.isEmpty {
-                Section {
-                    ForEach(model.smartFeeds) { feed in
+                    ForEach(model.userSmartFeeds) { feed in
                         NavigationLink(value: feed.id) {
                             SmartFeedRow(feed: feed, editions: model.editions[feed.id] ?? [])
                         }
@@ -92,14 +112,15 @@ struct SmartFeedListView: View {
                         }
                     }
                 } header: {
-                    if !model.topicUpdatesHeader.isEmpty { Text("Deine Updates") }
+                    if showsTrending || !model.topicUpdatesHeader.isEmpty { Text("Deine Updates") }
                 }
             }
         }
         .yieldsAIWhileScrolling()
         .navigationTitle("Themen-Updates")
         .activityStatusToolbar()
-        .task(id: model.tagTrendsTrigger) { await model.refreshTagTrends() }
+        // Rechnet „Angesagt“ und gleicht das gleichnamige Update ab. Spielt nichts.
+        .task(id: model.trendingFeedTrigger) { await model.refreshTrendingFeed() }
         .navigationDestination(for: SmartFeedID.self) { feedID in
             SmartFeedDetailView(feedID: feedID)
         }
@@ -207,6 +228,24 @@ struct TrendingTagsLine: View {
     }
 }
 
+/// „Angesagt automatisch zusammenstellen“. Der Schalter zeigt, ob es das
+/// Update gibt; das gilt auf allen Geräten. Er spielt nichts ab.
+struct TrendingFeedToggle: View {
+
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Toggle(isOn: Binding(
+            get: { model.trendingFeed != nil },
+            set: { model.setTrendingFeedEnabled($0) }
+        )) {
+            Text("Angesagt automatisch zusammenstellen")
+        }
+        .disabled(!model.isLoaded)
+        .accessibilityIdentifier("topicUpdates.trendingFeed.toggle")
+    }
+}
+
 /// „1 neue Aussage“, „3 neue Aussagen“. Zwei feste Sätze statt `inflect`,
 /// damit die Mehrzahl im Deutschen sicher stimmt.
 enum NewStatements {
@@ -234,15 +273,33 @@ private struct SmartFeedDeletionDialog: ViewModifier {
     @Environment(AppModel.self) private var model
 
     func body(content: Content) -> some View {
-        content.confirmationDialog("Themen-Update löschen?", isPresented: Binding(
-            get: { feed != nil }, set: { if !$0 { feed = nil } }
-        ), titleVisibility: .visible, presenting: feed) { feed in
-            Button("„\(feed.title)“ löschen", role: .destructive) {
-                model.removeSmartFeed(feed.id)
-                onDelete()
+        content.confirmationDialog(
+            feed?.followsTrends == true ? Text("„Angesagt“ ausschalten?") : Text("Themen-Update löschen?"),
+            isPresented: Binding(get: { feed != nil }, set: { if !$0 { feed = nil } }),
+            titleVisibility: .visible, presenting: feed
+        ) { feed in
+            // „Angesagt“ geht über den Schalter, damit dieses Gerät es nicht
+            // von selbst wieder anlegt.
+            if feed.followsTrends {
+                Button("Ausschalten", role: .destructive) {
+                    model.setTrendingFeedEnabled(false)
+                    onDelete()
+                }
+            } else {
+                Button("„\(feed.title)“ löschen", role: .destructive) {
+                    model.removeSmartFeed(feed.id)
+                    onDelete()
+                }
             }
-        } message: { _ in
-            Text("Alle Ausgaben dieses Updates werden gelöscht. Folgen, Transkripte und Hörstand bleiben.")
+        } message: { feed in
+            if feed.followsTrends {
+                Text("""
+                    Alle Ausgaben von „Angesagt“ werden gelöscht. Folgen, Transkripte und Hörstand bleiben. \
+                    Einschalten lässt es sich wieder im Tab „Themen-Updates“.
+                    """)
+            } else {
+                Text("Alle Ausgaben dieses Updates werden gelöscht. Folgen, Transkripte und Hörstand bleiben.")
+            }
         }
     }
 }
@@ -305,6 +362,7 @@ struct SmartFeedRow: View {
     /// Wann die nächste Ausgabe kommen kann, kurz.
     private var next: String {
         let policy = feed.publicationPolicy
+        if model.isWaitingForTrends(feed) { return String(localized: "Wartet auf angesagte Tags") }
         guard policy.isAutomatic else { return String(localized: "Neue Ausgabe nur auf Knopfdruck") }
         if let earliest = model.earliestAutomaticEdition(for: feed) {
             return String(localized: "Nächste frühestens \(AppModel.editionMoment(earliest))")
@@ -388,7 +446,7 @@ struct SmartFeedDetailView: View {
                     Label("Noch keine Ausgabe", systemImage: "waveform.circle")
                 } description: {
                     if let feed {
-                        Text(model.nextEditionHint(for: feed))
+                        Text(model.editionHint(for: feed))
                     }
                 }
             }
@@ -399,7 +457,7 @@ struct SmartFeedDetailView: View {
 
             Section {
                 if let feed, !editions.isEmpty {
-                    Text(model.nextEditionHint(for: feed))
+                    Text(model.editionHint(for: feed))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -413,7 +471,7 @@ struct SmartFeedDetailView: View {
                         }
                     }
                 }
-                .disabled(isBuilding || feed == nil)
+                .disabled(isBuilding || feed.map { model.isWaitingForTrends($0) } ?? true)
                 // Die Rückmeldung als Satz: was entstanden ist oder warum
                 // nicht. Nach einem Tipp mit der Uhrzeit, damit sichtbar ist,
                 // dass gerade geprüft wurde, auch wenn dasselbe herauskam.
@@ -450,8 +508,12 @@ struct SmartFeedDetailView: View {
         .toolbar {
             if let feed {
                 Menu {
-                    Button { editingFeed = feed } label: {
-                        Label("Bearbeiten", systemImage: "pencil")
+                    // „Angesagt“ bekommt seine Tags aus den Trends. Was man
+                    // hier änderte, schriebe der nächste Abgleich um.
+                    if !feed.followsTrends {
+                        Button { editingFeed = feed } label: {
+                            Label("Bearbeiten", systemImage: "pencil")
+                        }
                     }
                     if model.coverArt.canCreate {
                         Button { createCover(for: feed) } label: {
@@ -465,7 +527,11 @@ struct SmartFeedDetailView: View {
                         }
                     }
                     Button(role: .destructive) { pendingDeletion = feed } label: {
-                        Label("Löschen", systemImage: "trash")
+                        if feed.followsTrends {
+                            Label("Ausschalten", systemImage: "trash")
+                        } else {
+                            Label("Löschen", systemImage: "trash")
+                        }
                     }
                 } label: {
                     Label("Mehr", systemImage: "ellipsis.circle")
@@ -603,6 +669,7 @@ struct SmartFeedHeader: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("smartFeed.mode")
                     if let total = statistics?.total, total > 0 {
                         Text(NewStatements.text(total))
                             .font(.footnote.weight(.semibold))
@@ -629,6 +696,16 @@ struct SmartFeedHeader: View {
     /// Die Tags des Updates mit ihren Zahlen, auch mit null: Hier geht es
     /// um dieses Update, nicht um das, was gerade neu ist.
     private var counts: [TagStatementCount] {
+        // „Angesagt“ nur mit den Tags, aus denen die nächste Ausgabe
+        // entsteht, ohne die mit Minus.
+        if feed.followsTrends {
+            let current = Set(model.trendingFeedForEdition(feed).topicIDs)
+            return allCounts.filter { current.contains($0.tagID) }
+        }
+        return allCounts
+    }
+
+    private var allCounts: [TagStatementCount] {
         if let statistics, !statistics.tags.isEmpty {
             return statistics.tags.map { entry in
                 entry.label.isEmpty
@@ -646,6 +723,10 @@ struct SmartFeedHeader: View {
     /// „Kapitel mit einem der Tags, je Teil 20 Minuten“.
     private var modeLine: String {
         let length = feed.editionMode.budget?.shortDescription ?? feed.editionMode.label
+        if feed.followsTrends {
+            guard !model.isWaitingForTrends(feed) else { return AppModel.nothingTrendingNote }
+            return String(localized: "Kapitel mit einem der angesagten Tags, je Teil \(length). Die Tags wechseln mit den Trends.")
+        }
         if feed.topicIDs.isEmpty {
             return String(localized: "Alle Tags, denen du folgst, je Teil \(length)")
         }
@@ -1319,6 +1400,13 @@ extension AppModel {
     /// Die Tags eines Updates als eine Zeile, mit „und“ oder „oder“ je
     /// nach Modus. Ohne eigene Tags: der Hinweis auf alle gefolgten.
     func tagSummary(for feed: SmartPodcastFeed) -> String? {
+        // „Angesagt“ zeigt die Tags, mit denen die nächste Ausgabe entsteht.
+        if feed.followsTrends {
+            let labels = labels(forTags: trendingFeedForEdition(feed).topicIDs)
+            return labels.isEmpty
+                ? String(localized: "Gerade ist kein Tag angesagt")
+                : labels.formatted(.list(type: .or))
+        }
         let labels = labels(forTags: feed.topicIDs)
         guard !labels.isEmpty else {
             return feed.topicIDs.isEmpty ? String(localized: "Alle Tags, denen du folgst") : nil

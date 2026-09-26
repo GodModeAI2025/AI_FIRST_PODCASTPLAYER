@@ -1769,6 +1769,22 @@
         }
       }
     },
+    "Alle Ausgaben von „Angesagt“ werden gelöscht. Folgen, Transkripte und Hörstand bleiben. Einschalten lässt es sich wieder im Tab „Themen-Updates“." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle Ausgaben von „Angesagt“ werden gelöscht. Folgen, Transkripte und Hörstand bleiben. Einschalten lässt es sich wieder im Tab „Themen-Updates“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All editions of “Trending” will be deleted. Episodes, transcripts, and listening progress stay. You can turn it back on in the Topic Updates tab."
+          }
+        }
+      }
+    },
     "Alle Folgen abrufbar" : {
       "localizations" : {
         "de" : {
@@ -2181,6 +2197,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trending"
+          }
+        }
+      }
+    },
+    "Angesagt automatisch zusammenstellen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angesagt automatisch zusammenstellen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put Together Trending Automatically"
           }
         }
       }
@@ -3430,6 +3462,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Statements from the episode, each with a timestamp so you can listen again. The app doesn't fact-check them."
+          }
+        }
+      }
+    },
+    "Ausschalten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ausschalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Off"
           }
         }
       }
@@ -6747,6 +6795,22 @@
         }
       }
     },
+    "Ein Themen-Update aus den Tags, die gerade angesagt sind. Seine Tags wechseln mit den Trends, Tags mit Minus bleiben draußen. Ausgaben entstehen wie bei deinen Updates und spielen nur, wenn du sie antippst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Themen-Update aus den Tags, die gerade angesagt sind. Seine Tags wechseln mit den Trends, Tags mit Minus bleiben draußen. Ausgaben entstehen wie bei deinen Updates und spielen nur, wenn du sie antippst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A topic update made from the tags that are trending right now. Its tags change with the trends, and tags you gave a minus stay out. Editions arrive the same way as for your own updates and only play when you tap them."
+          }
+        }
+      }
+    },
     "Ein Tipp öffnet die Folge bei ihren Kapiteln. Abgespielt wird erst, wenn du dort ein Kapitel antippst." : {
       "localizations" : {
         "de" : {
@@ -8875,6 +8939,38 @@
         }
       }
     },
+    "Gerade ist kein Tag angesagt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerade ist kein Tag angesagt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No tag is trending right now"
+          }
+        }
+      }
+    },
+    "Gerade ist kein Tag angesagt. Neue Ausgaben entstehen erst, wenn wieder Tags angesagt sind." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerade ist kein Tag angesagt. Neue Ausgaben entstehen erst, wenn wieder Tags angesagt sind."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No tag is trending right now. New editions arrive once tags are trending again."
+          }
+        }
+      }
+    },
     "Gerade keine ungehörten Stellen. Neue kommen dazu, sobald weitere Transkripte fertig sind." : {
       "localizations" : {
         "de" : {
@@ -9911,6 +10007,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chapters with any of the tags, %@ per part"
+          }
+        }
+      }
+    },
+    "Kapitel mit einem der angesagten Tags, je Teil %@. Die Tags wechseln mit den Trends." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitel mit einem der angesagten Tags, je Teil %@. Die Tags wechseln mit den Trends."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapters with any of the trending tags, %@ per part. The tags change with the trends."
           }
         }
       }
@@ -16272,6 +16384,22 @@
         }
       }
     },
+    "Wartet auf angesagte Tags" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wartet auf angesagte Tags"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for trending tags"
+          }
+        }
+      }
+    },
     "Wartet, davor ist noch 1 Folge dran" : {
       "localizations" : {
         "de" : {
@@ -19583,6 +19711,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "\"Play Next\" puts an episode right after the one that's playing. Click and hold for \"Play Last\". The queue is in the sidebar on the left and in \"My Podcasts\"."
+          }
+        }
+      }
+    },
+    "„Angesagt“ ausschalten?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Angesagt“ ausschalten?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Off “Trending”?"
           }
         }
       }

@@ -65,8 +65,11 @@ public struct SmartFeedStatistics: Sendable, Hashable {
         tagLabels: [InterestID: String] = [:],
         heardThreshold: Double = 0.8
     ) -> SmartFeedStatistics {
+        // Ohne eigene Tags die gefolgten, nach Namen; „Angesagt“ ohne
+        // angesagte Tags zählt nichts.
         let order = feed.topicIDs.isEmpty
-            ? followedTagIDs.sorted { (tagLabels[$0] ?? $0.rawValue) < (tagLabels[$1] ?? $1.rawValue) }
+            ? feed.searchTags(followed: followedTagIDs)
+                .sorted { (tagLabels[$0] ?? $0.rawValue) < (tagLabels[$1] ?? $1.rawValue) }
             : feed.topicIDs
         let tags = Set(order)
         let since = lastListened(to: editions, ledger: ledger, heardThreshold: heardThreshold)

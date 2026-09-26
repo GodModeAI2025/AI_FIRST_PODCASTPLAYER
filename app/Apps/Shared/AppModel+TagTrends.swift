@@ -76,6 +76,10 @@ extension AppModel {
             guard !Task.isCancelled, tagTrendsTrigger == trigger else { return }
             if trends != tagTrends { tagTrends = trends }
             tagTrendsStamp = TagTrendsStamp(trigger: trigger, computedAt: now)
+            // Nach jeder Rechnung, nicht nur bei einer Änderung: Lief die
+            // erste vor dem Laden der Bibliothek, holt die nächste das
+            // Anlegen oder Umschreiben von „Angesagt“ nach.
+            await reconcileTrendingFeed()
         } catch {
             // „Angesagt“ ist eine Beigabe und bekommt keine Fehlermeldung.
             // Der nächste Anlass rechnet neu.

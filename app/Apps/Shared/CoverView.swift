@@ -653,8 +653,11 @@ final class TopicCoverArt {
 extension AppModel {
 
     /// Die Tags eines Updates als Begriffe, in der Reihenfolge des Updates.
+    /// „Angesagt“ bekommt sein Bild aus dem Titel. Seine Tags wechseln mit
+    /// den Trends, und jeder Wechsel gäbe sonst einen neuen Auftrag an Image
+    /// Playground. Die Ausgaben tragen ihre Tags in ihrem eigenen Bild.
     func coverRecipe(for feed: SmartPodcastFeed) -> TopicCoverRecipe {
-        TopicCoverRecipe(feed: feed, topics: labels(forTags: feed.topicIDs))
+        TopicCoverRecipe(feed: feed, topics: feed.followsTrends ? [] : labels(forTags: feed.topicIDs))
     }
 
     /// Das Rezept für das Cover einer Ausgabe: ihre Tags und die zwei
