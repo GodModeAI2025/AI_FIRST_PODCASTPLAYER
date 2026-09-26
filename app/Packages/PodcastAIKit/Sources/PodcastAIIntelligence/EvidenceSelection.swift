@@ -385,4 +385,8 @@ public struct ComposedAnswer: Sendable, Equatable {
     /// gefragt wurde: Kontingent aufgebraucht oder Dienst ausgelastet.
     /// `nil` bei jedem anderen Grund und wenn PCC geantwortet hat.
     public var privateCloudLimit: PrivateCloudLimit? = nil
+    /// Belege, die ein Werkzeug geliefert hat und auf die Text oder
+    /// Aussagen verweisen, siehe ``ChatLookupLedger``. Die übrigen
+    /// Nummern in ``citations`` zeigen auf die Kandidatenliste.
+    public var lookedUp: [Evidence] = []
 }

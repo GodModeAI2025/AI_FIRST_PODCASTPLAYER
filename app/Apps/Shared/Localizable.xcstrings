@@ -10685,6 +10685,38 @@
         }
       }
     },
+    "Liest die Fakten der Folge …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liest die Fakten der Folge …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the episode's facts…"
+          }
+        }
+      }
+    },
+    "Liest die Kapitel der Folge …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liest die Kapitel der Folge …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the episode's chapters…"
+          }
+        }
+      }
+    },
     "Link" : {
       "localizations" : {
         "de" : {
@@ -14505,6 +14537,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Looking for an audio podcast…"
+          }
+        }
+      }
+    },
+    "Sucht Nennungen in der Folge …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sucht Nennungen in der Folge …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking up mentions in the episode…"
+          }
+        }
+      }
+    },
+    "Sucht weitere Stellen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sucht weitere Stellen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking up more passages…"
           }
         }
       }

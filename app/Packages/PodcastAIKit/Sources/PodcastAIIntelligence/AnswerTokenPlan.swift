@@ -65,11 +65,13 @@ public enum AnswerTokenPlan {
     ///   - sampleCount: wie viele Stellen in der Probe stehen.
     ///   - margin: Aufschlag auf die gemessenen Token. Private Cloud Compute
     ///     hat einen anderen Tokenizer als das Gerät, dort ist er größer.
+    ///   - reservedTokens: Platz, der frei bleiben muss, etwa für die
+    ///     Werkzeuge des Chats und ihre Ergebnisse (``ChatLookupLimits``).
     ///   - count: der Tokenizer.
     public static func fitted(
         _ budget: ContextBudget, contextSize: Int,
         fixedText: String, schemaTokens: Int?,
-        sample: String, sampleCount: Int, margin: Double = 1.0,
+        sample: String, sampleCount: Int, margin: Double = 1.0, reservedTokens: Int = 0,
         count: (String) async throws -> Int
     ) async -> ContextBudget {
         var fixed: Int
@@ -87,6 +89,7 @@ public enum AnswerTokenPlan {
         }
         // Ohne gemessenes Schema: der Wert, mit dem die App bisher rechnete.
         fixed += schemaTokens ?? 350
+        fixed += max(0, reservedTokens)
         let scaled = Int((Double(fixed) * margin).rounded(.up))
         let candidates = candidateCount(
             contextSize: contextSize, fixedTokens: scaled,
