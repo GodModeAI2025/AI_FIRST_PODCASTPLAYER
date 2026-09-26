@@ -50,11 +50,20 @@ final class ConversationUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: "chat.answer")
     }
 
-    /// Wartet, bis so viele Antworten dastehen.
+    /// Wartet, bis so viele Antworten dastehen. Taugt nur für wenige: Der
+    /// Verlauf legt eine Karte erst an, wenn sie nahe am sichtbaren Teil
+    /// liegt, und bei offener Tastatur mit „Letzte Fragen“ bleibt davon nur
+    /// ein schmaler Streifen. Eine Antwort weit oben fehlt dann in der
+    /// Hierarchie. Ab der dritten gilt deshalb `answer(_:to:)`.
     @MainActor private func waitForAnswers(_ app: XCUIApplication, count: Int, timeout: TimeInterval = 30) -> Bool {
         let predicate = NSPredicate(format: "count == %d", count)
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: answers(app))
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    /// Die Antwortkarte zu einer Frage.
+    @MainActor private func answer(_ app: XCUIApplication, to question: String) -> XCUIElement {
+        answers(app).containing(NSPredicate(format: "label == %@", question)).firstMatch
     }
 
     /// Ein Eintrag in einem Menü, über seine Kennung oder seinen Namen.
@@ -149,8 +158,10 @@ final class ConversationUITests: XCTestCase {
 
         // Eine weitere Folgefrage geht in derselben Unterhaltung weiter.
         let second = "Und was sagen sie dazu noch?"
-        ask(app, "Welche Stelle ist die wichtigste?")
-        XCTAssertTrue(waitForAnswers(app, count: 3), "Nach dem Wiederöffnen geht die Unterhaltung nicht weiter")
+        let third = "Welche Stelle ist die wichtigste?"
+        ask(app, third)
+        XCTAssertTrue(answer(app, to: third).waitForExistence(timeout: 30),
+                      "Nach dem Wiederöffnen geht die Unterhaltung nicht weiter")
         XCTAssertTrue(followUpAnswer(app, previous: second).waitForExistence(timeout: 5),
                       "Nach dem Wiederöffnen fehlt der Verlauf beim Modell")
 

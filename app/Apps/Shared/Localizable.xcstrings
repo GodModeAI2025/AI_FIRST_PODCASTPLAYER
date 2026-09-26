@@ -17152,22 +17152,6 @@
         }
       }
     },
-    "Weitere Aktionen zur Unterhaltung" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Weitere Aktionen zur Unterhaltung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "More Actions for This Conversation"
-          }
-        }
-      }
-    },
     "Weitere Stellen in dieser Folge" : {
       "localizations" : {
         "de" : {

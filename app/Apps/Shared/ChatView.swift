@@ -90,9 +90,6 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Design.Spacing.section) {
-                        if fixedScope, !turns.isEmpty {
-                            episodeConversationBar
-                        }
                         if readOnlyConversation {
                             Text("Diese Unterhaltung stammt aus einer neueren Version der App. Eine neue Frage beginnt eine neue Unterhaltung.")
                                 .font(.footnote)
@@ -145,6 +142,8 @@ struct ChatView: View {
         .toolbar {
             if !fixedScope {
                 ToolbarItem(placement: .primaryAction) { conversationMenu }
+            } else if !turns.isEmpty {
+                ToolbarItem(placement: .primaryAction) { episodeConversationMenu }
             }
         }
         // Die letzte Unterhaltung des Bereichs, auch nach einem Neustart.
@@ -456,19 +455,17 @@ struct ChatView: View {
     }
 
     /// Im Reiter „Fragen“ einer Folge: die Unterhaltung der Folge löschen.
-    private var episodeConversationBar: some View {
-        HStack {
-            Spacer()
-            Menu {
-                deleteConversationButton
-            } label: {
-                Label("Unterhaltung", systemImage: "ellipsis.circle")
-                    .font(.footnote.weight(.semibold))
-                    .frame(minHeight: Design.minimumTapTarget)
-            }
-            .accessibilityLabel("Weitere Aktionen zur Unterhaltung")
-            .accessibilityIdentifier("chat.conversationMenu")
+    /// Das Menü steht oben in der Leiste neben „Mehr“, wie im Chat „Frag
+    /// deine Podcasts“. Über den Antworten scrollte es mit dem Verlauf aus
+    /// dem Blick, bei offener Tastatur schon nach der ersten Antwort.
+    private var episodeConversationMenu: some View {
+        Menu {
+            deleteConversationButton
+        } label: {
+            Label("Unterhaltung", systemImage: "bubble.left.and.text.bubble.right")
         }
+        .accessibilityLabel("Unterhaltung")
+        .accessibilityIdentifier("chat.conversationMenu")
     }
 
     private var deleteConversationButton: some View {
