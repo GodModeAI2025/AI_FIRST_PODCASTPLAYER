@@ -47,6 +47,13 @@ private final class StatusLog: Sendable {
     var all: [ModelStatus] { values.withLock { $0 } }
 }
 
+/// Ein Schalter, den eine Probe setzt und der Test liest.
+private final class Flag: Sendable {
+    private let value = Mutex(false)
+    func set() { value.withLock { $0 = true } }
+    var isSet: Bool { value.withLock { $0 } }
+}
+
 /// Das Gerätemodell gilt als bereit, Private Cloud Compute nicht.
 private let deviceOnly = ModelStatus(onDevice: .available, privateCloudCompute: .unavailable(.userConsentMissing))
 
@@ -252,15 +259,27 @@ struct AISeamTests {
     func monitorIgnoresStaleAnswers() async throws {
         let withCloud = ModelStatus(onDevice: .available, privateCloudCompute: .available)
         let withoutCloud = ModelStatus(onDevice: .available, privateCloudCompute: .unavailable(.userConsentMissing))
-        // Mit Private Cloud Compute antwortet das System langsam.
+        // Mit Private Cloud Compute antwortet das System erst, wenn der Test
+        // es freigibt. Die Frist hält die Suite nicht an, falls etwas klemmt.
+        let started = Flag()
+        let release = DispatchSemaphore(value: 0)
         let monitor = ModelAvailabilityMonitor(probe: { allowCloud in
-            if allowCloud { Thread.sleep(forTimeInterval: 0.3) }
+            if allowCloud {
+                started.set()
+                _ = release.wait(timeout: .now() + 5)
+            }
             return allowCloud ? withCloud : withoutCloud
         })
         let slow = Task { await monitor.refresh(allowPrivateCloud: true) }
-        try await Task.sleep(for: .milliseconds(50))
+        // Die langsame Frage hat ihre Nummer, sobald ihre Probe läuft.
+        let deadline = ContinuousClock.now + .seconds(5)
+        while !started.isSet, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(started.isSet)
         // Inzwischen abgeschaltet: diese Frage kommt später und antwortet zuerst.
         #expect(await monitor.refresh(allowPrivateCloud: false) == withoutCloud)
+        release.signal()
         #expect(await slow.value == withoutCloud)
         #expect(monitor.current == withoutCloud)
     }

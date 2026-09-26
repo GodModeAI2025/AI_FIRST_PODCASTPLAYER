@@ -37,6 +37,15 @@ private func work(_ recorder: Recorder, _ name: String, for duration: Duration) 
     }
 }
 
+/// Wartet, bis `condition` gilt, höchstens fünf Sekunden.
+private func waitUntil(_ condition: @Sendable () async -> Bool) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while ContinuousClock.now < deadline {
+        if await condition() { return }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+}
+
 @Suite("Eine Stelle für Apple Intelligence")
 struct AISchedulerTests {
 
@@ -155,7 +164,9 @@ struct AISchedulerTests {
         let running = Task {
             try await scheduler.run(.facts, priority: .background, operation: work(recorder, "b", for: .seconds(5)))
         }
-        try await Task.sleep(for: .milliseconds(50))
+        // Warten, bis die Anfrage wirklich läuft, statt einer festen Zeit:
+        // `swift test` rechnet parallel, und ein voller Pool startet spät.
+        try await waitUntil { recorder.all == ["start b"] }
         #expect(await scheduler.snapshot().running == .facts)
         running.cancel()
         await #expect(throws: CancellationError.self) { try await running.value }
@@ -183,7 +194,8 @@ struct AISchedulerTests {
                 return session.history.withLock { $0.count }
             }
         }
-        try await Task.sleep(for: .milliseconds(50))
+        // Die Frage kommt erst, wenn der erste Versuch mitten im Aufruf steht.
+        try await waitUntil { histories.all.count == 1 }
         _ = try await scheduler.run(.answer, priority: .user) { "Antwort" }
         #expect(try await background.value == 1)
         // Zwei Versuche, jeder mit leerem Verlauf.
