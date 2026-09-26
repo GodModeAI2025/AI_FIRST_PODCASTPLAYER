@@ -144,25 +144,29 @@ public struct ChatNarrowing: Sendable {
 
     public let filter: LibraryFilter
     public let now: Date
-    /// Kapitel der gewählten Tags je Folge. `nil`, wenn kein Tag gewählt ist.
-    /// Verglichen wird über die Folge, nicht über die Medienfassung: Ein Tag
-    /// aus einer älteren Fassung leerte sonst den ganzen Bereich.
-    let taggedChapters: [EpisodeID: [MediaTimeRange]]?
+    /// Folgen mit einem Kapitel eines gewählten Tags, in irgendeiner Fassung.
+    /// `nil`, wenn kein Tag gewählt ist. Eine Folge, deren neue Fassung noch
+    /// nicht eingeordnet ist, fiele sonst ganz aus dem Bereich.
+    let taggedEpisodes: Set<EpisodeID>?
+    /// Kapitel der gewählten Tags je Medienfassung. Zeiten gelten nur in der
+    /// Fassung, aus der sie stammen: Werbung oder ein neuer Schnitt
+    /// verschieben alles danach. Deshalb vergleicht `passages` wie „Für dich“
+    /// (`ChapterTagRelevance`) über die Fassung und nicht über die Folge.
+    let taggedChapters: [MediaVersionID: [MediaTimeRange]]
 
     /// `chapterTags` sind die Kapitel-Tags der gewählten Tags. Andere
     /// Kapitel-Tags in der Liste zählen nicht.
     public init(filter: LibraryFilter, chapterTags: [ChapterTag] = [], now: Date = Date()) {
         self.filter = filter
         self.now = now
-        if filter.tagIDs.isEmpty {
-            taggedChapters = nil
-        } else {
-            var chapters: [EpisodeID: [MediaTimeRange]] = [:]
-            for tag in chapterTags where filter.tagIDs.contains(tag.interestID) {
-                chapters[tag.episodeID, default: []].append(tag.chapterRange)
-            }
-            taggedChapters = chapters
+        var episodes: Set<EpisodeID> = []
+        var chapters: [MediaVersionID: [MediaTimeRange]] = [:]
+        for tag in chapterTags where filter.tagIDs.contains(tag.interestID) {
+            episodes.insert(tag.episodeID)
+            chapters[tag.mediaVersionID, default: []].append(tag.chapterRange)
         }
+        taggedEpisodes = filter.tagIDs.isEmpty ? nil : episodes
+        taggedChapters = chapters
     }
 
     /// Ohne jede Eingrenzung.
@@ -183,7 +187,7 @@ public struct ChatNarrowing: Sendable {
     /// mit Tags, ein Kapitel mit einem davon.
     public func admits(episodeID: EpisodeID, sourceID: SourceID, publishedAt: Date?) -> Bool {
         if !filter.episodeIDs.isEmpty, !filter.episodeIDs.contains(episodeID) { return false }
-        if let taggedChapters, taggedChapters[episodeID] == nil { return false }
+        if let taggedEpisodes, !taggedEpisodes.contains(episodeID) { return false }
         return filter.admits(sourceID: sourceID, publishedAt: publishedAt, now: now)
     }
 
@@ -192,16 +196,17 @@ public struct ChatNarrowing: Sendable {
     }
 
     /// Die Stellen, die das Modell sehen darf. Mit Tags nur Stellen, die in
-    /// einem Kapitel mit einem der Tags beginnen, wie bei „Für dich“; ohne
-    /// Zeitmarke passt eine Stelle dann in kein Kapitel. Podcast und
-    /// gewählte Folgen gelten auch hier, das Datum prüft die Folge.
+    /// einem Kapitel mit einem der Tags beginnen, wie bei „Für dich“, und nur
+    /// aus der Fassung, in der das Kapitel eingeordnet wurde. Ohne Zeitmarke
+    /// passt eine Stelle dann in kein Kapitel. Podcast und gewählte Folgen
+    /// gelten auch hier, das Datum prüft die Folge.
     public func passages(_ pool: [Evidence]) -> [Evidence] {
         pool.filter { evidence in
             if !filter.episodeIDs.isEmpty, !filter.episodeIDs.contains(evidence.episodeID) { return false }
             if !filter.sourceIDs.isEmpty, !evidence.sourceID.rawValue.isEmpty,
                !filter.sourceIDs.contains(evidence.sourceID) { return false }
-            guard let taggedChapters else { return true }
-            guard let start = evidence.range?.start, let chapters = taggedChapters[evidence.episodeID] else {
+            guard taggedEpisodes != nil else { return true }
+            guard let start = evidence.range?.start, let chapters = taggedChapters[evidence.mediaVersionID] else {
                 return false
             }
             return chapters.contains { chapter in

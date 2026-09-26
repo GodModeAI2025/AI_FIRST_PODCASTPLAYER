@@ -241,9 +241,10 @@ struct ChatTokenTests {
         Episode(id: id, sourceID: source, title: id.rawValue, publishedAt: published)
     }
 
-    func passage(_ key: String, episode: EpisodeID, source: SourceID, startSeconds: Int64?) -> Evidence {
+    func passage(_ key: String, episode: EpisodeID, source: SourceID, startSeconds: Int64?,
+                 version: String? = nil) -> Evidence {
         Evidence(
-            id: EvidenceID(stable: key), mediaVersionID: MediaVersionID(stable: "m-\(episode.rawValue)"),
+            id: EvidenceID(stable: key), mediaVersionID: MediaVersionID(stable: version ?? "m-\(episode.rawValue)"),
             episodeID: episode, sourceID: source, transcriptID: TranscriptID(stable: "t-\(key)"),
             transcriptRevision: .initial,
             range: startSeconds.map {
@@ -252,9 +253,10 @@ struct ChatTokenTests {
             quotedText: key)
     }
 
-    func chapterTag(_ tag: InterestID, episode: EpisodeID, source: SourceID, from: Int, to: Int) -> ChapterTag {
+    func chapterTag(_ tag: InterestID, episode: EpisodeID, source: SourceID, from: Int, to: Int,
+                    version: String? = nil) -> ChapterTag {
         ChapterTag(
-            episodeID: episode, mediaVersionID: MediaVersionID(stable: "m-\(episode.rawValue)"),
+            episodeID: episode, mediaVersionID: MediaVersionID(stable: version ?? "m-\(episode.rawValue)"),
             chapterStartMs: from * 1_000, chapterEndMs: to * 1_000, interestID: tag, normalizedKey: tag.rawValue,
             confidence: 0.9, matchedKnown: true, sourceID: source, publishedAt: nil,
             transcriptRevision: .initial)
@@ -294,6 +296,21 @@ struct ChatTokenTests {
             passage("andere-folge", episode: other, source: lage, startSeconds: 60),
         ]
         #expect(narrowing.passages(pool).map(\.quotedText) == ["drin", "auch-drin"])
+    }
+
+    @Test("Kapitelzeiten gelten nur in ihrer Fassung")
+    func tagNarrowingPerMediaVersion() {
+        // Das Kapitel wurde in der alten Fassung eingeordnet. Die neue hat
+        // vorn Werbung, dieselbe Sekunde ist dort eine andere Stelle.
+        let tags = [chapterTag(datenschutz, episode: wahlFolge, source: lage, from: 120, to: 300, version: "alt")]
+        let narrowing = ChatNarrowing(filter: LibraryFilter().adding(.tag(datenschutz)), chapterTags: tags, now: now)
+        // Die Folge bleibt im Bereich, bis die neue Fassung eingeordnet ist.
+        #expect(narrowing.admits(episode(wahlFolge, source: lage, published: nil)))
+        let pool = [
+            passage("alt-drin", episode: wahlFolge, source: lage, startSeconds: 150, version: "alt"),
+            passage("neu-gleiche-zeit", episode: wahlFolge, source: lage, startSeconds: 150, version: "neu"),
+        ]
+        #expect(narrowing.passages(pool).map(\.quotedText) == ["alt-drin"])
     }
 
     @Test("Ohne Tag bleibt jede Stelle, Podcast und Tage gelten weiter")

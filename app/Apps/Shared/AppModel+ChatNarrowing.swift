@@ -98,16 +98,20 @@ extension AppModel {
         episodes.values.lazy.compactMap { $0.first { $0.id == id } }.first.map { String($0.title.prefix(40)) }
     }
 
-    /// Tokens, deren Podcast, Tag oder Folge es nicht mehr gibt: abbestellt,
-    /// gelöscht oder mit einem anderen Tag zusammengelegt.
+    /// Tokens, deren Podcast, Tag oder Folge es nicht mehr gibt.
     func staleChatTokens(in filter: LibraryFilter) -> [ChatToken] {
-        filter.tokens.filter { token in
-            switch token {
-            case .source(let id): sourceTitle(id) == nil
-            case .tag(let id): tagLabel(id) == nil
-            case .episode(let id): !episodes.values.contains { $0.contains { $0.id == id } }
-            case .period, .since, .before: false
-            }
+        filter.tokens.filter(isStaleChatToken)
+    }
+
+    /// Gibt es Podcast, Tag oder Folge des Tokens nicht mehr: abbestellt,
+    /// gelöscht oder mit einem anderen Tag zusammengelegt? Gilt für gesetzte
+    /// Tokens und für Vorschläge, die noch aus dem Katalog von vorhin kommen.
+    func isStaleChatToken(_ token: ChatToken) -> Bool {
+        switch token {
+        case .source(let id): sourceTitle(id) == nil
+        case .tag(let id): tagLabel(id) == nil
+        case .episode(let id): !episodes.values.contains { $0.contains { $0.id == id } }
+        case .period, .since, .before: false
         }
     }
 

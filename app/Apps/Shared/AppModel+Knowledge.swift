@@ -257,6 +257,9 @@ extension AppModel {
             return nil
         case .episodes(let ids) where ids.contains(where: removed):
             return nil
+        case .library(let filter) where filter.episodeIDs.contains(where: removed):
+            // Auf gewählte Folgen eingegrenzt: wie bei `.episodes`.
+            return nil
         default:
             break
         }
@@ -2672,7 +2675,8 @@ extension AppModel {
         switch answer.scope {
         case .episode(let id): return episodeIDs.contains(id)
         case .episodes(let ids): return ids.contains { episodeIDs.contains($0) }
-        case .smartFeed, .allAnalyzed, .library: return false
+        case .library(let filter): return filter.episodeIDs.contains { episodeIDs.contains($0) }
+        case .smartFeed, .allAnalyzed: return false
         }
     }
 }

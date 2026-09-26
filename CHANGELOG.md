@@ -3,8 +3,8 @@
 ## Nächste Version
 Eingrenzen im Chat:
 - Im Fragefeld von „Frag deine Podcasts“ werden „Podcast: Lage der Nation“, „#Datenschutz“, „Folge: …“, „seit 1. Juni“, „bis 30. Juni“ und „letzte Woche“ zu Tokens über dem Feld. Die Vorschläge kommen beim Tippen, aus deinen Abos, aus Tags mit Kapiteln und aus Folgen mit Transkript. Erst ein Tipp auf den Vorschlag setzt das Token. Mehrere Podcasts, Tags und Folgen gehen zugleich.
-- Die Tokens grenzen im Code ein, bevor Apple Intelligence etwas sieht: nur Folgen aus dem Bereich, bei einem Tag nur Stellen aus Kapiteln mit diesem Tag. Das Menü „Bereich“ oben und die Tokens ändern dasselbe.
-- Ein Tipp auf ein Token nimmt es heraus, am Mac auch die Rückschritttaste im leeren Feld. VoiceOver liest jedes Token mit Namen vor.
+- Die Tokens grenzen im Code ein, bevor Apple Intelligence etwas sieht: nur Folgen aus dem Bereich, bei einem Tag nur Stellen aus Kapiteln mit diesem Tag, und zwar aus der Fassung, in der das Kapitel eingeordnet wurde. Das Menü „Bereich“ oben und die Tokens ändern dasselbe. „Folge löschen“ nimmt auch Antworten mit, die auf diese Folge eingegrenzt waren.
+- Ein Tipp auf ein Token nimmt es heraus, am Mac auch die Rückschritttaste im leeren Feld, nur im Fenster dieses Chats. VoiceOver liest jedes Token mit Namen vor.
 - Ist das Feld leer und hat den Cursor, stehen darüber die letzten zehn Fragen dieses Geräts. Ein Tipp setzt die Frage ins Feld, gesendet wird erst mit dem Knopf. „Löschen“ leert die Liste.
 
 „An PodcastAI senden“ im Teilen-Menü von iPhone, iPad und Mac:

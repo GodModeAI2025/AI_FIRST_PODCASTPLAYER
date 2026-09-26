@@ -3128,7 +3128,8 @@ public final class AppModel {
         switch answer.scope {
         case .episode(let episodeID): referenced.append(episodeID)
         case .episodes(let ids): referenced += ids
-        case .smartFeed, .allAnalyzed, .library: break
+        case .library(let filter): referenced += filter.episodeIDs.sorted { $0.rawValue < $1.rawValue }
+        case .smartFeed, .allAnalyzed: break
         }
         trails.insert(KnowledgeTrail(
             id: id,

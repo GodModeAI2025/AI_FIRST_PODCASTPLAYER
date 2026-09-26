@@ -177,13 +177,20 @@ struct RecentQuestionsPanel: View {
 /// verbraucht die Taste, auch wenn das Feld leer ist. Deshalb hört ein
 /// lokaler Monitor mit, nur solange das Feld den Cursor hat. `action` sagt,
 /// ob die Taste damit erledigt ist; sonst geht sie weiter ans Feld.
+///
+/// Ein lokaler Monitor sieht die Tasten aller Fenster der App. Er greift
+/// deshalb nur im Fenster dieses Felds, nicht in einem zweiten Chat oder
+/// in den Einstellungen, und nicht, solange eine Eingabe noch offen ist,
+/// etwa ein Akzent über eine Tottaste.
 struct BackspaceRemovesToken: ViewModifier {
     let isActive: Bool
     let action: () -> Bool
     @State private var monitor: Any?
+    @State private var host = HostWindow()
 
     func body(content: Content) -> some View {
         content
+            .background(HostWindowReader(host: host))
             .onChange(of: isActive, initial: true) { _, active in
                 if active { install() } else { uninstall() }
             }
@@ -196,9 +203,13 @@ struct BackspaceRemovesToken: ViewModifier {
     private func install() {
         guard monitor == nil else { return }
         let action = action
+        let host = host
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let modifiers = event.modifierFlags.intersection([.shift, .control, .option, .command])
-            guard event.keyCode == Self.backspaceKeyCode, modifiers.isEmpty else { return event }
+            guard event.keyCode == Self.backspaceKeyCode, modifiers.isEmpty,
+                  let window = host.window, event.window === window,
+                  (window.firstResponder as? NSTextView)?.hasMarkedText() != true
+            else { return event }
             return action() ? nil : event
         }
     }
@@ -206,6 +217,41 @@ struct BackspaceRemovesToken: ViewModifier {
     private func uninstall() {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
+    }
+}
+
+/// Das Fenster, in dem das Fragefeld steht.
+@MainActor final class HostWindow {
+    weak var window: NSWindow?
+}
+
+/// Meldet `HostWindow`, in welchem Fenster die Ansicht gerade liegt.
+private struct HostWindowReader: NSViewRepresentable {
+    let host: HostWindow
+
+    func makeNSView(context: Context) -> Probe { Probe(host: host) }
+    func updateNSView(_ view: Probe, context: Context) {
+        view.host = host
+        host.window = view.window
+    }
+
+    final class Probe: NSView {
+        var host: HostWindow
+
+        init(host: HostWindow) {
+            self.host = host
+            super.init(frame: .zero)
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        /// Nur zum Mithören, Klicks gehen ans Feld.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            host.window = window
+        }
     }
 }
 #endif

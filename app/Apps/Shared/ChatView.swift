@@ -182,11 +182,13 @@ struct ChatView: View {
     }
 
     /// Vorschläge zum Text im Feld. Innerhalb einer Folge gibt es nichts
-    /// einzugrenzen.
+    /// einzugrenzen. Der Katalog stammt vom Öffnen oder vom letzten Antippen
+    /// des Felds; was seitdem gelöscht oder abbestellt wurde, fällt heraus.
     private var suggestions: [LabeledChatToken] {
         guard !fixedScope, !isAsking, !question.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
         let parser = ChatTokenParser()
         return parser.suggestions(for: question, catalog: tokenCatalog, excluding: filter)
+            .filter { !model.isStaleChatToken($0.token) }
             .map { suggestion in
                 LabeledChatToken(token: suggestion.token, label: model.chatTokenLabel(suggestion.token),
                                  remainingText: suggestion.remainingText)
