@@ -24,7 +24,10 @@ public final class AppModel {
     public internal(set) var sources: [Source] = []
     public internal(set) var relevantToday: [RelevantItem] = []
     public internal(set) var smartFeeds: [SmartPodcastFeed] = []
-    public internal(set) var editions: [SmartFeedID: [PersonalEpisode]] = [:]
+    public internal(set) var editions: [SmartFeedID: [PersonalEpisode]] = [:] {
+        // Neue, gelöschte und beschnittene Ausgaben gehen ans Widget (Regel 5).
+        didSet { publishWidgetSnapshot() }
+    }
     public internal(set) var profile = InterestProfile()
     public internal(set) var ledger = ListeningLedger()
     public internal(set) var modelStatus = ModelStatus(
@@ -2875,6 +2878,7 @@ public final class AppModel {
         let tags = feeds.reduce(into: Set<InterestID>()) { $0.formUnion(editionTags(for: $1)) }
         guard !tags.isEmpty else {
             smartFeedStatistics = [:]
+            publishWidgetSnapshot(afterStatistics: true)
             return
         }
         guard let chapters = try? await editionChapters(tags: tags, titledSections: false),
@@ -2883,6 +2887,7 @@ public final class AppModel {
         guard !Task.isCancelled else { return }
         let live = Set(smartFeeds.map(\.id))
         smartFeedStatistics = smartFeedStatistics.filter { live.contains($0.key) }
+        publishWidgetSnapshot(afterStatistics: true)
     }
 
     /// Rechnet die Zahlen außerhalb des Hauptthreads und schreibt sie in

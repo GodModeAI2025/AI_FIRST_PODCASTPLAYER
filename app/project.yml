@@ -50,6 +50,7 @@ targets:
       - path: Apps/Shared
     dependencies:
       - package: PodcastAIKit
+      - target: PodcastAIWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile
@@ -67,6 +68,7 @@ targets:
       - path: Apps/Shared
     dependencies:
       - package: PodcastAIKit
+      - target: PodcastAIMacWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac
@@ -74,6 +76,52 @@ targets:
         INFOPLIST_FILE: Apps/PodcastAIMac/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIMac/PodcastAIMac.entitlements
+
+  # Widget „Was ist neu“. Beide Erweiterungen lesen nur den Schnappschuss
+  # aus der App Group (PodcastAIWidgetData), ohne Datenbank und ohne Modelle.
+  PodcastAIWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Apps/PodcastAIWidget
+        excludes:
+          - "*.entitlements"
+    dependencies:
+      - package: PodcastAIKit
+        product: PodcastAIWidgetData
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile.widget
+        PRODUCT_NAME: PodcastAIWidget
+        INFOPLIST_FILE: Apps/PodcastAIWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: PodcastAI
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIWidget/PodcastAIWidget.entitlements
+        # Ein Widget hat kein eigenes App-Symbol, nur die Akzentfarbe.
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        SKIP_INSTALL: YES
+
+  PodcastAIMacWidget:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Apps/PodcastAIWidget
+        excludes:
+          - "*.entitlements"
+    dependencies:
+      - package: PodcastAIKit
+        product: PodcastAIWidgetData
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac.widget
+        PRODUCT_NAME: PodcastAIMacWidget
+        INFOPLIST_FILE: Apps/PodcastAIWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: PodcastAI
+        CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIWidget/PodcastAIMacWidget.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        SKIP_INSTALL: YES
 
   PodcastAIUITests:
     type: bundle.ui-testing

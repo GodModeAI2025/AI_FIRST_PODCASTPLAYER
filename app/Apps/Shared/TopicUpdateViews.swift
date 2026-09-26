@@ -26,11 +26,20 @@ import PodcastAIKit
 
 struct SmartFeedListView: View {
 
+    /// Ein Tag, dessen Seite die Wurzel öffnen will, etwa nach einem Tipp
+    /// aufs Widget. Die Liste übernimmt es und setzt es zurück, sonst ginge
+    /// die Seite bei jeder Rückkehr in den Tab wieder auf.
+    @Binding var linkedTag: InterestID?
+
     @Environment(AppModel.self) private var model
     @State private var showingNewFeed = false
     @State private var editingFeed: SmartPodcastFeed?
     @State private var pendingDeletion: SmartPodcastFeed?
     @State private var openedTag: InterestID?
+
+    init(linkedTag: Binding<InterestID?> = .constant(nil)) {
+        _linkedTag = linkedTag
+    }
 
     var body: some View {
         List {
@@ -95,6 +104,12 @@ struct SmartFeedListView: View {
             SmartFeedDetailView(feedID: feedID)
         }
         .navigationDestination(item: $openedTag) { id in TagDetailView(tagID: id) }
+        // Öffnet nur die Seite, abgespielt wird dort nichts.
+        .task(id: linkedTag) {
+            guard let linkedTag else { return }
+            openedTag = linkedTag
+            self.linkedTag = nil
+        }
         .toolbar {
             Button { showingNewFeed = true } label: {
                 Label("Neu", systemImage: "plus")

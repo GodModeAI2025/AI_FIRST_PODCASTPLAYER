@@ -17,6 +17,11 @@ Angesagt und neu:
 - „Meine Tags“ beginnt mit „Angesagt“: Tags, die in den letzten sieben Tagen mindestens dreimal so oft vorkamen wie im Wochenschnitt der vier Wochen davor, aus mindestens drei Podcasts und mit mindestens fünf Kapiteln. Gefolgte und neutrale Tags zählen gleich. Oben im Tab „Themen-Updates“ stehen sie in einer Zeile, ein Tipp öffnet die Seite des Tags.
 - Die Seite eines Tags sagt, was seit deinem letzten Besuch neu ist: ungehörte Aussagen aus Folgen, die seitdem erschienen sind.
 
+Widget „Was ist neu“ für iPhone, iPad und Mac:
+- Klein und mittel auf dem Home-Bildschirm und auf dem Mac, auf iPhone und iPad auch auf dem Sperrbildschirm. Es zeigt bis zu drei Tags, denen du folgst, mit ihren neuen Aussagen und die neueste Ausgabe deiner Themen-Updates.
+- Ein Tipp öffnet die Themen-Updates, eine Tag-Zeile im mittleren Widget gleich die Seite des Tags. Abgespielt wird dabei nichts.
+- Im Widget stehen nur Zahlen und Titel, kein Text aus einer Folge. Löschst du eine Folge oder bestellst einen Podcast ab, zieht das Widget gleich nach.
+
 ## App 0.12 · 2026-09-25
 Aus dem TestFlight-Feedback zu 0.7 bis 0.11, vor allem zu Rucklern und einem langsamen Chat:
 - Apple Intelligence über eine Stelle: Alle Anfragen laufen durch eine Warteschlange, eine nach der anderen. Was du anstößt, geht vor: eine Frage im Chat, der Satz zum Kapitel, „Jetzt ermitteln“. Fakten, Tags und Relevanz im Hintergrund warten, solange du scrollst, und laufen zwei Sekunden danach weiter. Im Stromsparmodus pausieren sie, während eine Folge spielt. Die Warteschlange zeigt, was Apple Intelligence gerade tut.

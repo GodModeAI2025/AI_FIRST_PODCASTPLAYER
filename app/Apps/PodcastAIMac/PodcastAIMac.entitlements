@@ -14,5 +14,8 @@
     <!-- Apple Intelligence auf Private Cloud Compute, von Apple für das Team freigegeben. -->
     <key>com.apple.developer.private-cloud-compute</key>
     <true/>
+    <!-- Gemeinsamer Ordner mit dem Widget: die App schreibt dort, was es zeigt. -->
+    <key>com.apple.security.application-groups</key>
+    <array><string>group.com.godmodeai.podcastai</string></array>
 </dict>
 </plist>

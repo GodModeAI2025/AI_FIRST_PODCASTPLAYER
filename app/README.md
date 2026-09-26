@@ -51,6 +51,12 @@ Beide Apps nutzen den CloudKit-Container `iCloud.com.godmodeai.podcastai`. Nach 
 PodcastAI.app/Contents/MacOS/PodcastAI -initialize-cloudkit-schema
 ```
 
+## Widget und App Group
+
+Beide Apps betten eine Widget-Erweiterung ein: `PodcastAIWidget` (`com.godmodeai.podcastai.mobile.widget`) und `PodcastAIMacWidget` (`com.godmodeai.podcastai.mac.widget`). Apps und Erweiterungen teilen die App Group `group.com.godmodeai.podcastai`; dort legt die App den Schnappschuss ab, den das Widget liest. Für einen signierten Build müssen App Group und die beiden neuen Bundle-IDs im Entwicklerkonto stehen. Das erledigt die automatische Signatur, wenn sie Profile anlegen darf: einmal in Xcode bauen oder `-allowProvisioningUpdates` mitgeben, wie es `scripts/upload-testflight.sh` tut. Ohne Signatur (`CODE_SIGNING_ALLOWED=NO`) bauen alle Targets, das Widget bleibt dann leer.
+
+Das Widget öffnet die App über `podcastai://topicupdates` und `podcastai://tag/<Kennung>`.
+
 ## Agentenzugang auf dem Mac
 
 Ein KI-Agent kann über MCP lesend auf das Wissen zugreifen. Er startet dafür die Mac-App selbst, mit `--mcp`, und spricht über Standardein- und -ausgabe mit ihr. Einen Netzwerk-Port gibt es nicht. In diesem Modus startet keine Oberfläche; der Prozess öffnet die Datenbank ohne iCloud-Abgleich, liest nur und endet mit dem Ende der Eingabe.
@@ -96,11 +102,13 @@ Packages/PodcastAIKit/Sources/
   PodcastAISmartFeeds    Persönliche Themenfeeds, Shownotes, Cover
   PodcastAIExport        Markdown für Folgen, Antworten und Notizen
   PodcastAIPersistence   SwiftData mit iCloud-Abgleich
+  PodcastAIWidgetData    Schnappschuss fürs Widget in der App Group
 
 Apps/
   Shared/                AppModel, Dienste, gemeinsame Ansichten
   PodcastAI/             iOS: fünf Tabs, Mini-Player
   PodcastAIMac/          macOS: Seitenleiste, Menübefehle, MCP-Server
+  PodcastAIWidget/       Widget „Was ist neu“ für iOS und macOS
 
 UITests/                 UI-Tests für iOS
 ```
