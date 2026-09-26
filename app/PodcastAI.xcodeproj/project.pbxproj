@@ -45,6 +45,7 @@
 		2D15E9319E59A5BAB351E081 /* SourceReloadUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B853C90CF38A4D362F0344F /* SourceReloadUITests.swift */; };
 		2EECDEE4546273B46392B438 /* AppModel+Social.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E52240CAE22B9409DC080A /* AppModel+Social.swift */; };
 		2F42E6086EA3CFAFA1AD80F5 /* BackgroundContinuation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25D580C4FDDA033A4D36B09 /* BackgroundContinuation.swift */; };
+		2FE1912C661DB94AC967B1C6 /* AppModel+TrendingFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1628D459943A6B28E2FE90E3 /* AppModel+TrendingFeed.swift */; };
 		3076172CE5C4D7E95DE8B738 /* MentionsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37E8615CB68420FED978CB4A /* MentionsUITests.swift */; };
 		30EF56FB0D392A4344BAE04E /* PlanningContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56ED3EE14562899B30A5330 /* PlanningContext.swift */; };
 		31CB1B91AEC90AC62B680FC3 /* ActivityStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7641049000356ED13234E65F /* ActivityStatus.swift */; };
@@ -60,6 +61,7 @@
 		3C5B56638BAF0BC531A5ED34 /* SupadataKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D1EA79AB04984782AEA2BB3 /* SupadataKey.swift */; };
 		3E4D57B5413E316019A11AE4 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE12FB2B75DBFB0812CC03F /* AppModel.swift */; };
 		3FAC36C9660EED555660CA4E /* PodcastAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5862B7C42AAD247B0503B32C /* PodcastAIKit */; };
+		405479006FAF9BF57C65FF49 /* TrendingFeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A266A74B31786101DE2AD31A /* TrendingFeedTests.swift */; };
 		436C87EE117653FD5F99D4DB /* AnswerPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC853F71E884276F4C6BDFAD /* AnswerPromptTests.swift */; };
 		4382C1A8120AB94353CCE11F /* SourceImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B9305C229F85BB70AF7D849 /* SourceImportTests.swift */; };
 		43D08758002E9F59148D0F61 /* AppModel+Tagging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC6CB36EEB1F8B7ADEF82E0 /* AppModel+Tagging.swift */; };
@@ -241,6 +243,7 @@
 		F4C8DC8BD355AD0976F791C2 /* BetaFeedback03UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A323EEBF0E9BF5744EE4F224 /* BetaFeedback03UITests.swift */; };
 		F4EF197C7BD9E9A22E00E927 /* PersonaFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBEE768FADEADDB8A6CD8CA6 /* PersonaFlowsUITests.swift */; };
 		F5533C739AC029857EDF7B54 /* SupadataViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78FEBA576B87E59E6AFAF402 /* SupadataViews.swift */; };
+		F57C3986AE306E8BF6C0571B /* AppModel+TrendingFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1628D459943A6B28E2FE90E3 /* AppModel+TrendingFeed.swift */; };
 		F6DC8C862FF5FDC1B1807BEA /* TranscriptSearchUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02ACE1513EFD820CA7AA521D /* TranscriptSearchUITests.swift */; };
 		F73F3A12D66F9D979C36CFA7 /* WidgetSnapshotPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA5D5CCE3D12272AE4F18B1D /* WidgetSnapshotPublisher.swift */; };
 		F79504E5E52596148E39BEF8 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C67E84F9B4659B1B07416AF /* Views.swift */; };
@@ -338,6 +341,7 @@
 		126FBA615D083D9C6D3CFC6D /* Services+SingleEpisodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services+SingleEpisodes.swift"; sourceTree = "<group>"; };
 		12E581602D78DB93DC173BC5 /* ChatCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatCacheTests.swift; sourceTree = "<group>"; };
 		145839AE5F835BA91C11390C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		1628D459943A6B28E2FE90E3 /* AppModel+TrendingFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+TrendingFeed.swift"; sourceTree = "<group>"; };
 		19D4AD402CD71C3E055B1714 /* ForeignChangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForeignChangeTests.swift; sourceTree = "<group>"; };
 		1F43D75DCAAB42FE35D95048 /* SingleEpisodeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleEpisodeUITests.swift; sourceTree = "<group>"; };
 		201C7C8D43B476B283CE0641 /* WhatsNewViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewViews.swift; sourceTree = "<group>"; };
@@ -438,6 +442,7 @@
 		A1E7870C5FB8193940F87346 /* TranscriptNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptNotifications.swift; sourceTree = "<group>"; };
 		A2287AB2F6E783053CE73015 /* OnDeviceTranslation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceTranslation.swift; sourceTree = "<group>"; };
 		A25D580C4FDDA033A4D36B09 /* BackgroundContinuation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundContinuation.swift; sourceTree = "<group>"; };
+		A266A74B31786101DE2AD31A /* TrendingFeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendingFeedTests.swift; sourceTree = "<group>"; };
 		A27BCB191B3338DB4430D6C7 /* FeedMetadataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedMetadataTests.swift; sourceTree = "<group>"; };
 		A323EEBF0E9BF5744EE4F224 /* BetaFeedback03UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeedback03UITests.swift; sourceTree = "<group>"; };
 		A3FA018631BABE7A70910A54 /* AppModel+YouTube.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+YouTube.swift"; sourceTree = "<group>"; };
@@ -684,6 +689,7 @@
 				069849B228C53C6BC8DDA70E /* AppModel+SourceReload.swift */,
 				0CC6CB36EEB1F8B7ADEF82E0 /* AppModel+Tagging.swift */,
 				AA12A0BCC4EEA8F13BA35F6A /* AppModel+TagTrends.swift */,
+				1628D459943A6B28E2FE90E3 /* AppModel+TrendingFeed.swift */,
 				A3FA018631BABE7A70910A54 /* AppModel+YouTube.swift */,
 				0D3C0282D2F6B80999EF968D /* AppShortcuts.xcstrings */,
 				4DBA7C384088436C9AA3894F /* ArtworkImage.swift */,
@@ -819,6 +825,7 @@
 				8D1946983D5442F19AA7D248 /* TagInterfaceTests.swift */,
 				B405D5E13DF5CFBEE160C29D /* TagTrendTests.swift */,
 				D861C982DF86A8FCC0F914E3 /* TestLanguage.swift */,
+				A266A74B31786101DE2AD31A /* TrendingFeedTests.swift */,
 				864C08792239DB1EA4B3F06D /* WidgetSnapshotTests.swift */,
 				51B5A89051FA3CB1211D1AF9 /* YouTubeTakeoutTests.swift */,
 			);
@@ -1253,6 +1260,7 @@
 				1C405D88AFC8D098DBE9FFC6 /* AppModel+SourceReload.swift in Sources */,
 				D9F552C0C36992B2AC468B41 /* AppModel+TagTrends.swift in Sources */,
 				769472D02593CAD260E1088B /* AppModel+Tagging.swift in Sources */,
+				2FE1912C661DB94AC967B1C6 /* AppModel+TrendingFeed.swift in Sources */,
 				B566BD140CB93C2C4D3AC056 /* AppModel+YouTube.swift in Sources */,
 				D4CF84DB64C4097F6E71ACE0 /* AppModel.swift in Sources */,
 				38CF5E62E895546C32CE05E2 /* ArtworkImage.swift in Sources */,
@@ -1328,6 +1336,7 @@
 				C9BBDE4D08ABC9B941C15149 /* AppModel+SourceReload.swift in Sources */,
 				6D1336603F028B4B239142B1 /* AppModel+TagTrends.swift in Sources */,
 				43D08758002E9F59148D0F61 /* AppModel+Tagging.swift in Sources */,
+				F57C3986AE306E8BF6C0571B /* AppModel+TrendingFeed.swift in Sources */,
 				7C38442A0B4B14AF29F1BCCF /* AppModel+YouTube.swift in Sources */,
 				3E4D57B5413E316019A11AE4 /* AppModel.swift in Sources */,
 				709D00B6723987A30082886B /* ArtworkImage.swift in Sources */,
@@ -1443,6 +1452,7 @@
 				8E1D61E08C0A834CCF3D12E4 /* TagInterfaceTests.swift in Sources */,
 				708D18445315AF01EB58FBD4 /* TagTrendTests.swift in Sources */,
 				CC7399DA9A6F1E02E15DFB8C /* TestLanguage.swift in Sources */,
+				405479006FAF9BF57C65FF49 /* TrendingFeedTests.swift in Sources */,
 				DFA7E1BE6ED9941B118EAA39 /* WidgetSnapshotTests.swift in Sources */,
 				3BEFF74926067FD7A260630A /* YouTubeTakeoutTests.swift in Sources */,
 			);

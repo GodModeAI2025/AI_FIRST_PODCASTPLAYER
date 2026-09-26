@@ -25,6 +25,7 @@ Apple Intelligence stört nicht mehr beim Scrollen und nicht mehr den Chat:
 Angesagt und neu:
 - „Meine Tags“ beginnt mit „Angesagt“: Tags, die in den letzten sieben Tagen mindestens dreimal so oft vorkamen wie im Wochenschnitt der vier Wochen davor, aus mindestens drei Podcasts und mit mindestens fünf Kapiteln. Gefolgte und neutrale Tags zählen gleich. Oben im Tab „Themen-Updates“ stehen sie in einer Zeile, ein Tipp öffnet die Seite des Tags.
 - Die Seite eines Tags sagt, was seit deinem letzten Besuch neu ist: ungehörte Aussagen aus Folgen, die seitdem erschienen sind.
+- „Angesagt“ gibt es jetzt auch als Themen-Update. Sobald Tags angesagt sind, legt die App es an und stellt Ausgaben daraus zusammen wie bei deinen Updates: Teile zu 20 Minuten, Übersicht, Cover, nur Ungehörtes. Die Tags wechseln mit den Trends, Tags mit Minus bleiben draußen, und ohne Trends kommt keine neue Ausgabe. Mit „Angesagt automatisch zusammenstellen“ oben im Tab „Themen-Updates“ schaltest du es aus, samt seiner Ausgaben. Abgespielt wird nur, was du antippst.
 
 Widget „Was ist neu“ für iPhone, iPad und Mac:
 - Klein und mittel auf dem Home-Bildschirm und auf dem Mac, auf iPhone und iPad auch auf dem Sperrbildschirm. Es zeigt bis zu drei Tags, denen du folgst, mit ihren neuen Aussagen und die neueste Ausgabe deiner Themen-Updates.

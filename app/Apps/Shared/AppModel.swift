@@ -2226,6 +2226,8 @@ public final class AppModel {
             lastError = UserFacingError.describe(error)
             return
         }
+        // Ein Tag mit Minus fällt aus „Angesagt“, mit Plus kommt es zurück.
+        await reconcileTrendingFeed()
         await refreshRelevantToday()
     }
 
@@ -2445,15 +2447,20 @@ public final class AppModel {
     /// steht. Vorher konnte ein Neuladen nach einem iCloud-Abgleich die
     /// Liste im Speicher durch den Stand ohne den neuen Feed ersetzen, und
     /// die fertige Ausgabe wurde als „gelöscht“ verworfen.
+    ///
+    /// `id` gibt „Angesagt“ seine feste Kennung (`TrendingFeed.id`). Ein
+    /// Update mit fester Kennung kann in derselben Sitzung gelöscht und
+    /// wieder angelegt werden; dann gilt es nicht mehr als gelöscht.
     @discardableResult
     public func createSmartFeed(
         title: String, topicIDs: [InterestID], matchMode: TagMatchMode = .any, minutes: Int,
-        sourceIDs: [SourceID] = [], buildFirstEdition: Bool = false
+        sourceIDs: [SourceID] = [], buildFirstEdition: Bool = false, id: SmartFeedID = SmartFeedID()
     ) -> SmartFeedID {
         let feed = SmartPodcastFeed(
-            title: title, topicIDs: topicIDs, matchMode: matchMode, restrictedToSourceIDs: sourceIDs,
+            id: id, title: title, topicIDs: topicIDs, matchMode: matchMode, restrictedToSourceIDs: sourceIDs,
             editionMode: .budgeted(MediaDuration(minutes: minutes))
         )
+        removedSmartFeeds.remove(id)
         smartFeeds.append(feed)
         let saving = persistSmartFeeds()
         guard buildFirstEdition else { return feed.id }
@@ -2683,6 +2690,17 @@ public final class AppModel {
             editionNotes[feedID] = note
             return note
         }
+        // „Angesagt“: nur mit angesagten Tags, ohne die mit Minus
+        // (AppModel+TrendingFeed.swift). Ohne Tags keine Ausgabe, auch nicht
+        // auf Knopfdruck oder über Siri.
+        if feed.followsTrends {
+            feed = trendingFeedForEdition(feed)
+            guard !feed.topicIDs.isEmpty else {
+                let note = Self.nothingTrendingNote
+                editionNotes[feedID] = note
+                return note
+            }
+        }
         if let budget { feed.editionMode = .budgeted(budget) }
 
         buildingFeeds.insert(feedID)
@@ -2817,7 +2835,10 @@ public final class AppModel {
     /// Die Tags, nach denen ein Update sucht: seine eigenen oder, ohne
     /// eigene, alle, denen jemand folgt.
     func editionTags(for feed: SmartPodcastFeed) -> Set<InterestID> {
-        feed.topicIDs.isEmpty ? followedTagIDs : Set(feed.topicIDs)
+        // „Angesagt“ fällt nie auf die gefolgten zurück und lässt Tags mit
+        // Minus weg (AppModel+TrendingFeed.swift).
+        if feed.followsTrends { return Set(trendingFeedForEdition(feed).topicIDs) }
+        return feed.searchTags(followed: followedTagIDs)
     }
 
     private var followedTagIDs: Set<InterestID> { Set(profile.publicationDrivers().map(\.id)) }
@@ -2876,7 +2897,9 @@ public final class AppModel {
     @ObservationIgnored private var statisticsRefresh: Task<Void, Never>?
 
     private func computeSmartFeedStatistics() async {
-        let feeds = smartFeeds
+        // „Angesagt“ zählt wie beim Zusammenstellen ohne Tags mit Minus
+        // (AppModel+TrendingFeed.swift), sonst stünden sie im Kopf des Tabs.
+        let feeds = smartFeeds.map { $0.followsTrends ? trendingFeedForEdition($0) : $0 }
         let tags = feeds.reduce(into: Set<InterestID>()) { $0.formUnion(editionTags(for: $1)) }
         guard !tags.isEmpty else {
             smartFeedStatistics = [:]
@@ -3026,6 +3049,9 @@ public final class AppModel {
     /// jedem Aktualisieren eine fast gleiche Ausgabe über der vorigen.
     /// Startet nie Ton.
     public func processPendingEditions() async {
+        // „Angesagt“ folgt vorher den Trends, auch im Hintergrund, wo keine
+        // Ansicht sie rechnet (AppModel+TrendingFeed.swift).
+        await refreshTrendingFeed()
         for feed in smartFeeds where feed.publicationPolicy.isAutomatic {
             guard !buildingFeeds.contains(feed.id) else { continue }
             if earliestAutomaticEdition(for: feed) != nil { continue }

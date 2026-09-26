@@ -39,6 +39,7 @@ Stand 23. September 2026, Version 0.12.
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |
 | Wiedergabe im Hintergrund, AirPlay, CarPlay | Nur auf Hardware sinnvoll |
 | Widget „Was ist neu“ | Die Erweiterungen bauen für iOS und macOS, Schnappschuss und Schreibregel sind getestet. Anzeige, Neuladen und die Tipps auf Tag-Zeilen zeigen sich erst mit signiertem Build und eingerichteter App Group |
+| Themen-Update „Angesagt“ | Tags aus den Trends, keine Ausgabe ohne Trends, feste Kennung, Tags mit Minus, Abgleich zweier Geräte und das Bereinigen doppelter Zeilen sind mit Swift-Tests geprüft. Der UI-Test ist gebaut, lief aber noch nicht im Simulator. Anlegen, Umschreiben und Ausschalten über iCloud zeigen sich erst mit zwei Geräten |
 | YouTube-Abos aus Google Takeout | Leser und Auswahl mit Swift-Tests geprüft, der UI-Test ist gebaut, lief aber noch nicht im Simulator. Offen sind eine echte Takeout-Datei mit deutscher Kopfzeile und Apples Drosselung bei mehreren hundert Kanälen |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
 | Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |

@@ -154,7 +154,8 @@ extension PersonalEpisodePublisher {
 
     /// Baut die Teile einer Ausgabe aus Kapiteln.
     ///
-    /// - `followedTagIDs`: gilt, wenn das Update selbst keine Tags nennt.
+    /// - `followedTagIDs`: gilt, wenn das Update selbst keine Tags nennt,
+    ///   nicht für „Angesagt“ (``SmartPodcastFeed/searchTags(followed:)``).
     /// - `previousEditions`: die bisherigen Ausgaben dieses Updates. Kein
     ///   Kapitel kommt zweimal vor, weder über Teile noch über Ausgaben.
     /// - `tagLabels`: für den Satz „Passt zu …“ in den Shownotes.
@@ -173,7 +174,7 @@ extension PersonalEpisodePublisher {
         now: Date = Date()
     ) -> EditionRunOutcome {
 
-        let tags = feed.topicIDs.isEmpty ? followedTagIDs : Set(feed.topicIDs)
+        let tags = feed.searchTags(followed: followedTagIDs)
         let scope = Set(feed.restrictedToSourceIDs)
         let matching = chapters.filter {
             (scope.isEmpty || scope.contains($0.sourceID)) && $0.matches(tags, mode: feed.effectiveMatchMode)
