@@ -8,6 +8,10 @@
 //  Jede Antwort nennt ihre Belege mit Nummer und springt auf Wunsch an die
 //  Stelle im Originalton. Antworten lassen sich als Markdown exportieren.
 //
+//  Fragen und Antworten bilden eine Unterhaltung, je Bereich eine: die über
+//  die Mediathek und die jeder Folge. Sie bleibt nach einem Neustart und
+//  kommt auf die anderen Geräte (AppModel+Conversations.swift).
+//
 
 import SwiftUI
 import Translation
@@ -38,6 +42,10 @@ struct ChatView: View {
     @State private var tokenCatalog = ChatTokenCatalog()
     /// Eine Folge, die jemand über „Mehr aus dieser Folge“ gewählt hat.
     @State private var chosenEpisode: EpisodeID?
+    /// Die Unterhaltung, deren Eingrenzung zuletzt übernommen wurde.
+    @State private var inheritedFrom: UUID?
+    @State private var showingConversations = false
+    @State private var confirmingDelete = false
     /// Innerhalb einer Folge ist der Bereich fest.
     private let pinnedScope: ChatScope?
     private var fixedScope: Bool { pinnedScope != nil }
@@ -59,9 +67,16 @@ struct ChatView: View {
         return filter.isUnrestricted ? .allAnalyzed : .library(filter)
     }
 
-    private var answers: [ChatAnswer] {
-        model.chatAnswers.filter { $0.scope == scope }
-    }
+    /// Die Unterhaltung, die gerade zu sehen ist: die der Folge, wenn der
+    /// Bereich eine Folge ist, sonst die der Mediathek, gleich wie eingegrenzt.
+    private var conversationKey: ChatConversationKey { ChatConversationKey(scope: scope) }
+
+    private var conversation: ChatConversation? { model.conversations[conversationKey] }
+
+    private var turns: [ChatTurn] { conversation?.turns ?? [] }
+
+    /// Aus einer neueren App: lesen ja, anhängen und entfernen nein.
+    private var readOnlyConversation: Bool { conversation?.isFromNewerVersion ?? false }
 
     var body: some View {
         VStack(spacing: Design.Spacing.none) {
@@ -75,20 +90,30 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Design.Spacing.section) {
-                        if answers.isEmpty && pendingQuestion == nil {
+                        if fixedScope, !turns.isEmpty {
+                            episodeConversationBar
+                        }
+                        if readOnlyConversation {
+                            Text("Diese Unterhaltung stammt aus einer neueren Version der App. Eine neue Frage beginnt eine neue Unterhaltung.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if turns.isEmpty && pendingQuestion == nil {
                             ChatEmptyState(scope: scope, asksAboutMoment: playerHoldsScope) { suggestion in
                                 question = suggestion
                                 ask()
                             }
                             .padding(.top, fixedScope ? Design.Spacing.standard : Design.Spacing.large)
                         }
-                        ForEach(answers) { answer in
+                        ForEach(turns) { turn in
                             // Über dem Verlauf stehen Bereich und Modell schon
                             // in der Leiste. Die Antwort wiederholt sie nicht.
-                            AnswerCard(answer: answer, focus: $focusedAnswer,
+                            AnswerCard(answer: turn.answer, focus: $focusedAnswer,
                                        scrollProxy: proxy, contextShownAbove: !fixedScope,
-                                       onMoreFromEpisode: fixedScope ? nil : { chosenEpisode = $0 })
-                                .id(answer.id)
+                                       onMoreFromEpisode: fixedScope ? nil : { chosenEpisode = $0 },
+                                       withdrawn: turn.isWithdrawn, removable: !readOnlyConversation)
+                                .id(turn.id)
                         }
                         if let pendingQuestion {
                             // Die Karte liest den wachsenden Text selbst. So rechnet
@@ -104,19 +129,41 @@ struct ChatView: View {
                     guard waiting != nil else { return }
                     withAnimation { proxy.scrollTo(Self.pendingID, anchor: .bottom) }
                 }
-                .onChange(of: answers.last?.id) { _, newest in
+                .onChange(of: turns.last?.id) { _, newest in
                     guard let newest else { return }
                     withAnimation { proxy.scrollTo(newest, anchor: .top) }
                 }
             }
 
-            if playerHoldsScope, !answers.isEmpty, !isAsking {
+            if playerHoldsScope, !turns.isEmpty, !isAsking {
                 momentChip
             }
             narrowingArea
             askField
         }
         .modifier(ChatTitle(show: !fixedScope))
+        .toolbar {
+            if !fixedScope {
+                ToolbarItem(placement: .primaryAction) { conversationMenu }
+            }
+        }
+        // Die letzte Unterhaltung des Bereichs, auch nach einem Neustart.
+        .task(id: conversationKey) {
+            await model.restoreConversation(for: conversationKey)
+            inheritNarrowing()
+        }
+        .onChange(of: conversation?.id) { _, _ in inheritNarrowing() }
+        .confirmationDialog("Unterhaltung löschen?", isPresented: $confirmingDelete, titleVisibility: .visible) {
+            Button("Löschen", role: .destructive, action: deleteConversation)
+                .accessibilityIdentifier("chat.confirmDeleteConversation")
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Fragen und Antworten dieser Unterhaltung verschwinden auf allen deinen Geräten. Gesicherte Antworten bleiben.")
+        }
+        .sheet(isPresented: $showingConversations) {
+            ConversationListSheet(current: model.conversations[.library]?.id, open: reopen)
+                .sheetFeedback()
+        }
         // Belege und ihre Wörter liegen bereit, bevor die erste Frage kommt.
         .task { model.prepareForQuestion(prewarm: false, library: !fixedScope) }
         .task {
@@ -309,9 +356,9 @@ struct ChatView: View {
         isAsking ? "Antwort wird gesucht" : "Frage senden"
     }
 
-    /// Die wartende Frage, nur im Bereich, in dem sie gestellt wurde.
+    /// Die wartende Frage, nur in der Unterhaltung, zu der sie gehört.
     private var pendingQuestion: String? {
-        guard let pending, pending.scope == scope else { return nil }
+        guard let pending, ChatConversationKey(scope: pending.scope) == conversationKey else { return nil }
         return pending.question
     }
 
@@ -373,6 +420,92 @@ struct ChatView: View {
         model.cancelQuestion()
         pending = nil
         isAsking = false
+    }
+
+    // MARK: - Unterhaltung
+
+    /// Neue Unterhaltung, frühere Unterhaltungen und Löschen, oben rechts im
+    /// Chat „Frag deine Podcasts“.
+    private var conversationMenu: some View {
+        Menu {
+            if conversationKey == .library {
+                Button {
+                    model.startNewConversation(for: .library)
+                    AccessibilityNotification.Announcement(String(localized: "Neue Unterhaltung begonnen")).post()
+                } label: {
+                    Label("Neue Unterhaltung", systemImage: "square.and.pencil")
+                }
+                .disabled(turns.isEmpty || isAsking)
+                .accessibilityIdentifier("chat.newConversation")
+            } else {
+                deleteConversationButton
+            }
+            Button {
+                showingConversations = true
+            } label: {
+                Label("Frühere Unterhaltungen", systemImage: "clock.arrow.circlepath")
+            }
+            .accessibilityIdentifier("chat.conversationList")
+        } label: {
+            Label("Unterhaltung", systemImage: "bubble.left.and.text.bubble.right")
+        }
+        .accessibilityLabel("Unterhaltung")
+        .accessibilityIdentifier("chat.conversationMenu")
+    }
+
+    /// Im Reiter „Fragen“ einer Folge: die Unterhaltung der Folge löschen.
+    private var episodeConversationBar: some View {
+        HStack {
+            Spacer()
+            Menu {
+                deleteConversationButton
+            } label: {
+                Label("Unterhaltung", systemImage: "ellipsis.circle")
+                    .font(.footnote.weight(.semibold))
+                    .frame(minHeight: Design.minimumTapTarget)
+            }
+            .accessibilityLabel("Weitere Aktionen zur Unterhaltung")
+            .accessibilityIdentifier("chat.conversationMenu")
+        }
+    }
+
+    private var deleteConversationButton: some View {
+        Button(role: .destructive) {
+            confirmingDelete = true
+        } label: {
+            Label("Unterhaltung löschen", systemImage: "trash")
+        }
+        .disabled(turns.isEmpty || isAsking)
+        .accessibilityIdentifier("chat.deleteConversation")
+    }
+
+    private func deleteConversation() {
+        if let episode = conversationKey.episodeID {
+            model.deleteEpisodeConversation(episode)
+        } else if let id = conversation?.id {
+            model.deleteConversation(id)
+        }
+    }
+
+    /// Öffnet eine frühere Unterhaltung der Mediathek. Die Fragen gelten
+    /// danach wieder der Mediathek, mit der Eingrenzung der letzten Frage.
+    private func reopen(_ id: UUID) {
+        Task {
+            guard await model.reopenConversation(id) != nil else { return }
+            followsPlayer = false
+            chosenEpisode = nil
+            inheritNarrowing()
+        }
+    }
+
+    /// Eine Folgefrage geht mit der Eingrenzung der letzten Frage weiter,
+    /// bis jemand sie ändert. Innerhalb einer Sitzung bleibt sie ohnehin
+    /// stehen; nach einem Neustart und beim Wiederöffnen übernimmt der Chat
+    /// sie hier aus der Unterhaltung, einmal je Unterhaltung.
+    private func inheritNarrowing() {
+        guard asksLibrary, let conversation, conversation.id != inheritedFrom else { return }
+        inheritedFrom = conversation.id
+        if let inherited = conversation.inheritedFilter, inherited != filter { filter = inherited }
     }
 }
 
@@ -668,6 +801,12 @@ struct AnswerCard: View {
     /// Stellt die nächsten Fragen an eine zitierte Folge. Nur im Chat über
     /// die Mediathek, innerhalb einer Folge gibt es nichts zu wechseln.
     var onMoreFromEpisode: ((EpisodeID) -> Void)?
+    /// Der Text ist weg, weil eine Folge gelöscht wurde, auf die er sich
+    /// stützte. Frage und übrige Belege bleiben.
+    var withdrawn = false
+    /// Lässt sich die Antwort aus der Unterhaltung nehmen? Nicht in einer
+    /// Unterhaltung aus einer neueren App.
+    var removable = true
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var exported: String?
@@ -704,37 +843,51 @@ struct AnswerCard: View {
                     }
                 }
                 Spacer()
-                Menu {
-                    Button {
-                        Task { exported = await model.exportAnswer(answer) }
-                    } label: { Label("Als Markdown exportieren", systemImage: "square.and.arrow.up") }
-                    Button {
-                        copy(answer.text)
-                    } label: { Label("Antwort kopieren", systemImage: "doc.on.doc") }
-                    if canSave {
-                        Button {
-                            model.park(answer)
-                        } label: { Label(saveLabel, systemImage: isParked ? "checkmark.circle" : "map") }
-                        .disabled(isParked)
+                if !withdrawn || removable {
+                    Menu {
+                        if !withdrawn {
+                            Button {
+                                Task { exported = await model.exportAnswer(answer) }
+                            } label: { Label("Als Markdown exportieren", systemImage: "square.and.arrow.up") }
+                            Button {
+                                copy(answer.text)
+                            } label: { Label("Antwort kopieren", systemImage: "doc.on.doc") }
+                        }
+                        if canSave {
+                            Button {
+                                model.park(answer)
+                            } label: { Label(saveLabel, systemImage: isParked ? "checkmark.circle" : "map") }
+                            .disabled(isParked)
+                        }
+                        if removable {
+                            Divider()
+                            Button(role: .destructive) {
+                                model.removeChatAnswer(answer.id)
+                            } label: { Label("Aus dem Verlauf entfernen", systemImage: "trash") }
+                            .accessibilityIdentifier("chat.removeAnswer")
+                        }
+                    } label: {
+                        // Das Symbol hiess für VoiceOver nur „Weitere“.
+                        Image(systemName: "ellipsis.circle")
+                            .tappableArea()
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Weitere Aktionen zur Antwort")
                     }
-                    Divider()
-                    Button(role: .destructive) {
-                        model.removeChatAnswer(answer.id)
-                    } label: { Label("Aus dem Verlauf entfernen", systemImage: "trash") }
-                    .accessibilityIdentifier("chat.removeAnswer")
-                } label: {
-                    // Das Symbol hiess für VoiceOver nur „Weitere“.
-                    Image(systemName: "ellipsis.circle")
-                        .tappableArea()
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("Weitere Aktionen zur Antwort")
+                    .accessibilityLabel("Weitere Aktionen zur Antwort")
+                    .accessibilityIdentifier("chat.answerMenu")
                 }
-                .accessibilityLabel("Weitere Aktionen zur Antwort")
-                .accessibilityIdentifier("chat.answerMenu")
             }
 
-            AnswerText(text: answer.text, citations: Set(numbered.map(\.number)),
-                       focus: focus, answerID: answer.id, onCitation: showCitation)
+            if withdrawn {
+                Text("Der Antworttext ist weg, weil eine Folge gelöscht wurde, auf die er sich stützte. Die übrigen Belege stehen darunter.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("chat.withdrawnAnswer")
+            } else {
+                AnswerText(text: answer.text, citations: Set(numbered.map(\.number)),
+                           focus: focus, answerID: answer.id, onCitation: showCitation)
+            }
 
             if let caveat = answer.coverageCaveat {
                 // Nur der Hinweis auf Folgen ohne Transkript hat die
@@ -917,7 +1070,7 @@ struct AnswerCard: View {
 
     private var isParked: Bool { model.isParked(answer) }
 
-    private var canSave: Bool { !answer.citations.isEmpty || answer.modelLabel != nil }
+    private var canSave: Bool { !withdrawn && (!answer.citations.isEmpty || answer.modelLabel != nil) }
 
     private var saveLabel: LocalizedStringKey {
         isParked ? "Antwort gesichert" : "Antwort sichern"

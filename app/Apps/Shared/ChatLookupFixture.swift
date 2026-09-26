@@ -60,8 +60,12 @@ enum ChatLookupFixture {
     /// mit der Frage als Suchbegriff weitere Stellen und verweist auf die
     /// erste, die das Werkzeug geliefert hat. Der Text steht für eine
     /// Modellantwort und ist deshalb nicht übersetzt.
+    ///
+    /// Bei einer Folgefrage nennt der Text die Frage davor, so wie das
+    /// Modell sie im Block BISHERIGES GESPRÄCH sähe. Daran sieht der UI-Test,
+    /// dass die früheren Runden bis zum Modell kommen.
     static func answer(question: String, candidates: [Evidence], budget: ContextBudget,
-                       lookup: ChatLookupLedger) async throws -> ComposedAnswer {
+                       lookup: ChatLookupLedger, history: ConversationHistory? = nil) async throws -> ComposedAnswer {
         let listed = CandidateListBuilder(excerptLimit: budget.excerptLimit, maximumCandidates: 2)
             .build(from: candidates)
         lookup.begin(initial: listed, tier: .onDevice)
@@ -69,8 +73,11 @@ enum ChatLookupFixture {
         let fetched = result.split(separator: "\n").compactMap { line in
             line.prefixMatch(of: /\[(\d+)\]/).flatMap { Int($0.output.1) }
         }
-        let text = fetched.first.map { "Nachgeschlagen: Eine weitere Stelle sagt dazu mehr [\($0)]." }
+        var text = fetched.first.map { "Nachgeschlagen: Eine weitere Stelle sagt dazu mehr [\($0)]." }
             ?? "Nachgeschlagen, aber keine weitere Stelle gefunden. Das steht schon hier [1]."
+        if let previous = history?.turns.last?.question {
+            text = "Anschluss an „\(previous)“. " + text
+        }
         return KnowledgeExtractor.scriptedAnswer(text, candidates: listed, lookup: lookup)
     }
 }
