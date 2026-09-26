@@ -46,6 +46,7 @@ final class ChatNarrowingUITests: XCTestCase {
         XCTAssertFalse(app.buttons["chat.cancel"].exists, "Ein Vorschlag hat eine Frage gesendet")
 
         // Eine Zeitangabe wird zum zweiten Token, ein Tipp nimmt es wieder heraus.
+        input.tap()
         input.typeText("seit 1. Juni")
         XCTAssertTrue(suggestion.waitForExistence(timeout: 5), "Kein Vorschlag für die Zeitangabe")
         suggestion.tap()
