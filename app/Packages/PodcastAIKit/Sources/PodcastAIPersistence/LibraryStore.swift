@@ -1185,6 +1185,19 @@ public actor LibraryStore: ModelActor {
         public var mediaVersionIDs: [MediaVersionID] = []
         public var evidenceIDs: [EvidenceID] = []
         public var episodeIDs: [EpisodeID] = []
+
+        public init() {}
+
+        /// Nimmt einen zweiten Bericht auf, ohne Kennungen doppelt zu führen.
+        public mutating func merge(_ other: RemovalReport) {
+            func union<T: Hashable>(_ lhs: [T], _ rhs: [T]) -> [T] {
+                var seen = Set(lhs)
+                return lhs + rhs.filter { seen.insert($0).inserted }
+            }
+            mediaVersionIDs = union(mediaVersionIDs, other.mediaVersionIDs)
+            evidenceIDs = union(evidenceIDs, other.evidenceIDs)
+            episodeIDs = union(episodeIDs, other.episodeIDs)
+        }
     }
 
     /// Löscht eine Folge mit dem, was aus ihr entstanden ist: Transkript,
@@ -1571,7 +1584,7 @@ public actor LibraryStore: ModelActor {
 
     /// Die jüngste Revision des Transkripts einer Fassung, wie in
     /// ``transcript(forMedia:)``, aber ohne Segmente.
-    private func latestTranscriptRow(forMedia key: String) throws -> StoredTranscript? {
+    func latestTranscriptRow(forMedia key: String) throws -> StoredTranscript? {
         var descriptor = FetchDescriptor<StoredTranscript>(
             predicate: #Predicate { $0.mediaVersion?.identifier == key })
         descriptor.sortBy = [SortDescriptor(\.revisionValue, order: .reverse)]
@@ -1580,7 +1593,7 @@ public actor LibraryStore: ModelActor {
     }
 
     /// Zahl und Ende der Segmente, gezählt in der Datenbank. `nil` ohne Segmente.
-    private func fingerprint(of row: StoredTranscript) throws -> TranscriptFingerprint? {
+    func fingerprint(of row: StoredTranscript) throws -> TranscriptFingerprint? {
         // Über die Beziehung selbst, nicht über die Kennung des Transkripts:
         // So nimmt die Datenbank den Index der Beziehung und liest nicht
         // alle Segmente der Bibliothek.

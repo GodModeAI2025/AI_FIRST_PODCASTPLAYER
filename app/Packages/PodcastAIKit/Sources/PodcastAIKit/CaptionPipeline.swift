@@ -29,6 +29,24 @@ public enum CaptionAnalysis {
         MediaVersionID(stable: watchURL.absoluteString)
     }
 
+    /// Die Adresse, die an Supadata geht und an der die Medienfassung eines
+    /// Videos hängt: bei YouTube die Adresse des Videos ohne Anhängsel, bei
+    /// TikTok, Instagram, X und Facebook die des Beitrags. Folgen mit Ton
+    /// haben keine.
+    public static func captionURL(of episode: Episode) -> URL? {
+        guard episode.audioURL == nil else { return nil }
+        if let watch = YouTubeLinks.canonicalWatchURL(for: episode.webPageURL) { return watch }
+        guard let page = episode.webPageURL, case .post(_, let url)? = SocialLinks.classify(page) else { return nil }
+        return url
+    }
+
+    /// Auf welche Fassung der Feed einer Folge zeigt: die Audiodatei, bei
+    /// einem Video dessen Adresse. Die Regel des Wächters im Store.
+    public static func feedMediaVersionID(of episode: Episode) -> MediaVersionID? {
+        if let audio = episode.audioURL { return MediaVersionID(stable: audio.absoluteString) }
+        return captionURL(of: episode).map(mediaVersionID(watchURL:))
+    }
+
     /// Zeilen von Supadata als Untertitelzeilen mit Medienzeit.
     public static func cues(from transcript: SupadataTranscript) -> [CaptionCue] {
         transcript.captions.map {
@@ -50,6 +68,7 @@ public enum CaptionAnalysis {
         public let transcript: Transcript
         public let media: MediaVersion
         public let evidence: [Evidence]
+        public let sourceID: SourceID
     }
 
     /// Baut Transkript, Fassung und Belege. `nil`, wenn nach dem Reinigen
@@ -74,7 +93,29 @@ public enum CaptionAnalysis {
             from: transcript, episodeID: episodeID, sourceID: sourceID,
             ranges: passages(for: transcript))
         guard !evidence.isEmpty else { return nil }
-        return Result(transcript: transcript, media: media, evidence: evidence)
+        return Result(transcript: transcript, media: media, evidence: evidence, sourceID: sourceID)
+    }
+}
+
+/// Wie aus einem Transkript Belege werden. Die Passagen richten sich nach
+/// der Herkunft: Untertitel werden an jeder Segmentgrenze geschnitten,
+/// sobald die Ziellänge erreicht ist, Ton und Transkripte der Podcasts an
+/// Sprechpausen. So entstehen aus einem Transkript immer dieselben Belege,
+/// gleich welcher Weg es zuerst gespeichert hat.
+public enum EvidenceRecipe {
+
+    public static func passages(for transcript: Transcript) -> [MediaTimeRange] {
+        switch transcript.origin {
+        case .youTubeCaptions, .postCaptions, .youTubeCaptionsAligned:
+            CaptionAnalysis.passages(for: transcript)
+        case .publisherTimed, .publisherUntimed, .speechAnalysis, .userCorrected:
+            PassageBuilder.passages(from: transcript)
+        }
+    }
+
+    public static func evidence(from transcript: Transcript, episodeID: EpisodeID, sourceID: SourceID) -> [Evidence] {
+        TranscriptAssembler().evidence(
+            from: transcript, episodeID: episodeID, sourceID: sourceID, ranges: passages(for: transcript))
     }
 }
 
@@ -83,11 +124,18 @@ import PodcastAIPersistence
 
 extension LibraryStore {
 
-    /// Speichert, was `CaptionAnalysis.build` geliefert hat. Erst Fassung und
-    /// Transkript, dann die Belege, wie bei einer Folge mit Ton.
-    public func save(captions result: CaptionAnalysis.Result, forEpisode episodeID: EpisodeID) throws {
-        try save(transcript: result.transcript, media: result.media, forEpisode: episodeID)
-        try store(evidence: result.evidence)
+    /// Speichert, was `CaptionAnalysis.build` geliefert hat: Fassung,
+    /// Transkript und Belege in einem Schritt, hinter dem Wächter, wie bei
+    /// einer Folge mit Ton.
+    public func commit(
+        captions result: CaptionAnalysis.Result, under commitGuard: CommitGuard
+    ) throws -> CommitResult<[Evidence]> {
+        let episodeID = commitGuard.episodeID
+        let sourceID = result.sourceID
+        return try commit(
+            transcript: result.transcript, media: result.media, evidence: result.evidence,
+            rebuild: { EvidenceRecipe.evidence(from: $0, episodeID: episodeID, sourceID: sourceID) },
+            under: commitGuard)
     }
 }
 #endif

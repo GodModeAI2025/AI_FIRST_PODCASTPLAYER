@@ -96,10 +96,27 @@ extension AppModel {
         let statements = ChapterSections.group(facts, into: sections) { $0.range.start }
         let budget = TagSelectionRules.passageTokenBudget(contextSize: Self.onDeviceContextSize)
         let selector = TagSelector(useCase: .contentTagging, excerptLimit: Self.tagExcerptLimit)
+        // Jedes Schreiben dieser Einordnung geht durch den Wächter im Store.
+        let writeGuard = commitGuard(for: episode.id, since: ticket)
+        // Erkannte Tags, die diese Einordnung neu angelegt hat. Wird die Folge
+        // gelöscht, gehen sie mit, sofern nichts anderes auf sie zeigt.
+        var created = WriteReceipt(episodeID: episode.id)
+        /// Merkt den Stand, außer die Folge wurde inzwischen gelöscht. Dann
+        /// hat das Löschen ihn schon entfernt, und er bliebe sonst liegen.
+        func keep(_ progress: ChapterTaggingProgress) {
+            guard !wasRemoved(episode.id, since: ticket) else { return }
+            Self.setTaggingProgress(progress, for: episode.id)
+        }
+        /// Die Folge ist weg: kein Stand, und die neuen Tags gehen mit.
+        func abandon() async -> ChapterTagsOutcome {
+            Self.setTaggingProgress(nil, for: episode.id)
+            if !created.isEmpty { _ = try? await store.removeWrites(created) }
+            return .nothingToDo
+        }
 
         for section in progress.remaining(sections) {
             if Task.isCancelled || !tagsMayRun {
-                Self.setTaggingProgress(progress, for: episode.id)
+                keep(progress)
                 return .cancelled
             }
             let material = ChapterMaterial(
@@ -137,30 +154,30 @@ extension AppModel {
                     progress.finish(section, tags: [])
                     continue
                 case .generationFailed:
-                    Self.setTaggingProgress(progress, for: episode.id)
+                    keep(progress)
                     tagsFailed.insert(episode.id)
                     return .failed
                 case .modelUnavailable:
-                    Self.setTaggingProgress(progress, for: episode.id)
+                    keep(progress)
                     await refreshModelStatus()
                     return .modelUnavailable
                 }
             } catch {
-                Self.setTaggingProgress(progress, for: episode.id)
+                keep(progress)
                 return .cancelled
             }
             Self.recordTaggingPace(log.all)
-            guard !wasRemoved(episode.id, since: ticket) else {
-                Self.setTaggingProgress(nil, for: episode.id)
-                return .nothingToDo
-            }
+            guard !wasRemoved(episode.id, since: ticket) else { return await abandon() }
 
             var chapterTags: [ChapterTag] = []
             for pick in picks {
                 // Ein neuer Oberbegriff wird ein erkanntes, neutrales Tag.
                 // Gibt es den Schlüssel inzwischen, gilt das vorhandene Tag.
                 var tagID = pick.tagID
-                if tagID == nil { tagID = (try? await store.addDetectedTag(label: pick.label))?.id }
+                if tagID == nil, let added = try? await store.addDetectedTag(label: pick.label, under: writeGuard) {
+                    if let receipt = added.receipt { created.merge(receipt) }
+                    if case .written(_, let tag) = added { tagID = tag?.id }
+                }
                 guard let tagID else { continue }
                 chapterTags.append(ChapterTag(
                     episodeID: episode.id, mediaVersionID: mediaVersionID,
@@ -172,33 +189,40 @@ extension AppModel {
                     transcriptRevision: Revision(revision)))
             }
             progress.finish(section, tags: chapterTags)
-            Self.setTaggingProgress(progress, for: episode.id)
+            keep(progress)
         }
 
-        guard !wasRemoved(episode.id, since: ticket) else {
-            Self.setTaggingProgress(nil, for: episode.id)
-            return .nothingToDo
-        }
+        guard !wasRemoved(episode.id, since: ticket) else { return await abandon() }
         do {
-            try await store.save(chapterTags: progress.tags, forEpisode: episode.id,
-                                 transcriptRevision: Revision(revision))
+            switch try await store.commit(
+                chapterTags: progress.tags, media: mediaVersionID, transcriptRevision: Revision(revision),
+                under: writeGuard) {
+            case .written(let receipt, _):
+                created.merge(receipt)
+            case .stale(.superseded):
+                // Eine Einordnung aus einer neueren Revision steht schon da.
+                // Wie bisher gilt die Folge damit als eingeordnet.
+                break
+            case .stale:
+                // Die Folge ist weg, oder ihr Transkript ist nicht mehr das,
+                // aus dem die Tags entstanden. Der Stand passt nicht mehr.
+                return await abandon()
+            }
         } catch {
-            Self.setTaggingProgress(progress, for: episode.id)
+            keep(progress)
             tagsFailed.insert(episode.id)
             return .failed
         }
         Self.setTaggingProgress(nil, for: episode.id)
+        // Gleich nach dem Speichern gelöscht: genau diese Kapitel-Tags wieder
+        // weg, vor jedem Vermerk auf diesem Gerät.
+        if wasRemoved(episode.id, since: ticket) { return await abandon() }
         tagsCurrent.insert(episode.id)
         // Kein Kapitel bekam ein Tag: es entsteht keine Zeile, und ohne
         // Merkzeichen reihte der nächste Start die Folge wieder ein.
         if progress.tags.isEmpty {
             var settled = StoredEpisodeIDs(key: Self.tagsSettledKey)
             settled.insert(episode.id)
-        }
-        // Während des Speicherns gelöscht: die Kapitel-Tags gleich wieder weg.
-        if wasRemoved(episode.id, since: ticket) {
-            _ = try? await store.save(chapterTags: [], forEpisode: episode.id, transcriptRevision: Revision(revision))
-            return .nothingToDo
         }
         return .stored
     }

@@ -590,6 +590,12 @@ public final class AppModel {
     /// betroffen. Dasselbe Protokoll fragen die Zwischenspeicher für
     /// Nennungen, Sätze je Kapitel und Übersetzungen.
     @ObservationIgnored let removals = RemovalLedger.shared
+    /// Angefangenes Löschen, gemerkt in `DeviceState`, bis die Pflege fertig
+    /// ist. Ein Neustart setzt sie fort (`resumePendingPurges`).
+    @ObservationIgnored let pendingPurges = PendingPurges()
+    /// Löschungen, die gerade in diesem Prozess laufen. Das Fortsetzen beim
+    /// Laden lässt sie aus, sonst liefe dieselbe Pflege zweimal.
+    @ObservationIgnored var purgesInFlight: Set<UUID> = []
 
     // MARK: - Pipeline (PipelineSink.swift)
 
@@ -602,8 +608,9 @@ public final class AppModel {
     /// darauf, damit die Reihenfolge bleibt.
     @ObservationIgnored var pendingEmission: Task<Void, Never>?
     /// Die laufende Erschließung einer einzelnen Folge. Löschen bricht nur
-    /// sie ab, die übrige Warteschlange läuft weiter.
-    @ObservationIgnored var pipelineRun: Task<Void, Error>?
+    /// sie ab, die übrige Warteschlange läuft weiter. Ihr Ergebnis ist der
+    /// Beleg des Stores über das Geschriebene.
+    @ObservationIgnored var pipelineRun: Task<WriteReceipt, Error>?
     @ObservationIgnored var pipelineEpisodeID: EpisodeID?
 
     // MARK: - Dienste
@@ -828,6 +835,8 @@ public final class AppModel {
         // Auf einem anderen Gerät Gelöschtes auch hier entfernen: Audiodateien,
         // „Als Nächstes“, Warteschlange und gemerkte Stellen.
         await forgetEpisodesRemovedElsewhere()
+        // Was beim letzten Mal mitten im Löschen stehen blieb, zu Ende räumen.
+        await resumePendingPurges()
         // Was vor dem Beenden auf sein Transkript wartete, wartet wieder.
         // Loslaufen lässt es `refreshInstalledSpeechModels()` gleich danach.
         await restoreAnalysisQueue()
@@ -1871,6 +1880,22 @@ public final class AppModel {
         _ = askBeforeMobileData(.transcripts(waiting))
     }
 
+    /// Eine Erschließung ist überholt, bevor sie etwas geschrieben hat: die
+    /// Folge fehlt, ist gelöscht, oder der Store hat das Schreiben abgelehnt.
+    /// Sie verschwindet still aus der Anzeige.
+    private func forgetOverdueAnalysis(of episode: Episode) {
+        analyzing = nil
+        stages[episode.id] = nil
+        stageDetails[episode.id] = nil
+    }
+
+    /// Der Wächter für das Schreiben einer Erschließung: Folge, Quelle und
+    /// Löschungen seit `ticket`, dazu die Fassung, auf die der Feed zeigt.
+    func commitGuard(for id: EpisodeID, since ticket: RemovalLedger.Ticket) -> CommitGuard {
+        CommitGuard(episode: id, since: ticket, ledger: removals,
+                    feedMedia: { CaptionAnalysis.feedMediaVersionID(of: $0) })
+    }
+
     /// Erschließt eine Folge. Gibt `true` zurück, wenn der Fehler
     /// vorübergehend war und ein zweiter Versuch lohnt.
     private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
@@ -1889,9 +1914,7 @@ public final class AppModel {
         // Inzwischen gelöscht, hier oder auf einem anderen Gerät: überspringen.
         let live = try? await store.episodes(ids: [episode.id])
         if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
-            analyzing = nil
-            stages[episode.id] = nil
-            stageDetails[episode.id] = nil
+            forgetOverdueAnalysis(of: episode)
             return false
         }
         // Die Folge wird in ihrer eigenen Sprache transkribiert, nicht in der
@@ -1942,11 +1965,13 @@ public final class AppModel {
             }
         )
         // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
+        // Gespeichert wird hinter dem Wächter im Store, gegen den Stand der
+        // Löschungen von oben.
         let run = Task(priority: .utility) {
-            _ = try await pipeline.process(
+            try await pipeline.analyze(
                 episode: episode, audioURL: audioURL,
-                sourceID: episode.sourceID, locale: locale
-            )
+                sourceID: episode.sourceID, locale: locale, since: ticket
+            ).receipt
         }
         pipelineRun = run
         pipelineEpisodeID = episode.id
@@ -1958,13 +1983,13 @@ public final class AppModel {
             // Die eigene Aufgabe erbt keinen Abbruch. Hält die Warteschlange
             // an, bevor `pipelineRun` steht, liefe das Transkript sonst ohne
             // Träger im Hintergrund weiter.
-            try await withTaskCancellationHandler {
+            let receipt = try await withTaskCancellationHandler {
                 try await run.value
             } onCancel: {
                 run.cancel()
             }
             if wasRemoved(episode.id, since: ticket) {
-                await purgeLateWrites(of: episode)
+                await purgeLateWrites(of: episode, receipt: receipt)
                 return false
             }
             analyzedEpisodes.insert(episode.id)
@@ -2004,6 +2029,15 @@ public final class AppModel {
             // Abgebrochen, weil gelöscht: kein zweiter Versuch, nur aufräumen.
             if wasRemoved(episode.id, since: ticket) {
                 await purgeLateWrites(of: episode)
+                return false
+            }
+            // Der Wächter im Store hat widersprochen: Die Folge ist inzwischen
+            // woanders gelöscht, ihre Quelle fehlt, oder die Datei, auf die
+            // der Feed jetzt zeigt, hat schon ein Transkript. Wie oben, wenn
+            // die Folge schon vor dem Start fehlte: still zurück, kein
+            // zweiter Versuch.
+            if error is StaleWriteError {
+                forgetOverdueAnalysis(of: episode)
                 return false
             }
             // Angehalten, weil die Zeit im Hintergrund endete: kein Fehler.
@@ -2079,9 +2113,7 @@ public final class AppModel {
         let ticket = removals.ticket
         let live = try? await store.episodes(ids: [episode.id])
         if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
-            analyzing = nil
-            stages[episode.id] = nil
-            stageDetails[episode.id] = nil
+            forgetOverdueAnalysis(of: episode)
             return false
         }
         let wasAutomatic = automaticallyQueued.contains(episode.id)
@@ -2105,6 +2137,7 @@ public final class AppModel {
         let preferred = [AppLanguage.current.rawValue]
         let origin: TranscriptOrigin = isYouTubeVideo(episode) ? .youTubeCaptions : .postCaptions
         let fallbackLocale = sources.first { $0.id == episode.sourceID }?.language ?? AppLanguage.current.rawValue
+        let writeGuard = commitGuard(for: episode.id, since: ticket)
         // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
         // Losgelöst vom Hauptakteur: das Aufbereiten der Untertitel rechnet.
         let run = Task.detached(priority: .utility) {
@@ -2121,7 +2154,7 @@ public final class AppModel {
                 throw SupadataError.noTranscript
             }
             try Task.checkCancellation()
-            try await store.save(captions: result, forEpisode: episode.id)
+            return try await store.commit(captions: result, under: writeGuard).get().receipt
         }
         pipelineRun = run
         pipelineEpisodeID = episode.id
@@ -2130,9 +2163,9 @@ public final class AppModel {
             pipelineEpisodeID = nil
         }
         do {
-            try await run.value
+            let receipt = try await run.value
             if wasRemoved(episode.id, since: ticket) {
-                await purgeLateWrites(of: episode)
+                await purgeLateWrites(of: episode, receipt: receipt)
                 return false
             }
             captionFailures[episode.id.rawValue] = nil
@@ -2160,6 +2193,12 @@ public final class AppModel {
         } catch {
             if wasRemoved(episode.id, since: ticket) {
                 await purgeLateWrites(of: episode)
+                return false
+            }
+            // Der Wächter im Store hat widersprochen. Kein Fehlversuch bei
+            // Supadata: Die Untertitel waren da, nur die Folge nicht mehr.
+            if error is StaleWriteError {
+                forgetOverdueAnalysis(of: episode)
                 return false
             }
             let failure = (error as? SupadataError) ?? (error is CancellationError ? .cancelled : .network)
@@ -3556,6 +3595,56 @@ public final class AppModel {
         if let lastRefresh, Date().timeIntervalSince(lastRefresh) < interval { return }
         guard !sources.isEmpty else { return }
         await refreshAll()
+    }
+}
+
+// MARK: - Vermerke dieses Geräts zu gelöschten Folgen
+
+extension AppModel {
+
+    /// Vergisst, was dieses Gerät sich zu gelöschten Folgen gemerkt hat:
+    /// aus dem Vorbereiten genommen, gescheitert, nach „Alle abbrechen“
+    /// ruhend, geladen und vorgehalten, Fakten und Tags ohne Ergebnis,
+    /// abgelehnte Abschnitte, Lücken, Stand der Einordnung, Fehlversuche und
+    /// Zwillinge bei YouTube, Metadaten über Supadata. Regel 5: Es bleibt
+    /// nichts, was aus der Folge entstanden ist. Teil der Pflege, lässt sich
+    /// beliebig oft wiederholen. „Audio entfernen“ kommt hier nie vorbei.
+    func forgetDeviceMarks(of ids: [EpisodeID], metadataKeys: [String]) {
+        let gone = Set(ids)
+        if !gone.isEmpty {
+            dismissedFromPreparation.removeAll { gone.contains($0) }
+            failedInPreparation.removeAll { gone.contains($0) }
+            restingPreparation.removeAll { gone.contains($0) }
+            keptOffline.removeAll { gone.contains($0) }
+            prefetchedNewest.removeAll { gone.contains($0) }
+            prefetchDeclined.removeAll { gone.contains($0) }
+            var factsSettled = StoredEpisodeIDs(key: Self.factsSettledKey)
+            factsSettled.removeAll { gone.contains($0) }
+            var tagsSettled = StoredEpisodeIDs(key: Self.tagsSettledKey)
+            tagsSettled.removeAll { gone.contains($0) }
+            Self.forgetRejectedFactSlices(of: gone)
+            for id in ids {
+                Self.setFactGaps([], for: id)
+                Self.setTaggingProgress(nil, for: id)
+            }
+            // Je eine Zuweisung: jede schreibt die ganze Liste neu.
+            let raw = Set(ids.map(\.rawValue))
+            let files = prefetchedFiles.filter { !raw.contains($0.key) }
+            if files.count != prefetchedFiles.count { prefetchedFiles = files }
+            let failures = captionFailures.filter { !raw.contains($0.key) }
+            if failures.count != captionFailures.count { captionFailures = failures }
+            let twins = audioTwinRecords.filter { !raw.contains($0.key) }
+            if twins.count != audioTwinRecords.count { audioTwinRecords = twins }
+        }
+        let keys = Set(metadataKeys)
+        if !keys.isEmpty {
+            metadataFailures = metadataFailures.filter { !keys.contains($0.key) }
+            let kept = supadataMetadata.filter { !keys.contains($0.key) }
+            if kept.count != supadataMetadata.count {
+                supadataMetadata = kept
+                Self.saveSupadataMetadata(kept)
+            }
+        }
     }
 }
 

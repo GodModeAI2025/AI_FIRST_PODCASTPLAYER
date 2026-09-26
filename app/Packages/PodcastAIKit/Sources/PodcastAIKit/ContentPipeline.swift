@@ -150,9 +150,24 @@ public struct TwinCaptionHook: Sendable {
     }
 }
 
+/// Was eine Erschließung gespeichert hat: die Belege der Folge und den
+/// Beleg des Stores über die angelegten Zeilen. Wird die Folge danach
+/// gelöscht, räumt der Aufrufer nach diesem Beleg auf.
+public struct AnalysisResult: Sendable {
+    public let evidence: [Evidence]
+    public let receipt: WriteReceipt
+
+    public init(evidence: [Evidence], receipt: WriteReceipt) {
+        self.evidence = evidence
+        self.receipt = receipt
+    }
+}
+
 public actor ContentPipeline {
 
     private let store: LibraryStore
+    /// Das Löschprotokoll, gegen das der Wächter im Store prüft.
+    private let removals: RemovalLedger
     private let mediaDirectory: URL
     private let downloader: MediaDownloader
     private let engine = TimedTranscriptionEngine()
@@ -187,9 +202,11 @@ public actor ContentPipeline {
         mediaDirectory: URL,
         twin: TwinCaptionHook? = nil,
         backgroundDownloads: BackgroundDownloadSession? = nil,
+        removals: RemovalLedger = .shared,
         onProgress: @escaping @Sendable (PipelineProgress) -> Void = { _ in }
     ) {
         self.store = store
+        self.removals = removals
         self.mediaDirectory = mediaDirectory
         self.downloader = MediaDownloader(directory: mediaDirectory)
         self.checkpoints = TranscriptCheckpointStore(
@@ -212,20 +229,42 @@ public actor ContentPipeline {
         sourceID: SourceID,
         locale: Locale
     ) async throws -> [Evidence] {
+        try await analyze(episode: episode, audioURL: audioURL, sourceID: sourceID, locale: locale).evidence
+    }
+
+    /// Wie ``process(episode:audioURL:sourceID:locale:)``, mit dem Beleg des
+    /// Stores über das Geschriebene.
+    ///
+    /// Gespeichert wird hinter dem Wächter (`CommitGuard`): Wurde die Folge
+    /// seit `ticket` gelöscht, fehlt ihre Zeile oder hat die Fassung, auf die
+    /// der Feed inzwischen zeigt, schon ein Transkript, schreibt der Store
+    /// nichts, und die Arbeit endet mit `StaleWriteError`. Ohne `ticket` gilt
+    /// der Stand beim Aufruf.
+    public func analyze(
+        episode: Episode,
+        audioURL: URL,
+        sourceID: SourceID,
+        locale: Locale,
+        since ticket: RemovalLedger.Ticket? = nil
+    ) async throws -> AnalysisResult {
 
         let mediaVersionID = MediaVersionID(stable: audioURL.absoluteString)
+        let commitGuard = CommitGuard(
+            episode: episode.id, since: ticket ?? removals.ticket, ledger: removals,
+            feedMedia: { CaptionAnalysis.feedMediaVersionID(of: $0) })
 
         onProgress(PipelineProgress(episodeID: episode.id, stage: .discovered))
 
         // Liefert der Podcast ein Transkript mit Zeitmarken, gilt es zuerst.
         // Klappt das nicht, bleibt es bei der eigenen Spracherkennung.
         if let transcriptURL = episode.timedTranscriptURL,
-           let evidence = try await ProcessingTrace.interval("Transkript vom Podcast", {
+           let result = try await ProcessingTrace.interval("Transkript vom Podcast", {
                try await processPublisherTranscript(
                    episode: episode, transcriptURL: transcriptURL, audioURL: audioURL,
-                   mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale)
+                   mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale,
+                   under: commitGuard)
            }) {
-            return evidence
+            return result
         }
         // Sonst die Untertitel desselben Inhalts auf YouTube, falls die App
         // sie holen darf und sie sich sicher auf den Ton legen lassen.
@@ -235,22 +274,26 @@ public actor ContentPipeline {
                 detail: String(localized: "sucht Untertitel auf YouTube", bundle: .module)))
             if let captions = await twin.provide(episode) {
                 try Task.checkCancellation()
-                let evidence: [Evidence]?
+                let result: AnalysisResult?
                 do {
                     let outcome: TwinAlignmentOutcome
-                    (evidence, outcome) = try await ProcessingTrace.interval("Zwilling abgleichen") {
+                    (result, outcome) = try await ProcessingTrace.interval("Zwilling abgleichen") {
                         try await processTwinCaptions(
                             captions, episode: episode, audioURL: audioURL,
-                            mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale)
+                            mediaVersionID: mediaVersionID, sourceID: sourceID, locale: locale,
+                            under: commitGuard)
                     }
                     twin.report(episode.id, captions, outcome)
                 } catch {
                     // Ohne Sprachmodell oder Speicher scheitert die Folge ganz.
                     // Der nächste Versuch soll dafür nicht wieder Untertitel holen.
-                    if !(error is CancellationError) { twin.report(episode.id, captions, .notAligned) }
+                    // Hat der Wächter widersprochen, lag es nicht an den Untertiteln.
+                    if !(error is CancellationError), !(error is StaleWriteError) {
+                        twin.report(episode.id, captions, .notAligned)
+                    }
                     throw error
                 }
-                if let evidence { return evidence }
+                if let result { return result }
             }
             try Task.checkCancellation()
         }
@@ -360,42 +403,58 @@ public actor ContentPipeline {
             detail: transcript.coverage(mediaDuration: download.duration).label
         ))
 
-        // Erst Fassung und Transkript, dann die Belege. Die Reihenfolge ist
-        // kein Zufall: ein Beleg verweist auf Fassung und Transkriptrevision,
-        // und ein Verweis auf etwas, das noch nicht da ist, wäre genau die
-        // Art von halber Herkunft, die diese Kette verhindern soll.
-        try await ProcessingTrace.interval("Transkript speichern") {
-            try await store.save(
-                transcript: transcript,
-                media: MediaVersion(
-                    id: mediaVersionID,
-                    episodeID: episode.id,
-                    remoteURL: audioURL,
-                    localRelativePath: download.localRelativePath,
-                    byteCount: download.byteCount,
-                    contentHash: download.contentHash,
-                    duration: download.duration,
-                    mimeType: download.mimeType
-                ),
-                forEpisode: episode.id
-            )
-        }
-        // Das Transkript steht. Ein Zwischenstand würde nur noch stören.
-        checkpoints.remove([mediaVersionID])
-
         let evidence = ProcessingTrace.measure("Belege bilden") {
-            assembler.evidence(
-                from: transcript, episodeID: episode.id, sourceID: sourceID,
-                ranges: PassageBuilder.passages(from: transcript)
-            )
+            EvidenceRecipe.evidence(from: transcript, episodeID: episode.id, sourceID: sourceID)
         }
-        try await ProcessingTrace.interval("Belege speichern") { try await store.store(evidence: evidence) }
+        // Fassung, Transkript und Belege in einem Schritt des Stores. Ein
+        // Beleg verweist auf Fassung und Transkriptrevision, und ein Verweis
+        // auf etwas, das noch nicht da ist, wäre genau die Art von halber
+        // Herkunft, die diese Kette verhindern soll.
+        let result = try await commit(
+            transcript,
+            media: MediaVersion(
+                id: mediaVersionID,
+                episodeID: episode.id,
+                remoteURL: audioURL,
+                localRelativePath: download.localRelativePath,
+                byteCount: download.byteCount,
+                contentHash: download.contentHash,
+                duration: download.duration,
+                mimeType: download.mimeType
+            ),
+            evidence: evidence, sourceID: sourceID, under: commitGuard)
+        // Erst jetzt, da auch die Belege stehen: Endete die App vorher, fände
+        // der nächste Lauf den Zwischenstand noch und müsste nicht von vorn.
+        checkpoints.remove([mediaVersionID])
+        reportEvidence(result, of: episode.id)
+        return result
+    }
+
+    /// Speichert Fassung, Transkript und Belege in einem Schritt des Stores,
+    /// hinter dem Wächter. Widerspricht er, endet die Arbeit mit
+    /// `StaleWriteError`, und nichts ist geschrieben. Lag für die Fassung
+    /// schon ein Transkript, bleibt es, und die Belege entstehen aus ihm.
+    private func commit(
+        _ transcript: Transcript, media: MediaVersion, evidence: [Evidence],
+        sourceID: SourceID, under commitGuard: CommitGuard
+    ) async throws -> AnalysisResult {
+        let episodeID = commitGuard.episodeID
+        let written = try await ProcessingTrace.interval("Transkript und Belege speichern") {
+            try await store.commit(
+                transcript: transcript, media: media, evidence: evidence,
+                rebuild: { EvidenceRecipe.evidence(from: $0, episodeID: episodeID, sourceID: sourceID) },
+                under: commitGuard)
+        }.get()
+        return AnalysisResult(evidence: written.value, receipt: written.receipt)
+    }
+
+    /// Die Zahl der Fundstellen für die Anzeige der Folge.
+    private func reportEvidence(_ result: AnalysisResult, of episodeID: EpisodeID) {
         onProgress(PipelineProgress(
-            episodeID: episode.id, stage: .evidenceExtracted,
+            episodeID: episodeID, stage: .evidenceExtracted,
             detail: String(AttributedString(
-                localized: "^[\(evidence.count) Fundstelle](inflect: true)", bundle: .module).characters)
+                localized: "^[\(result.evidence.count) Fundstelle](inflect: true)", bundle: .module).characters)
         ))
-        return evidence
     }
 
     /// Session für Anbietertranskripte, mit den Prüfungen aus `SafeHTTP`.
@@ -412,12 +471,13 @@ public actor ContentPipeline {
     /// Die Zeiten gelten für die Audiodatei aus dem Feed, deshalb hängt das
     /// Transkript an derselben Fassung wie eine eigene Erkennung. Gibt `nil`
     /// zurück, wenn die Datei fehlt, nicht lesbar ist oder zu wenig enthält.
-    /// Dann transkribiert die App selbst. Nur ein Abbruch geht weiter nach
-    /// oben.
+    /// Dann transkribiert die App selbst. Nach oben gehen nur ein Abbruch,
+    /// ein Fehler beim Speichern und ein Widerspruch des Wächters.
     private func processPublisherTranscript(
         episode: Episode, transcriptURL: URL, audioURL: URL,
-        mediaVersionID: MediaVersionID, sourceID: SourceID, locale: Locale
-    ) async throws -> [Evidence]? {
+        mediaVersionID: MediaVersionID, sourceID: SourceID, locale: Locale,
+        under commitGuard: CommitGuard
+    ) async throws -> AnalysisResult? {
         let cues: [PublisherTranscript.Cue]
         do {
             let data = try await SafeHTTP.load(transcriptURL, using: transcriptSession, limit: SafeHTTP.textLimit)
@@ -444,40 +504,28 @@ public actor ContentPipeline {
         )
         // Liegt die Datei schon auf dem Gerät, bleibt sie an der Fassung.
         let local = await downloader.existing(mediaVersionID: mediaVersionID)
-        try await ProcessingTrace.interval("Transkript speichern") {
-            try await store.save(
-                transcript: transcript,
-                media: MediaVersion(
-                    id: mediaVersionID,
-                    episodeID: episode.id,
-                    remoteURL: audioURL,
-                    localRelativePath: local?.localRelativePath,
-                    byteCount: local?.byteCount,
-                    contentHash: local?.contentHash,
-                    duration: local?.duration ?? episode.declaredDuration,
-                    mimeType: local?.mimeType
-                ),
-                forEpisode: episode.id
-            )
+        let evidence = ProcessingTrace.measure("Belege bilden") {
+            EvidenceRecipe.evidence(from: transcript, episodeID: episode.id, sourceID: sourceID)
         }
+        let result = try await commit(
+            transcript,
+            media: MediaVersion(
+                id: mediaVersionID,
+                episodeID: episode.id,
+                remoteURL: audioURL,
+                localRelativePath: local?.localRelativePath,
+                byteCount: local?.byteCount,
+                contentHash: local?.contentHash,
+                duration: local?.duration ?? episode.declaredDuration,
+                mimeType: local?.mimeType
+            ),
+            evidence: evidence, sourceID: sourceID, under: commitGuard)
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .transcribed,
             detail: String(localized: "Transkript vom Podcast", bundle: .module)
         ))
-
-        let evidence = ProcessingTrace.measure("Belege bilden") {
-            assembler.evidence(
-                from: transcript, episodeID: episode.id, sourceID: sourceID,
-                ranges: PassageBuilder.passages(from: transcript)
-            )
-        }
-        try await ProcessingTrace.interval("Belege speichern") { try await store.store(evidence: evidence) }
-        onProgress(PipelineProgress(
-            episodeID: episode.id, stage: .evidenceExtracted,
-            detail: String(AttributedString(
-                localized: "^[\(evidence.count) Fundstelle](inflect: true)", bundle: .module).characters)
-        ))
-        return evidence
+        reportEvidence(result, of: episode.id)
+        return result
     }
 
     // MARK: Untertitel des YouTube-Zwillings
@@ -501,8 +549,9 @@ public actor ContentPipeline {
     /// Abbruch und Fehler, an denen auch die eigene Erkennung scheitern würde.
     private func processTwinCaptions(
         _ twin: TwinCaptions, episode: Episode, audioURL: URL,
-        mediaVersionID: MediaVersionID, sourceID: SourceID, locale: Locale
-    ) async throws -> ([Evidence]?, TwinAlignmentOutcome) {
+        mediaVersionID: MediaVersionID, sourceID: SourceID, locale: Locale,
+        under commitGuard: CommitGuard
+    ) async throws -> (AnalysisResult?, TwinAlignmentOutcome) {
         // Untertitel in einer anderen Sprache sind eine Übersetzung, kein Transkript.
         if let lang = twin.captions.lang, !lang.isEmpty,
            let wanted = locale.language.languageCode?.identifier,
@@ -584,40 +633,30 @@ public actor ContentPipeline {
         let transcript = CaptionTranscriptBuilder.transcript(
             from: shifted, mediaVersionID: mediaVersionID, locale: locale.identifier,
             origin: .youTubeCaptionsAligned)
-        let evidence = assembler.evidence(
-            from: transcript, episodeID: episode.id, sourceID: sourceID,
-            ranges: CaptionAnalysis.passages(for: transcript))
+        let evidence = EvidenceRecipe.evidence(from: transcript, episodeID: episode.id, sourceID: sourceID)
         guard !evidence.isEmpty else { return (nil, .notAligned) }
         try Task.checkCancellation()
 
         // Wie beim Transkript des Podcasts: die Fassung ist die Audiodatei
         // aus dem Feed. Liegt sie schon auf dem Gerät, bleibt sie daran.
-        try await ProcessingTrace.interval("Transkript speichern") {
-            try await store.save(
-                transcript: transcript,
-                media: MediaVersion(
-                    id: mediaVersionID,
-                    episodeID: episode.id,
-                    remoteURL: audioURL,
-                    localRelativePath: local?.localRelativePath,
-                    byteCount: local?.byteCount,
-                    contentHash: local?.contentHash,
-                    duration: local?.duration ?? MediaDuration(milliseconds: total),
-                    mimeType: local?.mimeType
-                ),
-                forEpisode: episode.id
-            )
-        }
+        let result = try await commit(
+            transcript,
+            media: MediaVersion(
+                id: mediaVersionID,
+                episodeID: episode.id,
+                remoteURL: audioURL,
+                localRelativePath: local?.localRelativePath,
+                byteCount: local?.byteCount,
+                contentHash: local?.contentHash,
+                duration: local?.duration ?? MediaDuration(milliseconds: total),
+                mimeType: local?.mimeType
+            ),
+            evidence: evidence, sourceID: sourceID, under: commitGuard)
         onProgress(PipelineProgress(
             episodeID: episode.id, stage: .transcribed,
             detail: TranscriptOrigin.youTubeCaptionsAligned.sourceLabel))
-        try await ProcessingTrace.interval("Belege speichern") { try await store.store(evidence: evidence) }
-        onProgress(PipelineProgress(
-            episodeID: episode.id, stage: .evidenceExtracted,
-            detail: String(AttributedString(
-                localized: "^[\(evidence.count) Fundstelle](inflect: true)", bundle: .module).characters)
-        ))
-        return (evidence, .aligned(constant: mapping.isConstant, anchors: anchors.count))
+        reportEvidence(result, of: episode.id)
+        return (result, .aligned(constant: mapping.isConstant, anchors: anchors.count))
     }
 
     /// Ein Stück holen, selbst transkribieren und in den Untertiteln suchen.

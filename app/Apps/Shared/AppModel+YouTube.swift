@@ -56,9 +56,9 @@ extension AppModel {
     }
 
     /// Die Adresse, die an Supadata geht und an der die Medienfassung hängt.
+    /// Die Regel steht im Paket, der Wächter im Store prüft danach.
     func captionURL(of episode: Episode) -> URL? {
-        guard episode.audioURL == nil else { return nil }
-        return watchURL(of: episode) ?? socialPostURL(of: episode)
+        CaptionAnalysis.captionURL(of: episode)
     }
 
     /// Kann die App für diese Folge ein Transkript erstellen? Mit Ton immer,

@@ -77,11 +77,17 @@ extension LibraryStore {
     /// Regel 3: `label` stammt aus den Kandidaten, die der Code gebildet hat,
     /// nie als freier Text aus einem Modell.
     public func addDetectedTag(label: String, seenAt: Date = Date()) throws -> Tag? {
+        try insertDetectedTag(label: label, seenAt: seenAt).tag
+    }
+
+    /// Wie ``addDetectedTag(label:seenAt:)``. `created` sagt, ob eine neue
+    /// Zeile entstanden ist.
+    func insertDetectedTag(label: String, seenAt: Date) throws -> (tag: Tag?, created: Bool) {
         if let existing = try resolveTag(label) {
             try noteFirstSeen([existing.id.rawValue: seenAt])
-            return try tags().first { $0.id == existing.id } ?? existing
+            return (try tags().first { $0.id == existing.id } ?? existing, false)
         }
-        guard let tag = TagNormalizer.makeDetectedTag(label: label, seenAt: seenAt) else { return nil }
+        guard let tag = TagNormalizer.makeDetectedTag(label: label, seenAt: seenAt) else { return (nil, false) }
         let row = StoredInterest(identifier: tag.id.rawValue, label: tag.label)
         row.kindRaw = InterestKind.topic.rawValue
         row.originRaw = tag.origin.rawValue
@@ -90,11 +96,11 @@ extension LibraryStore {
         row.firstSeenAt = tag.firstSeenAt
         modelContext.insert(row)
         try modelContext.save()
-        return tag
+        return (tag, true)
     }
 
     /// Setzt `firstSeenAt`, wo es fehlt oder später liegt.
-    private func noteFirstSeen(_ dates: [String: Date]) throws {
+    func noteFirstSeen(_ dates: [String: Date]) throws {
         guard !dates.isEmpty else { return }
         let keys = Set(dates.keys)
         var changed = false

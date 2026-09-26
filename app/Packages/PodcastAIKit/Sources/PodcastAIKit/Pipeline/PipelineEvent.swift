@@ -99,7 +99,7 @@ public struct TranscriptFailure: Sendable, Hashable {
 }
 
 /// Wodurch Folgen verschwinden.
-public enum RemovalScope: Sendable, Hashable {
+public enum RemovalScope: Sendable, Hashable, Codable {
     /// „Folge löschen“ auf diesem Gerät.
     case episode
     /// „Quelle abbestellen“ auf diesem Gerät, samt allen Folgen.
