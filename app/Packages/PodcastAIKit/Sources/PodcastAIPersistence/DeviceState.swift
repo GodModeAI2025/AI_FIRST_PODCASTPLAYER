@@ -148,6 +148,25 @@ public final class DeviceState: Sendable {
         return true
     }
 
+    /// Wie ``update(_:for:_:)``, schreibt aber nur, wenn sich der Wert
+    /// geändert hat. Listen, die oft ohne Änderung angefasst werden, kosten
+    /// dann kein Schreiben.
+    @discardableResult
+    public func update<T: Codable & Sendable & Equatable>(
+        _ type: T.Type, for key: String, _ change: (inout T?) -> Void
+    ) -> Bool {
+        if case .unreadable = read(T.self, for: key, legacy: { nil }) { return false }
+        let scheduled = contents.withLock { contents -> Bool? in
+            let before = contents.values[key] as? T
+            var current = before
+            change(&current)
+            guard current != before else { return nil }
+            return Self.put(current, for: key, into: &contents)
+        }
+        if scheduled == false { queue.async { [self] in write(key) } }
+        return true
+    }
+
     /// Trägt den Wert ein und merkt das Schreiben vor. `true`, wenn schon
     /// ein Schreiben für den Schlüssel wartet.
     private static func put<T: Codable & Sendable>(_ value: T?, for key: String, into contents: inout Contents) -> Bool {

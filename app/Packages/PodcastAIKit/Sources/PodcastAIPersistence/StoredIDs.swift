@@ -9,6 +9,12 @@
 //  Bis zur Stufe „Wissen“ lag der Typ in der App. Die Stufe führt dieselben
 //  Listen (Fakten und Tags ohne Ergebnis) im Paket, unter denselben Namen.
 //
+//  Jede Änderung liest, ändert und schreibt die Liste in einem Zug unter der
+//  Sperre von `DeviceState` (`update`). Seit Schritt 3b ändern die Stufe und
+//  die Pflege dieselben Listen aus verschiedenen Threads. Schriebe jede
+//  Instanz ihren Stand vom Anlegen zurück, ginge die Änderung der anderen
+//  verloren, und eine gelöschte Folge stünde womöglich wieder darin.
+//
 
 import Foundation
 import PodcastAICore
@@ -26,6 +32,8 @@ public struct StoredIDs<Subject> {
         self.key = key
         self.limit = limit
         self.state = state
+        // Liest auch den alten Wert aus den Benutzereinstellungen und zieht
+        // ihn um. Die Änderungen unten lesen danach nur noch `DeviceState`.
         let stored = state.value([String].self, for: key) {
             UserDefaults.standard.stringArray(forKey: key)
         }
@@ -36,44 +44,62 @@ public struct StoredIDs<Subject> {
     public func contains(_ id: TypedID<Subject>) -> Bool { lookup.contains(id) }
 
     public mutating func insert(_ id: TypedID<Subject>) {
-        ids.removeAll { $0 == id }
-        ids.append(id)
-        if ids.count > limit { ids.removeFirst(ids.count - limit) }
-        lookup = Set(ids)
-        save()
+        let limit = limit
+        change { list in
+            list.removeAll { $0 == id }
+            list.append(id)
+            if list.count > limit { list.removeFirst(list.count - limit) }
+        }
     }
 
     /// Mehrere auf einmal, mit einem Schreiben statt einem je Kennung.
     public mutating func insert(contentsOf new: some Sequence<TypedID<Subject>>) {
-        let added = new.filter { !lookup.contains($0) }
-        guard !added.isEmpty else { return }
-        ids.append(contentsOf: added)
-        if ids.count > limit { ids.removeFirst(ids.count - limit) }
-        lookup = Set(ids)
-        save()
+        let candidates = Array(new)
+        guard !candidates.isEmpty else { return }
+        let limit = limit
+        change { list in
+            var present = Set(list)
+            let added = candidates.filter { present.insert($0).inserted }
+            list.append(contentsOf: added)
+            if list.count > limit { list.removeFirst(list.count - limit) }
+        }
     }
 
     public mutating func remove(_ id: TypedID<Subject>) {
-        guard lookup.contains(id) else { return }
-        ids.removeAll { $0 == id }
-        lookup.remove(id)
-        save()
+        change { list in list.removeAll { $0 == id } }
     }
 
     public mutating func removeAll() {
-        guard !ids.isEmpty else { return }
-        ids.removeAll()
-        lookup.removeAll()
-        save()
+        change { list in list.removeAll() }
     }
 
     public mutating func removeAll(where shouldRemove: (TypedID<Subject>) -> Bool) {
-        let kept = ids.filter { !shouldRemove($0) }
-        guard kept.count != ids.count else { return }
-        ids = kept
-        lookup = Set(ids)
-        save()
+        change { list in list.removeAll(where: shouldRemove) }
     }
 
-    private func save() { state.set(ids.map(\.rawValue), for: key) }
+    /// Ändert die gespeicherte Liste in einem Zug und übernimmt den neuen
+    /// Stand. Geschrieben wird nur, was sich geändert hat. Lässt sich die
+    /// Datei gerade nicht lesen, etwa vor dem ersten Entsperren, bleibt sie,
+    /// wie sie ist: Ein Schreiben überschriebe sie mit einem Stand, der nur
+    /// die Änderung kennt. Diese Instanz merkt sich die Änderung dann nur im
+    /// Speicher.
+    private mutating func change(_ modify: (inout [TypedID<Subject>]) -> Void) {
+        var result: [TypedID<Subject>]?
+        let written = state.update([String].self, for: key) { stored in
+            let before = (stored ?? []).map(TypedID<Subject>.init(rawValue:))
+            var after = before
+            modify(&after)
+            result = after
+            guard after != before else { return }
+            stored = after.map(\.rawValue)
+        }
+        if !written {
+            var local = ids
+            modify(&local)
+            result = local
+        }
+        guard let result else { return }
+        ids = result
+        lookup = Set(result)
+    }
 }

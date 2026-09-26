@@ -1113,7 +1113,10 @@ extension AppModel {
     /// dran, rechnet neu und meldet, was fehlt.
     public func requestFacts(for episode: Episode) {
         if let knowledgeStage {
-            Task { await knowledgeStage.request(episode) }
+            // Der Stand der Löschungen beim Antippen: Wird die Folge gelöscht,
+            // bevor die Stufe den Befehl bekommt, reiht sie sie nicht mehr ein.
+            let ticket = removals.ticket
+            Task { await knowledgeStage.request(episode, since: ticket) }
             return
         }
         var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
@@ -1512,6 +1515,9 @@ extension AppModel {
     static var factsSettledKey: String { KnowledgeMarks.factsSettledKey }
 
     public func loadFacts(for episodeID: EpisodeID) async {
+        // Wird die Folge gelöscht, während hier gelesen wird, reiht die Stufe
+        // „Wissen“ sie nicht mehr ein.
+        let ticket = removals.ticket
         if let stored = try? await store.facts(forEpisode: episodeID) {
             let shown = await anchoredFacts(stored, episodeID: episodeID)
             facts[episodeID] = shown
@@ -1524,7 +1530,7 @@ extension AppModel {
                !factsDeferred.contains(episodeID),
                let episode = try? await store.episodes(ids: [episodeID]).first {
                 if let knowledgeStage {
-                    await knowledgeStage.enqueue(episode)
+                    await knowledgeStage.enqueue(episode, since: ticket)
                 } else {
                     enqueueFacts(episode)
                 }
@@ -2204,7 +2210,8 @@ extension AppModel {
     /// Der Vermerk hält fest, was nach einem Neustart sonst niemand mehr
     /// wüsste: die Fassungen der Dateien, die Schlüssel der Metadaten und
     /// die erkannten Tags einer angefangenen Einordnung. Deren Stand
-    /// entfernt `dropFromFactsQueue` gleich danach.
+    /// entfernt die Pflege (`forgetDeviceMarks`), im alten Weg hinter dem
+    /// Schalter schon `dropFromFactsQueue` gleich danach.
     private func markRemoved(_ removed: [Episode], scope: RemovalScope) -> PendingPurge {
         let ids = removed.map(\.id)
         let source: SourceID? = if case .source(let id) = scope { id } else { nil }

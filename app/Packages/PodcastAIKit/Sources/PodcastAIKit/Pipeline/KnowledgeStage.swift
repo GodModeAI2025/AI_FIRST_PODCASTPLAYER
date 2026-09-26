@@ -276,20 +276,24 @@ public actor KnowledgeStage {
 
     /// Hört zu: auf das Postfach der Stufe, das Tor und den Zustand der
     /// Modelle. Ein zweiter Aufruf tut nichts.
+    ///
+    /// Mit niedriger Priorität, auch wenn der Start vom Hauptakteur kommt.
+    /// Was die Zuhörer anstoßen, etwa ein Abgleich mit dem Store, erbt sie,
+    /// und die eine Queue des Stores bedient dann zuerst die Oberfläche.
     public func start() {
         guard !started else { return }
         started = true
         if let mailbox {
-            listeners.append(Task { [weak self] in
+            listeners.append(Task(priority: .utility) { [weak self] in
                 for await event in mailbox { await self?.receive(event) }
             })
         }
         let conditions = gate.updates()
-        listeners.append(Task { [weak self] in
+        listeners.append(Task(priority: .utility) { [weak self] in
             for await state in conditions { await self?.gateChanged(state) }
         })
         let models = monitor.updates()
-        listeners.append(Task { [weak self] in
+        listeners.append(Task(priority: .utility) { [weak self] in
             for await status in models { await self?.modelChanged(status) }
         })
     }
@@ -442,19 +446,30 @@ public actor KnowledgeStage {
 
     /// „Jetzt ermitteln“ und „Neu ermitteln“: Die Folge kommt als Nächste
     /// dran, rechnet neu und meldet, was fehlt.
-    public func request(_ episode: Episode) {
+    ///
+    /// `ticket`: der Stand des Löschprotokolls beim Antippen. Der Befehl
+    /// kommt über eine eigene Aufgabe; wird die Folge in der Zwischenzeit
+    /// gelöscht, reiht die Stufe sie nicht mehr ein. Ohne Angabe gilt der
+    /// Stand jetzt.
+    public func request(_ episode: Episode, since ticket: RemovalLedger.Ticket? = nil) {
+        let ticket = ticket ?? ledger.ticket
+        guard !ledger.wasRemoved(episode.id, since: ticket) else { return }
         var factsSettled = KnowledgeMarks.factsSettled(in: marks)
         factsSettled.remove(episode.id)
         var tagsSettled = KnowledgeMarks.tagsSettled(in: marks)
         tagsSettled.remove(episode.id)
         issues[episode.id] = nil
-        enqueue(episode, requested: true, origin: .user, ticket: ledger.ticket)
+        enqueue(episode, requested: true, origin: .user, ticket: ticket)
     }
 
     /// Reiht eine Folge von selbst ein, etwa wenn ihre gespeicherten Fakten
-    /// nur noch Listenreste einer alten Version sind.
-    public func enqueue(_ episode: Episode) {
-        enqueue(episode, requested: false, origin: .automatic, ticket: ledger.ticket)
+    /// nur noch Listenreste einer alten Version sind. Was nach zwei
+    /// vergeblichen Versuchen zurückgestellt ist, bleibt es bis zum nächsten
+    /// Start, wie bis 0.13 beim Öffnen der Folge. `ticket` wie bei
+    /// ``request(_:since:)``.
+    public func enqueue(_ episode: Episode, since ticket: RemovalLedger.Ticket? = nil) {
+        guard !deferred.contains(episode.id) else { return }
+        enqueue(episode, requested: false, origin: .automatic, ticket: ticket ?? ledger.ticket)
     }
 
     /// „Fakten automatisch sammeln“ ist aus: Was von selbst wartet, fällt
@@ -462,6 +477,9 @@ public actor KnowledgeStage {
     public func dropAutomatic() {
         factsQueue.removeAll { !$0.requested }
         tagsQueue.removeAll()
+        // Keine nächste Portion von selbst.
+        factsBackfillPending = false
+        tagsBackfillPending = false
         persistQueue()
         publish()
     }
@@ -481,6 +499,11 @@ public actor KnowledgeStage {
         deferred.formUnion(factsQueue.map(\.id))
         factsQueue.removeAll()
         tagsQueue.removeAll()
+        // Auch keine nächste Portion: Sonst holte die Stufe die Tags der
+        // Bibliothek gleich wieder, sobald das Tor nach dem Leeren aufgeht.
+        // Bis 0.13 lief ohne Eingereihtes gar nichts an.
+        factsBackfillPending = false
+        tagsBackfillPending = false
         waitReason = nil
         persistQueue()
         publish()
@@ -588,14 +611,16 @@ public actor KnowledgeStage {
             await running.value
             return
         }
-        let task = Task { await reconcileLoop() }
+        // Niedrige Priorität für die Abfragen im Store. Wer wartet, hebt sie
+        // für die Dauer des Wartens an.
+        let task = Task(priority: .utility) { await reconcileLoop() }
         reconcileTask = task
         await task.value
     }
 
     /// Wie ``reconcile()``, ohne zu warten.
     public nonisolated func requestReconcile() {
-        Task { await reconcile() }
+        Task(priority: .utility) { await reconcile() }
     }
 
     /// Nur die Kapitel-Tags, für die leichte Hintergrundaufgabe.
@@ -615,9 +640,11 @@ public actor KnowledgeStage {
     }
 
     private func reconcileOnce() async {
+        // Der Stand der Löschungen vor den Angaben des Hauptakteurs: Wird
+        // eine Folge danach gelöscht, merkt die Stufe sich nichts mehr zu ihr.
+        let ticket = ledger.ticket
         let settings = await environment.settings()
         guard settings.isLoaded else { return }
-        let ticket = ledger.ticket
         if !restored { await restoreQueue(settings: settings, ticket: ticket) }
         guard settings.automaticFacts, let withFacts = try? await store.episodeIDsWithFacts() else { return }
         // Tags brauchen nur ein Modell für Tags. Auf einem Gerät ohne
@@ -661,9 +688,11 @@ public actor KnowledgeStage {
             // Bibliothek ohne Fakten auf einmal dazu. Ist die Portion durch,
             // holt die Stufe die nächste.
             let current = await environment.settings()
+            // Was „Alle abbrechen“ während des Lesens zurückgestellt hat,
+            // bleibt zurückgestellt.
             let newest = found
                 .filter { current.automaticFacts && current.analyzed.contains($0.id)
-                    && !ledger.wasRemoved($0.id, since: ticket) }
+                    && !deferred.contains($0.id) && !ledger.wasRemoved($0.id, since: ticket) }
                 .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
             let waiting = factsQueue.count { !$0.requested }
             let portion = AutomaticWorkBudget.refill(

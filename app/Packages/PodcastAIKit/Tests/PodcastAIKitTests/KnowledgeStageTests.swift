@@ -231,6 +231,13 @@ struct KnowledgeStageTests {
         harness.intents.markOwn([a.id])
         await harness.stage.reconcile()
         #expect(await !harness.stage.queuedFacts.contains(a.id))
+        // Auch nicht das Öffnen der Folge (`loadFacts`), nur wer selbst fragt.
+        harness.gate.setInForeground(false)
+        await harness.stage.untilIdle()
+        await harness.stage.enqueue(a)
+        #expect(await !harness.stage.queuedFacts.contains(a.id))
+        await harness.stage.request(a)
+        #expect(await harness.stage.queuedFacts == [a.id])
     }
 
     @Test("Schließt das Tor, hält die Folge an und steht wieder vorn; geht es auf, läuft sie weiter")
@@ -414,6 +421,50 @@ struct KnowledgeStageTests {
         #expect(await harness.stage.queuedFacts.isEmpty)
         await harness.stage.reconcile()
         #expect(await harness.stage.queuedFacts.isEmpty)
+    }
+
+    @Test("Nach „Alle abbrechen“ holt die Stufe keine nächste Portion Tags, wenn das Tor wieder aufgeht")
+    func cancelAllStopsBackfill() async throws {
+        // Elf Folgen mit Fakten ohne Kapitel-Tags: eine Portion von zehn und eine weitere.
+        let backlog = (0..<11).map { episode("R\($0)", daysAgo: Double($0) + 1) }
+        let store = try await makeStore(backlog, transcripts: true)
+        for item in backlog {
+            let media = MediaVersionID(stable: item.audioURL!.absoluteString)
+            let evidence = try #require(try await store.evidence(forEpisode: item.id).first)
+            try await store.save(facts: [EpisodeFact(
+                id: "fakt-\(item.title)", episodeID: item.id, sourceID: sourceID, evidenceID: evidence.id,
+                mediaVersionID: media, statement: "Ein Satz über \(item.title).",
+                range: try #require(evidence.range), modelTier: "onDevice")], forEpisode: item.id)
+        }
+        let fresh = episode("Neu", daysAgo: 0)
+        _ = try await store.upsert(episodes: [fresh], forSource: sourceID)
+        let harness = await makeHarness(store: store, settings: FakeSettings(analyzed: Set(backlog.map(\.id))))
+        await harness.stage.reconcile()
+        #expect(await harness.stage.queuedTags.count == 10)
+        await harness.stage.cancelAll()
+        #expect(await harness.stage.queuedTags.isEmpty)
+        // Das Tor geht auf, und jemand fragt selbst nach einer Folge. Danach
+        // ruht die Stufe: keine Tags aus dem Rückstand der Bibliothek.
+        harness.gate.setInForeground(true)
+        await harness.stage.request(fresh)
+        #expect(await next(harness.work.started) == "facts:Neu")
+        await harness.stage.untilIdle()
+        #expect(harness.work.calls == ["facts:Neu!", "tags:Neu:user"])
+        #expect(await harness.stage.queuedTags.isEmpty)
+    }
+
+    @Test("Wird die Folge gelöscht, bevor der Befehl ankommt, reiht die Stufe sie nicht ein")
+    func commandAfterRemoval() async throws {
+        let a = episode("A", daysAgo: 1), b = episode("B", daysAgo: 2)
+        let harness = await makeHarness(store: try await makeStore([a, b]))
+        await harness.stage.reconcile()
+        // Der Stand beim Antippen, dann das Löschen, dann erst der Befehl.
+        let ticket = harness.ledger.ticket
+        harness.ledger.markRemoved([a.id, b.id])
+        await harness.stage.request(a, since: ticket)
+        await harness.stage.enqueue(b, since: ticket)
+        #expect(await harness.stage.queuedFacts.isEmpty)
+        #expect(harness.intents.factsQueue() == [])
     }
 
     @Test("Fehlt das Modell, wartet die Folge mit Grund, und nichts läuft")
@@ -642,5 +693,72 @@ struct KnowledgeJobsTests {
         #expect(loader.calls == 1)
         #expect(reporter.events.contains("chapters:2"))
         #expect(try await store.episodes(ids: [a.id]).first?.publisherChapters.map(\.title) == ["Anfang", "Mitte"])
+    }
+}
+
+// MARK: - Vermerke in `DeviceState` aus mehreren Threads (Schritt 3b)
+
+/// Seit Schritt 3b ändern die Arbeit an einer Folge (abseits) und die Pflege
+/// (auf dem Hauptakteur) dieselben Dateien. Keine Änderung darf verloren
+/// gehen, und nichts Gelöschtes darf zurückkommen.
+@Suite("Vermerke dieses Geräts bei gleichzeitigen Änderungen")
+struct DeviceMarksConcurrencyTests {
+
+    @Test("Gleichzeitiges Einfügen und Entfernen in einer Liste verliert nichts")
+    func storedIDs() async {
+        let state = makeState()
+        let key = "gleichzeitig"
+        let gone = episodeID("weg")
+        var initial = StoredIDs<EpisodeSubject>(key: key, state: state)
+        initial.insert(gone)
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0..<200 {
+                group.addTask {
+                    var ids = StoredIDs<EpisodeSubject>(key: key, state: state)
+                    ids.insert(episodeID("n\(index)"))
+                }
+            }
+            group.addTask {
+                var ids = StoredIDs<EpisodeSubject>(key: key, state: state)
+                ids.removeAll { $0 == gone }
+            }
+        }
+        let final = StoredIDs<EpisodeSubject>(key: key, state: state)
+        #expect(!final.contains(gone), "Die entfernte Kennung kommt nicht zurück")
+        #expect((0..<200).allSatisfy { final.contains(episodeID("n\($0)")) }, "Kein Einfügen geht verloren")
+    }
+
+    @Test("Lücken und Stand der Einordnung vieler Folgen zugleich, die gelöschte bleibt weg")
+    func knowledgeMarks() async {
+        let state = makeState()
+        let gone = episodeID("weg")
+        let section = ChapterSection(
+            index: 0, range: MediaTimeRange(start: MediaTime(milliseconds: 0), end: MediaTime(milliseconds: 9_000)),
+            title: "Anfang", provenance: .original)
+        var started = ChapterTaggingProgress(
+            mediaVersionID: MediaVersionID(rawValue: "m"), transcriptRevision: 0, sections: [section])
+        started.finish(section, tags: [])
+        let progress = started
+        #expect(progress.isStarted)
+        KnowledgeMarks.setFactGaps(["a|b|1"], for: gone, in: state)
+        KnowledgeMarks.setTaggingProgress(progress, for: gone, in: state)
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0..<100 {
+                group.addTask {
+                    KnowledgeMarks.setFactGaps(["x|y|\(index)"], for: episodeID("n\(index)"), in: state)
+                    KnowledgeMarks.setTaggingProgress(progress, for: episodeID("n\(index)"), in: state)
+                }
+            }
+            group.addTask {
+                // Die Pflege nach dem Löschen.
+                KnowledgeMarks.setFactGaps([], for: gone, in: state)
+                KnowledgeMarks.setTaggingProgress(nil, for: gone, in: state)
+            }
+        }
+        let gapped = KnowledgeMarks.episodesWithFactGaps(in: state)
+        #expect(!gapped.contains(gone))
+        #expect(gapped.count == 100)
+        #expect(KnowledgeMarks.taggingProgress(for: gone, in: state) == nil)
+        #expect((0..<100).allSatisfy { KnowledgeMarks.taggingProgress(for: episodeID("n\($0)"), in: state) != nil })
     }
 }

@@ -9,6 +9,12 @@
 //  Zugriffe im `AppModel`. Die Stufe und der alte Weg hinter dem Schalter
 //  lesen und schreiben jetzt dieselben Dateien in `DeviceState`.
 //
+//  Jede Änderung liest, ändert und schreibt in einem Zug (`update`). Die
+//  Arbeit an einer Folge läuft abseits des Hauptakteurs, die Pflege nach
+//  dem Löschen auf ihm. Schriebe jede Seite zurück, was sie vorher gelesen
+//  hat, legte die eine womöglich wieder an, was die andere eben entfernt
+//  hat, etwa den Stand der Einordnung einer gelöschten Folge (Regel 5).
+//
 
 import Foundation
 import PodcastAICore
@@ -65,11 +71,15 @@ public enum KnowledgeMarks {
 
     /// Merkt sich die Lücken einer Folge. Ohne Lücken fällt der Eintrag weg.
     public static func setFactGaps(_ gaps: Set<String>, for id: EpisodeID, in state: DeviceState = .shared) {
-        var all = allFactGaps(in: state)
-        let previous = all[id.rawValue]
-        all[id.rawValue] = gaps.isEmpty ? nil : gaps.sorted()
-        guard all[id.rawValue] != previous else { return }
-        state.set(all, for: factGapsKey)
+        // Zieht beim ersten Mal den alten Wert aus den Benutzereinstellungen um.
+        _ = allFactGaps(in: state)
+        let value: [String]? = gaps.isEmpty ? nil : gaps.sorted()
+        state.update([String: [String]].self, for: factGapsKey) { stored in
+            guard stored?[id.rawValue] != value else { return }
+            var all = stored ?? [:]
+            all[id.rawValue] = value
+            stored = all
+        }
     }
 
     /// Kennung eines Abschnitts für die Lücken: erster und letzter Beleg und
@@ -112,23 +122,29 @@ public enum KnowledgeMarks {
     }
 
     public static func rememberRejectedFactSlice(_ key: String, in state: DeviceState = .shared) {
-        var list = rejectedFactSliceList(in: state)
-        guard !list.contains(key) else { return }
-        list.append(key)
-        state.set(Array(list.suffix(rejectedFactSliceLimit)), for: rejectedFactSlicesKey)
+        _ = rejectedFactSliceList(in: state)
+        state.update([String].self, for: rejectedFactSlicesKey) { stored in
+            var list = stored ?? []
+            guard !list.contains(key) else { return }
+            list.append(key)
+            stored = Array(list.suffix(rejectedFactSliceLimit))
+        }
     }
 
     /// Vergisst die Ablehnungen gelöschter Folgen. Ihre Kennung beginnt mit
     /// der Kennung der Folge (``factSliceKey(_:_:)``).
     public static func forgetRejectedFactSlices(of ids: Set<EpisodeID>, in state: DeviceState = .shared) {
         guard !ids.isEmpty else { return }
-        let list = rejectedFactSliceList(in: state)
-        let kept = list.filter { key in
-            guard let episode = key.split(separator: "|", maxSplits: 1).first else { return true }
-            return !ids.contains(EpisodeID(rawValue: String(episode)))
+        _ = rejectedFactSliceList(in: state)
+        state.update([String].self, for: rejectedFactSlicesKey) { stored in
+            guard let list = stored else { return }
+            let kept = list.filter { key in
+                guard let episode = key.split(separator: "|", maxSplits: 1).first else { return true }
+                return !ids.contains(EpisodeID(rawValue: String(episode)))
+            }
+            guard kept.count != list.count else { return }
+            stored = kept
         }
-        guard kept.count != list.count else { return }
-        state.set(kept, for: rejectedFactSlicesKey)
     }
 
     /// Kennung eines Abschnitts. Belege haben stabile Kennungen, erster und
@@ -175,15 +191,18 @@ public enum KnowledgeMarks {
     public static func setTaggingProgress(
         _ progress: ChapterTaggingProgress?, for id: EpisodeID, in state: DeviceState = .shared
     ) {
-        var stored = allTaggingProgress(in: state)
-        if let progress, progress.isStarted {
-            guard stored[id.rawValue] != progress else { return }
-            stored[id.rawValue] = progress
-        } else {
-            guard stored[id.rawValue] != nil else { return }
-            stored[id.rawValue] = nil
+        _ = allTaggingProgress(in: state)
+        state.update([String: ChapterTaggingProgress].self, for: taggingProgressKey) { stored in
+            var all = stored ?? [:]
+            if let progress, progress.isStarted {
+                guard all[id.rawValue] != progress else { return }
+                all[id.rawValue] = progress
+            } else {
+                guard all[id.rawValue] != nil else { return }
+                all[id.rawValue] = nil
+            }
+            stored = all
         }
-        state.set(stored, for: taggingProgressKey)
     }
 
     // MARK: - Tempo der Tags
