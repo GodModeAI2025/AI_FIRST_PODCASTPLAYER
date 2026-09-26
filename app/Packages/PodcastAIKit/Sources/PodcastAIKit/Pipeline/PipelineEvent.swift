@@ -19,23 +19,8 @@ import PodcastAICore
 import PodcastAIIntelligence
 import PodcastAIPersistence
 
-/// Wer eine Arbeit wollte. Die höhere gewinnt, wenn dieselbe Folge mehrfach
-/// ansteht.
-///
-/// Den Wert setzt nur der Code an der Stelle, an der ein Mensch etwas
-/// anfordert oder die App selbst etwas einreiht. Weder ein Feed noch
-/// Supadata noch eine abgeglichene Zeile heben ihn an (Regel 2).
-public enum Origin: Int, Sendable, Codable, Comparable, CaseIterable {
-    /// Das Archiv eines Podcasts oder der Rückstand der Bibliothek.
-    case backlog
-    /// Von selbst eingereiht, etwa eine neue Folge eines Abos.
-    case automatic
-    /// Von einem Menschen angefordert, per Tippen oder über Siri.
-    case user
-
-    // Enums mit Rohwert bekommen kein `<` geschenkt.
-    public static func < (lhs: Origin, rhs: Origin) -> Bool { lhs.rawValue < rhs.rawValue }
-}
+// `Origin`, wer eine Arbeit wollte, liegt in PodcastAICore (Origin.swift),
+// damit auch die Tabelle für den Vorrang in PodcastAIIntelligence ihn kennt.
 
 /// Die Fassung, aus der eine Stufe ihr Ergebnis rechnet: Medienfassung und
 /// Fingerabdruck des Transkripts.

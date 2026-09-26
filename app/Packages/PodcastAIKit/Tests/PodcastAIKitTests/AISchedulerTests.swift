@@ -147,4 +147,46 @@ struct AISchedulerTests {
         #expect(recorder.all.isEmpty)
         #expect(await scheduler.snapshot().queuedCount == 0)
     }
+
+    @Test("Ein Abbruch erreicht die laufende Anfrage, und sie läuft nicht noch einmal")
+    func cancelWhileRunning() async throws {
+        let scheduler = AIScheduler(idleInterval: .zero, backgroundPause: .zero)
+        let recorder = Recorder()
+        let running = Task {
+            try await scheduler.run(.facts, priority: .background, operation: work(recorder, "b", for: .seconds(5)))
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(await scheduler.snapshot().running == .facts)
+        running.cancel()
+        await #expect(throws: CancellationError.self) { try await running.value }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(recorder.all == ["start b"])
+        #expect(await scheduler.snapshot().running == nil)
+    }
+
+    @Test("Eine verdrängte Anfrage beginnt mit einer frischen Sitzung ohne alten Verlauf")
+    func preemptedWorkStartsFresh() async throws {
+        /// Steht für eine Sitzung des Sprachmodells mit ihrem Verlauf.
+        final class Session: Sendable {
+            let history = Mutex<[String]>([])
+        }
+        let scheduler = AIScheduler(idleInterval: .zero, backgroundPause: .zero)
+        let histories = Recorder()
+        let background = Task {
+            try await scheduler.run(.tags, priority: .background) {
+                // Die Sitzung entsteht in der Operation, bei jedem Versuch neu.
+                let session = Session()
+                let before = session.history.withLock { $0.count }
+                histories.add("Verlauf vorher \(before)")
+                session.history.withLock { $0.append("Kapitel 1") }
+                try await Task.sleep(for: .milliseconds(300))
+                return session.history.withLock { $0.count }
+            }
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        _ = try await scheduler.run(.answer, priority: .user) { "Antwort" }
+        #expect(try await background.value == 1)
+        // Zwei Versuche, jeder mit leerem Verlauf.
+        #expect(histories.all == ["Verlauf vorher 0", "Verlauf vorher 0"])
+    }
 }

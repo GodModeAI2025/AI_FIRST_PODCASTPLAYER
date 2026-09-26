@@ -27,10 +27,9 @@ public final class AppModel {
     public internal(set) var editions: [SmartFeedID: [PersonalEpisode]] = [:]
     public internal(set) var profile = InterestProfile()
     public internal(set) var ledger = ListeningLedger()
-    public internal(set) var modelStatus = ModelStatus(
-        onDevice: .unavailable(.modelNotReady),
-        privateCloudCompute: .unavailable(.userConsentMissing)
-    )
+    /// Der letzte Stand aus ``ModelAvailabilityMonitor``, vor der ersten
+    /// Frage kein Modell bereit.
+    public internal(set) var modelStatus = ModelAvailabilityMonitor.unchecked
 
     /// Was gerade passiert. Eine Zeile, die der Nutzer lesen kann — keine
     /// unendliche Fortschrittsanzeige ohne Aussage.
@@ -802,10 +801,7 @@ public final class AppModel {
             // sonst niemand.
             if !isLoaded || highlights != knownHighlights { reindexSpotlight() }
             trails = try await store.trails()
-            let allowCloud = allowPrivateCloudCompute
-            let status = await Task.detached(priority: .utility) {
-                ModelStatusProbe.current(allowPrivateCloud: allowCloud)
-            }.value
+            let status = await ModelAvailabilityMonitor.shared.refresh(allowPrivateCloud: allowPrivateCloudCompute)
             if status != modelStatus { modelStatus = status }
             // Was schon erschlossen ist, steht in der Datenbank. Ohne diesen
             // Abgleich sah nach jedem Start alles unbearbeitet aus.
@@ -2803,7 +2799,9 @@ public final class AppModel {
             // Bestandteile nicht benennen kann, ist kein Podcast — und die
             // Shownotes sind die Stelle, an der das auffällt.
             let known = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
-            let chapters = try await editionChapters(tags: editionTags(for: feed), knownEvidence: known)
+            let chapters = try await editionChapters(
+                tags: editionTags(for: feed), knownEvidence: known,
+                priority: AIPriorityPolicy.priority(kind: .relevance, origin: requestedByUser ? .user : .automatic))
             // Auswählen und Aufteilen rechnet außerhalb des Hauptthreads.
             let outcome = await Task.detached(priority: .utility) {
                 [ledger, previous = editions[feedID] ?? [], followed = followedTagIDs, labels = tagLabels] in
@@ -2926,8 +2924,11 @@ public final class AppModel {
     /// Die Kapitel der Bibliothek zu diesen Tags, ohne Stellen aus Videos:
     /// Themen-Updates sind Ton, und YouTube-Folgen haben keinen, den die
     /// App abspielen dürfte.
+    ///
+    /// `priority` gilt für die Rückfrage beim Modell und kommt aus ``AIPriorityPolicy``.
     private func editionChapters(
-        tags: Set<InterestID>, knownEvidence: [Evidence]? = nil, titledSections: Bool = true
+        tags: Set<InterestID>, knownEvidence: [Evidence]? = nil, titledSections: Bool = true,
+        priority: AIWorkPriority = AIPriorityPolicy.priority(kind: .relevance, origin: .automatic)
     ) async throws -> [EditionChapter] {
         let known = if let knownEvidence { knownEvidence } else {
             try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
@@ -2940,7 +2941,8 @@ public final class AppModel {
         return try await pipeline.editionChapters(
             tags: tags, profile: profile, availability: modelStatus,
             titledSections: titledSections, modelConfirmation: titledSections,
-            titles: titles.mapValues { (source: $0.source, episode: $0.episode, published: $0.publishedAt) }
+            titles: titles.mapValues { (source: $0.source, episode: $0.episode, published: $0.publishedAt) },
+            priority: priority
         ).filter { !RemoteMediaRegistry.shared.isExternal($0.mediaVersionID) }
     }
 

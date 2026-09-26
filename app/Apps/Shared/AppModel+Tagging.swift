@@ -51,8 +51,12 @@ extension AppModel {
     /// Nur, wenn die Folge noch keine Kapitel-Tags aus der aktuellen
     /// Revision ihres Transkripts hat. Ein neues Transkript ordnet also neu
     /// ein. Ein früherer, abgebrochener Lauf setzt beim nächsten Kapitel fort.
+    ///
+    /// `origin`: wer die Arbeit wollte. Nach den Fakten einer Folge erben die
+    /// Tags die Herkunft des Faktenlaufs. Den Vorrang je Aufruf bestimmt
+    /// daraus ``AIPriorityPolicy``.
     @discardableResult
-    func prepareChapterTags(for episode: Episode) async -> ChapterTagsOutcome {
+    func prepareChapterTags(for episode: Episode, origin: Origin) async -> ChapterTagsOutcome {
         guard !taggingInProgress.contains(episode.id) else { return .nothingToDo }
         taggingInProgress.insert(episode.id)
         defer { taggingInProgress.remove(episode.id) }
@@ -101,6 +105,7 @@ extension AppModel {
         let statements = ChapterSections.group(facts, into: sections) { $0.range.start }
         let budget = TagSelectionRules.passageTokenBudget(contextSize: Self.onDeviceContextSize)
         let selector = TagSelector(useCase: .contentTagging, excerptLimit: Self.tagExcerptLimit)
+        let priority = AIPriorityPolicy.priority(kind: .tags, origin: origin)
         // Jedes Schreiben dieser Einordnung geht durch den Wächter im Store.
         let writeGuard = commitGuard(for: episode, since: ticket)
         // Erkannte Tags, die diese Einordnung neu angelegt hat. Wird die Folge
@@ -148,7 +153,7 @@ extension AppModel {
                     ) { choices, part in
                         let selection = try await selector.select(
                             from: choices, passages: part, title: title,
-                            availability: status, preferCloud: preferCloud)
+                            availability: status, preferCloud: preferCloud, priority: priority)
                         log.add(selection)
                         return selection.chosenIDs
                     }
@@ -300,10 +305,10 @@ extension AppModel {
                 if tagsQueue.isEmpty { return }
             }
             let next = tagsQueue.removeFirst()
-            let outcome = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
-                await prepareChapterTags(for: next)
-            }
             // Aus dem Rückstand der Bibliothek, nicht nach den Fakten einer Folge.
+            let outcome = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
+                await prepareChapterTags(for: next, origin: .backlog)
+            }
             emitTagsDone(next.id, outcome, origin: .backlog)
             switch outcome {
             case .stored:

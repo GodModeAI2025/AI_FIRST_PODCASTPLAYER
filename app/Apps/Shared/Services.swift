@@ -1016,13 +1016,3 @@ public final class RemoteMediaRegistry: @unchecked Sendable {
         return posts[id]
     }
 }
-
-// MARK: - Modellzustand
-
-public enum ModelStatusProbe {
-
-    /// Der tatsächliche Zustand von Gerätemodell und Private Cloud Compute.
-    public static func current(allowPrivateCloud: Bool) -> ModelStatus {
-        KnowledgeExtractor.currentStatus(allowPrivateCloud: allowPrivateCloud)
-    }
-}

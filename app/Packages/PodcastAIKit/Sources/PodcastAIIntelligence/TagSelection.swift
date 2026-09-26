@@ -169,9 +169,15 @@ public struct TagSelector: Sendable {
 
     public let useCase: TagModelUseCase
     public let excerptLimit: Int
+    /// Die Stelle, die Anfragen zuteilt. In Tests eine, die mitschreibt.
+    private let scheduler: any AIScheduling
 
-    public init(useCase: TagModelUseCase = .contentTagging, excerptLimit: Int = 500) {
+    public init(
+        useCase: TagModelUseCase = .contentTagging, excerptLimit: Int = 500,
+        scheduler: any AIScheduling = AIScheduler.shared
+    ) {
         self.useCase = useCase; self.excerptLimit = excerptLimit
+        self.scheduler = scheduler
     }
 
     /// Das Schema: ein Objekt mit einer Liste von höchstens fünf Kennungen,
@@ -197,9 +203,11 @@ public struct TagSelector: Sendable {
     /// Private Cloud Compute. Mit `preferCloud` fragt die Auswahl zuerst
     /// Private Cloud Compute, wenn es verfügbar ist. Scheitert das Gerät an
     /// der Zeit, fragt sie danach Private Cloud Compute, sofern erlaubt.
+    /// `priority` kommt aus ``AIPriorityPolicy``.
     public func select(
         from choices: [TagChoice], passages: [Evidence], title: String?,
-        availability: ModelStatus, preferCloud: Bool = false
+        availability: ModelStatus, preferCloud: Bool = false,
+        priority: AIWorkPriority = AIPriorityPolicy.priority(kind: .tags, origin: .automatic)
     ) async throws -> TagSelection {
         let tier: ModelTier
         switch availability.resolve(.tag) {
@@ -214,10 +222,12 @@ public struct TagSelector: Sendable {
         let prompt = TagSelectionRules.prompt(
             title: title, passages: passages, choices: choices, excerptLimit: excerptLimit)
         let cloudAllowed = availability.privateCloudCompute.isAvailable
+        let cloud = { @Sendable () throws -> LanguageModelSession in try Self.cloudSession(instructions) }
+        let local = { @Sendable [self] () throws -> LanguageModelSession in try localSession(instructions) }
 
         if tier == .privateCloudCompute || (preferCloud && cloudAllowed) {
             do {
-                return try await run(cloudSession(instructions), tier: .privateCloudCompute,
+                return try await run(cloud, tier: .privateCloudCompute, priority: priority,
                                      prompt: prompt, schema: schema, choices: choices)
             } catch {
                 if error is CancellationError || Task.isCancelled { throw error }
@@ -228,14 +238,14 @@ public struct TagSelector: Sendable {
         // Scrollen oder eine Frage im Chat zählen nicht als langsames Modell.
         let clock = CallClock()
         do {
-            return try await run(localSession(instructions), tier: .onDevice,
+            return try await run(local, tier: .onDevice, priority: priority,
                                  prompt: prompt, schema: schema, choices: choices, clock: clock)
         } catch {
             if error is CancellationError || Task.isCancelled { throw error }
             // Zu langsam: einmal Private Cloud Compute, wenn es erlaubt ist.
             if Self.isTimeout(error), cloudAllowed, !preferCloud {
                 let waited = Self.seconds(ContinuousClock.now - (clock.started ?? .now))
-                return try await run(cloudSession(instructions), tier: .privateCloudCompute,
+                return try await run(cloud, tier: .privateCloudCompute, priority: priority,
                                      prompt: prompt, schema: schema, choices: choices)
                     .afterOnDeviceTimeout(waited)
             }
@@ -243,14 +253,19 @@ public struct TagSelector: Sendable {
         }
     }
 
+    /// Ein Aufruf durch die Stelle für Apple Intelligence. Die Sitzung legt
+    /// erst die Operation an, bei jedem Versuch neu: Bricht die Stelle den
+    /// Aufruf für eine Anfrage eines Menschen ab und wiederholt ihn, trägt
+    /// der neue keinen Verlauf des abgebrochenen mit.
     private func run(
-        _ session: LanguageModelSession, tier: ModelTier, prompt: String,
+        _ makeSession: @escaping @Sendable () throws -> LanguageModelSession, tier: ModelTier,
+        priority: AIWorkPriority, prompt: String,
         schema: GenerationSchema, choices: [TagChoice], clock: CallClock = CallClock()
     ) async throws -> TagSelection {
-        // Durch die eine Stelle für Apple Intelligence, im Hintergrund. Gemessen
-        // wird nur der Aufruf selbst, nicht die Zeit in der Warteschlange: danach
-        // richtet sich `TaggingPace`.
-        let (raw, seconds) = try await AIScheduler.shared.run(.tags, priority: .background) {
+        // Gemessen wird nur der Aufruf selbst, nicht die Zeit in der
+        // Warteschlange: danach richtet sich `TaggingPace`.
+        let (raw, seconds) = try await scheduler.run(.tags, priority: priority) {
+            let session = try makeSession()
             let started = ContinuousClock.now
             clock.started = started
             let response = try await session.respond(to: prompt, schema: schema)
@@ -274,7 +289,7 @@ public struct TagSelector: Sendable {
         Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
     }
 
-    private func cloudSession(_ instructions: String) throws -> LanguageModelSession {
+    private static func cloudSession(_ instructions: String) throws -> LanguageModelSession {
         guard let session = KnowledgeExtractor.privateCloudSession(instructions: instructions) else {
             throw ExtractorError.modelUnavailable(.userConsentMissing)
         }
@@ -324,13 +339,17 @@ public struct TagSelector: Sendable {
     public let useCase: TagModelUseCase
     public let excerptLimit: Int
 
-    public init(useCase: TagModelUseCase = .contentTagging, excerptLimit: Int = 500) {
+    public init(
+        useCase: TagModelUseCase = .contentTagging, excerptLimit: Int = 500,
+        scheduler: any AIScheduling = AIScheduler.shared
+    ) {
         self.useCase = useCase; self.excerptLimit = excerptLimit
     }
 
     public func select(
         from choices: [TagChoice], passages: [Evidence], title: String?,
-        availability: ModelStatus, preferCloud: Bool = false
+        availability: ModelStatus, preferCloud: Bool = false,
+        priority: AIWorkPriority = AIPriorityPolicy.priority(kind: .tags, origin: .automatic)
     ) async throws -> TagSelection {
         throw ExtractorError.modelUnavailable(.deviceNotEligible)
     }

@@ -42,6 +42,21 @@ public enum AIWorkPriority: Sendable, Equatable {
     case background
 }
 
+/// Wer Anfragen an ein Sprachmodell zuteilt. `AIScheduler` erfüllt es; wer
+/// ein Modell ruft (`KnowledgeExtractor`, `TagSelector`, später die Stufen),
+/// bekommt die Stelle übergeben, statt `AIScheduler.shared` selbst zu
+/// greifen. Tests reichen so eine Stelle hinein, die den Vorrang mitschreibt.
+///
+/// `operation` enthält den ganzen Aufruf, auch das Anlegen der Sitzung: Wird
+/// Arbeit im Hintergrund für eine Anfrage eines Menschen abgebrochen und
+/// wiederholt, beginnt sie mit einer frischen Sitzung ohne alten Verlauf.
+public protocol AIScheduling: Sendable {
+    func run<T: Sendable>(
+        _ kind: AIWorkKind, priority: AIWorkPriority,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T
+}
+
 /// Stand der Stelle für die Warteschlange.
 public struct AIPipelineSnapshot: Sendable, Equatable {
     public var running: AIWorkKind?
@@ -59,7 +74,7 @@ public struct AIPipelineSnapshot: Sendable, Equatable {
     public var queuedCount: Int { queued.values.reduce(0, +) }
 }
 
-public actor AIScheduler {
+public actor AIScheduler: AIScheduling {
 
     public static let shared = AIScheduler()
     static let signposter = OSSignposter(subsystem: ChatTrace.subsystem, category: "ai")

@@ -178,6 +178,8 @@ public actor ContentPipeline {
     private let twin: TwinCaptionHook?
     /// Lädt im WLAN über die Sitzung des Systems, sonst `nil`.
     private let backgroundDownloads: BackgroundDownloadSession?
+    /// Die Stelle für Apple Intelligence, über die die Relevanz geprüft wird.
+    private let aiScheduler: any AIScheduling
 
     /// Zwischenstände liegen neben dem Ordner der Audiodateien, nicht darin:
     /// dort zählt die App jede Datei als geladenen Ton.
@@ -203,10 +205,12 @@ public actor ContentPipeline {
         twin: TwinCaptionHook? = nil,
         backgroundDownloads: BackgroundDownloadSession? = nil,
         removals: RemovalLedger = .shared,
+        aiScheduler: any AIScheduling = AIScheduler.shared,
         onProgress: @escaping @Sendable (PipelineProgress) -> Void = { _ in }
     ) {
         self.store = store
         self.removals = removals
+        self.aiScheduler = aiScheduler
         self.mediaDirectory = mediaDirectory
         self.downloader = MediaDownloader(directory: mediaDirectory)
         self.checkpoints = TranscriptCheckpointStore(
@@ -717,12 +721,14 @@ public actor ContentPipeline {
     /// Modellbestätigung. Das Modell kann die Auswahl nur **verengen**, nie
     /// erweitern: es sieht ausschließlich, was die Vorauswahl zugelassen hat.
     /// Fällt es aus oder wählt es nichts, entsteht die Ausgabe trotzdem und
-    /// ist als nur stichwortbasiert erkennbar.
+    /// ist als nur stichwortbasiert erkennbar. `priority` kommt aus
+    /// ``AIPriorityPolicy``.
     public func candidates(
         for feed: SmartPodcastFeed,
         profile: InterestProfile,
         availability: ModelStatus,
-        titles: [EpisodeID: (source: String, episode: String, published: Date?)] = [:]
+        titles: [EpisodeID: (source: String, episode: String, published: Date?)] = [:],
+        priority: AIWorkPriority = AIPriorityPolicy.priority(kind: .relevance, origin: .automatic)
     ) async throws -> [SegmentCandidate] {
 
         let evidence = try await store.evidenceForAnalyzedEpisodes()
@@ -751,8 +757,8 @@ public actor ContentPipeline {
             // eines neuen Updates leer, obwohl Stichworte trafen, und erst
             // ein zweiter Versuch baute sie. Das Modell darf verengen,
             // aber nicht auf nichts.
-            if !shortlist.isEmpty, let selection = try? await KnowledgeExtractor()
-                .selectRelevant(from: shortlist, profile: profile, availability: availability),
+            if !shortlist.isEmpty, let selection = try? await KnowledgeExtractor(scheduler: aiScheduler)
+                .selectRelevant(from: shortlist, profile: profile, availability: availability, priority: priority),
                !selection.evidenceIDs.isEmpty {
                 confirmed = Set(selection.evidenceIDs)
             }
@@ -795,14 +801,16 @@ public actor ContentPipeline {
     /// `tags`: die Tags des Updates oder, ohne eigene, die gefolgten.
     /// Für bloße Zahlen reicht weniger: `titledSections: false` spart die
     /// Satzvektoren für die Titel abgeleiteter Abschnitte,
-    /// `modelConfirmation: false` die Rückfrage beim Modell.
+    /// `modelConfirmation: false` die Rückfrage beim Modell. `priority` gilt
+    /// für diese Rückfrage und kommt aus ``AIPriorityPolicy``.
     public func editionChapters(
         tags: Set<InterestID>,
         profile: InterestProfile,
         availability: ModelStatus,
         titledSections: Bool = true,
         modelConfirmation: Bool = true,
-        titles: [EpisodeID: EditionChapterBuilder.Titles] = [:]
+        titles: [EpisodeID: EditionChapterBuilder.Titles] = [:],
+        priority: AIWorkPriority = AIPriorityPolicy.priority(kind: .relevance, origin: .automatic)
     ) async throws -> [EditionChapter] {
         guard !tags.isEmpty else { return [] }
         let evidence = try await store.evidenceForAnalyzedEpisodes()
@@ -818,8 +826,9 @@ public actor ContentPipeline {
             let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
             if modelConfirmation, case .success = availability.resolve(.recommend), !matches.isEmpty {
                 let shortlist = matches.compactMap { byID[$0.evidenceID] }
-                if let selection = try? await KnowledgeExtractor()
-                    .selectRelevant(from: shortlist, profile: profile, availability: availability),
+                if let selection = try? await KnowledgeExtractor(scheduler: aiScheduler)
+                    .selectRelevant(from: shortlist, profile: profile, availability: availability,
+                                    priority: priority),
                    !selection.evidenceIDs.isEmpty {
                     let confirmed = Set(selection.evidenceIDs)
                     matches = matches.filter { confirmed.contains($0.evidenceID) }

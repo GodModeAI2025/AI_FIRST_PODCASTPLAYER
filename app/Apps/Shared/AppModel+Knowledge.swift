@@ -12,18 +12,12 @@
 //
 
 import Foundation
-import Synchronization
 import CoreData
 import PodcastAIKit
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
 import AppKit
-#endif
-#if canImport(FoundationModels)
-// Nur dieser Typ: FoundationModels hat einen eigenen `Transcript`, der sonst
-// mit dem aus PodcastAIKit kollidiert.
-import class FoundationModels.SystemLanguageModel
 #endif
 
 extension AppModel {
@@ -152,15 +146,13 @@ extension AppModel {
 
     public func refreshModelStatus() async {
         let wasReady = factsModelReady
-        // Die Frage an FoundationModels geht an einen Dienst des Systems und
-        // kann warten, während das Modell rechnet. Nicht auf dem Hauptthread,
-        // und nur ein neuer Stand wird geschrieben: jede Zuweisung zeichnete
-        // sonst alles neu, was den Zustand liest.
-        let allowCloud = allowPrivateCloudCompute
-        let status = await Task.detached(priority: .utility) {
-            ModelStatusProbe.current(allowPrivateCloud: allowCloud)
-        }.value
+        // Die Frage an FoundationModels stellt der Monitor abseits des
+        // Hauptthreads. Nur ein neuer Stand wird geschrieben: jede Zuweisung
+        // zeichnete sonst alles neu, was den Zustand liest.
+        let status = await ModelAvailabilityMonitor.shared.refresh(allowPrivateCloud: allowPrivateCloudCompute)
         if status != modelStatus { modelStatus = status }
+        // Was die App tut, wenn ein Modell bereit wird, bleibt hier, bis die
+        // Stufe „Wissen“ den Zustand selbst liest.
         guard isLoaded else { return }
         // Nur ein Modell für Tags, etwa Private Cloud Compute ohne Gerätemodell:
         // die Einordnung darf laufen, die Fakten warten.
@@ -183,23 +175,9 @@ extension AppModel {
         }
     }
 
-    /// Wie viele Token das Gerätemodell für Anweisungen, Prompt und Antwort
-    /// zusammen fasst. Unter iOS 27 und macOS 27 sind es 8.192.
-    /// Einmal gefragt und gemerkt: Die Frage geht an einen Dienst des Systems
-    /// und hielt bei jeder Folge den Hauptthread an, während das Modell rechnete.
-    /// Gemerkt wird nur eine echte Größe, solange das Modell noch lädt, gilt 4.096.
-    nonisolated static var onDeviceContextSize: Int {
-        if let known = contextSizeCache.withLock({ $0 }) { return known }
-        #if canImport(FoundationModels)
-        let size = SystemLanguageModel.default.contextSize
-        #else
-        let size = 0
-        #endif
-        guard size > 0 else { return 4_096 }
-        contextSizeCache.withLock { $0 = size }
-        return size
-    }
-    private nonisolated static let contextSizeCache = Mutex<Int?>(nil)
+    /// Wie viele Token das Gerätemodell fasst, einmal gefragt und gemerkt,
+    /// siehe ``ModelAvailabilityMonitor/onDeviceContextSize``.
+    nonisolated static var onDeviceContextSize: Int { ModelAvailabilityMonitor.onDeviceContextSize }
 
     /// Läuft die Antwort gerade über Private Cloud Compute?
     var answersUsePrivateCloud: Bool {
@@ -1148,7 +1126,7 @@ extension AppModel {
         let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
             candidateBuilder: CandidateListBuilder(excerptLimit: Self.factExcerptLimit, maximumCandidates: chunk)),
             // „Jetzt ermitteln“ hat jemand angetippt, das geht vor Arbeit im Hintergrund.
-            priority: force ? .user : .background)
+            priority: AIPriorityPolicy.priority(kind: .facts, origin: force ? .user : .automatic, force: force))
         // Für die Zeitmarken: das Modell wählt nur den Beleg, den Satz darin
         // findet der Code im Transkript.
         let timed = await transcript(for: episode)
@@ -1876,7 +1854,7 @@ extension AppModel {
                 switch outcome {
                 case .stored, .partial, .noFacts:
                     let tags = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
-                        await prepareChapterTags(for: next)
+                        await prepareChapterTags(for: next, origin: origin)
                     }
                     emitTagsDone(next.id, tags, origin: origin)
                 default: break

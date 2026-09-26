@@ -148,35 +148,47 @@ public enum ExtractorError: Error, LocalizedError {
 public struct KnowledgeExtractor: Sendable {
 
     private let configuration: ExtractorConfiguration
-    /// Wer auf das Ergebnis wartet. Ohne Angabe gilt, was zum Profil passt:
-    /// Antworten und der Satz je Kapitel für einen Menschen, der Rest im
-    /// Hintergrund. „Jetzt ermitteln“ gibt `.user` mit.
+    /// Wer auf das Ergebnis wartet. Ohne Angabe gilt ``AIPriorityPolicy``
+    /// für Arbeit, die von selbst kommt: Antworten und der Satz je Kapitel
+    /// für einen Menschen, der Rest im Hintergrund. Der Faktenlauf gibt den
+    /// Wert der Tabelle für „Jetzt ermitteln“ mit.
     private let priority: AIWorkPriority?
+    /// Die Stelle, die Anfragen zuteilt. In Tests eine, die mitschreibt.
+    private let scheduler: any AIScheduling
 
-    public init(configuration: ExtractorConfiguration = ExtractorConfiguration(), priority: AIWorkPriority? = nil) {
+    public init(
+        configuration: ExtractorConfiguration = ExtractorConfiguration(),
+        priority: AIWorkPriority? = nil,
+        scheduler: any AIScheduling = AIScheduler.shared
+    ) {
         self.configuration = configuration
         self.priority = priority
+        self.scheduler = scheduler
     }
 
-    /// Art und Vorrang einer Anfrage in ``AIScheduler``.
-    func schedule(for profile: TaskProfile) -> (AIWorkKind, AIWorkPriority) {
-        switch profile {
-        case .answer: (.answer, priority ?? .user)
-        case .summarize: (.chapterSummary, priority ?? .user)
-        case .extract: (.facts, priority ?? .background)
-        case .recommend, .proposePlayback: (.relevance, priority ?? .background)
-        case .tag: (.tags, priority ?? .background)
+    /// Art und Vorrang einer Anfrage in der Stelle für Apple Intelligence.
+    /// Ein Vorrang des Aufrufs geht vor dem des Extraktors, beide vor der Tabelle.
+    func schedule(for profile: TaskProfile, priority call: AIWorkPriority? = nil) -> (AIWorkKind, AIWorkPriority) {
+        let kind: AIWorkKind = switch profile {
+        case .answer: .answer
+        case .summarize: .chapterSummary
+        case .extract: .facts
+        case .recommend, .proposePlayback: .relevance
+        case .tag: .tags
         }
+        return (kind, call ?? priority ?? AIPriorityPolicy.priority(kind: kind, origin: .automatic))
     }
 
     /// Prüft Belege gegen das Interessenprofil.
     ///
     /// Gibt geprüfte Belege zurück — nie Text, den man anschließend noch
-    /// einer Quelle zuordnen müsste.
+    /// einer Quelle zuordnen müsste. `priority` kommt aus
+    /// ``AIPriorityPolicy``; ohne Angabe läuft die Prüfung im Hintergrund.
     public func selectRelevant(
         from evidence: [Evidence],
         profile: InterestProfile,
-        availability: ModelStatus
+        availability: ModelStatus,
+        priority: AIWorkPriority? = nil
     ) async throws -> ValidatedSelection {
 
         guard case .success = availability.resolve(.recommend) else {
@@ -194,7 +206,7 @@ public struct KnowledgeExtractor: Sendable {
         let prompt = relevancePrompt(for: candidates)
         let (content, _, _) = try await generate(
             RelevanceSelectionOutput.self, instructions: relevanceInstructions(profile: profile),
-            profile: .recommend, availability: availability) { _ in prompt }
+            profile: .recommend, availability: availability, priority: priority) { _ in prompt }
         let raw = RawSelection(
             indices: content.selectedNumbers,
             rationales: Self.parseNumberedLines(content.reasons)
@@ -679,10 +691,20 @@ public struct KnowledgeExtractor: Sendable {
     /// `run` ersetzt `respond`, etwa durch eine gestreamte Antwort.
     /// `beforeFallback` läuft, bevor das Gerät nach einem Fehler von PCC
     /// übernimmt. Der dritte Wert sagt, ob PCC an Kontingent oder Last
-    /// gescheitert ist.
+    /// gescheitert ist. `priority` geht vor dem Vorrang des Extraktors.
+    ///
+    /// Die Sitzung entsteht erst in der Operation, die die Stelle für Apple
+    /// Intelligence ausführt. Bricht die Stelle Arbeit im Hintergrund für
+    /// eine Anfrage eines Menschen ab und wiederholt sie, beginnt der neue
+    /// Versuch mit einer frischen Sitzung und trägt keinen Verlauf des
+    /// abgebrochenen mit. Auch die vorgewärmte Sitzung holt sich erst die
+    /// Operation aus dem Vorrat. Weil keine Sitzung nach einem Fehler noch
+    /// einmal fragt, bleibt `transcriptErrorHandlingPolicy` (seit iOS 27 und
+    /// macOS 27, gegen das SDK 27.0 geprüft) auf dem Standard des Systems.
     private func generate<Content: Generable>(
         _ type: Content.Type, instructions: String,
         profile: TaskProfile, availability: ModelStatus,
+        priority call: AIWorkPriority? = nil,
         prompt: (ModelTier) -> String,
         run: ((LanguageModelSession, String) async throws -> Content)? = nil,
         beforeFallback: (() async -> Void)? = nil,
@@ -698,20 +720,31 @@ public struct KnowledgeExtractor: Sendable {
             try await session.respond(to: text, generating: type).content
         }
         // Jede Anfrage geht durch die eine Stelle: eine zur Zeit, Menschen zuerst.
-        let (kind, order) = schedule(for: profile)
-        let respond = { (session: LanguageModelSession, text: String) async throws -> Content in
+        let (kind, order) = schedule(for: profile, priority: call)
+        let scheduler = self.scheduler
+        let respond = { (makeSession: @escaping @Sendable () throws -> LanguageModelSession, text: String)
+            async throws -> Content in
             // Der Aufruf läuft in der Aufgabe der Stelle, während dieser hier
             // wartet. Nichts greift gleichzeitig darauf zu.
-            let call = UncheckedBox { try await direct(session, text) }
-            return try await AIScheduler.shared.run(kind, priority: order) {
+            let call = UncheckedBox { try await direct(try makeSession(), text) }
+            return try await scheduler.run(kind, priority: order) {
                 UncheckedBox(try await call.value())
             }.value
         }
         var privateCloudFailure: String?
         var limit: PrivateCloudLimit?
-        if tier == .privateCloudCompute, let session = Self.privateCloudSession(instructions: instructions) {
+        if tier == .privateCloudCompute, Self.privateCloudReady {
             do {
+                let session = { @Sendable () throws -> LanguageModelSession in
+                    guard let session = Self.privateCloudSession(instructions: instructions) else {
+                        throw PrivateCloudSessionUnavailable()
+                    }
+                    return session
+                }
                 return (try await respond(session, prompt(.privateCloudCompute)), .privateCloudCompute, nil)
+            } catch is PrivateCloudSessionUnavailable {
+                // Seit der Prüfung weggefallen: weiter wie ohne Private Cloud
+                // Compute, ohne Rückfall und ohne Fehler von PCC.
             } catch {
                 if error is CancellationError || Task.isCancelled { throw error }
                 guard case .available = availability.onDevice else {
@@ -720,14 +753,26 @@ public struct KnowledgeExtractor: Sendable {
                 }
                 privateCloudFailure = Self.plainReason(error)
                 limit = Self.privateCloudLimit(error)
+                ChatTrace.event("Rückfall aufs Gerät")
+                await beforeFallback?()
             }
-            ChatTrace.event("Rückfall aufs Gerät")
-            await beforeFallback?()
         }
-        let prewarmed = usePrewarmed ? Self.takePrewarmedSession(instructions: instructions) : nil
-        let session = try prewarmed ?? makeLocalSession(instructions: instructions)
+        let local = { @Sendable [self] () throws -> LanguageModelSession in
+            if usePrewarmed, let prewarmed = Self.takePrewarmedSession(instructions: instructions) {
+                return prewarmed
+            }
+            do {
+                return try makeLocalSession(instructions: instructions)
+            } catch {
+                throw SessionUnavailable(reason: error)
+            }
+        }
         do {
-            return (try await respond(session, prompt(.onDevice)), .onDevice, limit)
+            return (try await respond(local, prompt(.onDevice)), .onDevice, limit)
+        } catch let failure as SessionUnavailable {
+            // Die Sitzung ließ sich nicht anlegen, etwa weil das Modell nicht
+            // mehr bereit ist: der Grund unverändert, wie bis 0.12 vor dem Aufruf.
+            throw failure.reason
         } catch {
             if error is CancellationError || Task.isCancelled { throw error }
             var detail = Self.plainReason(error)
@@ -843,10 +888,23 @@ public struct KnowledgeExtractor: Sendable {
     }
 
     static func privateCloudSession(instructions: String) -> LanguageModelSession? {
-        guard privateCloudEntitled else { return nil }
-        let model = PrivateCloudComputeLanguageModel()
-        guard model.isAvailable else { return nil }
-        return LanguageModelSession(model: model, instructions: instructions)
+        guard privateCloudReady else { return nil }
+        return LanguageModelSession(model: PrivateCloudComputeLanguageModel(), instructions: instructions)
+    }
+
+    /// Ließe sich jetzt eine Sitzung bei Private Cloud Compute anlegen?
+    static var privateCloudReady: Bool {
+        privateCloudEntitled && PrivateCloudComputeLanguageModel().isAvailable
+    }
+
+    /// Private Cloud Compute war bei der Prüfung vor der Anfrage bereit, als
+    /// die Operation die Sitzung anlegen wollte nicht mehr.
+    private struct PrivateCloudSessionUnavailable: Error {}
+
+    /// Die Sitzung auf dem Gerät ließ sich in der Operation nicht anlegen.
+    /// Trägt den Grund unverändert zum Aufrufer.
+    private struct SessionUnavailable: Error {
+        let reason: any Error
     }
 
     // MARK: - Vorwärmen
