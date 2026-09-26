@@ -89,25 +89,36 @@ public enum ChannelCounterpartRanking {
 ///
 /// Apple bremst zu schnelle Suchen mit 403 und nennt etwa 20 Anfragen je
 /// Minute als Grenze. Die ersten Kanäle gehen deshalb zügig, danach alle
-/// drei Sekunden eine Suche. Meldet Apple doch „zu viele Anfragen“, wartet
-/// die App eine Minute und bleibt danach beim langsamen Tempo.
+/// drei Sekunden eine Suche, und in keiner Minute mehr als 20. Ohne diese
+/// Obergrenze kämen die schnellen Suchen am Anfang zu den langsamen dazu,
+/// und bei mehr als etwa 20 Kanälen käme die Drosselung sicher. Meldet
+/// Apple doch „zu viele Anfragen“, wartet die App eine Minute und bleibt
+/// danach beim langsamen Tempo.
 public struct DirectorySearchPace: Sendable, Equatable {
 
     public let burst: Int
     public let quickInterval: TimeInterval
     public let interval: TimeInterval
     public let coolDown: TimeInterval
+    /// Höchstens so viele Suchen je `window`.
+    public let perWindow: Int
+    public let window: TimeInterval
 
     private var sent = 0
     private var lastStart: Date?
     private var resumeAt: Date?
+    /// Die Starts der letzten `perWindow` Suchen, der älteste zuerst.
+    private var recentStarts: [Date] = []
 
     public init(burst: Int = 8, quickInterval: TimeInterval = 0.25,
-                interval: TimeInterval = 3, coolDown: TimeInterval = 60) {
+                interval: TimeInterval = 3, coolDown: TimeInterval = 60,
+                perWindow: Int = 20, window: TimeInterval = 60) {
         self.burst = burst
         self.quickInterval = quickInterval
         self.interval = interval
         self.coolDown = coolDown
+        self.perWindow = max(1, perWindow)
+        self.window = window
     }
 
     /// Sekunden bis zur nächsten Suche. Die Suche zählt damit als gestellt.
@@ -115,8 +126,14 @@ public struct DirectorySearchPace: Sendable, Equatable {
         let spacing = sent < burst ? quickInterval : interval
         var start = lastStart.map { max(now, $0.addingTimeInterval(spacing)) } ?? now
         if let resumeAt, resumeAt > start { start = resumeAt }
+        // Die älteste der letzten Suchen muss eine ganze Minute zurückliegen.
+        if recentStarts.count >= perWindow, let oldest = recentStarts.first {
+            start = max(start, oldest.addingTimeInterval(window))
+        }
         sent += 1
         lastStart = start
+        recentStarts.append(start)
+        if recentStarts.count > perWindow { recentStarts.removeFirst(recentStarts.count - perWindow) }
         return start.timeIntervalSince(now)
     }
 

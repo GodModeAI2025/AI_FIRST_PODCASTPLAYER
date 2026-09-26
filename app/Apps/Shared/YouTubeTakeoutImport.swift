@@ -236,6 +236,8 @@ final class TakeoutImportRun {
                     offlineStrikes = 0
                     continue channels
                 } catch CatalogError.rateLimited {
+                    // Eine beendete Suche darf eine neue nicht anhalten.
+                    if Task.isCancelled { break channels }
                     rateLimitStrikes += 1
                     pace.noteRateLimited(at: .now)
                     if rateLimitStrikes >= Self.strikesBeforeStop {
@@ -243,6 +245,7 @@ final class TakeoutImportRun {
                         break channels
                     }
                 } catch CatalogError.unreachable {
+                    if Task.isCancelled { break channels }
                     offlineStrikes += 1
                     selection.recordFailure(for: channel.id)
                     if offlineStrikes >= Self.strikesBeforeStop {
@@ -257,7 +260,7 @@ final class TakeoutImportRun {
                 }
             }
         }
-        if lookupStop != nil { selection.skipRemainingLookups() }
+        if lookupStop != nil, !Task.isCancelled { selection.skipRemainingLookups() }
     }
 
     // MARK: Abonnieren

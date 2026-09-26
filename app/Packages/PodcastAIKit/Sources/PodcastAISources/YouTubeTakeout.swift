@@ -72,6 +72,10 @@ public enum YouTubeTakeout {
     public static let maximumBytes = 5 * 1024 * 1024
     /// Obergrenze für Kanäle je Datei.
     public static let maximumChannels = 5_000
+    /// Obergrenze für den Namen eines Kanals. YouTube erlaubt 100 Zeichen;
+    /// was darüber hinausgeht, stammt nicht von Google und soll weder als
+    /// Suchbegriff an Apple gehen noch die Liste aufblähen.
+    public static let maximumTitleLength = 200
 
     /// Alle Kanäle der Datei in ihrer Reihenfolge, jede Kennung nur einmal.
     /// Leere Zeilen und Zeilen ohne gültige Kennung fallen weg.
@@ -238,9 +242,13 @@ public enum YouTubeTakeout {
         return components.url
     }
 
-    /// Ein Name in einer Zeile, ohne doppelte Leerzeichen und Umbrüche.
+    /// Ein Name in einer Zeile, ohne doppelte Leerzeichen und Umbrüche,
+    /// höchstens `maximumTitleLength` Zeichen lang.
     static func cleanTitle(_ value: String) -> String {
-        value.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).joined(separator: " ")
+        let words = value.prefix(maximumTitleLength * 4)
+            .split(whereSeparator: { $0.isWhitespace || $0.isNewline })
+        return String(words.joined(separator: " ").prefix(maximumTitleLength))
+            .trimmingCharacters(in: .whitespaces)
     }
 
     /// Welche Spalte was enthält.

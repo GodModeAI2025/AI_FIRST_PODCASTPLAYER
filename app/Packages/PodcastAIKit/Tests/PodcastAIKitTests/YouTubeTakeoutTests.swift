@@ -93,6 +93,16 @@ struct TakeoutCSVTests {
         #expect(try YouTubeTakeout.channels(in: latin).first?.title == "Grüße aus Köln")
     }
 
+    @Test("Überlange Namen werden gekürzt")
+    func capsTitleLength() throws {
+        let long = String(repeating: "Kanal ", count: 10_000)
+        let found = try channels("Channel Id,Channel Url,Channel Title\n\(lage),,\"\(long)\"\n")
+        let title = try #require(found.first?.title)
+        #expect(title.count <= YouTubeTakeout.maximumTitleLength)
+        #expect(title.hasPrefix("Kanal Kanal"))
+        #expect(!title.hasSuffix(" "))
+    }
+
     @Test("Ohne Namen zeigt die Liste die Kennung")
     func fallsBackToIDWithoutTitle() throws {
         let found = try channels("Channel Id,Channel Url,Channel Title\n\(lage),,\n")
@@ -176,6 +186,28 @@ struct TakeoutCounterpartTests {
         #expect(pace.delay(before: now) == 0)
         pace.noteRateLimited(at: now)
         #expect(abs(pace.delay(before: now + 1) - 59) < 0.001)
+    }
+
+    @Test("Tempo: in keiner Minute mehr Suchen als erlaubt, auch mit schnellem Anfang")
+    func capsSearchesPerMinute() {
+        var pace = DirectorySearchPace(burst: 8, quickInterval: 0.25, interval: 3, coolDown: 60,
+                                       perWindow: 20, window: 60)
+        let begin = Date(timeIntervalSince1970: 1_790_140_000)
+        var now = begin
+        var starts: [Date] = []
+        for _ in 0..<45 {
+            let start = now + pace.delay(before: now)
+            starts.append(start)
+            now = start
+        }
+        // 8 schnelle und 12 im Abstand von drei Sekunden, die 21. erst eine Minute nach der ersten.
+        #expect(abs(starts[19].timeIntervalSince(begin) - (7 * 0.25 + 12 * 3)) < 0.001)
+        #expect(abs(starts[20].timeIntervalSince(begin) - 60) < 0.001)
+        for (index, start) in starts.enumerated() {
+            // Etwas Spielraum für Rundung bei genau einer Minute Abstand.
+            let inWindow = starts[...index].filter { start.timeIntervalSince($0) < 59.999 }
+            #expect(inWindow.count <= 20, "Suche \(index + 1): \(inWindow.count) in einer Minute")
+        }
     }
 }
 
