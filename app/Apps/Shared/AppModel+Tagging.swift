@@ -59,9 +59,14 @@ extension AppModel {
         let ticket = removals.ticket
 
         // Nur die aktuelle Fassung, in ihrer neuesten Revision. Revisionen
-        // zählen je Fassung, eine überholte kann die höhere tragen.
+        // zählen je Fassung, eine überholte kann die höhere tragen. Welche
+        // Fassung aktuell ist, sagt die frisch gelesene Zeile der Folge, wie
+        // beim Schreiben der Wächter im Store. Der Wert aus der Warteschlange
+        // stammt oft von vor dem Transkript.
         let stored = (try? await store.evidence(forEpisode: episode.id)) ?? []
-        guard let current = ChapterTagVersion.evidence(stored, preferred: episode.currentMediaVersionID) else {
+        let preferred = (try? await store.episodes(ids: [episode.id]))?.first?.currentMediaVersionID
+            ?? episode.currentMediaVersionID
+        guard let current = ChapterTagVersion.evidence(stored, preferred: preferred) else {
             return .nothingToDo
         }
         let (mediaVersionID, revision, evidence) = current
@@ -97,7 +102,7 @@ extension AppModel {
         let budget = TagSelectionRules.passageTokenBudget(contextSize: Self.onDeviceContextSize)
         let selector = TagSelector(useCase: .contentTagging, excerptLimit: Self.tagExcerptLimit)
         // Jedes Schreiben dieser Einordnung geht durch den Wächter im Store.
-        let writeGuard = commitGuard(for: episode.id, since: ticket)
+        let writeGuard = commitGuard(for: episode, since: ticket)
         // Erkannte Tags, die diese Einordnung neu angelegt hat. Wird die Folge
         // gelöscht, gehen sie mit, sofern nichts anderes auf sie zeigt.
         var created = WriteReceipt(episodeID: episode.id)
@@ -110,7 +115,10 @@ extension AppModel {
         /// Die Folge ist weg: kein Stand, und die neuen Tags gehen mit.
         func abandon() async -> ChapterTagsOutcome {
             Self.setTaggingProgress(nil, for: episode.id)
-            if !created.isEmpty { _ = try? await store.removeWrites(created) }
+            if !created.isEmpty {
+                let elsewhere = Self.tagsInTaggingProgress(except: [episode.id])
+                _ = try? await store.removeWrites(created, keepingTags: elsewhere)
+            }
             return .nothingToDo
         }
 
@@ -397,6 +405,18 @@ extension AppModel {
 
     static func taggingProgress(for id: EpisodeID) -> ChapterTaggingProgress? {
         allTaggingProgress[id.rawValue]
+    }
+
+    /// Tags, die der gemerkte Stand der Einordnung anderer Folgen nennt. Sie
+    /// stehen noch in keinem Kapitel-Tag, gehören aber zu Folgen, die es
+    /// noch gibt. Das Aufräumen nach einer Löschung lässt sie stehen, sonst
+    /// fiele ihr Kapitel-Tag beim Speichern still weg.
+    static func tagsInTaggingProgress(except excluded: Set<EpisodeID>) -> Set<InterestID> {
+        var ids: Set<InterestID> = []
+        for (key, progress) in allTaggingProgress where !excluded.contains(EpisodeID(rawValue: key)) {
+            ids.formUnion(progress.tags.map(\.interestID))
+        }
+        return ids
     }
 
     static func setTaggingProgress(_ progress: ChapterTaggingProgress?, for id: EpisodeID) {

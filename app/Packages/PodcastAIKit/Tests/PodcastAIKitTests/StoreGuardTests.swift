@@ -73,12 +73,12 @@ private func rebuild(_ transcript: Transcript) -> [Evidence] {
 /// Transkript und Belege hinter dem Wächter, mit eigenem Löschprotokoll.
 private func commit(
     _ store: LibraryStore, _ transcript: Transcript, ledger: RemovalLedger,
-    since ticket: RemovalLedger.Ticket? = nil, media: MediaVersion = media()
+    since ticket: RemovalLedger.Ticket? = nil, media: MediaVersion = media(), source: SourceID? = nil
 ) async throws -> CommitResult<[Evidence]> {
     try await store.commit(
         transcript: transcript, media: media, evidence: evidence(of: transcript),
         rebuild: rebuild,
-        under: CommitGuard(episode: episodeID, since: ticket ?? ledger.ticket, ledger: ledger))
+        under: CommitGuard(episode: episodeID, source: source, since: ticket ?? ledger.ticket, ledger: ledger))
 }
 
 // MARK: - Transkript und Belege
@@ -120,10 +120,50 @@ struct TranscriptCommitTests {
         #expect(receipt.keptTranscriptID == first.id)
         #expect(receipt.transcriptIDs.isEmpty)
         #expect(receipt.mediaVersionIDs.isEmpty)
+        #expect(receipt.evidenceIDs.isEmpty, "die Belege des gespeicherten Transkripts gelten")
+        #expect(written.map(\.id) == evidence(of: first).map(\.id))
         #expect(written.allSatisfy { $0.transcriptID == first.id })
         #expect(written.map(\.quotedText).joined(separator: " ").contains("anderen Gerät"))
         #expect(try await store.transcript(forMedia: mediaID)?.id == first.id)
         #expect(try await store.transcript(forMedia: mediaID)?.segments.count == 2)
+    }
+
+    @Test("Gespeichertes Transkript mit eigenen Belegen: sie bleiben, es entstehen keine zweiten")
+    func keepsForeignEvidence() async throws {
+        let store = try makeStore()
+        try await subscribe(store)
+        let first = transcript(texts: (0..<20).map { "Satz \($0)" })
+        // So kommt es von einem Gerät, das die Passagen anders schnitt: ein
+        // Beleg über alles statt zweien.
+        try await store.save(transcript: first, media: media(), forEpisode: episodeID)
+        let whole = Evidence(
+            id: Evidence.stableID(mediaVersionID: mediaID, transcriptRevision: .initial, range: range(0, 199_000)),
+            mediaVersionID: mediaID, episodeID: episodeID, sourceID: sourceID, transcriptID: first.id,
+            transcriptRevision: .initial, range: range(0, 199_000), quotedText: "alles")
+        try await store.store(evidence: [whole])
+        try #require(evidence(of: first).count == 2)
+
+        let second = transcript(locale: "en_US", texts: ["From this device"])
+        let (receipt, written) = try await commit(store, second, ledger: RemovalLedger()).get()
+        #expect(receipt.keptTranscriptID == first.id)
+        #expect(receipt.evidenceIDs.isEmpty)
+        #expect(written.map(\.id) == [whole.id])
+        #expect(try await store.evidence(forEpisode: episodeID).map(\.id) == [whole.id])
+    }
+
+    @Test("Gespeichertes Transkript ohne Belege: die Belege entstehen aus ihm")
+    func rebuildsMissingEvidence() async throws {
+        let store = try makeStore()
+        try await subscribe(store)
+        let first = transcript(texts: ["Vom anderen Gerät", "ohne Belege"])
+        try await store.save(transcript: first, media: media(), forEpisode: episodeID)
+
+        let second = transcript(locale: "en_US", texts: ["From this device"])
+        let (receipt, written) = try await commit(store, second, ledger: RemovalLedger()).get()
+        #expect(receipt.keptTranscriptID == first.id)
+        #expect(written.map(\.id) == evidence(of: first).map(\.id))
+        #expect(Set(receipt.evidenceIDs) == Set(written.map(\.id)))
+        #expect(try await store.evidence(forEpisode: episodeID).map(\.id) == written.map(\.id))
     }
 
     @Test("Seit dem Start gelöscht: nichts wird geschrieben")
@@ -155,8 +195,15 @@ struct TranscriptCommitTests {
         try await missing.upsert(source: Source(id: sourceID, kind: .podcastRSS, title: "Quelle"))
         #expect(try await commit(missing, transcript(), ledger: ledger).staleReason == .episodeMissing)
 
-        // So sieht eine Folge aus, deren Quellzeile ein anderes Gerät
-        // gelöscht hat, bevor ihre eigene Löschung ankam.
+        // So sieht eine Folge aus, deren Quelle ein anderes Gerät abbestellt
+        // hat, bevor die Löschung ihrer eigenen Zeile ankam: keine Quellzeile.
+        let abandoned = try makeStore()
+        try await abandoned.insertEpisodeCopyForTesting(episode, withoutSource: true)
+        #expect(try await commit(abandoned, transcript(), ledger: ledger, source: sourceID).staleReason
+                == .sourceMissing)
+        #expect(try await abandoned.transcript(forMedia: mediaID) == nil)
+
+        // Ohne Angabe der Quelle gilt eine Zeile ohne Quelle als abbestellt.
         let orphan = try makeStore()
         try await orphan.upsert(source: Source(id: sourceID, kind: .podcastRSS, title: "Quelle"))
         try await orphan.insertEpisodeCopyForTesting(episode, withoutSource: true)
@@ -164,13 +211,46 @@ struct TranscriptCommitTests {
         #expect(try await orphan.transcript(forMedia: mediaID) == nil)
     }
 
+    @Test("Zeile ohne Quelle nach dem Abgleich, die Quelle besteht: geschrieben wird")
+    func orphanedRowUnderLiveSourceIsWritten() async throws {
+        // Ein anderes Gerät hat eine doppelte Quellzeile gelöscht, bevor die
+        // umgehängte Folge hier ankam. Das nächste Bereinigen hängt sie an.
+        let store = try makeStore()
+        try await store.upsert(source: Source(id: sourceID, kind: .podcastRSS, title: "Quelle"))
+        try await store.insertEpisodeCopyForTesting(episode, withoutSource: true)
+        let ledger = RemovalLedger()
+        let result = try await commit(store, transcript(), ledger: ledger, source: sourceID)
+        #expect(result.receipt?.transcriptIDs == [transcript().id])
+        #expect(try await store.transcript(forMedia: mediaID) != nil)
+
+        // Wurde die Quelle hier abbestellt, gilt das trotzdem.
+        let ticket = ledger.ticket
+        ledger.markRemoved([], source: sourceID)
+        #expect(try await commit(store, transcript(), ledger: ledger, since: ticket, source: sourceID).staleReason
+                == .removedWhileRunning)
+    }
+
     @Test("Ein Merkzeichen aus einem früheren Abo hält die neue Folge nicht auf")
     func oldTombstoneWithoutSourceDoesNotBlock() async throws {
         let store = try makeStore()
         try await subscribe(store)
-        try await store.insertEpisodeCopyForTesting(episode, removedAt: Date(), withoutSource: true)
-        let result = try await commit(store, transcript(), ledger: RemovalLedger())
+        // Gelöscht einen Tag vor dem Abo: aus einem früheren Abo.
+        try await store.insertEpisodeCopyForTesting(
+            episode, removedAt: Date(timeIntervalSinceNow: -86_400), withoutSource: true)
+        let result = try await commit(store, transcript(), ledger: RemovalLedger(), source: sourceID)
         #expect(result.receipt != nil)
+    }
+
+    @Test("Ein Merkzeichen ohne Quelle, jünger als das Abo, hält die Folge auf")
+    func recentTombstoneWithoutSourceBlocks() async throws {
+        // Das Bereinigen hängt es an die Quelle, und dann gilt es.
+        let store = try makeStore()
+        try await subscribe(store)
+        try await store.insertEpisodeCopyForTesting(
+            episode, removedAt: Date(timeIntervalSinceNow: 60), withoutSource: true)
+        #expect(try await commit(store, transcript(), ledger: RemovalLedger(), source: sourceID).staleReason
+                == .episodeRemoved)
+        #expect(try await store.transcript(forMedia: mediaID) == nil)
     }
 
     @Test("Abbestellt und neu abonniert: der alte Lauf schreibt nicht, ein neuer schon")
@@ -383,6 +463,21 @@ struct KnowledgeCommitTests {
         #expect(try await store.removeOrphanedDetectedTags([tag.id]).isEmpty)
         #expect(try await store.resolveTag("Quantencomputer")?.id == tag.id)
     }
+
+    @Test("Ein erkanntes Tag, das eine angefangene Einordnung nennt, bleibt")
+    func detectedTagInProgressStays() async throws {
+        let (store, _) = try await analyzedStore()
+        let tag = try #require(try await store.addDetectedTag(label: "Quantencomputer"))
+        #expect(try await store.removeOrphanedDetectedTags([tag.id], keeping: [tag.id]).isEmpty)
+        #expect(try await store.resolveTag("Quantencomputer")?.id == tag.id)
+
+        var receipt = WriteReceipt(episodeID: episodeID)
+        receipt.tagIDs = [tag.id]
+        _ = try await store.removeWrites(receipt, keepingTags: [tag.id])
+        #expect(try await store.resolveTag("Quantencomputer")?.id == tag.id)
+        _ = try await store.removeWrites(receipt)
+        #expect(try await store.resolveTag("Quantencomputer") == nil)
+    }
 }
 
 // MARK: - Späte Schreibvorgänge
@@ -503,6 +598,19 @@ struct PendingPurgeTests {
         try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: path)
         #expect(try Data(contentsOf: file) == before)
         #expect(PendingPurges(state: DeviceState(directory: state.directory)).all()?.count == 1)
+    }
+
+    @Test("Nicht geladene Folgen einer Quelle kommen vor dem Store in den Vermerk")
+    func includesUnloadedEpisodes() {
+        var purge = PendingPurge(scope: .source(sourceID), episodeIDs: [episodeID], metadataKeys: ["a"])
+        let other = EpisodeID(rawValue: "ungeladen")
+        purge.include(episodes: [episodeID, other], mediaVersionIDs: [mediaID], metadataKeys: ["a", "b"],
+                      detectedTagIDs: [InterestID(rawValue: "t")])
+        #expect(purge.episodeIDs == [episodeID, other])
+        #expect(purge.mediaVersionIDs == [mediaID])
+        #expect(purge.metadataKeys == ["a", "b"])
+        #expect(purge.detectedTagIDs == [InterestID(rawValue: "t")])
+        #expect(!purge.storeDone)
     }
 
     @Test("Ein älterer Eintrag ohne neue Felder lässt sich lesen")

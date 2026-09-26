@@ -250,7 +250,7 @@ public actor ContentPipeline {
 
         let mediaVersionID = MediaVersionID(stable: audioURL.absoluteString)
         let commitGuard = CommitGuard(
-            episode: episode.id, since: ticket ?? removals.ticket, ledger: removals,
+            episode: episode.id, source: sourceID, since: ticket ?? removals.ticket, ledger: removals,
             feedMedia: { CaptionAnalysis.feedMediaVersionID(of: $0) })
 
         onProgress(PipelineProgress(episodeID: episode.id, stage: .discovered))

@@ -34,8 +34,17 @@ extension LibraryStore {
     ///
     /// Gelöscht heißt hier wie beim Bereinigen: Es gibt keine lebende Kopie,
     /// oder eine Kopie unter derselben Quelle trägt das Merkzeichen. Ein
-    /// Merkzeichen ohne Quelle aus einem früheren Abo zählt nicht, sonst
-    /// ließe sich eine neu abonnierte Folge nie mehr erschließen.
+    /// Merkzeichen ohne Quelle zählt nur, wenn es jünger ist als das Abo,
+    /// denn nur dann hängt `reattachOrphanedEpisodes` es an die Quelle. Eines
+    /// aus einem früheren Abo hielte eine neu abonnierte Folge sonst für
+    /// immer auf.
+    ///
+    /// Eine lebende Zeile ohne Quelle ist nicht abbestellt, solange die
+    /// Quelle besteht, unter der die Arbeit die Folge kannte. So sieht eine
+    /// Folge nach dem Abgleich aus, wenn ein anderes Gerät eine doppelte
+    /// Quellzeile gelöscht hat, bevor die umgehängte Folge hier ankam. Das
+    /// nächste Bereinigen hängt sie wieder an. Erst ohne diese Quelle ist sie
+    /// abbestellt, hier oder auf einem anderen Gerät.
     func verify(_ commitGuard: CommitGuard) throws -> GuardVerdict {
         // Eine Löschung auf diesem Gerät gilt, bevor der Store sie ausführt.
         if commitGuard.ledger.wasRemoved(commitGuard.episodeID, since: commitGuard.ticket) {
@@ -46,19 +55,40 @@ extension LibraryStore {
             FetchDescriptor<StoredEpisode>(predicate: #Predicate { $0.identifier == key }))
         let live = rows.filter { $0.removedAt == nil }
         guard !live.isEmpty else { return .stale(rows.isEmpty ? .episodeMissing : .episodeRemoved) }
+        let row: StoredEpisode
+        let source: String
         // Lieber die Kopie, an der schon eine Fassung hängt, wie `episodes(ids:)`.
-        guard let row = live.first(where: { $0.source != nil && $0.currentMediaVersionIdentifier != nil })
-                ?? live.first(where: { $0.source != nil }),
-              let source = row.source?.identifier else {
+        if let attached = live.first(where: { $0.source != nil && $0.currentMediaVersionIdentifier != nil })
+            ?? live.first(where: { $0.source != nil }),
+           let identifier = attached.source?.identifier {
+            row = attached
+            source = identifier
+        } else if let expected = commitGuard.sourceID?.rawValue, try subscription(expected) != nil {
+            row = live.first { $0.currentMediaVersionIdentifier != nil } ?? live[0]
+            source = expected
+        } else {
             return .stale(.sourceMissing)
         }
         if commitGuard.ledger.wasRemoved(source: SourceID(rawValue: source), since: commitGuard.ticket) {
             return .stale(.removedWhileRunning)
         }
-        if rows.contains(where: { $0.removedAt != nil && $0.source?.identifier == source }) {
+        let subscribedAt = try subscription(source)?.addedAt
+        if rows.contains(where: { copy in
+            guard let removedAt = copy.removedAt else { return false }
+            if let other = copy.source?.identifier { return other == source }
+            return subscribedAt.map { removedAt >= $0 } ?? false
+        }) {
             return .stale(.episodeRemoved)
         }
         return .live(row)
+    }
+
+    /// Die Quellzeile, die auch das Bereinigen nimmt: bei Doppelten die älteste.
+    private func subscription(_ identifier: String) throws -> StoredSource? {
+        var descriptor = FetchDescriptor<StoredSource>(
+            predicate: #Predicate { $0.identifier == identifier }, sortBy: [SortDescriptor(\.addedAt)])
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     // MARK: - Transkript und Belege
@@ -72,14 +102,15 @@ extension LibraryStore {
     /// Zeigt der Feed inzwischen auf eine andere Fassung, die schon ein
     /// Transkript hat, ist das Schreiben überholt. Liegt für die eigene
     /// Fassung schon ein Transkript mit Segmenten, von diesem Gerät oder über
-    /// iCloud, bleibt es stehen, und die Belege entstehen aus ihm
-    /// (`rebuild`), nicht aus dem neuen. Sonst passten die Belege nicht zum
-    /// gespeicherten Transkript. Geprüft wird über die Fassung, nicht über
-    /// die Kennung des Transkripts: die enthält die Sprache, und die kann
-    /// je Gerät eine andere sein.
+    /// iCloud, bleibt es stehen, und es gelten seine Belege, nicht die aus
+    /// dem neuen. Sonst passten die Belege nicht zum gespeicherten
+    /// Transkript. Geprüft wird über die Fassung, nicht über die Kennung des
+    /// Transkripts: die enthält die Sprache, und die kann je Gerät eine
+    /// andere sein.
     ///
     /// `evidence` gehört zum neuen Transkript. `rebuild` läuft nur, wenn
-    /// ein anderes schon da war, und dann in diesem Schritt.
+    /// ein anderes schon da war und es noch keine Belege hat, und dann in
+    /// diesem Schritt.
     public func commit(
         transcript: Transcript,
         media: MediaVersion,
@@ -143,9 +174,18 @@ extension LibraryStore {
 
         let items: [Evidence]
         if let kept {
-            let stored = kept.snapshot
-            receipt.keptTranscriptID = stored.id
-            items = rebuild(stored)
+            receipt.keptTranscriptID = TranscriptID(rawValue: kept.identifier)
+            // Hat das gespeicherte Transkript schon Belege, etwa vom Gerät,
+            // das es geschrieben hat, gelten sie. Neu gebildete kämen aus der
+            // Regel dieses Geräts, und eine ältere Version schnitt vielleicht
+            // anders: Dann lägen zwei Sätze Belege übereinander. Neu gebildet
+            // wird nur, wenn keine da sind.
+            let episodeKey = commitGuard.episodeID.rawValue
+            let keptKey = kept.identifier
+            let existing = try modelContext.fetch(FetchDescriptor<StoredEvidence>(
+                predicate: #Predicate { $0.episodeIdentifier == episodeKey && $0.transcriptIdentifier == keptKey },
+                sortBy: [SortDescriptor(\.startMs)]))
+            items = existing.isEmpty ? rebuild(kept.snapshot) : existing.uniqued(by: \.identifier).map(\.snapshot)
         } else {
             // Eine leere Zeile mit derselben Kennung wird gefüllt, statt
             // eine zweite anzulegen.
@@ -333,7 +373,7 @@ extension LibraryStore {
     /// ``addDetectedTag(label:seenAt:)``, aber nur, solange der Wächter
     /// nichts einwendet. Der Beleg nennt das Tag, wenn es neu angelegt
     /// wurde. Wird die Folge danach gelöscht, geht es mit, sofern nichts
-    /// anderes darauf zeigt (``removeOrphanedDetectedTags(_:)``).
+    /// anderes darauf zeigt (``removeOrphanedDetectedTags(_:keeping:)``).
     public func addDetectedTag(
         label: String, seenAt: Date = Date(), under commitGuard: CommitGuard
     ) throws -> CommitResult<Tag?> {
@@ -348,9 +388,15 @@ extension LibraryStore {
     /// und auf die nichts mehr zeigt: kein Kapitel-Tag, kein Themen-Update,
     /// keine Ausgabe, keine gemerkte Stelle. Nur, solange sie erkannt und
     /// neutral sind. Wer einem Tag folgt oder es bestätigt hat, behält es.
+    ///
+    /// `keeping` nennt Tags, auf die außerhalb der Datenbank noch etwas
+    /// zeigt, etwa der gemerkte Stand der Einordnung einer anderen Folge auf
+    /// diesem Gerät. Sie bleiben.
     @discardableResult
-    public func removeOrphanedDetectedTags(_ ids: [InterestID]) throws -> [InterestID] {
-        let keys = Set(ids.map(\.rawValue))
+    public func removeOrphanedDetectedTags(
+        _ ids: [InterestID], keeping: Set<InterestID> = []
+    ) throws -> [InterestID] {
+        let keys = Set(ids.filter { !keeping.contains($0) }.map(\.rawValue))
         guard !keys.isEmpty else { return [] }
         let detected = InterestOrigin.detected.rawValue
         let neutral = TagStance.neutral.rawValue

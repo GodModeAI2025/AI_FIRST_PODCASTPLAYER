@@ -1276,7 +1276,7 @@ extension AppModel {
         var saveFailure: String?
         var receipt: WriteReceipt?
         do {
-            switch try await store.commit(facts: kept, under: commitGuard(for: episode.id, since: ticket)) {
+            switch try await store.commit(facts: kept, under: commitGuard(for: episode, since: ticket)) {
             case .written(let written, _):
                 receipt = written
             case .stale(let reason):
@@ -1366,7 +1366,7 @@ extension AppModel {
         do {
             // Widerspricht der Wächter im Store, bleibt alles, wie es war.
             guard let written = try await store.commit(
-                facts: kept, under: commitGuard(for: episode.id, since: ticket)).receipt else { return .cancelled }
+                facts: kept, under: commitGuard(for: episode, since: ticket)).receipt else { return .cancelled }
             receipt = written
         } catch {
             return .cancelled
@@ -1881,6 +1881,15 @@ extension AppModel {
                     emitTagsDone(next.id, tags, origin: origin)
                 default: break
                 }
+                // Während des Laufs gelöscht: Das Löschen hat die Folge schon
+                // aus den Warteschlangen genommen und ihre Vermerke entfernt.
+                // Sie kommt weder zurück in die Warteschlange noch in einen
+                // Vermerk auf diesem Gerät. Hält die Zeit oder das Gate an,
+                // endet die Schleife von selbst.
+                guard !wasRemoved(next.id, since: ticket) else {
+                    progressed = true
+                    continue
+                }
                 switch outcome {
                 case .stored, .nothingToDo:
                     progressed = true
@@ -1888,9 +1897,6 @@ extension AppModel {
                     factsMissingSince[next.id] = nil
                 case .noFacts(let note):
                     progressed = true
-                    // Die Tags liefen dazwischen. Wurde die Folge währenddessen
-                    // gelöscht, hat das Löschen ihre Vermerke schon entfernt.
-                    guard !wasRemoved(next.id, since: ticket) else { continue }
                     factsIssues[next.id] = note
                     var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
                     settled.insert(next.id)
@@ -2564,15 +2570,38 @@ extension AppModel {
             affected.append(episode)
         }
         // Auch ohne geladene Folgen zählt die Abbestellung als neuer Stand.
-        guard let purge = prepareRemoval(affected, scope: .source(sourceID)) else { return }
+        guard var purge = prepareRemoval(affected, scope: .source(sourceID)) else { return }
         // Ein neues Abo desselben Podcasts beginnt wieder mit den neuesten Folgen.
         backCatalog.remove(sourceID)
+        // Die Folgen, die nicht geladen waren, kennt nur der Store. Ihre
+        // Dateien, Metadaten über Supadata und erkannten Tags gehören in den
+        // Vermerk, bevor er löscht: Danach kennte nach einem Absturz niemand
+        // mehr ihre Kennungen.
+        let loaded = Set(purge.episodeIDs)
+        if let all = try? await store.episodes(forSource: sourceID) {
+            let unloaded = all.filter { !loaded.contains($0.id) }
+            if !unloaded.isEmpty {
+                let ids = unloaded.map(\.id)
+                // Eine Übersetzung oder Nennung, die gerade für eine von
+                // ihnen läuft, legt danach nichts mehr an.
+                removals.markRemoved(ids)
+                let media = Self.localMediaIDs(of: unloaded)
+                let keys = unloaded.compactMap(metadataKey(for:))
+                let tags = ids.flatMap { id in
+                    (Self.taggingProgress(for: id)?.tags ?? []).filter { !$0.matchedKnown }.map(\.interestID)
+                }
+                purge.include(episodes: ids, mediaVersionIDs: media, metadataKeys: keys, detectedTagIDs: tags)
+                pendingPurges.update(purge.id) {
+                    $0.include(episodes: ids, mediaVersionIDs: media, metadataKeys: keys, detectedTagIDs: tags)
+                }
+            }
+        }
         await pendingPurges.waitUntilWritten()
         do {
             let report = try await store.removeSource(sourceID)
             episodes[sourceID] = nil
             sources.removeAll { $0.id == sourceID }
-            await finishRemoval(purge, report: report, marked: Set(affected.map(\.id)))
+            await finishRemoval(purge, report: report, marked: Set(purge.episodeIDs))
         } catch {
             purgesInFlight.remove(purge.id)
             lastError = UserFacingError.describe(error)
@@ -2731,6 +2760,8 @@ extension AppModel {
                     // Seit dem Abbestellen neu abonniert: Das neue Abo bleibt.
                     let current = sources.first { $0.id == sourceID }
                     if current.map({ $0.addedAt <= purge.requestedAt }) ?? true {
+                        // Wie beim Abbestellen: erst im Löschprotokoll, dann im Store.
+                        removals.markRemoved(purge.episodeIDs, source: sourceID)
                         report = (try? await store.removeSource(sourceID)) ?? report
                         episodes[sourceID] = nil
                         sources.removeAll { $0.id == sourceID }
@@ -2787,7 +2818,8 @@ extension AppModel {
         mediaStorageChanged += 1
         // Erkannte Tags einer angefangenen Einordnung, auf die nichts zeigt.
         if !purge.detectedTagIDs.isEmpty {
-            _ = try? await store.removeOrphanedDetectedTags(purge.detectedTagIDs)
+            _ = try? await store.removeOrphanedDetectedTags(
+                purge.detectedTagIDs, keeping: Self.tagsInTaggingProgress(except: gone))
         }
         pendingPurges.remove(purge.id)
         purgesInFlight.remove(purge.id)

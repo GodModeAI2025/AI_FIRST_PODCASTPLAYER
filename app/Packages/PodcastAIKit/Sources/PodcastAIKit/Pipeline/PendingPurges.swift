@@ -64,6 +64,19 @@ public struct PendingPurge: Codable, Sendable, Equatable, Identifiable {
         self.storeDone = false
     }
 
+    /// Nimmt weitere Folgen auf, etwa die nicht geladenen einer abbestellten
+    /// Quelle, bevor der Store löscht. Danach kennte niemand mehr ihre
+    /// Kennungen, und ihre Vermerke blieben nach einem Absturz liegen.
+    public mutating func include(
+        episodes: [EpisodeID], mediaVersionIDs media: [MediaVersionID] = [],
+        metadataKeys keys: [String] = [], detectedTagIDs tags: [InterestID] = []
+    ) {
+        episodeIDs = Self.union(episodeIDs, episodes)
+        mediaVersionIDs = Self.union(mediaVersionIDs, media)
+        metadataKeys = Self.union(metadataKeys, keys)
+        detectedTagIDs = Self.union(detectedTagIDs, tags)
+    }
+
     /// Trägt ein, was der Store gelöscht hat.
     public mutating func recordStoreRemoval(_ report: LibraryStore.RemovalReport) {
         storeDone = true

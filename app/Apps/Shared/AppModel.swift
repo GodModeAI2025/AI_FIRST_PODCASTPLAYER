@@ -1889,10 +1889,27 @@ public final class AppModel {
         stageDetails[episode.id] = nil
     }
 
+    /// Der Wächter im Store hat das Schreiben abgelehnt. Die Folge verlässt
+    /// die Warteschlange still, ohne zweiten Versuch. Nach einer Löschung
+    /// räumt das Löschen selbst auf. Hat dagegen die Fassung, auf die der
+    /// Feed jetzt zeigt, schon ein Transkript, war die Arbeit nur überholt:
+    /// Ihr Zwischenstand geht, und von selbst geladener Ton geht wie nach
+    /// einem gescheiterten Vorbereiten.
+    private func settleStaleAnalysis(
+        of episode: Episode, reason: CommitGuard.StaleReason, media: MediaVersionID?
+    ) async {
+        forgetOverdueAnalysis(of: episode)
+        let wasAutomatic = automaticallyQueued.remove(episode.id) != nil
+        backlogQueued.remove(episode.id)
+        guard !reason.meansRemoved else { return }
+        if let media { Self.transcriptCheckpoints.remove([media]) }
+        if wasAutomatic { await removeAudioAfterFailedPreparation(episode) }
+    }
+
     /// Der Wächter für das Schreiben einer Erschließung: Folge, Quelle und
     /// Löschungen seit `ticket`, dazu die Fassung, auf die der Feed zeigt.
-    func commitGuard(for id: EpisodeID, since ticket: RemovalLedger.Ticket) -> CommitGuard {
-        CommitGuard(episode: id, since: ticket, ledger: removals,
+    func commitGuard(for episode: Episode, since ticket: RemovalLedger.Ticket) -> CommitGuard {
+        CommitGuard(episode: episode.id, source: episode.sourceID, since: ticket, ledger: removals,
                     feedMedia: { CaptionAnalysis.feedMediaVersionID(of: $0) })
     }
 
@@ -2036,8 +2053,9 @@ public final class AppModel {
             // der Feed jetzt zeigt, hat schon ein Transkript. Wie oben, wenn
             // die Folge schon vor dem Start fehlte: still zurück, kein
             // zweiter Versuch.
-            if error is StaleWriteError {
-                forgetOverdueAnalysis(of: episode)
+            if let stale = error as? StaleWriteError {
+                await settleStaleAnalysis(
+                    of: episode, reason: stale.reason, media: MediaVersionID(stable: audioURL.absoluteString))
                 return false
             }
             // Angehalten, weil die Zeit im Hintergrund endete: kein Fehler.
@@ -2137,7 +2155,7 @@ public final class AppModel {
         let preferred = [AppLanguage.current.rawValue]
         let origin: TranscriptOrigin = isYouTubeVideo(episode) ? .youTubeCaptions : .postCaptions
         let fallbackLocale = sources.first { $0.id == episode.sourceID }?.language ?? AppLanguage.current.rawValue
-        let writeGuard = commitGuard(for: episode.id, since: ticket)
+        let writeGuard = commitGuard(for: episode, since: ticket)
         // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
         // Losgelöst vom Hauptakteur: das Aufbereiten der Untertitel rechnet.
         let run = Task.detached(priority: .utility) {
@@ -2197,8 +2215,8 @@ public final class AppModel {
             }
             // Der Wächter im Store hat widersprochen. Kein Fehlversuch bei
             // Supadata: Die Untertitel waren da, nur die Folge nicht mehr.
-            if error is StaleWriteError {
-                forgetOverdueAnalysis(of: episode)
+            if let stale = error as? StaleWriteError {
+                await settleStaleAnalysis(of: episode, reason: stale.reason, media: nil)
                 return false
             }
             let failure = (error as? SupadataError) ?? (error is CancellationError ? .cancelled : .network)

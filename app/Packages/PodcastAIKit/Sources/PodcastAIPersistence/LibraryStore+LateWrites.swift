@@ -74,9 +74,10 @@ extension LibraryStore {
     /// ``removeAnalysis(ofEpisode:mediaVersionID:)`` braucht es keine
     /// Audioadresse, trifft also auch YouTube-Folgen, und es nimmt nichts
     /// mit, was schon vorher da war. Die Zeile der Folge bleibt, es entsteht
-    /// kein Merkzeichen.
+    /// kein Merkzeichen. Erkannte Tags in `keepingTags` bleiben, wie in
+    /// ``removeOrphanedDetectedTags(_:keeping:)``.
     @discardableResult
-    public func removeWrites(_ receipt: WriteReceipt) throws -> RemovalReport {
+    public func removeWrites(_ receipt: WriteReceipt, keepingTags: Set<InterestID> = []) throws -> RemovalReport {
         var report = RemovalReport()
         guard !receipt.isEmpty else { return report }
         evidenceChanged()
@@ -136,7 +137,7 @@ extension LibraryStore {
             report.mediaVersionIDs = removedMedia.sorted().map(MediaVersionID.init(rawValue:))
         }
         try modelContext.save()
-        try removeOrphanedDetectedTags(receipt.tagIDs)
+        try removeOrphanedDetectedTags(receipt.tagIDs, keeping: keepingTags)
         return report
     }
 }

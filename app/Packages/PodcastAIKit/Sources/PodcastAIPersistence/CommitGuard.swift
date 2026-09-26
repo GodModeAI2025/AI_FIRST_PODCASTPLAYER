@@ -46,7 +46,8 @@ public struct CommitGuard: Sendable {
         case episodeMissing
         /// Die Folge trägt ein Merkzeichen.
         case episodeRemoved
-        /// Die lebende Zeile hängt an keiner Quelle mehr.
+        /// Die lebende Zeile hängt an keiner Quelle mehr, und die Quelle,
+        /// unter der die Arbeit die Folge kannte, gibt es nicht mehr.
         case sourceMissing
         /// Folge oder Quelle wurden gelöscht, nachdem die Arbeit begann.
         case removedWhileRunning
@@ -72,6 +73,12 @@ public struct CommitGuard: Sendable {
 
     /// Die Folge, für die geschrieben wird.
     public let episodeID: EpisodeID
+    /// Die Quelle, unter der die Arbeit die Folge kannte. Hat die Zeile der
+    /// Folge ihre Quelle beim Abgleich verloren, besteht diese Quelle aber,
+    /// ist die Folge nicht abbestellt: Ein anderes Gerät hat eine doppelte
+    /// Quellzeile gelöscht, und das nächste Bereinigen hängt die Folge
+    /// wieder an. Ohne Angabe gilt eine Zeile ohne Quelle als abbestellt.
+    public let sourceID: SourceID?
     /// Der Stand des Löschprotokolls beim Start der Arbeit.
     public let ticket: RemovalLedger.Ticket
     public let ledger: RemovalLedger
@@ -83,11 +90,13 @@ public struct CommitGuard: Sendable {
 
     public init(
         episode: EpisodeID,
+        source: SourceID? = nil,
         since ticket: RemovalLedger.Ticket,
         ledger: RemovalLedger = .shared,
         feedMedia: @escaping @Sendable (Episode) -> MediaVersionID? = { CommitGuard.audioMedia(of: $0) }
     ) {
         self.episodeID = episode
+        self.sourceID = source.flatMap { $0.rawValue.isEmpty ? nil : $0 }
         self.ticket = ticket
         self.ledger = ledger
         self.feedMedia = feedMedia
