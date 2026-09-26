@@ -95,6 +95,8 @@ struct RootView: View {
     /// Tab seine Navigation neu auf und zeigt sich von vorn. Nur nötig, wenn
     /// die Hilfe im Ziel-Tab selbst liegt, sonst bliebe sie offen.
     @State private var stackResets: [Area: Int] = [:]
+    /// Die Tag-Seite, die eine Adresse aus dem Widget öffnen will.
+    @State private var linkedTag: InterestID?
 
     /// Nicht `Tab` genannt: das verdeckte `SwiftUI.Tab` im eigenen
     /// Gültigkeitsbereich, und die Aufrufe darunter hätten versucht, das
@@ -110,7 +112,7 @@ struct RootView: View {
                     .activityBanner { showingQueue = true }
             }
             Tab("Themen-Updates", systemImage: "waveform.circle", value: Area.feeds) {
-                NavigationStack { SmartFeedListView() }
+                NavigationStack { SmartFeedListView(linkedTag: $linkedTag) }
                     .id(stackResets[.feeds, default: 0])
                     .activityBanner { showingQueue = true }
             }
@@ -165,6 +167,26 @@ struct RootView: View {
             OnboardingView().sheetFeedback().environment(model)
         }
         .environment(\.showInApp, ShowInAppAction { jump in show(jump) })
+        .onOpenURL { url in open(url) }
+    }
+
+    // MARK: Adressen aus dem Widget
+
+    /// `podcastai://topicupdates` öffnet die Themen-Updates,
+    /// `podcastai://tag/<Kennung>` dort die Seite des Tags. Beides zeigt
+    /// nur, keine Adresse spielt etwas ab. Unbekannte Adressen bleiben
+    /// ohne Wirkung.
+    private func open(_ url: URL) {
+        guard let link = WidgetLink(url: url) else { return }
+        if case .tag(let id) = link {
+            linkedTag = InterestID(rawValue: id)
+        } else {
+            linkedTag = nil
+        }
+        showingQueue = false
+        // Von vorn wie bei „Zeig es mir“, sonst läge dort noch die Seite von vorhin.
+        stackResets[.feeds, default: 0] += 1
+        selection = .feeds
     }
 
     // MARK: „Zeig es mir“ aus der Hilfe

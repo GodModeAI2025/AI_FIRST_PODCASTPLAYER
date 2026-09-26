@@ -10,6 +10,8 @@ let package = Package(
     ],
     products: [
         .library(name: "PodcastAIKit", targets: ["PodcastAIKit"]),
+        // Für das Widget: nur der Schnappschuss, ohne Datenbank und Modelle.
+        .library(name: "PodcastAIWidgetData", targets: ["PodcastAIWidgetData"]),
     ],
     targets: [
         // Reine Domäne: Foundation only, keine Apple-Frameworks, vollständig testbar.
@@ -48,13 +50,17 @@ let package = Package(
         // Markdown-Export mit sicheren Quellenlinks.
         .target(name: "PodcastAIExport", dependencies: ["PodcastAICore", "PodcastAIKnowledge"], resources: [.process("Localizable.xcstrings")]),
 
+        // Schnappschuss fürs Widget in der App Group. Nur Foundation, damit
+        // die Widget-Erweiterung klein bleibt. Keine Texte für die Oberfläche.
+        .target(name: "PodcastAIWidgetData"),
+
         // Sammelziel für die App-Targets.
         .target(name: "PodcastAIKit", dependencies: [
             "PodcastAICore", "PodcastAISources", "PodcastAIMedia", "PodcastAITranscription",
             "PodcastAIIntelligence", "PodcastAIKnowledge", "PodcastAIPlayback",
-            "PodcastAISmartFeeds", "PodcastAIExport", "PodcastAIPersistence",
+            "PodcastAISmartFeeds", "PodcastAIExport", "PodcastAIPersistence", "PodcastAIWidgetData",
         ], resources: [.process("Localizable.xcstrings")]),
 
-        .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit", "PodcastAIExport"]),
+        .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit", "PodcastAIExport", "PodcastAIWidgetData"]),
     ]
 )

@@ -131,6 +131,8 @@ struct MacRootView: View {
     /// „Zeig es mir“ aus der Hilfe: steigt die Zahl, baut der Inhalt seinen
     /// Stapel neu auf. Sonst läge die Seite aus der Hilfe über dem Ziel.
     @State private var helpJumps = 0
+    /// Die Tag-Seite, die eine Adresse aus dem Widget öffnen will.
+    @State private var linkedTag: InterestID?
 
     /// Wann der Inhalt von vorn beginnt: mit jedem anderen Eintrag in der
     /// Seitenleiste und mit jedem Sprung aus der Hilfe. Hinge es nur an den
@@ -217,7 +219,7 @@ struct MacRootView: View {
             NavigationStack {
                 switch section {
                 case .forYou: ForYouView()
-                case .feeds: SmartFeedListView()
+                case .feeds: SmartFeedListView(linkedTag: $linkedTag)
                 case .chat: ChatView()
                 case .library: LibraryView()
                 case .queue: QueueView()
@@ -267,6 +269,10 @@ struct MacRootView: View {
         .spotlightPassages()
         .environment(\.openQueue, OpenQueueAction(run: { section = .queue }))
         .environment(\.showInApp, ShowInAppAction { jump in show(jump) })
+        .onOpenURL { url in open(url) }
+        // Eine Adresse aus dem Widget geht in ein offenes Fenster, statt
+        // ein neues aufzumachen.
+        .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         .sheet(isPresented: $showingOnboarding) {
             OnboardingView().sheetFeedback().environment(model).frame(minWidth: 480, minHeight: 620)
         }
@@ -298,6 +304,24 @@ struct MacRootView: View {
                 .accessibilityLabel("Alle Podcasts aktualisieren")
             }
         }
+    }
+
+    // MARK: Adressen aus dem Widget
+
+    /// `podcastai://topicupdates` öffnet die Themen-Updates,
+    /// `podcastai://tag/<Kennung>` dort die Seite des Tags. Beides zeigt
+    /// nur, keine Adresse spielt etwas ab. Unbekannte Adressen bleiben
+    /// ohne Wirkung.
+    private func open(_ url: URL) {
+        guard let link = WidgetLink(url: url) else { return }
+        if case .tag(let id) = link {
+            linkedTag = InterestID(rawValue: id)
+        } else {
+            linkedTag = nil
+        }
+        // Von vorn wie bei „Zeig es mir“, sonst läge dort noch die Seite von vorhin.
+        helpJumps += 1
+        section = .feeds
     }
 
     // MARK: „Zeig es mir“ aus der Hilfe

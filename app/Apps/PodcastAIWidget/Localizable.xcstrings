@@ -1,0 +1,268 @@
+{
+  "sourceLanguage" : "de",
+  "strings" : {
+    "%@: %lld neu" : {
+      "comment" : "Sperrbildschirm, eine Zeile: Tag und Zahl neuer Aussagen",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$lld neu"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$lld new"
+          }
+        }
+      }
+    },
+    "%lld neue Aussagen" : {
+      "comment" : "VoiceOver-Wert einer Tag-Zeile",
+      "localizations" : {
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld neue Aussage"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld neue Aussagen"
+                }
+              }
+            }
+          }
+        },
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new statement"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld new statements"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Angesagt" : {
+      "comment" : "Überschrift über den angesagten Tags",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angesagt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trending"
+          }
+        }
+      }
+    },
+    "Datenschutz" : {
+      "comment" : "Beispiel-Tag in der Widget-Galerie",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
+          }
+        }
+      }
+    },
+    "Datenschutz und USA" : {
+      "comment" : "Beispiel-Update in der Widget-Galerie",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutz und USA"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy and the US"
+          }
+        }
+      }
+    },
+    "Datenschutz und USA, Teil 1" : {
+      "comment" : "Beispiel-Ausgabe in der Widget-Galerie",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutz und USA, Teil 1"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy and the US, Part 1"
+          }
+        }
+      }
+    },
+    "Energie" : {
+      "comment" : "Beispiel-Tag in der Widget-Galerie",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energie"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy"
+          }
+        }
+      }
+    },
+    "Neue Aussagen zu deinen Tags und die neueste Ausgabe deiner Themen-Updates." : {
+      "comment" : "Beschreibung in der Widget-Galerie",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Aussagen zu deinen Tags und die neueste Ausgabe deiner Themen-Updates."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New statements for your tags and the latest edition of your Topic Updates."
+          }
+        }
+      }
+    },
+    "Neueste Ausgabe" : {
+      "comment" : "Überschrift über der neuesten Ausgabe",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Ausgabe"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest Edition"
+          }
+        }
+      }
+    },
+    "Neueste Ausgabe: %@" : {
+      "comment" : "VoiceOver: Titel der neuesten Ausgabe",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Ausgabe: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest edition: %@"
+          }
+        }
+      }
+    },
+    "Nichts Neues zu deinen Tags" : {
+      "comment" : "Keine neuen Aussagen zu gefolgten Tags",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nichts Neues zu deinen Tags"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing new for your tags"
+          }
+        }
+      }
+    },
+    "Noch keine Ausgabe" : {
+      "comment" : "Es gibt noch keine Ausgabe eines Themen-Updates",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Ausgabe"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Edition Yet"
+          }
+        }
+      }
+    },
+    "Sprachmodelle" : {
+      "comment" : "Beispiel-Tag in der Widget-Galerie",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprachmodelle"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language Models"
+          }
+        }
+      }
+    },
+    "Was ist neu" : {
+      "comment" : "Name und Überschrift des Widgets",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was ist neu"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's New"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

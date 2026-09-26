@@ -38,6 +38,7 @@ Stand 23. September 2026, Version 0.12.
 | Private Cloud Compute | Berechtigung erteilt und in beiden App-IDs eingeschaltet. Chat und Folgen-Chat antworten im iOS-27-Simulator über PCC; die Qualität zeigt sich auf einem Gerät |
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |
 | Wiedergabe im Hintergrund, AirPlay, CarPlay | Nur auf Hardware sinnvoll |
+| Widget „Was ist neu“ | Die Erweiterungen bauen für iOS und macOS, Schnappschuss und Schreibregel sind getestet. Anzeige, Neuladen und die Tipps auf Tag-Zeilen zeigen sich erst mit signiertem Build und eingerichteter App Group |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
 | Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |

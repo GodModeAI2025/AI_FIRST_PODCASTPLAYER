@@ -13,6 +13,11 @@ Apple Intelligence stört nicht mehr beim Scrollen und nicht mehr den Chat:
 - Die App lädt nach dem eigenen Speichern nicht mehr die ganze Bibliothek neu, nur noch nach Änderungen von anderen Geräten. Fakten einer Folge zeichnen nur noch ihre eigene Seite neu.
 - Automatisches kommt in Portionen: Fakten und Tags für ältere Folgen je zehn auf einmal, „Ältere Folgen auch vorbereiten“ je Podcast drei Folgen im Akkubetrieb und zehn am Strom. Die nächste Portion rückt nach, wenn eine durch ist. Was du selbst anforderst, zählt nicht mit.
 
+Widget „Was ist neu“ für iPhone, iPad und Mac:
+- Klein und mittel auf dem Home-Bildschirm und auf dem Mac, auf iPhone und iPad auch auf dem Sperrbildschirm. Es zeigt bis zu drei Tags, denen du folgst, mit ihren neuen Aussagen und die neueste Ausgabe deiner Themen-Updates.
+- Ein Tipp öffnet die Themen-Updates, eine Tag-Zeile im mittleren Widget gleich die Seite des Tags. Abgespielt wird dabei nichts.
+- Im Widget stehen nur Zahlen und Titel, kein Text aus einer Folge. Löschst du eine Folge oder bestellst einen Podcast ab, zieht das Widget gleich nach.
+
 ## App 0.12 · 2026-09-25
 Aus dem TestFlight-Feedback zu 0.7 bis 0.11, vor allem zu Rucklern und einem langsamen Chat:
 - Apple Intelligence über eine Stelle: Alle Anfragen laufen durch eine Warteschlange, eine nach der anderen. Was du anstößt, geht vor: eine Frage im Chat, der Satz zum Kapitel, „Jetzt ermitteln“. Fakten, Tags und Relevanz im Hintergrund warten, solange du scrollst, und laufen zwei Sekunden danach weiter. Im Stromsparmodus pausieren sie, während eine Folge spielt. Die Warteschlange zeigt, was Apple Intelligence gerade tut.
