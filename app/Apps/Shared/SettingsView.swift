@@ -538,6 +538,13 @@ struct PrivacyOverviewView: View {
          offenen Podcast-Katalog. Ein Konto brauchst du bei keinem der beiden, beide sehen aber \
          deine IP-Adresse. Die Cover kommen von Apple oder vom Server des jeweiligen Podcasts.
          """),
+        ("play.rectangle.on.rectangle", "YouTube-Abos aus Google Takeout",
+         """
+         Die Datei aus Google Takeout liest die App auf dem Gerät. Um passende Audio-Podcasts zu \
+         finden, schickt sie die Namen der Kanäle einzeln an die Podcast-Suche von Apple. Apple \
+         sieht dabei die Namen und deine IP-Adresse. Bei Google meldet sich die App nicht an, \
+         und YouTube fragt sie erst, wenn du einen Kanal abonnierst.
+         """),
         ("magnifyingglass", "Spotlight nur auf Wunsch",
          """
          Gemerkte Stellen erscheinen in der Systemsuche nur, wenn du das einschaltest. Der Index \

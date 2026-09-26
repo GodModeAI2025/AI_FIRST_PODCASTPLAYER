@@ -433,6 +433,22 @@
         }
       }
     },
+    "%@. Den Grund siehst du beim jeweiligen Kanal." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@. Den Grund siehst du beim jeweiligen Kanal."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@. Each channel shows the reason."
+          }
+        }
+      }
+    },
     "%@. Den Grund siehst du beim jeweiligen Podcast." : {
       "localizations" : {
         "de" : {
@@ -1241,6 +1257,22 @@
         }
       }
     },
+    "Abonnieren als" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abonnieren als"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe As"
+          }
+        }
+      }
+    },
     "Abonnieren holt nur die Folgenlisten. Transkripte entstehen dabei noch keine." : {
       "localizations" : {
         "de" : {
@@ -1925,6 +1957,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select All"
+          }
+        }
+      }
+    },
+    "Alle mit Audio-Podcast" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle mit Audio-Podcast"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All with an Audio Podcast"
           }
         }
       }
@@ -2633,6 +2681,22 @@
         }
       }
     },
+    "Apple bremst die Suche gerade. Versuch es für die übrigen Kanäle in ein paar Minuten noch einmal." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple bremst die Suche gerade. Versuch es für die übrigen Kanäle in ein paar Minuten noch einmal."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple is slowing down searches right now. Try again for the remaining channels in a few minutes."
+          }
+        }
+      }
+    },
     "Apple-Server" : {
       "localizations" : {
         "de" : {
@@ -2841,6 +2905,22 @@
         }
       }
     },
+    "Audio-Podcast" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio-Podcast"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio podcast"
+          }
+        }
+      }
+    },
     "Audio-Podcast abonniert" : {
       "localizations" : {
         "de" : {
@@ -2853,6 +2933,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Audio podcast subscribed"
+          }
+        }
+      }
+    },
+    "Audio-Podcast gefunden: %lld von %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio-Podcast gefunden: %1$lld von %2$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio podcast found: %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Audio-Podcast schon abonniert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio-Podcast schon abonniert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio podcast already subscribed"
+          }
+        }
+      }
+    },
+    "Audio-Podcast verfügbar" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio-Podcast verfügbar"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio podcast available"
+          }
+        }
+      }
+    },
+    "Audio-Podcast verfügbar, abonniert wird der Kanal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio-Podcast verfügbar, abonniert wird der Kanal"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio podcast available, the channel will be subscribed"
+          }
+        }
+      }
+    },
+    "Audio-Podcast: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio-Podcast: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio podcast: %@"
           }
         }
       }
@@ -5323,6 +5483,22 @@
         }
       }
     },
+    "Die Datei aus Google Takeout liest die App auf dem Gerät. Um passende Audio-Podcasts zu finden, schickt sie die Namen der Kanäle einzeln an die Podcast-Suche von Apple. Apple sieht dabei die Namen und deine IP-Adresse. Bei Google meldet sich die App nicht an, und YouTube fragt sie erst, wenn du einen Kanal abonnierst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Datei aus Google Takeout liest die App auf dem Gerät. Um passende Audio-Podcasts zu finden, schickt sie die Namen der Kanäle einzeln an die Podcast-Suche von Apple. Apple sieht dabei die Namen und deine IP-Adresse. Bei Google meldet sich die App nicht an, und YouTube fragt sie erst, wenn du einen Kanal abonnierst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app reads the Google Takeout file on your device. To find matching audio podcasts, it sends the channel names one at a time to Apple's podcast search. Apple sees the names and your IP address. The app doesn't sign in to Google, and it only contacts YouTube once you subscribe to a channel."
+          }
+        }
+      }
+    },
     "Die Datei ist größer, als die App lädt. Für sehr lange Folgen lässt sich im Moment kein Transkript erstellen." : {
       "localizations" : {
         "de" : {
@@ -5591,6 +5767,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afterwards the chapters of both tags are under one. If you follow either of them, you follow the merged tag."
+          }
+        }
+      }
+    },
+    "Die Namen der Kanäle gehen an die Podcast-Suche von Apple, einer nach dem anderen. Bei vielen Kanälen dauert das einige Minuten, weil Apple zu schnelle Suchen bremst. Abonnieren holt nur die Folgenlisten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Namen der Kanäle gehen an die Podcast-Suche von Apple, einer nach dem anderen. Bei vielen Kanälen dauert das einige Minuten, weil Apple zu schnelle Suchen bremst. Abonnieren holt nur die Folgenlisten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The channel names go to Apple's podcast search, one after another. With many channels this takes a few minutes, because Apple slows down searches that come too fast. Subscribing only fetches the episode lists."
           }
         }
       }
@@ -6919,6 +7111,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Recommended"
+          }
+        }
+      }
+    },
+    "Empfohlen ist der Audio-Podcast: Nur mit Ton gibt es Transkript, Fakten und Tags. Von YouTube bekommt die App keinen Ton." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empfohlen ist der Audio-Podcast: Nur mit Ton gibt es Transkript, Fakten und Tags. Von YouTube bekommt die App keinen Ton."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The audio podcast is recommended: transcripts, facts and tags need audio. The app gets no audio from YouTube."
           }
         }
       }
@@ -9451,6 +9659,22 @@
         }
       }
     },
+    "In „Meine Podcasts“ im Menü „Abos importieren oder exportieren“: „YouTube-Abos aus Google Takeout importieren“. Bei Google Takeout (takeout.google.com) YouTube und darin die Abos exportieren, das ZIP-Archiv entpacken und die CSV-Datei wählen. Zu jedem Kanal sucht die App einen Audio-Podcast und empfiehlt ihn, denn nur mit Ton gibt es Transkript, Fakten und Tags. Die Namen der Kanäle gehen dafür an die Podcast-Suche von Apple." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In „Meine Podcasts“ im Menü „Abos importieren oder exportieren“: „YouTube-Abos aus Google Takeout importieren“. Bei Google Takeout (takeout.google.com) YouTube und darin die Abos exportieren, das ZIP-Archiv entpacken und die CSV-Datei wählen. Zu jedem Kanal sucht die App einen Audio-Podcast und empfiehlt ihn, denn nur mit Ton gibt es Transkript, Fakten und Tags. Die Namen der Kanäle gehen dafür an die Podcast-Suche von Apple."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In \"My Podcasts\", open the \"Import or Export Subscriptions\" menu and choose \"Import YouTube Subscriptions from Google Takeout\". In Google Takeout (takeout.google.com), export YouTube with its subscriptions, unzip the archive and choose the CSV file. For each channel the app looks for an audio podcast and recommends it, because transcripts, facts and tags need audio. For this, the channel names go to Apple's podcast search."
+          }
+        }
+      }
+    },
     "Intelligenz" : {
       "localizations" : {
         "de" : {
@@ -9735,6 +9959,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No audio, so no transcript with timestamps"
+          }
+        }
+      }
+    },
+    "Kein Audio-Podcast gefunden, nur der YouTube-Kanal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Audio-Podcast gefunden, nur der YouTube-Kanal"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No audio podcast found, only the YouTube channel"
           }
         }
       }
@@ -10025,6 +10265,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Can't connect to the podcast directory. Check your internet connection and try again."
+          }
+        }
+      }
+    },
+    "Keine Verbindung zur Podcast-Suche von Apple. Prüf die Internetverbindung." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Verbindung zur Podcast-Suche von Apple. Prüf die Internetverbindung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No connection to Apple's podcast search. Check your internet connection."
           }
         }
       }
@@ -11581,6 +11837,22 @@
         }
       }
     },
+    "Nicht gesucht, nur der YouTube-Kanal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht gesucht, nur der YouTube-Kanal"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not searched, only the YouTube channel"
+          }
+        }
+      }
+    },
     "Nicht jetzt" : {
       "localizations" : {
         "de" : {
@@ -11721,6 +11993,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Removes the older episodes from the queue. Finished transcripts stay."
+          }
+        }
+      }
+    },
+    "Noch einmal suchen (%lld)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch einmal suchen (%lld)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search Again (%lld)"
           }
         }
       }
@@ -14109,6 +14397,38 @@
         }
       }
     },
+    "Suche Audio-Podcasts bei Apple: %lld von %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche Audio-Podcasts bei Apple: %1$lld von %2$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Searching Apple for audio podcasts: %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Suche beenden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche beenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Search"
+          }
+        }
+      }
+    },
     "Suche bei Apple Podcasts und Podcast Index …" : {
       "localizations" : {
         "de" : {
@@ -14121,6 +14441,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Searching Apple Podcasts and Podcast Index…"
+          }
+        }
+      }
+    },
+    "Suche ging nicht, nur der YouTube-Kanal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche ging nicht, nur der YouTube-Kanal"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search failed, only the YouTube channel"
           }
         }
       }
@@ -14153,6 +14489,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search"
+          }
+        }
+      }
+    },
+    "Sucht Audio-Podcast …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sucht Audio-Podcast …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking for an audio podcast…"
           }
         }
       }
@@ -16880,6 +17232,70 @@
         }
       }
     },
+    "YouTube-Abos aus Google Takeout" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Abos aus Google Takeout"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube Subscriptions from Google Takeout"
+          }
+        }
+      }
+    },
+    "YouTube-Abos aus Google Takeout importieren" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Abos aus Google Takeout importieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import YouTube Subscriptions from Google Takeout"
+          }
+        }
+      }
+    },
+    "YouTube-Abos importieren" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Abos importieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import YouTube Subscriptions"
+          }
+        }
+      }
+    },
+    "YouTube-Abos übernehmen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "YouTube-Abos übernehmen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bring Over YouTube Subscriptions"
+          }
+        }
+      }
+    },
     "YouTube-Kanal" : {
       "localizations" : {
         "de" : {
@@ -17504,6 +17920,22 @@
         }
       }
     },
+    "^[%lld Abo](inflect: true) angelegt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Abo](inflect: true) angelegt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld subscription](inflect: true) added"
+          }
+        }
+      }
+    },
     "^[%lld Beleg](inflect: true)" : {
       "localizations" : {
         "de" : {
@@ -17580,6 +18012,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "^[%lld episode](inflect: true) to listen to"
+          }
+        }
+      }
+    },
+    "^[%lld Kanal](inflect: true) in „%@“" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld Kanal](inflect: true) in „%2$@“"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld channel](inflect: true) in \"%2$@\""
           }
         }
       }

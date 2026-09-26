@@ -353,6 +353,22 @@
         }
       }
     },
+    "In dieser Datei stehen keine YouTube-Abos. Wähle aus dem Export von Google Takeout die CSV-Datei mit deinen Abos, etwa „subscriptions.csv“.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In dieser Datei stehen keine YouTube-Abos. Wähle aus dem Export von Google Takeout die CSV-Datei mit deinen Abos, etwa „subscriptions.csv“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file doesn't contain any YouTube subscriptions. From your Google Takeout export, choose the CSV file with your subscriptions, such as \"subscriptions.csv\"."
+          }
+        }
+      }
+    },
     "In dieser Datei steht kein Podcast.": {
       "localizations": {
         "de": {
@@ -365,6 +381,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "This file doesn't contain any podcasts."
+          }
+        }
+      }
+    },
+    "In dieser Datei steht kein YouTube-Kanal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In dieser Datei steht kein YouTube-Kanal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file doesn't contain any YouTube channels."
           }
         }
       }
