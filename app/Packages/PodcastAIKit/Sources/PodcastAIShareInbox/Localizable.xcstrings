@@ -1,0 +1,150 @@
+{
+  "sourceLanguage": "de",
+  "strings": {
+    "Darin steckt kein Link, den PodcastAI lesen kann.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Darin steckt kein Link, den PodcastAI lesen kann."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There's no link in this that PodcastAI can read."
+          }
+        }
+      }
+    },
+    "Das ist keine Audiodatei, die PodcastAI lesen kann. MP3, M4A, AAC, WAV, FLAC und Ogg gehen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist keine Audiodatei, die PodcastAI lesen kann. MP3, M4A, AAC, WAV, FLAC und Ogg gehen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This isn't an audio file PodcastAI can read. MP3, M4A, AAC, WAV, FLAC and Ogg work."
+          }
+        }
+      }
+    },
+    "Die Datei ist größer als %@. So große Dateien nimmt PodcastAI nicht an.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Datei ist größer als %@. So große Dateien nimmt PodcastAI nicht an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is larger than %@. PodcastAI doesn't accept files that large."
+          }
+        }
+      }
+    },
+    "Die Datei ist leer.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Datei ist leer."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file is empty."
+          }
+        }
+      }
+    },
+    "Die geteilte Datei ist nicht mehr da. Teile sie bitte noch einmal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die geteilte Datei ist nicht mehr da. Teile sie bitte noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shared file is gone. Please share it again."
+          }
+        }
+      }
+    },
+    "Die Übergabe ließ sich nicht lesen.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Übergabe ließ sich nicht lesen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shared item couldn't be read."
+          }
+        }
+      }
+    },
+    "Es warten schon %lld Übergaben. Öffne PodcastAI, dann geht es weiter.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es warten schon %lld Übergaben. Öffne PodcastAI, dann geht es weiter."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld items are already waiting. Open PodcastAI to continue."
+          }
+        }
+      }
+    },
+    "Geteilte Audiodatei": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geteilte Audiodatei"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shared audio file"
+          }
+        }
+      }
+    },
+    "PodcastAI kann gerade nichts übernehmen. Öffne die App einmal und versuche es dann noch einmal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PodcastAI kann gerade nichts übernehmen. Öffne die App einmal und versuche es dann noch einmal."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PodcastAI can't take anything right now. Open the app once, then try again."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
