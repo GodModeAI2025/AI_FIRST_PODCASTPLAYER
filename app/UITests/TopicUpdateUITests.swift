@@ -159,5 +159,21 @@ final class TopicUpdateUITests: XCTestCase {
         XCTAssertTrue(element(app, "edition.part").waitForExistence(timeout: 10), "Die Ausgabe nennt ihren Teil nicht")
         XCTAssertTrue(element(app, "edition.overview").exists, "Kapitel 0, die Übersicht, fehlt")
         XCTAssertFalse(miniBar(app).exists, "Das Öffnen eines Teils hat Ton gestartet")
+
+        // Läuft der Teil, sagt der Knopf das auch (TestFlight-Feedback zu 0.13).
+        let play = app.buttons["edition.play"].firstMatch
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        XCTAssertEqual(play.label, "Abspielen")
+        play.tap()
+        let running = NSPredicate(format: "label == 'Pause' OR label == 'Weiter'")
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: running, evaluatedWith: play)], timeout: 10), .completed,
+                       "Der Teil spielt, der Knopf sagt weiter „\(play.label)“")
+        attach(app, "ausgabe-spielt")
+        if play.label == "Pause" {
+            play.tap()
+            XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: NSPredicate(format: "label == 'Weiter'"),
+                                                            evaluatedWith: play)], timeout: 5), .completed,
+                           "Nach „Pause“ bietet der Knopf nicht „Weiter“ an")
+        }
     }
 }

@@ -830,15 +830,53 @@ struct EditionHeader: View {
             // Die primäre Aktion: gefüllt, getintet, in voller Breite.
             // Sie ist die einzige gefüllte Schaltfläche auf diesem
             // Bildschirm, sonst wäre keine mehr primär. Nur sie startet Ton.
-            Button(action: play) {
-                Label("Abspielen", systemImage: "play.fill")
+            // Läuft diese Ausgabe schon, hält der Knopf an oder setzt fort,
+            // wie auf der Seite einer Folge.
+            Button(action: primaryAction) {
+                Label(playLabel, systemImage: playSymbol)
                     .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity, minHeight: Design.minimumTapTarget)
             }
             .buttonStyle(.prominentAction)
-            .accessibilityHint(playHint)
+            .accessibilityHint(isCurrent ? "" : playHint)
+            .accessibilityIdentifier("edition.play")
         }
         .padding(.vertical, Design.Spacing.small)
+    }
+
+    /// Ob der Player gerade diese Ausgabe spielt oder angehalten hält. Der
+    /// Plan trägt keine Kennung der Ausgabe, deshalb vergleicht die Ansicht
+    /// Titel und Stellen. Stellen aus YouTube-Videos fehlen im Plan, weil
+    /// sie der Player nicht spielt.
+    private var isCurrent: Bool {
+        guard let plan = model.playerPlan, plan.route == .smartFeedEpisode,
+              plan.requestSummary == episode.title, !plan.segments.isEmpty else { return false }
+        switch model.playerState {
+        case .preparing, .playing, .paused: break
+        default: return false
+        }
+        let own = Set(episode.segments.map(\.mediaVersionID))
+        return plan.segments.allSatisfy { own.contains($0.mediaVersionID) }
+    }
+
+    private var isRunning: Bool {
+        guard isCurrent else { return false }
+        switch model.playerState {
+        case .preparing, .playing: return true
+        default: return false
+        }
+    }
+
+    private var playLabel: LocalizedStringKey {
+        guard isCurrent else { return "Abspielen" }
+        return isRunning ? "Pause" : "Weiter"
+    }
+
+    private var playSymbol: String { isRunning ? "pause.fill" : "play.fill" }
+
+    private func primaryAction() {
+        guard isCurrent else { return play() }
+        if isRunning { model.pausePlayback() } else { model.resumePlayback() }
     }
 
     /// Zwei feste Sätze statt `inflect`: „Originalstelle“ kennt die

@@ -1,5 +1,9 @@
 # Änderungsverlauf
 
+## Nächste Version
+Aus dem TestFlight-Feedback zu 0.13:
+- Läuft eine Ausgabe eines Themen-Updates, zeigt ihre Seite „Pause“ statt „Abspielen“, angehalten „Weiter“.
+
 ## App 0.13 · 2026-09-26
 Neu: Angesagt als Themen-Update, Widget, Teilen-Menü, YouTube-Abos aus Google Takeout, und der Chat schlägt selbst nach.
 
