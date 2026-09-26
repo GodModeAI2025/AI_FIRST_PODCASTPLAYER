@@ -18,8 +18,11 @@
 //  weder Fakten noch Tags Zeit. Sie stehen hier, damit die Stufen später
 //  sehen, wer die App gerade wach hält.
 //
-//  Noch nicht verdrahtet: Bis Schritt 3a zählt der alte Code seine Träger
-//  selbst (`factsGrants`, `tagGrants`) und fragt dieses Tor nicht.
+//  Seit Schritt 3a speist das Modell das Tor: Pause, „Alle abbrechen“,
+//  Vorder- und Hintergrund. Die Träger melden sich an den Stellen an, an
+//  denen bis 0.13 `factsGrants` und `tagGrants` zählten: der Worker der
+//  Transkripte und die beiden Hintergrundaufgaben. Die Stufe „Wissen“ und
+//  der alte Weg hinter ihrem Schalter fragen beide hier.
 //
 
 import Foundation
@@ -29,7 +32,7 @@ import PodcastAICore
 /// Wer der App Zeit gibt, obwohl sie nicht vorn ist.
 public enum WorkCarrier: String, Sendable, Hashable, CaseIterable {
     /// Transkripte entstehen, getragen von der fortgesetzten Verarbeitung
-    /// (`BGContinuedProcessingTask`). Heute `factsGrants` aus dem Worker.
+    /// (`BGContinuedProcessingTask`), angemeldet vom Worker der Transkripte.
     case continued
     /// Die Hintergrundaufgabe `com.podcastai.analysis`.
     case analysisTask

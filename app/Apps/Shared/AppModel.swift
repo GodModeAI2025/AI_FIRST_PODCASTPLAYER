@@ -75,10 +75,16 @@ public final class AppModel {
     /// hält am nächsten sicheren Punkt an und behält ihren Zwischenstand.
     /// Fakten und Tags stehen genauso. Gilt über einen Neustart hinaus.
     public private(set) var queuePaused: Bool {
-        didSet { UserDefaults.standard.set(queuePaused, forKey: Self.queuePausedKey) }
+        didSet {
+            UserDefaults.standard.set(queuePaused, forKey: Self.queuePausedKey)
+            // Das Tor kennt die Pause, bevor irgendwer danach fragt.
+            pipeline?.gate.setPaused(queuePaused)
+        }
     }
     /// „Alle abbrechen“ leert gerade die Warteschlange. Solange beginnt nichts.
-    @ObservationIgnored private(set) var cancellingQueue = false
+    @ObservationIgnored private(set) var cancellingQueue = false {
+        didSet { pipeline?.gate.setCancelling(cancellingQueue) }
+    }
     /// Pausiert oder beim Leeren: dann beginnt weder Transkript noch Fakt.
     var queueHeld: Bool { queuePaused || cancellingQueue }
     /// Nach „Alle abbrechen“: von selbst Eingereihtes, das das Vorbereiten
@@ -500,11 +506,6 @@ public final class AppModel {
     /// Nach zwei vergeblichen Versuchen im Vordergrund. Erst der nächste
     /// Start oder ein wieder bereites Modell versucht es erneut.
     @ObservationIgnored var factsDeferred: Set<EpisodeID> = []
-    /// Wie viele Arbeiten gerade Hintergrundzeit vom System haben und die
-    /// Fakten mitnehmen: die Aufgabe `com.podcastai.analysis` und die
-    /// fortgesetzte Verarbeitung der Transkripte. Ohne sie arbeitet die
-    /// Warteschlange der Fakten nur, solange die App vorn ist.
-    @ObservationIgnored var factsGrants = 0
     /// Beobachter für Vorder- und Hintergrund, siehe `observeAppState()`.
     @ObservationIgnored var appStateObservers: [any NSObjectProtocol] = []
     /// War die App seit dem letzten Aktivwerden im Hintergrund, oder ist
@@ -533,9 +534,6 @@ public final class AppModel {
     /// Transkript passen. Das Einreihen fragt für sie nicht jedes Mal alle
     /// Belege ab. Ein neues Transkript nimmt die Folge wieder heraus.
     @ObservationIgnored var tagsCurrent: Set<EpisodeID> = []
-    /// Die leichte Hintergrundaufgabe `com.podcastai.tagging` läuft. Sie gibt
-    /// nur den Tags Zeit, nicht den Fakten.
-    @ObservationIgnored var tagGrants = 0
     /// Das Nachholen der Fakten und Tags kam nicht ganz in eine Portion.
     @ObservationIgnored var factsBackfillPending = false
     /// Ältere Folgen, die in diesem Start zweimal kurz gescheitert sind.
@@ -557,6 +555,19 @@ public final class AppModel {
         }
     }
     static let automaticFactsKey = "automaticFacts"
+
+    // MARK: Stufe „Wissen“ (KnowledgeStage im Paket, docs/plan-pipeline.md, Schritt 3)
+
+    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Wissen“
+    /// führt Warteschlange, Reihenfolge, Tor und gemerkte Absichten der
+    /// Fakten und Tags. Aus: der Weg bis 0.13 im Modell. Gelesen einmal beim
+    /// Anlegen, zu setzen auch als Startargument (`-pipelineKnowledgeStage NO`).
+    /// Eine Stufe hat nie zwei Besitzer: Im neuen Weg ruht der alte ganz.
+    static let knowledgeStageKey = "pipelineKnowledgeStage"
+    @ObservationIgnored let usesKnowledgeStage: Bool
+    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
+    /// bleibt sie leer.
+    @ObservationIgnored var knowledgeStage: KnowledgeStage?
 
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
     /// danach die Größe neu.
@@ -638,6 +649,7 @@ public final class AppModel {
         // und die App wirkt, als könne sie nichts.
         self.automaticAnalysis = Self.storedFlag(Self.automaticAnalysisKey, default: true)
         self.automaticFacts = Self.storedFlag(Self.automaticFactsKey, default: true)
+        self.usesKnowledgeStage = Self.storedFlag(Self.knowledgeStageKey, default: true)
         self.queuePaused = Self.storedFlag(Self.queuePausedKey, default: false)
         // Aus, solange dem Build die Berechtigung für Private Cloud Compute
         // fehlt. Ohne sie ginge keine Anfrage an Apples Server, der Schalter
@@ -858,10 +870,14 @@ public final class AppModel {
         // Ein neuer Speicher ist ein neuer Start. Auch für die Fakten: was
         // wartete, gehörte zum alten Speicher, und gesucht wird ohne Wartezeit.
         restoreAttempted = false
-        factsQueue = []
-        tagsQueue = []
-        tagsCurrent = []
-        factsBackfilled = false
+        if let knowledgeStage {
+            await knowledgeStage.reset(store: newStore)
+        } else {
+            factsQueue = []
+            tagsQueue = []
+            tagsCurrent = []
+            factsBackfilled = false
+        }
         await load()
     }
 
@@ -1184,7 +1200,8 @@ public final class AppModel {
         if !added.isEmpty { emit(.episodesAdded(added, .automatic)) }
         emit(.feedsRefreshed(byUser: byUser))
         await prepareNewEpisodes()
-        await queueMissingFacts()
+        // Die Stufe „Wissen“ gleicht auf `feedsRefreshed` selbst ab.
+        if knowledgeStage == nil { await queueMissingFacts() }
         await refreshRelevantToday()
         await tidyLocalAudio()
         // Neue Folgen können ein Themen-Update füllen. Ohne zu warten: das
@@ -1749,6 +1766,7 @@ public final class AppModel {
         guard queuePaused else { return }
         queuePaused = false
         queueConditionsChanged()
+        // Die Stufe „Wissen“ sieht das offene Tor selbst.
         startFactsWorker()
     }
 
@@ -1770,6 +1788,9 @@ public final class AppModel {
         facts?.cancel()
         await transcripts?.value
         await facts?.value
+        // Die Stufe „Wissen“ hält selbst an, wartet auf die laufende Folge
+        // und leert dann ihre Warteschlangen.
+        await knowledgeStage?.cancelAll()
         let plan = AnalysisQueueControl.cancelAll(
             running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
         // Auch Downloads, die im Hintergrund weiterliefen. Lädt „Laden
@@ -1784,12 +1805,14 @@ public final class AppModel {
             if stages[id] != .failed { stages[id] = nil }
         }
         analysisQueue.removeAll()
-        // Fakten kommen erst nach dem nächsten Start wieder von selbst dazu.
-        factsDeferred.formUnion(factsQueue.map(\.id))
-        factsQueue.removeAll()
-        factsRequested.removeAll()
-        tagsQueue.removeAll()
-        factsWait = nil
+        if knowledgeStage == nil {
+            // Fakten kommen erst nach dem nächsten Start wieder von selbst dazu.
+            factsDeferred.formUnion(factsQueue.map(\.id))
+            factsQueue.removeAll()
+            factsRequested.removeAll()
+            tagsQueue.removeAll()
+            factsWait = nil
+        }
         activity = nil
     }
 
@@ -1810,9 +1833,9 @@ public final class AppModel {
                 onExpire: { [weak self] in self?.transcriptTimeExpired() })
             self.transcriptContinuation = background
             // Solange Transkripte entstehen, dürfen die Fakten mitlaufen,
-            // auch im Hintergrund. Endet die Phase, hält `releaseFactsGrant`
-            // sie an, wenn die App nicht vorn ist.
-            self.factsGrants += 1
+            // auch im Hintergrund. Endet die Phase, gibt die Leihe den
+            // Träger zurück, und die Fakten halten an, wenn die App nicht vorn ist.
+            let carrier = self.holdCarrier(.continued)
             var retried: Set<EpisodeID> = []
             while !Task.isCancelled, let index = self.analysisQueue.firstIndex(where: { self.mayRunNow($0) }) {
                 let next = self.analysisQueue.remove(at: index)
@@ -1839,7 +1862,7 @@ public final class AppModel {
             }
             background.end()
             self.transcriptContinuation = nil
-            self.releaseFactsGrant()
+            self.releaseCarrier(carrier)
             self.analysisTask = nil
             self.analyzing = nil
             self.activity = nil
@@ -2006,19 +2029,21 @@ public final class AppModel {
                 return false
             }
             analyzedEpisodes.insert(episode.id)
-            transcriptChangedForTags(episode.id)
-            // Transkript und Belege sind gespeichert. Das Weitergeben darunter
-            // bleibt, bis die Stufen übernehmen. Ohne `await`. Wer die Folge
-            // wollte, gilt jetzt und nicht beim Start: „Transkript jetzt
+            // Transkript und Belege sind gespeichert. Ohne `await`. Wer die
+            // Folge wollte, gilt jetzt und nicht beim Start: „Transkript jetzt
             // erstellen“ während des Laufs macht daraus eine Anforderung von
-            // Hand, und die Ansage unten richtet sich danach.
+            // Hand, und die Ansage unten richtet sich danach. Die Stufe
+            // „Wissen“ reiht die Fakten auf `evidenceReady` selbst ein.
             emitTranscriptFinished(
                 episode.id, media: MediaVersionID(stable: audioURL.absoluteString),
                 origin: transcriptOrigin(of: episode.id))
-            // Die Fakten kommen in ihre eigene Warteschlange, vor dem ersten
-            // `await`: eine Löschung danach nimmt sie dort wieder heraus. Das
-            // nächste Transkript wartet nicht auf sie.
-            if automaticFacts { enqueueFacts(episode) }
+            if knowledgeStage == nil {
+                transcriptChangedForTags(episode.id)
+                // Die Fakten kommen in ihre eigene Warteschlange, vor dem
+                // ersten `await`: eine Löschung danach nimmt sie dort wieder
+                // heraus. Das nächste Transkript wartet nicht auf sie.
+                if automaticFacts { enqueueFacts(episode) }
+            }
             // Nur was jemand selbst angefordert hat, wird angesagt. Das
             // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
             if automaticallyQueued.remove(episode.id) == nil {
@@ -2185,7 +2210,7 @@ public final class AppModel {
             captionFailures[episode.id.rawValue] = nil
             supadataRestingUntil = nil
             analyzedEpisodes.insert(episode.id)
-            transcriptChangedForTags(episode.id)
+            if knowledgeStage == nil { transcriptChangedForTags(episode.id) }
             // Wie bei Ton: wer die Folge jetzt will, vor dem Vermerk unten.
             emitTranscriptFinished(
                 episode.id, media: CaptionAnalysis.mediaVersionID(watchURL: watchURL),
@@ -2197,7 +2222,7 @@ public final class AppModel {
             if let reloaded = try? await store.episodes(ids: [episode.id]) {
                 RemoteMediaRegistry.shared.register(reloaded)
             }
-            if automaticFacts { enqueueFacts(episode) }
+            if knowledgeStage == nil, automaticFacts { enqueueFacts(episode) }
             if automaticallyQueued.remove(episode.id) == nil {
                 AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(episode.title)")).post()
             }
@@ -3647,6 +3672,9 @@ extension AppModel {
                 Self.setFactGaps([], for: id)
                 Self.setTaggingProgress(nil, for: id)
             }
+            // Was die Stufe „Wissen“ zu den Folgen vorhatte: Warteschlange,
+            // erstes Sehen und letzter Fehlschlag.
+            PipelineIntents().forget(gone)
             // Je eine Zuweisung: jede schreibt die ganze Liste neu.
             let raw = Set(ids.map(\.rawValue))
             let files = prefetchedFiles.filter { !raw.contains($0.key) }

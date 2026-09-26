@@ -34,7 +34,9 @@ extension AppModel {
     /// Darf die Einordnung jetzt arbeiten? Wie die Fakten, und zusätzlich
     /// in der leichten Hintergrundaufgabe `com.podcastai.tagging`.
     /// In der Pause arbeitet auch sie nicht.
-    var tagsMayRun: Bool { factsMayRun || (tagGrants > 0 && !queueHeld) }
+    var tagsMayRun: Bool {
+        pipeline?.gate.mayRun(.tags, origin: .automatic) ?? factsMayRun
+    }
 
     /// Ist ein Modell für Tags da oder wird es gerade vorbereitet?
     var tagsModelExpected: Bool {
@@ -55,12 +57,18 @@ extension AppModel {
     /// `origin`: wer die Arbeit wollte. Nach den Fakten einer Folge erben die
     /// Tags die Herkunft des Faktenlaufs. Den Vorrang je Aufruf bestimmt
     /// daraus ``AIPriorityPolicy``.
+    ///
+    /// Das Ergebnis sagt dem Besitzer der Warteschlange, ob die Kapitel-Tags
+    /// jetzt zum aktuellen Transkript passen (`current`). Bei `.failed`
+    /// merkt er sich die Folge für diesen Start.
     @discardableResult
-    func prepareChapterTags(for episode: Episode, origin: Origin) async -> ChapterTagsOutcome {
-        guard !taggingInProgress.contains(episode.id) else { return .nothingToDo }
+    func prepareChapterTags(
+        for episode: Episode, origin: Origin, removalTicket: RemovalLedger.Ticket? = nil
+    ) async -> ChapterTagsRun {
+        guard !taggingInProgress.contains(episode.id) else { return ChapterTagsRun(.nothingToDo) }
         taggingInProgress.insert(episode.id)
         defer { taggingInProgress.remove(episode.id) }
-        let ticket = removals.ticket
+        let ticket = removalTicket ?? removals.ticket
 
         // Nur die aktuelle Fassung, in ihrer neuesten Revision. Revisionen
         // zählen je Fassung, eine überholte kann die höhere tragen. Welche
@@ -71,30 +79,29 @@ extension AppModel {
         let preferred = (try? await store.episodes(ids: [episode.id]))?.first?.currentMediaVersionID
             ?? episode.currentMediaVersionID
         guard let current = ChapterTagVersion.evidence(stored, preferred: preferred) else {
-            return .nothingToDo
+            return ChapterTagsRun(.nothingToDo)
         }
         let (mediaVersionID, revision, evidence) = current
         guard let backlog = try? await store.chapterTagBacklog(among: [episode.id]),
               backlog.contains(episode.id), !wasRemoved(episode.id, since: ticket) else {
             Self.setTaggingProgress(nil, for: episode.id)
-            if !wasRemoved(episode.id, since: ticket) { tagsCurrent.insert(episode.id) }
-            return .nothingToDo
+            return ChapterTagsRun(.nothingToDo, current: !wasRemoved(episode.id, since: ticket))
         }
 
         await refreshModelStatus()
         let tier: ModelTier
         switch modelStatus.resolve(.tag) {
         case .success(let resolved): tier = resolved
-        case .failure: return .modelUnavailable
+        case .failure: return ChapterTagsRun(.modelUnavailable)
         }
         // Private Cloud Compute braucht Netz. Automatisch gilt dafür, was
         // fürs Vorbereiten gilt: Datensparmodus immer, Mobilfunk mit „Nur im WLAN“.
         let cloudPermitted = preparationWait == nil && !isOffline
-        if tier == .privateCloudCompute, !cloudPermitted { return .waiting }
+        if tier == .privateCloudCompute, !cloudPermitted { return ChapterTagsRun(.waiting) }
 
         let sections = await Self.chapterSections(
             chapters: feedChapters(for: episode), duration: episode.declaredDuration, evidence: evidence)
-        guard !sections.isEmpty else { return .nothingToDo }
+        guard !sections.isEmpty else { return ChapterTagsRun(.nothingToDo) }
         var progress = Self.taggingProgress(for: episode.id).flatMap {
             $0.matches(mediaVersionID: mediaVersionID, transcriptRevision: revision, sections: sections) ? $0 : nil
         } ?? ChapterTaggingProgress(mediaVersionID: mediaVersionID, transcriptRevision: revision, sections: sections)
@@ -118,19 +125,19 @@ extension AppModel {
             Self.setTaggingProgress(progress, for: episode.id)
         }
         /// Die Folge ist weg: kein Stand, und die neuen Tags gehen mit.
-        func abandon() async -> ChapterTagsOutcome {
+        func abandon() async -> ChapterTagsRun {
             Self.setTaggingProgress(nil, for: episode.id)
             if !created.isEmpty {
                 let elsewhere = Self.tagsInTaggingProgress(except: [episode.id])
                 _ = try? await store.removeWrites(created, keepingTags: elsewhere)
             }
-            return .nothingToDo
+            return ChapterTagsRun(.nothingToDo)
         }
 
         for section in progress.remaining(sections) {
             if Task.isCancelled || !tagsMayRun {
                 keep(progress)
-                return .cancelled
+                return ChapterTagsRun(.cancelled)
             }
             let material = ChapterMaterial(
                 section: section, evidence: passages[section.index],
@@ -168,16 +175,15 @@ extension AppModel {
                     continue
                 case .generationFailed:
                     keep(progress)
-                    tagsFailed.insert(episode.id)
-                    return .failed
+                    return ChapterTagsRun(.failed)
                 case .modelUnavailable:
                     keep(progress)
                     await refreshModelStatus()
-                    return .modelUnavailable
+                    return ChapterTagsRun(.modelUnavailable)
                 }
             } catch {
                 keep(progress)
-                return .cancelled
+                return ChapterTagsRun(.cancelled)
             }
             Self.recordTaggingPace(log.all)
             guard !wasRemoved(episode.id, since: ticket) else { return await abandon() }
@@ -223,21 +229,19 @@ extension AppModel {
             }
         } catch {
             keep(progress)
-            tagsFailed.insert(episode.id)
-            return .failed
+            return ChapterTagsRun(.failed)
         }
         Self.setTaggingProgress(nil, for: episode.id)
         // Gleich nach dem Speichern gelöscht: genau diese Kapitel-Tags wieder
         // weg, vor jedem Vermerk auf diesem Gerät.
         if wasRemoved(episode.id, since: ticket) { return await abandon() }
-        tagsCurrent.insert(episode.id)
         // Kein Kapitel bekam ein Tag: es entsteht keine Zeile, und ohne
         // Merkzeichen reihte der nächste Start die Folge wieder ein.
         if progress.tags.isEmpty {
             var settled = StoredEpisodeIDs(key: Self.tagsSettledKey)
             settled.insert(episode.id)
         }
-        return .stored
+        return ChapterTagsRun(.stored, current: true)
     }
 
     /// Läuft außerhalb des Hauptthreads, denn Kandidaten und Satzvektoren
@@ -306,11 +310,12 @@ extension AppModel {
             }
             let next = tagsQueue.removeFirst()
             // Aus dem Rückstand der Bibliothek, nicht nach den Fakten einer Folge.
-            let outcome = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
+            let run = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
                 await prepareChapterTags(for: next, origin: .backlog)
             }
-            emitTagsDone(next.id, outcome, origin: .backlog)
-            switch outcome {
+            if run.current { tagsCurrent.insert(next.id) }
+            emitTagsDone(next.id, run.outcome, origin: .backlog)
+            switch run.outcome {
             case .stored:
                 continue
             case .nothingToDo:
@@ -321,6 +326,7 @@ extension AppModel {
                 // Ein zweiter Anlauf erst beim nächsten Start, ohne die Folge
                 // dauerhaft aufzugeben: der gemerkte Stand bleibt. Meist ist
                 // das Modell ausgelastet, also etwas Luft vor der nächsten.
+                tagsFailed.insert(next.id)
                 await pauseBetweenFactRuns()
                 continue
             case .modelUnavailable, .waiting, .cancelled:
@@ -350,13 +356,16 @@ extension AppModel {
 
     /// Für die leichte Hintergrundaufgabe `com.podcastai.tagging`: nur Tags,
     /// keine Fakten. Endet die Zeit, bleibt der Stand der Folge gemerkt.
+    ///
+    /// Die Zeit vom System hält die Hintergrundaufgabe selbst am Tor
+    /// (`holdCarrier(.taggingTask)` in `BackgroundWork`).
     public func processPendingTags() async {
-        tagGrants += 1
-        defer {
-            tagGrants = max(0, tagGrants - 1)
-            pauseFactsWithoutTime()
-        }
         await refreshModelStatus()
+        if let knowledgeStage {
+            await knowledgeStage.reconcileTags()
+            await knowledgeStage.untilIdle()
+            return
+        }
         if let withFacts = try? await store.episodeIDsWithFacts() {
             await queueMissingChapterTags(withFacts: withFacts)
         }
@@ -385,10 +394,7 @@ extension AppModel {
 
     /// Folgen, die ohne ein einziges Tag eingeordnet sind. Je Systemversion,
     /// wie bei den Fakten: ein neues Modell bekommt eine neue Gelegenheit.
-    static var tagsSettledKey: String {
-        let system = ProcessInfo.processInfo.operatingSystemVersion
-        return "tagsSettled-\(system.majorVersion).\(system.minorVersion)"
-    }
+    static var tagsSettledKey: String { KnowledgeMarks.tagsSettledKey }
 
     static let taggingProgressKey = "chapterTaggingProgress"
     /// Je Systemversion: Ein neues Modell wird neu gemessen. Sonst bliebe

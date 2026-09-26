@@ -4,19 +4,23 @@
 //
 //  Die App an der Stufen-Pipeline (docs/plan-pipeline.md).
 //
-//  Schritt 0: Der alte Code sendet an den Stellen, an denen er bisher die
-//  nächste Arbeit direkt aufruft, ein Ereignis an den `PipelineHost`. Die
-//  direkten Aufrufe bleiben. Zu hören tut noch keine Stufe, nur die Tests im
-//  Paket. Ein Ereignis ohne Zuhörer fällt im Host weg und kostet fast
-//  nichts. Ereignisse mit Eingangsfassung müssten erst im Store lesen; das
-//  geschieht nur, wenn jemand zuhört (`emit(_:of:media:_:)`).
+//  Der alte Code sendet an den Stellen, an denen er bisher die nächste
+//  Arbeit direkt aufruft, ein Ereignis an den `PipelineHost`. Ein Ereignis
+//  ohne Zuhörer fällt im Host weg und kostet fast nichts. Ereignisse mit
+//  Eingangsfassung müssen erst im Store lesen; das geschieht nur, wenn
+//  jemand zuhört (`emit(_:of:media:_:)`).
 //
-//  Die Senke ist das Ende der Pipeline auf dem Hauptakteur. Sie wird die
-//  Felder schreiben, die die Oberfläche heute liest (`stages`,
-//  `stageDetails`, `factsProgress`, `chapterTagsRevision` und so weiter),
-//  sobald die Stufen übernehmen. Bis dahin hört sie nicht zu und schreibt
-//  nichts, denn sonst stünde jede Änderung doppelt da und jede Ansage käme
-//  zweimal.
+//  Seit Schritt 3 hört die Stufe „Wissen“ zu (`KnowledgeStage` im Paket).
+//  Im neuen Weg ersetzt `evidenceReady` den direkten Aufruf von
+//  `enqueueFacts`, `feedsRefreshed` den von `queueMissingFacts` und
+//  `episodesRemoved` den von `dropFromFactsQueue`.
+//
+//  Die Senke ist das Ende der Pipeline auf dem Hauptakteur. Sie schreibt
+//  die Felder, die die Oberfläche heute liest, sobald eine Stufe sie
+//  übernommen hat: für „Wissen“ `factsQueue`, `gatheringFacts`,
+//  `factsWait`, `factsIssues` und `chapterTagsRevision`. Stufe und Angabe
+//  der Transkripte folgen mit Schritt 5; bis dahin schreibt sie dort nichts,
+//  denn sonst stünde jede Änderung doppelt da und jede Ansage käme zweimal.
 //
 
 import Foundation
@@ -28,16 +32,34 @@ import PodcastAIKit
 final class PipelineSink {
 
     private weak var model: AppModel?
+    private var listeners: [Task<Void, Never>] = []
 
     init(model: AppModel) {
         self.model = model
     }
 
+    /// Hört auf das Postfach der Senke. Einmal, aus `AppBootstrap.start`.
+    func start(host: PipelineHost) {
+        guard listeners.isEmpty else { return }
+        let mailbox = host.mailbox(for: .sink)
+        listeners.append(Task { [weak self] in
+            for await event in mailbox { self?.receive(event) }
+        })
+    }
+
+    /// Schreibt den Stand der Stufe „Wissen“ in die Felder, die Ansichten lesen.
+    func follow(_ stage: KnowledgeStage) {
+        let snapshots = stage.snapshots
+        listeners.append(Task { [weak self] in
+            for await snapshot in snapshots { self?.apply(snapshot) }
+        })
+    }
+
     /// Was die Senke mit einem Ereignis tut. Erschöpfend, damit ein neues
-    /// Ereignis hier eine Entscheidung verlangt. In Schritt 0 hört die Senke
-    /// noch nicht zu; jeder Fall nennt, welcher Schritt ihn füllt.
+    /// Ereignis hier eine Entscheidung verlangt. Jeder offene Fall nennt,
+    /// welcher Schritt ihn füllt.
     func receive(_ event: PipelineEvent) {
-        guard model != nil else { return }
+        guard let model else { return }
         switch event {
         case .transcriptSaved:
             // Schritt 5b: Stufe `.transcribed` der Folge.
@@ -46,11 +68,13 @@ final class PipelineSink {
             // Schritt 5b: Stufe `.evidenceExtracted`. Angesagt wird nur bei
             // `.user`, nie für Arbeit, die `reconcile()` gefunden hat.
             break
-        case .tagsDone:
-            // Schritt 3: `chapterTagsRevision` steigt.
-            break
+        case .tagsDone(_, _, let outcome, _):
+            // Neue Kapitel-Tags: Offene Folgen und Tag-Seiten laden sie neu.
+            // Ein Themen-Update lösen sie nicht aus (Entscheidung 6).
+            if outcome == .stored { model.chapterTagsRevision += 1 }
         case .episodesRemoved:
-            // Schritt 3 und 5: Stufe, Angabe und Fortschritt der Folgen fallen weg.
+            // Schritt 5: Stufe, Angabe und Fortschritt der Folgen fallen weg.
+            // Fakten und Vermerke räumt bis dahin die Pflege.
             break
         case .episodesAdded, .audioAvailable, .audioRemoved, .transcriptFailed, .transcriptsIdle,
              .factsDone, .feedsRefreshed, .editionPublished, .changedElsewhere:
@@ -58,11 +82,74 @@ final class PipelineSink {
             break
         }
     }
+
+    /// Ein neuer Stand der Stufe „Wissen“. Geschrieben wird nur, was sich
+    /// geändert hat, damit keine Ansicht ohne Grund neu zeichnet. Die Sätze
+    /// entstehen hier, mit denselben Schlüsseln wie bisher im Modell.
+    func apply(_ snapshot: KnowledgeSnapshot) {
+        guard let model else { return }
+        if model.factsQueue.map(\.id) != snapshot.queue.map(\.id) { model.factsQueue = snapshot.queue }
+        if model.gatheringFacts?.id != snapshot.running?.id { model.gatheringFacts = snapshot.running }
+        let wait = snapshot.waitReason.map { String(localized: "wartet: \($0.message)") }
+        if model.factsWait != wait { model.factsWait = wait }
+        let issues = snapshot.issues.mapValues { issue in
+            switch issue {
+            case .note(let note): note
+            case .unspecified: String(localized: "Die Fakten konnten nicht ermittelt werden.")
+            }
+        }
+        if model.factsIssues != issues { model.factsIssues = issues }
+    }
 }
 
-// MARK: - Senden aus dem alten Code
+// MARK: - Stufe „Wissen“
+
+/// Die Arbeit an einer Folge für die Stufe „Wissen“. In Schritt 3a laufen
+/// Fakten und Tags noch auf dem Hauptakteur, über `prepareFacts` und
+/// `prepareChapterTags`. Die Stufe führt Warteschlange, Reihenfolge und Tor.
+struct AppKnowledgeWork: KnowledgeWorking {
+    let model: AppModel
+
+    func gatherFacts(for episode: Episode, force: Bool, origin: Origin,
+                     since ticket: RemovalLedger.Ticket) async -> FactsOutcome {
+        await model.prepareFacts(for: episode, force: force, removalTicket: ticket)
+    }
+
+    func classifyChapters(of episode: Episode, origin: Origin,
+                          since ticket: RemovalLedger.Ticket) async -> ChapterTagsRun {
+        await model.prepareChapterTags(for: episode, origin: origin, removalTicket: ticket)
+    }
+}
 
 extension AppModel {
+
+    /// Was die Stufe beim Einreihen wissen muss.
+    var knowledgeSettings: KnowledgeSettings {
+        KnowledgeSettings(isLoaded: isLoaded, automaticFacts: automaticFacts, analyzed: analyzedEpisodes)
+    }
+
+    /// Legt die Stufe „Wissen“ an, wenn der Schalter an ist. Einmal, aus
+    /// `AppBootstrap.start`, nach Host und Senke.
+    func startKnowledgeStage() {
+        guard usesKnowledgeStage, knowledgeStage == nil, let pipeline, let pipelineSink else { return }
+        let environment = KnowledgeStage.Environment(
+            settings: { [weak self] in
+                await MainActor.run { self?.knowledgeSettings ?? .notLoaded }
+            },
+            refreshModel: { [weak self] in
+                guard let self else { return ModelAvailabilityMonitor.shared.current }
+                await self.refreshModelStatus()
+                return await MainActor.run { self.modelStatus }
+            })
+        let stage = KnowledgeStage(
+            store: store, gate: pipeline.gate, ledger: removals, host: pipeline,
+            work: AppKnowledgeWork(model: self), environment: environment)
+        knowledgeStage = stage
+        pipelineSink.follow(stage)
+        Task { await stage.start() }
+    }
+
+// MARK: - Senden aus dem alten Code
 
     /// Sendet ein Ereignis an die Pipeline. Vor `AppBootstrap.start` fällt es weg.
     func emit(_ event: PipelineEvent) {

@@ -7,11 +7,10 @@
 //  fest in der Auswahl der Tags und still als Standard bei der Relevanz
 //  eines Themen-Updates. Jetzt fragt jeder Aufrufer hier.
 //
-//  Die Tabelle trägt die Werte von 0.12. Wer ruft, gibt trotzdem schon die
-//  echte Herkunft mit: Dass Tags nach „Jetzt ermitteln“ und die Relevanz
-//  einer angeforderten Ausgabe mit `.user` laufen (Entscheidung 1 in
-//  docs/plan-pipeline.md), ändert dann nur diese Tabelle, die Tags mit der
-//  Stufe „Wissen“, die Relevanz mit den Ausgaben.
+//  Wer ruft, gibt die echte Herkunft mit. Dass Tags nach „Jetzt ermitteln“
+//  und die Relevanz einer angeforderten Ausgabe mit `.user` laufen
+//  (Entscheidung 1 in docs/plan-pipeline.md), ändert nur diese Tabelle: die
+//  Tags seit der Stufe „Wissen“, die Relevanz mit den Ausgaben.
 //
 //  Die Tabelle regelt den Vorrang je Aufruf, nicht die Reihenfolge der
 //  Folgen und nicht, ob Arbeit überhaupt laufen darf. Das bleiben die
@@ -40,9 +39,9 @@ public enum AIPriorityPolicy {
             // von selbst kommt.
             force ? .user : .background
         case .tags:
-            // Fest im Hintergrund, auch nach „Jetzt ermitteln“. Mit der Stufe
-            // „Wissen“ erben die Tags die Herkunft des Faktenlaufs.
-            .background
+            // Die Tags erben die Herkunft des Faktenlaufs: nach „Jetzt
+            // ermitteln“ vorn, sonst im Hintergrund, auch aus dem Rückstand.
+            origin == .user ? .user : .background
         case .relevance:
             // Im Hintergrund, auch für eine angeforderte Ausgabe und eine
             // Anfrage über Siri. Mit den Ausgaben als Stufe kommt `.user`.

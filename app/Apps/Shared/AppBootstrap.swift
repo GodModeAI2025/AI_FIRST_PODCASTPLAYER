@@ -48,7 +48,7 @@ public enum AppBootstrap {
         configureAudioSession()
         // Die Pipeline einmal je Prozess, nicht je Szene: auf dem iPad läuft
         // `.task` je Fenster. Vor allem anderen, damit kein Ereignis aus dem
-        // Start ins Leere geht. In Schritt 0 hört noch keine Stufe zu.
+        // Start ins Leere geht.
         startPipeline(for: model)
         // Vor dem ersten Bild: Cover aus Katalog und Mediathek teilen sich
         // einen größeren Zwischenspeicher.
@@ -67,14 +67,24 @@ public enum AppBootstrap {
         return background
     }
 
-    /// Legt Host und Senke an und gibt sie dem Modell. Ein zweiter Aufruf
-    /// für dasselbe Modell ändert nichts.
+    /// Legt Host, Senke und die Stufe „Wissen“ an und gibt sie dem Modell.
+    /// Ein zweiter Aufruf für dasselbe Modell ändert nichts.
+    ///
+    /// Reihenfolge laut Plan: erst abonnieren, dann gleicht `load()` mit dem
+    /// Store ab. Das Tor steht schon offen, doch Arbeit bekommt die Stufe
+    /// erst über Ereignisse und den Abgleich.
     private static func startPipeline(for model: AppModel) {
         guard model.pipeline == nil else { return }
         // Das Tor beginnt mit dem Stand beim Start, auch nach einem Start im
-        // Hintergrund. Gespeist wird es erst ab Schritt 3a.
-        model.pipeline = PipelineHost(gate: WorkGate(inForeground: model.appInForeground))
-        model.pipelineSink = PipelineSink(model: model)
+        // Hintergrund und mit einer Pause, die über einen Neustart gilt.
+        let gate = WorkGate(inForeground: model.appInForeground)
+        gate.setPaused(model.queuePaused)
+        let host = PipelineHost(gate: gate)
+        model.pipeline = host
+        let sink = PipelineSink(model: model)
+        model.pipelineSink = sink
+        sink.start(host: host)
+        model.startKnowledgeStage()
     }
 
     /// Was `openStore()` geöffnet hat, und was der Nutzer davon wissen muss.

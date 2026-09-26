@@ -151,9 +151,9 @@ extension AppModel {
         // zeichnete sonst alles neu, was den Zustand liest.
         let status = await ModelAvailabilityMonitor.shared.refresh(allowPrivateCloud: allowPrivateCloudCompute)
         if status != modelStatus { modelStatus = status }
-        // Was die App tut, wenn ein Modell bereit wird, bleibt hier, bis die
-        // Stufe „Wissen“ den Zustand selbst liest.
-        guard isLoaded else { return }
+        // Was die App tut, wenn ein Modell bereit wird: Die Stufe „Wissen“
+        // liest den Zustand selbst beim Monitor. Nur der alte Weg hier.
+        guard isLoaded, knowledgeStage == nil else { return }
         // Nur ein Modell für Tags, etwa Private Cloud Compute ohne Gerätemodell:
         // die Einordnung darf laufen, die Fakten warten.
         guard factsModelReady else {
@@ -1438,30 +1438,20 @@ extension AppModel {
     /// gescheitert sind, der vorbeigeht: Last, Zeitüberschreitung. Je Folge
     /// die Kennungen der Abschnitte. Nur auf diesem Gerät, ohne Eintrag in
     /// der Datenbank.
-    private static let factGapsKey = "com.podcastai.factGaps"
-
-    private static var allFactGaps: [String: [String]] {
-        DeviceState.shared.value([String: [String]].self, for: factGapsKey) {
-            UserDefaults.standard.dictionary(forKey: factGapsKey) as? [String: [String]]
-        } ?? [:]
-    }
-
+    /// Die Datei steht seit der Stufe „Wissen“ in `KnowledgeMarks` (Paket),
+    /// unter demselben Namen.
     static func factGaps(of id: EpisodeID) -> Set<String> {
-        Set(allFactGaps[id.rawValue] ?? [])
+        KnowledgeMarks.factGaps(of: id)
     }
 
     /// Folgen, denen nach dem letzten Lauf Abschnitte fehlen.
     static var episodesWithFactGaps: Set<EpisodeID> {
-        Set(allFactGaps.keys.map(EpisodeID.init(rawValue:)))
+        KnowledgeMarks.episodesWithFactGaps()
     }
 
     /// Merkt sich die Lücken einer Folge. Ohne Lücken fällt der Eintrag weg.
     static func setFactGaps(_ gaps: Set<String>, for id: EpisodeID) {
-        var all = allFactGaps
-        let previous = all[id.rawValue]
-        all[id.rawValue] = gaps.isEmpty ? nil : gaps.sorted()
-        guard all[id.rawValue] != previous else { return }
-        DeviceState.shared.set(all, for: factGapsKey)
+        KnowledgeMarks.setFactGaps(gaps, for: id)
     }
 
     /// Merkt sich die Lücken, außer die Folge wurde inzwischen gelöscht.
@@ -1567,6 +1557,10 @@ extension AppModel {
     /// „Jetzt ermitteln“ und „Neu ermitteln“: die Folge kommt als Nächste
     /// dran, rechnet neu und meldet, was fehlt.
     public func requestFacts(for episode: Episode) {
+        if let knowledgeStage {
+            Task { await knowledgeStage.request(episode) }
+            return
+        }
         var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
         settled.remove(episode.id)
         var tagsSettled = StoredEpisodeIDs(key: Self.tagsSettledKey)
@@ -1608,6 +1602,10 @@ extension AppModel {
     /// Gerät erst, wenn nach `factsSyncGrace` noch immer keine da sind.
     /// Beim Start gilt das nicht: was dann fehlt, fehlt schon länger.
     func queueMissingFacts() async {
+        if let knowledgeStage {
+            await knowledgeStage.reconcile()
+            return
+        }
         guard automaticFacts, isLoaded, let withFacts = try? await store.episodeIDsWithFacts() else { return }
         // Tags brauchen nur ein Modell für Tags. Auf einem Gerät ohne
         // Gerätemodell, aber mit Private Cloud Compute, gibt es sie trotzdem.
@@ -1662,6 +1660,10 @@ extension AppModel {
     /// „Fakten automatisch sammeln“ ist aus: was von selbst wartet, fällt
     /// heraus. Angefordertes und was gerade läuft, bleibt.
     func dropAutomaticFacts() {
+        if let knowledgeStage {
+            Task { await knowledgeStage.dropAutomatic() }
+            return
+        }
         factsQueue.removeAll { !factsRequested.contains($0.id) }
         tagsQueue.removeAll()
     }
@@ -1683,7 +1685,7 @@ extension AppModel {
     /// keines auf. Ohne Zeit dafür, also im Hintergrund ohne Zusage des
     /// Systems, wartet die Warteschlange, bis die App wieder vorn ist.
     func startFactsWorker() {
-        guard factsTask == nil,
+        guard knowledgeStage == nil, factsTask == nil,
               (factsMayRun && !factsQueue.isEmpty) || (tagsMayRun && !tagsQueue.isEmpty) else { return }
         factsTask = Task(priority: .utility) { [weak self] in
             await self?.runFactsQueue()
@@ -1699,13 +1701,16 @@ extension AppModel {
     /// Warteschlange abarbeiten, bis sie leer ist, das Modell fehlt oder die
     /// Zeit endet. Endet die Zeit, bleibt die Folge vorn stehen und läuft
     /// beim nächsten Mal zuerst.
+    ///
+    /// Die Zeit vom System hält die Hintergrundaufgabe selbst am Tor
+    /// (`holdCarrier(.analysisTask)` in `BackgroundWork`).
     public func processPendingFacts() async {
-        // Die Aufgabe hat Zeit vom System. Solange sie läuft, dürfen die
-        // Fakten auch im Hintergrund arbeiten.
-        factsGrants += 1
-        defer { releaseFactsGrant() }
         await refreshModelStatus()
         await queueMissingFacts()
+        if let knowledgeStage {
+            await knowledgeStage.untilIdle()
+            return
+        }
         // Eine eben angehaltene Arbeit räumt vielleicht noch auf. Danach neu.
         if let stopping = factsTask, stopping.isCancelled {
             await stopping.value
@@ -1739,8 +1744,26 @@ extension AppModel {
     /// fortgesetzten Verarbeitung entstehen. Der Ton im Hintergrund zählt
     /// nicht, er hält die App nur für die Wiedergabe wach. Pausiert oder
     /// beim Leeren der Warteschlange nie.
+    ///
+    /// Die Regel steht im Tor (`WorkGate`), das Pause, Vordergrund und die
+    /// Leihen der Träger kennt. Ohne Pipeline, etwa in einer Vorschau, gilt
+    /// nur der Vordergrund.
     var factsMayRun: Bool {
-        !queueHeld && (appInForeground || factsGrants > 0)
+        pipeline?.gate.mayRun(.facts, origin: .automatic) ?? (!queueHeld && appInForeground)
+    }
+
+    /// Meldet Zeit vom System am Tor an: die fortgesetzte Verarbeitung der
+    /// Transkripte, `com.podcastai.analysis` oder `com.podcastai.tagging`.
+    /// Bis 0.13 zählten das `factsGrants` und `tagGrants`.
+    func holdCarrier(_ carrier: WorkCarrier) -> WorkLease? {
+        pipeline?.gate.hold(carrier)
+    }
+
+    /// Gibt einen Träger zurück. Die Stufe „Wissen“ sieht das Tor selbst,
+    /// der alte Weg hält die Fakten hier an, wenn keine Zeit mehr bleibt.
+    func releaseCarrier(_ lease: WorkLease?) {
+        lease?.release()
+        pauseFactsWithoutTime()
     }
 
     /// Beobachtet, wann die App in den Hintergrund geht und wann sie wieder
@@ -1759,6 +1782,7 @@ extension AppModel {
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     self.returningFromBackground = true
+                    self.pipeline?.gate.setInForeground(false)
                     // Was dieses Gerät sich gemerkt hat, liegt jetzt auf der
                     // Platte, falls das System die App gleich beendet.
                     DeviceState.shared.flush()
@@ -1770,6 +1794,7 @@ extension AppModel {
                                object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
+                    self.pipeline?.gate.setInForeground(true)
                     // Transkripte, die im Hintergrund pausierten, laufen weiter.
                     self.transcriptsBecameActive()
                     Task { await self.resumeFactsInForeground() }
@@ -1793,21 +1818,16 @@ extension AppModel {
     /// Warteschlange und läuft weiter, sobald die App wieder vorn ist oder
     /// das System Hintergrundzeit gibt.
     func pauseFactsWithoutTime() {
-        guard !factsMayRun else { return }
+        guard knowledgeStage == nil, !factsMayRun else { return }
         // Hat nur die Aufgabe für Tags Zeit, halten die Fakten an, die Tags nicht.
         guard gatheringFacts != nil || !tagsMayRun else { return }
         factsTask?.cancel()
     }
 
-    /// Eine Arbeit mit Hintergrundzeit ist zu Ende.
-    func releaseFactsGrant() {
-        factsGrants = max(0, factsGrants - 1)
-        pauseFactsWithoutTime()
-    }
-
     /// Wieder vorn: die Warteschlange läuft weiter. Kommt die App aus dem
     /// Hintergrund, kommt auch dazu, was dort gescheitert ist oder Lücken hat.
     func resumeFactsInForeground() async {
+        // Die Stufe „Wissen“ läuft über das offene Tor von selbst weiter.
         startFactsWorker()
         guard returningFromBackground else { return }
         returningFromBackground = false
@@ -1854,9 +1874,11 @@ extension AppModel {
                 switch outcome {
                 case .stored, .partial, .noFacts:
                     let tags = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
-                        await prepareChapterTags(for: next, origin: origin)
+                        await prepareChapterTags(for: next, origin: origin, removalTicket: ticket)
                     }
-                    emitTagsDone(next.id, tags, origin: origin)
+                    if tags.current { tagsCurrent.insert(next.id) }
+                    if tags.outcome == .failed { tagsFailed.insert(next.id) }
+                    emitTagsDone(next.id, tags.outcome, origin: origin)
                 default: break
                 }
                 // Während des Laufs gelöscht: Das Löschen hat die Folge schon
@@ -1932,10 +1954,7 @@ extension AppModel {
     /// keine überprüfbare Aussage. Das Einreihen lässt sie aus, „Jetzt
     /// ermitteln“ nicht. Je Systemversion, wie die abgelehnten Abschnitte:
     /// ein neues Modell bekommt eine neue Gelegenheit. Nur auf diesem Gerät.
-    static var factsSettledKey: String {
-        let system = ProcessInfo.processInfo.operatingSystemVersion
-        return "factsSettled-\(system.majorVersion).\(system.minorVersion)"
-    }
+    static var factsSettledKey: String { KnowledgeMarks.factsSettledKey }
 
     public func loadFacts(for episodeID: EpisodeID) async {
         if let stored = try? await store.facts(forEpisode: episodeID) {
@@ -1949,7 +1968,11 @@ extension AppModel {
                !StoredEpisodeIDs(key: Self.factsSettledKey).contains(episodeID),
                !factsDeferred.contains(episodeID),
                let episode = try? await store.episodes(ids: [episodeID]).first {
-                enqueueFacts(episode)
+                if let knowledgeStage {
+                    await knowledgeStage.enqueue(episode)
+                } else {
+                    enqueueFacts(episode)
+                }
             }
         }
     }
@@ -2613,7 +2636,8 @@ extension AppModel {
             // Nicht `removeFromAnalysisQueue`: das merkt sich ein „Entfernen“
             // des Nutzers, und ein neues Abo bereitete nie wieder etwas vor.
             dropFromAnalysisQueue(id)
-            dropFromFactsQueue(id)
+            // Die Stufe „Wissen“ bekommt `episodesRemoved` und bricht selbst ab.
+            if knowledgeStage == nil { dropFromFactsQueue(id) }
             // Die Datei geht mit der Folge. Bliebe der Vermerk, hielte das
             // Aufräumen sie nach einem neuen Abo für ausdrücklich geladen.
             keptOffline.remove(id)
@@ -2832,71 +2856,7 @@ extension AppModel {
 }
 
 /// Eine gemerkte Liste von Folgen auf diesem Gerät, etwa was jemand aus
-/// der Warteschlange genommen oder für unterwegs geladen hat.
+/// der Warteschlange genommen oder für unterwegs geladen hat. Der Typ
+/// `StoredIDs` liegt seit der Stufe „Wissen“ im Paket (PodcastAIPersistence).
 typealias StoredEpisodeIDs = StoredIDs<EpisodeSubject>
 
-/// Eine gemerkte Liste von Kennungen, etwa Folgen oder Podcasts. Nur auf
-/// diesem Gerät, als Datei in `DeviceState`, bis 0.10 in den
-/// Benutzereinstellungen. Die ältesten Einträge fallen ab einer Grenze weg.
-struct StoredIDs<Subject> {
-    let key: String
-    let limit: Int
-    private var ids: [TypedID<Subject>]
-    /// Dieselben Kennungen zum Nachsehen. Das Vorbereiten fragt für jede
-    /// Folge eines Archivs, ob sie hier steht.
-    private var lookup: Set<TypedID<Subject>>
-
-    init(key: String, limit: Int = 500) {
-        self.key = key
-        self.limit = limit
-        let stored = DeviceState.shared.value([String].self, for: key) {
-            UserDefaults.standard.stringArray(forKey: key)
-        }
-        ids = (stored ?? []).map(TypedID<Subject>.init(rawValue:))
-        lookup = Set(ids)
-    }
-
-    func contains(_ id: TypedID<Subject>) -> Bool { lookup.contains(id) }
-
-    mutating func insert(_ id: TypedID<Subject>) {
-        ids.removeAll { $0 == id }
-        ids.append(id)
-        if ids.count > limit { ids.removeFirst(ids.count - limit) }
-        lookup = Set(ids)
-        save()
-    }
-
-    /// Mehrere auf einmal, mit einem Schreiben statt einem je Kennung.
-    mutating func insert(contentsOf new: some Sequence<TypedID<Subject>>) {
-        let added = new.filter { !lookup.contains($0) }
-        guard !added.isEmpty else { return }
-        ids.append(contentsOf: added)
-        if ids.count > limit { ids.removeFirst(ids.count - limit) }
-        lookup = Set(ids)
-        save()
-    }
-
-    mutating func remove(_ id: TypedID<Subject>) {
-        guard lookup.contains(id) else { return }
-        ids.removeAll { $0 == id }
-        lookup.remove(id)
-        save()
-    }
-
-    mutating func removeAll() {
-        guard !ids.isEmpty else { return }
-        ids.removeAll()
-        lookup.removeAll()
-        save()
-    }
-
-    mutating func removeAll(where shouldRemove: (TypedID<Subject>) -> Bool) {
-        let kept = ids.filter { !shouldRemove($0) }
-        guard kept.count != ids.count else { return }
-        ids = kept
-        lookup = Set(ids)
-        save()
-    }
-
-    private func save() { DeviceState.shared.set(ids.map(\.rawValue), for: key) }
-}
