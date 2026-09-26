@@ -2141,6 +2141,9 @@ extension AppModel {
                 // Eine Übersetzung oder Nennung, die gerade für eine von
                 // ihnen läuft, legt danach nichts mehr an.
                 removals.markRemoved(ids)
+                // Auch die Stufen erfahren davon: Die Tags aus dem Rückstand
+                // kennen Folgen, die keine Liste geladen hat (Regel 5).
+                emit(.episodesRemoved(ids, .source(sourceID)))
                 let media = Self.localMediaIDs(of: unloaded)
                 let keys = unloaded.compactMap(metadataKey(for:))
                 let tags = ids.flatMap { id in
@@ -2296,7 +2299,11 @@ extension AppModel {
         _ purge: PendingPurge, report: LibraryStore.RemovalReport, marked: Set<EpisodeID>
     ) async {
         let unmarked = report.episodeIDs.filter { !marked.contains($0) }
-        if !unmarked.isEmpty { removals.markRemoved(unmarked) }
+        if !unmarked.isEmpty {
+            removals.markRemoved(unmarked)
+            // Wie beim Vormerken: erst das Löschprotokoll, dann die Stufen.
+            emit(.episodesRemoved(unmarked, purge.scope))
+        }
         var done = purge
         done.recordStoreRemoval(report)
         pendingPurges.update(purge.id) { $0.recordStoreRemoval(report) }

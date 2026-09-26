@@ -68,6 +68,8 @@ private final class RecordingWork: KnowledgeWorking {
     struct Plan: Sendable {
         var facts: [EpisodeID: [FactsOutcome]] = [:]
         var hangs: Set<EpisodeID> = []
+        /// Die Tags dieser Folgen hängen, bis die Stufe abbricht.
+        var tagHangs: Set<EpisodeID> = []
     }
 
     private let state = Mutex<(calls: [String], plan: Plan)>(([], Plan()))
@@ -101,8 +103,15 @@ private final class RecordingWork: KnowledgeWorking {
 
     func classifyChapters(of episode: Episode, origin: Origin,
                           since ticket: RemovalLedger.Ticket) async -> ChapterTagsRun {
-        state.withLock { $0.calls.append("tags:\(episode.title):\(origin)") }
+        let hangs = state.withLock { state -> Bool in
+            state.calls.append("tags:\(episode.title):\(origin)")
+            return state.plan.tagHangs.remove(episode.id) != nil
+        }
         startedContinuation.yield("tags:\(episode.title)")
+        if hangs {
+            try? await Task.sleep(for: .seconds(60))
+            return ChapterTagsRun(.cancelled)
+        }
         return ChapterTagsRun(.stored, current: true)
     }
 }
@@ -114,6 +123,7 @@ private final class FakeSettings: Sendable {
         state = Mutex(KnowledgeSettings(isLoaded: true, automaticFacts: automaticFacts, analyzed: analyzed))
     }
     var value: KnowledgeSettings { state.withLock { $0 } }
+    func setAutomaticFacts(_ on: Bool) { state.withLock { $0.automaticFacts = on } }
 }
 
 /// Eine Uhr, die nur der Test weiterstellt.
@@ -539,6 +549,164 @@ struct KnowledgeStageTests {
         #expect(origin == .user)
         #expect(version.mediaVersionID == MediaVersionID(stable: a.audioURL!.absoluteString))
         await harness.stage.untilIdle()
+    }
+
+    /// Das Modell merkt die Löschung synchron vor, `episodesRemoved` kommt
+    /// erst danach durchs Postfach. Dazwischen darf die Stufe die Folge
+    /// nicht mehr beginnen.
+    @Test("Im Löschprotokoll, aber noch ohne `episodesRemoved`: Die Folge fällt beim Entnehmen heraus")
+    func removalBeforeEventAtDequeue() async throws {
+        let a = episode("A", daysAgo: 1), b = episode("B", daysAgo: 2)
+        let harness = await makeHarness(store: try await makeStore([a, b]))
+        await harness.stage.reconcile()
+        await harness.stage.enqueue(a)
+        await harness.stage.enqueue(b)
+        harness.ledger.markRemoved([a.id])
+        harness.gate.setInForeground(true)
+        #expect(await next(harness.work.started) == "facts:B")
+        await harness.stage.untilIdle()
+        #expect(harness.work.calls == ["facts:B", "tags:B:automatic"])
+        #expect(await harness.stage.queuedFacts.isEmpty)
+        #expect(harness.intents.factsQueue() == [])
+    }
+
+    @Test("Tags aus dem Rückstand: Gelöscht vor dem Ereignis, fällt die Folge beim Entnehmen heraus")
+    func tagBacklogRemovalBeforeEvent() async throws {
+        let a = episode("A", daysAgo: 1), b = episode("B", daysAgo: 2)
+        let store = try await makeStore([a, b], transcripts: true)
+        for item in [a, b] {
+            let media = MediaVersionID(stable: item.audioURL!.absoluteString)
+            let evidence = try #require(try await store.evidence(forEpisode: item.id).first)
+            try await store.save(facts: [EpisodeFact(
+                id: "fakt-\(item.title)", episodeID: item.id, sourceID: sourceID, evidenceID: evidence.id,
+                mediaVersionID: media, statement: "Ein Satz über \(item.title).",
+                range: try #require(evidence.range), modelTier: "onDevice")], forEpisode: item.id)
+        }
+        let harness = await makeHarness(store: store, settings: FakeSettings(analyzed: [a.id, b.id]))
+        await harness.stage.reconcile()
+        #expect(await harness.stage.queuedTags == [a.id, b.id])
+        harness.ledger.markRemoved([a.id])
+        harness.gate.setInForeground(true)
+        #expect(await next(harness.work.started) == "tags:B")
+        await harness.stage.untilIdle()
+        #expect(harness.work.calls == ["tags:B:backlog"])
+        #expect(await harness.stage.queuedTags.isEmpty)
+    }
+
+    /// Nach `evidenceReady` zieht die Stufe den Stand des Löschprotokolls erst
+    /// beim Empfang. Liegt die Löschung davor, zeigt nur `episodesRemoved`
+    /// sie an, das im Postfach dahinter kommt.
+    @Test("Nach `evidenceReady` gelöscht, während die Fakten laufen: Die Folge kommt nicht zurück")
+    func removalOfRunningAfterEvidence() async throws {
+        let a = episode("A", daysAgo: 1)
+        var plan = RecordingWork.Plan()
+        plan.hangs = [a.id]
+        let harness = await makeHarness(
+            store: try await makeStore([a]), work: RecordingWork(plan), settings: FakeSettings(analyzed: [a.id]))
+        await harness.stage.reconcile()
+        harness.ledger.markRemoved([a.id])
+        await harness.stage.receive(.evidenceReady(a.id, InputVersion(
+            mediaVersionID: MediaVersionID(rawValue: "m"), transcriptID: TranscriptID(rawValue: "t"),
+            revision: .initial, segmentCount: 1, lastEndMs: 1), .automatic))
+        harness.gate.setInForeground(true)
+        #expect(await next(harness.work.started) == "facts:A")
+        await harness.stage.receive(.episodesRemoved([a.id], .episode))
+        await harness.stage.untilIdle()
+        #expect(harness.work.calls == ["facts:A"], "Kein zweiter Lauf der gelöschten Folge")
+        #expect(await harness.stage.queuedFacts.isEmpty)
+        #expect(harness.intents.factsQueue() == [])
+        #expect(harness.intents.firstSeen()?[a.id] == nil)
+    }
+
+    @Test("Ein Abgleich über iCloud lässt die Stufe eingeordnete Folgen neu prüfen")
+    func changedElsewhereForgetsCurrentTags() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let media = MediaVersionID(stable: a.audioURL!.absoluteString)
+        let evidence = try #require(try await store.evidence(forEpisode: a.id).first)
+        try await store.save(facts: [EpisodeFact(
+            id: "fakt-a", episodeID: a.id, sourceID: sourceID, evidenceID: evidence.id, mediaVersionID: media,
+            statement: "Ein Satz über A.", range: try #require(evidence.range), modelTier: "onDevice")],
+            forEpisode: a.id)
+        let harness = await makeHarness(store: store, settings: FakeSettings(analyzed: [a.id]))
+        await harness.stage.reconcile()
+        harness.gate.setInForeground(true)
+        #expect(await next(harness.work.started) == "tags:A")
+        await harness.stage.untilIdle()
+        harness.gate.setInForeground(false)
+        // Die Arbeit hier speichert nichts: Laut Store fehlen die Tags
+        // weiter, doch dieser Start hält die Folge für eingeordnet.
+        await harness.stage.receive(.feedsRefreshed(byUser: false))
+        await harness.stage.reconcile()
+        #expect(await harness.stage.queuedTags.isEmpty)
+        await harness.stage.receive(.changedElsewhere(.all))
+        await harness.stage.reconcile()
+        #expect(await harness.stage.queuedTags == [a.id])
+    }
+
+    @Test("Laufen die Tags nach den Fakten, gilt die Folge nicht mehr als in Arbeit, wie bis 0.13")
+    func chainedTagsPhase() async throws {
+        let a = episode("A", daysAgo: 1)
+        var plan = RecordingWork.Plan()
+        plan.tagHangs = [a.id]
+        let harness = await makeHarness(store: try await makeStore([a]), open: true, work: RecordingWork(plan))
+        await harness.stage.reconcile()
+        await harness.stage.request(a)
+        #expect(await next(harness.work.started) == "facts:A")
+        #expect(await next(harness.work.started) == "tags:A")
+        #expect(await harness.stage.snapshot.running == nil, "`gatheringFacts` ist während der Tags leer")
+        #expect(harness.intents.factsQueue() == [], "Nach einem Neustart rechnet nichts die Fakten neu")
+        // „Neu ermitteln“ während der Tags reiht die Folge ein.
+        await harness.stage.request(a)
+        #expect(await harness.stage.queuedFacts == [a.id])
+        // Nur die Aufgabe für Tags gibt Zeit: Die Tags laufen weiter.
+        let lease = harness.gate.hold(.taggingTask)
+        harness.gate.setInForeground(false)
+        await harness.stage.gateChanged(harness.gate.current)
+        #expect(await !harness.stage.isIdle)
+        // Ohne jede Zeit halten sie an. Die Anforderung wartet weiter.
+        lease.release()
+        await harness.stage.gateChanged(harness.gate.current)
+        await harness.stage.untilIdle()
+        #expect(harness.work.calls == ["facts:A!", "tags:A:user"])
+        #expect(await harness.stage.queuedFacts == [a.id])
+    }
+
+    @Test("„Fakten automatisch sammeln“ aus und gleich wieder an: Die Warteschlange bleibt")
+    func dropAutomaticAfterSwitchBack() async throws {
+        let a = episode("A", daysAgo: 1), b = episode("B", daysAgo: 2)
+        let settings = FakeSettings(analyzed: [a.id, b.id])
+        let harness = await makeHarness(store: try await makeStore([a, b]), settings: settings)
+        await harness.stage.reconcile()
+        await harness.stage.enqueue(a)
+        await harness.stage.request(b)
+        // Der Befehl zum Leeren kommt erst an, als der Schalter schon wieder an ist.
+        await harness.stage.dropAutomatic()
+        #expect(await harness.stage.queuedFacts == [b.id, a.id])
+        settings.setAutomaticFacts(false)
+        await harness.stage.dropAutomatic()
+        #expect(await harness.stage.queuedFacts == [b.id], "Angefordertes bleibt")
+    }
+
+    @Test("Ohne Modell kommt nach einem Neustart nur Angefordertes zurück")
+    func restoreWithoutModel() async throws {
+        let a = episode("A", daysAgo: 3), b = episode("B", daysAgo: 1)
+        let store = try await makeStore([a, b])
+        let state = makeState()
+        let settings = FakeSettings(analyzed: [a.id, b.id])
+        let first = await makeHarness(store: store, settings: settings, state: state)
+        await first.stage.reconcile()
+        await first.stage.enqueue(b)
+        await first.stage.request(a)
+        await first.stage.stop()
+        state.flush()
+
+        let missing = ModelStatus(onDevice: .unavailable(.appleIntelligenceDisabled),
+                                  privateCloudCompute: .unavailable(.userConsentMissing))
+        let second = await makeHarness(
+            store: store, settings: settings, state: DeviceState(directory: state.directory), status: missing)
+        await second.stage.reconcile()
+        #expect(await second.stage.queuedFacts == [a.id])
     }
 }
 

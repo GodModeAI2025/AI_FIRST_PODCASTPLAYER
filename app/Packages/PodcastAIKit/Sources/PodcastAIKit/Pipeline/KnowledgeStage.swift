@@ -150,6 +150,21 @@ public actor KnowledgeStage {
         var id: EpisodeID { episode.id }
 
         var intent: FactsIntent { FactsIntent(episodeID: id, origin: origin, requested: requested) }
+
+        /// Beim Entnehmen: Wurde die Folge gelöscht, seit sie wartet? Dann
+        /// hat das Löschen sie womöglich noch nicht erreicht, und sie fällt
+        /// hier heraus.
+        func wasRemoved(in ledger: RemovalLedger) -> Bool { ledger.wasRemoved(id, since: ticket) }
+    }
+
+    /// Eine Folge in der Warteschlange der Tags aus dem Rückstand.
+    private struct TagsEntry: Sendable {
+        var episode: Episode
+        /// Stand des Löschprotokolls beim Einreihen, wie bei den Fakten.
+        var ticket: RemovalLedger.Ticket
+        var id: EpisodeID { episode.id }
+
+        func wasRemoved(in ledger: RemovalLedger) -> Bool { ledger.wasRemoved(id, since: ticket) }
     }
 
     /// Was im einen Platz läuft.
@@ -157,7 +172,7 @@ public actor KnowledgeStage {
         /// Vor jeder Folge: Ist das Modell bereit?
         case probe
         case facts(Entry)
-        case tags(Episode)
+        case tags(TagsEntry)
         /// Die nächste Portion Fakten oder Tags suchen.
         case refillFacts
         case refillTags
@@ -165,7 +180,7 @@ public actor KnowledgeStage {
         var episodeID: EpisodeID? {
             switch self {
             case .facts(let entry): entry.id
-            case .tags(let episode): episode.id
+            case .tags(let entry): entry.id
             case .probe, .refillFacts, .refillTags: nil
             }
         }
@@ -178,6 +193,16 @@ public actor KnowledgeStage {
         /// Die Stufe hat angehalten, weil das Tor zu ist oder die Folge
         /// gelöscht wurde. Kein Grund, den Lauf ganz zu beenden.
         var stoppedByStage = false
+        /// Die Folge im Platz wurde gelöscht (`episodesRemoved`). Sie kommt
+        /// nicht zurück in eine Warteschlange und in keinen Vermerk, auch
+        /// wenn ihr Stand des Löschprotokolls das nicht zeigt: Nach
+        /// `evidenceReady` zieht die Stufe ihn erst beim Empfang.
+        var forgotten = false
+        /// Die Fakten der Folge im Platz sind fertig, jetzt laufen ihre Tags.
+        /// Wie bis 0.13 gilt sie dann nicht mehr als die Folge, deren Fakten
+        /// entstehen: Die Oberfläche zeigt sie nicht mehr so, „Neu
+        /// ermitteln“ reiht sie wieder ein, und das Tor fragt nach den Tags.
+        var chainedTags = false
         /// Die Minute Luft nach einem Fehlschlag.
         var cooling = false
     }
@@ -214,7 +239,7 @@ public actor KnowledgeStage {
     private let pauseSteps: Int
 
     private var factsQueue: [Entry] = []
-    private var tagsQueue: [Episode] = []
+    private var tagsQueue: [TagsEntry] = []
     private var slot: Slot?
     private var session = Session()
     private var nextToken: UInt64 = 0
@@ -225,6 +250,8 @@ public actor KnowledgeStage {
     private var tagsFailed: Set<EpisodeID> = []
     /// Kapitel-Tags passen in diesem Start schon zum aktuellen Transkript.
     private var tagsCurrent: Set<EpisodeID> = []
+    /// Zählt, wie oft ein Abgleich über iCloud `tagsCurrent` geleert hat.
+    private var tagsCurrentResets = 0
     private var issues: [EpisodeID: KnowledgeIssue] = [:]
     private var waitReason: ModelUnavailability?
     private var factsBackfillPending = false
@@ -318,7 +345,14 @@ public actor KnowledgeStage {
             // Kommt aus dieser Stufe: Die Tags derselben Folge liefen schon
             // im selben Platz, gleich nach den Fakten.
             break
-        case .feedsRefreshed, .changedElsewhere:
+        case .feedsRefreshed:
+            requestReconcile()
+        case .changedElsewhere:
+            // Ein anderes Gerät kann ein neues Transkript oder andere
+            // Kapitel-Tags gebracht haben. Was dieser Start für eingeordnet
+            // hielt, fragt der Abgleich neu ab (Plan, Sync Phase 1).
+            tagsCurrent.removeAll()
+            tagsCurrentResets += 1
             requestReconcile()
         case .episodesRemoved(let ids, _):
             forget(Set(ids))
@@ -362,6 +396,7 @@ public actor KnowledgeStage {
         if var current = slot, let id = current.work.episodeID, gone.contains(id) {
             // Auch Fakten und Tags brechen ab, nicht nur das Transkript.
             current.stoppedByStage = true
+            current.forgotten = true
             slot = current
             current.task?.cancel()
         }
@@ -381,12 +416,13 @@ public actor KnowledgeStage {
         let tags = conditions.mayRun(.tags, origin: .automatic)
         // Wie `pauseFactsWithoutTime` bis 0.12: Fakten halten an, wenn sie
         // keine Zeit mehr haben. Tags laufen weiter, solange die leichte
-        // Aufgabe für Tags ihnen Zeit gibt.
+        // Aufgabe für Tags ihnen Zeit gibt, auch die gleich nach den Fakten.
         let stop: Bool = if current.cooling {
             !facts && !tags
         } else {
             switch current.work {
-            case .probe, .facts: !facts
+            case .probe: !facts
+            case .facts: current.chainedTags ? !tags : !facts
             case .tags: !tags
             case .refillFacts, .refillTags: !facts && !tags
             }
@@ -474,7 +510,12 @@ public actor KnowledgeStage {
 
     /// „Fakten automatisch sammeln“ ist aus: Was von selbst wartet, fällt
     /// heraus. Angefordertes und was gerade läuft, bleibt.
-    public func dropAutomatic() {
+    ///
+    /// Der Befehl kommt über eine eigene Aufgabe, der Abgleich nach dem
+    /// Wiedereinschalten ebenso, und ihre Reihenfolge ist offen. Gilt der
+    /// Schalter hier schon wieder, bleibt die Warteschlange, wie sie ist.
+    public func dropAutomatic() async {
+        guard await !environment.settings().automaticFacts else { return }
         factsQueue.removeAll { !$0.requested }
         tagsQueue.removeAll()
         // Keine nächste Portion von selbst.
@@ -593,8 +634,12 @@ public actor KnowledgeStage {
         if shouldKick { kick() }
     }
 
-    private var runningFactsID: EpisodeID? {
-        if case .facts(let entry) = slot?.work { return entry.id }
+    /// Die Folge, deren Fakten gerade entstehen. Laufen schon ihre Tags,
+    /// keine mehr.
+    private var runningFactsID: EpisodeID? { runningFacts?.id }
+
+    private var runningFacts: Entry? {
+        if case .facts(let entry) = slot?.work, slot?.chainedTags != true { return entry }
         return nil
     }
 
@@ -625,9 +670,11 @@ public actor KnowledgeStage {
 
     /// Nur die Kapitel-Tags, für die leichte Hintergrundaufgabe.
     public func reconcileTags() async {
+        // Der Stand der Löschungen vor dem Lesen, wie beim Abgleich.
+        let ticket = ledger.ticket
         let settings = await environment.settings()
         guard let withFacts = try? await store.episodeIDsWithFacts() else { return }
-        await queueMissingChapterTags(withFacts: withFacts, settings: settings, ticket: ledger.ticket)
+        await queueMissingChapterTags(withFacts: withFacts, settings: settings, ticket: ticket)
         kick()
     }
 
@@ -643,10 +690,14 @@ public actor KnowledgeStage {
         // Der Stand der Löschungen vor den Angaben des Hauptakteurs: Wird
         // eine Folge danach gelöscht, merkt die Stufe sich nichts mehr zu ihr.
         let ticket = ledger.ticket
+        // Wechselt der Speicher während des Abgleichs (`reset`), gehört das
+        // Gelesene zum alten und wird nicht eingereiht.
+        let store = self.store
         let settings = await environment.settings()
-        guard settings.isLoaded else { return }
+        guard settings.isLoaded, store === self.store else { return }
         if !restored { await restoreQueue(settings: settings, ticket: ticket) }
-        guard settings.automaticFacts, let withFacts = try? await store.episodeIDsWithFacts() else { return }
+        guard settings.automaticFacts, let withFacts = try? await store.episodeIDsWithFacts(),
+              store === self.store else { return }
         // Tags brauchen nur ein Modell für Tags. Auf einem Gerät ohne
         // Gerätemodell, aber mit Private Cloud Compute, gibt es sie trotzdem.
         guard Self.isExpected(monitor.current, for: .extract) else {
@@ -688,6 +739,7 @@ public actor KnowledgeStage {
             // Bibliothek ohne Fakten auf einmal dazu. Ist die Portion durch,
             // holt die Stufe die nächste.
             let current = await environment.settings()
+            guard store === self.store else { return }
             // Was „Alle abbrechen“ während des Lesens zurückgestellt hat,
             // bleibt zurückgestellt.
             let newest = found
@@ -717,14 +769,20 @@ public actor KnowledgeStage {
             return
         }
         let ids = saved.map(\.episodeID)
+        let store = self.store
         guard let found = try? await store.episodes(ids: ids) else { return }
         // Ein zweiter Abgleich kann in der Zwischenzeit schon zurückgeholt haben.
-        guard !restored else { return }
+        guard !restored, store === self.store else { return }
         restored = true
         let byID = Dictionary(found.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let withFacts = (try? await store.episodeIDsWithFacts()) ?? []
+        guard store === self.store else { return }
         let gapped = KnowledgeMarks.episodesWithFactGaps(in: marks)
         let settled = KnowledgeMarks.factsSettled(in: marks)
+        // Wie beim Einreihen: Fehlt das Modell ganz, etwa weil Apple
+        // Intelligence aus ist, wartet nichts von selbst Eingereihtes. Kommt
+        // es wieder, findet der Abgleich die Folgen.
+        let modelExpected = Self.isExpected(monitor.current, for: .extract)
         var front = 0
         for intent in saved {
             guard let episode = byID[intent.episodeID], settings.analyzed.contains(intent.episodeID),
@@ -734,7 +792,8 @@ public actor KnowledgeStage {
             if !intent.requested {
                 // Inzwischen fertig oder ohne Ergebnis: nichts mehr zu tun.
                 let finished = withFacts.contains(intent.episodeID) && !gapped.contains(intent.episodeID)
-                guard settings.automaticFacts, !finished, !settled.contains(intent.episodeID) else { continue }
+                guard settings.automaticFacts, modelExpected, !finished,
+                      !settled.contains(intent.episodeID) else { continue }
             }
             let entry = Entry(episode: episode, requested: intent.requested, origin: intent.origin, ticket: ticket)
             if intent.requested {
@@ -767,10 +826,17 @@ public actor KnowledgeStage {
                 && !busy.contains($0) && !settled.contains($0) && !tagsFailed.contains($0)
                 && !tagsCurrent.contains($0)
         }
-        guard !pool.isEmpty, let backlog = try? await store.chapterTagBacklog(among: pool) else { return }
-        // Was nicht offen ist, fragt dieser Start nicht noch einmal ab.
-        tagsCurrent.formUnion(pool.subtracting(backlog).filter { !ledger.wasRemoved($0, since: ticket) })
-        guard !backlog.isEmpty, let found = try? await store.episodes(ids: Array(backlog)) else { return }
+        let store = self.store
+        let syncs = tagsCurrentResets
+        guard !pool.isEmpty, let backlog = try? await store.chapterTagBacklog(among: pool),
+              store === self.store else { return }
+        // Was nicht offen ist, fragt dieser Start nicht noch einmal ab. Kam
+        // während des Lesens ein Abgleich, gilt das Gelesene nicht als Stand.
+        if syncs == tagsCurrentResets {
+            tagsCurrent.formUnion(pool.subtracting(backlog).filter { !ledger.wasRemoved($0, since: ticket) })
+        }
+        guard !backlog.isEmpty, let found = try? await store.episodes(ids: Array(backlog)),
+              store === self.store else { return }
         let newest = found
             .filter { episode in
                 !tagsQueue.contains(where: { $0.id == episode.id }) && !ledger.wasRemoved(episode.id, since: ticket)
@@ -779,7 +845,7 @@ public actor KnowledgeStage {
         let portion = AutomaticWorkBudget.refill(
             newest, alreadyWaiting: tagsQueue.count, batch: AutomaticWorkBudget.tagsBackfillBatch)
         tagsBackfillPending = portion.count < newest.count
-        tagsQueue.append(contentsOf: portion)
+        tagsQueue.append(contentsOf: portion.map { TagsEntry(episode: $0, ticket: ticket) })
     }
 
     // MARK: - Der eine Platz
@@ -814,6 +880,9 @@ public actor KnowledgeStage {
         // oder das Modell fehlt: die Tags, die noch fehlen.
         guard tagsMayRun, !session.tagsHalted,
               session.factsBlocked || factsQueue.isEmpty || !factsMayRun else { return }
+        // Gelöscht, seit die Folge wartet, und das Löschen hat die Stufe
+        // noch nicht erreicht: Sie fällt beim Entnehmen heraus.
+        tagsQueue.removeAll { $0.wasRemoved(in: ledger) }
         if let next = tagsQueue.first {
             tagsQueue.removeFirst()
             begin(.tags(next))
@@ -832,8 +901,8 @@ public actor KnowledgeStage {
             Task(priority: .utility) { await runProbe(token) }
         case .facts(let entry):
             Task(priority: .utility) { await runFacts(entry, token: token) }
-        case .tags(let episode):
-            Task(priority: .utility) { await runTags(episode, token: token) }
+        case .tags(let entry):
+            Task(priority: .utility) { await runTags(entry, token: token) }
         case .refillFacts:
             Task(priority: .utility) {
                 await reconcile()
@@ -841,9 +910,11 @@ public actor KnowledgeStage {
             }
         case .refillTags:
             Task(priority: .utility) {
+                // Der Stand der Löschungen vor dem Lesen, wie beim Abgleich.
+                let ticket = ledger.ticket
                 let settings = await environment.settings()
                 if let withFacts = try? await store.episodeIDsWithFacts() {
-                    await queueMissingChapterTags(withFacts: withFacts, settings: settings, ticket: ledger.ticket)
+                    await queueMissingChapterTags(withFacts: withFacts, settings: settings, ticket: ticket)
                 }
                 end(token)
             }
@@ -881,8 +952,12 @@ public actor KnowledgeStage {
             return
         }
         waitReason = nil
-        // Während der Prüfung kann die Folge gelöscht worden sein.
+        // Während der Prüfung kann die Folge gelöscht worden sein. Hat das
+        // Löschen die Stufe noch nicht erreicht, zeigt es das Löschprotokoll
+        // seit dem Einreihen.
+        factsQueue.removeAll { $0.wasRemoved(in: ledger) }
         guard gate.current.mayRun(.facts, origin: .automatic), !factsQueue.isEmpty else {
+            persistQueue()
             publish()
             pump()
             return
@@ -891,9 +966,11 @@ public actor KnowledgeStage {
     }
 
     private func runFacts(_ entry: Entry, token: UInt64) async {
-        // Stand der Löschungen beim Entnehmen. Was danach auf diesem Gerät
+        // Stand der Löschungen beim Einreihen, nicht erst beim Entnehmen:
+        // Zwischen dem Vormerken im Löschprotokoll und `episodesRemoved` im
+        // Postfach kann die Folge hier ankommen. Was danach auf diesem Gerät
         // vermerkt wird, gilt nur für eine Folge, die es noch gibt.
-        let ticket = ledger.ticket
+        let ticket = entry.ticket
         var outcome = FactsOutcome.nothingToDo
         var tags: ChapterTagsRun?
         if let episode = try? await store.episodes(ids: [entry.id]).first, !ledger.wasRemoved(entry.id, since: ticket) {
@@ -908,6 +985,7 @@ public actor KnowledgeStage {
             // Platz. Sie erben, wer die Fakten wollte.
             switch outcome {
             case .stored, .partial, .noFacts:
+                enterChainedTags(token)
                 let run = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
                     await work.classifyChapters(of: episode, origin: entry.origin, since: ticket)
                 }
@@ -925,28 +1003,47 @@ public actor KnowledgeStage {
         end(token)
     }
 
-    private func runTags(_ episode: Episode, token: UInt64) async {
-        let ticket = ledger.ticket
+    private func runTags(_ entry: TagsEntry, token: UInt64) async {
+        // Stand der Löschungen beim Einreihen, wie bei den Fakten.
+        let ticket = entry.ticket
+        let id = entry.id
         var run = ChapterTagsRun(.nothingToDo)
-        if let fresh = try? await store.episodes(ids: [episode.id]).first, !ledger.wasRemoved(episode.id, since: ticket) {
+        if let fresh = try? await store.episodes(ids: [id]).first, !ledger.wasRemoved(id, since: ticket) {
             let work = self.work
             // Aus dem Rückstand der Bibliothek, nicht nach den Fakten einer Folge.
             run = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
                 await work.classifyChapters(of: fresh, origin: .backlog, since: ticket)
             }
             let outcome = run.outcome
-            await announce([.tagsDone], of: episode.id, since: ticket) {
-                [.tagsDone(episode.id, $0, outcome, .backlog)]
+            await announce([.tagsDone], of: id, since: ticket) {
+                [.tagsDone(id, $0, outcome, .backlog)]
             }
         }
         guard slot?.token == token else { return }
-        if tagsFinished(episode, run: run, since: ticket) { await coolDown(token) }
+        if tagsFinished(entry, run: run, since: ticket) { await coolDown(token) }
         end(token)
+    }
+
+    /// Die Fakten der Folge im Platz sind fertig, ihre Tags beginnen. Bis
+    /// 0.13 stand `gatheringFacts` ab hier leer. Gemerkt wird die Folge
+    /// nicht mehr: Nach einem Neustart rechnete eine Anforderung sonst die
+    /// ganzen Fakten neu, nur weil ihre Tags noch liefen.
+    private func enterChainedTags(_ token: UInt64) {
+        guard slot?.token == token else { return }
+        slot?.chainedTags = true
+        persistQueue()
+        publish()
+    }
+
+    /// Ist die Folge weg? Gelöscht seit `ticket`, oder das Löschen hat die
+    /// Folge im Platz getroffen.
+    private func isGone(_ id: EpisodeID, since ticket: RemovalLedger.Ticket) -> Bool {
+        ledger.wasRemoved(id, since: ticket) || (slot?.forgotten == true && slot?.work.episodeID == id)
     }
 
     /// Die Tags nach den Fakten einer Folge.
     private func applyChained(_ run: ChapterTagsRun, to id: EpisodeID, since ticket: RemovalLedger.Ticket) {
-        guard !ledger.wasRemoved(id, since: ticket) else { return }
+        guard !isGone(id, since: ticket) else { return }
         if run.current { tagsCurrent.insert(id) }
         if run.outcome == .failed { tagsFailed.insert(id) }
     }
@@ -956,9 +1053,9 @@ public actor KnowledgeStage {
     private func factsFinished(_ entry: Entry, outcome: FactsOutcome, since ticket: RemovalLedger.Ticket) -> Bool {
         let id = entry.id
         // Während des Laufs gelöscht: Das Löschen hat die Folge schon aus
-        // den Warteschlangen genommen. Sie kommt weder zurück noch in einen
-        // Vermerk auf diesem Gerät.
-        guard !ledger.wasRemoved(id, since: ticket) else {
+        // den Warteschlangen genommen oder tut es gleich. Sie kommt weder
+        // zurück noch in einen Vermerk auf diesem Gerät.
+        guard !isGone(id, since: ticket) else {
             session.progressed = true
             return false
         }
@@ -981,7 +1078,9 @@ public actor KnowledgeStage {
             // selbst. Gemerkte Lücken holt ein späterer Lauf trotzdem nach.
             guard !entry.requested else { return false }
             if session.retried.insert(id).inserted {
-                factsQueue.append(entry)
+                // Während der Tags kann jemand die Folge selbst angefordert
+                // haben. Dann steht sie schon vorn.
+                if !factsQueue.contains(where: { $0.id == id }) { factsQueue.append(entry) }
             } else if gate.current.inForeground {
                 // Im Hintergrund nicht zurückstellen: dort ist das Modell
                 // eher ausgelastet. Vorn kommt die Folge wieder dran.
@@ -1005,9 +1104,9 @@ public actor KnowledgeStage {
     }
 
     /// Die Regeln nach einer Einordnung aus dem Rückstand.
-    private func tagsFinished(_ episode: Episode, run: ChapterTagsRun, since ticket: RemovalLedger.Ticket) -> Bool {
-        let id = episode.id
-        guard !ledger.wasRemoved(id, since: ticket) else { return false }
+    private func tagsFinished(_ entry: TagsEntry, run: ChapterTagsRun, since ticket: RemovalLedger.Ticket) -> Bool {
+        let id = entry.id
+        guard !isGone(id, since: ticket) else { return false }
         switch run.outcome {
         case .stored:
             if run.current { tagsCurrent.insert(id) }
@@ -1022,7 +1121,7 @@ public actor KnowledgeStage {
             tagsFailed.insert(id)
             return true
         case .modelUnavailable, .waiting, .cancelled:
-            tagsQueue.insert(episode, at: 0)
+            tagsQueue.insert(entry, at: 0)
             if slot?.stoppedByStage != true { session.tagsHalted = true }
             return false
         }
@@ -1047,7 +1146,7 @@ public actor KnowledgeStage {
     private func persistQueue() {
         guard restored else { return }
         var list: [FactsIntent] = []
-        if case .facts(let entry) = slot?.work, !ledger.wasRemoved(entry.id, since: entry.ticket) {
+        if let entry = runningFacts, !entry.wasRemoved(in: ledger) {
             list.append(entry.intent)
         }
         for entry in factsQueue where !ledger.wasRemoved(entry.id, since: entry.ticket) {
@@ -1058,10 +1157,8 @@ public actor KnowledgeStage {
     }
 
     private func publish() {
-        var running: Episode?
-        if case .facts(let entry) = slot?.work { running = entry.episode }
         let snapshot = KnowledgeSnapshot(
-            queue: factsQueue.map(\.episode), running: running, waitReason: waitReason, issues: issues)
+            queue: factsQueue.map(\.episode), running: runningFacts?.episode, waitReason: waitReason, issues: issues)
         guard snapshot != lastSnapshot else { return }
         lastSnapshot = snapshot
         snapshotContinuation.yield(snapshot)

@@ -286,7 +286,11 @@ public struct KnowledgeJobs: KnowledgeWorking {
                 await reporter.factsProgress(id, fraction: Double(index + 1) / Double(slices.count))
                 switch error {
                 case .generationRejected:
-                    KnowledgeMarks.rememberRejectedFactSlice(sliceKey, in: marks)
+                    // Ein Vermerk nur für eine Folge, die es noch gibt: Die
+                    // Pflege hat die Ablehnungen einer gelöschten schon geräumt.
+                    if !ledger.wasRemoved(id, since: ticket) {
+                        KnowledgeMarks.rememberRejectedFactSlice(sliceKey, in: marks)
+                    }
                     rejected += 1
                     reason = error.errorDescription
                     continue
