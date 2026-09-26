@@ -326,3 +326,6 @@ Ich habe nur gelesen. Die Kürzel sind die aus dem Plan, dazu CPL = CaptionPipel
 - `flush()` vor dem Löschen. Pflege und Absichten laufen nur, wenn die geschützten Daten lesbar sind.
 - Einmal-Riegel für `setTaskCompleted`.
 - Für den Product Owner: Vorrang für `.cover` festlegen.
+## Entscheidung des Product Owners (26. September 2026)
+
+Umsetzen wie geplant, mit allen Empfehlungen aus „Offene Entscheidungen“ (1 bis 11). Schemaänderungen kommen erst in der Release danach.
