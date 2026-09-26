@@ -8,6 +8,9 @@
 //  folgen, Minus heißt nicht mehr folgen. Nach Minus bleibt das Tag
 //  sichtbar und neutral.
 //
+//  Seit 0.12 steht oben in „Meine Tags“, was gerade angesagt ist, und die
+//  Seite eines Tags zählt die neuen Aussagen seit dem letzten Besuch.
+//
 //  Nichts hier spielt Ton. Ein Kapitel auf der Tag-Seite öffnet die Folge
 //  im Reiter „Kapitel“, abgespielt wird dort erst auf Tippen.
 //
@@ -164,6 +167,11 @@ struct TagsView: View {
             .sorted { $0.label.localizedStandardCompare($1.label) == .orderedAscending }
     }
 
+    /// Angesagte Tags, gefolgte wie neutrale, in der Reihenfolge der Trends.
+    private var trending: [TrendingTag] {
+        model.trendingTags.filter { matches($0.tag) }
+    }
+
     private var neutral: [Tag] {
         let counts = model.chapterTagCounts
         return model.profile.tags.filter { !$0.isFollowed && matches($0) }
@@ -186,6 +194,15 @@ struct TagsView: View {
                         """)
                 }
             } else {
+                if !trending.isEmpty {
+                    SwiftUI.Section {
+                        ForEach(trending) { entry in trendRow(entry) }
+                    } header: {
+                        Text("Angesagt")
+                    } footer: {
+                        Text(TrendText.footer())
+                    }
+                }
                 SwiftUI.Section {
                     if followed.isEmpty {
                         Text(query.isEmpty
@@ -212,6 +229,23 @@ struct TagsView: View {
         .searchable(text: $query, prompt: Text("Tags durchsuchen"))
         .navigationTitle("Meine Tags")
         .accessibilityIdentifier("tags.list")
+        .task(id: model.tagTrendsTrigger) { await model.refreshTagTrends() }
+    }
+
+    /// Ein angesagtes Tag: Name, warum es angesagt ist, Plus oder Minus.
+    private func trendRow(_ entry: TrendingTag) -> some View {
+        HStack {
+            NavigationLink { TagDetailView(tagID: entry.tag.id) } label: {
+                VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                    Text(entry.tag.label)
+                    Text(TrendText.caption(entry.trend))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityIdentifier("tags.trending.\(entry.tag.testKey)")
+            TagFollowButton(tag: entry.tag, style: .compact)
+        }
     }
 
     private func row(_ tag: Tag) -> some View {
@@ -244,6 +278,12 @@ struct TagDetailView: View {
     @State private var titles: [EpisodeID: LibraryStore.EpisodeTitles] = [:]
     @State private var near: [Tag] = []
     @State private var pendingMerge: Tag?
+    /// Wann die Seite vor diesem Besuch zuletzt offen war, gelesen, bevor
+    /// der neue Besuch gemerkt wird. `nil` beim ersten Besuch.
+    @State private var previousVisit: Date?
+    @State private var visitNoted = false
+    /// Neue, ungehörte Aussagen seit `previousVisit`.
+    @State private var newSinceVisit = 0
 
     private var tag: Tag? { model.profile.tags.first { $0.id == tagID } }
 
@@ -258,12 +298,40 @@ struct TagDetailView: View {
                             .foregroundStyle(.secondary)
                     }
                     .accessibilityElement(children: .combine)
+                    if let trend = model.trendingTags.first(where: { $0.tag.id == tagID })?.trend {
+                        Label {
+                            VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                                Text("Gerade angesagt")
+                                Text(TrendText.caption(trend))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("tag.trending")
+                    }
                     TagFollowButton(tag: tag, style: .labeled)
                 } footer: {
                     Text("Plus: „Für dich“ und die Themen-Updates sammeln Kapitel mit diesem Tag. Minus beendet das, das Tag bleibt sichtbar.")
                 }
 
                 SwiftUI.Section {
+                    if newSinceVisit > 0 {
+                        Label {
+                            VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                                Text("\(newSinceVisit) neu seit deinem letzten Besuch")
+                                Text("Aussagen aus Folgen, die seitdem erschienen sind und die du noch nicht gehört hast.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "sparkles")
+                        }
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("tag.news")
+                    }
                     if chapters.isEmpty {
                         Text("Noch in keinem Kapitel.")
                             .foregroundStyle(.secondary)
@@ -318,10 +386,21 @@ struct TagDetailView: View {
         .navigationTitle(tag?.label ?? String(localized: "Tag"))
         .accessibilityIdentifier("tag.page")
         .task(id: model.chapterTagsRevision) {
+            // Der letzte Besuch zählt ab dem ersten Öffnen dieser Seite, auch
+            // wenn danach neue Kapitel-Tags ankommen.
+            if !visitNoted, tag != nil {
+                previousVisit = model.lastTagPageVisit(tagID)
+                model.noteTagPageVisit(tagID)
+                visitNoted = true
+            }
             let found = await model.chapterTags(forTag: tagID)
             chapters = found
             titles = await model.episodeTitles(Array(Set(found.map(\.episodeID))))
+            if let previousVisit {
+                newSinceVisit = await model.newStatementCount(forTag: tagID, chapters: found, since: previousVisit)
+            }
         }
+        .task(id: model.tagTrendsTrigger) { await model.refreshTagTrends() }
         // Nahe Tags hängen nur an Namen, Schlüsseln und Schreibweisen, nicht
         // an Plus oder Minus. Der Vergleich lädt Sprachdaten und läuft über
         // alle Tags, deshalb abseits des Hauptthreads.
@@ -399,5 +478,27 @@ struct TagDetailView: View {
         let removed = offsets.compactMap { tag?.aliases.indices.contains($0) == true ? tag?.aliases[$0] : nil }
         interest.keywords.removeAll { removed.contains($0) }
         Task { await model.updateInterest(interest) }
+    }
+}
+
+// MARK: - Angesagt
+
+/// Die Sätze zu „Angesagt“, aus den Zahlen des Trends und den Schwellen.
+/// Die Schwellen verlangen mindestens drei Quellen und fünf Kapitel, die
+/// Mehrzahl stimmt also immer.
+enum TrendText {
+
+    /// „7 Kapitel aus 3 Podcasts in den letzten 7 Tagen“.
+    static func caption(_ trend: TagTrend, thresholds: TrendThresholds = .standard) -> String {
+        String(localized: "\(trend.recentChapters) Kapitel aus \(trend.sourceCount) Podcasts in den letzten \(thresholds.windowDays) Tagen")
+    }
+
+    /// Was „Angesagt“ heißt, unter der Gruppe in „Meine Tags“.
+    static func footer(_ thresholds: TrendThresholds = .standard) -> String {
+        let ratio = thresholds.minimumRatio.formatted(.number.precision(.fractionLength(0...1)))
+        return String(localized: """
+            Tags, die in den letzten \(thresholds.windowDays) Tagen mindestens \(ratio)-mal so oft vorkamen \
+            wie im Schnitt der Wochen davor, in mindestens \(thresholds.minimumSources) Podcasts.
+            """)
     }
 }

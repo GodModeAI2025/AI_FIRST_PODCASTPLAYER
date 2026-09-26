@@ -8,7 +8,8 @@
 //  Ausgaben stehen darunter wie Folgen, mit Datum, Länge und „Teil 2 von
 //  3“. Eine Ausgabe öffnet sich wie eine Folge: Kapitel 0 ist die
 //  Übersicht ohne Ton, danach die Kapitel mit „Original öffnen“. Der Kopf
-//  des Tabs zählt neue Aussagen je Tag seit dem letzten Hören.
+//  des Tabs zählt neue Aussagen je Tag seit dem letzten Hören. Darüber
+//  steht seit 0.12 eine Zeile mit den Tags, die gerade angesagt sind.
 //
 //  Angelegt wird ein Update aus Tags, nicht aus Freitext: gefolgte Tags als
 //  Kapseln, weitere bekannte Tags über eine Suche, dazu „eines davon“ oder
@@ -33,6 +34,11 @@ struct SmartFeedListView: View {
 
     var body: some View {
         List {
+            if !model.trendingTags.isEmpty {
+                Section {
+                    TrendingTagsLine(entries: model.trendingTags) { openedTag = $0 }
+                }
+            }
             if model.smartFeeds.isEmpty {
                 ContentUnavailableView {
                     Label("Noch kein Themen-Update", systemImage: "waveform.circle")
@@ -84,6 +90,7 @@ struct SmartFeedListView: View {
         .yieldsAIWhileScrolling()
         .navigationTitle("Themen-Updates")
         .activityStatusToolbar()
+        .task(id: model.tagTrendsTrigger) { await model.refreshTagTrends() }
         .navigationDestination(for: SmartFeedID.self) { feedID in
             SmartFeedDetailView(feedID: feedID)
         }
@@ -143,6 +150,45 @@ struct TopicStatisticsHeader: View {
 
     static func spoken(_ entry: TagStatementCount) -> String {
         "\(entry.label): \(NewStatements.text(entry.count))"
+    }
+}
+
+/// „Angesagt: iOS 27, Datenschutz“. Jeder Name öffnet die Seite des Tags,
+/// abgespielt wird nichts.
+struct TrendingTagsLine: View {
+
+    let entries: [TrendingTag]
+    let open: (InterestID) -> Void
+
+    /// Eine Zeile, keine Liste: mehr Namen passen nicht in den Kopf.
+    static let maximumTags = 5
+
+    var body: some View {
+        let shown = Array(entries.prefix(Self.maximumTags))
+        FlowLayout(spacing: Design.Spacing.micro, lineSpacing: Design.Spacing.none) {
+            Label("Angesagt:", systemImage: "chart.line.uptrend.xyaxis")
+                .foregroundStyle(.secondary)
+                .frame(minHeight: Design.minimumTapTarget)
+                .accessibilityHidden(true)
+            ForEach(Array(shown.enumerated()), id: \.element.id) { index, entry in
+                Button { open(entry.tag.id) } label: {
+                    // Das Komma gehört zum Namen davor, damit es beim
+                    // Umbruch nicht allein am Zeilenanfang steht.
+                    Text(verbatim: index < shown.count - 1 ? entry.tag.label + "," : entry.tag.label)
+                        .frame(minHeight: Design.minimumTapTarget)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(Text(verbatim: entry.tag.label))
+                .accessibilityHint("Öffnet die Seite des Tags")
+                .accessibilityIdentifier("topicUpdates.trending.\(entry.tag.testKey)")
+            }
+        }
+        .font(.subheadline)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Angesagt")
+        .accessibilityIdentifier("topicUpdates.trending")
     }
 }
 
