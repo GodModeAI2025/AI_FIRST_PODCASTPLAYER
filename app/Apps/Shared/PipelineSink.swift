@@ -75,17 +75,35 @@ extension AppModel {
     /// verlangt nur, dass sie nach dem Schreiben kommen. Untereinander
     /// bleiben sie in der Reihenfolge der Aufrufe.
     ///
+    /// Wird die Folge in der Zwischenzeit gelöscht, fällt alles weg. Sonst
+    /// käme etwa `evidenceReady` hinter `episodesRemoved` an, das ohne
+    /// Warten hinausgeht.
+    ///
     /// `media`: die Fassung, falls bekannt. Sonst gilt die aktuelle der Folge.
     func emit(_ kinds: [PipelineEvent.Kind], of id: EpisodeID, media: MediaVersionID? = nil,
               _ make: @escaping @Sendable (InputVersion) -> [PipelineEvent]) {
         guard let pipeline, kinds.contains(where: pipeline.hasListeners(for:)) else { return }
         let store = store
+        let removals = removals
+        // Der Stand jetzt, beim Aufruf: Was danach gelöscht wird, sendet nichts mehr.
+        let ticket = removals.ticket
         let previous = pendingEmission
         pendingEmission = Task {
             let version = await Self.inputVersion(of: id, media: media, in: store)
             await previous?.value
             guard let version else { return }
-            for event in make(version) { pipeline.emit(event) }
+            pipeline.emit(make(version), about: id, unlessRemovedSince: ticket, in: removals)
+        }
+    }
+
+    /// Sendet ein Ereignis, sobald ein Schreiben zurückgekehrt ist, das als
+    /// eigene Aufgabe läuft. So gilt der Vertrag der Pipeline (erst
+    /// speichern, dann melden), ohne dass der Aufrufer auf das Speichern wartet.
+    func emit(_ event: PipelineEvent, after write: Task<Void, Never>) {
+        guard let pipeline, pipeline.hasListeners(for: event.kind) else { return }
+        Task {
+            await write.value
+            pipeline.emit(event)
         }
     }
 

@@ -170,6 +170,36 @@ struct PipelineHostTests {
         #expect(host.listeningStages == [.download])
     }
 
+    @Test("Was nach einem await gesendet wird, kommt nie hinter dem Löschen der Folge an")
+    func delayedEventsRespectRemoval() async {
+        let host = PipelineHost()
+        let ledger = RemovalLedger()
+        let mailbox = host.mailbox(for: .knowledge)
+        let id = episode("e1")
+        let ready = sampleEvent(.evidenceReady)
+        let facts = sampleEvent(.factsDone)
+        let removed = PipelineEvent.episodesRemoved([id], .episode)
+
+        let ticket = ledger.ticket
+        #expect(host.emit([ready], about: id, unlessRemovedSince: ticket, in: ledger))
+        // Gelöscht wie in der App: erst ins Protokoll, dann das Ereignis.
+        ledger.markRemoved([id])
+        host.emit(removed)
+        // Das Ergebnis eines Laufs, der vor dem Löschen begann, fällt weg.
+        #expect(!host.emit([facts], about: id, unlessRemovedSince: ticket, in: ledger))
+        // Eine andere Folge ist nicht betroffen.
+        let other = PipelineEvent.factsDone(
+            episode("e2"), InputVersion(mediaVersionID: MediaVersionID(rawValue: "m2"),
+                                        transcriptID: TranscriptID(rawValue: "t2"), revision: .initial,
+                                        segmentCount: 1, lastEndMs: 1_000),
+            .stored, .automatic)
+        #expect(host.emit([other], about: episode("e2"), unlessRemovedSince: ticket, in: ledger))
+        // Neu abonniert: Arbeit nach dem Löschen meldet sich wieder.
+        #expect(host.emit([facts], about: id, unlessRemovedSince: ledger.ticket, in: ledger))
+
+        #expect(await take(4, from: mailbox) == [ready, removed, other, facts])
+    }
+
     @Test("Hört der Leser auf, fällt das Postfach weg")
     func mailboxEndsWithReader() async {
         let host = PipelineHost()
@@ -249,6 +279,8 @@ struct RemovalLedgerTests {
         let ticket = ledger.ticket
         #expect(ledger.write(data, to: file, staging: root, for: episode("a"), since: ticket))
         #expect(try Data(contentsOf: file) == data)
+        // Die Zwischendatei lag nicht im Ordner des Zwischenspeichers.
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.path) == ["a"])
         // Überschreiben geht auch.
         #expect(ledger.write(Data("[]".utf8), to: file, staging: root, for: episode("a"), since: ticket))
         #expect(try Data(contentsOf: file) == Data("[]".utf8))

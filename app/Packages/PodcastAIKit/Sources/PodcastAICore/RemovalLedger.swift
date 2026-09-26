@@ -105,33 +105,46 @@ public final class RemovalLedger: Sendable {
     /// Legt eine Datei ab, die aus einer Folge entstanden ist, außer die
     /// Folge wurde seit `ticket` gelöscht.
     ///
-    /// Geschrieben wird zuerst eine Zwischendatei in `staging`, außerhalb der
-    /// Sperre. Unter der Sperre kommen nur noch die Prüfung, der Ordner und
-    /// das Umbenennen, also Arbeit von Mikrosekunden. Wer die Dateien der
-    /// Folge nach `markRemoved` entfernt, erwischt damit auch alles, was
-    /// hier noch durchging, und nichts kommt danach zurück.
+    /// Geschrieben wird zuerst eine Zwischendatei, außerhalb der Sperre.
+    /// Unter der Sperre kommen nur noch die Prüfung, der Ordner und das
+    /// Umbenennen, also Arbeit von Mikrosekunden. Wer die Dateien der Folge
+    /// nach `markRemoved` entfernt, erwischt damit auch alles, was hier noch
+    /// durchging, und nichts kommt danach zurück.
     ///
-    /// `staging` muss auf demselben Datenträger liegen wie `file`, am
-    /// besten der Ordner des Zwischenspeichers selbst.
+    /// Die Zwischendatei liegt im Ordner des Systems für Zwischenstände
+    /// (`itemReplacementDirectory`), wie bei `Data.write(options: .atomic)`.
+    /// Endet der Prozess zwischen Schreiben und Umbenennen, räumt das System
+    /// sie weg. Im Ordner des Zwischenspeichers bliebe sie für immer liegen.
+    ///
+    /// `staging` liegt auf demselben Datenträger wie `file`, am besten der
+    /// Ordner des Zwischenspeichers selbst. Danach wählt das System seinen
+    /// Ordner, und nur wenn es keinen hergibt, liegt die Zwischendatei dort.
     @discardableResult
     public func write(_ data: Data, to file: URL, staging: URL,
                       for id: EpisodeID, since ticket: Ticket) -> Bool {
         let fileManager = FileManager.default
-        let scratch = staging.appendingPathComponent(".staging-\(UUID().uuidString)")
         do {
             try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
-            try data.write(to: scratch)
         } catch {
-            try? fileManager.removeItem(at: scratch)
             return false
         }
-        let moved = unlessRemoved(id, since: ticket) { () -> Bool in
+        let system = try? fileManager.url(
+            for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: staging, create: true)
+        let scratch = (system ?? staging).appendingPathComponent(".staging-\(UUID().uuidString)")
+        defer {
+            // Nach dem Umbenennen ist die Zwischendatei schon weg, sonst geht sie hier.
+            try? fileManager.removeItem(at: system ?? scratch)
+        }
+        do {
+            try data.write(to: scratch)
+        } catch {
+            return false
+        }
+        return unlessRemoved(id, since: ticket) { () -> Bool in
             try? fileManager.createDirectory(
                 at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
             return rename(scratch.path, file.path) == 0
         } ?? false
-        if !moved { try? fileManager.removeItem(at: scratch) }
-        return moved
     }
 
     private static func removed(_ id: EpisodeID, since ticket: Ticket, in state: State) -> Bool {

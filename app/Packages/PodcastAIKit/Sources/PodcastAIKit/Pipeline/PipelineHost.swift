@@ -20,6 +20,7 @@
 
 import Foundation
 import Synchronization
+import PodcastAICore
 
 public final class PipelineHost: Sendable {
 
@@ -54,6 +55,24 @@ public final class PipelineHost: Sendable {
                 state.mailboxes[stage]?.continuation.yield(event)
             }
         }
+    }
+
+    /// Sendet Ereignisse zu einer Folge, außer sie wurde seit `ticket`
+    /// gelöscht. Für Ereignisse, die erst nach einem `await` hinausgehen,
+    /// etwa weil sie ihre Eingangsfassung im Store lesen: Ohne diese Prüfung
+    /// käme `evidenceReady` einer Folge womöglich hinter ihrem
+    /// `episodesRemoved` an, und eine Stufe nähme die gelöschte Folge wieder auf.
+    ///
+    /// Geprüft und gesendet wird unter der Sperre des Löschprotokolls. Wer
+    /// löscht, schreibt dort zuerst und sendet `episodesRemoved` erst danach.
+    /// Also liegen diese Ereignisse entweder vor dem Löschen im Postfach
+    /// oder gar nicht. Gibt zurück, ob gesendet wurde.
+    @discardableResult
+    public func emit(_ events: [PipelineEvent], about id: EpisodeID,
+                     unlessRemovedSince ticket: RemovalLedger.Ticket, in ledger: RemovalLedger) -> Bool {
+        ledger.unlessRemoved(id, since: ticket) { () -> Void in
+            for event in events { emit(event) }
+        } != nil
     }
 
     /// Das Postfach einer Stufe. Eine Stufe hat einen Besitzer: Wer ein

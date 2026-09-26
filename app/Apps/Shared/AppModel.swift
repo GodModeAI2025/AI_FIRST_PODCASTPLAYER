@@ -1886,8 +1886,6 @@ public final class AppModel {
         // Stand der Löschungen beim Start. Wird die Folge währenddessen
         // gelöscht, darf nichts von ihr zurückkommen.
         let ticket = removals.ticket
-        // Wer die Folge wollte, bevor die Vermerke unten wegfallen.
-        let requestedBy = transcriptOrigin(of: episode.id)
         // Inzwischen gelöscht, hier oder auf einem anderen Gerät: überspringen.
         let live = try? await store.episodes(ids: [episode.id])
         if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
@@ -1972,9 +1970,13 @@ public final class AppModel {
             analyzedEpisodes.insert(episode.id)
             transcriptChangedForTags(episode.id)
             // Transkript und Belege sind gespeichert. Das Weitergeben darunter
-            // bleibt, bis die Stufen übernehmen. Ohne `await`.
+            // bleibt, bis die Stufen übernehmen. Ohne `await`. Wer die Folge
+            // wollte, gilt jetzt und nicht beim Start: „Transkript jetzt
+            // erstellen“ während des Laufs macht daraus eine Anforderung von
+            // Hand, und die Ansage unten richtet sich danach.
             emitTranscriptFinished(
-                episode.id, media: MediaVersionID(stable: audioURL.absoluteString), origin: requestedBy)
+                episode.id, media: MediaVersionID(stable: audioURL.absoluteString),
+                origin: transcriptOrigin(of: episode.id))
             // Die Fakten kommen in ihre eigene Warteschlange, vor dem ersten
             // `await`: eine Löschung danach nimmt sie dort wieder heraus. Das
             // nächste Transkript wartet nicht auf sie.
@@ -2015,13 +2017,15 @@ public final class AppModel {
             }
             if UserFacingError.isTransient(error) {
                 stages[episode.id] = nil
-                emit(.transcriptFailed(episode.id, TranscriptFailure(.transient), requestedBy))
+                emit(.transcriptFailed(episode.id, TranscriptFailure(.transient), transcriptOrigin(of: episode.id)))
                 return true
             }
             stages[episode.id] = .failed
             let message = UserFacingError.describe(error)
             stageDetails[episode.id] = message
-            emit(.transcriptFailed(episode.id, Self.transcriptFailure(error, message: message), requestedBy))
+            // Vor dem Vermerk unten, der sagt, wer die Folge wollte.
+            emit(.transcriptFailed(
+                episode.id, Self.transcriptFailure(error, message: message), transcriptOrigin(of: episode.id)))
             let wasAutomatic = automaticallyQueued.remove(episode.id) != nil
             backlogQueued.remove(episode.id)
             if wasAutomatic {
@@ -2073,7 +2077,6 @@ public final class AppModel {
     private func runCaptionAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
         analyzing = episode
         let ticket = removals.ticket
-        let requestedBy = transcriptOrigin(of: episode.id)
         let live = try? await store.episodes(ids: [episode.id])
         if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
             analyzing = nil
@@ -2136,8 +2139,10 @@ public final class AppModel {
             supadataRestingUntil = nil
             analyzedEpisodes.insert(episode.id)
             transcriptChangedForTags(episode.id)
+            // Wie bei Ton: wer die Folge jetzt will, vor dem Vermerk unten.
             emitTranscriptFinished(
-                episode.id, media: CaptionAnalysis.mediaVersionID(watchURL: watchURL), origin: requestedBy)
+                episode.id, media: CaptionAnalysis.mediaVersionID(watchURL: watchURL),
+                origin: transcriptOrigin(of: episode.id))
             stages[episode.id] = .evidenceExtracted
             stageDetails[episode.id] = origin.sourceLabel
             // Die Fassung des Videos kennt jetzt ihre Kennung; Stellen daraus
@@ -2158,6 +2163,8 @@ public final class AppModel {
                 return false
             }
             let failure = (error as? SupadataError) ?? (error is CancellationError ? .cancelled : .network)
+            // Wer die Folge wollte, bevor die Vermerke gleich darunter wegfallen.
+            let requestedBy = transcriptOrigin(of: episode.id)
             automaticallyQueued.remove(episode.id)
             backlogQueued.remove(episode.id)
             // Wie bei Ton: die Folge sagt, woran es lag. Hat das Video keine
@@ -2620,9 +2627,10 @@ public final class AppModel {
         return Task { await persist { try await $0.save(smartFeeds: feeds) } }
     }
 
-    private func persistEditions(for feedID: SmartFeedID) {
+    @discardableResult
+    private func persistEditions(for feedID: SmartFeedID) -> Task<Void, Never> {
         let list = editions[feedID] ?? []
-        Task { await persist { try await $0.save(editions: list, forFeed: feedID) } }
+        return Task { await persist { try await $0.save(editions: list, forFeed: feedID) } }
     }
 
     func saveHighlights() { persistHighlights() }
@@ -2770,8 +2778,9 @@ public final class AppModel {
                 }
                 // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn.
                 editions[feedID, default: []].insert(contentsOf: run.parts, at: 0)
-                persistEditions(for: feedID)
-                emit(.editionPublished(feedID, run.parts.map(\.id)))
+                // Gemeldet wird erst, wenn die Ausgabe gespeichert ist. Das
+                // Zusammenstellen wartet darauf nicht.
+                emit(.editionPublished(feedID, run.parts.map(\.id)), after: persistEditions(for: feedID))
                 await updateStatistics(for: [feed], chapters: chapters)
                 // Das Cover je Teil entsteht gleich, wenn die App vorn ist.
                 // Im Hintergrund lehnt Image Playground ab; dann holt es der
