@@ -481,7 +481,9 @@ private struct PendingAnswerCard: View {
     private var partial: String { model.partialAnswer }
 
     private var status: LocalizedStringKey {
-        partial.isEmpty ? "Antwort wird gesucht …" : "Antwort wird geschrieben …"
+        // Schlägt das Modell gerade nach, steht das hier, ruhig und kurz.
+        if let lookup = model.chatLookupKind { return lookup.status }
+        return partial.isEmpty ? "Antwort wird gesucht …" : "Antwort wird geschrieben …"
     }
 
     var body: some View {
@@ -494,9 +496,11 @@ private struct PendingAnswerCard: View {
                     ProgressView()
                     Text(status)
                         .foregroundStyle(.secondary)
+                        .contentTransition(.opacity)
                 }
             }
             .accessibilityElement(children: .combine)
+            .accessibilityIdentifier(model.chatLookupKind == nil ? "chat.pending" : "chat.lookupStatus")
 
             if !partial.isEmpty {
                 Text(verbatim: partial)

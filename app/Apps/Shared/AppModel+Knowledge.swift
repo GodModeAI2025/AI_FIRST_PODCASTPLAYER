@@ -473,6 +473,10 @@ extension AppModel {
                 citations: [], coverageCaveat: caveat)
         }
 
+        // Das Modell darf im Bereich dieser Frage nachschlagen
+        // (AppModel+ChatLookup.swift). Der Plan hält dafür Platz frei.
+        let lookup = makeChatLookup(scope: scope, pool: pool, number: number)
+
         let overview = Self.asksForOverview(question)
         let atMoment = position != nil && Self.asksAboutCurrentMoment(question)
         // Die Rangfolge braucht das Budget nicht: sie läuft mit der Decke
@@ -504,11 +508,12 @@ extension AppModel {
         let cloudLibrary = String(libraryContext.prefix(ceiling.libraryContextLimit))
         let (device, budget) = await ChatTrace.interval("Token zählen") {
             async let deviceFit = planner.fittedAnswerBudget(
-                deviceCeiling, tier: .onDevice, question: question, sample: sample, libraryContext: deviceLibrary)
+                deviceCeiling, tier: .onDevice, question: question, sample: sample, libraryContext: deviceLibrary,
+                lookup: lookup != nil)
             async let cloudFit: ContextBudget? = usesPrivateCloud
                 ? planner.fittedAnswerBudget(
                     ceiling, tier: .privateCloudCompute, question: question, sample: sample,
-                    libraryContext: cloudLibrary)
+                    libraryContext: cloudLibrary, lookup: lookup != nil)
                 : nil
             let device = await deviceFit
             return (device, await cloudFit ?? device)
@@ -536,22 +541,17 @@ extension AppModel {
             candidates = Array(await ranking?.value.prefix(limit) ?? [])
         }
 
-        let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
-            candidateBuilder: CandidateListBuilder(excerptLimit: budget.excerptLimit, maximumCandidates: limit),
-            // Ohne diese Angabe rechnete der Extraktor auf dem Gerät mit dem
-            // festen Budget aus dem Paket und kürzte den Kontext unter das,
-            // was hier für das Gerät bestimmt wurde.
-            onDeviceBudget: device))
         // Die Suche läuft losgelöst und hält bei „Abbrechen“ nicht an.
         guard !Task.isCancelled else { return nil }
         let status = modelStatus
         do {
-            let composed = try await extractor.answer(
-                question: question, from: candidates,
-                libraryContext: String(libraryContext.prefix(budget.libraryContextLimit)),
-                availability: status,
-                onPartial: { [weak self] text in await self?.showPartialAnswer(text, number: number) })
-            let byID = Dictionary(candidates.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+            let composed = try await answerWithLookup(
+                question: question, candidates: candidates, libraryContext: libraryContext,
+                device: device, budget: budget, lookup: lookup, status: status, number: number)
+            // Belegt wird mit der Kandidatenliste und mit dem, was die
+            // Werkzeuge geliefert haben, sonst mit nichts.
+            let byID = Dictionary((candidates + composed.lookedUp).map { ($0.id, $0) },
+                                  uniquingKeysWith: { first, _ in first })
             var cited = composed.citations.sorted { $0.key < $1.key }.compactMap { byID[$0.value] }
             if cited.isEmpty { cited = composed.claims.flatMap(\.evidenceIDs).compactMap { byID[$0] } }
             var text = composed.text
