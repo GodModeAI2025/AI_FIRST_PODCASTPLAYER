@@ -15,12 +15,14 @@ import Foundation
 import PodcastAIKit
 
 /// Was „Angesagt“ neu rechnen lässt: neue, geänderte oder gelöschte
-/// Kapitel-Tags. Die Einordnung schreibt Kapitel-Tags, ohne
-/// `chapterTagsRevision` zu erhöhen; sie ändert aber `chapterTagCounts`.
+/// Kapitel-Tags. Die Einordnung schreibt Kapitel-Tags in den Store, ohne
+/// `chapterTagsRevision` zu erhöhen. Sichtbar wird das erst, wenn
+/// `reloadProfile()` oder `refreshRelevantToday()` `chapterTagCounts` neu
+/// lesen. Verglichen wird die ganze Zählung, nicht nur ihre Summe: Wandert
+/// ein Kapitel von einem Tag zum anderen, bleibt die Summe gleich.
 struct TagTrendsTrigger: Hashable {
     let revision: Int
-    let tags: Int
-    let chapters: Int
+    let counts: [InterestID: Int]
 }
 
 /// Wann und wofür „Angesagt“ zuletzt gerechnet wurde.
@@ -41,8 +43,7 @@ extension AppModel {
 
     /// Für `.task(id:)` der Ansichten, die „Angesagt“ zeigen.
     var tagTrendsTrigger: TagTrendsTrigger {
-        TagTrendsTrigger(revision: chapterTagsRevision, tags: chapterTagCounts.count,
-                         chapters: chapterTagCounts.values.reduce(0, +))
+        TagTrendsTrigger(revision: chapterTagsRevision, counts: chapterTagCounts)
     }
 
     /// So lange gilt ein Ergebnis, solange sich an den Kapitel-Tags nichts
@@ -68,7 +69,11 @@ extension AppModel {
             let trends = await Task.detached(priority: .utility) {
                 TrendDetector.detect(recent: recent, baseline: baseline, historyStart: earliest, now: now)
             }.value
-            guard !Task.isCancelled else { return }
+            // Haben sich die Kapitel-Tags beim Rechnen geändert, ist das
+            // Ergebnis alt und bleibt liegen. Die Ansichten hängen mit
+            // `.task(id:)` am Auslöser und rechnen mit dem neuen Stand; ein
+            // später fertiger alter Lauf überschriebe sonst deren Ergebnis.
+            guard !Task.isCancelled, tagTrendsTrigger == trigger else { return }
             if trends != tagTrends { tagTrends = trends }
             tagTrendsStamp = TagTrendsStamp(trigger: trigger, computedAt: now)
         } catch {
