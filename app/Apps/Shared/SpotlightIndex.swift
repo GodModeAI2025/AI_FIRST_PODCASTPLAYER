@@ -246,7 +246,7 @@ private struct SpotlightContinuation: ViewModifier {
 /// dafür nichts. Was im offenen Blatt steht, bleibt stehen, und nach
 /// „Fertig“ ist man wieder dort.
 @MainActor
-private final class PresentationAnchor {
+final class PresentationAnchor {
 
     /// Eine Ansicht im Fenster der Wurzel. Über sie findet sich das Fenster,
     /// in dem der Treffer ankam.

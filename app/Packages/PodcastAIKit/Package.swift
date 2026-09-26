@@ -12,6 +12,9 @@ let package = Package(
         .library(name: "PodcastAIKit", targets: ["PodcastAIKit"]),
         // Für das Widget: nur der Schnappschuss, ohne Datenbank und Modelle.
         .library(name: "PodcastAIWidgetData", targets: ["PodcastAIWidgetData"]),
+        // Für die Erweiterung „An PodcastAI senden“: nur der Eingang und die
+        // Linkregeln, ohne Datenbank, Medien und Modelle.
+        .library(name: "PodcastAIShareInbox", targets: ["PodcastAIShareInbox"]),
     ],
     targets: [
         // Reine Domäne: Foundation only, keine Apple-Frameworks, vollständig testbar.
@@ -47,6 +50,11 @@ let package = Package(
         // Persönliche Themenfeeds.
         .target(name: "PodcastAISmartFeeds", dependencies: ["PodcastAICore", "PodcastAIKnowledge", "PodcastAIPlayback"], resources: [.process("Localizable.xcstrings")]),
 
+        // Eingang für „An PodcastAI senden“: Übergabe über die App Group.
+        // Nur Foundation und die Linkregeln aus den Quellen, damit die
+        // Erweiterung klein bleibt.
+        .target(name: "PodcastAIShareInbox", dependencies: ["PodcastAICore", "PodcastAISources"], resources: [.process("Localizable.xcstrings")]),
+
         // Markdown-Export mit sicheren Quellenlinks.
         .target(name: "PodcastAIExport", dependencies: ["PodcastAICore", "PodcastAIKnowledge"], resources: [.process("Localizable.xcstrings")]),
 
@@ -59,8 +67,9 @@ let package = Package(
             "PodcastAICore", "PodcastAISources", "PodcastAIMedia", "PodcastAITranscription",
             "PodcastAIIntelligence", "PodcastAIKnowledge", "PodcastAIPlayback",
             "PodcastAISmartFeeds", "PodcastAIExport", "PodcastAIPersistence", "PodcastAIWidgetData",
+            "PodcastAIShareInbox",
         ], resources: [.process("Localizable.xcstrings")]),
 
-        .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit", "PodcastAIExport", "PodcastAIWidgetData"]),
+        .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit", "PodcastAIExport", "PodcastAIWidgetData", "PodcastAIShareInbox"]),
     ]
 )

@@ -267,6 +267,8 @@ struct MacRootView: View {
         }
         .autoRefresh()
         .spotlightPassages()
+        // Links und Audiodateien aus „An PodcastAI senden“, nur in einem Fenster.
+        .sharedInbox(isActive: isPresenter)
         .environment(\.openQueue, OpenQueueAction(run: { section = .queue }))
         .environment(\.showInApp, ShowInAppAction { jump in show(jump) })
         .onOpenURL { url in open(url) }

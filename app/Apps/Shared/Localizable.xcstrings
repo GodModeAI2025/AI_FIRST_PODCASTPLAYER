@@ -5339,6 +5339,22 @@
         }
       }
     },
+    "Die Datei kommt als Folge unter „Einzelne Folgen“ und bleibt auf diesem Gerät, bis du „Audio entfernen“ wählst. Auf deinen anderen Geräten steht die Folge mit Transkript, aber ohne Ton." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Datei kommt als Folge unter „Einzelne Folgen“ und bleibt auf diesem Gerät, bis du „Audio entfernen“ wählst. Auf deinen anderen Geräten steht die Folge mit Transkript, aber ohne Ton."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file becomes an episode under \"Individual Episodes\" and stays on this device until you choose \"Remove Audio\". On your other devices the episode shows up with its transcript but without audio."
+          }
+        }
+      }
+    },
     "Die Datenbank ließ sich nicht öffnen. Die App läuft ohne Speicher, und was du jetzt anlegst, ist beim nächsten Start weg." : {
       "localizations" : {
         "de" : {
@@ -8823,6 +8839,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Read Saved Answers"
+          }
+        }
+      }
+    },
+    "Geteilte Audiodatei" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geteilte Audiodatei"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shared Audio File"
           }
         }
       }
@@ -12809,6 +12841,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search podcasts or paste a link"
+          }
+        }
+      }
+    },
+    "Podcast wird geladen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast wird geladen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading podcast…"
           }
         }
       }
@@ -17356,6 +17404,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Access"
+          }
+        }
+      }
+    },
+    "Zur Bibliothek hinzufügen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zur Bibliothek hinzufügen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Library"
           }
         }
       }

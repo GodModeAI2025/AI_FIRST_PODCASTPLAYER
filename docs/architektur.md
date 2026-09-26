@@ -17,6 +17,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 | PodcastAIExport | Markdown-Export für Folgen, Antworten und gemerkte Stellen |
 | PodcastAIPersistence | SwiftData mit Abgleich über iCloud |
 | PodcastAIWidgetData | Schnappschuss fürs Widget in der App Group, Adressen `podcastai://`; nur Foundation, damit die Widget-Erweiterung klein bleibt |
+| PodcastAIShareInbox | Eingang für „An PodcastAI senden“ in der App Group und die Linkregeln der Erweiterung, eigenes Produkt nur mit Foundation |
 
 ## Vom Feed zur Antwort
 
@@ -118,6 +119,17 @@ Ein eingefügter Feed oder eine Audiodatei wird gleich angelegt wie bisher. Mein
 
 Eine Playlist ist eine eigene Quelle mit dem Feed `feeds/videos.xml?playlist_id=`. Der Feed eines Kanals oder einer Playlist nennt nur die 15 neuesten Videos; die App behält jedes Video, das sie einmal gesehen hat, und sagt auf der Kanalseite, dass ältere sich nicht nachladen lassen.
 
+## Teilen in die App
+
+„An PodcastAI senden“ ist eine Share Extension für iOS und macOS (`PodcastAIShare`, `PodcastAIShareMac`). Sie erscheint bei Links und Audiodateien, bei anderen Dateien nicht (`NSExtensionActivationRule`). Sie legt nichts an, geht nicht ins Netz und hängt nur am kleinen Paketprodukt `PodcastAIShareInbox`, nicht an Datenbank, Medien oder Modellen. Den Link oder eine Kopie der Datei legt sie in den Eingang der App Group `group.com.godmodeai.podcastai` (`ShareInbox`): je Übergabe eine JSON-Datei unter `ShareInbox/Items`, die Datei unter `ShareInbox/Files`, erst die Datei, dann der Eintrag. Danach versucht sie, die App über `podcastai://share-inbox` zu öffnen. Die Adresse trägt keine Daten, sie sagt der App nur, dass sie nachsehen soll. iOS erlaubt einer Share Extension das Öffnen nicht; dann steht dort „In PodcastAI geöffnet, sobald du die App startest“. Der Mac öffnet die App.
+
+Die App liest den Eingang beim Start, beim Wechsel in den Vordergrund und beim Öffnen über die Adresse (`SharedInboxCenter`, `SharedInbox.swift`). Auch was die eigene Erweiterung schreibt, gilt als fremde Eingabe. `ShareInbox` prüft beim Lesen jeden Eintrag noch einmal: den Link nach denselben Regeln wie beim Einfügen (`SharedLinks`, gestützt auf `SourceResolver`, `EpisodeLinks` und `SocialLinks`), den Dateinamen nur in der Form `<Kennung>.<Endung>` und die Größe bis 2 GB wie beim Laden einer Folge. Was sich nicht lesen lässt oder älter als sieben Tage ist, geht weg, Dateien ohne Eintrag nach einer Stunde. Mehr als 20 wartende Übergaben nimmt die Erweiterung nicht an.
+
+- **Link:** Das Blatt „Hinzufügen“ öffnet sich mit dem Link im Feld und sieht ihn an, ohne etwas anzulegen. Folgen aus Apple Podcasts und von Hostern, YouTube und Podcasts (Feed, Seite eines Podcasts, Podcast bei Apple, `sharedPodcastPreview`) zeigen ihre Vorschau mit „Abonnieren“ und „Nur diese Folge“. Ein eingefügter Feed wird sofort abonniert, ein geteilter nicht. Eine Audiodatei im Netz und Beiträge aus sozialen Netzen bleiben im Feld, darunter der gewohnte Knopf.
+- **Audiodatei:** Ein kleines Blatt bietet „Zur Bibliothek hinzufügen“. Erst dann prüft die App den Anfang der Datei (`PlayableAsset`), verschiebt sie in den Audioordner und legt die Folge über `addAudioEpisode` unter „Einzelne Folgen“ an (`addSharedAudioFile`). Die Folge trägt eine Adresse, die nur sie kennzeichnet (`file:///PodcastAI/Geteilt/<Kennung>/<Name>`), und die Datei liegt unter deren Fassung. Aus dem Netz lässt sich der Ton nicht wieder holen, deshalb zählt er wie „Laden (offline)“ und bleibt bis „Audio entfernen“. Auf anderen Geräten steht die Folge nach dem Abgleich mit Transkript, aber ohne Ton.
+
+Ist auf dem iPhone schon ein Blatt offen, erscheint die Übergabe darüber (`PresentationAnchor`). Auf dem Mac nimmt nur das Fenster Übergaben an, das für die ganze App spricht. Die Datenbank ändert sich dafür nicht; der Eingang liegt nur in der App Group. UI-Tests spielen eine Übergabe mit `-uitest-shared-link <Adresse>` oder `-uitest-shared-audio <Dateiname>` nach (`ShareInboxUITests`), die Regeln prüft `ShareInboxTests`.
+
 ## Welches Modell wann
 
 | Aufgabe | Bevorzugt | Rückfall |
@@ -185,6 +197,7 @@ PODCASTAI_PROCESSING_BENCH=1 swift test --filter ProcessingBenchmark
 | Application Support/PodcastAI/Mentions, ChapterSummaries, Translations | Erwähntes je Folge, Satz je Kapitel, Übersetzungen | abgeleitet und jederzeit neu zu rechnen, je Folge eine Datei |
 | Application Support/PodcastAI/DeviceState | Listen dieses Geräts, die wachsen können: aus der Warteschlange genommen, gescheitert, für unterwegs geladen, als neueste vorgehalten, Fakten und Tags ohne Ergebnis, Lücken und abgelehnte Abschnitte der Fakten, Stand der Kapitel-Tags, Fehlversuche und Zwillinge bei YouTube, „Ältere Folgen auch vorbereiten“ | je Gerät; einmal je Start gelesen, im Hintergrund und gebündelt geschrieben (`DeviceState`). Beim ersten Lesen nach dem Update ziehen die Werte aus den Benutzereinstellungen hierher um |
 | App Group `group.com.godmodeai.podcastai`, Ordner `Widget` | Schnappschuss fürs Widget „Was ist neu“: neue Aussagen je gefolgtem Tag, Titel der neuesten Ausgabe, angesagte Tags | das Widget ist eine eigene Erweiterung und liest nur diesen Ordner; nur Zahlen, Titel und Kennungen, kein Text aus einer Folge |
+| App Group `group.com.godmodeai.podcastai`, Ordner `ShareInbox` | Übergaben aus „An PodcastAI senden“: je Link oder Datei ein kleiner JSON-Eintrag, geteilte Audiodateien als Kopie | nur bis die App sie übernimmt oder verwirft, höchstens sieben Tage |
 | Caches | Metadaten über Supadata, `URLCache` für Cover und Katalog | darf das System jederzeit leeren |
 | Benutzereinstellungen (`UserDefaults`) | Schalter, Warteschlange als Liste von Kennungen (`AnalysisQueueSnapshot`), „Als Nächstes“, Fortsetzungsstellen, kleine Zuordnungen | klein; ein Eintrag wird bei jeder Änderung als Ganzes geschrieben |
 | Schlüsselbund | Schlüssel für Supadata | geheim |

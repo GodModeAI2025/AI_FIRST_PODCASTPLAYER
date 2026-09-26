@@ -15,6 +15,7 @@
 @_exported import PodcastAISmartFeeds
 @_exported import PodcastAIExport
 @_exported import PodcastAIWidgetData
+@_exported import PodcastAIShareInbox
 
 #if canImport(SwiftData)
 @_exported import PodcastAIPersistence
