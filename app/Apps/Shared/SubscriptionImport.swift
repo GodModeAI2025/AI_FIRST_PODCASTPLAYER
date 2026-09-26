@@ -27,19 +27,29 @@ enum OPMLFile {
         [UTType(filenameExtension: "opml"), .xml].compactMap { $0 }
     }
 
-    /// Liest eine Datei aus der Dateiauswahl. Die Datei kann in iCloud Drive
-    /// liegen und erst geladen werden müssen; deshalb koordiniert und nicht
-    /// auf dem Hauptthread.
+    /// Liest eine OPML-Datei aus der Dateiauswahl.
     static func read(_ url: URL) async throws -> Data {
+        try await ImportedFile.read(url, maximumBytes: OPML.maximumBytes,
+                                    tooLarge: OPMLError.tooLarge, unreadable: OPMLError.notOPML)
+    }
+}
+
+/// Eine Abo-Liste aus der Dateiauswahl, als OPML oder als CSV aus Google Takeout.
+enum ImportedFile {
+
+    /// Liest die Datei. Sie kann in iCloud Drive liegen und erst geladen
+    /// werden müssen; deshalb koordiniert und nicht auf dem Hauptthread.
+    static func read(_ url: URL, maximumBytes: Int, tooLarge: any Error,
+                     unreadable: any Error) async throws -> Data {
         try await Task.detached(priority: .userInitiated) {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
-               size > OPML.maximumBytes {
-                throw OPMLError.tooLarge
+               size > maximumBytes {
+                throw tooLarge
             }
             var coordinationError: NSError?
-            var result: Result<Data, Error> = .failure(OPMLError.notOPML)
+            var result: Result<Data, Error> = .failure(unreadable)
             NSFileCoordinator().coordinate(readingItemAt: url, options: .withoutChanges,
                                            error: &coordinationError) { readable in
                 result = Result { try Data(contentsOf: readable) }
@@ -47,6 +57,17 @@ enum OPMLFile {
             if let coordinationError { throw coordinationError }
             return try result.get()
         }.value
+    }
+
+    /// Warum ein Abo aus einer Liste nicht ging, kurz genug für eine Zeile.
+    nonisolated static func failureReason(_ error: Error) -> String {
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            return nsError.code == NSURLErrorNotConnectedToInternet
+                ? String(localized: "Keine Internetverbindung")
+                : String(localized: "Der Server ist nicht erreichbar.")
+        }
+        return UserFacingError.describe(error)
     }
 }
 
@@ -446,18 +467,7 @@ struct OPMLImportSheet: View {
             if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled {
                 return (feed.id, .skipped)
             }
-            return (feed.id, .failed(reason(error)))
+            return (feed.id, .failed(ImportedFile.failureReason(error)))
         }
-    }
-
-    /// Kurz genug für eine Zeile in der Liste.
-    private nonisolated static func reason(_ error: Error) -> String {
-        let nsError = error as NSError
-        if nsError.domain == NSURLErrorDomain {
-            return nsError.code == NSURLErrorNotConnectedToInternet
-                ? String(localized: "Keine Internetverbindung")
-                : String(localized: "Der Server ist nicht erreichbar.")
-        }
-        return UserFacingError.describe(error)
     }
 }

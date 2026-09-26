@@ -422,6 +422,14 @@ extension HelpTopic {
                     Tipp auf einen Podcast zeigt Beschreibung und neueste Folgen. Abgespielt wird dort nichts, \
                     erst nach dem Abonnieren.
                     """, symbol: "square.grid.2x2", level: .beginner),
+                HelpTip(title: "YouTube-Abos übernehmen", text: """
+                    In „Meine Podcasts“ im Menü „Abos importieren oder exportieren“: „YouTube-Abos aus \
+                    Google Takeout importieren“. Bei Google Takeout (takeout.google.com) YouTube und darin \
+                    die Abos exportieren, das ZIP-Archiv entpacken und die CSV-Datei wählen. Zu jedem Kanal \
+                    sucht die App einen Audio-Podcast und empfiehlt ihn, denn nur mit Ton gibt es \
+                    Transkript, Fakten und Tags. Die Namen der Kanäle gehen dafür an die Podcast-Suche von \
+                    Apple.
+                    """, symbol: "play.rectangle.on.rectangle", level: .advanced),
             ],
             jumps: [.addPodcast]
         )
@@ -589,6 +597,13 @@ extension HelpTopic {
                     offenen Podcast-Katalog. Ein Konto brauchst du bei keinem der beiden, beide sehen aber \
                     deine IP-Adresse. Die Cover kommen von Apple oder vom Server des jeweiligen Podcasts.
                     """, symbol: "square.grid.2x2", level: .beginner),
+                // Derselbe Text wie auf der Seite „Datenschutz“.
+                HelpTip(title: "YouTube-Abos aus Google Takeout", text: """
+                    Die Datei aus Google Takeout liest die App auf dem Gerät. Um passende Audio-Podcasts zu \
+                    finden, schickt sie die Namen der Kanäle einzeln an die Podcast-Suche von Apple. Apple \
+                    sieht dabei die Namen und deine IP-Adresse. Bei Google meldet sich die App nicht an, \
+                    und YouTube fragt sie erst, wenn du einen Kanal abonnierst.
+                    """, symbol: "play.rectangle.on.rectangle", level: .advanced),
                 HelpTip(title: "Apple Intelligence", text: intelligenceText, symbol: "sparkles", level: .expert),
             ],
             jumps: [.privacy]

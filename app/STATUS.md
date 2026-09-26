@@ -38,6 +38,7 @@ Stand 23. September 2026, Version 0.12.
 | Private Cloud Compute | Berechtigung erteilt und in beiden App-IDs eingeschaltet. Chat und Folgen-Chat antworten im iOS-27-Simulator über PCC; die Qualität zeigt sich auf einem Gerät |
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |
 | Wiedergabe im Hintergrund, AirPlay, CarPlay | Nur auf Hardware sinnvoll |
+| YouTube-Abos aus Google Takeout | Leser und Auswahl mit Swift-Tests geprüft, der UI-Test ist gebaut, lief aber noch nicht im Simulator. Offen sind eine echte Takeout-Datei mit deutscher Kopfzeile und Apples Drosselung bei mehreren hundert Kanälen |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
 | Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |

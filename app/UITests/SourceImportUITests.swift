@@ -5,6 +5,9 @@
 //  Abos mitbringen: der Import einer OPML-Datei muss dort zu finden sein,
 //  wo man anfängt, und ein geteilter YouTube-Link mit Kanalnamen
 //  (`youtube.com/@name?si=…`) legt den Kanal an statt einer Fehlermeldung.
+//  YouTube-Abos aus Google Takeout zeigen, welche Kanäle einen Audio-Podcast
+//  haben; mit `-takeout-fixture` und `-catalog-fixtures` ohne Dateiauswahl
+//  und ohne Netz.
 //
 
 import XCTest
@@ -58,5 +61,38 @@ final class SourceImportUITests: XCTestCase {
         done.tap()
         XCTAssertTrue(app.staticTexts["Marques Brownlee"].firstMatch.waitForExistence(timeout: 45),
                       "Der Kanal aus dem @-Link fehlt unter Meine Podcasts")
+    }
+
+    /// Takeout-Liste: zwei von drei Kanälen haben einen Audio-Podcast, beide sind vorgewählt.
+    @MainActor func testTakeoutImportRecommendsAudioPodcasts() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uitest-fresh", "-catalog-fixtures", "-takeout-fixture"]
+        app.launch()
+        tab(app, "Meine Podcasts")
+        let menu = app.navigationBars.buttons["Abos importieren oder exportieren"].firstMatch
+        XCTAssertTrue(menu.waitForExistence(timeout: 10), "Import und Export fehlen in der Leiste")
+        menu.tap()
+        let entry = app.buttons["YouTube-Abos aus Google Takeout importieren"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 5), "Der Import aus Google Takeout fehlt im Menü")
+        entry.tap()
+
+        let werkstatt = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Werkstatt, ohne Ton")).firstMatch
+        XCTAssertTrue(werkstatt.waitForExistence(timeout: 10), "Die Kanäle aus der Datei fehlen")
+        XCTAssertTrue(app.descendants(matching: .any)["takeout.searchSummary"].waitForExistence(timeout: 20),
+                      "Die Suche nach Audio-Podcasts endet nicht")
+        let recommended = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Audio-Podcast verfügbar"))
+        XCTAssertEqual(recommended.count, 2, "Zwei Kanäle haben laut Verzeichnis einen Audio-Podcast")
+        XCTAssertTrue(werkstatt.label.contains("Kein Audio-Podcast gefunden"))
+
+        let subscribe = app.buttons["takeout.subscribe"]
+        XCTAssertTrue(subscribe.isEnabled)
+        XCTAssertEqual(subscribe.label, "2 abonnieren")
+        app.buttons["takeout.selectionMenu"].tap()
+        app.buttons["Alle abwählen"].firstMatch.tap()
+        XCTAssertFalse(subscribe.isEnabled, "Ohne Auswahl lässt sich nichts abonnieren")
+        werkstatt.tap()
+        XCTAssertEqual(subscribe.label, "1 abonnieren")
+        app.navigationBars.buttons["Abbrechen"].firstMatch.tap()
+        XCTAssertFalse(subscribe.waitForExistence(timeout: 2))
     }
 }

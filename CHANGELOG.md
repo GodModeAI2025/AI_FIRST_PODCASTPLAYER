@@ -1,6 +1,10 @@
 # Änderungsverlauf
 
 ## Nächste Version
+YouTube-Abos übernehmen:
+- „YouTube-Abos aus Google Takeout importieren“ im Menü von „Meine Podcasts“ liest die Datei `subscriptions.csv` aus Google Takeout. Zu jedem Kanal sucht die App bei Apple einen passenden Audio-Podcast und empfiehlt ihn, denn nur mit Ton gibt es Transkript, Fakten und Tags. Je Kanal wählst du Audio-Podcast oder YouTube-Kanal und abonnierst alles auf einmal.
+- Die Namen der Kanäle gehen dafür an die Podcast-Suche von Apple, einer nach dem anderen. Bei vielen Kanälen dauert das einige Minuten, weil Apple zu schnelle Suchen bremst. Die Suche lässt sich beenden und später fortsetzen.
+
 Die Warteschlange lässt sich steuern:
 - „Pausieren“ und „Fortsetzen“ in der Warteschlange und per langem Druck auf das Aktivitätssymbol. Pausiert beginnt kein Transkript, die laufende Folge hält an ihrem Zwischenstand an, Fakten und Tags warten ebenso. Die Pause gilt auch nach einem Neustart, das Symbol zeigt „Pausiert“ mit der Zahl der wartenden Folgen.
 - „Alle abbrechen“ leert die Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst beim nächsten Aktualisieren von Hand wieder dazu.

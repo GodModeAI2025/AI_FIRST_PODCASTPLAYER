@@ -610,6 +610,7 @@ struct LibraryView: View {
     @Environment(AppModel.self) private var model
     @State private var showingAdd = false
     @State private var importingOPML = false
+    @State private var importingTakeout = false
     @State private var pendingRemoval: Source?
 
     var body: some View {
@@ -690,6 +691,9 @@ struct LibraryView: View {
                 Button { importingOPML = true } label: {
                     Label("Abos aus Datei importieren", systemImage: "square.and.arrow.down")
                 }
+                Button { importingTakeout = true } label: {
+                    Label("YouTube-Abos aus Google Takeout importieren", systemImage: "play.rectangle.on.rectangle")
+                }
                 ShareLink(item: SubscriptionsExport(feeds: model.exportableFeeds),
                           preview: SharePreview(SubscriptionsExport.fileName)) {
                     Label("Abos exportieren (OPML)", systemImage: "square.and.arrow.up")
@@ -707,6 +711,8 @@ struct LibraryView: View {
         }
         .sheet(isPresented: $showingAdd) { AddSourceSheet().sheetFeedback() }
         .opmlImport(isPresented: $importingOPML)
+        // Eigene Ansicht für die zweite Dateiauswahl, siehe `takeoutImport`.
+        .background { Color.clear.takeoutImport(isPresented: $importingTakeout) }
         .overlay {
             if model.sources.isEmpty {
                 ContentUnavailableView {
