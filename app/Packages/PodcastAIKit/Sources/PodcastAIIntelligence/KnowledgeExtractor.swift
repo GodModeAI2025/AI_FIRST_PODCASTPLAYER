@@ -461,10 +461,13 @@ public struct KnowledgeExtractor: Sendable {
         let builder = config.candidateBuilder(for: tier)
         let probe = builder.build(from: Array(sample.prefix(AnswerTokenPlan.sampleSize)))
         let model = SystemLanguageModel.default
-        let schemaTokens = await Self.schemaTokens(model)
+        // Schema und Werkzeuge zählen zugleich, jedes mit eigener Frist.
+        async let schemaCount = Self.schemaTokens(model)
+        async let toolCount: Int? = lookup ? ChatLookupTools.schemaTokens() : nil
+        let schemaTokens = await schemaCount
         let sampleBlock = builder.promptBlock(for: probe, usage: .referenceNumbers)
         let reserved = lookup
-            ? ChatLookupLimits.forTier(tier).reserve(schemaTokens: await ChatLookupTools.schemaTokens())
+            ? ChatLookupLimits.forTier(tier).reserve(schemaTokens: await toolCount)
             : 0
         return await AnswerTokenPlan.fitted(
             budget, contextSize: contextSize,

@@ -33,7 +33,10 @@ final class ChatLookupUITests: XCTestCase {
         let input = app.descendants(matching: .any)["chat.input"].firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 10), "Das Eingabefeld fehlt")
         input.tap()
-        input.typeText("Was sagen sie zum Datenschutz?")
+        // Die Stichworte treffen vier der acht Stellen der Beispielfolge. Der
+        // Ersatz sieht zwei davon, das Werkzeug findet die übrigen, auch ohne
+        // Satzeinbettungen im Simulator.
+        input.typeText("Was sagen sie über Daten, Teams und Regeln?")
         app.buttons["chat.send"].tap()
 
         // Solange das Werkzeug läuft, steht die Zeile auf der Karte der Frage.
@@ -48,8 +51,12 @@ final class ChatLookupUITests: XCTestCase {
         XCTAssertFalse(status.exists, "Die Zeile zum Nachschlagen bleibt nach der Antwort stehen")
         XCTAssertTrue(answer.staticTexts["Belege"].waitForExistence(timeout: 5),
                       "Die Antwort zeigt die nachgeschlagene Stelle nicht als Beleg")
-        let text = answer.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Nachgeschlagen")).firstMatch
-        XCTAssertTrue(text.exists, "Der Antworttext fehlt")
+        // Nur diese Fassung verweist auf eine Stelle, die das Werkzeug geliefert
+        // hat. Die andere verweist auf einen der beiden ersten Abschnitte.
+        let text = answer.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Eine weitere Stelle sagt dazu mehr")).firstMatch
+        XCTAssertTrue(text.waitForExistence(timeout: 5),
+                      "Die Antwort verweist nicht auf eine nachgeschlagene Stelle")
         XCTAssertFalse(text.label.contains("F1"), "Eine Kennung der Werkzeuge steht in der Antwort")
         // Abgespielt wird dabei nichts.
         XCTAssertFalse(app.buttons["Pause"].exists, "Das Nachschlagen hat Ton gestartet")

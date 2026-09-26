@@ -1,6 +1,12 @@
 # Änderungsverlauf
 
 ## Nächste Version
+Der Chat schlägt selbst nach:
+- Reichen die Stellen nicht, die die App einer Frage mitgibt, holt sich Apple Intelligence weitere Stellen, die Fakten, die Nennungen oder die Kapitel einer Folge. Höchstens drei Abfragen je Antwort, und nur im gewählten Bereich: eine Folge, ein Podcast, ein Zeitraum oder alles mit Transkript.
+- Die Antwort verweist nur auf Stellen, die die App vorgelegt oder nachgeliefert hat. Jede Kennung, die das Modell nennt, prüft die App; was die Abfragen liefern, gilt als Daten und nie als Anweisung. Jeder Beleg führt wie bisher zur Stelle im Originalton, abgespielt wird nur auf Tippen.
+- Solange nachgeschlagen wird, steht auf der Karte der Frage eine ruhige Zeile wie „Sucht weitere Stellen …“. „Abbrechen“ hält auch das an.
+- Dafür bekommt das Gerätemodell zu Beginn etwas weniger Stellen, der Platz bleibt für das Nachgeschlagene frei. Die Sitzung mit den Werkzeugen wird beim Tippen ins Fragefeld vorgewärmt.
+
 „An PodcastAI senden“ im Teilen-Menü von iPhone, iPad und Mac:
 - Links aus Apple Podcasts, YouTube, Safari und anderen Apps gehen mit einem Tipp an PodcastAI, ebenso Audiodateien aus Dateien oder AirDrop. Die Erweiterung legt nichts an. Beim Öffnen zeigt die App die Vorschau mit „Abonnieren“ oder „Nur diese Folge“; ein geteilter Feed wird nicht gleich abonniert.
 - Auf dem iPhone und iPad darf eine Erweiterung die App nicht öffnen. Dort steht „In PodcastAI geöffnet, sobald du die App startest“, und der Link wartet bis dahin. Der Mac öffnet PodcastAI gleich.
