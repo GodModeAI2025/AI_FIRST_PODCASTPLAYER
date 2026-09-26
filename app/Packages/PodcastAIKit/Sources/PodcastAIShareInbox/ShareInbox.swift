@@ -194,13 +194,20 @@ public struct ShareInbox: Sendable {
         try? FileManager.default.removeItem(at: directory)
     }
 
+    /// Das Alter einer Datei zählt ab ihrer letzten Statusänderung (ctime),
+    /// nicht ab dem Änderungsdatum des Inhalts. Die Kopie der Erweiterung
+    /// übernimmt Änderungs- und Erstelldatum des Originals; eine Stunden alte
+    /// Aufnahme sähe so schon vor ihrem Eintrag wie ein Rest aus und ginge
+    /// weg, wenn die App genau dann liest. Die Statusänderung setzt jede
+    /// Kopie neu.
     private func removeOrphanFiles(keeping kept: Set<String>, now: Date) {
+        let keys: Set<URLResourceKey> = [.attributeModificationDateKey, .contentModificationDateKey]
         let files = (try? FileManager.default.contentsOfDirectory(
-            at: filesDirectory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+            at: filesDirectory, includingPropertiesForKeys: Array(keys))) ?? []
         for file in files where !kept.contains(file.lastPathComponent) {
-            let modified = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
-                .contentModificationDate ?? .distantPast
-            if now.timeIntervalSince(modified) > Self.orphanLifetime {
+            let values = try? file.resourceValues(forKeys: keys)
+            let changed = values?.attributeModificationDate ?? values?.contentModificationDate ?? .distantPast
+            if now.timeIntervalSince(changed) > Self.orphanLifetime {
                 try? FileManager.default.removeItem(at: file)
             }
         }

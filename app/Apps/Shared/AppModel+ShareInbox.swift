@@ -82,7 +82,14 @@ extension AppModel {
             return added
         } catch {
             keptOffline.remove(expected)
-            try? FileManager.default.removeItem(at: target)
+            // Zurück in den Eingang, damit ein zweiter Tipp dieselbe Datei
+            // findet. Ohne sie meldete er „keine Audiodatei“. „Verwerfen“
+            // räumt sie dort weg wie sonst auch.
+            do {
+                try Self.moveOrCopy(target, to: file)
+            } catch {
+                try? FileManager.default.removeItem(at: target)
+            }
             mediaStorageChanged += 1
             throw error
         }

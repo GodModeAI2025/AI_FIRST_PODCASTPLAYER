@@ -39,6 +39,8 @@ final class SharedInboxCenter {
     @ObservationIgnored private var queue: [ShareInboxItem] = []
     @ObservationIgnored private var known: Set<UUID> = []
     @ObservationIgnored private var refreshing = false
+    /// Während des Lesens kam ein weiterer Aufruf.
+    @ObservationIgnored private var readAgain = false
     @ObservationIgnored private let inbox: ShareInbox?
 
     /// Was ein Fenster übernehmen darf: die aktuelle Übergabe, solange kein
@@ -79,16 +81,29 @@ final class SharedInboxCenter {
     #endif
 
     /// Liest den Eingang. Schon Bekanntes kommt nicht noch einmal.
+    ///
+    /// Kommt ein Aufruf, während schon gelesen wird, liest der laufende
+    /// danach noch einmal. Sonst ginge eine Übergabe verloren, die die
+    /// Erweiterung schrieb, nachdem das Lesen begonnen hatte: Ihr
+    /// `podcastai://share-inbox` fiele sonst ins laufende Lesen, und sie
+    /// wartete bis zum nächsten Wechsel in den Vordergrund.
     func refresh() async {
-        guard let inbox, !refreshing else { return }
+        guard let inbox else { return }
+        guard !refreshing else {
+            readAgain = true
+            return
+        }
         refreshing = true
         defer { refreshing = false }
-        let items = await Task.detached(priority: .utility) { inbox.pending() }.value
-        for item in items where !known.contains(item.id) {
-            known.insert(item.id)
-            queue.append(item)
-        }
-        advance()
+        repeat {
+            readAgain = false
+            let items = await Task.detached(priority: .utility) { inbox.pending() }.value
+            for item in items where !known.contains(item.id) {
+                known.insert(item.id)
+                queue.append(item)
+            }
+            advance()
+        } while readAgain
     }
 
     /// Ein Fenster übernimmt die aktuelle Übergabe.

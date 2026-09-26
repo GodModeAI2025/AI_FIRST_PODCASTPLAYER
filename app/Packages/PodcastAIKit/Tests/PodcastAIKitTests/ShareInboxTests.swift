@@ -238,16 +238,34 @@ struct ShareInboxStoreTests {
         let temp = try TemporaryInbox()
         defer { temp.cleanUp() }
         try FileManager.default.createDirectory(at: temp.inbox.filesDirectory, withIntermediateDirectories: true)
-        let old = temp.inbox.filesDirectory.appendingPathComponent("\(UUID().uuidString).mp3")
-        let fresh = temp.inbox.filesDirectory.appendingPathComponent("\(UUID().uuidString).mp3")
-        try Data("ID3".utf8).write(to: old)
-        try Data("ID3".utf8).write(to: fresh)
-        try FileManager.default.setAttributes(
-            [.modificationDate: Date().addingTimeInterval(-ShareInbox.orphanLifetime - 60)], ofItemAtPath: old.path)
+        let orphan = temp.inbox.filesDirectory.appendingPathComponent("\(UUID().uuidString).mp3")
+        try Data("ID3".utf8).write(to: orphan)
 
         _ = temp.inbox.pending()
-        #expect(!FileManager.default.fileExists(atPath: old.path))
-        #expect(FileManager.default.fileExists(atPath: fresh.path))
+        #expect(FileManager.default.fileExists(atPath: orphan.path), "Eine frische Datei ging weg")
+        _ = temp.inbox.pending(now: Date().addingTimeInterval(ShareInbox.orphanLifetime + 60))
+        #expect(!FileManager.default.fileExists(atPath: orphan.path), "Eine Stunde alte Datei ohne Eintrag blieb")
+    }
+
+    /// Die Erweiterung kopiert erst die Datei und schreibt dann den Eintrag.
+    /// Die Kopie trägt das Änderungsdatum des Originals. Liest die App
+    /// dazwischen, darf sie eine alte Aufnahme nicht für einen Rest halten.
+    @Test("Eine frisch kopierte alte Aufnahme ohne Eintrag bleibt liegen")
+    func keepsFreshCopyOfOldFile() throws {
+        let temp = try TemporaryInbox()
+        defer { temp.cleanUp() }
+        let original = try temp.audioFile(named: "Alte Aufnahme.mp3")
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date().addingTimeInterval(-3 * 24 * 60 * 60)], ofItemAtPath: original.path)
+        try FileManager.default.createDirectory(at: temp.inbox.filesDirectory, withIntermediateDirectories: true)
+        let copy = temp.inbox.filesDirectory.appendingPathComponent("\(UUID().uuidString).mp3")
+        try FileManager.default.copyItem(at: original, to: copy)
+        let copied = try copy.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
+        #expect(copied.map { Date().timeIntervalSince($0) > ShareInbox.orphanLifetime } == true,
+                "Die Kopie übernimmt das alte Änderungsdatum nicht mehr; der Test prüft dann nichts")
+
+        _ = temp.inbox.pending()
+        #expect(FileManager.default.fileExists(atPath: copy.path), "Die App räumte eine Datei weg, deren Eintrag noch kommt")
     }
 
     @Test("Gespeicherte Namen: nur Kennung und kurze Endung")
