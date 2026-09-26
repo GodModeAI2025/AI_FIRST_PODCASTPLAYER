@@ -311,6 +311,13 @@ public actor FeedRefresher {
     /// antwortet auf `/rssfeed` mit einer 404-Seite, verlinkt den echten Feed
     /// `/feed/mp3` aber im Kopf der Startseite.
     func fetchFeed(_ url: URL, allowDiscovery: Bool) async throws -> (URL, ParsedFeed) {
+        #if DEBUG
+        // UI-Tests mit `-catalog-fixtures` abonnieren die Beispiel-Feeds ohne Netz.
+        if ProcessInfo.processInfo.arguments.contains("-catalog-fixtures"),
+           let data = CatalogFixtures.feed(for: url) {
+            return (url, try parser.parse(data))
+        }
+        #endif
         if let kept = previewed {
             // Nur einmal und nur kurz: danach zählt wieder, was der Server sagt.
             if Date().timeIntervalSince(kept.at) > 600 {

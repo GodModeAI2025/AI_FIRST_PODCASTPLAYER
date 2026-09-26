@@ -24,7 +24,8 @@ final class SourceImportUITests: XCTestCase {
     /// Leere Liste „Meine Podcasts“ und Leiste bieten den Import an, das Hinzufügen-Blatt nicht mehr.
     func testImportEntryPoints() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uitest-fresh"]
+        // Die Charts kommen aus den Beispielen, sonst hinge der Test an Apples Server.
+        app.launchArguments = ["-uitest-fresh", "-catalog-fixtures"]
         app.launch()
         tab(app, "Meine Podcasts")
         XCTAssertTrue(app.buttons["Abos aus Datei importieren"].firstMatch.waitForExistence(timeout: 10),
