@@ -251,6 +251,10 @@ extension AppModel {
         // das Zählen der Token hinter einem Abschnitt der Fakten.
         await AIScheduler.shared.beginUserActivity()
         defer { Task { await AIScheduler.shared.endUserActivity() } }
+        // Kam die Frage, bevor der Chat seine Unterhaltung geladen hat, holt
+        // sie sie hier. Sonst begänne sie eine neue, und die bisherige wäre
+        // bei einer Folge nicht mehr zu erreichen.
+        await restoreConversation(for: ChatConversationKey(scope: scope))
         let context = followUpContext(for: scope)
         guard let answered = await composeAnswer(question, scope: scope, position: moment, number: number,
                                                  history: context.history, followUp: context.followUp),

@@ -75,6 +75,25 @@ struct ChatConversationTests {
         #expect(!block.contains(gone.id.rawValue) && !block.contains(cited.id.rawValue))
     }
 
+    @Test("Eine Runde nennt höchstens drei Nummern, der Plan hält Platz für sie frei")
+    func historyNumbersAreCapped() {
+        let cited = (1...5).map { evidence("n\($0)", in: episodeA) }
+        let history = ConversationHistory(turns: [
+            .init(question: "Was sagt er?", core: "Er sagt viel.", evidenceIDs: cited.map(\.id)),
+            .init(question: "Und dazu?", core: nil, evidenceIDs: cited.map(\.id)),
+        ])
+        var numbering: [EvidenceID: Int] = [:]
+        for (offset, item) in cited.enumerated() { numbering[item.id] = offset + 10 }
+        let block = history.block(numbering: numbering)
+        #expect(block.contains("Kern der Antwort 1: Er sagt viel. (gestützt auf [10] [11] [12])"))
+        #expect(!block.contains("[13]") && !block.contains("[14]"))
+        // Nur Runden mit Kernsatz tragen Nummern, dafür hält der Plan Platz frei.
+        #expect(history.citationReserve == ConversationHistory.numberReserve)
+        #expect(ConversationHistory(turns: []).citationReserve.isEmpty)
+        // Ohne Liste, wie beim Zählen des Rahmens, steht keine Nummer im Block.
+        #expect(!history.block().contains("gestützt auf"))
+    }
+
     @Test("Im Prompt steht der Verlauf vor der Frage, die Sprache bleibt zuletzt")
     func historyInPrompt() throws {
         let pool = [evidence("e1", in: episodeA, text: "Regeln helfen Teams."),
@@ -157,6 +176,22 @@ struct ChatConversationTests {
         }
         #expect(ChatConversationKey(rawValue: "episode:") == nil)
         #expect(ChatConversationKey(rawValue: "smartFeed:x") == nil)
+    }
+
+    @Test("Die Unterhaltung einer Folge hat auf jedem Gerät dieselbe Kennung, die der Mediathek nicht")
+    func stableEpisodeConversationID() throws {
+        let first = try #require(ChatConversationKey.episode(episodeA).stableConversationID)
+        #expect(ChatConversation(key: .episode(episodeA)).id == first)
+        #expect(ChatConversation(key: .episode(episodeA)).id == ChatConversation(key: .episode(episodeA)).id)
+        #expect(ChatConversation(key: .episode(episodeB)).id != first)
+        #expect(ChatConversationKey.library.stableConversationID == nil)
+        #expect(ChatConversation(key: .library).id != ChatConversation(key: .library).id)
+        // Eine eigene Kennung bleibt möglich, etwa neben einer Fassung aus einer neueren App.
+        let own = UUID()
+        #expect(ChatConversation(id: own, key: .episode(episodeA)).id == own)
+        // UUID der Version 8 mit RFC-Variante.
+        #expect(first.uuid.6 >> 4 == 0x8)
+        #expect(first.uuid.8 >> 6 == 0b10)
     }
 
     @Test("Eine wieder geöffnete Unterhaltung geht mit der Eingrenzung der letzten Frage weiter")
@@ -414,7 +449,7 @@ struct ChatConversationTests {
         #expect(clock.updatedAt > before)
     }
 
-    @Test("Doppelte Zeilen derselben Unterhaltung: Lesen nimmt die jüngste, Speichern lässt eine")
+    @Test("Doppelte Zeilen derselben Unterhaltung: Lesen nimmt die jüngste, Speichern schreibt in jede")
     func duplicateRowsFromSync() async throws {
         let container = try LibraryStore.makeContainer(inMemory: true)
         let store = LibraryStore.make(container: container)
@@ -439,9 +474,53 @@ struct ChatConversationTests {
         var next = try #require(try await store.conversation(id: mine.id))
         next.append(answer("Weiter"), at: start.addingTimeInterval(30))
         try await store.save(conversation: next)
+        // Keine Zeile geht: Jedes Gerät hielte eine andere für die jüngste,
+        // und nach dem Abgleich wären beide gelöscht. Beide tragen dieselbe Fassung.
         let rows = try ModelContext(container).fetch(FetchDescriptor<StoredChatConversation>())
-        #expect(rows.count == 1)
+        #expect(rows.count == 2)
+        let versions = try rows.map { try ChatConversation.decoded(from: $0.payload) }
+        #expect(versions.allSatisfy { $0.turns.map(\.answer.question) == ["Dort gefragt", "Weiter"] })
+        #expect(Set(rows.map(\.updatedAt)).count == 1)
         #expect(try await store.conversation(id: mine.id)?.turns.count == 2)
+        #expect(try await store.conversationSummaries(for: .library).count == 1)
+    }
+
+    @Test("Fragen zwei Geräte vor dem Abgleich dieselbe Folge, bleibt es eine Unterhaltung")
+    func sameEpisodeOnTwoDevices() async throws {
+        let container = try LibraryStore.makeContainer(inMemory: true)
+        let store = LibraryStore.make(container: container)
+        var here = ChatConversation(key: .episode(episodeA), createdAt: start)
+        here.append(answer("Hier gefragt", scope: .episode(episodeA)), at: start.addingTimeInterval(10))
+        try await store.save(conversation: here)
+
+        // Das andere Gerät legt seine eigene Zeile an, mit derselben festen Kennung.
+        var there = ChatConversation(key: .episode(episodeA), createdAt: start.addingTimeInterval(5))
+        there.append(answer("Dort gefragt", scope: .episode(episodeA)), at: start.addingTimeInterval(20))
+        #expect(there.id == here.id)
+        let other = ModelContext(container)
+        other.insert(StoredChatConversation(
+            identifier: there.id.uuidString, scopeKey: ChatConversationKey.episode(episodeA).rawValue,
+            title: there.title, createdAt: there.createdAt, updatedAt: there.updatedAt, turnCount: 1,
+            formatVersion: 1, payload: try there.encoded()))
+        try other.save()
+
+        // Beide Geräte finden dieselbe Unterhaltung, die jüngere Fassung gilt.
+        let latest = try #require(try await store.latestConversation(for: .episode(episodeA)))
+        #expect(latest.id == here.id)
+        #expect(latest.turns.map(\.answer.question) == ["Dort gefragt"])
+        #expect(ChatConversation.resolved(local: here, remote: latest).turns.map(\.answer.question) == ["Dort gefragt"])
+
+        // Weiterfragen schreibt in beide Zeilen, keine geht verloren.
+        var next = latest
+        next.append(answer("Weiter", scope: .episode(episodeA)), at: start.addingTimeInterval(30))
+        try await store.save(conversation: next)
+        let rows = try ModelContext(container).fetch(FetchDescriptor<StoredChatConversation>())
+        #expect(rows.count == 2)
+        #expect(try rows.allSatisfy { try ChatConversation.decoded(from: $0.payload).turns.count == 2 })
+
+        // Regel 5 erreicht beide Zeilen.
+        try await store.pruneConversations(removedEpisodes: [episodeA])
+        #expect(try ModelContext(container).fetch(FetchDescriptor<StoredChatConversation>()).isEmpty)
     }
 
     @Test("Neue Unterhaltung, Liste und Löschen")
@@ -450,15 +529,22 @@ struct ChatConversationTests {
         var old = ChatConversation(key: .library, createdAt: start)
         old.append(answer("Alte Frage"), at: start.addingTimeInterval(1))
         try await store.save(conversation: old)
+        let day: TimeInterval = 24 * 60 * 60
         let staleEmpty = ChatConversation(key: .library, createdAt: start.addingTimeInterval(2))
         try await store.save(conversation: staleEmpty)
-        let fresh = ChatConversation(key: .library, createdAt: start.addingTimeInterval(3))
+        // Eine jüngere leere kann auf einem anderen Gerät schon eine Frage
+        // haben, die der Abgleich noch nicht gebracht hat. Sie bleibt.
+        let youngEmpty = ChatConversation(key: .library, createdAt: start.addingTimeInterval(20 * day))
+        try await store.save(conversation: youngEmpty)
+        let fresh = ChatConversation(key: .library, createdAt: start.addingTimeInterval(31 * day))
         try await store.save(conversation: fresh)
-        try await store.removeEmptyConversations(for: .library, keeping: fresh.id)
+        try await store.removeEmptyConversations(
+            for: .library, keeping: fresh.id, now: start.addingTimeInterval(31 * day))
 
         // Nach einem Neustart kommt die leere neue, nicht die alte.
         #expect(try await store.latestConversation(for: .library)?.id == fresh.id)
         #expect(try await store.conversation(id: staleEmpty.id) == nil)
+        #expect(try await store.conversation(id: youngEmpty.id) != nil)
         // Die Liste zeigt nur Unterhaltungen mit Frage.
         #expect(try await store.conversationSummaries(for: .library).map(\.id) == [old.id])
 

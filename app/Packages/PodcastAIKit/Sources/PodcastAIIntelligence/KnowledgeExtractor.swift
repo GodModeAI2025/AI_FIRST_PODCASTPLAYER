@@ -480,9 +480,12 @@ public struct KnowledgeExtractor: Sendable {
         let reserved = lookup
             ? ChatLookupLimits.forTier(tier).reserve(schemaTokens: await toolCount)
             : 0
+        // Die Nummern hinter den Kernsätzen stehen erst mit der Liste fest.
+        let historyReserve = history?.citationReserve ?? ""
         return await AnswerTokenPlan.fitted(
             budget, contextSize: contextSize,
-            fixedText: answerInstructions(lookup: lookup) + "\n\n" + frame, schemaTokens: schemaTokens,
+            fixedText: answerInstructions(lookup: lookup) + "\n\n" + frame + historyReserve,
+            schemaTokens: schemaTokens,
             sample: sampleBlock, sampleCount: probe.count,
             margin: margin, reservedTokens: reserved
         ) { text in

@@ -7,9 +7,16 @@
 //  (PodcastAIKnowledge); hier geht es nur um die Zeilen.
 //
 //  CloudKit kennt keine eindeutigen Schlüssel. Kommt dieselbe Unterhaltung
-//  doppelt an, gilt beim Lesen die Zeile mit dem jüngsten Stand, und das
-//  nächste Speichern lässt nur eine Zeile übrig. Das allgemeine Bereinigen
-//  in `removeDuplicates()` braucht es dafür nicht.
+//  doppelt an, etwa weil zwei Geräte vor dem Abgleich dieselbe Folge
+//  gefragt haben, gilt beim Lesen die Zeile mit dem jüngsten Stand, und
+//  Speichern schreibt in jede Zeile dieser Unterhaltung. Gelöscht wird
+//  dabei keine: Jedes Gerät hielte eine andere Zeile für die jüngste, und
+//  nach dem Abgleich wären beide weg. Das allgemeine Bereinigen in
+//  `removeDuplicates()` braucht es dafür nicht.
+//
+//  Gelöscht wird nur, was jemand löscht, und nach Regel 5. Eine Zeile, die
+//  hier leer aussieht, kann auf einem anderen Gerät längst eine Frage
+//  haben, der Abgleich hat sie nur noch nicht gebracht.
 //
 
 #if canImport(SwiftData)
@@ -21,22 +28,19 @@ import PodcastAIKnowledge
 extension LibraryStore {
 
     /// Sichert eine Unterhaltung, auch eine ohne Frage. Liegt sie doppelt
-    /// vor, bleibt danach eine Zeile.
+    /// vor, bekommt jede Zeile dieselbe Fassung.
     public func save(conversation: ChatConversation) throws {
         let payload = try conversation.encoded()
-        let rows = try conversationRows(id: conversation.id)
-        let row: StoredChatConversation
-        if let existing = rows.first {
-            row = existing
-        } else {
-            row = StoredChatConversation(
+        var rows = try conversationRows(id: conversation.id)
+        if rows.isEmpty {
+            let row = StoredChatConversation(
                 identifier: conversation.id.uuidString, scopeKey: conversation.key.rawValue, title: "",
                 createdAt: conversation.createdAt, updatedAt: conversation.updatedAt, turnCount: 0,
                 formatVersion: ChatConversation.formatVersion, payload: Data())
             modelContext.insert(row)
+            rows = [row]
         }
-        for extra in rows.dropFirst() { modelContext.delete(extra) }
-        write(conversation, payload: payload, into: row)
+        for row in rows { write(conversation, payload: payload, into: row) }
         try modelContext.save()
     }
 
@@ -95,13 +99,26 @@ extension LibraryStore {
         try modelContext.save()
     }
 
-    /// Löscht die Unterhaltungen eines Bereichs, die keine Frage haben,
-    /// außer `id`. Von „Neue Unterhaltung“ bleibt so höchstens eine leere.
-    public func removeEmptyConversations(for key: ChatConversationKey, keeping id: UUID) throws {
+    /// So lange bleibt eine leere Unterhaltung mindestens stehen. Erst
+    /// danach ist sicher, dass sie auch auf keinem anderen Gerät eine Frage
+    /// bekommen hat, die der Abgleich noch nicht gebracht hat.
+    public static let emptyConversationGrace: TimeInterval = 30 * 24 * 60 * 60
+
+    /// Löscht leere Unterhaltungen eines Bereichs, die seit
+    /// ``emptyConversationGrace`` niemand geändert hat, außer `id`. Übrig
+    /// bleiben sie, wenn jemand „Neue Unterhaltung“ wählt und dann eine
+    /// frühere wieder öffnet. Eine jüngere leere bleibt, denn sie kann auf
+    /// einem anderen Gerät schon eine Frage haben.
+    public func removeEmptyConversations(
+        for key: ChatConversationKey, keeping id: UUID, now: Date = Date()
+    ) throws {
         let raw = key.rawValue
         let keep = id.uuidString
+        let cutoff = now.addingTimeInterval(-Self.emptyConversationGrace)
         let rows = try modelContext.fetch(FetchDescriptor<StoredChatConversation>(
-            predicate: #Predicate { $0.scopeKey == raw && $0.turnCount == 0 && $0.identifier != keep }))
+            predicate: #Predicate {
+                $0.scopeKey == raw && $0.turnCount == 0 && $0.identifier != keep && $0.updatedAt < cutoff
+            }))
         guard !rows.isEmpty else { return }
         for row in rows { modelContext.delete(row) }
         try modelContext.save()

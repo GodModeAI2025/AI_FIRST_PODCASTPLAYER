@@ -12,8 +12,10 @@
 //  (`StoredChatConversation`). Hier steht, was die App dazu beiträgt:
 //
 //    - Laden: die letzte Unterhaltung eines Bereichs, sobald sein Chat
-//      aufgeht, und nach jedem Abgleich der neueste Stand der geladenen.
-//      Ändern zwei Geräte dieselbe Unterhaltung, gilt der jüngere Stand ganz.
+//      aufgeht oder eine Frage kommt, und nach jedem Abgleich der neueste
+//      Stand der geladenen. Ändern zwei Geräte dieselbe Unterhaltung, gilt
+//      der jüngere Stand ganz; hält die Datenbank den älteren, schreibt
+//      dieses Gerät den jüngeren zurück.
 //    - Sichern: jede Änderung sofort, in einer festen Reihe. Das Kürzen nach
 //      einer Löschung läuft in derselben Reihe, sonst könnte ein spätes
 //      Sichern Gekürztes zurückbringen.
@@ -57,9 +59,17 @@ extension AppModel {
     /// Nach dem Laden und nach jedem Abgleich (`load()`): jede geladene
     /// Unterhaltung mit ihrer Fassung in der Datenbank abgleichen.
     ///
-    /// Es gilt der jüngere Stand (`ChatConversation.resolved`). Fehlt eine
-    /// schon gesicherte Unterhaltung in der Datenbank, wurde sie auf einem
-    /// anderen Gerät gelöscht; dann gilt die nächstjüngere ihres Bereichs.
+    /// Es gilt der jüngere Stand (`ChatConversation.resolved`). Ist das der
+    /// im Speicher, die Datenbank hält aber einen älteren, wird er
+    /// zurückgeschrieben. Das passiert, wenn CloudKit einen Konflikt um die
+    /// Zeile für das andere Gerät entschieden hat; ohne das Zurückschreiben
+    /// zeigte dieses Gerät eine Fassung, die nach einem Neustart fehlt, und
+    /// das andere bekäme sie nie. Nur die jüngere Seite schreibt, so
+    /// schaukelt sich nichts auf.
+    ///
+    /// Fehlt eine schon gesicherte Unterhaltung in der Datenbank, wurde sie
+    /// auf einem anderen Gerät gelöscht; dann gilt die nächstjüngere ihres
+    /// Bereichs.
     func reloadConversations() async {
         guard !conversations.isEmpty else { return }
         await Self.conversationWrites?.value
@@ -84,7 +94,14 @@ extension AppModel {
             } else {
                 continue
             }
+            let resolved = next
+            // Was `checked` kürzt, sichert es selbst. Was es ganz entfernt,
+            // darf nicht als leere Zeile zurückkommen.
             next = checked(next, against: removed)
+            if let stored, Self.sameState(next, resolved), !next.isEmpty, !next.isFromNewerVersion,
+               next.id == stored.id, next.updatedAt > stored.updatedAt {
+                persist(next)
+            }
             if !Self.sameState(next, current) { conversations[key] = next }
         }
     }
@@ -100,11 +117,13 @@ extension AppModel {
 
     /// Hängt eine Antwort an die Unterhaltung ihres Bereichs und sichert sie.
     /// Stammt die Unterhaltung aus einer neueren App, beginnt eine neue,
-    /// denn beim Sichern gingen Felder verloren, die nur jene kennt.
+    /// denn beim Sichern gingen Felder verloren, die nur jene kennt. Bei
+    /// einer Folge bekommt die neue eine eigene Kennung statt der festen,
+    /// sonst überschriebe sie die der neueren App.
     func appendToConversation(_ answer: ChatAnswer) {
         let key = ChatConversationKey(scope: answer.scope)
         var conversation = conversations[key] ?? ChatConversation(key: key)
-        if conversation.isFromNewerVersion { conversation = ChatConversation(key: key) }
+        if conversation.isFromNewerVersion { conversation = ChatConversation(id: UUID(), key: key) }
         conversation.append(answer)
         conversations[key] = conversation
         persist(conversation)
@@ -122,8 +141,7 @@ extension AppModel {
 
     /// „Neue Unterhaltung“: Die bisherige bleibt unter „Frühere
     /// Unterhaltungen“. Die neue wird gleich gesichert, damit nach einem
-    /// Neustart nicht wieder die alte erscheint. Mehr als eine leere
-    /// Unterhaltung je Bereich gibt es nicht.
+    /// Neustart nicht wieder die alte erscheint.
     public func startNewConversation(for key: ChatConversationKey) {
         guard let current = conversations[key], !current.isEmpty else { return }
         replaceWithEmptyConversation(for: key)
@@ -131,25 +149,28 @@ extension AppModel {
 
     /// Öffnet eine frühere Unterhaltung wieder. Sie gilt danach als zuletzt
     /// benutzt und kommt nach einem Neustart zurück.
+    ///
+    /// Eine leere Unterhaltung, die dafür verlassen wird, bleibt in der
+    /// Datenbank. Sie kann auf einem anderen Gerät schon eine Frage haben,
+    /// die der Abgleich noch nicht gebracht hat. Übrige leere räumt „Neue
+    /// Unterhaltung“ nach einer Frist weg.
     @discardableResult
     public func reopenConversation(_ id: UUID) async -> ChatConversation? {
         await Self.conversationWrites?.value
         guard let stored = try? await store.conversation(id: id) else { return nil }
+        Self.persistedConversations.insert(stored.id)
         let removed = await removedEpisodeIDs()
         var opened = checked(stored, against: removed)
-        guard opened.id == stored.id else {
+        // Nichts blieb nach Regel 5: nichts zu sichern.
+        guard !opened.isEmpty || stored.isEmpty else {
             conversations[stored.key] = opened
             return opened
         }
-        Self.persistedConversations.insert(opened.id)
         if !opened.isFromNewerVersion {
             opened.markUsed()
             persist(opened)
         }
-        let left = conversations[opened.key]
         conversations[opened.key] = opened
-        // Eine leere Unterhaltung, die dafür verlassen wird, braucht niemand.
-        if let left, left.isEmpty, left.id != opened.id { forgetConversation(left.id) }
         return opened
     }
 
@@ -264,8 +285,9 @@ extension AppModel {
         enqueueConversationWrite { store in try await store.removeConversation(id: id) }
     }
 
-    /// Eine leere Unterhaltung statt der bisherigen, gleich gesichert. Andere
-    /// leere desselben Bereichs gehen.
+    /// Eine leere Unterhaltung statt der bisherigen, gleich gesichert. Leere
+    /// desselben Bereichs, die seit einer Frist niemand geändert hat, gehen
+    /// (`LibraryStore.emptyConversationGrace`).
     private func replaceWithEmptyConversation(for key: ChatConversationKey) {
         let fresh = ChatConversation(key: key)
         conversations[key] = fresh

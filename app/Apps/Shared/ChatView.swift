@@ -445,6 +445,8 @@ struct ChatView: View {
             } label: {
                 Label("Frühere Unterhaltungen", systemImage: "clock.arrow.circlepath")
             }
+            // Die laufende Antwort gehört zur Unterhaltung, in der sie gestellt wurde.
+            .disabled(isAsking)
             .accessibilityIdentifier("chat.conversationList")
         } label: {
             Label("Unterhaltung", systemImage: "bubble.left.and.text.bubble.right")
@@ -501,10 +503,13 @@ struct ChatView: View {
     /// Eine Folgefrage geht mit der Eingrenzung der letzten Frage weiter,
     /// bis jemand sie ändert. Innerhalb einer Sitzung bleibt sie ohnehin
     /// stehen; nach einem Neustart und beim Wiederöffnen übernimmt der Chat
-    /// sie hier aus der Unterhaltung, einmal je Unterhaltung.
+    /// sie hier aus der Unterhaltung, einmal je Unterhaltung. Läuft schon
+    /// eine Frage, die sie erst beim Senden geladen hat, gilt die
+    /// Eingrenzung, mit der sie gestellt wurde.
     private func inheritNarrowing() {
         guard asksLibrary, let conversation, conversation.id != inheritedFrom else { return }
         inheritedFrom = conversation.id
+        guard !isAsking else { return }
         if let inherited = conversation.inheritedFilter, inherited != filter { filter = inherited }
     }
 }

@@ -12,8 +12,8 @@
 //
 //  CloudKit-tauglich wie alle Modelle: jedes Feld mit Standardwert, keine
 //  eindeutigen Schlüssel, keine Beziehungen. Doppelte Zeilen derselben
-//  Unterhaltung räumt `LibraryStore+Conversations.swift` beim Lesen und
-//  Speichern selbst auf.
+//  Unterhaltung behandelt `LibraryStore+Conversations.swift`: Lesen nimmt
+//  die jüngste, Speichern schreibt in jede.
 //
 
 #if canImport(SwiftData)

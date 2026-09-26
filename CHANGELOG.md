@@ -9,7 +9,7 @@ Unterhaltungen im Chat:
 - Die Unterhaltung bleibt nach einem Neustart und kommt über iCloud auf iPhone, iPad und Mac. Jede Folge hat im Reiter „Fragen“ ihre eigene.
 - In „Frag deine Podcasts“ beginnt „Neue Unterhaltung“ oben rechts leer. Unter „Frühere Unterhaltungen“ öffnest du eine alte wieder oder löschst sie per Wischen. Im Reiter „Fragen“ einer Folge löscht „Unterhaltung löschen“ die Unterhaltung der Folge.
 - „Folge löschen“ nimmt die Unterhaltung der Folge mit. In anderen Unterhaltungen verliert eine Antwort die Belege aus der Folge und ihren Text, ohne übrigen Beleg geht die Frage ganz. „Audio entfernen“ lässt alles stehen, gesicherte Antworten bleiben, wie sie sind.
-- Ändern zwei Geräte dieselbe Unterhaltung, bevor der Abgleich sie erreicht, gilt die zuletzt geschriebene Fassung.
+- Fragen iPhone und Mac vor dem Abgleich dieselbe Folge, bleibt es eine Unterhaltung. Ändern zwei Geräte dieselbe Unterhaltung, bevor der Abgleich sie erreicht, gilt die zuletzt geschriebene Fassung auf beiden.
 
 Für Entwickler:
 - Neuer Datensatz `StoredChatConversation`. Vor dem ersten TestFlight-Build das CloudKit-Schema in der Entwicklungsumgebung anlegen und nach Production übertragen.

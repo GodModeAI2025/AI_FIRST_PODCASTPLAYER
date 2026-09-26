@@ -9,7 +9,11 @@
 //  Unterhaltungen über die Mediathek, auch wenn sich die Eingrenzung
 //  zwischen zwei Fragen ändert; jede Antwort trägt ihren eigenen Bereich.
 //  Jede Folge hat ihre eigene Unterhaltung, im Reiter „Fragen“ und im Chat,
-//  wenn er der laufenden oder einer gewählten Folge folgt.
+//  wenn er der laufenden oder einer gewählten Folge folgt. Ihre Kennung
+//  folgt aus der Folge (``ChatConversationKey/stableConversationID``). So
+//  landen Fragen, die zwei Geräte vor dem Abgleich an dieselbe Folge
+//  stellen, in derselben Unterhaltung statt in zwei, von denen eine
+//  unsichtbar bliebe.
 //
 //  Drei Regeln stehen hier im Code:
 //
@@ -21,7 +25,8 @@
 //  - **Zuletzt geschrieben gilt.** Ändern zwei Geräte dieselbe Unterhaltung,
 //    bevor der Abgleich sie erreicht, gilt die Fassung mit dem jüngeren
 //    Stand ganz (``resolved(local:remote:)``). Die Frage des anderen Geräts
-//    fehlt dann in dieser Unterhaltung.
+//    fehlt dann in dieser Unterhaltung. Das Gerät mit der jüngeren Fassung
+//    schreibt sie zurück, falls die Datenbank die ältere hält.
 //  - **Fassung im Datensatz.** Die Unterhaltung liegt als JSON mit einer
 //    Formatnummer in der Datenbank. Eine ältere App liest eine neuere
 //    Fassung, soweit sie sie kennt, und hängt nichts daran an; eine neue
@@ -66,6 +71,21 @@ public enum ChatConversationKey: Hashable, Sendable {
         if case .episode(let id) = self { return id }
         return nil
     }
+
+    /// Die feste Kennung der Unterhaltung einer Folge, auf jedem Gerät
+    /// dieselbe: die ersten 16 Byte aus SHA-256 über den Bereich, als UUID
+    /// der Version 8. `nil` für die Mediathek, dort gibt es viele.
+    public var stableConversationID: UUID? {
+        guard case .episode = self else { return nil }
+        let hex = Array(SecureDigest.hex(of: "PodcastAI.ChatConversation." + rawValue))
+        guard hex.count >= 32, hex.allSatisfy(\.isHexDigit) else { return nil }
+        var bytes = stride(from: 0, to: 32, by: 2).compactMap { UInt8(String(hex[$0...$0 + 1]), radix: 16) }
+        guard bytes.count == 16 else { return nil }
+        bytes[6] = (bytes[6] & 0x0F) | 0x80
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                           bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
+    }
 }
 
 /// Eine Runde: die Antwort samt Frage und Bereich.
@@ -101,11 +121,13 @@ public struct ChatConversation: Sendable, Identifiable {
     /// Das Format, in dem die Unterhaltung zuletzt geschrieben wurde.
     public let storedFormat: Int
 
+    /// Ohne `id` bekommt die Unterhaltung einer Folge ihre feste Kennung,
+    /// eine der Mediathek eine neue.
     public init(
-        id: UUID = UUID(), key: ChatConversationKey, turns: [ChatTurn] = [],
+        id: UUID? = nil, key: ChatConversationKey, turns: [ChatTurn] = [],
         createdAt: Date = Date(), updatedAt: Date? = nil, storedFormat: Int = ChatConversation.formatVersion
     ) {
-        self.id = id
+        self.id = id ?? key.stableConversationID ?? UUID()
         self.key = key
         self.turns = turns
         self.createdAt = createdAt
