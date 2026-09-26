@@ -28,8 +28,14 @@ struct ChatView: View {
     @FocusState private var inputFocused: Bool
     /// Im eigenständigen Chat: gilt die Frage der Folge, die gerade läuft?
     @State private var followsPlayer = false
-    /// Eingrenzung der Mediathek auf einen Podcast und einen Zeitraum.
+    /// Eingrenzung der Mediathek: Podcasts, Zeitraum, Tags und Folgen, aus
+    /// dem Menü oben und aus den Tokens über dem Eingabefeld.
     @State private var filter = LibraryFilter()
+    /// Die letzten Fragen dieses Geräts, neueste zuerst.
+    @State private var recentQuestions: [String] = []
+    /// Namen für die Vorschläge im Eingabefeld, beim Öffnen und beim
+    /// Antippen des Felds neu gelesen.
+    @State private var tokenCatalog = ChatTokenCatalog()
     /// Eine Folge, die jemand über „Mehr aus dieser Folge“ gewählt hat.
     @State private var chosenEpisode: EpisodeID?
     /// Innerhalb einer Folge ist der Bereich fest.
@@ -107,13 +113,20 @@ struct ChatView: View {
             if playerHoldsScope, !answers.isEmpty, !isAsking {
                 momentChip
             }
+            narrowingArea
             askField
         }
         .modifier(ChatTitle(show: !fixedScope))
         // Belege und ihre Wörter liegen bereit, bevor die erste Frage kommt.
         .task { model.prepareForQuestion(prewarm: false, library: !fixedScope) }
+        .task {
+            recentQuestions = AppModel.recentQuestions()
+            if !fixedScope { tokenCatalog = model.chatTokenCatalog }
+        }
         .onChange(of: inputFocused) { _, focused in
             if focused { model.prepareForQuestion(prewarm: true, library: !fixedScope) }
+            // Seit dem Öffnen können Podcasts, Tags oder Transkripte dazugekommen sein.
+            if focused, !fixedScope { tokenCatalog = model.chatTokenCatalog }
         }
         .onChange(of: model.episodePlayer.episode?.id) { _, playing in
             // Endet die Wiedergabe, bleibt der Chat bei allem Erschlossenen
@@ -124,9 +137,11 @@ struct ChatView: View {
             // Eine gelöschte Folge kann nicht mehr Bereich sein.
             if gone { chosenEpisode = nil }
         }
-        .onChange(of: model.sources.map(\.id)) { _, sources in
-            // Ein abbestellter Podcast kann nicht mehr Bereich sein.
-            if let id = filter.sourceID, !sources.contains(id) { filter.sourceID = nil }
+        .onChange(of: staleTokenIDs) { _, stale in
+            // Ein abbestellter Podcast, ein gelöschtes oder zusammengelegtes
+            // Tag und eine gelöschte Folge können nicht mehr Bereich sein.
+            guard !stale.isEmpty else { return }
+            for token in filter.tokens where stale.contains(token.id) { filter = filter.removing(token) }
         }
     }
 
@@ -140,6 +155,96 @@ struct ChatView: View {
     private var chosenEpisodeGone: Bool {
         guard let chosenEpisode else { return false }
         return !model.episodes.values.contains { $0.contains { $0.id == chosenEpisode } }
+    }
+
+    // MARK: - Eingrenzung im Eingabefeld
+
+    /// Gilt die Frage gerade der Mediathek? Nur dann wirken die Tokens.
+    /// Die laufende oder eine gewählte Folge hat keinen weiteren Bereich.
+    private var asksLibrary: Bool {
+        !fixedScope && chosenEpisode == nil && !(followsPlayer && model.episodePlayer.episode != nil)
+    }
+
+    /// Die gesetzten Tokens mit Namen, nach Art geordnet und innerhalb einer
+    /// Art nach Namen. Zeiten bleiben in ihrer Reihenfolge: Zeitraum, seit, bis.
+    private var chips: [LabeledChatToken] {
+        guard asksLibrary else { return [] }
+        return filter.tokens.enumerated()
+            .map { (offset: $0.offset, item: LabeledChatToken(token: $0.element, label: model.chatTokenLabel($0.element))) }
+            .sorted { first, second in
+                if first.item.token.kind != second.item.token.kind {
+                    return first.item.token.kind < second.item.token.kind
+                }
+                if first.item.token.kind == .date { return first.offset < second.offset }
+                return first.item.label.localizedStandardCompare(second.item.label) == .orderedAscending
+            }
+            .map(\.item)
+    }
+
+    /// Vorschläge zum Text im Feld. Innerhalb einer Folge gibt es nichts
+    /// einzugrenzen.
+    private var suggestions: [LabeledChatToken] {
+        guard !fixedScope, !isAsking, !question.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        let parser = ChatTokenParser()
+        return parser.suggestions(for: question, catalog: tokenCatalog, excluding: filter)
+            .map { suggestion in
+                LabeledChatToken(token: suggestion.token, label: model.chatTokenLabel(suggestion.token),
+                                 remainingText: suggestion.remainingText)
+            }
+    }
+
+    /// Letzte Fragen, solange das Feld leer ist und den Cursor hat.
+    private var showsRecentQuestions: Bool {
+        inputFocused && question.isEmpty && !isAsking && !recentQuestions.isEmpty
+    }
+
+    /// Kennungen der Tokens, deren Podcast, Tag oder Folge es nicht mehr gibt.
+    private var staleTokenIDs: [String] {
+        model.staleChatTokens(in: filter).map(\.id)
+    }
+
+    @ViewBuilder private var narrowingArea: some View {
+        if showsRecentQuestions {
+            RecentQuestionsPanel(questions: recentQuestions, choose: { text in
+                // Nur ins Feld. Gesendet wird erst mit dem Knopf.
+                question = text
+                inputFocused = true
+            }, clear: {
+                AppModel.forgetRecentQuestions()
+                recentQuestions = []
+            })
+        } else {
+            let found = suggestions
+            if !found.isEmpty { ChatTokenSuggestionBar(suggestions: found, accept: accept) }
+        }
+        let current = chips
+        if !current.isEmpty { ChatTokenBar(tokens: current, remove: remove) }
+    }
+
+    /// Setzt ein vorgeschlagenes Token. Wie eine Wahl im Menü gilt die Frage
+    /// danach der Mediathek, nicht mehr einer Folge.
+    private func accept(_ suggestion: LabeledChatToken) {
+        filter = filter.adding(suggestion.token)
+        followsPlayer = false
+        chosenEpisode = nil
+        question = suggestion.remainingText ?? question
+        inputFocused = true
+        AccessibilityNotification.Announcement(String(localized: "Eingegrenzt: \(suggestion.label)")).post()
+    }
+
+    private func remove(_ token: ChatToken) {
+        let label = model.chatTokenLabel(token)
+        filter = filter.removing(token)
+        AccessibilityNotification.Announcement(String(localized: "Eingrenzung entfernt: \(label)")).post()
+    }
+
+    /// Rückschritt im leeren Feld nimmt am Mac das letzte Token heraus.
+    /// Auf iPhone und iPad meldet SwiftUI einen Rückschritt im leeren Feld
+    /// nicht, dort nimmt ein Tipp auf das Token es heraus.
+    private func removeLastToken() -> Bool {
+        guard question.isEmpty, let last = chips.last else { return false }
+        remove(last.token)
+        return true
     }
 
     /// Die Frage nach der laufenden Stelle, auch wenn schon Antworten da sind.
@@ -169,6 +274,9 @@ struct ChatView: View {
                 .focused($inputFocused)
                 .textFieldStyle(.plain)
                 .onSubmit(ask)
+                #if os(macOS)
+                .modifier(BackspaceRemovesToken(isActive: inputFocused, action: removeLastToken))
+                #endif
                 .accessibilityLabel("Frage")
                 .accessibilityIdentifier("chat.input")
 
@@ -225,6 +333,8 @@ struct ChatView: View {
         guard !text.isEmpty, !isAsking else { return }
         question = ""
         isAsking = true
+        // Nur auf diesem Gerät, für die Liste „Letzte Fragen“.
+        recentQuestions = AppModel.rememberQuestion(text)
         let currentScope = scope
         // Die Stelle im Player gilt so, wie sie beim Senden war.
         let position = playerHoldsScope ? MediaTime(seconds: model.episodePlayer.currentTime) : nil
@@ -309,25 +419,42 @@ struct ScopeBar: View {
                 .pickerStyle(.inline)
 
                 // Podcast und Zeitraum gelten für die Mediathek. Wer sie
-                // wählt, fragt nicht mehr die laufende Folge.
+                // wählt, fragt nicht mehr die laufende Folge. Menü und Tokens
+                // über dem Eingabefeld ändern denselben Bereich.
                 if !model.sources.isEmpty {
                     Picker("Podcast", selection: Binding(
-                        get: { filter.sourceID },
-                        set: { filter.sourceID = $0; followsPlayer = false; chosenEpisode = nil }
+                        get: { filter.sourceIDs },
+                        set: { filter.sourceIDs = $0; followsPlayer = false; chosenEpisode = nil }
                     )) {
-                        Text("Alle Podcasts").tag(SourceID?.none)
+                        Text("Alle Podcasts").tag(Set<SourceID>())
+                        if filter.sourceIDs.count > 1 {
+                            // Mehrere Podcasts gibt es nur über Tokens.
+                            Text("^[\(filter.sourceIDs.count) Podcast](inflect: true)").tag(filter.sourceIDs)
+                        }
                         ForEach(model.sources) { source in
-                            Text(source.title).tag(SourceID?.some(source.id))
+                            Text(source.title).tag(Set([source.id]))
                         }
                     }
                     .pickerStyle(.menu)
                 }
                 Picker("Zeitraum", selection: Binding(
-                    get: { filter.period },
-                    set: { filter.period = $0; followsPlayer = false; chosenEpisode = nil }
+                    get: { filter.since != nil || filter.before != nil ? PeriodChoice.custom : .preset(filter.period) },
+                    set: { choice in
+                        // Ein Zeitraum aus dem Menü ersetzt „seit“ und „bis“.
+                        if case .preset(let period) = choice {
+                            filter.period = period
+                            filter.since = nil
+                            filter.before = nil
+                        }
+                        followsPlayer = false
+                        chosenEpisode = nil
+                    }
                 )) {
                     ForEach(LibraryFilter.Period.allCases, id: \.self) { period in
-                        Text(period.label).tag(period)
+                        Text(period.label).tag(PeriodChoice.preset(period))
+                    }
+                    if filter.since != nil || filter.before != nil {
+                        Text("Eigener Zeitraum").tag(PeriodChoice.custom)
                     }
                 }
                 .pickerStyle(.menu)
@@ -379,6 +506,12 @@ struct ScopeBar: View {
 
     enum ScopeChoice: Hashable {
         case allAnalyzed, currentEpisode, chosenEpisode
+    }
+
+    /// Ein Zeitraum aus dem Menü oder „seit“ und „bis“ aus den Tokens.
+    enum PeriodChoice: Hashable {
+        case preset(LibraryFilter.Period)
+        case custom
     }
 }
 

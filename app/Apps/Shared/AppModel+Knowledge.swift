@@ -412,7 +412,7 @@ extension AppModel {
             }
             libraryContext = await ChatTrace.interval("Überblick") { await libraryOverview() }
             let mentioned = await ChatTrace.interval("Nennungen für den Kontext") {
-                await libraryMentionContext(filter: LibraryFilter(), limit: mentionShare)
+                await libraryMentionContext(narrowing: .unrestricted, limit: mentionShare)
             }
             if let mentioned { libraryContext = mentioned + "\n" + libraryContext }
             pool = await fetched
@@ -425,23 +425,24 @@ extension AppModel {
             }
         case .library(let filter):
             // Der Code grenzt ein, bevor gesucht wird. Das Modell bekommt nur
-            // Stellen aus Folgen, die Podcast und Zeitraum erfüllen.
-            let now = Date()
+            // Stellen aus Folgen, die Podcast, Zeitraum, Folgen und Tags
+            // erfüllen. Tags werden dafür zu Kapiteln (`ChatNarrowing`).
+            let narrowing = await chatNarrowing(for: filter)
             let admitted = ((try? await store.episodes(ids: Array(analyzedEpisodes))) ?? [])
-                .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }
+                .filter(narrowing.admits)
             // Wie bei allem Ausgewerteten nur Belege mit Zeitmarke.
             let admittedIDs = admitted.map(\.id)
             async let fetched = ChatTrace.interval("Belege holen") {
                 (try? await store.timedEvidence(forEpisodes: admittedIDs, poolLimit: poolLimit)) ?? []
             }
-            libraryContext = await ChatTrace.interval("Überblick") { await libraryOverview(filter: filter) }
+            libraryContext = await ChatTrace.interval("Überblick") { await libraryOverview(narrowing: narrowing) }
             let mentioned = await ChatTrace.interval("Nennungen für den Kontext") {
-                await libraryMentionContext(filter: filter, limit: mentionShare)
+                await libraryMentionContext(narrowing: narrowing, limit: mentionShare)
             }
             if let mentioned { libraryContext = mentioned + "\n" + libraryContext }
-            pool = await fetched
-            let known = episodes.values.joined()
-                .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }.count
+            // Mit Tags nur Stellen aus Kapiteln, die eines davon tragen.
+            pool = narrowing.passages(await fetched)
+            let known = episodes.values.joined().filter(narrowing.admits).count
             if admitted.isEmpty && known == 0 {
                 return ChatAnswer(
                     question: question, scope: scope,
@@ -754,16 +755,16 @@ extension AppModel {
     /// Folgen habe ich zu KI?“ oder „Was habe ich diese Woche gehört?“
     /// eine Antwort finden.
     ///
-    /// Mit Eingrenzung stehen nur der gewählte Podcast und die Folgen aus dem
-    /// Zeitraum darin, sonst antwortete das Modell aus dem Überblick über
-    /// alles andere.
-    func libraryOverview(filter: LibraryFilter = LibraryFilter()) async -> String {
+    /// Mit Eingrenzung stehen nur die gewählten Podcasts und die Folgen aus
+    /// dem Bereich darin, sonst antwortete das Modell aus dem Überblick über
+    /// alles andere. Sind Folgen oder Tags gewählt, fehlen Podcasts ohne
+    /// passende Folge ganz.
+    func libraryOverview(narrowing: ChatNarrowing = .unrestricted) async -> String {
         var lines: [String] = []
-        let now = Date()
         var admittedIDs: Set<EpisodeID> = []
-        for source in sources where filter.sourceID == nil || filter.sourceID == source.id {
-            let list = (episodes[source.id] ?? [])
-                .filter { filter.admits(sourceID: source.id, publishedAt: $0.publishedAt, now: now) }
+        for source in sources where narrowing.admits(source: source.id) {
+            let list = (episodes[source.id] ?? []).filter(narrowing.admits)
+            if list.isEmpty && narrowing.narrowsEpisodes { continue }
             admittedIDs.formUnion(list.map(\.id))
             lines.append("Podcast: \(source.title) (\(list.count) Folgen)")
             for episode in list.prefix(12) {
@@ -780,7 +781,7 @@ extension AppModel {
         if !profile.followed.isEmpty {
             lines.append("Interessen: " + profile.followed.map(\.label).joined(separator: ", "))
         }
-        let ownNotes = filter.isUnrestricted
+        let ownNotes = narrowing.isUnrestricted
             ? highlights
             : highlights.filter { $0.episodeID.map(admittedIDs.contains) ?? false }
         let notes = ownNotes.compactMap(\.note).prefix(10)
@@ -788,17 +789,11 @@ extension AppModel {
         return lines.joined(separator: "\n")
     }
 
-    /// Wie der Bereich einer Antwort heißt, mit dem Namen des gewählten Podcasts.
+    /// Wie der Bereich einer Antwort heißt, mit den Namen der gewählten
+    /// Podcasts, Tags und Folgen (`libraryScopeLabel`).
     func scopeLabel(_ scope: ChatScope) -> String {
         guard case .library(let filter) = scope else { return scope.label }
-        var parts: [String] = []
-        if let id = filter.sourceID {
-            parts.append(sources.first { $0.id == id }?.title ?? String(localized: "Ein Podcast"))
-        } else {
-            parts.append(String(localized: "Alle Podcasts"))
-        }
-        if filter.period != .all { parts.append(filter.period.label) }
-        return parts.joined(separator: " · ")
+        return libraryScopeLabel(filter)
     }
 
     /// Woher Belege stammen, je Folge: „Podcast · Folge · Datum“.

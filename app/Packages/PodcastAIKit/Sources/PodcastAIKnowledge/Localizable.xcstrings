@@ -913,6 +913,38 @@
         }
       }
     },
+    "^[%lld Podcast](inflect: true)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld Podcast](inflect: true)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld podcast](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Tag](inflect: true)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld Tag](inflect: true)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld tag](inflect: true)"
+          }
+        }
+      }
+    },
     "^[%lld ausgewählte Folge](inflect: true)": {
       "localizations": {
         "de": {
@@ -993,6 +1025,22 @@
         }
       }
     },
+    "bis %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bis %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "until %@"
+          }
+        }
+      }
+    },
     "erwähnt: %@": {
       "localizations": {
         "de": {
@@ -1021,6 +1069,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "via Shortcuts"
+          }
+        }
+      }
+    },
+    "seit %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "seit %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "since %@"
           }
         }
       }

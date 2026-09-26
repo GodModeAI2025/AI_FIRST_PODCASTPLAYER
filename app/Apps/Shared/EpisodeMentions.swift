@@ -168,10 +168,9 @@ extension AppModel {
     /// Nur Folgen mit Transkript und nur so viele, wie in `limit` Zeichen
     /// passen. Jede Zeile kürzt ``MentionSummary/modelContext(_:limit:calendar:)``
     /// auf den Platz, der noch bleibt. Kontext für das Modell, deshalb deutsch.
-    func libraryMentionContext(filter: LibraryFilter, limit: Int) async -> String? {
-        let now = Date()
+    func libraryMentionContext(narrowing: ChatNarrowing, limit: Int) async -> String? {
         let recent = ((try? await store.episodes(ids: Array(analyzedEpisodes))) ?? [])
-            .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }
+            .filter(narrowing.admits)
             .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
             .prefix(5)
         var lines: [String] = []
@@ -269,19 +268,18 @@ extension AppModel {
         case .episodes(let ids):
             return (((try? await store.episodes(ids: ids)) ?? []), false)
         case .smartFeed, .allAnalyzed:
-            return await mentionEpisodes(filter: LibraryFilter())
+            return await mentionEpisodes(narrowing: .unrestricted)
         case .library(let filter):
-            return await mentionEpisodes(filter: filter)
+            return await mentionEpisodes(narrowing: await chatNarrowing(for: filter))
         }
     }
 
-    private func mentionEpisodes(filter: LibraryFilter) async -> (episodes: [Episode], capped: Bool) {
-        let now = Date()
+    private func mentionEpisodes(narrowing: ChatNarrowing) async -> (episodes: [Episode], capped: Bool) {
         var pool: [EpisodeID: Episode] = [:]
         for episode in (try? await store.episodes(ids: Array(analyzedEpisodes))) ?? [] { pool[episode.id] = episode }
         for episode in episodes.values.joined() where pool[episode.id] == nil { pool[episode.id] = episode }
         let admitted = pool.values
-            .filter { filter.admits(sourceID: $0.sourceID, publishedAt: $0.publishedAt, now: now) }
+            .filter(narrowing.admits)
             .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
         let analyzed = admitted.filter { analyzedEpisodes.contains($0.id) }
         let others = admitted.filter { !analyzedEpisodes.contains($0.id) }

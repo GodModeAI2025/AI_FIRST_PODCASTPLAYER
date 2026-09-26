@@ -1,6 +1,12 @@
 # Änderungsverlauf
 
 ## Nächste Version
+Eingrenzen im Chat:
+- Im Fragefeld von „Frag deine Podcasts“ werden „Podcast: Lage der Nation“, „#Datenschutz“, „Folge: …“, „seit 1. Juni“, „bis 30. Juni“ und „letzte Woche“ zu Tokens über dem Feld. Die Vorschläge kommen beim Tippen, aus deinen Abos, aus Tags mit Kapiteln und aus Folgen mit Transkript. Erst ein Tipp auf den Vorschlag setzt das Token. Mehrere Podcasts, Tags und Folgen gehen zugleich.
+- Die Tokens grenzen im Code ein, bevor Apple Intelligence etwas sieht: nur Folgen aus dem Bereich, bei einem Tag nur Stellen aus Kapiteln mit diesem Tag. Das Menü „Bereich“ oben und die Tokens ändern dasselbe.
+- Ein Tipp auf ein Token nimmt es heraus, am Mac auch die Rückschritttaste im leeren Feld. VoiceOver liest jedes Token mit Namen vor.
+- Ist das Feld leer und hat den Cursor, stehen darüber die letzten zehn Fragen dieses Geräts. Ein Tipp setzt die Frage ins Feld, gesendet wird erst mit dem Knopf. „Löschen“ leert die Liste.
+
 „An PodcastAI senden“ im Teilen-Menü von iPhone, iPad und Mac:
 - Links aus Apple Podcasts, YouTube, Safari und anderen Apps gehen mit einem Tipp an PodcastAI, ebenso Audiodateien aus Dateien oder AirDrop. Die Erweiterung legt nichts an. Beim Öffnen zeigt die App die Vorschau mit „Abonnieren“ oder „Nur diese Folge“; ein geteilter Feed wird nicht gleich abonniert.
 - Auf dem iPhone und iPad darf eine Erweiterung die App nicht öffnen. Dort steht „In PodcastAI geöffnet, sobald du die App startest“, und der Link wartet bis dahin. Der Mac öffnet PodcastAI gleich.
