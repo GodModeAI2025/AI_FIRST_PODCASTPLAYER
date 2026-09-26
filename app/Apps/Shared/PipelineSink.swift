@@ -18,9 +18,12 @@
 //  Die Senke ist das Ende der Pipeline auf dem Hauptakteur. Sie schreibt
 //  die Felder, die die Oberfläche heute liest, sobald eine Stufe sie
 //  übernommen hat: für „Wissen“ `factsQueue`, `gatheringFacts`,
-//  `factsWait`, `factsIssues` und `chapterTagsRevision`. Stufe und Angabe
-//  der Transkripte folgen mit Schritt 5; bis dahin schreibt sie dort nichts,
-//  denn sonst stünde jede Änderung doppelt da und jede Ansage käme zweimal.
+//  `factsWait`, `factsIssues` und `chapterTagsRevision`, dazu aus der
+//  Arbeit an einer Folge (`KnowledgeJobs`, seit Schritt 3b abseits des
+//  Hauptakteurs) `facts`, `factsInProgress`, `factsProgress`, `lastError`
+//  und `chapterCache`. Stufe und Angabe der Transkripte folgen mit
+//  Schritt 5; bis dahin schreibt sie dort nichts, denn sonst stünde jede
+//  Änderung doppelt da und jede Ansage käme zweimal.
 //
 
 import Foundation
@@ -102,22 +105,50 @@ final class PipelineSink {
     }
 }
 
-// MARK: - Stufe „Wissen“
+// MARK: - Stufe „Wissen“: Meldungen der Arbeit an einer Folge
 
-/// Die Arbeit an einer Folge für die Stufe „Wissen“. In Schritt 3a laufen
-/// Fakten und Tags noch auf dem Hauptakteur, über `prepareFacts` und
-/// `prepareChapterTags`. Die Stufe führt Warteschlange, Reihenfolge und Tor.
-struct AppKnowledgeWork: KnowledgeWorking {
-    let model: AppModel
+/// Fakten, Fortschritt, Fehlermeldung und nachgeladene Kapitel aus
+/// `KnowledgeJobs`. Die Arbeit läuft seit Schritt 3b abseits des
+/// Hauptakteurs, in beiden Stellungen des Schalters; was die Oberfläche
+/// zeigt, schreibt nur die Senke.
+extension PipelineSink: KnowledgeReporting {
 
-    func gatherFacts(for episode: Episode, force: Bool, origin: Origin,
-                     since ticket: RemovalLedger.Ticket) async -> FactsOutcome {
-        await model.prepareFacts(for: episode, force: force, removalTicket: ticket)
+    func factsStarted(_ id: EpisodeID) {
+        model?.factsInProgress.insert(id)
     }
 
-    func classifyChapters(of episode: Episode, origin: Origin,
-                          since ticket: RemovalLedger.Ticket) async -> ChapterTagsRun {
-        await model.prepareChapterTags(for: episode, origin: origin, removalTicket: ticket)
+    func factsProgress(_ id: EpisodeID, fraction: Double) {
+        model?.factsProgress[id] = fraction
+    }
+
+    func factsFinished(_ id: EpisodeID) {
+        model?.factsInProgress.remove(id)
+        model?.factsProgress[id] = nil
+    }
+
+    /// Geprüft wird hier, auf dem Hauptakteur, wo auch gelöscht wird. Eine
+    /// späte Meldung legt die Fakten einer gelöschten Folge nicht wieder an,
+    /// nachdem die Pflege sie weggeräumt hat.
+    func showFacts(_ facts: [EpisodeFact]?, for id: EpisodeID, unlessRemovedSince ticket: RemovalLedger.Ticket) {
+        guard let model else { return }
+        guard let facts else {
+            model.facts[id] = nil
+            return
+        }
+        guard !model.wasRemoved(id, since: ticket) else { return }
+        model.facts[id] = facts
+    }
+
+    func reportError(_ message: String) {
+        model?.lastError = message
+    }
+
+    /// Wie beim Öffnen der Folge (`loadChapters(for:)`): Die Kapitel gelten
+    /// für diese Sitzung, und liegt die Folge im Player, bekommt er sie.
+    func chaptersLoaded(_ chapters: [Chapter], for id: EpisodeID, unlessRemovedSince ticket: RemovalLedger.Ticket) {
+        guard let model, !model.wasRemoved(id, since: ticket) else { return }
+        model.chapterCache[id] = chapters
+        if model.episodePlayer.episode?.id == id { model.episodePlayer.setChapters(chapters) }
     }
 }
 
@@ -128,9 +159,45 @@ extension AppModel {
         KnowledgeSettings(isLoaded: isLoaded, automaticFacts: automaticFacts, analyzed: analyzedEpisodes)
     }
 
+    /// Die Arbeit an einer Folge, für beide Stellungen des Schalters. Entsteht
+    /// beim ersten Gebrauch, mit dem Speicher von jetzt.
+    var knowledgeJobs: KnowledgeJobs {
+        if let knowledgeJobsStorage { return knowledgeJobsStorage }
+        let jobs = makeKnowledgeJobs(store: store)
+        knowledgeJobsStorage = jobs
+        return jobs
+    }
+
+    private func makeKnowledgeJobs(store: LibraryStore) -> KnowledgeJobs {
+        // Ohne Pipeline, etwa in einer Vorschau, meldet eine Senke ohne Postfach.
+        let reporter = pipelineSink ?? PipelineSink(model: self)
+        let gate = pipeline?.gate
+        let environment = KnowledgeJobs.Environment(
+            refreshModel: { [weak self] in
+                guard let self else { return ModelAvailabilityMonitor.shared.current }
+                await self.refreshModelStatus(notifyingStage: false)
+                return await MainActor.run { self.modelStatus }
+            },
+            networkAllowsPreparation: { [weak self] in
+                await MainActor.run { self.map { $0.preparationWait == nil && !$0.isOffline } ?? false }
+            },
+            tagsMayContinue: { gate?.mayRun(.tags, origin: .automatic) ?? true },
+            cachedChapters: { [weak self] id in
+                await MainActor.run { self?.chapterCache[id] }
+            },
+            loadChapterFile: { [weak self] url in
+                guard let refresher = await MainActor.run(body: { self?.refresher }) else { return nil }
+                return await refresher.loadChapters(from: url)
+            },
+            describeError: { UserFacingError.describe($0) })
+        return KnowledgeJobs(store: store, ledger: removals, reporter: reporter, environment: environment)
+    }
+
     /// Legt die Stufe „Wissen“ an, wenn der Schalter an ist. Einmal, aus
     /// `AppBootstrap.start`, nach Host und Senke.
     func startKnowledgeStage() {
+        // Die Arbeit meldet an die Senke, die es jetzt gibt.
+        knowledgeJobsStorage = nil
         guard usesKnowledgeStage, knowledgeStage == nil, let pipeline, let pipelineSink else { return }
         let environment = KnowledgeStage.Environment(
             settings: { [weak self] in
@@ -143,7 +210,7 @@ extension AppModel {
             })
         let stage = KnowledgeStage(
             store: store, gate: pipeline.gate, ledger: removals, host: pipeline,
-            work: AppKnowledgeWork(model: self), environment: environment)
+            work: knowledgeJobs, environment: environment)
         knowledgeStage = stage
         pipelineSink.follow(stage)
         Task { await stage.start() }

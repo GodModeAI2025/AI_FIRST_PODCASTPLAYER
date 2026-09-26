@@ -490,3 +490,157 @@ struct KnowledgeStageTests {
         await harness.stage.untilIdle()
     }
 }
+
+// MARK: - Arbeit an einer Folge (Schritt 3b)
+
+/// Schreibt mit, was die Arbeit der Oberfläche meldet.
+private final class RecordingReporter: KnowledgeReporting {
+    private let state = Mutex<[String]>([])
+    var events: [String] { state.withLock { $0 } }
+    private func add(_ event: String) { state.withLock { $0.append(event) } }
+
+    func factsStarted(_ id: EpisodeID) async { add("start") }
+    func factsProgress(_ id: EpisodeID, fraction: Double) async { add("progress") }
+    func factsFinished(_ id: EpisodeID) async { add("finish") }
+    func showFacts(_ facts: [EpisodeFact]?, for id: EpisodeID, unlessRemovedSince ticket: RemovalLedger.Ticket) async {
+        add(facts.map { "facts:\($0.count)" } ?? "facts:nil")
+    }
+    func reportError(_ message: String) async { add("error") }
+    func chaptersLoaded(_ chapters: [Chapter], for id: EpisodeID, unlessRemovedSince ticket: RemovalLedger.Ticket) async {
+        add("chapters:\(chapters.count)")
+    }
+}
+
+/// Eine Stelle für Apple Intelligence, die jede Anfrage scheitern lässt und mitzählt.
+private final class FailingScheduler: AIScheduling {
+    struct Refused: Error {}
+    private let count = Mutex(0)
+    var calls: Int { count.withLock { $0 } }
+
+    func run<T: Sendable>(
+        _ kind: AIWorkKind, priority: AIWorkPriority,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        count.withLock { $0 += 1 }
+        throw Refused()
+    }
+}
+
+/// Zählt, wie oft die Kapiteldatei geladen wird.
+private final class ChapterLoader: Sendable {
+    private let count = Mutex(0)
+    var calls: Int { count.withLock { $0 } }
+    let chapters = [
+        Chapter(start: MediaTime(milliseconds: 0), title: "Anfang", provenance: .original),
+        Chapter(start: MediaTime(milliseconds: 4_000), title: "Mitte", provenance: .original),
+    ]
+    func load() -> [Chapter] {
+        count.withLock { $0 += 1 }
+        return chapters
+    }
+}
+
+private func makeJobs(
+    store: LibraryStore, ledger: RemovalLedger = RemovalLedger(), state: DeviceState = makeState(),
+    scheduler: FailingScheduler = FailingScheduler(), reporter: RecordingReporter = RecordingReporter(),
+    status: ModelStatus = ready, network: Bool = true, loader: ChapterLoader = ChapterLoader()
+) -> KnowledgeJobs {
+    KnowledgeJobs(
+        store: store, ledger: ledger, marks: state, scheduler: scheduler, reporter: reporter,
+        environment: KnowledgeJobs.Environment(
+            refreshModel: { status },
+            networkAllowsPreparation: { network },
+            tagsMayContinue: { true },
+            cachedChapters: { _ in nil },
+            loadChapterFile: { _ in loader.load() },
+            describeError: { "\($0)" }))
+}
+
+@Suite("Stufe „Wissen“: Arbeit an einer Folge")
+struct KnowledgeJobsTests {
+
+    @Test("Fakten ohne Lücken: Die Arbeit fragt kein Modell und zeigt, was da ist")
+    func storedFactsNeedNoModel() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let evidence = try #require(try await store.evidence(forEpisode: a.id).first)
+        try await store.save(facts: [EpisodeFact(
+            id: "fakt-a", episodeID: a.id, sourceID: sourceID, evidenceID: evidence.id,
+            mediaVersionID: evidence.mediaVersionID, statement: "Ein Satz über A.",
+            range: try #require(evidence.range), modelTier: "onDevice")], forEpisode: a.id)
+        let scheduler = FailingScheduler(), reporter = RecordingReporter()
+        let jobs = makeJobs(store: store, scheduler: scheduler, reporter: reporter)
+        let outcome = await jobs.gatherFacts(for: a, force: false, origin: .automatic, since: RemovalLedger.Ticket(0))
+        #expect(outcome == .stored)
+        #expect(scheduler.calls == 0)
+        #expect(reporter.events == ["start", "facts:1", "finish"])
+    }
+
+    @Test("Scheitern alle Abschnitte, bleibt der Store leer; die Meldung kommt nur bei „Jetzt ermitteln“")
+    func failingSlicesWriteNothing() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let scheduler = FailingScheduler(), reporter = RecordingReporter()
+        let jobs = makeJobs(store: store, scheduler: scheduler, reporter: reporter)
+        let automatic = await jobs.gatherFacts(for: a, force: false, origin: .automatic, since: RemovalLedger.Ticket(0))
+        guard case .failed(let note) = automatic else {
+            Issue.record("Erwartet .failed, bekam \(automatic)")
+            return
+        }
+        #expect(note?.isEmpty == false)
+        // Ein zweiter Versuch je Abschnitt, dann weiter.
+        #expect(scheduler.calls == 2)
+        #expect(try await store.facts(forEpisode: a.id).isEmpty)
+        #expect(!reporter.events.contains("error"))
+        _ = await jobs.gatherFacts(for: a, force: true, origin: .user, since: RemovalLedger.Ticket(0))
+        #expect(reporter.events.contains("error"))
+    }
+
+    @Test("Fehlt das Modell, endet der Lauf ohne Anfrage und ohne Speichern")
+    func missingModel() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let missing = ModelStatus(onDevice: .unavailable(.modelNotReady),
+                                  privateCloudCompute: .unavailable(.userConsentMissing))
+        let scheduler = FailingScheduler()
+        let jobs = makeJobs(store: store, scheduler: scheduler, status: missing)
+        let outcome = await jobs.gatherFacts(for: a, force: false, origin: .automatic, since: RemovalLedger.Ticket(0))
+        #expect(outcome == .modelUnavailable(.modelNotReady))
+        #expect(scheduler.calls == 0)
+    }
+
+    @Test("Gelöscht vor dem Lauf: nichts zu tun, nichts gezeigt, kein Vermerk")
+    func removedBeforeRun() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let ledger = RemovalLedger(), state = makeState(), reporter = RecordingReporter()
+        let jobs = makeJobs(store: store, ledger: ledger, state: state, reporter: reporter)
+        let ticket = ledger.ticket
+        ledger.markRemoved([a.id])
+        #expect(await jobs.gatherFacts(for: a, force: false, origin: .automatic, since: ticket) == .nothingToDo)
+        #expect(await jobs.classifyChapters(of: a, origin: .automatic, since: ticket) == ChapterTagsRun(.nothingToDo))
+        #expect(!reporter.events.contains { $0.hasPrefix("facts:") })
+        #expect(KnowledgeMarks.factGaps(of: a.id, in: state).isEmpty)
+        #expect(KnowledgeMarks.taggingProgress(for: a.id, in: state) == nil)
+    }
+
+    @Test("Kapiteldatei: vor den Fakten geladen und an der Folge abgelegt, nur wenn das Netz das Vorbereiten erlaubt")
+    func loadsChapterFileBeforeFacts() async throws {
+        var a = episode("A", daysAgo: 1)
+        a.chaptersURL = URL(string: "https://example.com/A-kapitel.json")
+        let store = try await makeStore([a], transcripts: true)
+
+        let blocked = ChapterLoader()
+        _ = await makeJobs(store: store, network: false, loader: blocked)
+            .gatherFacts(for: a, force: false, origin: .automatic, since: RemovalLedger.Ticket(0))
+        #expect(blocked.calls == 0, "Ohne Erlaubnis fürs Netz keine Anfrage")
+        #expect(try await store.episodes(ids: [a.id]).first?.publisherChapters.isEmpty == true)
+
+        let loader = ChapterLoader(), reporter = RecordingReporter()
+        _ = await makeJobs(store: store, reporter: reporter, loader: loader)
+            .gatherFacts(for: a, force: false, origin: .automatic, since: RemovalLedger.Ticket(0))
+        #expect(loader.calls == 1)
+        #expect(reporter.events.contains("chapters:2"))
+        #expect(try await store.episodes(ids: [a.id]).first?.publisherChapters.map(\.title) == ["Anfang", "Mitte"])
+    }
+}

@@ -568,6 +568,8 @@ public final class AppModel {
     /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
     /// bleibt sie leer.
     @ObservationIgnored var knowledgeStage: KnowledgeStage?
+    /// Die Arbeit an einer Folge (`knowledgeJobs` in PipelineSink.swift).
+    @ObservationIgnored var knowledgeJobsStorage: KnowledgeJobs?
 
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
     /// danach die Größe neu.
@@ -870,8 +872,9 @@ public final class AppModel {
         // Ein neuer Speicher ist ein neuer Start. Auch für die Fakten: was
         // wartete, gehörte zum alten Speicher, und gesucht wird ohne Wartezeit.
         restoreAttempted = false
+        knowledgeJobsStorage = knowledgeJobs.with(store: newStore)
         if let knowledgeStage {
-            await knowledgeStage.reset(store: newStore)
+            await knowledgeStage.reset(store: newStore, work: knowledgeJobs)
         } else {
             factsQueue = []
             tagsQueue = []

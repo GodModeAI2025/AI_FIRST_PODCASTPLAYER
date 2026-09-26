@@ -1029,19 +1029,10 @@ extension AppModel {
 
     // MARK: - Fakten
 
-    /// Ermittelt die Fakten einer Folge aus ihren Belegen und speichert sie.
-    ///
-    /// Die Folge wird in Abschnitten ausgewertet, und was gelingt, bleibt.
-    /// Lehnt das Modell einen Abschnitt ab (Schutzregeln, Ablehnung, zu viel
-    /// Text für sein Fenster), bringt ein zweiter Versuch nichts. Die App
-    /// merkt sich den Abschnitt und schickt ihn auch beim nächsten Lauf nicht
-    /// mehr. Scheitert ein Abschnitt aus anderem Grund, gibt es einen zweiten
-    /// Versuch, danach geht es mit dem nächsten weiter. Solche Abschnitte
-    /// merkt sich die App als Lücke: ein späterer Lauf holt nur sie nach und
-    /// behält die Fakten, die schon da sind. Fehlt das Modell ganz, endet
-    /// der Lauf ohne zu speichern, und der nächste beginnt von vorn. Hat der
-    /// Nutzer selbst gefragt (`force`), rechnet der Lauf die ganze Folge neu
-    /// und der Nutzer erfährt, was gefehlt hat.
+    /// Ermittelt die Fakten einer Folge und speichert sie. Der Code steht seit
+    /// der Stufe „Wissen“ in `KnowledgeJobs` (Paket) und läuft abseits des
+    /// Hauptakteurs. Hier ruft ihn der alte Weg hinter dem Schalter auf,
+    /// mit der frisch gelesenen Folge.
     ///
     /// `removalTicket` gibt den Stand der Löschungen mit, ab dem eine
     /// Löschung zählt. Ohne Angabe gilt der Stand beim Aufruf.
@@ -1051,393 +1042,15 @@ extension AppModel {
     func prepareFacts(
         for episode: Episode, force: Bool = false, removalTicket: RemovalLedger.Ticket? = nil
     ) async -> FactsOutcome {
-        guard !factsInProgress.contains(episode.id) else { return .nothingToDo }
-        // Gleich vormerken, vor dem ersten `await`: sonst liefen zwei Aufrufe
-        // für dieselbe Folge nebeneinander.
-        factsInProgress.insert(episode.id)
-        defer {
-            factsInProgress.remove(episode.id)
-            factsProgress[episode.id] = nil
-        }
         let ticket = removalTicket ?? removals.ticket
-        // Vorhandene Fakten gelten als fertig, außer ein früherer Lauf hat
-        // Lücken hinterlassen.
-        var stored: [EpisodeFact] = []
-        var gaps: Set<String> = []
-        // „Neu ermitteln“ rechnet alles neu, merkt sich aber die bisherigen
-        // Fakten. Liefert der neue Lauf deutlich weniger, bleiben sie.
-        var previous: [EpisodeFact] = []
-        // Fakten mit Listenresten zählen nicht. Sind es alle, rechnet der
-        // Lauf die Folge neu, und beim Speichern fallen sie weg. Eine Nummer
-        // vorn oder ein Verweis am Ende fällt nur aus dem Text (`cleaned`).
-        if !force {
-            stored = await Self.cleanedOffMain((try? await store.facts(forEpisode: episode.id)) ?? [])
-            gaps = Self.factGaps(of: episode.id)
-        } else {
-            previous = await Self.cleanedOffMain((try? await store.facts(forEpisode: episode.id)) ?? [])
-        }
-        if !stored.isEmpty, gaps.isEmpty {
-            facts[episode.id] = await anchoredFacts(stored, episodeID: episode.id)
-            return .stored
-        }
-        let evidence = ((try? await store.evidence(forEpisode: episode.id)) ?? []).filter { $0.range != nil }
-        guard !evidence.isEmpty, !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
-
-        await refreshModelStatus()
-        // Fakten laufen über das Profil `.extract`. Dafür wählt der Router nur
-        // das Gerätemodell, nie Private Cloud Compute. Die hier aufgelöste
-        // Stufe ist also die, die tatsächlich rechnet, und nur sie steht
-        // später unter den Fakten.
-        let tier: ModelTier
-        switch modelStatus.resolve(.extract) {
-        case .success(let resolved):
-            tier = resolved
-        case .failure(let reason):
-            if force { lastError = String(localized: "Fakten lassen sich gerade nicht ermitteln. \(reason.message)") }
-            return .modelUnavailable(reason)
-        }
-
-        let byID = Dictionary(evidence.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let chunk = Self.factChunkSize(contextSize: Self.onDeviceContextSize)
-        // Jedes Kapitel bekommt seinen Anteil, statt gleichmäßig verteilter
-        // Stellen über die ganze Folge. Ohne Kapitel aus dem Feed gelten die
-        // Abschnitte, die auch der Reiter „Kapitel“ zeigt.
-        let sections = await Self.chapterSections(
-            chapters: feedChapters(for: episode), duration: episode.declaredDuration, evidence: evidence)
-        let plan = ChapterSections.factPlan(
-            evidence: evidence, sections: sections, chunk: chunk,
-            budget: ChapterSections.FactBudget(baseCalls: Self.factChunkLimit, baseLimit: Self.factLimit))
-        var slices = plan.slices
-        // Mit Lücken: nur die Abschnitte, die beim letzten Mal fehlten. Was
-        // schon da ist, bleibt.
-        var open = Set(slices.indices)
-        if !stored.isEmpty {
-            // Über die Zeitspanne der Lücke, nicht über die Kennung des
-            // Aufrufs: Seit dem letzten Lauf können Kapitel aus dem Feed
-            // dazugekommen sein, dann liegen die Aufrufe anders.
-            let reopened = ChapterSections.reopened(slices, gaps: Self.factGapSpans(gaps, in: byID))
-            for (index, part) in reopened { slices[index] = part }
-            open = Set(reopened.keys)
-            // Die Lücken passen nicht mehr zu den Belegen, etwa nach einem
-            // neuen Transkript. Dann bleibt es bei den Fakten, die es gibt. „Neu ermitteln“ rechnet
-            // die ganze Folge neu.
-            guard !open.isEmpty else {
-                recordFactGaps([], for: episode.id, since: ticket)
-                let shown = await anchoredFacts(stored, episodeID: episode.id)
-                guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
-                facts[episode.id] = shown
-                return .stored
-            }
-        }
-        // Jedes Kapitel der Folge bekommt seinen Anteil an den Fakten.
-        let quota = plan.quota
-        let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
-            candidateBuilder: CandidateListBuilder(excerptLimit: Self.factExcerptLimit, maximumCandidates: chunk)),
-            // „Jetzt ermitteln“ hat jemand angetippt, das geht vor Arbeit im Hintergrund.
-            priority: AIPriorityPolicy.priority(kind: .facts, origin: force ? .user : .automatic, force: force))
-        // Für die Zeitmarken: das Modell wählt nur den Beleg, den Satz darin
-        // findet der Code im Transkript.
-        let timed = await transcript(for: episode)
-
-        var result: [EpisodeFact] = []
-        let knownRejections = Self.rejectedFactSlices
-        var rejected = 0
-        var failed = 0
-        // Abschnitte, die ein späterer Lauf nachholt.
-        var missing: Set<String> = []
-        var reason: String?
-        factsProgress[episode.id] = 0
-        for (index, slice) in slices.enumerated() {
-            // Keine Zeit mehr, etwa weil die App in den Hintergrund ging:
-            // sichern, was fertig ist, die Folge bleibt vorn.
-            if Task.isCancelled {
-                return await keepFinishedFacts(
-                    result, stored: stored, of: episode, unfinished: Set(slices[index...].indices.filter(open.contains)),
-                    slices: slices, missing: missing, replacing: force && !previous.isEmpty, since: ticket)
-            }
-            defer { factsProgress[episode.id] = Double(index + 1) / Double(slices.count) }
-            let key = Self.factSliceKey(episode.id, slice)
-            if knownRejections.contains(key) {
-                rejected += 1
-                continue
-            }
-            // Schon bei einem früheren Lauf gelungen.
-            guard open.contains(index) else { continue }
-            let claims: [Claim]
-            do {
-                let availability = modelStatus
-                claims = try await ProcessingTrace.interval("Fakten: Abschnitt") {
-                    try await Self.extractClaims(from: slice, with: extractor, availability: availability)
-                }
-            } catch let error as ExtractorError {
-                switch error {
-                case .generationRejected:
-                    Self.rememberRejectedFactSlice(key)
-                    rejected += 1
-                    reason = error.errorDescription
-                    continue
-                case .generationFailed:
-                    failed += 1
-                    missing.insert(Self.factSliceID(slice))
-                    reason = error.errorDescription
-                    continue
-                case .modelUnavailable(let unavailable):
-                    await refreshModelStatus()
-                    if force {
-                        let detail = error.errorDescription ?? ""
-                        lastError = String(localized: "Die Fakten konnten nicht ermittelt werden. \(detail)")
-                    }
-                    return .modelUnavailable(unavailable)
-                }
-            } catch {
-                // Abgebrochen: sichern, was fertig ist, nichts melden.
-                if error is CancellationError || Task.isCancelled {
-                    return await keepFinishedFacts(
-                        result, stored: stored, of: episode, unfinished: Set(slices[index...].indices.filter(open.contains)),
-                        slices: slices, missing: missing, replacing: force && !previous.isEmpty, since: ticket)
-                }
-                failed += 1
-                missing.insert(Self.factSliceID(slice))
-                reason = error.localizedDescription
-                continue
-            }
-            guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
-            // Die Sätze im Transkript sucht der Code außerhalb des Hauptthreads.
-            let episodeID = episode.id
-            result += await Task.detached(priority: .utility) {
-                ProcessingTrace.measure("Fakten verankern") {
-                    Self.placeFacts(claims, episodeID: episodeID, byID: byID, sections: sections,
-                                    quota: quota, transcript: timed, tier: tier)
-                }
-            }.value
-        }
-        guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
-        // Das Kontingent oder die Bereitschaft des Modells kann sich geändert haben.
-        if failed > 0 { await refreshModelStatus() }
-        let gap = rejected + failed > 0
-            ? Self.factGapMessage(rejected: rejected, failed: failed, total: slices.count,
-                                  saved: !result.isEmpty || !stored.isEmpty, reason: reason)
-            : nil
-        if force, let gap { lastError = gap }
-        // Unvollständig: gespeichert wird, was da ist, und die Lücken holt ein
-        // späterer Lauf nach.
-        let outcome: FactsOutcome = missing.isEmpty ? .stored : .partial(gap)
-        guard !result.isEmpty || !stored.isEmpty else {
-            // Gespeichert wird nichts: bisherige Fakten bleiben stehen.
-            let nothingFound = previous.isEmpty
-                ? String(localized: "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden.")
-                : String(localized: "Der neue Lauf fand keine überprüfbaren Aussagen. Die bisherigen Fakten bleiben.")
-            if force, gap == nil { lastError = nothingFound }
-            // Ist etwas nur gescheitert, lohnt ein späterer Versuch. Hat das
-            // Modell alles abgelehnt oder nichts gefunden, nicht.
-            return failed > 0 ? .failed(gap) : .noFacts(gap ?? nothingFound)
-        }
-        // Aus den Lücken kam nichts Neues: die Fakten bleiben, wie sie sind.
-        guard !result.isEmpty else {
-            recordFactGaps(missing, for: episode.id, since: ticket)
-            let shown = await anchoredFacts(stored, episodeID: episode.id)
-            guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
-            facts[episode.id] = shown
-            return outcome
-        }
-        // Deutlich weniger als vorher, etwa weil das Modell diesmal kaum
-        // Brauchbares lieferte: nichts ersetzen. Die bisherigen Fakten
-        // bleiben, und der Hinweis steht über „Neu ermitteln“.
-        if Self.isClearlyWorse(result.count, than: previous.count) {
-            let shown = await anchoredFacts(previous, episodeID: episode.id)
-            guard !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
-            facts[episode.id] = shown
-            let found = String(AttributedString(localized: "^[\(result.count) Fakt](inflect: true)").characters)
-            return .partial(String(localized: """
-                Der neue Lauf fand nur \(found) statt \(previous.count). Die bisherigen Fakten bleiben.
-                """))
-        }
-        let unique = Dictionary((stored + result).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
-            .sorted { $0.range.start.milliseconds < $1.range.start.milliseconds }
-        // Beim Kürzen bleibt jedes Kapitel vertreten.
-        let kept = ChapterSections.balanced(
-            Array(unique), across: sections, quota: plan.quota, limit: plan.limit) { $0.range.start }
-        let shownBefore = facts[episode.id]
-        facts[episode.id] = kept
-        var saveFailure: String?
-        var receipt: WriteReceipt?
-        do {
-            switch try await store.commit(facts: kept, under: commitGuard(for: episode, since: ticket)) {
-            case .written(let written, _):
-                receipt = written
-            case .stale(let reason):
-                // Der Wächter im Store hat widersprochen: Die Folge ist weg,
-                // oder ihre Belege sind nicht mehr die, aus denen die Fakten
-                // entstanden. Ersetzt wurde nichts, also bleibt die Anzeige,
-                // wie sie war.
-                facts[episode.id] = reason.meansRemoved ? nil : shownBefore
-                return .nothingToDo
-            }
-        } catch {
-            saveFailure = UserFacingError.describe(error)
-            if force { lastError = saveFailure }
-        }
-        // Gleich nach dem Speichern gelöscht: genau diese Fakten wieder
-        // entfernen, ohne neues Merkzeichen. Wurde die Quelle inzwischen neu
-        // abonniert, bliebe die Folge sonst für immer verborgen.
-        if wasRemoved(episode.id, since: ticket) {
-            facts[episode.id] = nil
-            if let receipt { _ = try? await store.removeWrites(receipt) }
-            return .nothingToDo
-        }
-        // Nicht gespeichert: sichtbar sind sie jetzt, beim nächsten Start
-        // fehlen sie. Die Lücken bleiben, wie sie waren.
-        if let saveFailure { return .failed(saveFailure) }
-        recordFactGaps(missing, for: episode.id, since: ticket)
-        // Ältere Fakten zeigen auf den Anfang ihres Belegs. Für die Anzeige
-        // bekommen sie ihren Satz, wie beim Laden.
-        if !stored.isEmpty {
-            let shown = await anchoredFacts(kept, episodeID: episode.id)
-            if !wasRemoved(episode.id, since: ticket) { facts[episode.id] = shown }
-        }
-        return outcome
+        let fresh = (try? await store.episodes(ids: [episode.id]))?.first ?? episode
+        return await knowledgeJobs.gatherFacts(
+            for: fresh, force: force, origin: force ? .user : .automatic, since: ticket)
     }
 
-    /// Macht aus den Aussagen eines Abschnitts Fakten mit Zeitmarke.
-    ///
-    /// Je Kapitel höchstens `quota`, damit ein Aufruf mit mehreren Kapiteln
-    /// nicht alles einem einzigen gibt. Aussagen ohne bekannten Beleg fallen
-    /// vorher heraus, sonst zählten sie beim ersten Kapitel mit und
-    /// verdrängten dort echte. Das Modell wählt nur den Beleg, den Satz
-    /// darin findet der Code im Transkript.
-    nonisolated static func placeFacts(
-        _ claims: [Claim], episodeID: EpisodeID, byID: [EvidenceID: Evidence], sections: [ChapterSection],
-        quota: Int, transcript timed: Transcript?, tier: ModelTier
-    ) -> [EpisodeFact] {
-        let placed = claims.filter { $0.evidenceIDs.first.flatMap { byID[$0]?.range } != nil }
-        let perSection = ChapterSections.balanced(
-            placed, across: sections, quota: quota, limit: placed.count
-        ) { claim in
-            claim.evidenceIDs.first.flatMap { byID[$0]?.range?.start } ?? .zero
-        }
-        var result: [EpisodeFact] = []
-        for claim in perSection {
-            guard let evidenceID = claim.evidenceIDs.first, let source = byID[evidenceID],
-                  let range = source.range else { continue }
-            let sentence = timed.flatMap { transcript in
-                transcript.mediaVersionID == source.mediaVersionID
-                    ? FactAnchor.range(for: claim.statement, within: range, in: transcript.segments)
-                    : nil
-            }
-            result.append(EpisodeFact(
-                id: claim.id.rawValue, episodeID: episodeID, sourceID: source.sourceID,
-                evidenceID: evidenceID, mediaVersionID: source.mediaVersionID,
-                // Die Kennung, nicht die Bezeichnung: die Ansicht übersetzt sie in
-                // die Sprache, in der jemand die Fakten liest.
-                statement: claim.statement, range: sentence ?? range, modelTier: tier.rawValue))
-        }
-        return result
-    }
-
-    /// Ein Lauf wird abgebrochen, etwa weil die Zeit im Hintergrund endet.
-    /// Die fertigen Abschnitte bleiben gespeichert, die übrigen merkt sich
-    /// die App als Lücken. Der nächste Lauf rechnet dann nur noch sie.
-    ///
-    /// Nicht bei „Neu ermitteln“ über vorhandene Fakten (`replacing`): ein
-    /// halber neuer Lauf ersetzte sonst die ganzen alten Fakten.
-    private func keepFinishedFacts(
-        _ result: [EpisodeFact], stored: [EpisodeFact], of episode: Episode, unfinished: Set<Int>,
-        slices: [[Evidence]], missing: Set<String>, replacing: Bool, since ticket: RemovalLedger.Ticket
-    ) async -> FactsOutcome {
-        guard !result.isEmpty, !replacing, !wasRemoved(episode.id, since: ticket) else { return .cancelled }
-        let unique = Dictionary((stored + result).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
-            .sorted { $0.range.start.milliseconds < $1.range.start.milliseconds }
-        let kept = Self.evenlySpaced(unique, count: Self.factLimit)
-        let receipt: WriteReceipt
-        do {
-            // Widerspricht der Wächter im Store, bleibt alles, wie es war.
-            guard let written = try await store.commit(
-                facts: kept, under: commitGuard(for: episode, since: ticket)).receipt else { return .cancelled }
-            receipt = written
-        } catch {
-            return .cancelled
-        }
-        if wasRemoved(episode.id, since: ticket) {
-            _ = try? await store.removeWrites(receipt)
-            return .cancelled
-        }
-        // Ältere Fakten bekommen für die Anzeige ihren Satz, wie beim Laden.
-        let shown = stored.isEmpty ? kept : await anchoredFacts(kept, episodeID: episode.id)
-        guard !wasRemoved(episode.id, since: ticket) else { return .cancelled }
-        facts[episode.id] = shown
-        recordFactGaps(missing.union(unfinished.map { Self.factSliceID(slices[$0]) }), for: episode.id, since: ticket)
-        return .cancelled
-    }
-
-    /// Was der Nutzer erfährt, wenn Abschnitte einer Folge fehlen.
-    private static func factGapMessage(
-        rejected: Int, failed: Int, total: Int, saved: Bool, reason: String?
-    ) -> String {
-        let missing = rejected + failed
-        var parts = [saved
-            ? String(localized: "Die Fakten sind unvollständig: \(missing) von \(total) Abschnitten der Folge fehlen.")
-            : String(localized: "Aus dieser Folge ließen sich keine Fakten ermitteln: \(missing) von \(total) Abschnitten fehlen.")]
-        if rejected > 0 {
-            parts.append(String(localized: """
-                \(rejected) davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. \
-                Diese versucht die App nicht noch einmal.
-                """))
-        }
-        if failed > 0 {
-            // Ohne Verb, das sich nach der Zahl richten müsste: „1 sind gescheitert“ wäre falsch.
-            parts.append(String(localized: """
-                Bei \(failed) davon ging aus einem anderen Grund etwas schief. Ein neuer Versuch kann sie nachholen.
-                """))
-        }
-        if let reason { parts.append(reason) }
-        return parts.joined(separator: " ")
-    }
-
-    // MARK: Abgelehnte Abschnitte
-
-    private static let rejectedFactSlicesKey = "com.podcastai.rejectedFactSlices"
-    /// So viele Ablehnungen merkt sich die App höchstens. Die ältesten fallen heraus.
-    private static let rejectedFactSliceLimit = 500
-
-    /// Abschnitte, die das Gerätemodell abgelehnt hat. Nur auf diesem Gerät,
-    /// ohne Eintrag in der Datenbank.
-    private static var rejectedFactSliceList: [String] {
-        DeviceState.shared.value([String].self, for: rejectedFactSlicesKey) {
-            UserDefaults.standard.stringArray(forKey: rejectedFactSlicesKey)
-        } ?? []
-    }
-
-    private static var rejectedFactSlices: Set<String> { Set(rejectedFactSliceList) }
-
-    private static func rememberRejectedFactSlice(_ key: String) {
-        var list = rejectedFactSliceList
-        guard !list.contains(key) else { return }
-        list.append(key)
-        DeviceState.shared.set(Array(list.suffix(rejectedFactSliceLimit)), for: rejectedFactSlicesKey)
-    }
-
-    /// Vergisst die Ablehnungen gelöschter Folgen. Ihre Kennung beginnt mit
-    /// der Kennung der Folge (``factSliceKey(_:_:)``).
+    /// Vergisst die Ablehnungen gelöschter Folgen (`KnowledgeMarks`).
     static func forgetRejectedFactSlices(of ids: Set<EpisodeID>) {
-        guard !ids.isEmpty else { return }
-        let list = rejectedFactSliceList
-        let kept = list.filter { key in
-            guard let episode = key.split(separator: "|", maxSplits: 1).first else { return true }
-            return !ids.contains(EpisodeID(rawValue: String(episode)))
-        }
-        guard kept.count != list.count else { return }
-        DeviceState.shared.set(kept, for: rejectedFactSlicesKey)
-    }
-
-    /// Kennung eines Abschnitts. Belege haben stabile Kennungen, erster und
-    /// letzter Beleg und ihre Zahl bestimmen den Abschnitt. Die Version des
-    /// Systems gehört dazu: ein neues Modell bekommt eine neue Gelegenheit.
-    static func factSliceKey(_ episodeID: EpisodeID, _ slice: [Evidence]) -> String {
-        let system = ProcessInfo.processInfo.operatingSystemVersion
-        return [
-            episodeID.rawValue, slice.first?.id.rawValue ?? "", slice.last?.id.rawValue ?? "",
-            String(slice.count), "\(system.majorVersion).\(system.minorVersion)",
-        ].joined(separator: "|")
+        KnowledgeMarks.forgetRejectedFactSlices(of: ids)
     }
 
     // MARK: Lücken
@@ -1445,9 +1058,8 @@ extension AppModel {
     /// Abschnitte, die beim letzten Lauf einer Folge aus einem Grund
     /// gescheitert sind, der vorbeigeht: Last, Zeitüberschreitung. Je Folge
     /// die Kennungen der Abschnitte. Nur auf diesem Gerät, ohne Eintrag in
-    /// der Datenbank.
-    /// Die Datei steht seit der Stufe „Wissen“ in `KnowledgeMarks` (Paket),
-    /// unter demselben Namen.
+    /// der Datenbank. Die Datei steht seit der Stufe „Wissen“ in
+    /// `KnowledgeMarks` (Paket), unter demselben Namen.
     static func factGaps(of id: EpisodeID) -> Set<String> {
         KnowledgeMarks.factGaps(of: id)
     }
@@ -1460,71 +1072,6 @@ extension AppModel {
     /// Merkt sich die Lücken einer Folge. Ohne Lücken fällt der Eintrag weg.
     static func setFactGaps(_ gaps: Set<String>, for id: EpisodeID) {
         KnowledgeMarks.setFactGaps(gaps, for: id)
-    }
-
-    /// Merkt sich die Lücken, außer die Folge wurde inzwischen gelöscht.
-    /// Dann hat das Löschen den Eintrag schon entfernt.
-    private func recordFactGaps(_ gaps: Set<String>, for id: EpisodeID, since ticket: RemovalLedger.Ticket) {
-        guard !wasRemoved(id, since: ticket) else { return }
-        Self.setFactGaps(gaps, for: id)
-    }
-
-    /// Kennung eines Abschnitts für die Lücken: erster und letzter Beleg und
-    /// ihre Zahl. Ohne Systemversion, anders als bei den Ablehnungen: eine
-    /// Lücke bleibt auch nach einem Update eine Lücke.
-    static func factSliceID(_ slice: [Evidence]) -> String {
-        [slice.first?.id.rawValue ?? "", slice.last?.id.rawValue ?? "", String(slice.count)]
-            .joined(separator: "|")
-    }
-
-    /// Die Zeitspanne jeder Lücke, vom Anfang ihres ersten bis zum Ende
-    /// ihres letzten Belegs. Lücken, deren Belege es nicht mehr gibt, etwa
-    /// nach einem neuen Transkript, fallen weg.
-    static func factGapSpans(_ gaps: Set<String>, in byID: [EvidenceID: Evidence]) -> [MediaTimeRange] {
-        gaps.compactMap { gap in
-            let parts = gap.split(separator: "|", omittingEmptySubsequences: false)
-            guard parts.count == 3,
-                  let first = byID[EvidenceID(rawValue: String(parts[0]))]?.range,
-                  let last = byID[EvidenceID(rawValue: String(parts[1]))]?.range else { return nil }
-            return MediaTimeRange(start: min(first.start, last.start), end: max(first.end, last.end))
-        }
-    }
-
-    /// Ist ein neuer Lauf deutlich schlechter als der vorige? Ja, wenn er
-    /// weniger als halb so viele Fakten liefert wie vorher mindestens zwei.
-    static func isClearlyWorse(_ fresh: Int, than previous: Int) -> Bool {
-        previous >= 2 && fresh * 2 < previous
-    }
-
-    /// So viele Fakten behält jede Folge mindestens. Mit vielen Kapiteln
-    /// wächst die Grenze, siehe ``ChapterSections/factPlan(evidence:sections:chunk:budget:)``.
-    static let factLimit = 40
-    /// So viele Modellaufrufe bekommt jede Folge. Mit vielen Kapiteln
-    /// werden es mehr, höchstens ``ChapterSections/FactBudget/maximumCalls``.
-    static let factChunkLimit = 6
-    static let factExcerptLimit = 600
-
-    /// Wie viele Stellen in einen Aufruf des Gerätemodells passen. Fakten
-    /// laufen immer auf dem Gerät, auch wenn Private Cloud Compute frei ist.
-    /// Abgezogen werden Anweisungen, Schema und Antwort (zusammen etwa
-    /// 1.400 Token), gerechnet mit drei Zeichen je Token.
-    static func factChunkSize(contextSize: Int) -> Int {
-        let perPassage = (factExcerptLimit + 8) / 3
-        return min(16, max(6, (contextSize - 1_400) / perPassage))
-    }
-
-    /// Ein Aufruf mit einem zweiten Versuch, wenn die Erzeugung scheitert.
-    /// Fehlt das Modell ganz oder lehnt es den Abschnitt ab
-    /// (`generationRejected`), hilft kein zweiter Versuch.
-    private static func extractClaims(
-        from slice: [Evidence], with extractor: KnowledgeExtractor, availability: ModelStatus
-    ) async throws -> [Claim] {
-        do {
-            return try await extractor.extractClaims(from: slice, availability: availability)
-        } catch let error as ExtractorError {
-            guard case .generationFailed = error else { throw error }
-            return try await extractor.extractClaims(from: slice, availability: availability)
-        }
     }
 
     // MARK: Fakten im Hintergrund
@@ -1995,18 +1542,12 @@ extension AppModel {
     /// Steht nur vorn eine Nummer oder am Ende ein Verweis, zeigt sie den
     /// Fakt ohne sie.
     nonisolated static func cleanedOffMain(_ list: [EpisodeFact]) async -> [EpisodeFact] {
-        guard !list.isEmpty else { return [] }
-        return await Task.detached(priority: .utility) { list.compactMap(\.cleaned) }.value
+        await KnowledgeJobs.cleaned(list)
     }
 
+    /// Dieselbe Regel wie in `KnowledgeJobs`, abseits des Hauptthreads.
     func anchoredFacts(_ list: [EpisodeFact], episodeID: EpisodeID) async -> [EpisodeFact] {
-        // Aufräumen kostet Regex je Fakt: außerhalb des Hauptthreads.
-        let list = await Self.cleanedOffMain(list)
-        guard list.contains(where: { $0.range.duration.milliseconds >= 30_000 }),
-              let transcript = try? await store.transcript(forEpisode: episodeID) else { return list }
-        return await Task.detached(priority: .utility) {
-            ProcessingTrace.measure("Fakten verankern") { FactAnchor.anchored(list, in: transcript) }
-        }.value
+        await KnowledgeJobs.anchored(list, episodeID: episodeID, store: store)
     }
 
     /// Was in der Folge zu jedem Fakt wörtlich gesagt wurde: der passende

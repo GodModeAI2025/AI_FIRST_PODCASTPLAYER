@@ -207,7 +207,7 @@ public actor KnowledgeStage {
     /// Das Postfach der Stufe. Es entsteht mit der Stufe, damit kein
     /// Ereignis wegfällt, das vor `start()` kommt; gelesen wird ab `start()`.
     private let mailbox: AsyncStream<PipelineEvent>?
-    private let work: any KnowledgeWorking
+    private var work: any KnowledgeWorking
     private let environment: Environment
     private let clock: @Sendable () -> Date
     private let pauseStep: Duration
@@ -486,11 +486,13 @@ public actor KnowledgeStage {
         publish()
     }
 
-    /// Ein anderer Speicher: Was wartete, gehörte zum alten.
-    public func reset(store newStore: LibraryStore) {
+    /// Ein anderer Speicher: Was wartete, gehörte zum alten. `work` ist die
+    /// Arbeit für den neuen Speicher.
+    public func reset(store newStore: LibraryStore, work newWork: (any KnowledgeWorking)? = nil) {
         slot?.task?.cancel()
         slot = nil
         store = newStore
+        if let newWork { work = newWork }
         factsQueue.removeAll()
         tagsQueue.removeAll()
         session = Session()
