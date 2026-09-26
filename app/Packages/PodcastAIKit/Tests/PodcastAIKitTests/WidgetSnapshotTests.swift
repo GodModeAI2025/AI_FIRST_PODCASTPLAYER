@@ -141,6 +141,24 @@ private func makeWriter(
                                                 withIntermediateDirectories: true)
         try Data("kein json".utf8).write(to: store.fileURL)
         #expect(store.read() == nil)
+        try Data().write(to: store.fileURL)
+        #expect(store.read() == nil)
+    }
+
+    /// Das Widget hat wenig Speicher: Eine zu große Datei liest es nicht,
+    /// und mehr als drei Einträge je Liste nimmt es nicht an.
+    @Test func anOversizedFileOrTooManyEntriesStayOut() throws {
+        let store = temporaryStore()
+        defer { removeStore(store) }
+        let many = (0..<6).map { tag("t\($0)", "Tag \($0)", 10 - $0) }
+        try store.write(snapshot(many, trending: many))
+        let read = try #require(store.read())
+        #expect(read.newStatements == Array(many.prefix(3)))
+        #expect(read.trendingTags == Array(many.prefix(3)))
+
+        let huge = snapshot([tag("t1", String(repeating: "x", count: WidgetSnapshotStore.maximumFileSize), 1)])
+        try store.write(huge)
+        #expect(store.read() == nil)
     }
 }
 
@@ -175,9 +193,22 @@ private func makeWriter(
 
     @Test func growingWithdrawsNothing() {
         let old = snapshot([tag("t1", "Datenschutz", 4)], edition: edition("e1", at: 0))
-        let grown = snapshot([tag("t1", "Datenschutz", 6), tag("t2", "Energie", 1)], edition: edition("e2", at: 60))
+        let grown = snapshot([tag("t1", "Datenschutz", 6), tag("t2", "Energie", 1)], edition: edition("e1", at: 0))
         #expect(!grown.withdraws(from: old))
+        // Die erste Ausgabe überhaupt nimmt nichts zurück.
+        #expect(!old.withdraws(from: snapshot(old.newStatements)))
         #expect(!old.withdraws(from: WidgetSnapshot(generatedAt: start)))
+    }
+
+    /// Löst eine neuere Ausgabe die gezeigte ab, verschwindet deren Titel
+    /// aus dem Widget. Ob es sie noch gibt, weiß der Schnappschuss nicht.
+    @Test func aNewerEditionReplacesTheShownOne() {
+        let old = snapshot([tag("t1", "Datenschutz", 4)], edition: edition("e1", at: 0))
+        #expect(snapshot(old.newStatements, edition: edition("e2", at: 60)).withdraws(from: old))
+        // Dieselbe Ausgabe mit anderem Titel, etwa nach gelöschten Stellen.
+        let retitled = WidgetSnapshot.Edition(id: "e1", title: "Datenschutz, gekürzt", feedTitle: "Datenschutz",
+                                              publishedAt: start)
+        #expect(snapshot(old.newStatements, edition: retitled).withdraws(from: old))
     }
 
     /// „Folge löschen“, „Abbestellen“, ein gelöschtes Update.
@@ -229,6 +260,16 @@ private func makeWriter(
         let shrunk = snapshot([tag("t1", "Datenschutz", 1)])
         #expect(throttle.decide(shrunk, lastWritten: written, lastWriteAt: start, now: start.addingTimeInterval(1))
             == .now)
+    }
+
+    /// Im Hintergrund kann die App jederzeit angehalten werden, deshalb
+    /// wartet dort auch Zuwachs nicht. Gleicher Inhalt bleibt ungeschrieben.
+    @Test func withoutDeferringGrowthIsWrittenAtOnce() {
+        let grown = snapshot([tag("t1", "Datenschutz", 6)])
+        #expect(throttle.decide(grown, lastWritten: written, lastWriteAt: start, now: start.addingTimeInterval(1),
+                                deferGrowth: false) == .now)
+        #expect(throttle.decide(written, lastWritten: written, lastWriteAt: start, now: start.addingTimeInterval(1),
+                                deferGrowth: false) == .unchanged)
     }
 }
 
@@ -343,6 +384,68 @@ private func makeWriter(
         await writer.flush()
         #expect(await writer.writeCount == 2)
         #expect(store.read() == waiting)
+        await sleeper.wake()
+    }
+
+    /// Beim Wechsel in den Hintergrund steckt der neueste Stand vielleicht
+    /// noch in der Schlange. `flush(latest:)` schreibt ihn, und kommt er
+    /// danach beim Schreiber an, schreibt er nichts mehr.
+    @Test func flushWritesTheLatestStateEvenIfItHasNotArrived() async {
+        let store = temporaryStore()
+        defer { removeStore(store) }
+        let clock = ManualClock(), sleeper = ManualSleeper()
+        let writer = makeWriter(store, clock: clock, sleeper: sleeper)
+        await writer.submit(snapshot([tag("t1", "Datenschutz", 4)]))
+        clock.advance(by: 10)
+        await writer.submit(snapshot([tag("t1", "Datenschutz", 6)]))
+        let latest = snapshot([tag("t1", "Datenschutz", 9)])
+        await writer.flush(latest: latest)
+        #expect(await writer.writeCount == 2)
+        #expect(store.read() == latest)
+        await writer.submit(latest)
+        #expect(await writer.writeCount == 2)
+        // Das abgebrochene Warten schreibt nichts mehr.
+        clock.advance(by: 600)
+        await sleeper.wake()
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(await writer.writeCount == 2)
+        #expect(store.read() == latest)
+    }
+
+    /// Im Hintergrund schreibt schon der erste Zuwachs.
+    @Test func growthInTheBackgroundIsWrittenAtOnce() async {
+        let store = temporaryStore()
+        defer { removeStore(store) }
+        let clock = ManualClock(), sleeper = ManualSleeper()
+        let writer = makeWriter(store, clock: clock, sleeper: sleeper)
+        await writer.submit(snapshot([tag("t1", "Datenschutz", 4)]))
+        clock.advance(by: 10)
+        let grown = snapshot([tag("t1", "Datenschutz", 6)])
+        await writer.submit(grown, deferGrowth: false)
+        #expect(await writer.writeCount == 2)
+        #expect(store.read() == grown)
+        #expect(await sleeper.requested.isEmpty)
+    }
+
+    /// Die gezeigte Ausgabe wird gelöscht, während eine neuere wartet: Ihr
+    /// Titel bleibt nicht in der Datei (Regel 5).
+    @Test func aDeletedEditionLeavesTheFileAtOnce() async {
+        let store = temporaryStore()
+        defer { removeStore(store) }
+        let clock = ManualClock(), sleeper = ManualSleeper()
+        let writer = makeWriter(store, clock: clock, sleeper: sleeper)
+        let tags = [tag("t1", "Datenschutz", 4)]
+        await writer.submit(snapshot(tags, edition: edition("e1", at: 0)))
+        clock.advance(by: 10)
+        // Nur Zuwachs bei den Zahlen: das wartet.
+        await writer.submit(snapshot([tag("t1", "Datenschutz", 6)], edition: edition("e1", at: 0)))
+        #expect(await eventually { await sleeper.sleeping == 1 })
+        clock.advance(by: 10)
+        // e1 ist weg, e2 ist jetzt die neueste.
+        let afterDeletion = snapshot([tag("t1", "Datenschutz", 6)], edition: edition("e2", at: 5))
+        await writer.submit(afterDeletion)
+        #expect(await writer.writeCount == 2)
+        #expect(store.read() == afterDeletion)
         await sleeper.wake()
     }
 

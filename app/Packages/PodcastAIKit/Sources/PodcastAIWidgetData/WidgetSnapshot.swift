@@ -78,9 +78,12 @@ public struct WidgetSnapshot: Codable, Sendable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         format = try container.decodeIfPresent(Int.self, forKey: .format) ?? 1
         generatedAt = try container.decodeIfPresent(Date.self, forKey: .generatedAt) ?? .distantPast
-        newStatements = try container.decodeIfPresent([TagCount].self, forKey: .newStatements) ?? []
+        // Mehr als drei zeigt das Widget nie; was darüber hinausgeht, bleibt draußen.
+        newStatements = Array((try container.decodeIfPresent([TagCount].self, forKey: .newStatements) ?? [])
+            .prefix(Self.maximumTags))
         latestEdition = try container.decodeIfPresent(Edition.self, forKey: .latestEdition)
-        trendingTags = try container.decodeIfPresent([TagCount].self, forKey: .trendingTags) ?? []
+        trendingTags = Array((try container.decodeIfPresent([TagCount].self, forKey: .trendingTags) ?? [])
+            .prefix(Self.maximumTags))
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -135,20 +138,20 @@ extension WidgetSnapshot {
 
     /// Nimmt dieser Schnappschuss etwas zurück, was `previous` gezeigt hat?
     ///
-    /// Ja, wenn eine Ausgabe verschwindet oder einer älteren weicht, ein Tag
+    /// Ja, wenn die gezeigte Ausgabe nicht mehr genau so dasteht, ein Tag
     /// herausfällt, anders heißt oder eine kleinere Zahl trägt. So etwas
     /// folgt aus „Folge löschen“, „Abbestellen“ oder dem Löschen eines
     /// Updates und kommt sofort ins Widget (Regel 5). Was nur dazukommt,
     /// darf warten.
+    ///
+    /// Die Ausgabe zählt bei jeder Änderung, auch wenn eine neuere die
+    /// gezeigte ablöst. Der Schnappschuss kennt nur die neueste Ausgabe und
+    /// kann nicht sagen, ob die gezeigte noch existiert: Wartete eine neue
+    /// Ausgabe und wird die gezeigte gelöscht, stünde deren Titel sonst
+    /// weiter in der Datei. Eine neue Ausgabe kommt höchstens alle paar
+    /// Stunden, sofort zu schreiben kostet also nichts.
     public func withdraws(from previous: WidgetSnapshot) -> Bool {
-        if let old = previous.latestEdition {
-            guard let new = latestEdition else { return true }
-            if new.id == old.id {
-                if new != old { return true }
-            } else if new.publishedAt <= old.publishedAt {
-                return true
-            }
-        }
+        if let old = previous.latestEdition, latestEdition != old { return true }
         return Self.withdraws(previous.newStatements, in: newStatements)
             || Self.withdraws(previous.trendingTags, in: trendingTags)
     }

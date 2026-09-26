@@ -8,10 +8,12 @@
 //  und jedes Neuladen eines Widgets kostet Budget beim System. Deshalb:
 //
 //  - Gleicher Inhalt wie in der Datei: nichts tun.
-//  - Etwas verschwindet oder wird kleiner, etwa nach „Folge löschen“:
-//    sofort schreiben (Regel 5).
+//  - Etwas verschwindet oder wird kleiner, etwa nach „Folge löschen“, oder
+//    die gezeigte Ausgabe ändert sich: sofort schreiben (Regel 5).
 //  - Etwas kommt nur dazu: höchstens alle fünf Minuten. Was dazwischen
 //    kommt, ersetzt den wartenden Stand, geschrieben wird der letzte.
+//  - Die App ist im Hintergrund: sofort. Das System hält sie dort jederzeit
+//    an, und ein Warten, das nie aufwacht, schriebe nie.
 //
 
 import Foundation
@@ -40,12 +42,15 @@ public struct WidgetSnapshotThrottle: Sendable {
     ///   - lastWritten: was in der Datei steht, `nil` ohne Datei.
     ///   - lastWriteAt: wann dieser Lauf zuletzt geschrieben hat, `nil`
     ///     vor dem ersten Schreiben.
+    ///   - deferGrowth: `false`, wenn nicht gewartet werden darf, etwa im
+    ///     Hintergrund.
     public func decide(
-        _ next: WidgetSnapshot, lastWritten: WidgetSnapshot?, lastWriteAt: Date?, now: Date
+        _ next: WidgetSnapshot, lastWritten: WidgetSnapshot?, lastWriteAt: Date?, now: Date,
+        deferGrowth: Bool = true
     ) -> Decision {
         guard let lastWritten else { return .now }
         if next.hasSameContent(as: lastWritten) { return .unchanged }
-        guard let lastWriteAt else { return .now }
+        guard deferGrowth, let lastWriteAt else { return .now }
         if next.withdraws(from: lastWritten) { return .now }
         let due = lastWriteAt.addingTimeInterval(minimumInterval)
         return now >= due ? .now : .later(due)
@@ -91,9 +96,14 @@ public actor WidgetSnapshotWriter {
     }
 
     /// Ein neuer Stand. Schreibt sofort, später oder gar nicht.
-    public func submit(_ snapshot: WidgetSnapshot) async {
+    ///
+    /// - Parameter deferGrowth: `false` schreibt auch bloßen Zuwachs sofort.
+    ///   Für die App im Hintergrund: Dort kann sie jederzeit angehalten
+    ///   werden, und ein wartender Stand käme nie ins Widget.
+    public func submit(_ snapshot: WidgetSnapshot, deferGrowth: Bool = true) async {
         loadFileIfNeeded()
-        switch throttle.decide(snapshot, lastWritten: lastWritten, lastWriteAt: lastWriteAt, now: now()) {
+        switch throttle.decide(snapshot, lastWritten: lastWritten, lastWriteAt: lastWriteAt, now: now(),
+                               deferGrowth: deferGrowth) {
         case .unchanged:
             // Was wartete, ist überholt: Die Datei zeigt schon den neuesten Stand.
             cancelDeferred()
@@ -105,11 +115,21 @@ public actor WidgetSnapshotWriter {
         }
     }
 
-    /// Schreibt, was wartet, ohne die Frist abzuwarten. Etwa bevor die App
-    /// in den Hintergrund geht.
-    public func flush() async {
-        guard let pending else { return }
-        await write(pending)
+    /// Schreibt ohne die Frist abzuwarten, etwa bevor die App in den
+    /// Hintergrund geht.
+    ///
+    /// - Parameter latest: der neueste Stand der App. Er kann noch unterwegs
+    ///   sein und den Schreiber nicht erreicht haben; ohne ihn schriebe
+    ///   `flush` einen älteren wartenden Stand, und der neueste wartete
+    ///   danach wieder. `nil` schreibt den wartenden Stand.
+    public func flush(latest: WidgetSnapshot? = nil) async {
+        loadFileIfNeeded()
+        guard let snapshot = latest ?? pending else { return }
+        if let lastWritten, snapshot.hasSameContent(as: lastWritten) {
+            cancelDeferred()
+            return
+        }
+        await write(snapshot)
     }
 
     /// Wie oft geschrieben wurde, für Tests und das Protokoll.

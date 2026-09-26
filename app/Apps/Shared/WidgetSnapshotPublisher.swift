@@ -33,39 +33,85 @@ final class WidgetSnapshotPublisher {
     /// hielte die richtigen Zahlen bis zu fünf Minuten zurück.
     fileprivate var hasStatistics = false
 
+    /// Ein Stand auf dem Weg zum Schreiber.
+    private struct Submission: Sendable {
+        let snapshot: WidgetSnapshot
+        /// `false` im Hintergrund: dort wird auch Zuwachs sofort geschrieben.
+        let deferGrowth: Bool
+    }
+
+    private let writer: WidgetSnapshotWriter?
     /// Eine Schlange für die Stände, damit sie in ihrer Reihenfolge beim
     /// Schreiber ankommen. Wartet einer, zählt nur der neueste.
-    private let submissions: AsyncStream<WidgetSnapshot>.Continuation?
+    private let submissions: AsyncStream<Submission>.Continuation?
+    /// Der zuletzt weitergegebene Stand. Er kann noch in der Schlange
+    /// stecken, wenn die App in den Hintergrund geht.
+    private var latest: WidgetSnapshot?
     private var backgroundObserver: (any NSObjectProtocol)?
+    #if os(iOS)
+    private var backgroundTask = UIBackgroundTaskIdentifier.invalid
+    #endif
 
     private init() {
         // Ohne App Group, etwa in einem Build ohne Signatur, gibt es kein Widget.
         guard let store = WidgetSnapshotStore.appGroup() else {
+            writer = nil
             submissions = nil
             return
         }
         let writer = WidgetSnapshotWriter(store: store, didWrite: {
             await MainActor.run { WidgetCenter.shared.reloadTimelines(ofKind: WidgetKind.whatsNew) }
         })
+        self.writer = writer
         let (stream, continuation) = AsyncStream.makeStream(
-            of: WidgetSnapshot.self, bufferingPolicy: .bufferingNewest(1))
+            of: Submission.self, bufferingPolicy: .bufferingNewest(1))
         submissions = continuation
         Task.detached(priority: .utility) {
-            for await snapshot in stream { await writer.submit(snapshot) }
+            for await submission in stream {
+                await writer.submit(submission.snapshot, deferGrowth: submission.deferGrowth)
+            }
         }
         #if os(iOS)
         // Was noch auf seine fünf Minuten wartet, kommt vor dem Anhalten ins Widget.
         backgroundObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil
-        ) { _ in
-            Task { await writer.flush() }
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.flushBeforeSuspension() }
         }
         #endif
     }
 
-    func publish(_ snapshot: WidgetSnapshot) {
-        submissions?.yield(snapshot)
+    /// - Parameter deferGrowth: `false`, wenn die App im Hintergrund ist.
+    func publish(_ snapshot: WidgetSnapshot, deferGrowth: Bool) {
+        guard let submissions else { return }
+        latest = snapshot
+        submissions.yield(Submission(snapshot: snapshot, deferGrowth: deferGrowth))
     }
+
+    #if os(iOS)
+    /// Schreibt den neuesten Stand, bevor das System die App anhält. Mit
+    /// etwas Hintergrundzeit, damit das Schreiben nicht mittendrin stehen
+    /// bleibt. Über den Schreiber, damit er weiß, was in der Datei steht.
+    private func flushBeforeSuspension() {
+        guard let writer, let latest else { return }
+        let holdsTime = backgroundTask == .invalid
+        if holdsTime {
+            backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Widget") { [weak self] in
+                self?.endBackgroundTask()
+            }
+        }
+        Task { [weak self] in
+            await writer.flush(latest: latest)
+            if holdsTime { self?.endBackgroundTask() }
+        }
+    }
+
+    private func endBackgroundTask() {
+        guard backgroundTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTask)
+        backgroundTask = .invalid
+    }
+    #endif
 }
 
 extension AppModel {
@@ -81,7 +127,9 @@ extension AppModel {
         let publisher = WidgetSnapshotPublisher.shared
         if afterStatistics { publisher.hasStatistics = true }
         guard publisher.hasStatistics else { return }
-        publisher.publish(widgetSnapshot())
+        // Im Hintergrund kann das System die App jederzeit anhalten. Ein
+        // Stand, der dort auf seine fünf Minuten wartete, käme nie an.
+        publisher.publish(widgetSnapshot(), deferGrowth: appInForeground)
     }
 
     /// Der Stand fürs Widget: Zahlen aus dem Kopf der Themen-Updates, nur

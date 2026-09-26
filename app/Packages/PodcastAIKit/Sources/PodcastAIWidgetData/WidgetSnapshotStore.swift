@@ -30,10 +30,18 @@ public struct WidgetSnapshotStore: Sendable {
         AppGroup.containerURL(fileManager: fileManager).map(WidgetSnapshotStore.init(directory:))
     }
 
-    /// Der gespeicherte Schnappschuss. `nil`, wenn es keinen gibt oder er
-    /// sich nicht lesen lässt.
+    /// Größer wird kein Schnappschuss der App: drei Tags, drei Trends, eine
+    /// Ausgabe. Das Widget hat wenig Speicher und liest keine größere Datei.
+    public static let maximumFileSize = 64 * 1024
+
+    /// Der gespeicherte Schnappschuss. `nil`, wenn es keinen gibt, er zu
+    /// groß ist oder sich nicht lesen lässt.
     public func read() -> WidgetSnapshot? {
-        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        guard let handle = try? FileHandle(forReadingFrom: fileURL) else { return nil }
+        defer { try? handle.close() }
+        // Ein Byte mehr als erlaubt: kommt es an, ist die Datei zu groß.
+        guard let data = try? handle.read(upToCount: Self.maximumFileSize + 1),
+              data.count <= Self.maximumFileSize else { return nil }
         return try? Self.decoder.decode(WidgetSnapshot.self, from: data)
     }
 
