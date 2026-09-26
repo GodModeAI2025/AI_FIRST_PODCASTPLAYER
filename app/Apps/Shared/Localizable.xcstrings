@@ -665,6 +665,22 @@
         }
       }
     },
+    "%lld Kapitel aus %lld Podcasts in den letzten %lld Tagen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld Kapitel aus %2$lld Podcasts in den letzten %3$lld Tagen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld chapters from %2$lld podcasts in the last %3$lld days"
+          }
+        }
+      }
+    },
     "%lld Min" : {
       "localizations" : {
         "de" : {
@@ -869,6 +885,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld skipped after stopping"
+          }
+        }
+      }
+    },
+    "%lld neu seit deinem letzten Besuch" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld neu seit deinem letzten Besuch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld new since your last visit"
           }
         }
       }
@@ -2153,6 +2185,22 @@
         }
       }
     },
+    "Angesagt:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angesagt:"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trending:"
+          }
+        }
+      }
+    },
     "Anlegen" : {
       "localizations" : {
         "de" : {
@@ -3174,6 +3222,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Putting the edition together…"
+          }
+        }
+      }
+    },
+    "Aussagen aus Folgen, die seitdem erschienen sind und die du noch nicht gehört hast." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aussagen aus Folgen, die seitdem erschienen sind und die du noch nicht gehört hast."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statements from episodes published since then that you haven’t heard yet."
           }
         }
       }
@@ -8535,6 +8599,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checked %@"
+          }
+        }
+      }
+    },
+    "Gerade angesagt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerade angesagt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trending now"
           }
         }
       }
@@ -14489,6 +14569,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tags come from the content of your episodes. Plus means follow, minus means stop following, the tag stays visible. Followed tags fill “For You” and the Topic Updates."
+          }
+        }
+      }
+    },
+    "Tags, die in den letzten %lld Tagen mindestens %@-mal so oft vorkamen wie im Schnitt der Wochen davor, in mindestens %lld Podcasts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags, die in den letzten %1$lld Tagen mindestens %2$@-mal so oft vorkamen wie im Schnitt der Wochen davor, in mindestens %3$lld Podcasts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags that came up at least %2$@ times as often in the last %1$lld days as in the weeks before, in at least %3$lld podcasts."
           }
         }
       }

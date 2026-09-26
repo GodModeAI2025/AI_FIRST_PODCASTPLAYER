@@ -13,6 +13,10 @@ Apple Intelligence stört nicht mehr beim Scrollen und nicht mehr den Chat:
 - Die App lädt nach dem eigenen Speichern nicht mehr die ganze Bibliothek neu, nur noch nach Änderungen von anderen Geräten. Fakten einer Folge zeichnen nur noch ihre eigene Seite neu.
 - Automatisches kommt in Portionen: Fakten und Tags für ältere Folgen je zehn auf einmal, „Ältere Folgen auch vorbereiten“ je Podcast drei Folgen im Akkubetrieb und zehn am Strom. Die nächste Portion rückt nach, wenn eine durch ist. Was du selbst anforderst, zählt nicht mit.
 
+Angesagt und neu:
+- „Meine Tags“ beginnt mit „Angesagt“: Tags, die in den letzten sieben Tagen mindestens dreimal so oft vorkamen wie im Wochenschnitt der vier Wochen davor, aus mindestens drei Podcasts und mit mindestens fünf Kapiteln. Gefolgte und neutrale Tags zählen gleich. Oben im Tab „Themen-Updates“ stehen sie in einer Zeile, ein Tipp öffnet die Seite des Tags.
+- Die Seite eines Tags sagt, was seit deinem letzten Besuch neu ist: ungehörte Aussagen aus Folgen, die seitdem erschienen sind.
+
 ## App 0.12 · 2026-09-25
 Aus dem TestFlight-Feedback zu 0.7 bis 0.11, vor allem zu Rucklern und einem langsamen Chat:
 - Apple Intelligence über eine Stelle: Alle Anfragen laufen durch eine Warteschlange, eine nach der anderen. Was du anstößt, geht vor: eine Frage im Chat, der Satz zum Kapitel, „Jetzt ermitteln“. Fakten, Tags und Relevanz im Hintergrund warten, solange du scrollst, und laufen zwei Sekunden danach weiter. Im Stromsparmodus pausieren sie, während eine Folge spielt. Die Warteschlange zeigt, was Apple Intelligence gerade tut.

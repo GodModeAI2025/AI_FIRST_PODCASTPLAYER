@@ -136,6 +136,7 @@ enum DemoContent {
             try await store.save(facts: facts, forEpisode: episodeID)
 
             try await seedTags(into: store, chapters: chapters, media: media, episode: episode)
+            if DemoTrends.isRequested { await DemoTrends.seed(into: store) }
         } catch {
             NSLog("Demo-Inhalte konnten nicht angelegt werden: %@", error.localizedDescription)
         }

@@ -474,6 +474,10 @@ public final class AppModel {
     /// Zählt hoch, sobald sich Kapitel-Tags ändern. Ansichten, die Kapitel-Tags
     /// zeigen, laden dann neu.
     public internal(set) var chapterTagsRevision = 0
+    /// Tags, die gerade angesagt sind, nach Schlüssel. Rechnet
+    /// `refreshTagTrends()` in AppModel+TagTrends.swift.
+    public internal(set) var tagTrends: [TagTrend] = []
+    @ObservationIgnored var tagTrendsStamp: TagTrendsStamp?
 
     /// Fakten je Folge, wie sie die Folgenansicht, der Chat und der Export zeigen.
     /// Je Folge beobachtbar, siehe `EpisodeProgress`.
