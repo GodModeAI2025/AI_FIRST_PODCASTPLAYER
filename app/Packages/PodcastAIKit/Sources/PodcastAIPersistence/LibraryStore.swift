@@ -718,16 +718,27 @@ public actor LibraryStore: ModelActor {
     /// Die Deduplizierung läuft über die stabile Kennung aus der Feed-GUID.
     /// Ein zweites Einlesen desselben Feeds darf keine zweite Folge erzeugen —
     /// sonst wächst die Mediathek bei jedem Refresh.
+    ///
+    /// Gibt die Zahl der neu angelegten Folgen zurück. Welche es sind, sagt
+    /// ``upsertEpisodes(_:forSource:)``.
     public func upsert(episodes: [Episode], forSource sourceID: SourceID) throws -> Int {
+        try upsertEpisodes(episodes, forSource: sourceID).count
+    }
+
+    /// Wie ``upsert(episodes:forSource:)``, gibt aber die Kennungen der neu
+    /// angelegten Folgen zurück, in der Reihenfolge des Aufrufs. Eine Folge
+    /// mit Merkzeichen zählt nicht, auch wenn der Feed sie weiter führt.
+    /// Daraus entsteht das Ereignis „neue Folgen“ der Pipeline.
+    public func upsertEpisodes(_ episodes: [Episode], forSource sourceID: SourceID) throws -> [EpisodeID] {
         let identifier = sourceID.rawValue
         // Bei doppelten Quellzeilen dieselbe wie beim Bereinigen: die älteste.
         guard let source = try modelContext.fetch(
             FetchDescriptor<StoredSource>(
                 predicate: #Predicate { $0.identifier == identifier },
                 sortBy: [SortDescriptor(\.addedAt)])
-        ).first else { return 0 }
+        ).first else { return [] }
 
-        var inserted = 0
+        var inserted: [EpisodeID] = []
         for episode in episodes {
             let episodeIdentifier = episode.id.rawValue
             // An die Quelle gebunden. Ohne diese Bedingung konnte eine
@@ -754,7 +765,7 @@ public actor LibraryStore: ModelActor {
                 fresh.source = source
                 modelContext.insert(fresh)
                 rows = [fresh]
-                inserted += 1
+                inserted.append(episode.id)
             }
             // Alle Kopien gleich halten, solange das Bereinigen keine vorziehen kann.
             for stored in rows {
@@ -1547,6 +1558,15 @@ public actor LibraryStore: ModelActor {
             newest = (row, print)
         }
         return newest?.print
+    }
+
+    /// Der Fingerabdruck des Transkripts, das ``transcript(forMedia:)``
+    /// liefern würde, ohne die Segmente zu lesen. Zusammen mit der Fassung
+    /// ist das die Eingangsfassung, an der die Stufen der Pipeline erkennen,
+    /// ob ihr Ergebnis schon da ist.
+    public func transcriptFingerprint(forMedia mediaVersionID: MediaVersionID) throws -> TranscriptFingerprint? {
+        guard let row = try latestTranscriptRow(forMedia: mediaVersionID.rawValue) else { return nil }
+        return try fingerprint(of: row)
     }
 
     /// Die jüngste Revision des Transkripts einer Fassung, wie in

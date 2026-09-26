@@ -37,7 +37,7 @@ extension AppModel {
     @discardableResult
     public func addSingleEpisode(key: String, from preview: PodcastPreview) async throws -> AddedSource {
         let added = try await refresher.addSingleEpisode(key: key, from: preview)
-        await singleEpisodeAdded(feedURL: preview.feedURL, title: added.title)
+        await singleEpisodeAdded(feedURL: preview.feedURL, title: added.title, newEpisodes: added.newEpisodes)
         return added
     }
 
@@ -45,7 +45,7 @@ extension AppModel {
     @discardableResult
     public func addSingleVideo(from preview: YouTubeLinkPreview) async throws -> AddedSource {
         let added = try await refresher.addSingleVideo(from: preview)
-        await singleEpisodeAdded(feedURL: preview.channelFeedURL, title: added.title)
+        await singleEpisodeAdded(feedURL: preview.channelFeedURL, title: added.title, newEpisodes: added.newEpisodes)
         return added
     }
 
@@ -58,6 +58,7 @@ extension AppModel {
         for source in sources where source.kind == .singleEpisodeLink {
             await loadEpisodes(for: source.id)
         }
+        if !added.newEpisodes.isEmpty { emit(.episodesAdded(added.newEpisodes, .automatic)) }
         return added
     }
 
@@ -70,7 +71,9 @@ extension AppModel {
 
     /// Liest die Quellen neu und reiht die neue Folge ein. `loadEpisodes`
     /// bereitet sie vor wie jede neue Folge, sofern das eingeschaltet ist.
-    private func singleEpisodeAdded(feedURL: URL?, title: String) async {
+    /// Die Pipeline erfährt es von selbst (`.automatic`): „Nur diese Folge“
+    /// fordert kein Transkript an.
+    private func singleEpisodeAdded(feedURL: URL?, title: String, newEpisodes: [EpisodeID]) async {
         do {
             sources = try await store.sources()
         } catch {
@@ -79,6 +82,7 @@ extension AppModel {
         }
         if let feedURL, let source = sources.first(where: { $0.feedURL == feedURL }) {
             await loadEpisodes(for: source.id)
+            if !newEpisodes.isEmpty { emit(.episodesAdded(newEpisodes, .automatic)) }
         }
         AccessibilityNotification.Announcement(String(localized: "Folge hinzugefügt: \(title)")).post()
     }

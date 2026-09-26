@@ -19,10 +19,15 @@ import FoundationModels
 public struct AddedSource: Sendable {
     public let title: String
     public let episodeCount: Int
+    /// Die Folgen, die dabei neu in den Store kamen. Daraus wird das
+    /// Ereignis `episodesAdded` der Pipeline.
+    public var newEpisodes: [EpisodeID] = []
 }
 
 public struct RefreshResult: Sendable {
-    public let newEpisodes: Int
+    /// Die Folgen, die das Aktualisieren neu angelegt hat, je Quelle in der
+    /// Reihenfolge des Feeds.
+    public let newEpisodes: [EpisodeID]
     public let failedSources: [String]
 }
 
@@ -220,9 +225,9 @@ public actor FeedRefresher {
         try await store.upsert(source: source)
 
         let episodes = parsed.items.map { makeEpisode($0, sourceID: sourceID) }
-        _ = try await store.upsert(episodes: episodes, forSource: sourceID)
+        let inserted = try await store.upsertEpisodes(episodes, forSource: sourceID)
 
-        return AddedSource(title: source.title, episodeCount: episodes.count)
+        return AddedSource(title: source.title, episodeCount: episodes.count, newEpisodes: inserted)
     }
 
     /// Liest einen Podcast für die Vorschau, ohne ihn anzulegen. Abonniert
@@ -368,12 +373,12 @@ public actor FeedRefresher {
             id: EpisodeID(stable: "\(sourceID.rawValue)|\(audioURL.absoluteString)"),
             sourceID: sourceID, title: title, publishedAt: Date(), audioURL: audioURL
         )
-        _ = try await store.upsert(episodes: [episode], forSource: sourceID)
-        return AddedSource(title: sourceTitle, episodeCount: 1)
+        let inserted = try await store.upsertEpisodes([episode], forSource: sourceID)
+        return AddedSource(title: sourceTitle, episodeCount: 1, newEpisodes: inserted)
     }
 
     public func refreshAll() async throws -> RefreshResult {
-        var newEpisodes = 0
+        var newEpisodes: [EpisodeID] = []
         var failed: [String] = []
 
         // Nur Abos. Ein Podcast, aus dem nur einzelne Folgen geholt wurden,
@@ -395,7 +400,8 @@ public actor FeedRefresher {
     public struct SourceReload: Sendable {
         /// Die Quelle mit den frischen Angaben aus dem Feed.
         public let source: Source
-        public let newEpisodes: Int
+        /// Die Folgen, die dabei neu angelegt wurden.
+        public let newEpisodes: [EpisodeID]
         /// Nennt der Feed selbst ein Bild? Ohne sucht die App im Verzeichnis.
         public let feedHasArtwork: Bool
     }
@@ -447,7 +453,7 @@ public actor FeedRefresher {
             let known = Set(try await store.episodes(forSource: source.id).map(\.id))
             episodes = episodes.filter { known.contains($0.id) }
         }
-        let inserted = try await store.upsert(episodes: episodes, forSource: source.id)
+        let inserted = try await store.upsertEpisodes(episodes, forSource: source.id)
         return SourceReload(source: updated, newEpisodes: inserted, feedHasArtwork: parsed.artworkURL != nil)
     }
 

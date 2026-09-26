@@ -158,8 +158,24 @@ extension AppModel {
 
     /// Ein Download aus dem Hintergrund liegt jetzt auf dem Gerät. Ein
     /// Transkript, das auf ihn wartete, kann laufen, sobald die App vorn ist.
-    func backgroundDownloadArrived() {
+    func backgroundDownloadArrived(_ mediaVersionID: MediaVersionID) {
         mediaStorageChanged += 1
+        emitAudioAvailable(mediaVersionID)
         queueConditionsChanged()
+    }
+
+    /// Sagt der Pipeline, zu welcher Folge der Ton gehört. Gesucht wird nur
+    /// im Speicher: in der Warteschlange und den geladenen Listen. Findet
+    /// sich keine Folge, fällt der Hinweis weg; der Store bleibt die Wahrheit.
+    private func emitAudioAvailable(_ mediaVersionID: MediaVersionID) {
+        guard pipeline?.hasListeners(for: .audioAvailable) == true else { return }
+        var candidates = analysisQueue
+        if let analyzing { candidates.append(analyzing) }
+        candidates += episodes.values.joined()
+        var seen: Set<EpisodeID> = []
+        for episode in candidates where Self.downloadID(of: episode) == mediaVersionID {
+            guard seen.insert(episode.id).inserted else { continue }
+            emit(.audioAvailable(episode.id, mediaVersionID))
+        }
     }
 }

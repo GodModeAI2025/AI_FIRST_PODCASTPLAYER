@@ -106,17 +106,18 @@ extension AppModel {
             webPageURL: postURL)
 
         try await store.upsert(source: source)
-        _ = try await store.upsert(episodes: [episode], forSource: sourceID)
+        let inserted = try await store.upsertEpisodes([episode], forSource: sourceID)
         supadataMetadata[postURL.absoluteString] = metadata
         Self.saveSupadataMetadata(supadataMetadata)
         sources = withSupadataMetadata(sources: try await store.sources())
         await loadEpisodes(for: sourceID)
+        if !inserted.isEmpty { emit(.episodesAdded(inserted, .automatic)) }
         // Von Hand hinzugefügt heißt: Transkript gleich anfordern. Die Regeln
         // fürs Netz gelten wie bei jeder Folge.
         if let stored = episodes[sourceID]?.first(where: { $0.id == episode.id }) {
             enqueueAnalysis(stored)
         }
-        return AddedSource(title: source.title, episodeCount: 1)
+        return AddedSource(title: source.title, episodeCount: 1, newEpisodes: inserted)
     }
 
     // MARK: - YouTube-Kanäle suchen

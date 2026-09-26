@@ -64,6 +64,9 @@ extension AppModel {
             }
         }
         for id in Array(facts.keys) { await loadFacts(for: id) }
+        // Merkzeichen von dort hat `load()` schon als `episodesRemoved`
+        // gemeldet. Was genau sich sonst änderte, sagt erst die Historie.
+        emit(.changedElsewhere(.all))
     }
 
     /// Wendet Löschungen an, die über iCloud von einem anderen Gerät kommen.
@@ -97,11 +100,13 @@ extension AppModel {
         guard !gone.isEmpty else { return }
 
         let removed = Array(gone.values)
-        prepareRemoval(removed)
+        prepareRemoval(removed, scope: .elsewhere)
         // Was dieses Gerät erschlossen hat, bevor die Löschung ankam, geht mit.
         for episode in removed
         where analyzedEpisodes.contains(episode.id) || !(facts[episode.id] ?? []).isEmpty {
-            if let report = try? await store.removeEpisode(episode.id) { applyRemoval(report) }
+            if let report = try? await store.removeEpisode(episode.id) {
+                applyRemoval(report, marked: Set(gone.keys))
+            }
         }
         LocalMediaLocator.removeFiles(for: Self.localMediaIDs(of: removed))
         TranslationCache.remove(episodes: Array(gone.keys))
@@ -236,7 +241,7 @@ extension AppModel {
         // Der Text im Entstehen geht in derselben Runde weg, in der die
         // fertige Antwort in den Verlauf kommt. So springt nichts.
         defer { if number == questionTicket { partialAnswer = "" } }
-        let ticket = removalCount
+        let ticket = removals.ticket
         var moment: MediaTime?
         if case .episode(let id) = scope, episodePlayer.episode?.id == id { moment = position }
         let started = ContinuousClock.now
@@ -341,14 +346,14 @@ extension AppModel {
     /// Zitiert die Antwort eine Folge, die seit `ticket` gelöscht wurde?
     /// Eine abbestellte Quelle zählt auch dann, wenn ihre Folge nicht in der
     /// geladenen Liste stand und deshalb kein Merkzeichen bekam.
-    private func citesRemovedContent(_ answer: ChatAnswer, since ticket: Int) -> Bool {
+    private func citesRemovedContent(_ answer: ChatAnswer, since ticket: RemovalLedger.Ticket) -> Bool {
         if answer.citations.contains(where: { wasRemoved($0.episodeID, since: ticket) }) { return true }
         if answer.referencedEpisodeIDs.contains(where: { wasRemoved($0, since: ticket) }) { return true }
-        guard removalCount > ticket else { return false }
+        guard removals.hasRemovals(since: ticket) else { return false }
         // Nur Quellen, die seit Beginn der Antwort tatsächlich abbestellt
         // wurden. Belege ohne Quellenkennung zählen nicht als gelöscht.
         return answer.citations.contains {
-            !$0.sourceID.rawValue.isEmpty && (removedSourceTickets[$0.sourceID] ?? 0) > ticket
+            !$0.sourceID.rawValue.isEmpty && removals.wasRemoved(source: $0.sourceID, since: ticket)
         }
     }
 
@@ -1068,7 +1073,9 @@ extension AppModel {
     ///
     /// Das Ergebnis sagt der Warteschlange, ob sich ein späterer Versuch lohnt.
     @discardableResult
-    func prepareFacts(for episode: Episode, force: Bool = false, removalTicket: Int? = nil) async -> FactsOutcome {
+    func prepareFacts(
+        for episode: Episode, force: Bool = false, removalTicket: RemovalLedger.Ticket? = nil
+    ) async -> FactsOutcome {
         guard !factsInProgress.contains(episode.id) else { return .nothingToDo }
         // Gleich vormerken, vor dem ersten `await`: sonst liefen zwei Aufrufe
         // für dieselbe Folge nebeneinander.
@@ -1077,7 +1084,7 @@ extension AppModel {
             factsInProgress.remove(episode.id)
             factsProgress[episode.id] = nil
         }
-        let ticket = removalTicket ?? removalCount
+        let ticket = removalTicket ?? removals.ticket
         // Vorhandene Fakten gelten als fertig, außer ein früherer Lauf hat
         // Lücken hinterlassen.
         var stored: [EpisodeFact] = []
@@ -1348,7 +1355,7 @@ extension AppModel {
     /// halber neuer Lauf ersetzte sonst die ganzen alten Fakten.
     private func keepFinishedFacts(
         _ result: [EpisodeFact], stored: [EpisodeFact], of episode: Episode, unfinished: Set<Int>,
-        slices: [[Evidence]], missing: Set<String>, replacing: Bool, since ticket: Int
+        slices: [[Evidence]], missing: Set<String>, replacing: Bool, since ticket: RemovalLedger.Ticket
     ) async -> FactsOutcome {
         guard !result.isEmpty, !replacing, !wasRemoved(episode.id, since: ticket) else { return .cancelled }
         let unique = Dictionary((stored + result).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
@@ -1369,29 +1376,6 @@ extension AppModel {
         facts[episode.id] = shown
         recordFactGaps(missing.union(unfinished.map { Self.factSliceID(slices[$0]) }), for: episode.id, since: ticket)
         return .cancelled
-    }
-
-    /// Wie ein Lauf von ``prepareFacts(for:force:removalTicket:)`` ausging.
-    enum FactsOutcome: Equatable {
-        /// Die Fakten liegen vor, frisch gespeichert oder schon vorhanden.
-        case stored
-        /// Nichts zu tun: keine Stellen mit Zeitmarke, die Folge ist gelöscht,
-        /// oder für sie läuft schon ein Lauf.
-        case nothingToDo
-        /// Durchgelaufen, aber ohne Fakten: das Modell hat alles abgelehnt
-        /// oder keine überprüfbare Aussage gefunden. Mit demselben Modell
-        /// käme wieder dasselbe heraus.
-        case noFacts(String)
-        /// Gescheitert aus einem Grund, der vorbeigeht: Last,
-        /// Zeitüberschreitung, Speichern.
-        case failed(String?)
-        /// Gespeichert, aber mit Lücken: einzelne Abschnitte sind aus einem
-        /// Grund gescheitert, der vorbeigeht. Ein späterer Lauf holt nur sie nach.
-        case partial(String?)
-        /// Das Gerätemodell steht gerade nicht bereit.
-        case modelUnavailable(ModelUnavailability)
-        /// Abgebrochen, etwa weil die Hintergrundzeit endet.
-        case cancelled
     }
 
     /// Was der Nutzer erfährt, wenn Abschnitte einer Folge fehlen.
@@ -1486,7 +1470,7 @@ extension AppModel {
 
     /// Merkt sich die Lücken, außer die Folge wurde inzwischen gelöscht.
     /// Dann hat das Löschen den Eintrag schon entfernt.
-    private func recordFactGaps(_ gaps: Set<String>, for id: EpisodeID, since ticket: Int) {
+    private func recordFactGaps(_ gaps: Set<String>, for id: EpisodeID, since ticket: RemovalLedger.Ticket) {
         guard !wasRemoved(id, since: ticket) else { return }
         Self.setFactGaps(gaps, for: id)
     }
@@ -1864,10 +1848,16 @@ extension AppModel {
                     await prepareFacts(for: next, force: requested)
                 }
                 gatheringFacts = nil
+                // Die Tags erben, wer die Fakten wollte.
+                let origin: Origin = requested ? .user : .automatic
+                emitFactsDone(next.id, outcome, origin: origin)
                 // Gleich danach die Tags der Kapitel, dieselbe Folge, dieselbe Arbeit.
                 switch outcome {
                 case .stored, .partial, .noFacts:
-                    await ProcessingTrace.interval("Kapitel-Tags einer Folge") { await prepareChapterTags(for: next) }
+                    let tags = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
+                        await prepareChapterTags(for: next)
+                    }
+                    emitTagsDone(next.id, tags, origin: origin)
                 default: break
                 }
                 switch outcome {
@@ -2069,6 +2059,7 @@ extension AppModel {
         // nächsten Aktualisieren wieder auf dem Gerät haben.
         prefetchDeclined.insert(episode.id)
         await deleteLocalAudio(of: episode)
+        emit(.audioRemoved([episode.id]))
         // Wartet ihr Transkript, braucht es jetzt wieder das Netz.
         queueConditionsChanged()
     }
@@ -2088,6 +2079,14 @@ extension AppModel {
         }
         try? await store.markAudioRemoved(removed)
         mediaStorageChanged += 1
+        // Welche Folgen das waren, rechnet die App nur, wenn jemand zuhört.
+        if pipeline?.hasListeners(for: .audioRemoved) == true {
+            let files = Set(removed)
+            let affected = episodes.values.joined()
+                .filter { Self.localMediaIDs(of: [$0]).contains(where: files.contains) }
+                .map(\.id)
+            if !affected.isEmpty { emit(.audioRemoved(affected)) }
+        }
         queueConditionsChanged()
     }
 
@@ -2160,7 +2159,7 @@ extension AppModel {
         }
         if askBeforeMobileData(.download(episode)) { return }
         keptOffline.insert(episode.id)
-        let ticket = removalCount
+        let ticket = removals.ticket
         switch await loadAudio(of: episode, from: audioURL, automatic: false) {
         case .loaded:
             // Während des Ladens gelöscht: die Datei gehört zu keiner Folge mehr.
@@ -2326,7 +2325,7 @@ extension AppModel {
         // Vor dem Laden vermerkt: das Aufräumen weiß so, warum die Datei da ist.
         prefetchedNewest.insert(episode.id)
         prefetchedFiles[episode.id.rawValue] = MediaVersionID(stable: audioURL.absoluteString).rawValue
-        let ticket = removalCount
+        let ticket = removals.ticket
         let outcome = await loadAudio(of: episode, from: audioURL, automatic: true)
         let loaded = localAudioFile(for: episode) != nil
         switch outcome {
@@ -2420,9 +2419,12 @@ extension AppModel {
                 kept.formUnion(ids)
             }
         }
+        var tidied: [EpisodeID] = []
         for episode in removable where !Self.localMediaIDs(of: [episode]).contains(where: kept.contains) {
             await deleteLocalAudio(of: episode)
+            tidied.append(episode.id)
         }
+        if !tidied.isEmpty { emit(.audioRemoved(tidied)) }
     }
 
     /// Was mit der Audiodatei einer Folge geschieht, nach den Einstellungen.
@@ -2508,10 +2510,10 @@ extension AppModel {
 
     /// Löscht die Folge und alles, was aus ihr entstanden ist.
     public func removeEpisode(_ episode: Episode) async {
-        prepareRemoval([episode])
+        prepareRemoval([episode], scope: .episode)
         do {
             let report = try await store.removeEpisode(episode.id)
-            applyRemoval(report)
+            applyRemoval(report, marked: [episode.id])
             episodes[episode.sourceID]?.removeAll { $0.id == episode.id }
         } catch {
             lastError = UserFacingError.describe(error)
@@ -2526,15 +2528,13 @@ extension AppModel {
         where episode.sourceID == sourceID && !affected.contains(where: { $0.id == episode.id }) {
             affected.append(episode)
         }
-        prepareRemoval(affected)
         // Auch ohne geladene Folgen zählt die Abbestellung als neuer Stand.
-        if affected.isEmpty { removalCount += 1 }
-        removedSourceTickets[sourceID] = removalCount
+        prepareRemoval(affected, scope: .source(sourceID))
         // Ein neues Abo desselben Podcasts beginnt wieder mit den neuesten Folgen.
         backCatalog.remove(sourceID)
         do {
             let report = try await store.removeSource(sourceID)
-            applyRemoval(report)
+            applyRemoval(report, marked: Set(affected.map(\.id)))
             // Auch Stellen aus Folgen, die nicht mehr an der Quelle hingen.
             pruneEditions(removedEpisodes: [], removedSources: [sourceID])
             episodes[sourceID] = nil
@@ -2545,12 +2545,17 @@ extension AppModel {
     }
 
     /// Alles, was vor dem Löschen in der Datenbank geschehen muss, ohne
-    /// Unterbrechung: Löschung vormerken, laufende Erschließung abbrechen,
-    /// die Wiedergabe ohne Hörzeit anhalten, aus den Listen nehmen.
-    private func prepareRemoval(_ removed: [Episode]) {
+    /// Unterbrechung: Löschung vormerken, der Pipeline sagen, laufende
+    /// Erschließung abbrechen, die Wiedergabe ohne Hörzeit anhalten, aus
+    /// den Listen nehmen.
+    ///
+    /// Eine abbestellte Quelle zählt auch ohne geladene Folgen als Löschung.
+    private func prepareRemoval(_ removed: [Episode], scope: RemovalScope) {
         let ids = removed.map(\.id)
+        let abandonsSource = if case .source = scope { true } else { false }
+        guard !ids.isEmpty || abandonsSource else { return }
+        markRemoved(ids, scope: scope)
         guard !ids.isEmpty else { return }
-        markRemoved(ids)
         // Auch was im Hintergrund noch lädt, gehört zur Folge.
         BackgroundDownloads.shared.cancel(Self.localMediaIDs(of: removed))
         if let playing = episodePlayer.episode, ids.contains(playing.id) { stopWithoutRecordingHeard() }
@@ -2573,18 +2578,19 @@ extension AppModel {
         }
     }
 
-    /// Merkt die Löschung für laufende Arbeit vor. Arbeitet die
-    /// Erschließung gerade an einer dieser Folgen, wird sie abgebrochen.
-    private func markRemoved(_ ids: [EpisodeID]) {
-        removalCount += 1
-        for id in ids { removalTickets[id] = removalCount }
+    /// Merkt die Löschung für laufende Arbeit vor und sagt es der Pipeline,
+    /// bevor der Store löscht. Arbeitet die Erschließung gerade an einer
+    /// dieser Folgen, wird sie abgebrochen.
+    private func markRemoved(_ ids: [EpisodeID], scope: RemovalScope) {
+        let source: SourceID? = if case .source(let id) = scope { id } else { nil }
+        removals.markRemoved(ids, source: source)
+        emit(.episodesRemoved(ids, scope))
         if let running = pipelineEpisodeID, ids.contains(running) { pipelineRun?.cancel() }
     }
 
     /// Wurde die Folge gelöscht, nachdem eine Arbeit mit diesem Stand begann?
-    func wasRemoved(_ id: EpisodeID, since ticket: Int) -> Bool {
-        guard let removedAt = removalTickets[id] else { return false }
-        return removedAt > ticket
+    func wasRemoved(_ id: EpisodeID, since ticket: RemovalLedger.Ticket) -> Bool {
+        removals.wasRemoved(id, since: ticket)
     }
 
     /// Hält die Folge an, ohne die zuletzt gehörte Zeit zu melden. Die Meldung
@@ -2628,7 +2634,14 @@ extension AppModel {
         mediaStorageChanged += 1
     }
 
-    private func applyRemoval(_ report: LibraryStore.RemovalReport) {
+    /// Räumt auf, was der Store gelöscht hat. `marked`: die Folgen, die
+    /// `prepareRemoval` schon ins Löschprotokoll geschrieben hat. Eine
+    /// abbestellte Quelle kann mehr Folgen haben, als geladen waren; sie
+    /// kommen hier dazu, bevor ihre Dateien gehen. Sonst legte eine
+    /// laufende Übersetzung oder Nennung sie danach wieder an.
+    private func applyRemoval(_ report: LibraryStore.RemovalReport, marked: Set<EpisodeID>) {
+        let unmarked = report.episodeIDs.filter { !marked.contains($0) }
+        if !unmarked.isEmpty { removals.markRemoved(unmarked) }
         LocalMediaLocator.removeFiles(for: report.mediaVersionIDs)
         // Übersetzte Transkripte, erkannte Nennungen und die Sätze je Kapitel
         // sind aus der Folge entstanden und gehen mit.

@@ -16,7 +16,6 @@
 //
 
 import Foundation
-import Synchronization
 import PodcastAIKit
 
 // MARK: - Zwischenspeicher
@@ -56,16 +55,10 @@ enum ChapterSummaryCache {
         ].joined(separator: "|")
     }
 
-    private struct State {
-        var removals = 0
-        var removed: [EpisodeID: Int] = [:]
-    }
-
-    private static let state = Mutex(State())
-
     /// Der Stand der Löschungen, gezogen vor dem Formulieren. Geschrieben
-    /// wird nur, wenn die Folge seitdem nicht gelöscht wurde.
-    static var ticket: Int { state.withLock { $0.removals } }
+    /// wird nur, wenn die Folge seitdem nicht gelöscht wurde. Es ist das
+    /// Löschprotokoll des Prozesses, dasselbe wie im Modell der App.
+    static var ticket: RemovalLedger.Ticket { RemovalLedger.shared.ticket }
 
     /// Alle Sätze einer Folge, aus der Datei, außerhalb des Hauptthreads.
     static func load(_ id: EpisodeID) async -> [String: Entry] {
@@ -77,28 +70,21 @@ enum ChapterSummaryCache {
 
     /// Schreibt die Sätze einer Folge. Was nicht mehr zu einem Kapitel
     /// passt, fällt dabei heraus.
-    static func save(_ entries: [String: Entry], for id: EpisodeID, ticket: Int) async {
+    static func save(_ entries: [String: Entry], for id: EpisodeID, ticket: RemovalLedger.Ticket) async {
         await Task.detached(priority: .utility) {
             guard let data = try? JSONEncoder().encode(entries) else { return }
-            // Prüfen und Schreiben unter derselben Sperre wie das Löschen,
-            // sonst legte ein später Lauf die Datei einer gelöschten Folge neu an.
-            state.withLock { state in
-                if let at = state.removed[id], at > ticket { return }
-                try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try? data.write(to: file(for: id), options: .atomic)
-            }
+            // Prüfen und Ablegen unter der Sperre des Löschprotokolls, sonst
+            // legte ein später Lauf die Datei einer gelöschten Folge neu an.
+            RemovalLedger.shared.write(data, to: file(for: id), staging: directory, for: id, since: ticket)
         }.value
     }
 
-    /// Entfernt die Sätze dieser Folgen.
+    /// Entfernt die Sätze dieser Folgen. Die Löschung steht da schon im
+    /// Löschprotokoll, also legt kein Lauf, der vorher begann, die Datei
+    /// danach wieder an.
     static func remove(episodes: [EpisodeID]) {
-        guard !episodes.isEmpty else { return }
-        state.withLock { state in
-            state.removals += 1
-            for id in episodes {
-                state.removed[id] = state.removals
-                try? FileManager.default.removeItem(at: file(for: id))
-            }
+        for id in episodes {
+            try? FileManager.default.removeItem(at: file(for: id))
         }
     }
 }
@@ -151,7 +137,6 @@ extension AppModel {
         // vorigen Lauf ab, und der neue beginnt mit dem, was schon gespeichert ist.
         guard !sections.isEmpty else { return }
         let ticket = ChapterSummaryCache.ticket
-        let removals = removalCount
         let language = AppLanguage.current
         let groups = ChapterSections.group(evidence, into: sections) { $0.range?.start }
         let stored = await ChapterSummaryCache.load(episode.id)
@@ -186,7 +171,7 @@ extension AppModel {
                 // Abgebrochen, weil sich die Kapitel geändert haben: Der Satz
                 // wird gespeichert, aber nicht gemeldet. Ein neues Kapitel mit
                 // demselben Anfang bekäme sonst den Satz des alten.
-                if !Task.isCancelled, !wasRemoved(episode.id, since: removals) { onSummary(section.id, entry) }
+                if !Task.isCancelled, !wasRemoved(episode.id, since: ticket) { onSummary(section.id, entry) }
             } catch let error as ExtractorError {
                 switch error {
                 case .generationRejected:

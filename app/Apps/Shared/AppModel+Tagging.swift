@@ -22,24 +22,6 @@ import Foundation
 import Synchronization
 import PodcastAIKit
 
-/// Wie eine Einordnung ausging.
-enum ChapterTagsOutcome: Equatable {
-    /// Gespeichert, auch wenn kein Kapitel ein Tag bekam.
-    case stored
-    /// Nichts zu tun: schon eingeordnet, keine Belege oder gelöscht.
-    case nothingToDo
-    /// Kein Modell für Tags. Die Folge wartet.
-    case modelUnavailable
-    /// Nur Private Cloud Compute stünde bereit, und das Netz erlaubt gerade
-    /// kein Vorbereiten. Die Folge wartet.
-    case waiting
-    /// Abgebrochen, etwa weil die Zeit im Hintergrund endete. Die fertigen
-    /// Kapitel bleiben gemerkt.
-    case cancelled
-    /// Ein Aufruf ist an Last oder Zeit gescheitert. Ein späterer Lauf setzt fort.
-    case failed
-}
-
 /// Sammelt die Auswahlen eines Kapitels, auch aus einer anderen Aufgabe.
 private final class TagSelectionLog: Sendable {
     let selections = Mutex<[TagSelection]>([])
@@ -74,7 +56,7 @@ extension AppModel {
         guard !taggingInProgress.contains(episode.id) else { return .nothingToDo }
         taggingInProgress.insert(episode.id)
         defer { taggingInProgress.remove(episode.id) }
-        let ticket = removalCount
+        let ticket = removals.ticket
 
         // Nur die aktuelle Fassung, in ihrer neuesten Revision. Revisionen
         // zählen je Fassung, eine überholte kann die höhere tragen.
@@ -289,6 +271,8 @@ extension AppModel {
             let outcome = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
                 await prepareChapterTags(for: next)
             }
+            // Aus dem Rückstand der Bibliothek, nicht nach den Fakten einer Folge.
+            emitTagsDone(next.id, outcome, origin: .backlog)
             switch outcome {
             case .stored:
                 continue

@@ -55,27 +55,29 @@ extension AppModel {
     /// Mobilfunk, er ist klein. Supadata fragt sie dort nur mit Zustimmung.
     public func reloadSource(_ sourceID: SourceID) async {
         wakeRestingPreparation(in: sourceID)
-        let newEpisodes = await runReload(sourceID)
+        let added = await runReload(sourceID)
         // Neue Folgen bereitet die App vor wie nach dem Aktualisieren aller
         // Abos, nach denselben Regeln fürs Netz. Abgespielt wird nichts. Erst
         // nach dem Ergebnis, damit die Seite nicht so lange „Wird neu
         // geladen …“ zeigt.
-        if newEpisodes > 0 { await prepareNewEpisodes(in: sourceID) }
+        guard !added.isEmpty else { return }
+        emit(.episodesAdded(added, .automatic))
+        await prepareNewEpisodes(in: sourceID)
     }
 
-    /// Das eigentliche Neuladen. Gibt die Zahl neuer Folgen zurück.
-    private func runReload(_ sourceID: SourceID) async -> Int {
+    /// Das eigentliche Neuladen. Gibt die neuen Folgen zurück.
+    private func runReload(_ sourceID: SourceID) async -> [EpisodeID] {
         guard !reloadingSources.contains(sourceID),
-              let shown = sources.first(where: { $0.id == sourceID }), canReload(shown) else { return 0 }
+              let shown = sources.first(where: { $0.id == sourceID }), canReload(shown) else { return [] }
         guard !isOffline else {
             sourceReloadResults[sourceID] = .failed(String(localized: "Keine Verbindung. Neu laden geht, sobald das Gerät online ist."))
-            return 0
+            return []
         }
         reloadingSources.insert(sourceID)
         sourceReloadResults[sourceID] = nil
         // Auch unter „Meine Podcasts“ sichtbar, wo es keine Zeile dafür gibt.
         activity = String(localized: "„\(shown.title)“ wird neu geladen …")
-        var newEpisodes = 0
+        var newEpisodes: [EpisodeID] = []
         defer {
             reloadingSources.remove(sourceID)
             activity = nil
@@ -85,7 +87,7 @@ extension AppModel {
         do {
             // Aus der Datenbank, nicht aus `sources`: dort stehen auch Lücken,
             // die Supadata gefüllt hat, und die gehören nicht in den Feed.
-            guard let stored = try await store.sources().first(where: { $0.id == sourceID }) else { return 0 }
+            guard let stored = try await store.sources().first(where: { $0.id == sourceID }) else { return [] }
             var result = try await refresher.reload(stored, feedData: Self.fixtureFeed(for: stored))
             if !result.feedHasArtwork, stored.kind == .podcastRSS, let feedURL = stored.feedURL,
                let found = await directoryArtwork(forFeed: feedURL, title: result.source.title),
@@ -115,10 +117,10 @@ extension AppModel {
                 await refreshSupadataMetadata(in: sourceID)
             }
             sourceReloadResults[sourceID] = stored.refreshesAutomatically
-                ? .done(newEpisodes: result.newEpisodes) : .doneWithoutSubscription
+                ? .done(newEpisodes: result.newEpisodes.count) : .doneWithoutSubscription
             newEpisodes = result.newEpisodes
         } catch is CancellationError {
-            return 0
+            return []
         } catch {
             sourceReloadResults[sourceID] = .failed(
                 String(localized: "Neu laden hat nicht geklappt. \(UserFacingError.describe(error))"))

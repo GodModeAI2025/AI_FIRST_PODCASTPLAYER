@@ -61,8 +61,6 @@ enum MentionCache {
 
     private struct State {
         var memory: [EpisodeID: EpisodeMentions] = [:]
-        var removals = 0
-        var removed: [EpisodeID: Int] = [:]
     }
 
     private static let state = Mutex(State())
@@ -71,8 +69,9 @@ enum MentionCache {
     private static let memoryLimit = 200
 
     /// Der Stand der Löschungen, gezogen vor dem Erkennen. Geschrieben wird
-    /// nur, wenn die Folge seitdem nicht gelöscht wurde.
-    static var ticket: Int { state.withLock { $0.removals } }
+    /// nur, wenn die Folge seitdem nicht gelöscht wurde. Es ist das
+    /// Löschprotokoll des Prozesses, dasselbe wie im Modell der App.
+    static var ticket: RemovalLedger.Ticket { RemovalLedger.shared.ticket }
 
     static func cached(_ id: EpisodeID, key: String) -> EpisodeMentions? {
         state.withLock { $0.memory[id] }.flatMap { $0.key == key ? $0 : nil }
@@ -89,22 +88,16 @@ enum MentionCache {
         return stored
     }
 
-    static func save(_ value: EpisodeMentions, for id: EpisodeID, ticket: Int) async {
-        let removed = state.withLock { state in
-            if let at = state.removed[id], at > ticket { return true }
-            return false
-        }
-        guard !removed else { return }
-        remember(value, for: id)
+    static func save(_ value: EpisodeMentions, for id: EpisodeID, ticket: RemovalLedger.Ticket) async {
+        // Im Speicher unter der Sperre des Löschprotokolls, wie die Datei.
+        // Sonst stünde eine gelöschte Folge dort, bis der Speicher überläuft.
+        let current = RemovalLedger.shared.unlessRemoved(id, since: ticket) { remember(value, for: id) } != nil
+        guard current else { return }
         await Task.detached(priority: .utility) {
             guard let data = try? JSONEncoder().encode(value) else { return }
-            // Prüfen und Schreiben unter derselben Sperre wie das Löschen,
-            // sonst legte ein später Lauf die Datei einer gelöschten Folge neu an.
-            state.withLock { state in
-                if let at = state.removed[id], at > ticket { return }
-                try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                try? data.write(to: file(for: id), options: .atomic)
-            }
+            // Prüfen und Ablegen unter der Sperre des Löschprotokolls, sonst
+            // legte ein später Lauf die Datei einer gelöschten Folge neu an.
+            RemovalLedger.shared.write(data, to: file(for: id), staging: directory, for: id, since: ticket)
         }.value
     }
 
@@ -117,16 +110,16 @@ enum MentionCache {
         }
     }
 
-    /// Entfernt, was zu diesen Folgen erkannt wurde, im Speicher und als Datei.
+    /// Entfernt, was zu diesen Folgen erkannt wurde, im Speicher und als
+    /// Datei. Die Löschung steht da schon im Löschprotokoll, also legt kein
+    /// Lauf, der vorher begann, danach etwas an.
     static func remove(episodes: [EpisodeID]) {
         guard !episodes.isEmpty else { return }
         state.withLock { state in
-            state.removals += 1
-            for id in episodes {
-                state.removed[id] = state.removals
-                state.memory[id] = nil
-                try? FileManager.default.removeItem(at: file(for: id))
-            }
+            for id in episodes { state.memory[id] = nil }
+        }
+        for id in episodes {
+            try? FileManager.default.removeItem(at: file(for: id))
         }
     }
 }
