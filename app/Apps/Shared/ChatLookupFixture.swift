@@ -32,6 +32,8 @@ enum ChatLookupFixture {
 
         func title(of episode: EpisodeID) async -> String? { await base.title(of: episode) }
 
+        func available(_ episodes: Set<EpisodeID>) async -> Set<EpisodeID> { await base.available(episodes) }
+
         func passages(matching query: String, in episode: EpisodeID?, within range: MediaTimeRange?,
                       excluding known: Set<EvidenceID>, limit: Int) async -> [Evidence] {
             try? await Task.sleep(for: ChatLookupFixture.delay)

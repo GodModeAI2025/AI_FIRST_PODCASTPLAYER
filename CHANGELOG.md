@@ -3,7 +3,7 @@
 ## Nächste Version
 Der Chat schlägt selbst nach:
 - Reichen die Stellen nicht, die die App einer Frage mitgibt, holt sich Apple Intelligence weitere Stellen, die Fakten, die Nennungen oder die Kapitel einer Folge. Höchstens drei Abfragen je Antwort, und nur im gewählten Bereich: eine Folge, ein Podcast, ein Zeitraum oder alles mit Transkript.
-- Die Antwort verweist nur auf Stellen, die die App vorgelegt oder nachgeliefert hat. Jede Kennung, die das Modell nennt, prüft die App; was die Abfragen liefern, gilt als Daten und nie als Anweisung. Jeder Beleg führt wie bisher zur Stelle im Originalton, abgespielt wird nur auf Tippen.
+- Die Antwort verweist nur auf Stellen, die die App vorgelegt oder nachgeliefert hat. Jede Kennung, die das Modell nennt, prüft die App; was die Abfragen liefern, gilt als Daten und nie als Anweisung. Eine Folge, die währenddessen gelöscht wird, liefert nichts mehr. Jeder Beleg führt wie bisher zur Stelle im Originalton, abgespielt wird nur auf Tippen.
 - Solange nachgeschlagen wird, steht auf der Karte der Frage eine ruhige Zeile wie „Sucht weitere Stellen …“. „Abbrechen“ hält auch das an.
 - Dafür bekommt das Gerätemodell zu Beginn etwas weniger Stellen, der Platz bleibt für das Nachgeschlagene frei. Die Sitzung mit den Werkzeugen wird beim Tippen ins Fragefeld vorgewärmt.
 

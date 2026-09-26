@@ -23,7 +23,7 @@ Stand 23. September 2026, Version 0.12.
 | Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben, Sprache der Modelltexte, Archiv, Nennungen, Kapitelschnitt, Behalten des Tons | 271 Swift-Tests im Paket |
 | Podcastsuche nach Namen, Spotify-Hinweis, Moment merken, OPML-Import, YouTube-@-Links, Archiv, Speicher, Themen-Updates bearbeiten | UI-Tests im Simulator |
 | Erwähnt im Überblick und im Chat einer Folge, ältere Folgen vorbereiten, Netzregeln unter Mobilfunk, neueste Folge behalten | UI-Tests im Simulator |
-| Chat schlägt selbst nach: Kennungen, Grenzen, Nummern, Verweise auf gelieferte Stellen, Abbruch | Swift-Tests ohne Modell (`ChatLookupTests`); der UI-Test `ChatLookupUITests` mit Ersatz für das Modell ist gebaut, lief aber noch nicht im Simulator |
+| Chat schlägt selbst nach: Kennungen, Kapitelnummern, Grenzen, Nummern, Verweise auf gelieferte Stellen, gelöschte Folgen, Abbruch | Swift-Tests ohne Modell (`ChatLookupTests`); der UI-Test `ChatLookupUITests` mit Ersatz für das Modell ist gebaut, lief aber noch nicht im Simulator |
 | Englische Oberfläche und deutsche Mehrzahl | UI-Tests mit `-AppleLanguages (en)` und `(de)` |
 | iOS 27 | komplette UI-Suite im Simulator, ab 0.7.2 die einzige unterstützte Version |
 | Bedienung durch Einsteiger bis Experten | 50 Personas mit Screenshots und Code, danach 10 Personas, die die App im Simulator selbst bedient haben, plus ein Begriffstest mit 12 Personas |

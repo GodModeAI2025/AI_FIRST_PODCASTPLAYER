@@ -10,7 +10,8 @@
 //
 //    - die Quelle der Werkzeuge. Sie liest nur, und nur im Bereich der
 //      Frage: aus den Belegen, die für die Frage schon geladen sind, aus der
-//      Datenbank, den erkannten Nennungen und den Kapiteln einer Folge.
+//      Datenbank, den erkannten Nennungen und den Kapiteln einer Folge. Was
+//      seit Beginn der Frage gelöscht wurde, liefert sie nicht mehr (Regel 5).
 //    - die Anzeige „Sucht weitere Stellen …“, solange ein Werkzeug läuft.
 //    - den Aufruf des Extraktors mit dem Verzeichnis der Folgen vorn im
 //      Kontext.
@@ -84,14 +85,17 @@ extension ChatLookupKind {
 /// Die Folgen des Bereichs sind die Folgen der Belege, die die Frage
 /// ohnehin geladen hat. Der Code hat sie schon eingegrenzt, auf eine Folge,
 /// einen Podcast oder einen Zeitraum; das Modell kommt nicht darüber hinaus.
-/// Nennungen und Kapitel kennt nur das `AppModel`, dorthin gehen zwei
-/// Aufrufe auf den Hauptakteur.
+/// Nennungen, Kapitel und was gelöscht wurde kennt nur das `AppModel`,
+/// dorthin gehen drei Aufrufe auf den Hauptakteur.
 final class LibraryLookupSource: ChatLookupSource {
 
     let episodes: Set<EpisodeID>
     private let pool: [Evidence]
     private let titles: [EpisodeID: String]
+    /// Der Podcast jeder Folge im Bereich, um eine Abbestellung zu erkennen.
+    private let podcasts: [EpisodeID: SourceID]
     private let store: LibraryStore
+    private let removed: @Sendable (Set<EpisodeID>, [EpisodeID: SourceID]) async -> Set<EpisodeID>
     private let mentionsOf: @Sendable (EpisodeID) async -> [ChatLookupMention]
     private let chaptersOf: @Sendable (EpisodeID) async -> [ChatLookupChapter]
     /// Kapitel ohne Feed rechnet der Code aus Satzvektoren. Einmal je Frage genügt.
@@ -102,17 +106,31 @@ final class LibraryLookupSource: ChatLookupSource {
     static let embeddingLimit = 16
 
     init(pool: [Evidence], titles: [EpisodeID: String], store: LibraryStore,
+         removed: @escaping @Sendable (Set<EpisodeID>, [EpisodeID: SourceID]) async -> Set<EpisodeID>,
          mentionsOf: @escaping @Sendable (EpisodeID) async -> [ChatLookupMention],
          chaptersOf: @escaping @Sendable (EpisodeID) async -> [ChatLookupChapter]) {
         self.episodes = Set(pool.map(\.episodeID))
         self.pool = pool
         self.titles = titles
+        self.podcasts = Dictionary(pool.map { ($0.episodeID, $0.sourceID) }, uniquingKeysWith: { first, _ in first })
         self.store = store
+        self.removed = removed
         self.mentionsOf = mentionsOf
         self.chaptersOf = chaptersOf
     }
 
     func title(of episode: EpisodeID) async -> String? { titles[episode] }
+
+    /// Die Belege im Bestand der Frage stammen von ihrem Anfang. Eine Folge
+    /// zählt nur, solange die Datenbank sie noch hat und das `AppModel` sie
+    /// seitdem nicht zum Löschen vorgemerkt hat; das geschieht vor dem
+    /// Löschen in der Datenbank. Scheitert das Lesen, zählt keine.
+    func available(_ ids: Set<EpisodeID>) async -> Set<EpisodeID> {
+        guard !ids.isEmpty else { return [] }
+        let stored = Set(((try? await store.episodes(ids: Array(ids))) ?? []).map(\.id)).intersection(ids)
+        guard !stored.isEmpty else { return [] }
+        return stored.subtracting(await removed(stored, podcasts))
+    }
 
     func passages(matching query: String, in episode: EpisodeID?, within range: MediaTimeRange?,
                   excluding known: Set<EvidenceID>, limit: Int) async -> [Evidence] {
@@ -172,8 +190,13 @@ extension AppModel {
             let podcast = podcasts[episode.sourceID] ?? ""
             titles[episode.id] = podcast.isEmpty ? episode.title : "\(episode.title) (\(podcast))"
         }
+        // Was ab hier gelöscht wird, liefern die Werkzeuge nicht mehr.
+        let ticket = removalCount
         var source: any ChatLookupSource = LibraryLookupSource(
             pool: pool, titles: titles, store: store,
+            removed: { [weak self] ids, podcasts in
+                await self?.lookupRemoved(ids, podcasts: podcasts, since: ticket) ?? ids
+            },
             mentionsOf: { [weak self] id in await self?.lookupMentions(id) ?? [] },
             chaptersOf: { [weak self] id in await self?.lookupChapters(id) ?? [] })
         #if DEBUG
@@ -200,7 +223,9 @@ extension AppModel {
         device: ContextBudget, budget: ContextBudget, lookup: ChatLookupLedger?,
         status: ModelStatus, number: Int
     ) async throws -> ComposedAnswer {
-        ChatLookupStatus.shared.begin(question: number)
+        // Nur die Frage, die noch gilt, zeigt, was nachgeschlagen wird. Eine
+        // abgebrochene, die spät hier ankommt, nähme sonst der neuen die Zeile.
+        if number == questionTicket { ChatLookupStatus.shared.begin(question: number) }
         defer { ChatLookupStatus.shared.end(question: number) }
         let directory = await lookup?.directory(for: candidates) ?? ""
         let extra = directory.isEmpty ? 0 : directory.count + 1
@@ -232,7 +257,19 @@ extension AppModel {
             onPartial: { [weak self] text in await self?.showPartialAnswer(text, number: number) })
     }
 
-    // MARK: Nennungen und Kapitel für die Werkzeuge
+    // MARK: Gelöschtes, Nennungen und Kapitel für die Werkzeuge
+
+    /// Die Folgen unter `ids`, die seit `ticket` gelöscht oder deren Podcast
+    /// seitdem abbestellt wurde, wie bei `citesRemovedContent`.
+    func lookupRemoved(_ ids: Set<EpisodeID>, podcasts: [EpisodeID: SourceID],
+                       since ticket: Int) -> Set<EpisodeID> {
+        guard removalCount > ticket else { return [] }
+        return ids.filter { id in
+            if wasRemoved(id, since: ticket) { return true }
+            guard let podcast = podcasts[id], !podcast.rawValue.isEmpty else { return false }
+            return (removedSourceTickets[podcast] ?? 0) > ticket
+        }
+    }
 
     /// Die Nennungen einer Folge, jede mit der Stelle, an der sie zuerst fällt.
     func lookupMentions(_ id: EpisodeID) async -> [ChatLookupMention] {
