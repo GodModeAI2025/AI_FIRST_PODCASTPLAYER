@@ -1,6 +1,8 @@
 # Änderungsverlauf
 
-## Nächste Version
+## App 0.13 · 2026-09-26
+Neu: Angesagt als Themen-Update, Widget, Teilen-Menü, YouTube-Abos aus Google Takeout, und der Chat schlägt selbst nach.
+
 Der Chat schlägt selbst nach:
 - Reichen die Stellen nicht, die die App einer Frage mitgibt, holt sich Apple Intelligence weitere Stellen, die Fakten, die Nennungen oder die Kapitel einer Folge. Höchstens drei Abfragen je Antwort, und nur im gewählten Bereich: eine Folge, ein Podcast, ein Zeitraum oder alles mit Transkript.
 - Die Antwort verweist nur auf Stellen, die die App vorgelegt oder nachgeliefert hat. Jede Kennung, die das Modell nennt, prüft die App; was die Abfragen liefern, gilt als Daten und nie als Anweisung. Eine Folge, die währenddessen gelöscht wird, liefert nichts mehr. Jeder Beleg führt wie bisher zur Stelle im Originalton, abgespielt wird nur auf Tippen.
@@ -21,18 +23,6 @@ Eingrenzen im Chat:
 YouTube-Abos übernehmen:
 - „YouTube-Abos aus Google Takeout importieren“ im Menü von „Meine Podcasts“ liest die Datei `subscriptions.csv` aus Google Takeout. Zu jedem Kanal sucht die App bei Apple einen passenden Audio-Podcast und empfiehlt ihn, denn nur mit Ton gibt es Transkript, Fakten und Tags. Je Kanal wählst du Audio-Podcast oder YouTube-Kanal und abonnierst alles auf einmal.
 - Die Namen der Kanäle gehen dafür an die Podcast-Suche von Apple, einer nach dem anderen. Bei vielen Kanälen dauert das einige Minuten, weil Apple zu schnelle Suchen bremst. Die Suche lässt sich beenden und später fortsetzen.
-
-Die Warteschlange lässt sich steuern:
-- „Pausieren“ und „Fortsetzen“ in der Warteschlange und per langem Druck auf das Aktivitätssymbol. Pausiert beginnt kein Transkript, die laufende Folge hält an ihrem Zwischenstand an, Fakten und Tags warten ebenso. Die Pause gilt auch nach einem Neustart, das Symbol zeigt „Pausiert“ mit der Zahl der wartenden Folgen.
-- „Alle abbrechen“ leert die Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst beim nächsten Aktualisieren von Hand wieder dazu.
-- Downloads im WLAN laufen im Hintergrund weiter, auch wenn iOS die App anhält: für Transkripte, „Laden (offline)“ und die neueste Folge je Podcast. Das Transkript entsteht danach, sobald die App wieder vorn ist. Über Mobilfunk lädt die App wie bisher nur, solange sie läuft.
-- Die nächsten drei Folgen der Warteschlange laden schon, während die aktuelle transkribiert wird. So lädt im Hintergrund nicht nur die laufende Folge zu Ende. iOS verschiebt diese Downloads nicht mehr, bis das Gerät am Strom hängt.
-
-Apple Intelligence stört nicht mehr beim Scrollen und nicht mehr den Chat:
-- Alle Anfragen an Apple Intelligence laufen durch eine Stelle, eine nach der anderen. Eine Frage im Chat, der Satz je Kapitel und „Jetzt ermitteln“ gehen sofort vor; Fakten und Tags im Hintergrund halten dafür an und laufen danach weiter.
-- Solange du scrollst, beginnt keine neue Anfrage im Hintergrund, erst zwei Sekunden danach. Im Stromsparmodus ruht die Arbeit, solange Ton läuft. Die Warteschlange zeigt, was Apple Intelligence gerade rechnet.
-- Die App lädt nach dem eigenen Speichern nicht mehr die ganze Bibliothek neu, nur noch nach Änderungen von anderen Geräten. Fakten einer Folge zeichnen nur noch ihre eigene Seite neu.
-- Automatisches kommt in Portionen: Fakten und Tags für ältere Folgen je zehn auf einmal, „Ältere Folgen auch vorbereiten“ je Podcast drei Folgen im Akkubetrieb und zehn am Strom. Die nächste Portion rückt nach, wenn eine durch ist. Was du selbst anforderst, zählt nicht mit.
 
 Angesagt und neu:
 - „Meine Tags“ beginnt mit „Angesagt“: Tags, die in den letzten sieben Tagen mindestens dreimal so oft vorkamen wie im Wochenschnitt der vier Wochen davor, aus mindestens drei Podcasts und mit mindestens fünf Kapiteln. Gefolgte und neutrale Tags zählen gleich. Oben im Tab „Themen-Updates“ stehen sie in einer Zeile, ein Tipp öffnet die Seite des Tags.
@@ -57,6 +47,8 @@ Aus dem TestFlight-Feedback zu 0.7 bis 0.11, vor allem zu Rucklern und einem lan
 - Cover: Fehlt das Bild einer Folge, zeigt die App das Cover des Podcasts statt eines Platzhalters.
 - Keine Tags aus Füllwörtern wie „bisschen“ oder „natürlich“.
 - Kein „Keine Folgen“ mehr über der Beschreibung, während ein Podcast lädt, und kein „Passende Podcasts suchen“ auf der Seite eines Themen-Updates.
+- „Pausieren“ und „Fortsetzen“ in der Warteschlange und per langem Druck auf das Aktivitätssymbol. Pausiert beginnt kein Transkript, die laufende Folge hält an ihrem Zwischenstand an, Fakten und Tags warten ebenso. Die Pause gilt auch nach einem Neustart, das Symbol zeigt „Pausiert“ mit der Zahl der wartenden Folgen.
+- „Alle abbrechen“ leert die Warteschlange. Was schon erkannt ist, bleibt gespeichert. Von selbst eingereihte Folgen kommen erst beim nächsten Aktualisieren von Hand wieder dazu.
 
 ## App 0.11 · 2026-09-24
 Themen-Podcasts aus Tags, eine flüssige Oberfläche und eine steuerbare Warteschlange:
