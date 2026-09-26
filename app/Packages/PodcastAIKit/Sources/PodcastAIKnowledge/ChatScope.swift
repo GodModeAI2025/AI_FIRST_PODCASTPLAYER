@@ -20,7 +20,7 @@ public enum ChatScope: Sendable, Hashable {
     case smartFeed(SmartFeedID)
     /// Alles, was erschlossen ist. Ausdrücklich nicht „alles, was existiert“.
     case allAnalyzed
-    /// Das Ausgewertete, eingegrenzt auf einen Podcast, einen Zeitraum oder beides.
+    /// Das Ausgewertete, eingegrenzt auf Podcasts, einen Zeitraum, Tags oder Folgen.
     case library(LibraryFilter)
 
     public var label: String {
@@ -31,11 +31,7 @@ public enum ChatScope: Sendable, Hashable {
                 localized: "^[\(ids.count) ausgewählte Folge](inflect: true)", bundle: .module).characters)
         case .smartFeed: String(localized: "Dieses Themen-Update", bundle: .module)
         case .allAnalyzed: String(localized: "Alle Folgen mit Transkript", bundle: .module)
-        case .library(let filter):
-            [filter.sourceID == nil
-                ? String(localized: "Alle Podcasts", bundle: .module)
-                : String(localized: "Ein Podcast", bundle: .module),
-             filter.period == .all ? nil : filter.period.label].compactMap { $0 }.joined(separator: " · ")
+        case .library(let filter): filter.parts(sourceNames: []).joined(separator: " · ")
         }
     }
 }
@@ -44,12 +40,31 @@ public enum ChatScope: Sendable, Hashable {
 ///
 /// Der Code wählt damit die Folgen aus, bevor gesucht wird. Das Modell
 /// sieht nur die Stellen, die übrig bleiben, und wählt unter ihnen aus.
-/// Der Zeitraum ist eine Wahl und kein Datum: sonst hätte jede Frage einen
-/// eigenen Bereich, und frühere Antworten fänden nicht mehr zusammen.
+/// Der Zeitraum aus dem Menü ist eine Wahl und kein Datum: sonst hätte jede
+/// Frage einen eigenen Bereich, und frühere Antworten fänden nicht mehr
+/// zusammen. „seit 1. Juni“ aus dem Eingabefeld ist dagegen ein fester Tag
+/// und bleibt es auch morgen.
+///
+/// Seit 0.12 kommen Tokens aus dem Eingabefeld dazu (``ChatToken``): mehrere
+/// Podcasts, ein Tag als Anfang oder Ende, Tags und einzelne Folgen. Jede
+/// Art grenzt ein, innerhalb einer Art reicht ein Treffer. Alle Felder sind
+/// Mengen oder feste Werte, damit derselbe Bereich gleich bleibt, egal in
+/// welcher Reihenfolge jemand die Tokens gesetzt hat.
 public struct LibraryFilter: Sendable, Hashable {
 
-    public var sourceID: SourceID?
+    /// Podcasts, aus denen Folgen zählen. Leer heißt: alle.
+    public var sourceIDs: Set<SourceID>
     public var period: Period
+    /// Das früheste Erscheinungsdatum, Beginn eines Tages. Aus „seit 1. Juni“.
+    public var since: Date?
+    /// Das erste Erscheinungsdatum, das nicht mehr zählt: Beginn des Tages
+    /// nach „bis 30. Juni“.
+    public var before: Date?
+    /// Tags, von denen ein Kapitel eines tragen muss. Leer heißt: egal.
+    /// Welche Kapitel das sind, weiß erst ``ChatNarrowing``.
+    public var tagIDs: Set<InterestID>
+    /// Einzelne Folgen. Leer heißt: alle.
+    public var episodeIDs: Set<EpisodeID>
 
     public enum Period: String, Sendable, Hashable, CaseIterable {
         case all, lastWeek, lastMonth
@@ -72,26 +87,86 @@ public struct LibraryFilter: Sendable, Hashable {
     }
 
     public init(sourceID: SourceID? = nil, period: Period = .all) {
-        self.sourceID = sourceID
+        self.init(sourceIDs: sourceID.map { [$0] } ?? [], period: period)
+    }
+
+    public init(
+        sourceIDs: Set<SourceID>, period: Period = .all, since: Date? = nil, before: Date? = nil,
+        tagIDs: Set<InterestID> = [], episodeIDs: Set<EpisodeID> = []
+    ) {
+        self.sourceIDs = sourceIDs
         self.period = period
+        self.since = since
+        self.before = before
+        self.tagIDs = tagIDs
+        self.episodeIDs = episodeIDs
     }
 
-    /// Ohne Podcast und ohne Zeitraum ist nichts eingegrenzt.
-    public var isUnrestricted: Bool { sourceID == nil && period == .all }
+    /// Der eine gewählte Podcast, wie ihn das Menü zeigt. Bei mehreren `nil`.
+    /// Setzen ersetzt alle Podcasts.
+    public var sourceID: SourceID? {
+        get { sourceIDs.count == 1 ? sourceIDs.first : nil }
+        set { sourceIDs = newValue.map { [$0] } ?? [] }
+    }
 
-    /// Das früheste Erscheinungsdatum, das noch zählt.
+    /// Ohne Podcast, Zeitraum, Tag und Folge ist nichts eingegrenzt.
+    public var isUnrestricted: Bool {
+        sourceIDs.isEmpty && period == .all && since == nil && before == nil
+            && tagIDs.isEmpty && episodeIDs.isEmpty
+    }
+
+    /// Das früheste Erscheinungsdatum, das noch zählt: das spätere aus
+    /// Zeitraum und „seit“.
     public func earliest(now: Date = Date()) -> Date? {
-        period.days.map { now.addingTimeInterval(-Double($0) * 86_400) }
+        let relative = period.days.map { now.addingTimeInterval(-Double($0) * 86_400) }
+        switch (relative, since) {
+        case let (relative?, since?): return max(relative, since)
+        case let (relative, since): return relative ?? since
+        }
     }
 
-    /// Gehört eine Folge in den Bereich? Ohne Erscheinungsdatum lässt sich
-    /// ein Zeitraum nicht prüfen. Dann zählt die Folge nur, wenn keiner
-    /// gewählt ist.
+    /// Passen Podcast und Erscheinungsdatum? Ohne Erscheinungsdatum lässt
+    /// sich ein Zeitraum nicht prüfen. Dann zählt die Folge nur, wenn keiner
+    /// gewählt ist. Folgen und Tags prüft ``ChatNarrowing``.
     public func admits(sourceID: SourceID, publishedAt: Date?, now: Date = Date()) -> Bool {
-        if let wanted = self.sourceID, wanted != sourceID { return false }
-        guard let earliest = earliest(now: now) else { return true }
+        if !sourceIDs.isEmpty, !sourceIDs.contains(sourceID) { return false }
+        let lower = earliest(now: now)
+        guard lower != nil || before != nil else { return true }
         guard let publishedAt else { return false }
-        return publishedAt >= earliest
+        if let lower, publishedAt < lower { return false }
+        if let before, publishedAt >= before { return false }
+        return true
+    }
+
+    /// Die Teile der Beschriftung, etwa „Lage der Nation · seit 1. Juni 2026“.
+    /// Mit `sourceNames` stehen die Namen der Podcasts da, sonst ihre Zahl.
+    public func parts(sourceNames: [String], tagNames: [String] = [], episodeNames: [String] = []) -> [String] {
+        var parts: [String] = []
+        if !sourceNames.isEmpty {
+            parts.append(sourceNames.joined(separator: ", "))
+        } else if sourceIDs.isEmpty {
+            parts.append(String(localized: "Alle Podcasts", bundle: .module))
+        } else if sourceIDs.count == 1 {
+            parts.append(String(localized: "Ein Podcast", bundle: .module))
+        } else {
+            parts.append(String(AttributedString(
+                localized: "^[\(sourceIDs.count) Podcast](inflect: true)", bundle: .module).characters))
+        }
+        if period != .all { parts.append(period.label) }
+        if let since { parts.append(ChatToken.since(since).dateLabel ?? "") }
+        if let before { parts.append(ChatToken.before(before).dateLabel ?? "") }
+        if !tagNames.isEmpty {
+            parts.append(tagNames.joined(separator: ", "))
+        } else if !tagIDs.isEmpty {
+            parts.append(String(AttributedString(
+                localized: "^[\(tagIDs.count) Tag](inflect: true)", bundle: .module).characters))
+        }
+        if !episodeNames.isEmpty {
+            parts.append(episodeNames.joined(separator: ", "))
+        } else if !episodeIDs.isEmpty {
+            parts.append(ChatScope.episodes(Array(episodeIDs)).label)
+        }
+        return parts
     }
 }
 

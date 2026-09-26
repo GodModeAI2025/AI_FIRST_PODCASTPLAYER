@@ -6683,6 +6683,22 @@
         }
       }
     },
+    "Eigener Zeitraum" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigener Zeitraum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom Range"
+          }
+        }
+      }
+    },
     "Ein Abo auf TikTok- oder Instagram-Profile ist nicht möglich. Teile einzelne Beiträge, um sie hinzuzufügen." : {
       "localizations" : {
         "de" : {
@@ -7051,6 +7067,38 @@
         }
       }
     },
+    "Eingegrenzt: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eingegrenzt: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter added: %@"
+          }
+        }
+      }
+    },
+    "Eingrenzung entfernt: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eingrenzung entfernt: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter removed: %@"
+          }
+        }
+      }
+    },
     "Einsteiger" : {
       "localizations" : {
         "de" : {
@@ -7287,6 +7335,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove?"
+          }
+        }
+      }
+    },
+    "Entfernt diese Eingrenzung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernt diese Eingrenzung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removes this filter"
           }
         }
       }
@@ -9163,6 +9227,22 @@
         }
       }
     },
+    "Grenzt die Frage darauf ein" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grenzt die Frage darauf ein"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limits the question to this"
+          }
+        }
+      }
+    },
     "Groß- und Kleinschreibung und Akzente zählen nicht. Versuch ein kürzeres Wort oder einen Teil davon." : {
       "localizations" : {
         "de" : {
@@ -10777,6 +10857,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saves the question, answer, source passages, and your notes on these passages to \"Saved Answers\""
+          }
+        }
+      }
+    },
+    "Letzte Fragen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte Fragen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent Questions"
+          }
+        }
+      }
+    },
+    "Letzte Fragen löschen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte Fragen löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Recent Questions"
           }
         }
       }
@@ -13325,6 +13437,22 @@
         }
       }
     },
+    "Podcast: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast: %@"
+          }
+        }
+      }
+    },
     "PodcastAI hat keine Anmeldung, keine Werbung und keine Analyse- oder Tracking-Dienste. Der Anbieter der App bekommt keine deiner Daten." : {
       "localizations" : {
         "de" : {
@@ -13785,6 +13913,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "End Session"
+          }
+        }
+      }
+    },
+    "Setzt die Frage ins Eingabefeld, ohne sie zu senden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setzt die Frage ins Eingabefeld, ohne sie zu senden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Puts the question in the input field without sending it"
           }
         }
       }
@@ -18268,6 +18412,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "^[%lld note](inflect: true)"
+          }
+        }
+      }
+    },
+    "^[%lld Podcast](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld Podcast](inflect: true)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld podcast](inflect: true)"
           }
         }
       }
