@@ -325,8 +325,10 @@ struct WorkGateTests {
     @Test("Das Tor rechnet genau wie mayStart, factsMayRun und tagsMayRun")
     func matchesTodaysRules() {
         for conditions in Self.allConditions {
-            // Wie im AppModel: `queueHeld`, `factsGrants` (Worker der
-            // Transkripte und `com.podcastai.analysis`), `tagGrants`.
+            // Die Regeln, die bis 0.13 im AppModel standen: `queueHeld`,
+            // `factsGrants` (Worker der Transkripte und
+            // `com.podcastai.analysis`), `tagGrants`. Das Tor muss sie genau
+            // so weiter rechnen.
             let queueHeld = conditions.paused || conditions.cancelling
             let factsGrants = conditions.holds(.continued) || conditions.holds(.analysisTask)
             let tagGrants = conditions.holds(.taggingTask)

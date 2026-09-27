@@ -4,42 +4,29 @@
 //
 //  Die App an der Stufen-Pipeline (docs/plan-pipeline.md).
 //
-//  Der alte Code sendet an den Stellen, an denen er bisher die nächste
-//  Arbeit direkt aufruft, ein Ereignis an den `PipelineHost`. Ein Ereignis
-//  ohne Zuhörer fällt im Host weg und kostet fast nichts. Ereignisse mit
-//  Eingangsfassung müssen erst im Store lesen; das geschieht nur, wenn
-//  jemand zuhört (`emit(_:of:media:_:)`).
+//  Das Modell sendet dort, wo etwas geschieht, ein Ereignis an den
+//  `PipelineHost`: neue Folgen, Ton da oder weg, Feeds aktualisiert,
+//  Folgen gelöscht, Änderungen von anderen Geräten. Ein Ereignis ohne
+//  Zuhörer fällt im Host weg und kostet fast nichts. Ereignisse mit
+//  Eingangsfassung (`transcriptSaved`, `evidenceReady`, `factsDone`,
+//  `tagsDone`) senden die Stufen selbst, nach dem Schreiben.
 //
-//  Seit Schritt 3 hört die Stufe „Wissen“ zu (`KnowledgeStage` im Paket).
-//  Im neuen Weg ersetzt `evidenceReady` den direkten Aufruf von
-//  `enqueueFacts`, `feedsRefreshed` den von `queueMissingFacts` und
-//  `episodesRemoved` den von `dropFromFactsQueue`.
-//
-//  Seit Schritt 4 hört die Stufe „Ausgaben“ zu (`EditionsStage` im Paket).
-//  Im neuen Weg ersetzen `feedsRefreshed` und `transcriptsIdle` die
-//  direkten Aufrufe von `processPendingEditions`, und `editionPublished`
-//  stößt Zahlen und Cover an, die bisher gleich nach dem Zusammenstellen kamen.
-//
-//  Seit Schritt 5a hören „Vorbereiten“ und „Download“ zu (`PrepareStage`,
-//  `DownloadStage`). Im neuen Weg ersetzen `episodesAdded` und
-//  `feedsRefreshed` die direkten Aufrufe von `prepareNewEpisodes`,
-//  `prefetchNewestEpisodes` und `tidyLocalAudio`, `evidenceReady` und
-//  `transcriptFailed` das Aufräumen des Tons und das Nachrücken älterer
-//  Folgen in der Warteschlange.
+//  Zu hören die Stufen im Paket: „Vorbereiten“ (`PrepareStage`),
+//  „Download“ (`DownloadStage`), „Transkript“ (`TranscriptStage`),
+//  „Wissen“ (`KnowledgeStage`) und „Ausgaben“ (`EditionsStage`). Die Wege
+//  zwischen ihnen stehen im `PipelineRouter`. Hier werden die Stufen
+//  angelegt, mit dem, was sie vom Modell brauchen.
 //
 //  Die Senke ist das Ende der Pipeline auf dem Hauptakteur. Sie schreibt
-//  die Felder, die die Oberfläche heute liest, sobald eine Stufe sie
-//  übernommen hat: für „Wissen“ `factsQueue`, `gatheringFacts`,
-//  `factsWait`, `factsIssues` und `chapterTagsRevision`, dazu aus der
-//  Arbeit an einer Folge (`KnowledgeJobs`, seit Schritt 3b abseits des
+//  die Felder, die die Oberfläche liest: für „Wissen“ `factsQueue`,
+//  `gatheringFacts`, `factsWait`, `factsIssues` und `chapterTagsRevision`,
+//  dazu aus der Arbeit an einer Folge (`KnowledgeJobs`, abseits des
 //  Hauptakteurs) `facts`, `factsInProgress`, `factsProgress`, `lastError`
-//  und `chapterCache`. Seit Schritt 5b spiegelt sie die Stufe „Transkript“
-//  in `analysisQueue`, `analyzing`, `automaticallyQueued` und
+//  und `chapterCache`. Die Stufe „Transkript“ spiegelt sie in
+//  `analysisQueue`, `analyzing`, `automaticallyQueued` und
 //  `backlogQueued`, setzt auf `transcriptSaved` und `evidenceReady` die
 //  Stufe der Folge und sagt ein fertiges Transkript an, das jemand
-//  angefordert hat. Im alten Weg hinter dem Schalter tut das weiter der
-//  Worker selbst; die Senke schreibt dann dort nichts, sonst käme jede
-//  Ansage zweimal.
+//  angefordert hat.
 //
 
 import Foundation
@@ -93,13 +80,11 @@ final class PipelineSink {
         case .transcriptSaved(let id, _, _):
             // Die Arbeit hat die Stufe meist schon weiter gesetzt, samt der
             // Zahl der Fundstellen. Zurück geht sie nie.
-            guard model.transcriptStage != nil else { return }
             switch model.stages[id] {
             case nil, .discovered, .mediaDownloaded: model.stages[id] = .transcribed
             case .transcribed, .evidenceExtracted, .failed: break
             }
         case .evidenceReady(let id, _, let origin):
-            guard model.transcriptStage != nil else { return }
             if model.stages[id] != .evidenceExtracted { model.stages[id] = .evidenceExtracted }
             // Nur was jemand selbst angefordert hat, wird angesagt. Das
             // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
@@ -165,9 +150,8 @@ final class PipelineSink {
 // MARK: - Stufe „Wissen“: Meldungen der Arbeit an einer Folge
 
 /// Fakten, Fortschritt, Fehlermeldung und nachgeladene Kapitel aus
-/// `KnowledgeJobs`. Die Arbeit läuft seit Schritt 3b abseits des
-/// Hauptakteurs, in beiden Stellungen des Schalters; was die Oberfläche
-/// zeigt, schreibt nur die Senke.
+/// `KnowledgeJobs`. Die Arbeit läuft abseits des Hauptakteurs; was die
+/// Oberfläche zeigt, schreibt nur die Senke.
 extension PipelineSink: KnowledgeReporting {
 
     func factsStarted(_ id: EpisodeID) {
@@ -216,8 +200,8 @@ extension AppModel {
         KnowledgeSettings(isLoaded: isLoaded, automaticFacts: automaticFacts, analyzed: analyzedEpisodes)
     }
 
-    /// Die Arbeit an einer Folge, für beide Stellungen des Schalters. Entsteht
-    /// beim ersten Gebrauch, mit dem Speicher von jetzt.
+    /// Die Arbeit an einer Folge für die Stufe „Wissen“. Entsteht beim
+    /// ersten Gebrauch, mit dem Speicher von jetzt.
     var knowledgeJobs: KnowledgeJobs {
         if let knowledgeJobsStorage { return knowledgeJobsStorage }
         let jobs = makeKnowledgeJobs(store: store)
@@ -250,12 +234,12 @@ extension AppModel {
         return KnowledgeJobs(store: store, ledger: removals, reporter: reporter, environment: environment)
     }
 
-    /// Legt die Stufe „Wissen“ an, wenn der Schalter an ist. Einmal, aus
-    /// `AppBootstrap.start`, nach Host und Senke.
+    /// Legt die Stufe „Wissen“ an. Einmal, aus `AppBootstrap.start`, nach
+    /// Host und Senke.
     func startKnowledgeStage() {
         // Die Arbeit meldet an die Senke, die es jetzt gibt.
         knowledgeJobsStorage = nil
-        guard usesKnowledgeStage, knowledgeStage == nil, let pipeline, let pipelineSink else { return }
+        guard knowledgeStage == nil, let pipeline, let pipelineSink else { return }
         let environment = KnowledgeStage.Environment(
             settings: { [weak self] in
                 await MainActor.run { self?.knowledgeSettings ?? .notLoaded }
@@ -273,11 +257,11 @@ extension AppModel {
         Task { await stage.start() }
     }
 
-    /// Legt die Stufe „Ausgaben“ an, wenn der Schalter an ist. Einmal, aus
-    /// `AppBootstrap.start`, nach Host und Senke. Ab dann entstehen die
-    /// Cover über die eine Stelle für Apple Intelligence.
+    /// Legt die Stufe „Ausgaben“ an. Einmal, aus `AppBootstrap.start`, nach
+    /// Host und Senke. Ab dann entstehen die Cover über die eine Stelle für
+    /// Apple Intelligence.
     func startEditionsStage() {
-        guard usesEditionsStage, editionsStage == nil, let pipeline else { return }
+        guard editionsStage == nil, let pipeline else { return }
         coverArt.scheduler = AIScheduler.shared
         let environment = EditionsStage.Environment(
             dueFeeds: { [weak self] in
@@ -302,10 +286,10 @@ extension AppModel {
         Task { await stage.start() }
     }
 
-    /// Legt die Stufe „Vorbereiten“ an, wenn der Schalter an ist. Einmal, aus
-    /// `AppBootstrap.start`, nach Host und Senke.
+    /// Legt die Stufe „Vorbereiten“ an. Einmal, aus `AppBootstrap.start`,
+    /// nach Host und Senke.
     func startPrepareStage() {
-        guard usesPrepareStage, prepareStage == nil, let pipeline else { return }
+        guard prepareStage == nil, let pipeline else { return }
         let environment = PrepareStage.Environment(
             candidates: { [weak self] sources in
                 await MainActor.run { self?.preparationCandidates(in: sources) ?? [] }
@@ -334,10 +318,10 @@ extension AppModel {
         Task { await stage.start() }
     }
 
-    /// Legt die Stufe „Download“ an, wenn der Schalter an ist. Einmal, aus
-    /// `AppBootstrap.start`, nach Host und Senke.
+    /// Legt die Stufe „Download“ an. Einmal, aus `AppBootstrap.start`, nach
+    /// Host und Senke.
     func startDownloadStage() {
-        guard usesDownloadStage, downloadStage == nil, let pipeline else { return }
+        guard downloadStage == nil, let pipeline else { return }
         let environment = DownloadStage.Environment(
             nextPrefetch: { [weak self] in
                 await MainActor.run { self?.nextEpisodeToPrefetch() }
@@ -364,24 +348,17 @@ extension AppModel {
         Task { await stage.start() }
     }
 
-    /// Hält die neueste Folge je Podcast vor: über die Stufe „Download“,
-    /// sonst wie bis 0.13.
+    /// Hält die neueste Folge je Podcast vor, über die Stufe „Download“.
     func requestPrefetch() {
-        if let downloadStage {
-            Task { await downloadStage.prefetch() }
-        } else {
-            prefetchNewestEpisodes()
-        }
+        guard let downloadStage else { return }
+        Task { await downloadStage.prefetch() }
     }
 
-    /// Lädt den Ton der nächsten Folgen der Warteschlange im Voraus: über die
-    /// Stufe „Download“, sonst wie bis 0.13.
+    /// Lädt den Ton der nächsten Folgen der Warteschlange im Voraus, über die
+    /// Stufe „Download“.
     func requestLookahead() {
-        if let downloadStage {
-            Task { await downloadStage.lookahead() }
-        } else {
-            startDownloadLookahead()
-        }
+        guard let downloadStage else { return }
+        Task { await downloadStage.lookahead() }
     }
 
     /// Ein von selbst eingereihtes Transkript ist an etwas gescheitert, das
@@ -400,86 +377,15 @@ extension AppModel {
         return try? await store.episodes(ids: [id]).first
     }
 
-// MARK: - Senden aus dem alten Code
+// MARK: - Senden
 
     /// Sendet ein Ereignis an die Pipeline. Vor `AppBootstrap.start` fällt es weg.
     func emit(_ event: PipelineEvent) {
         pipeline?.emit(event)
     }
 
-    /// Sendet Ereignisse, die eine Eingangsfassung tragen. Die Fassung liest
-    /// der Store, und nur, wenn eine Stufe zuhört, die eines davon bekäme.
-    /// Die Ereignisse kommen deshalb etwas nach dem Aufruf; der Vertrag
-    /// verlangt nur, dass sie nach dem Schreiben kommen. Untereinander
-    /// bleiben sie in der Reihenfolge der Aufrufe.
-    ///
-    /// Wird die Folge in der Zwischenzeit gelöscht, fällt alles weg. Sonst
-    /// käme etwa `evidenceReady` hinter `episodesRemoved` an, das ohne
-    /// Warten hinausgeht.
-    ///
-    /// `media`: die Fassung, falls bekannt. Sonst gilt die aktuelle der Folge.
-    func emit(_ kinds: [PipelineEvent.Kind], of id: EpisodeID, media: MediaVersionID? = nil,
-              _ make: @escaping @Sendable (InputVersion) -> [PipelineEvent]) {
-        guard let pipeline, kinds.contains(where: pipeline.hasListeners(for:)) else { return }
-        let store = store
-        let removals = removals
-        // Der Stand jetzt, beim Aufruf: Was danach gelöscht wird, sendet nichts mehr.
-        let ticket = removals.ticket
-        let previous = pendingEmission
-        pendingEmission = Task {
-            let version = await Self.inputVersion(of: id, media: media, in: store)
-            await previous?.value
-            guard let version else { return }
-            pipeline.emit(make(version), about: id, unlessRemovedSince: ticket, in: removals)
-        }
-    }
-
-    /// Sendet ein Ereignis, sobald ein Schreiben zurückgekehrt ist, das als
-    /// eigene Aufgabe läuft. So gilt der Vertrag der Pipeline (erst
-    /// speichern, dann melden), ohne dass der Aufrufer auf das Speichern wartet.
-    func emit(_ event: PipelineEvent, after write: Task<Void, Never>) {
-        guard let pipeline, pipeline.hasListeners(for: event.kind) else { return }
-        Task {
-            await write.value
-            pipeline.emit(event)
-        }
-    }
-
-    /// Die Eingangsfassung einer Folge, wie der Store sie jetzt sieht.
-    private nonisolated static func inputVersion(
-        of id: EpisodeID, media: MediaVersionID?, in store: LibraryStore
-    ) async -> InputVersion? {
-        var mediaID = media
-        if mediaID == nil { mediaID = try? await store.episodes(ids: [id]).first?.currentMediaVersionID }
-        guard let mediaID, let fingerprint = try? await store.transcriptFingerprint(forMedia: mediaID) else {
-            return nil
-        }
-        return InputVersion(mediaVersionID: mediaID, fingerprint: fingerprint)
-    }
-
-    /// Transkript und Belege sind gespeichert: `transcriptSaved`, dann
-    /// `evidenceReady`. Der alte Weg meldet das Speichern des Transkripts
-    /// nicht einzeln, und seine Stufe `.transcribed` kommt noch vor dem
-    /// Speichern. Also gehen beide erst nach den Belegen hinaus.
-    func emitTranscriptFinished(_ id: EpisodeID, media: MediaVersionID, origin: Origin) {
-        emit([.transcriptSaved, .evidenceReady], of: id, media: media) { version in
-            [.transcriptSaved(id, version, origin), .evidenceReady(id, version, origin)]
-        }
-    }
-
-    /// Ein Lauf der Fakten ist zu Ende. Die Fakten sind da schon gespeichert.
-    func emitFactsDone(_ id: EpisodeID, _ outcome: FactsOutcome, origin: Origin) {
-        emit([.factsDone], of: id) { [.factsDone(id, $0, outcome, origin)] }
-    }
-
-    /// Eine Einordnung der Kapitel ist zu Ende. Die Kapitel-Tags sind da
-    /// schon gespeichert.
-    func emitTagsDone(_ id: EpisodeID, _ outcome: ChapterTagsOutcome, origin: Origin) {
-        emit([.tagsDone], of: id) { [.tagsDone(id, $0, outcome, origin)] }
-    }
-
     /// Welche Art von Fehlschlag ein Transkript hatte. Dieselben Regeln, nach
-    /// denen `runAnalysis` entscheidet.
+    /// denen `transcribe` entscheidet.
     static func transcriptFailure(_ error: Error, message: String?) -> TranscriptFailure {
         let kind: TranscriptFailure.Kind = switch error {
         case TranscriptionError.localeNotSupported: .localeNotSupported

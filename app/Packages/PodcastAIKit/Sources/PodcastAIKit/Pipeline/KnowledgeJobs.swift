@@ -9,9 +9,8 @@
 //  zeigt (Fakten, Fortschritt, Fehlermeldung, nachgeladene Kapitel), geht
 //  über einen Melder an die Senke.
 //
-//  Beide Stellungen des Schalters rufen denselben Code: die Stufe und der
-//  alte Weg im Modell. Der Schalter entscheidet, wer Warteschlange,
-//  Reihenfolge und Tor führt, nicht, wie eine Folge ausgewertet wird.
+//  Warteschlange, Reihenfolge und Tor führt die Stufe „Wissen“
+//  (`KnowledgeStage`). Hier steht nur, wie eine Folge ausgewertet wird.
 //
 //  Regeln wie bis 0.13:
 //  - Fakten entstehen in Abschnitten je Kapitel. Was gelingt, bleibt.

@@ -133,8 +133,8 @@ extension AppModel {
         }
         // Liest die Sprachen der Quellen und stößt am Ende die Warteschlange
         // der Transkripte an. Nach `load()` geschah das nach jedem Abgleich;
-        // der alte Weg der Transkripte braucht den Anstoß, wenn Folgen,
-        // Fassungen oder Transkripte angekommen sind.
+        // die Stufe „Transkript“ braucht den Anstoß, wenn Folgen, Fassungen
+        // oder Transkripte angekommen sind.
         if changes.touches(.source, .episode, .mediaVersion, .transcript) { await refreshInstalledSpeechModels() }
         if changes.touches(.source, .episode, .evidence, .chapterTag, .interest, .listeningState, .fact) {
             await refreshRelevantToday()
@@ -240,7 +240,6 @@ extension AppModel {
     /// `notifyingStage`: Die Stufe „Wissen“ erfährt davon und lässt
     /// Wartendes weiterlaufen. Ihre eigene Prüfung vor jeder Folge fragt ohne.
     public func refreshModelStatus(notifyingStage: Bool = true) async {
-        let wasReady = factsModelReady
         // Die Frage an FoundationModels stellt der Monitor abseits des
         // Hauptthreads. Nur ein neuer Stand wird geschrieben: jede Zuweisung
         // zeichnete sonst alles neu, was den Zustand liest.
@@ -248,31 +247,8 @@ extension AppModel {
         if status != modelStatus { modelStatus = status }
         // Was die App tut, wenn ein Modell bereit wird: Die Stufe „Wissen“
         // liest Änderungen selbst beim Monitor und erfährt hier, dass gefragt
-        // wurde. Der alte Weg bleibt hier.
-        if let knowledgeStage {
-            if notifyingStage { Task { await knowledgeStage.modelChecked(status) } }
-            return
-        }
-        guard isLoaded else { return }
-        // Nur ein Modell für Tags, etwa Private Cloud Compute ohne Gerätemodell:
-        // die Einordnung darf laufen, die Fakten warten.
-        guard factsModelReady else {
-            if case .success = modelStatus.resolve(.tag) { startFactsWorker() }
-            return
-        }
-        // Das Modell ist bereit: was auf Fakten wartet, läuft weiter. Läuft
-        // die Arbeit schon oder hat die App gerade keine Zeit dafür, tut der
-        // Aufruf nichts.
-        if factsTask == nil { factsWait = nil }
-        startFactsWorker()
-        // Eben erst bereit geworden: auch Zurückgestelltes und alles, was
-        // bisher gar nicht eingereiht war, bekommt eine Gelegenheit.
-        if !wasReady {
-            factsDeferred.removeAll()
-            tagsFailed.removeAll()
-            factsBackfilled = false
-            await queueMissingFacts()
-        }
+        // wurde.
+        if notifyingStage, let knowledgeStage { Task { await knowledgeStage.modelChecked(status) } }
     }
 
     /// Wie viele Token das Gerätemodell fasst, einmal gefragt und gemerkt,
@@ -1121,25 +1097,6 @@ extension AppModel {
 
     // MARK: - Fakten
 
-    /// Ermittelt die Fakten einer Folge und speichert sie. Der Code steht seit
-    /// der Stufe „Wissen“ in `KnowledgeJobs` (Paket) und läuft abseits des
-    /// Hauptakteurs. Hier ruft ihn der alte Weg hinter dem Schalter auf,
-    /// mit der frisch gelesenen Folge.
-    ///
-    /// `removalTicket` gibt den Stand der Löschungen mit, ab dem eine
-    /// Löschung zählt. Ohne Angabe gilt der Stand beim Aufruf.
-    ///
-    /// Das Ergebnis sagt der Warteschlange, ob sich ein späterer Versuch lohnt.
-    @discardableResult
-    func prepareFacts(
-        for episode: Episode, force: Bool = false, removalTicket: RemovalLedger.Ticket? = nil
-    ) async -> FactsOutcome {
-        let ticket = removalTicket ?? removals.ticket
-        let fresh = (try? await store.episodes(ids: [episode.id]))?.first ?? episode
-        return await knowledgeJobs.gatherFacts(
-            for: fresh, force: force, origin: force ? .user : .automatic, since: ticket)
-    }
-
     /// Vergisst die Ablehnungen gelöschter Folgen (`KnowledgeMarks`).
     static func forgetRejectedFactSlices(of ids: Set<EpisodeID>) {
         KnowledgeMarks.forgetRejectedFactSlices(of: ids)
@@ -1149,46 +1106,14 @@ extension AppModel {
 
     /// Abschnitte, die beim letzten Lauf einer Folge aus einem Grund
     /// gescheitert sind, der vorbeigeht: Last, Zeitüberschreitung. Je Folge
-    /// die Kennungen der Abschnitte. Nur auf diesem Gerät, ohne Eintrag in
-    /// der Datenbank. Die Datei steht seit der Stufe „Wissen“ in
-    /// `KnowledgeMarks` (Paket), unter demselben Namen.
-    static func factGaps(of id: EpisodeID) -> Set<String> {
-        KnowledgeMarks.factGaps(of: id)
-    }
-
-    /// Folgen, denen nach dem letzten Lauf Abschnitte fehlen.
-    static var episodesWithFactGaps: Set<EpisodeID> {
-        KnowledgeMarks.episodesWithFactGaps()
-    }
-
-    /// Merkt sich die Lücken einer Folge. Ohne Lücken fällt der Eintrag weg.
+    /// die Kennungen der Abschnitte, nur auf diesem Gerät, ohne Eintrag in
+    /// der Datenbank (`KnowledgeMarks` im Paket). Merkt sich die Lücken
+    /// einer Folge; ohne Lücken fällt der Eintrag weg.
     static func setFactGaps(_ gaps: Set<String>, for id: EpisodeID) {
         KnowledgeMarks.setFactGaps(gaps, for: id)
     }
 
     // MARK: Fakten im Hintergrund
-
-    /// Wie lange eine Folge, deren Transkript per iCloud kam, auf ihre
-    /// Fakten vom anderen Gerät wartet, bevor dieses Gerät sie selbst sammelt.
-    static let factsSyncGrace: TimeInterval = 20 * 60
-
-    /// Kann das Gerätemodell jetzt Fakten ziehen? Fakten laufen über das
-    /// Profil `.extract`, und dafür wählt der Router nur das Gerät. Ein Netz
-    /// braucht es deshalb nicht, und „Nur im WLAN“ gilt hier nicht.
-    var factsModelReady: Bool {
-        if case .success = modelStatus.resolve(.extract) { return true }
-        return false
-    }
-
-    /// Lohnt es, Folgen einzureihen? Wird das Modell nur noch vorbereitet,
-    /// warten sie darauf. Fehlt es ganz, etwa weil Apple Intelligence aus
-    /// ist, reiht die App nichts ein und sagt im Reiter „Fakten“, warum.
-    var factsModelExpected: Bool {
-        switch modelStatus.resolve(.extract) {
-        case .success: true
-        case .failure(let reason): reason == .modelNotReady
-        }
-    }
 
     /// Wie viele Folgen gerade Fakten bekommen oder gleich drankommen. Steht
     /// die Warteschlange, weil das Modell fehlt, zählt nur, was läuft.
@@ -1204,147 +1129,27 @@ extension AppModel {
     /// „Jetzt ermitteln“ und „Neu ermitteln“: die Folge kommt als Nächste
     /// dran, rechnet neu und meldet, was fehlt.
     public func requestFacts(for episode: Episode) {
-        if let knowledgeStage {
-            // Der Stand der Löschungen beim Antippen: Wird die Folge gelöscht,
-            // bevor die Stufe den Befehl bekommt, reiht sie sie nicht mehr ein.
-            let ticket = removals.ticket
-            Task { await knowledgeStage.request(episode, since: ticket) }
-            return
-        }
-        var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
-        settled.remove(episode.id)
-        var tagsSettled = StoredEpisodeIDs(key: Self.tagsSettledKey)
-        tagsSettled.remove(episode.id)
-        factsIssues[episode.id] = nil
-        enqueueFacts(episode, requested: true)
-    }
-
-    /// Stellt eine Folge in die Warteschlange der Fakten. Angefordert kommt
-    /// sie ganz nach vorn, sonst vor die älteren Folgen, hinter das
-    /// Angeforderte.
-    func enqueueFacts(_ episode: Episode, requested: Bool = false) {
-        guard gatheringFacts?.id != episode.id, requested || factsModelExpected else { return }
-        if let index = factsQueuePosition(of: episode.id) {
-            guard requested else { return }
-            factsQueue.remove(at: index)
-        }
-        if requested {
-            factsRequested.insert(episode.id)
-            factsDeferred.remove(episode.id)
-            factsQueue.insert(episode, at: 0)
-        } else {
-            let date = episode.publishedAt ?? .distantPast
-            let index = factsQueue.firstIndex {
-                !factsRequested.contains($0.id) && ($0.publishedAt ?? .distantPast) < date
-            } ?? factsQueue.count
-            factsQueue.insert(episode, at: index)
-        }
-        startFactsWorker()
+        guard let knowledgeStage else { return }
+        // Der Stand der Löschungen beim Antippen: Wird die Folge gelöscht,
+        // bevor die Stufe den Befehl bekommt, reiht sie sie nicht mehr ein.
+        let ticket = removals.ticket
+        Task { await knowledgeStage.request(episode, since: ticket) }
     }
 
     /// Reiht Folgen ein, die ein Transkript haben, aber keine Fakten, und
-    /// Folgen, deren Fakten Lücken haben. Beim Start, nach einem Abgleich,
-    /// nach dem Aktualisieren, wenn das Modell bereit wird und wenn die App
-    /// wieder in den Vordergrund kommt. Neueste zuerst.
-    ///
-    /// Was ein anderes Gerät transkribiert hat, bekommt dort gleich seine
-    /// Fakten, und die kommen per iCloud nach. Solche Folgen nimmt dieses
-    /// Gerät erst, wenn nach `factsSyncGrace` noch immer keine da sind.
-    /// Beim Start gilt das nicht: was dann fehlt, fehlt schon länger.
+    /// Folgen, deren Fakten Lücken haben, dazu fehlende Kapitel-Tags. Beim
+    /// Start, nach dem Aktualisieren und wenn die App wieder in den
+    /// Vordergrund kommt. Die Regeln (neueste zuerst, Portionen, Karenz für
+    /// Transkripte von anderen Geräten) stehen in der Stufe „Wissen“.
     func queueMissingFacts() async {
-        if let knowledgeStage {
-            await knowledgeStage.reconcile()
-            return
-        }
-        guard automaticFacts, isLoaded, let withFacts = try? await store.episodeIDsWithFacts() else { return }
-        // Tags brauchen nur ein Modell für Tags. Auf einem Gerät ohne
-        // Gerätemodell, aber mit Private Cloud Compute, gibt es sie trotzdem.
-        guard factsModelExpected else {
-            await queueMissingChapterTags(withFacts: withFacts)
-            return
-        }
-        let immediately = !factsBackfilled
-        factsBackfilled = true
-        let settled = StoredEpisodeIDs(key: Self.factsSettledKey)
-        let gapped = Self.episodesWithFactGaps
-        var busy = Set(factsQueue.map(\.id))
-        if let gatheringFacts { busy.insert(gatheringFacts.id) }
-        let now = Date()
-        var missing: [EpisodeID] = []
-        for id in analyzedEpisodes where !busy.contains(id) {
-            guard !settled.contains(id), !factsDeferred.contains(id) else { continue }
-            if withFacts.contains(id) {
-                // Lücken aus einem Lauf auf diesem Gerät: ohne Wartezeit, kein
-                // anderes Gerät holt sie nach.
-                if gapped.contains(id) { missing.append(id) }
-                continue
-            }
-            let since = factsMissingSince[id] ?? now
-            factsMissingSince[id] = since
-            if immediately || now.timeIntervalSince(since) >= Self.factsSyncGrace { missing.append(id) }
-        }
-        // Was inzwischen Fakten hat oder gelöscht ist, braucht keine Zeit mehr.
-        factsMissingSince = factsMissingSince.filter {
-            analyzedEpisodes.contains($0.key) && !withFacts.contains($0.key)
-        }
-        if !missing.isEmpty, let found = try? await store.episodes(ids: missing) {
-            // In Portionen, neueste zuerst: bis 0.11 kam jede Folge der
-            // Bibliothek ohne Fakten auf einmal dazu, und Apple Intelligence
-            // rechnete stundenlang ohne Pause. Ist die Portion durch, holt
-            // `runFactsQueue` die nächste.
-            let newest = found
-                .filter { automaticFacts && analyzedEpisodes.contains($0.id) }
-                .sorted(by: { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) })
-            let waiting = factsQueue.count { !factsRequested.contains($0.id) }
-            let portion = AutomaticWorkBudget.refill(
-                newest, alreadyWaiting: waiting, batch: AutomaticWorkBudget.factsBackfillBatch)
-            factsBackfillPending = portion.count < newest.count
-            for episode in portion { enqueueFacts(episode) }
-        }
-        // Folgen mit Fakten, deren Kapitel noch keine Tags haben.
-        await queueMissingChapterTags(withFacts: withFacts)
-        // Auch was schon wartete, etwa nach abgelaufener Hintergrundzeit.
-        startFactsWorker()
+        await knowledgeStage?.reconcile()
     }
 
     /// „Fakten automatisch sammeln“ ist aus: was von selbst wartet, fällt
     /// heraus. Angefordertes und was gerade läuft, bleibt.
     func dropAutomaticFacts() {
-        if let knowledgeStage {
-            Task { await knowledgeStage.dropAutomatic() }
-            return
-        }
-        factsQueue.removeAll { !factsRequested.contains($0.id) }
-        tagsQueue.removeAll()
-    }
-
-    /// Nimmt eine gelöschte Folge aus der Warteschlange der Fakten.
-    func dropFromFactsQueue(_ id: EpisodeID) {
-        factsQueue.removeAll { $0.id == id }
-        factsRequested.remove(id)
-        factsDeferred.remove(id)
-        factsIssues[id] = nil
-        factsMissingSince[id] = nil
-        // Auch die gemerkten Lücken sind aus der Folge entstanden.
-        Self.setFactGaps([], for: id)
-        dropFromTagsQueue(id)
-    }
-
-    /// Startet die Arbeit an den Fakten, wenn sie nicht schon läuft. Sie
-    /// läuft neben den Transkripten, mit niedrigerer Priorität, und hält
-    /// keines auf. Ohne Zeit dafür, also im Hintergrund ohne Zusage des
-    /// Systems, wartet die Warteschlange, bis die App wieder vorn ist.
-    func startFactsWorker() {
-        guard knowledgeStage == nil, factsTask == nil,
-              (factsMayRun && !factsQueue.isEmpty) || (tagsMayRun && !tagsQueue.isEmpty) else { return }
-        factsTask = Task(priority: .utility) { [weak self] in
-            await self?.runFactsQueue()
-            // Angehalten, weil die App in den Hintergrund ging. Kam sie
-            // zurück, bevor die Folge aufgeräumt war, fand der Neustart noch
-            // die alte Arbeit vor. Jetzt geht es weiter.
-            guard Task.isCancelled, let self, self.appInForeground else { return }
-            self.startFactsWorker()
-        }
+        guard let knowledgeStage else { return }
+        Task { await knowledgeStage.dropAutomatic() }
     }
 
     /// Für die Hintergrundaufgabe: fehlende Fakten suchen und die
@@ -1357,22 +1162,7 @@ extension AppModel {
     public func processPendingFacts() async {
         await refreshModelStatus()
         await queueMissingFacts()
-        if let knowledgeStage {
-            await knowledgeStage.untilIdle()
-            return
-        }
-        // Eine eben angehaltene Arbeit räumt vielleicht noch auf. Danach neu.
-        if let stopping = factsTask, stopping.isCancelled {
-            await stopping.value
-            guard !Task.isCancelled else { return }
-            startFactsWorker()
-        }
-        guard let task = factsTask else { return }
-        await withTaskCancellationHandler {
-            await task.value
-        } onCancel: {
-            task.cancel()
-        }
+        await knowledgeStage?.untilIdle()
     }
 
     // MARK: Vorder- und Hintergrund
@@ -1388,32 +1178,17 @@ extension AppModel {
         #endif
     }
 
-    /// Darf die Warteschlange der Fakten jetzt arbeiten? Vorn immer. Im
-    /// Hintergrund nur mit Zeit vom System: in der Aufgabe
-    /// `com.podcastai.analysis` oder solange Transkripte unter der
-    /// fortgesetzten Verarbeitung entstehen. Der Ton im Hintergrund zählt
-    /// nicht, er hält die App nur für die Wiedergabe wach. Pausiert oder
-    /// beim Leeren der Warteschlange nie.
-    ///
-    /// Die Regel steht im Tor (`WorkGate`), das Pause, Vordergrund und die
-    /// Leihen der Träger kennt. Ohne Pipeline, etwa in einer Vorschau, gilt
-    /// nur der Vordergrund.
-    var factsMayRun: Bool {
-        pipeline?.gate.mayRun(.facts, origin: .automatic) ?? (!queueHeld && appInForeground)
-    }
-
     /// Meldet Zeit vom System am Tor an: die fortgesetzte Verarbeitung der
     /// Transkripte, `com.podcastai.analysis` oder `com.podcastai.tagging`.
-    /// Bis 0.13 zählten das `factsGrants` und `tagGrants`.
+    /// Ob Fakten und Tags damit laufen dürfen, rechnet das Tor (`WorkGate`).
     func holdCarrier(_ carrier: WorkCarrier) -> WorkLease? {
         pipeline?.gate.hold(carrier)
     }
 
-    /// Gibt einen Träger zurück. Die Stufe „Wissen“ sieht das Tor selbst,
-    /// der alte Weg hält die Fakten hier an, wenn keine Zeit mehr bleibt.
+    /// Gibt einen Träger zurück. Die Stufe „Wissen“ sieht das Tor selbst
+    /// und hält an, wenn keine Zeit mehr bleibt.
     func releaseCarrier(_ lease: WorkLease?) {
         lease?.release()
-        pauseFactsWithoutTime()
     }
 
     /// Beobachtet, wann die App in den Hintergrund geht und wann sie wieder
@@ -1436,7 +1211,6 @@ extension AppModel {
                     // Was dieses Gerät sich gemerkt hat, liegt jetzt auf der
                     // Platte, falls das System die App gleich beendet.
                     DeviceState.shared.flush()
-                    self.pauseFactsWithoutTime()
                     self.transcriptsEnteredBackground()
                 }
             },
@@ -1463,141 +1237,13 @@ extension AppModel {
         #endif
     }
 
-    /// Hat die App keine Zeit mehr für das Modell, hält die Fakten an. Die
-    /// Folge, an der gerade gearbeitet wird, bleibt vorn in der
-    /// Warteschlange und läuft weiter, sobald die App wieder vorn ist oder
-    /// das System Hintergrundzeit gibt.
-    func pauseFactsWithoutTime() {
-        guard knowledgeStage == nil, !factsMayRun else { return }
-        // Hat nur die Aufgabe für Tags Zeit, halten die Fakten an, die Tags nicht.
-        guard gatheringFacts != nil || !tagsMayRun else { return }
-        factsTask?.cancel()
-    }
-
-    /// Wieder vorn: die Warteschlange läuft weiter. Kommt die App aus dem
-    /// Hintergrund, kommt auch dazu, was dort gescheitert ist oder Lücken hat.
+    /// Wieder vorn: Die Stufe „Wissen“ läuft über das offene Tor von selbst
+    /// weiter. Kommt die App aus dem Hintergrund, gleicht sie ab und nimmt
+    /// dazu, was dort gescheitert ist oder Lücken hat.
     func resumeFactsInForeground() async {
-        // Die Stufe „Wissen“ läuft über das offene Tor von selbst weiter.
-        startFactsWorker()
         guard returningFromBackground else { return }
         returningFromBackground = false
         await queueMissingFacts()
-    }
-
-    private func runFactsQueue() async {
-        defer {
-            factsTask = nil
-            gatheringFacts = nil
-        }
-        // Ein zweiter Versuch je Folge und Lauf, danach erst beim nächsten Start.
-        var retried: Set<EpisodeID> = []
-        // Hat die letzte Portion etwas fertig gemacht? Nur dann kommt die
-        // nächste. Sonst holte jede Portion dieselben scheiternden Folgen.
-        var progressed = false
-        repeat {
-            while !Task.isCancelled, factsMayRun, !factsQueue.isEmpty {
-                // Vor jeder Folge: das Modell kann bereit geworden oder weggefallen sein.
-                await refreshModelStatus()
-                if case .failure(let reason) = modelStatus.resolve(.extract) {
-                    factsWait = String(localized: "wartet: \(reason.message)")
-                    // Tags können mit Private Cloud Compute trotzdem weitergehen.
-                    await runTagsBacklog(ignoringFacts: true)
-                    return
-                }
-                factsWait = nil
-                // Während der Prüfung kann die Folge gelöscht worden sein.
-                guard !Task.isCancelled, !factsQueue.isEmpty else { break }
-                let next = factsQueue.removeFirst()
-                let requested = factsRequested.remove(next.id) != nil
-                gatheringFacts = next
-                // Stand der Löschungen beim Entnehmen. Was danach auf diesem
-                // Gerät vermerkt wird, gilt nur für eine Folge, die es noch gibt.
-                let ticket = removals.ticket
-                let outcome = await ProcessingTrace.interval("Fakten einer Folge") {
-                    await prepareFacts(for: next, force: requested, removalTicket: ticket)
-                }
-                gatheringFacts = nil
-                // Die Tags erben, wer die Fakten wollte.
-                let origin: Origin = requested ? .user : .automatic
-                emitFactsDone(next.id, outcome, origin: origin)
-                // Gleich danach die Tags der Kapitel, dieselbe Folge, dieselbe Arbeit.
-                switch outcome {
-                case .stored, .partial, .noFacts:
-                    let tags = await ProcessingTrace.interval("Kapitel-Tags einer Folge") {
-                        await prepareChapterTags(for: next, origin: origin, removalTicket: ticket)
-                    }
-                    if tags.current { tagsCurrent.insert(next.id) }
-                    if tags.outcome == .failed { tagsFailed.insert(next.id) }
-                    emitTagsDone(next.id, tags.outcome, origin: origin)
-                default: break
-                }
-                // Während des Laufs gelöscht: Das Löschen hat die Folge schon
-                // aus den Warteschlangen genommen und ihre Vermerke entfernt.
-                // Sie kommt weder zurück in die Warteschlange noch in einen
-                // Vermerk auf diesem Gerät. Hält die Zeit oder das Gate an,
-                // endet die Schleife von selbst.
-                guard !wasRemoved(next.id, since: ticket) else {
-                    progressed = true
-                    continue
-                }
-                switch outcome {
-                case .stored, .nothingToDo:
-                    progressed = true
-                    factsIssues[next.id] = nil
-                    factsMissingSince[next.id] = nil
-                case .noFacts(let note):
-                    progressed = true
-                    factsIssues[next.id] = note
-                    var settled = StoredEpisodeIDs(key: Self.factsSettledKey)
-                    settled.insert(next.id)
-                case .failed(let note), .partial(let note):
-                    factsIssues[next.id] = note ?? String(localized: "Die Fakten konnten nicht ermittelt werden.")
-                    // Wer selbst gefragt hat, hat den Grund gesehen und entscheidet
-                    // selbst. Gemerkte Lücken holt ein späterer Lauf trotzdem nach.
-                    guard !requested else { continue }
-                    // Im Hintergrund nicht zurückstellen: dort ist das Modell eher
-                    // ausgelastet. Ist die App wieder vorn, kommt die Folge wieder dran.
-                    if retried.insert(next.id).inserted {
-                        factsQueue.append(next)
-                    } else if appInForeground {
-                        factsDeferred.insert(next.id)
-                    } else {
-                        // Ohne die Wartezeit für Fakten von anderen Geräten.
-                        factsMissingSince[next.id] = .distantPast
-                    }
-                    // Meist ist das Modell ausgelastet. Etwas Luft lassen.
-                    await pauseBetweenFactRuns()
-                case .modelUnavailable(let reason):
-                    factsQueue.insert(next, at: 0)
-                    if requested { factsRequested.insert(next.id) }
-                    factsWait = String(localized: "wartet: \(reason.message)")
-                    return
-                case .cancelled:
-                    factsQueue.insert(next, at: 0)
-                    if requested { factsRequested.insert(next.id) }
-                    return
-                }
-            }
-            // Die Portion ist durch: die nächste, falls noch Folgen fehlen.
-            if factsQueue.isEmpty, factsBackfillPending, progressed, !Task.isCancelled, factsMayRun {
-                factsBackfillPending = false
-                progressed = false
-                await queueMissingFacts()
-                if !factsQueue.isEmpty { continue }
-            }
-            // Keine Folge wartet auf Fakten: die Tags, die noch fehlen.
-            await runTagsBacklog()
-        } while !Task.isCancelled && factsMayRun && !factsQueue.isEmpty
-    }
-
-    /// Eine Minute Pause nach einem Fehlschlag. Wer inzwischen selbst eine
-    /// Folge anfordert, wartet nicht darauf.
-    func pauseBetweenFactRuns() async {
-        for _ in 0..<12 {
-            if Task.isCancelled { return }
-            if let first = factsQueue.first, factsRequested.contains(first.id) { return }
-            try? await Task.sleep(for: .seconds(5))
-        }
     }
 
     /// Folgen, bei denen ein Lauf ohne Fakten endete: alles abgelehnt oder
@@ -1619,13 +1265,8 @@ extension AppModel {
             // unter „Fakten“ der Knopf „Jetzt ermitteln“.
             if !stored.isEmpty, shown.isEmpty, automaticFacts, analyzedEpisodes.contains(episodeID),
                !StoredEpisodeIDs(key: Self.factsSettledKey).contains(episodeID),
-               !factsDeferred.contains(episodeID),
-               let episode = try? await store.episodes(ids: [episodeID]).first {
-                if let knowledgeStage {
-                    await knowledgeStage.enqueue(episode, since: ticket)
-                } else {
-                    enqueueFacts(episode)
-                }
+               let knowledgeStage, let episode = try? await store.episodes(ids: [episodeID]).first {
+                await knowledgeStage.enqueue(episode, since: ticket)
             }
         }
     }
@@ -1909,27 +1550,6 @@ extension AppModel {
     }
 
     // MARK: - Neueste Folge vorhalten
-
-    /// Lädt die neueste Folge jedes Podcasts aufs Gerät, damit sie ohne Netz
-    /// spielt. Eine nach der anderen und ohne Transkript; das entsteht wie
-    /// bisher über die Warteschlange. Nur mit „Neueste Folge je Podcast
-    /// behalten“ und nur, wenn das Netz das Vorbereiten erlaubt. Abgespielt
-    /// wird dabei nichts.
-    func prefetchNewestEpisodes() {
-        // Ohne „Neueste Folge je Podcast behalten“ lädt hier nichts.
-        guard keepNewestAudio, prefetchTask == nil else { return }
-        adoptMovedPrefetches()
-        guard nextEpisodeToPrefetch() != nil else { return }
-        prefetchTask = Task { [weak self] in
-            while let self, let episode = self.nextEpisodeToPrefetch() {
-                await self.prefetch(episode)
-            }
-            // Die bisherige neueste Folge bleibt, bis der Ton der neuen da
-            // ist. Jetzt ist er da.
-            await self?.tidyLocalAudio()
-            self?.prefetchTask = nil
-        }
-    }
 
     /// Nur abonnierte Podcasts haben eine neueste Folge, die für unterwegs
     /// bleibt. Einzelne Folgen, Dateien und YouTube-Kanäle nicht.
@@ -2295,7 +1915,6 @@ extension AppModel {
             // des Nutzers, und ein neues Abo bereitete nie wieder etwas vor.
             dropFromAnalysisQueue(id)
             // Die Stufe „Wissen“ bekommt `episodesRemoved` und bricht selbst ab.
-            if knowledgeStage == nil { dropFromFactsQueue(id) }
             // Die Datei geht mit der Folge. Bliebe der Vermerk, hielte das
             // Aufräumen sie nach einem neuen Abo für ausdrücklich geladen.
             keptOffline.remove(id)
@@ -2313,8 +1932,7 @@ extension AppModel {
     /// Der Vermerk hält fest, was nach einem Neustart sonst niemand mehr
     /// wüsste: die Fassungen der Dateien, die Schlüssel der Metadaten und
     /// die erkannten Tags einer angefangenen Einordnung. Deren Stand
-    /// entfernt die Pflege (`forgetDeviceMarks`), im alten Weg hinter dem
-    /// Schalter schon `dropFromFactsQueue` gleich danach.
+    /// entfernt die Pflege (`forgetDeviceMarks`).
     private func markRemoved(_ removed: [Episode], scope: RemovalScope) -> PendingPurge {
         let ids = removed.map(\.id)
         let source: SourceID? = if case .source(let id) = scope { id } else { nil }

@@ -4,10 +4,9 @@
 //
 //  Die Arbeit an einer Folge der Warteschlange: laden, transkribieren oder
 //  Untertitel über Supadata holen, Belege bilden (docs/plan-pipeline.md,
-//  Schritt 5b). Beide Stellungen des Schalters nutzen sie: der Worker bis
-//  0.13 in AppModel.swift und die Stufe „Transkript“ im Paket
-//  (`TranscriptStage`). Die Arbeit berührt die Warteschlange nicht. Was
-//  danach mit ihr geschieht, entscheidet, wem sie gehört.
+//  Schritt 5b). Die Warteschlange führt die Stufe „Transkript“ im Paket
+//  (`TranscriptStage`); die Arbeit hier berührt sie nicht. Was danach mit
+//  der Warteschlange geschieht, entscheidet die Stufe.
 //
 //  Wer die Folge wollte, fragt die Arbeit am Ende über
 //  `TranscriptJob.currentOrigin`: „Transkript jetzt erstellen“ während des
@@ -121,19 +120,13 @@ extension AppModel {
                 return .dropped
             }
             analyzedEpisodes.insert(episode.id)
-            // Transkript und Belege sind gespeichert. Ohne `await` bis zum
-            // Einreihen der Fakten: Eine Löschung danach nimmt sie dort
-            // wieder heraus. Die Stufe „Wissen“ reiht auf `evidenceReady`
-            // selbst ein, und das nächste Transkript wartet nicht auf sie.
-            if knowledgeStage == nil {
-                transcriptChangedForTags(episode.id)
-                if automaticFacts { enqueueFacts(episode) }
-            }
+            // Transkript und Belege sind gespeichert. Die Stufe „Wissen“ reiht
+            // auf `evidenceReady` selbst ein, und das nächste Transkript
+            // wartet nicht auf sie.
             // Die Datei gehört jetzt zum Transkript. Ab hier gelten für sie die
-            // Regeln nach dem Transkript, nicht mehr die fürs Vorhalten.
+            // Regeln nach dem Transkript, nicht mehr die fürs Vorhalten. Die
+            // Stufe „Download“ räumt auf `evidenceReady` selbst auf.
             prefetchedNewest.remove(episode.id)
-            // Die Stufe „Download“ räumt auf `evidenceReady` selbst auf.
-            if downloadStage == nil { await removeAudioAfterAnalysisIfWanted(episode) }
             // Das Sprachmodell liegt jetzt auf dem Gerät, aber nur, wenn die
             // App selbst transkribiert hat. Für das Transkript vom Podcast
             // wurde keins geladen.
@@ -175,16 +168,10 @@ extension AppModel {
             stageDetails[episode.id] = message
             let failure = Self.transcriptFailure(error, message: message)
             let wasAutomatic = await job.currentOrigin() != .user
-            if wasAutomatic {
-                // Käme der Fehler beim nächsten Start wieder, versucht die
-                // App es nicht von selbst noch einmal. Die Stufe
-                // „Vorbereiten“ merkt es sich auf `transcriptFailed` selbst.
-                if prepareStage == nil, UserFacingError.isPermanent(error) { failedInPreparation.insert(episode.id) }
-                // Der Ton war nur fürs Transkript da. Ohne Transkript bliebe
-                // er sonst für immer liegen. Die Stufe „Download“ räumt auf
-                // `transcriptFailed` selbst auf.
-                if downloadStage == nil { await removeAudioAfterFailedPreparation(episode) }
-            }
+            // Käme der Fehler bei einer von selbst eingereihten Folge beim
+            // nächsten Start wieder, merkt sich das die Stufe „Vorbereiten“
+            // auf `transcriptFailed`. Der Ton war nur fürs Transkript da;
+            // die Stufe „Download“ räumt ihn auf demselben Ereignis auf.
             // Kann das Gerät überhaupt nicht transkribieren, hat es keinen
             // Sinn, die nächsten Folgen trotzdem zu laden.
             if case TranscriptionError.speechUnavailableOnDevice = error {
@@ -302,10 +289,8 @@ extension AppModel {
             captionFailures[episode.id.rawValue] = nil
             supadataRestingUntil = nil
             analyzedEpisodes.insert(episode.id)
-            if knowledgeStage == nil { transcriptChangedForTags(episode.id) }
             stages[episode.id] = .evidenceExtracted
             stageDetails[episode.id] = origin.sourceLabel
-            if knowledgeStage == nil, automaticFacts { enqueueFacts(episode) }
             // Die Fassung des Videos kennt jetzt ihre Kennung; Stellen daraus
             // öffnen YouTube statt den Player.
             if let reloaded = try? await store.episodes(ids: [episode.id]) {
@@ -365,10 +350,10 @@ extension AppModel {
 
     // MARK: - Stufe „Transkript“ (TranscriptStage im Paket)
 
-    /// Legt die Stufe „Transkript“ an, wenn der Schalter an ist. Einmal, aus
-    /// `AppBootstrap.start`, nach Host und Senke.
+    /// Legt die Stufe „Transkript“ an. Einmal, aus `AppBootstrap.start`,
+    /// nach Host und Senke.
     func startTranscriptStage() {
-        guard usesTranscriptStage, transcriptStage == nil, let pipeline, let pipelineSink else { return }
+        guard transcriptStage == nil, let pipeline, let pipelineSink else { return }
         let environment = TranscriptStage.Environment(
             runnable: { [weak self] items in
                 await MainActor.run { self?.runnableTranscripts(items) ?? [] }
@@ -413,17 +398,14 @@ extension AppModel {
     }
 
     /// Der Lauf ist zu Ende. Leer gelaufen: nach den Transkripten fragen,
-    /// die im Mobilfunk warten, und ohne die Stufe „Ausgaben“ die Automatik
-    /// der Themen-Updates prüfen.
+    /// die im Mobilfunk warten. Die Automatik der Themen-Updates prüft die
+    /// Stufe „Ausgaben“ auf `transcriptsIdle`.
     private func transcriptRunEnded(cancelled: Bool) async {
         transcriptContinuation?.end()
         transcriptContinuation = nil
         activity = nil
-        // Die Fakten halten an, wenn sie keine Zeit mehr haben (alter Weg).
-        pauseFactsWithoutTime()
         guard !cancelled else { return }
         askAboutWaitingTranscripts()
-        if editionsStage == nil { await processPendingEditions() }
     }
 
     /// Die Arbeit an einer Folge für die Stufe: Untertitel der
@@ -445,9 +427,9 @@ extension AppModel {
             // Zweimal kurz gescheitert: in diesem Start nicht wieder als ältere Folge.
             backCatalogSkipped.insert(id)
         case .backlogFinished(let source, let announced):
-            // Mit der Stufe „Vorbereiten“ rückt die nächste auf das Ereignis
-            // nach. Ohne Ereignis, etwa nach einer überholten Folge, hier.
-            if prepareStage == nil || !announced { refillBackCatalog(in: source) }
+            // Die Stufe „Vorbereiten“ lässt die nächste auf das Ereignis
+            // nachrücken. Ohne Ereignis, etwa nach einer überholten Folge, hier.
+            if !announced { refillBackCatalog(in: source) }
         case .preparationFailed(let ids):
             failedInPreparation.insert(contentsOf: ids)
             for id in ids { stageDetails[id] = nil }
@@ -501,63 +483,5 @@ extension AppModel {
             stageDetails[episode.id] = Self.waitingDetail
         }
         return items
-    }
-
-    // MARK: - Alter Weg: was nach einer Folge mit der Warteschlange geschieht
-
-    /// Wendet an, was der Worker bis 0.13 nach einer Folge mit Warteschlange
-    /// und Vermerken tat. Nur im alten Weg hinter dem Schalter.
-    /// `ticket`: der Stand der Löschungen beim Start der Folge. Die Arbeit
-    /// kehrt erst nach einigen `await` zurück; eine Löschung dazwischen
-    /// meldet nichts mehr.
-    func applyLegacyOutcome(_ outcome: TranscriptJobOutcome, of episode: Episode, since ticket: RemovalLedger.Ticket) {
-        let id = episode.id
-        let removed = wasRemoved(id, since: ticket)
-        switch outcome {
-        case .transcribed(let media):
-            // Wer die Folge jetzt will, vor dem Vermerk unten. Die Stufe
-            // „Wissen“ reiht die Fakten auf `evidenceReady` selbst ein.
-            if !removed { emitTranscriptFinished(id, media: media, origin: transcriptOrigin(of: id)) }
-            // Nur was jemand selbst angefordert hat, wird angesagt. Das
-            // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
-            if automaticallyQueued.remove(id) == nil, !removed {
-                AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(episode.title)")).post()
-            }
-            backlogQueued.remove(id)
-        case .failed(let failure, let retry):
-            // Vor den Vermerken unten, die sagen, wer die Folge wollte.
-            if !removed { emit(.transcriptFailed(id, failure, transcriptOrigin(of: id))) }
-            let isCaption = episode.audioURL == nil
-            // Ton, der Fehler geht vorbei: Die Folge behält ihre Vermerke für
-            // den zweiten Versuch.
-            guard !retry || isCaption else { return }
-            let wasAutomatic = automaticallyQueued.remove(id) != nil
-            backlogQueued.remove(id)
-            guard !isCaption else { return }
-            // Für diese Sprache gibt es kein Modell: die anderen Folgen des
-            // Podcasts scheiterten genauso, erst nach dem Laden. Sie gelten
-            // deshalb auch als gescheitert, sonst reihte das nächste
-            // Aktualisieren sie wieder ein.
-            if wasAutomatic, failure.kind == .localeNotSupported {
-                failedInPreparation.insert(contentsOf: analysisQueue
-                    .filter { automaticallyQueued.contains($0.id) && $0.sourceID == episode.sourceID }
-                    .map(\.id))
-                dropAutomaticallyQueued { $0.sourceID == episode.sourceID }
-            }
-            if failure.kind == .speechUnavailable {
-                for waiting in analysisQueue where automaticallyQueued.contains(waiting.id) {
-                    stageDetails[waiting.id] = nil
-                }
-                analysisQueue.removeAll { automaticallyQueued.contains($0.id) }
-                automaticallyQueued.removeAll()
-                backlogQueued.removeAll()
-            }
-        case .interrupted:
-            analysisQueue.insert(episode, at: 0)
-        case .dropped:
-            analyzing = nil
-            automaticallyQueued.remove(id)
-            backlogQueued.remove(id)
-        }
     }
 }

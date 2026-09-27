@@ -21,8 +21,8 @@
 //  Seit Schritt 3a speist das Modell das Tor: Pause, „Alle abbrechen“,
 //  Vorder- und Hintergrund. Die Träger melden sich an den Stellen an, an
 //  denen bis 0.13 `factsGrants` und `tagGrants` zählten: der Worker der
-//  Transkripte und die beiden Hintergrundaufgaben. Die Stufe „Wissen“ und
-//  der alte Weg hinter ihrem Schalter fragen beide hier. Seit Schritt 4
+//  Transkripte und die beiden Hintergrundaufgaben. Die Stufe „Wissen“
+//  fragt hier. Seit Schritt 4
 //  fragt auch die Stufe „Ausgaben“ (`.editions`): Pause und „Alle
 //  abbrechen“ halten ihre Automatik an (Entscheidung 3). Seit Schritt 5a
 //  fragen „Download“ fürs Vorhalten (`.prefetch`) und „Vorbereiten“ für die

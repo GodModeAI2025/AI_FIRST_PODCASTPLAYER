@@ -348,8 +348,8 @@ final class TopicCoverArt {
 
     /// Nach jedem neuen Bild, damit der Sperrbildschirm nachzieht.
     @ObservationIgnored var onChange: (() -> Void)?
-    /// Die eine Stelle für Apple Intelligence. Gesetzt von der Stufe
-    /// „Ausgaben“; ohne sie entstehen Bilder sofort, wie bis 0.13.
+    /// Die eine Stelle für Apple Intelligence. Gesetzt, sobald
+    /// `AppBootstrap.start` die Stufe „Ausgaben“ anlegt.
     @ObservationIgnored var scheduler: (any AIScheduling)?
     /// Wer auf ein wartendes Bild wartet. Wer es geöffnet oder angefordert
     /// hat, kommt vor Arbeit im Hintergrund.
@@ -734,8 +734,8 @@ extension AppModel {
     /// sie jemand öffnet.
     func prepareMissingEditionCovers() async {
         guard coverArt.mayGenerate else { return }
-        // Mit der Stufe „Ausgaben“ wartet das Nachholen die Pause ab
-        // (Entscheidung 3); die Stufe holt es danach nach.
+        // Das Nachholen wartet die Pause ab (Entscheidung 3); die Stufe
+        // „Ausgaben“ holt es danach nach.
         if let editionsStage, !(await editionsStage.mayPrepareAutomaticCovers()) { return }
         for feed in smartFeeds {
             for edition in PersonalEpisode.latestRun(in: editions[feed.id] ?? []) {

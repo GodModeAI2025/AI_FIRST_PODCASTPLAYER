@@ -360,12 +360,11 @@ extension AppModel {
         }
     }
 
-    /// Mit der Stufe „Vorbereiten“ halten Pause und „Alle abbrechen“ auch
-    /// die Metadaten an, die die App von selbst holt (Entscheidung 3). Was
-    /// jemand öffnet oder neu lädt, holt sie weiter gleich.
+    /// Pause und „Alle abbrechen“ halten auch die Metadaten an, die die App
+    /// von selbst holt (Entscheidung 3). Was jemand öffnet oder neu lädt,
+    /// holt sie weiter gleich. Das Tor kennt beides.
     var metadataMayRun: Bool {
-        guard prepareStage != nil, let pipeline else { return true }
-        return pipeline.gate.mayRun(.metadata, origin: .automatic)
+        pipeline?.gate.mayRun(.metadata, origin: .automatic) ?? true
     }
 
     /// Beim Öffnen einer Folge: fehlen ihr Beschreibung, Länge oder Bild,

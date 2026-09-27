@@ -52,20 +52,17 @@ public final class AppModel {
     }
     /// Was als Nächstes erschlossen wird. Die Spracherkennung verträgt nur
     /// eine Analyse zur Zeit, deshalb läuft alles über diese Warteschlange.
-    public internal(set) var analysisQueue: [Episode] = [] {
-        didSet { persistAnalysisQueue() }
-    }
-    public internal(set) var analyzing: Episode? {
-        didSet { persistAnalysisQueue() }
-    }
-    @ObservationIgnored private var analysisTask: Task<Void, Never>?
+    /// Beide Felder spiegeln die Stufe „Transkript“ (`PipelineSink`), die
+    /// sich die Warteschlange selbst merkt (`AnalysisQueueSnapshot`).
+    public internal(set) var analysisQueue: [Episode] = []
+    public internal(set) var analyzing: Episode?
     /// Die Hintergrundphase der laufenden Warteschlange. Sagt, ob die
     /// fortgesetzte Verarbeitung die Transkripte gerade trägt.
     @ObservationIgnored var transcriptContinuation: BackgroundContinuation?
-    /// Steht die gemerkte Warteschlange schon wieder? Erst dann wird sie
-    /// neu gemerkt.
+    /// Hat die Stufe „Transkript“ in diesem Start schon abgeglichen? Danach
+    /// holt `restoreAnalysisQueue` nur noch zurück, was ein anderer Speicher
+    /// geleert hat.
     @ObservationIgnored private var analysisQueueRestored = false
-    @ObservationIgnored private var analysisQueuePersistScheduled = false
 
     // MARK: Pausieren und Abbrechen (QueueView, ActivityStatus.swift)
 
@@ -149,14 +146,12 @@ public final class AppModel {
 
     static let backCatalogKey = "backCatalogSources"
     /// Podcasts, deren ältere Folgen die App auch vorbereitet, neueste zuerst.
-    /// Je Gerät in den Benutzereinstellungen, nicht in der Datenbank.
+    /// Je Gerät in `DeviceState`, nicht in der Datenbank.
     var backCatalog = StoredIDs<SourceSubject>(key: AppModel.backCatalogKey)
     /// Ältere Folgen, die das Vorbereiten von selbst eingereiht hat. Neue
     /// Folgen reihen sich vor ihnen ein, damit sie nicht hinter einem ganzen
     /// Archiv warten.
-    @ObservationIgnored var backlogQueued: Set<EpisodeID> = [] {
-        didSet { persistAnalysisQueue() }
-    }
+    @ObservationIgnored var backlogQueued: Set<EpisodeID> = []
 
     // MARK: Mobilfunk (Rückfrage in `MobileDataQuestion`, SettingsView.swift)
 
@@ -316,9 +311,7 @@ public final class AppModel {
     @ObservationIgnored var analyzedEpisodes: Set<EpisodeID> = []
     /// Von der App selbst eingereihte Folgen. Ihre Fehler unterbrechen
     /// niemanden: wer nicht darum gebeten hat, will dafür keinen Dialog.
-    @ObservationIgnored var automaticallyQueued: Set<EpisodeID> = [] {
-        didSet { persistAnalysisQueue() }
-    }
+    @ObservationIgnored var automaticallyQueued: Set<EpisodeID> = []
     /// Aus der Warteschlange genommen. Das Vorbereiten reiht sie nicht wieder
     /// ein, erst ein ausdrückliches Anfordern.
     @ObservationIgnored var dismissedFromPreparation = StoredEpisodeIDs(key: "dismissedFromPreparation")
@@ -366,8 +359,6 @@ public final class AppModel {
     /// Neueste Folgen, deren Laden jemand abgebrochen oder deren Ton er
     /// entfernt hat. Die App holt sie nicht von selbst wieder.
     @ObservationIgnored var prefetchDeclined = StoredEpisodeIDs(key: AppModel.prefetchDeclinedKey)
-    /// Lädt gerade die neuesten Folgen, eine nach der anderen.
-    @ObservationIgnored var prefetchTask: Task<Void, Never>?
     /// Nicht noch einmal versuchen, bis das Netz wieder von selbst laden
     /// darf: das Laden ist gescheitert.
     @ObservationIgnored var prefetchFailed: Set<EpisodeID> = []
@@ -485,12 +476,12 @@ public final class AppModel {
     public var facts: EpisodeProgressMap<[EpisodeFact]> { EpisodeProgressMap(episodeProgress, \.facts) }
     public internal(set) var factsInProgress: Set<EpisodeID> = []
 
-    // MARK: Fakten im Hintergrund (Ablauf in AppModel+Knowledge.swift)
+    // MARK: Fakten im Hintergrund (Stufe „Wissen“, Spiegel in PipelineSink.swift)
 
     /// Folgen, deren Fakten noch gesammelt werden, eine nach der anderen.
     /// Eine eigene Warteschlange neben der für Transkripte: das Modell
     /// braucht je Folge eine Minute oder mehr, und das nächste Transkript
-    /// wartet nicht darauf.
+    /// wartet nicht darauf. Diese Felder spiegeln die Stufe „Wissen“.
     public internal(set) var factsQueue: [Episode] = []
     /// Die Folge, deren Fakten gerade entstehen.
     public internal(set) var gatheringFacts: Episode?
@@ -500,45 +491,14 @@ public final class AppModel {
     public internal(set) var factsWait: String?
     /// Was beim letzten Lauf einer Folge fehlte, für den Reiter „Fakten“.
     public internal(set) var factsIssues: [EpisodeID: String] = [:]
-    @ObservationIgnored var factsTask: Task<Void, Never>?
-    /// Von Hand angefordert. Läuft vorn, rechnet neu und meldet Fehler.
-    @ObservationIgnored var factsRequested: Set<EpisodeID> = []
-    /// Nach zwei vergeblichen Versuchen im Vordergrund. Erst der nächste
-    /// Start oder ein wieder bereites Modell versucht es erneut.
-    @ObservationIgnored var factsDeferred: Set<EpisodeID> = []
     /// Beobachter für Vorder- und Hintergrund, siehe `observeAppState()`.
     @ObservationIgnored var appStateObservers: [any NSObjectProtocol] = []
     /// War die App seit dem letzten Aktivwerden im Hintergrund, oder ist
     /// sie eben erst gestartet? Dann sucht sie beim Aktivwerden nach
     /// fehlenden Fakten, sonst nicht, etwa nach dem Kontrollzentrum.
     @ObservationIgnored var returningFromBackground = true
-    /// Seit wann eine Folge mit Transkript ohne Fakten bekannt ist. Kommt
-    /// das Transkript per iCloud, sammelt meist das andere Gerät gerade.
-    @ObservationIgnored var factsMissingSince: [EpisodeID: Date] = [:]
-    /// Hat die App schon nach fehlenden Fakten gesucht? Bis dahin, und
-    /// wieder nach dem Einschalten oder wenn das Modell bereit wird, reiht
-    /// sie ohne Wartezeit ein.
-    @ObservationIgnored var factsBackfilled = false
-
-    // MARK: Tags je Kapitel (Ablauf in AppModel+Tagging.swift)
-
-    /// Folgen, deren Kapitel noch Tags bekommen, neueste zuerst. Dieselbe
-    /// Arbeit wie die Fakten nimmt sie mit, wenn keine Folge auf Fakten wartet.
-    @ObservationIgnored var tagsQueue: [Episode] = []
-    /// Folgen, die gerade eingeordnet werden.
-    @ObservationIgnored var taggingInProgress: Set<EpisodeID> = []
-    /// Folgen, deren Einordnung in diesem Start an Last oder Zeit gescheitert
-    /// ist. Die Bibliothek reiht sie erst nach dem nächsten Start wieder ein.
-    @ObservationIgnored var tagsFailed: Set<EpisodeID> = []
-    /// Folgen, deren Kapitel-Tags in diesem Start schon zum aktuellen
-    /// Transkript passen. Das Einreihen fragt für sie nicht jedes Mal alle
-    /// Belege ab. Ein neues Transkript nimmt die Folge wieder heraus.
-    @ObservationIgnored var tagsCurrent: Set<EpisodeID> = []
-    /// Das Nachholen der Fakten und Tags kam nicht ganz in eine Portion.
-    @ObservationIgnored var factsBackfillPending = false
     /// Ältere Folgen, die in diesem Start zweimal kurz gescheitert sind.
     @ObservationIgnored var backCatalogSkipped: Set<EpisodeID> = []
-    @ObservationIgnored var tagsBackfillPending = false
 
     /// Fakten nach dem Transkript von selbst sammeln, auch für ältere
     /// Folgen, denen sie noch fehlen.
@@ -547,7 +507,6 @@ public final class AppModel {
             UserDefaults.standard.set(automaticFacts, forKey: Self.automaticFactsKey)
             if automaticFacts {
                 // Eben eingeschaltet: alles, was fehlt, gleich einreihen.
-                factsBackfilled = false
                 Task { await queueMissingFacts() }
             } else {
                 dropAutomaticFacts()
@@ -556,76 +515,42 @@ public final class AppModel {
     }
     static let automaticFactsKey = "automaticFacts"
 
-    // MARK: Stufe „Wissen“ (KnowledgeStage im Paket, docs/plan-pipeline.md, Schritt 3)
+    // MARK: Stufen der Pipeline (im Paket, docs/plan-pipeline.md)
+    //
+    // Jede Stufe entsteht einmal in `AppBootstrap.start`, gleich nach dem
+    // Modell, und führt ihren Teil der Verarbeitung allein. Vorher, etwa in
+    // einer Vorschau, bleiben die Felder leer und es läuft keine Arbeit.
 
-    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Wissen“
-    /// führt Warteschlange, Reihenfolge, Tor und gemerkte Absichten der
-    /// Fakten und Tags. Aus: der Weg bis 0.13 im Modell. Gelesen einmal beim
-    /// Anlegen, zu setzen auch als Startargument (`-pipelineKnowledgeStage NO`).
-    /// Eine Stufe hat nie zwei Besitzer: Im neuen Weg ruht der alte ganz.
-    static let knowledgeStageKey = "pipelineKnowledgeStage"
-    @ObservationIgnored let usesKnowledgeStage: Bool
-    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
-    /// bleibt sie leer.
+    /// „Wissen“: Warteschlange, Reihenfolge, Tor und gemerkte Absichten der
+    /// Fakten und Tags.
     @ObservationIgnored var knowledgeStage: KnowledgeStage?
     /// Die Arbeit an einer Folge (`knowledgeJobs` in PipelineSink.swift).
     @ObservationIgnored var knowledgeJobsStorage: KnowledgeJobs?
 
-    // MARK: Stufe „Ausgaben“ (EditionsStage im Paket, docs/plan-pipeline.md, Schritt 4)
-
-    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Ausgaben“
-    /// führt Auslöser und Tor der Themen-Updates, schreibt jede Ausgabe je
-    /// Zeile hinter dem Wächter und erzeugt Cover über die eine Stelle für
-    /// Apple Intelligence. Aus: der Weg bis 0.13. Gelesen einmal beim
-    /// Anlegen, zu setzen auch als Startargument (`-pipelineEditionsStage NO`).
-    static let editionsStageKey = "pipelineEditionsStage"
-    @ObservationIgnored let usesEditionsStage: Bool
-    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
-    /// bleibt sie leer.
+    /// „Ausgaben“: Auslöser und Tor der Themen-Updates. Schreibt jede
+    /// Ausgabe je Zeile hinter dem Wächter und erzeugt Cover über die eine
+    /// Stelle für Apple Intelligence.
     @ObservationIgnored var editionsStage: EditionsStage?
     /// Updates, für die „Neue Ausgabe zusammenstellen“ den Platz schon
     /// belegt hat, bevor die Stufe das Zusammenstellen beginnt.
     @ObservationIgnored var reservedEditionBuilds: Set<SmartFeedID> = []
 
-    // MARK: Stufen „Vorbereiten“ und „Download“ (im Paket, docs/plan-pipeline.md, Schritt 5a)
-
-    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe
-    /// „Vorbereiten“ führt Auslöser und Prüfung im Store für das, was von
-    /// selbst in die Warteschlange kommt, und hält die Metadaten über
-    /// Supadata in der Pause an. Aus: der Weg bis 0.13. Gelesen einmal beim
-    /// Anlegen, zu setzen auch als Startargument (`-pipelinePrepareStage NO`).
-    static let prepareStageKey = "pipelinePrepareStage"
-    @ObservationIgnored let usesPrepareStage: Bool
-    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
-    /// bleibt sie leer.
+    /// „Vorbereiten“: Auslöser und Prüfung im Store für das, was von selbst
+    /// in die Warteschlange kommt. Hält die Metadaten über Supadata in der
+    /// Pause an.
     @ObservationIgnored var prepareStage: PrepareStage?
     /// Folgen, die laut Store schon Belege haben, obwohl der Speicher sie
     /// nicht kennt, etwa weil sie gerade von einem anderen Gerät kamen. Das
     /// Vorbereiten nimmt sie in diesem Start nicht.
     @ObservationIgnored var knownTranscribed: Set<EpisodeID> = []
 
-    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Download“
-    /// führt Vorhalten, Vorausladen und Aufräumen des Tons und hält das
-    /// Vorhalten in der Pause an. Aus: der Weg bis 0.13. Gelesen einmal beim
-    /// Anlegen, zu setzen auch als Startargument (`-pipelineDownloadStage NO`).
-    static let downloadStageKey = "pipelineDownloadStage"
-    @ObservationIgnored let usesDownloadStage: Bool
-    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
-    /// bleibt sie leer.
+    /// „Download“: Vorhalten, Vorausladen und Aufräumen des Tons. Hält das
+    /// Vorhalten in der Pause an.
     @ObservationIgnored var downloadStage: DownloadStage?
 
-    // MARK: Stufe „Transkript“ (TranscriptStage im Paket, docs/plan-pipeline.md, Schritt 5b)
-
-    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Transkript“
-    /// führt Warteschlange, Reihenfolge, den einen Platz, das Tor und die
-    /// gemerkte Warteschlange; `analysisQueue`, `analyzing` und die Vermerke
-    /// der Herkunft spiegeln nur ihren Stand. Aus: der Worker bis 0.13.
-    /// Gelesen einmal beim Anlegen, zu setzen auch als Startargument
-    /// (`-pipelineTranscriptStage NO`). Die gemerkte Warteschlange lesen beide.
-    static let transcriptStageKey = "pipelineTranscriptStage"
-    @ObservationIgnored let usesTranscriptStage: Bool
-    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
-    /// bleibt sie leer.
+    /// „Transkript“: Warteschlange, Reihenfolge, der eine Platz, das Tor und
+    /// die gemerkte Warteschlange. `analysisQueue`, `analyzing` und die
+    /// Vermerke der Herkunft spiegeln nur ihren Stand.
     @ObservationIgnored var transcriptStage: TranscriptStage?
 
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
@@ -671,13 +596,10 @@ public final class AppModel {
     /// Nimmt die Ereignisse der Verarbeitung an. Entsteht einmal in
     /// `AppBootstrap.start`; vorher fällt jedes Ereignis weg.
     @ObservationIgnored var pipeline: PipelineHost?
-    /// Das Ende der Pipeline auf dem Hauptakteur. Hört in Schritt 0 noch nicht zu.
+    /// Das Ende der Pipeline auf dem Hauptakteur (`PipelineSink`).
     @ObservationIgnored var pipelineSink: PipelineSink?
     /// Hört auf Änderungen von anderen Geräten, einmal je Prozess.
     @ObservationIgnored var syncObserver: SyncObserver?
-    /// Das letzte Senden, das erst im Store lesen muss. Das nächste wartet
-    /// darauf, damit die Reihenfolge bleibt.
-    @ObservationIgnored var pendingEmission: Task<Void, Never>?
     /// Die laufende Erschließung einer einzelnen Folge. Löschen bricht nur
     /// sie ab, die übrige Warteschlange läuft weiter. Ihr Ergebnis ist der
     /// Beleg des Stores über das Geschriebene.
@@ -710,11 +632,6 @@ public final class AppModel {
         // und die App wirkt, als könne sie nichts.
         self.automaticAnalysis = Self.storedFlag(Self.automaticAnalysisKey, default: true)
         self.automaticFacts = Self.storedFlag(Self.automaticFactsKey, default: true)
-        self.usesKnowledgeStage = Self.storedFlag(Self.knowledgeStageKey, default: true)
-        self.usesEditionsStage = Self.storedFlag(Self.editionsStageKey, default: true)
-        self.usesPrepareStage = Self.storedFlag(Self.prepareStageKey, default: true)
-        self.usesDownloadStage = Self.storedFlag(Self.downloadStageKey, default: true)
-        self.usesTranscriptStage = Self.storedFlag(Self.transcriptStageKey, default: true)
         self.queuePaused = Self.storedFlag(Self.queuePausedKey, default: false)
         // Aus, solange dem Build die Berechtigung für Private Cloud Compute
         // fehlt. Ohne sie ginge keine Anfrage an Apples Server, der Schalter
@@ -940,14 +857,7 @@ public final class AppModel {
         await prepareStage?.reset(store: newStore)
         await transcriptStage?.reset(store: newStore)
         knownTranscribed = []
-        if let knowledgeStage {
-            await knowledgeStage.reset(store: newStore, work: knowledgeJobs)
-        } else {
-            factsQueue = []
-            tagsQueue = []
-            tagsCurrent = []
-            factsBackfilled = false
-        }
+        await knowledgeStage?.reset(store: newStore, work: knowledgeJobs)
         await load()
     }
 
@@ -1269,22 +1179,11 @@ public final class AppModel {
         // (`feedsOnly`) sendet nichts, dort folgt alles beim nächsten Öffnen.
         if !added.isEmpty { emit(.episodesAdded(added, .automatic)) }
         emit(.feedsRefreshed(byUser: byUser))
-        // Die Stufe „Vorbereiten“ reiht auf `feedsRefreshed` selbst ein, die
-        // Stufe „Download“ hält dann vor.
-        if prepareStage == nil {
-            await prepareNewEpisodes()
-        } else if downloadStage == nil {
-            prefetchNewestEpisodes()
-        }
-        // Die Stufe „Wissen“ gleicht auf `feedsRefreshed` selbst ab.
-        if knowledgeStage == nil { await queueMissingFacts() }
+        // Auf `feedsRefreshed` reiht die Stufe „Vorbereiten“ ein, die Stufe
+        // „Download“ hält vor und räumt auf, die Stufe „Wissen“ gleicht ab,
+        // und die Stufe „Ausgaben“ prüft, ob neue Folgen ein Themen-Update
+        // füllen. „Für dich“ bleibt hier.
         await refreshRelevantToday()
-        // Die Stufe „Download“ räumt auf `feedsRefreshed` selbst auf.
-        if downloadStage == nil { await tidyLocalAudio() }
-        // Neue Folgen können ein Themen-Update füllen. Ohne zu warten: das
-        // Ziehen zum Aktualisieren soll nicht auf das Zusammenstellen warten.
-        // Die Stufe „Ausgaben“ prüft auf `feedsRefreshed` selbst.
-        if editionsStage == nil { Task { await processPendingEditions() } }
     }
 
     /// Liest die Folgenlisten aller Quellen neu aus der Datenbank.
@@ -1350,23 +1249,11 @@ public final class AppModel {
     /// vorbereiten“ wählt. Danach sieht die App nach, ob die neueste Folge
     /// jedes Podcasts für unterwegs auf dem Gerät liegt.
     ///
-    /// Mit der Stufe „Vorbereiten“ ein Befehl an sie, der wartet, bis sie
+    /// Ein Befehl an die Stufe „Vorbereiten“, der wartet, bis sie
     /// eingereiht hat. Das Vorhalten folgt dann der Stufe „Download“.
     public func prepareNewEpisodes(in sourceID: SourceID? = nil) async {
-        if let prepareStage {
-            await prepareStage.prepare(sources: sourceID.map { [$0] })
-            requestPrefetch()
-            return
-        }
-        // Auch ohne automatische Transkripte: die neueste Folge vorhalten
-        // und fehlende Metadaten von YouTube-Videos holen, falls ein
-        // Supadata-Schlüssel eingetragen ist.
-        defer {
-            requestPrefetch()
-            fetchMissingMetadata()
-        }
-        enqueuePrepared(preparationCandidates(in: sourceID.map { [$0] }))
-        for id in sourceID.map({ [$0] }) ?? sources.map(\.id) { refillBackCatalog(in: id) }
+        await prepareStage?.prepare(sources: sourceID.map { [$0] })
+        requestPrefetch()
     }
 
     /// Die jüngsten offenen Folgen dieser Quellen (`nil`: aller), die das
@@ -1398,11 +1285,8 @@ public final class AppModel {
     /// Ältere Folgen in Portionen: höchstens `backCatalogBatch` je Podcast
     /// warten zugleich. Nach jeder fertigen älteren Folge rückt die nächste nach.
     func refillBackCatalog(in sourceID: SourceID) {
-        if let prepareStage {
-            Task { await prepareStage.refill(sourceID) }
-            return
-        }
-        enqueuePrepared(backCatalogRefill(in: sourceID))
+        guard let prepareStage else { return }
+        Task { await prepareStage.refill(sourceID) }
     }
 
     /// Die Portion älterer Folgen eines Podcasts, die jetzt nachrücken darf.
@@ -1538,7 +1422,7 @@ public final class AppModel {
     /// Netz, Einstellung, Zustimmung oder eine Datei auf dem Gerät haben sich
     /// geändert: jede wartende Folge sagt, worauf sie wartet, und was laufen
     /// darf, läuft. Die Angabe kommt aus `queueWait(for:)`, derselben Regel,
-    /// nach der der Worker wählt.
+    /// nach der die Stufe „Transkript“ wählt.
     func queueConditionsChanged() {
         let networkDetails = Set(NetworkLimit.allCases.map(\.queueDetail))
         for episode in analysisQueue {
@@ -1552,7 +1436,8 @@ public final class AppModel {
                 stageDetails[episode.id] = Self.waitingDetail
             }
         }
-        if analysisQueue.contains(where: mayRunNow) { startAnalysisWorker() }
+        // Ob etwas beginnt, entscheidet die Stufe „Transkript“.
+        if analysisQueue.contains(where: mayRunNow) { transcriptStage?.submit(.conditionsChanged) }
     }
 
     /// Worauf eine Folge in der Warteschlange wartet, oder `nil`, wenn sie
@@ -1610,13 +1495,6 @@ public final class AppModel {
     /// Regel „Nur im WLAN“ an, nicht nur die Zustimmung zu Mobilfunk.
     func isQueuedAutomatically(_ id: EpisodeID) -> Bool { automaticallyQueued.contains(id) }
 
-    /// Wer das Transkript dieser Folge wollte, für die Ereignisse der
-    /// Pipeline. Nur aus den Vermerken der Warteschlange, nie aus dem Feed.
-    func transcriptOrigin(of id: EpisodeID) -> Origin {
-        guard automaticallyQueued.contains(id) else { return .user }
-        return backlogQueued.contains(id) ? .backlog : .automatic
-    }
-
     /// Darf diese Folge jetzt laufen?
     func mayRunNow(_ episode: Episode) -> Bool { queueWait(for: episode) == nil }
 
@@ -1657,67 +1535,15 @@ public final class AppModel {
             }
             return
         }
-        if let transcriptStage {
-            enqueue(episode, automatic: automatic, backlog: backlog, into: transcriptStage)
-            return
-        }
-        let queued = analysisQueue.firstIndex { $0.id == episode.id }
-        if automatic {
-            // Schon eingereiht oder in Arbeit: so bleibt es. Sonst würde aus
-            // einer Folge, die jemand angefordert hat, eine, die aufs WLAN wartet.
-            guard preparationUnavailable == nil, queued == nil, analyzing?.id != episode.id else { return }
-            automaticallyQueued.insert(episode.id)
-            if backlog { backlogQueued.insert(episode.id) } else { backlogQueued.remove(episode.id) }
-        } else {
-            // Von Hand angefordert und Mobilfunk aus: erst fragen, falls
-            // der Ton dafür aus dem Netz käme. Ein Ja gilt auch für die
-            // Transkripte, die schon im Mobilfunk warten, also zählen sie mit.
-            if episode.audioURL != nil || isCaptionVideo(episode), analyzing?.id != episode.id,
-               mobileDataNeedsConsent, !hasAudioForTranscript(episode) {
-                // Wartet sie schon von Hand eingereiht, rückt sie gleich nach
-                // vorn. Nach einem Ja läuft sie dann als Nächste.
-                if let queued, !automaticallyQueued.contains(episode.id) {
-                    analysisQueue.insert(analysisQueue.remove(at: queued), at: 0)
-                }
-                _ = askBeforeMobileData(.transcripts(
-                    transcriptsWaitingForMobileData.filter { $0.id != episode.id } + [episode]))
-                return
-            }
-            automaticallyQueued.remove(episode.id)
-            backlogQueued.remove(episode.id)
-            dismissedFromPreparation.remove(episode.id)
-            failedInPreparation.remove(episode.id)
-            restingPreparation.remove(episode.id)
-            // Beim ersten angeforderten Transkript: darf die App Bescheid
-            // sagen, wenn es im Hintergrund pausiert?
-            askForTranscriptNotificationsIfNeeded()
-            // Von Hand angefordert heißt: auch auf einem Gerät ohne
-            // Spracherkennung darf man es erneut versuchen.
-            preparationUnavailable = nil
-            // Wartet die Folge schon, etwa von selbst eingereiht aufs WLAN,
-            // läuft sie jetzt als Nächste.
-            if let queued {
-                analysisQueue.insert(analysisQueue.remove(at: queued), at: 0)
-                stageDetails[episode.id] = Self.waitingDetail
-                startAnalysisWorker()
-                return
-            }
-        }
-        guard episode.audioURL != nil || isCaptionVideo(episode),
-              analyzing?.id != episode.id,
-              !analysisQueue.contains(where: { $0.id == episode.id }) else { return }
-        insertIntoQueue(episode)
-        stages[episode.id] = nil
-        // Dieselbe Regel wie für den Worker: liegt der Ton schon da, wartet
-        // die Folge nicht aufs WLAN.
-        stageDetails[episode.id] = queueWait(for: episode)?.queueDetail ?? Self.waitingDetail
-        startAnalysisWorker()
+        guard let transcriptStage else { return }
+        enqueue(episode, automatic: automatic, backlog: backlog, into: transcriptStage)
     }
 
-    /// Wie ``enqueueAnalysis(_:automatic:backlog:)`` mit der Stufe
-    /// „Transkript“: Platz und Reihenfolge bestimmt sie, hier bleibt, was
-    /// beim Antippen geschehen muss. Die Frage nach Mobilfunk kommt beim
-    /// Tippen, nie später, und die Folge sagt sofort, worauf sie wartet.
+    /// Reiht bei der Stufe „Transkript“ ein. Platz und Reihenfolge (von
+    /// Hand Angefordertes vor Automatischem, neue Folgen vor älteren)
+    /// bestimmt sie, hier bleibt, was beim Antippen geschehen muss. Die
+    /// Frage nach Mobilfunk kommt beim Tippen, nie später, und die Folge
+    /// sagt sofort, worauf sie wartet.
     /// Ob sie schon wartet, sagt der Spiegel der Stufe; einen Augenblick
     /// alt, doch die Stufe prüft beim Ankommen selbst noch einmal.
     private func enqueue(_ episode: Episode, automatic: Bool, backlog: Bool, into stage: TranscriptStage) {
@@ -1764,45 +1590,11 @@ public final class AppModel {
         stage.submit(.request(episode))
     }
 
-    /// Reiht eine Folge an ihrem Platz ein: von Hand Angefordertes vor alles,
-    /// was die App von selbst eingereiht hat, neue Folgen vor die älteren aus
-    /// „Ältere Folgen auch vorbereiten“, diese ans Ende. Sonst wartete ein
-    /// angetipptes Transkript hinter einem ganzen Archiv.
-    private func insertIntoQueue(_ episode: Episode) {
-        let index: Int? = if !automaticallyQueued.contains(episode.id) {
-            analysisQueue.firstIndex { automaticallyQueued.contains($0.id) }
-        } else if !backlogQueued.contains(episode.id) {
-            analysisQueue.firstIndex { backlogQueued.contains($0.id) }
-        } else {
-            nil
-        }
-        if let index { analysisQueue.insert(episode, at: index) } else { analysisQueue.append(episode) }
-    }
-
     // MARK: Warteschlange merken und anhalten
 
-    static let analysisQueueKey = "analysisQueueSnapshot"
-
-    /// Merkt sich die Warteschlange samt laufender Folge in den
-    /// Benutzereinstellungen. Gebündelt: viele Änderungen hintereinander,
-    /// etwa beim Vorbereiten eines ganzen Archivs, schreiben einmal.
-    private func persistAnalysisQueue() {
-        // Mit der Stufe „Transkript“ merkt sie sich die Warteschlange selbst;
-        // die Felder hier spiegeln nur ihren Stand.
-        guard transcriptStage == nil else { return }
-        // Vor dem Wiederherstellen nichts schreiben, sonst wäre der gemerkte
-        // Stand weg, bevor ihn jemand gelesen hat.
-        guard analysisQueueRestored, !analysisQueuePersistScheduled else { return }
-        analysisQueuePersistScheduled = true
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            self.analysisQueuePersistScheduled = false
-            let snapshot = AnalysisQueueSnapshot(
-                running: self.analyzing?.id, queue: self.analysisQueue.map(\.id),
-                automatic: self.automaticallyQueued, backlog: self.backlogQueued)
-            UserDefaults.standard.set(snapshot.encoded(), forKey: Self.analysisQueueKey)
-        }
-    }
+    /// Wo die Stufe „Transkript“ die Warteschlange merkt. UI-Tests mit
+    /// `-uitest-fresh` leeren ihn.
+    static let analysisQueueKey = TranscriptStage.snapshotKey
 
     /// Stellt nach einem Neustart die Warteschlange wieder her, einmal je
     /// Start. Von Hand Angefordertes kommt immer zurück, von selbst
@@ -1814,53 +1606,16 @@ public final class AppModel {
         // zurück, einmal je Speicher, und gleicht danach nur noch mit dem
         // Store ab. Nach `replaceStore` wieder: Die Stufe hat ihre
         // Warteschlange dort geleert und schriebe sonst nie wieder.
-        if let transcriptStage {
-            guard !analysisQueueRestored else {
-                await transcriptStage.restoreIfNeeded()
-                return
-            }
-            analysisQueueRestored = true
-            Task.detached(priority: .background) { Self.transcriptCheckpoints.removeExpired() }
-            await transcriptStage.reconcile()
+        guard let transcriptStage else { return }
+        guard !analysisQueueRestored else {
+            await transcriptStage.restoreIfNeeded()
             return
         }
-        guard !analysisQueueRestored else { return }
+        analysisQueueRestored = true
         // Zwischenstände, die kein Lauf mehr liest, etwa weil ein anderes
         // Gerät das Transkript schrieb, verfallen hier.
         Task.detached(priority: .background) { Self.transcriptCheckpoints.removeExpired() }
-        let saved = AnalysisQueueSnapshot.decoded(
-            from: UserDefaults.standard.data(forKey: Self.analysisQueueKey))
-        let ids = saved?.entries.map(\.episodeID) ?? []
-        let found = ids.isEmpty ? [] : ((try? await store.episodes(ids: ids)) ?? [])
-        analysisQueueRestored = true
-        guard let saved else { return }
-        let byID = Dictionary(found.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let subscribed = Set(sources.map(\.id))
-        // Bis 0.11 reihte „Ältere Folgen auch vorbereiten“ ganze Archive ein.
-        // Zurück kommt davon nur die erste Portion je Podcast, den Rest füllt
-        // `refillBackCatalog` nach.
-        let restorable = AutomaticWorkBudget.trimmed(
-            saved.restorable(known: Set(byID.keys), finished: analyzedEpisodes,
-                             automaticAllowed: preparationUnavailable == nil),
-            isBacklog: { $0.automatic && $0.backlog },
-            group: { byID[$0.episodeID]?.sourceID.rawValue ?? "" },
-            batch: backCatalogBatch)
-        for entry in restorable {
-            guard let episode = byID[entry.episodeID], episode.audioURL != nil,
-                  subscribed.contains(episode.sourceID), analyzing?.id != episode.id,
-                  !analysisQueue.contains(where: { $0.id == episode.id }) else { continue }
-            if entry.automatic {
-                let wanted = entry.backlog ? backCatalog.contains(episode.sourceID) : automaticAnalysis
-                guard wanted, !dismissedFromPreparation.contains(episode.id),
-                      !failedInPreparation.contains(episode.id),
-                      !restingPreparation.contains(episode.id) else { continue }
-                automaticallyQueued.insert(episode.id)
-                if entry.backlog { backlogQueued.insert(episode.id) }
-            }
-            insertIntoQueue(episode)
-            stageDetails[episode.id] = Self.waitingDetail
-        }
-        persistAnalysisQueue()
+        await transcriptStage.reconcile()
     }
 
     /// Transkripte, die jetzt laufen könnten oder gerade laufen. Pausiert
@@ -1872,13 +1627,7 @@ public final class AppModel {
     /// Hält die Transkripte an, weil die Zeit im Hintergrund endet. Die
     /// laufende Folge behält ihren Zwischenstand und kommt wieder nach vorn.
     func pauseTranscripts() {
-        if let transcriptStage {
-            transcriptStage.submit(.interrupt)
-            pipelineRun?.cancel()
-            return
-        }
-        guard let analysisTask else { return }
-        analysisTask.cancel()
+        transcriptStage?.submit(.interrupt)
         pipelineRun?.cancel()
     }
 
@@ -1939,25 +1688,15 @@ public final class AppModel {
     public func pauseQueue() {
         guard !queuePaused else { return }
         queuePaused = true
-        let running = analysisTask
         pauseTranscripts()
-        factsTask?.cancel()
-        // Die Stufe „Transkript“ hält am Tor an. Danach halten ihre Downloads mit an.
-        if let transcriptStage {
-            Task { [weak self] in
-                await transcriptStage.untilIdle()
-                guard let self, self.queuePaused else { return }
-                BackgroundDownloads.shared.suspend(
-                    ([self.analyzing].compactMap { $0 } + self.analysisQueue).compactMap(Self.downloadID(of:)))
-            }
-            return
-        }
-        // Downloads im Hintergrund halten mit an und merken sich den Stand,
-        // auch die einer Folge, die schon wieder wartet, weil ihre Zeit im
-        // Hintergrund endete. Erst wenn die laufende Folge aufgeräumt hat:
-        // solange sie noch wartet, liefe ihr Download sonst weiter.
+        // Die Stufen halten am Tor an. Downloads im Hintergrund halten mit an
+        // und merken sich den Stand, auch die einer Folge, die schon wieder
+        // wartet, weil ihre Zeit im Hintergrund endete. Erst wenn die
+        // laufende Folge aufgeräumt hat: solange sie noch wartet, liefe ihr
+        // Download sonst weiter.
+        guard let transcriptStage else { return }
         Task { [weak self] in
-            await running?.value
+            await transcriptStage.untilIdle()
             guard let self, self.queuePaused else { return }
             BackgroundDownloads.shared.suspend(
                 ([self.analyzing].compactMap { $0 } + self.analysisQueue).compactMap(Self.downloadID(of:)))
@@ -1970,7 +1709,6 @@ public final class AppModel {
         queuePaused = false
         queueConditionsChanged()
         // Die Stufe „Wissen“ sieht das offene Tor selbst.
-        startFactsWorker()
     }
 
     /// „Alle abbrechen“: alle wartenden Transkripte, Fakten und Tags gehen
@@ -1982,17 +1720,9 @@ public final class AppModel {
         guard !cancellingQueue else { return }
         cancellingQueue = true
         defer { cancellingQueue = false }
-        // Erst anhalten und warten, bis die laufende Arbeit aufgeräumt ist.
-        // Sie stellt sich dabei wieder vorn in die Warteschlange und geht
-        // unten mit den anderen.
-        let transcripts = analysisTask
-        let facts = factsTask
         // Die Stufe „Transkript“ hält selbst an, wartet auf die laufende Folge
-        // und leert dann ihre Warteschlange.
-        if transcriptStage == nil { pauseTranscripts() }
-        facts?.cancel()
-        await transcripts?.value
-        await facts?.value
+        // und leert dann ihre Warteschlange. Die Folge stellt sich dabei
+        // wieder vorn an und geht mit den anderen.
         let cancelledTranscripts = await transcriptStage?.cancelAll()
         // Die Stufe „Wissen“ hält selbst an, wartet auf die laufende Folge
         // und leert dann ihre Warteschlangen.
@@ -2002,113 +1732,19 @@ public final class AppModel {
         await editionsStage?.cancelAll()
         // Die Stufe „Download“ hält nach der laufenden Übertragung an.
         await downloadStage?.cancelAll()
-        let plan: (removed: [EpisodeID], resting: Set<EpisodeID>)
-        if let cancelledTranscripts {
-            plan = (cancelledTranscripts.removed.map(\.episode.id), cancelledTranscripts.resting)
-            BackgroundDownloads.shared.cancelUnlessAwaited(
-                cancelledTranscripts.removed.map(\.episode).compactMap(Self.downloadID(of:)))
-        } else {
-            let cancellation = AnalysisQueueControl.cancelAll(
-                running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
-            plan = (cancellation.removed, cancellation.restingUntilRefresh)
-            // Auch Downloads, die im Hintergrund weiterliefen. Lädt „Laden
-            // (offline)“ oder die neueste Folge dieselbe Datei, bleibt sie.
-            BackgroundDownloads.shared.cancelUnlessAwaited(
-                ([analyzing].compactMap { $0 } + analysisQueue).compactMap(Self.downloadID(of:)))
-        }
-        restingPreparation.insert(contentsOf: plan.resting)
-        for id in plan.removed {
+        let removed = cancelledTranscripts?.removed ?? []
+        // Auch Downloads, die im Hintergrund weiterliefen. Lädt „Laden
+        // (offline)“ oder die neueste Folge dieselbe Datei, bleibt sie.
+        BackgroundDownloads.shared.cancelUnlessAwaited(removed.map(\.episode).compactMap(Self.downloadID(of:)))
+        restingPreparation.insert(contentsOf: cancelledTranscripts?.resting ?? [])
+        for id in removed.map(\.episode.id) {
             automaticallyQueued.remove(id)
             backlogQueued.remove(id)
             stageDetails[id] = nil
             if stages[id] != .failed { stages[id] = nil }
         }
         analysisQueue.removeAll()
-        if knowledgeStage == nil {
-            // Fakten kommen erst nach dem nächsten Start wieder von selbst dazu.
-            factsDeferred.formUnion(factsQueue.map(\.id))
-            factsQueue.removeAll()
-            factsRequested.removeAll()
-            tagsQueue.removeAll()
-            factsWait = nil
-        }
         activity = nil
-    }
-
-    private func startAnalysisWorker() {
-        // Mit der Stufe „Transkript“ entscheidet sie, ob etwas beginnt.
-        if let transcriptStage {
-            transcriptStage.submit(.conditionsChanged)
-            return
-        }
-        // Transkripte beginnen nur vorn. Im Hintergrund trägt sie nur die
-        // fortgesetzte Verarbeitung, und die lässt sich nur im Vordergrund
-        // anmelden. Eine Aktualisierung im Hintergrund reiht deshalb ein,
-        // startet aber nichts; die Warteschlange läuft beim nächsten Öffnen.
-        guard analysisTask == nil,
-              AnalysisQueueControl.mayStart(paused: queuePaused, inForeground: appInForeground,
-                                            cancelling: cancellingQueue) else { return }
-        // Niedrige Priorität: wer auf das Ergebnis wartet, hebt sonst die
-        // Erkennung auf die Priorität der Oberfläche an.
-        analysisTask = Task(priority: .utility) { [weak self] in
-            guard let self else { return }
-            let background = BackgroundContinuation.begin(
-                title: self.analysisQueue.first?.title ?? "",
-                onExpire: { [weak self] in self?.transcriptTimeExpired() })
-            self.transcriptContinuation = background
-            // Solange Transkripte entstehen, dürfen die Fakten mitlaufen,
-            // auch im Hintergrund. Endet die Phase, gibt die Leihe den
-            // Träger zurück, und die Fakten halten an, wenn die App nicht vorn ist.
-            let carrier = self.holdCarrier(.continued)
-            var retried: Set<EpisodeID> = []
-            while !Task.isCancelled, let index = self.analysisQueue.firstIndex(where: { self.mayRunNow($0) }) {
-                let next = self.analysisQueue.remove(at: index)
-                // Ohne Lücke: was nicht mehr wartet, läuft schon.
-                self.analyzing = next
-                background.setSubtitle(next.title)
-                let fromBackCatalog = self.backlogQueued.contains(next.id)
-                // Den Ton der nächsten Folgen schon jetzt über die Sitzung des
-                // Systems laden, solange die App vorn ist. So lädt er weiter,
-                // wenn sie gleich in den Hintergrund geht.
-                self.requestLookahead()
-                let outcome = await self.runAnalysis(next, background: background)
-                let transientFailure = if case .failed(_, true) = outcome { true } else { false }
-                // Zweimal kurz gescheitert: in diesem Start nicht wieder als ältere Folge.
-                if fromBackCatalog, transientFailure, retried.contains(next.id) {
-                    self.backCatalogSkipped.insert(next.id)
-                }
-                // Mit der Stufe „Vorbereiten“ rückt die nächste auf das
-                // Ereignis der fertigen oder gescheiterten Folge nach, sonst hier.
-                if fromBackCatalog, self.prepareStage == nil || !outcome.announces {
-                    self.refillBackCatalog(in: next.sourceID)
-                }
-                if transientFailure, !retried.contains(next.id) {
-                    retried.insert(next.id)
-                    self.insertIntoQueue(next)
-                    self.stageDetails[next.id] = String(localized: "wartet auf zweiten Versuch")
-                    try? await Task.sleep(for: .seconds(3))
-                }
-            }
-            background.end()
-            self.transcriptContinuation = nil
-            self.releaseCarrier(carrier)
-            self.analysisTask = nil
-            self.analyzing = nil
-            self.activity = nil
-            // Angehalten, weil die Hintergrundzeit endete. Ist die App
-            // inzwischen wieder vorn, geht es gleich weiter, sonst beim
-            // nächsten Öffnen.
-            guard !Task.isCancelled else {
-                if self.appInForeground { self.queueConditionsChanged() }
-                return
-            }
-            self.askAboutWaitingTranscripts()
-            self.emit(.transcriptsIdle)
-            // Frisch ausgewertetes Material ist genau das, worauf die
-            // automatischen Themen-Updates warten. Die Stufe „Ausgaben“
-            // prüft auf `transcriptsIdle` selbst.
-            if self.editionsStage == nil { await self.processPendingEditions() }
-        }
     }
 
     /// Die Warteschlange ist bis auf Transkripte durch, die über Mobilfunk
@@ -2134,25 +1770,6 @@ public final class AppModel {
     func commitGuard(for episode: Episode, since ticket: RemovalLedger.Ticket) -> CommitGuard {
         CommitGuard(episode: episode.id, source: episode.sourceID, since: ticket, ledger: removals,
                     feedMedia: { CaptionAnalysis.feedMediaVersionID(of: $0) })
-    }
-
-    /// Erschließt eine Folge im alten Weg hinter dem Schalter: die Arbeit
-    /// aus AppModel+Transcripts.swift, danach Warteschlange und Vermerke wie
-    /// bis 0.13.
-    private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> TranscriptJobOutcome {
-        // Gleich als laufend vormerken, vor dem ersten `await`. Der Worker hat
-        // die Folge schon aus der Warteschlange genommen. Ohne diese Zeile
-        // stünde sie während der Prüfung nirgends, `enqueueAnalysis` reihte
-        // sie ein zweites Mal ein, und das Abbestellen ihrer Quelle fände sie nicht.
-        analyzing = episode
-        let id = episode.id
-        let job = TranscriptJob(
-            episode: episode, origin: transcriptOrigin(of: id), ticket: removals.ticket,
-            remaining: analysisQueue.count,
-            currentOrigin: { [weak self] in await self?.transcriptOrigin(of: id) ?? .automatic })
-        let outcome = await transcribe(job, background: background)
-        applyLegacyOutcome(outcome, of: episode, since: job.ticket)
-        return outcome
     }
 
     /// Nimmt YouTube-Folgen aus der Warteschlange, die gerade nicht laufen
@@ -2498,15 +2115,10 @@ public final class AppModel {
     public func removeEdition(_ episode: PersonalEpisode) {
         editions[episode.feedID]?.removeAll { $0.id == episode.id }
         coverArt.removeEdition(TopicCoverKey(edition: episode))
-        // Mit der Stufe „Ausgaben“ nur diese Zeile. Die ganze Liste zu
-        // schreiben, nähme eine Ausgabe mit, die gerade entsteht oder ein
-        // anderes Gerät angelegt hat.
-        if editionsStage != nil {
-            let id = episode.id
-            Task { await persist { try await $0.removeEdition(id) } }
-        } else {
-            persistEditions(for: episode.feedID)
-        }
+        // Nur diese Zeile. Die ganze Liste zu schreiben, nähme eine Ausgabe
+        // mit, die gerade entsteht oder ein anderes Gerät angelegt hat.
+        let id = episode.id
+        Task { await persist { try await $0.removeEdition(id) } }
     }
 
     /// Behält nur die Bildcover der Updates und Ausgaben, die es gibt, bei
@@ -2549,12 +2161,8 @@ public final class AppModel {
             }
             guard changed else { continue }
             editions[feedID] = kept
-            // Mit der Stufe „Ausgaben“ je Zeile, sonst die ganze Liste.
-            if editionsStage != nil {
-                persistEditionRows(replacing: replaced, removing: removed)
-            } else {
-                persistEditions(for: feedID)
-            }
+            // Je Zeile, wie die Stufe „Ausgaben“ schreibt.
+            persistEditionRows(replacing: replaced, removing: removed)
         }
         // Die Zahlen im Kopf zählen gelöschte Folgen nicht mehr mit.
         scheduleStatisticsRefresh()
@@ -2601,12 +2209,6 @@ public final class AppModel {
     private func persistSmartFeeds() -> Task<Void, Never> {
         let feeds = smartFeeds
         return Task { await persist { try await $0.save(smartFeeds: feeds) } }
-    }
-
-    @discardableResult
-    private func persistEditions(for feedID: SmartFeedID) -> Task<Void, Never> {
-        let list = editions[feedID] ?? []
-        return Task { await persist { try await $0.save(editions: list, forFeed: feedID) } }
     }
 
     /// Schreibt geänderte Ausgaben je Zeile und löscht verschwundene.
@@ -2692,14 +2294,15 @@ public final class AppModel {
     /// Aktivitätszeile zeigt, dass gearbeitet wird. Der automatische Lauf
     /// arbeitet still.
     ///
-    /// Mit der Stufe „Ausgaben“ geht der Auftrag an sie, sie schreibt je
-    /// Zeile hinter dem Wächter und meldet danach `editionPublished`.
+    /// Der Auftrag geht an die Stufe „Ausgaben“. Sie schreibt je Zeile
+    /// hinter dem Wächter und meldet danach `editionPublished`.
     @discardableResult
     public func buildEdition(
         feedID: SmartFeedID, budget: MediaDuration? = nil, requestedByUser: Bool = true
     ) async -> String {
         let request = EditionRequest(feedID: feedID, budget: budget, origin: requestedByUser ? .user : .automatic)
-        guard let editionsStage else { return await runEdition(request, committer: nil).note }
+        // Vor `AppBootstrap.start` gibt es keine Stufe und nichts zu tun.
+        guard let editionsStage else { return "" }
         // Den Platz schon jetzt belegen, sonst stünde zwischen Tippen und
         // dem Beginn in der Stufe kurz „Noch keine Ausgabe“.
         guard requestedByUser, !buildingFeeds.contains(feedID) else { return await editionsStage.build(request) }
@@ -2711,10 +2314,9 @@ public final class AppModel {
         return note
     }
 
-    /// Das Zusammenstellen, in beiden Stellungen des Schalters. Mit
-    /// `committer` schreibt die Stufe „Ausgaben“ je Zeile hinter dem Wächter,
-    /// ohne ihn schreibt der Weg bis 0.13 die ganze Liste des Updates.
-    func runEdition(_ request: EditionRequest, committer: EditionCommitter?) async -> EditionComposition {
+    /// Das Zusammenstellen für die Stufe „Ausgaben“. Über `committer`
+    /// schreibt sie je Zeile hinter dem Wächter.
+    func runEdition(_ request: EditionRequest, committer: EditionCommitter) async -> EditionComposition {
         let feedID = request.feedID
         let requestedByUser = request.requestedByUser
         // Den Platz hat der Knopf schon belegt (`buildEdition`).
@@ -2753,7 +2355,7 @@ public final class AppModel {
     }
 
     private func composeEdition(
-        for feed: SmartPodcastFeed, requestedByUser: Bool, committer: EditionCommitter?
+        for feed: SmartPodcastFeed, requestedByUser: Bool, committer: EditionCommitter
     ) async -> (text: String, published: Bool, parts: [PersonalEpisode], chapters: [EditionChapter]?) {
         let feedID = feed.id
         do {
@@ -2765,11 +2367,9 @@ public final class AppModel {
             let chapters = try await editionChapters(
                 tags: editionTags(for: feed), knownEvidence: known,
                 priority: AIPriorityPolicy.priority(kind: .relevance, origin: requestedByUser ? .user : .automatic))
-            // Was schon erschienen ist, sagt mit der Stufe die Datenbank: Dort
-            // steht jede Ausgabe, bevor sie im Speicher erscheint.
-            let previous = committer == nil
-                ? editions[feedID] ?? []
-                : try await store.editions(forFeed: feedID)
+            // Was schon erschienen ist, sagt die Datenbank: Dort steht jede
+            // Ausgabe, bevor sie im Speicher erscheint.
+            let previous = try await store.editions(forFeed: feedID)
             // Auswählen und Aufteilen rechnet außerhalb des Hauptthreads.
             let outcome = await Task.detached(priority: .utility) {
                 [ledger, previous, followed = followedTagIDs, labels = tagLabels] in
@@ -2799,41 +2399,24 @@ public final class AppModel {
                 guard await smartFeedStillExists(feedID), !run.parts.isEmpty else {
                     return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false, [], nil)
                 }
-                let parts: [PersonalEpisode]
-                if let committer {
-                    // Je Teil eine Zeile, hinter dem Wächter. Stellen aus
-                    // Folgen, die inzwischen gelöscht sind, fallen dabei heraus.
-                    let written = try await committer.commit(run.parts)
-                    parts = pruneRemovedSegments(of: written, since: committer.ticket, in: committer.ledger)
-                    guard !parts.isEmpty else {
-                        guard await smartFeedStillExists(feedID) else {
-                            return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false, [], nil)
-                        }
-                        return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false, [], nil)
+                // Je Teil eine Zeile, hinter dem Wächter. Stellen aus Folgen,
+                // die inzwischen gelöscht sind, fallen dabei heraus.
+                let written = try await committer.commit(run.parts)
+                let parts = pruneRemovedSegments(of: written, since: committer.ticket, in: committer.ledger)
+                guard !parts.isEmpty else {
+                    guard await smartFeedStillExists(feedID) else {
+                        return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false, [], nil)
                     }
-                    // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn. Hat
-                    // ein Neuladen sie schon aus der Datenbank geholt, stehen
-                    // sie nicht doppelt da.
-                    let ids = Set(parts.map(\.id))
-                    editions[feedID, default: []].removeAll { ids.contains($0.id) }
-                    editions[feedID, default: []].insert(contentsOf: parts, at: 0)
-                    // Melden, Zahlen und Cover übernimmt die Stufe, wenn
-                    // `editionPublished` zurückkommt (`editionPublished(_:…)`).
-                } else {
-                    parts = run.parts
-                    // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn.
-                    editions[feedID, default: []].insert(contentsOf: run.parts, at: 0)
-                    // Gemeldet wird erst, wenn die Ausgabe gespeichert ist. Das
-                    // Zusammenstellen wartet darauf nicht.
-                    emit(.editionPublished(feedID, run.parts.map(\.id)), after: persistEditions(for: feedID))
-                    await updateStatistics(for: [feed], chapters: chapters)
-                    // Das Cover je Teil entsteht gleich, wenn die App vorn ist.
-                    // Im Hintergrund lehnt Image Playground ab; dann holt es der
-                    // nächste Wechsel in den Vordergrund nach.
-                    if appInForeground {
-                        Task { for part in run.parts { await prepareCover(for: part) } }
-                    }
+                    return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false, [], nil)
                 }
+                // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn. Hat ein
+                // Neuladen sie schon aus der Datenbank geholt, stehen sie
+                // nicht doppelt da.
+                let ids = Set(parts.map(\.id))
+                editions[feedID, default: []].removeAll { ids.contains($0.id) }
+                editions[feedID, default: []].insert(contentsOf: parts, at: 0)
+                // Melden, Zahlen und Cover übernimmt die Stufe, wenn
+                // `editionPublished` zurückkommt (`editionPublished(_:…)`).
                 let first = parts[0]
                 // Die Zählung für sich, der Titel außerhalb des Markdowns.
                 let segments = parts.reduce(0) { $0 + $1.segments.count }
@@ -3176,18 +2759,9 @@ public final class AppModel {
     /// jedem Aktualisieren eine fast gleiche Ausgabe über der vorigen.
     /// Startet nie Ton.
     public func processPendingEditions() async {
-        // Mit der Stufe „Ausgaben“ prüft sie, dieser Aufruf wartet auf den
+        // Die Stufe „Ausgaben“ prüft, dieser Aufruf wartet auf den
         // Durchgang. `com.podcastai.analysis` endet erst danach.
-        if let editionsStage {
-            await editionsStage.runAutomatic()
-            return
-        }
-        for feed in smartFeeds where feed.publicationPolicy.isAutomatic {
-            guard !buildingFeeds.contains(feed.id) else { continue }
-            if earliestAutomaticEdition(for: feed) != nil { continue }
-            _ = await buildEdition(feedID: feed.id, requestedByUser: false)
-        }
-        scheduleStatisticsRefresh()
+        await editionsStage?.runAutomatic()
     }
 
     /// So lange ruht die Automatik nach einer Ausgabe, die noch nicht gehört ist.

@@ -20,10 +20,29 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 ## Vom Feed zur Antwort
 
 1. Der Feed liefert Folgen mit Audio-Adresse, Kapiteln und Shownotes.
-2. Die App lädt die jüngsten Folgen und transkribiert sie auf dem Gerät. Jedes Wort trägt seine Zeit im Ton. Wer in der Folgenliste eines Podcasts „Ältere Folgen auch vorbereiten“ wählt, bekommt dessen Archiv dazu, neueste zuerst und hinter den neuen Folgen aller Podcasts, in Portionen: im Akkubetrieb warten je Podcast drei ältere Folgen zugleich, am Strom und auf dem Mac zehn (`AutomaticWorkBudget`). Ist eine fertig, rückt die nächste nach (`refillBackCatalog`). Die Wahl gilt je Gerät und steht in den Benutzereinstellungen (`AppModel.backCatalog`).
+2. Die App lädt die jüngsten Folgen und transkribiert sie auf dem Gerät. Jedes Wort trägt seine Zeit im Ton. Wer in der Folgenliste eines Podcasts „Ältere Folgen auch vorbereiten“ wählt, bekommt dessen Archiv dazu, neueste zuerst und hinter den neuen Folgen aller Podcasts, in Portionen: im Akkubetrieb warten je Podcast drei ältere Folgen zugleich, am Strom und auf dem Mac zehn (`AutomaticWorkBudget`). Ist eine fertig, rückt die nächste nach (`refillBackCatalog`, in der Stufe „Vorbereiten“). Die Wahl gilt je Gerät und steht in `DeviceState` (`AppModel.backCatalog`), nicht in den Benutzereinstellungen.
 3. Das Transkript wird in Passagen von etwa einer Minute geschnitten. Jede Passage ist ein Beleg mit Zeitbereich.
 4. Apple Intelligence zieht daraus Fakten. Jede Aussage zeigt auf ihren Beleg. Das läuft in einer eigenen Warteschlange neben den Transkripten, eine Folge nach der anderen und ohne das nächste Transkript aufzuhalten. Beim Start, nach Abgleich und Aktualisieren reiht die App Folgen mit Transkript ohne Fakten nach, neueste zuerst und höchstens zehn zugleich; ist die Portion durch, kommt die nächste. Für Kapitel-Tags gilt dasselbe. Kam das Transkript von einem anderen Gerät, wartet dieses Gerät 20 Minuten auf dessen Fakten. Auf dem iPhone und iPad arbeitet die Warteschlange, solange die App vorn ist. Im Hintergrund arbeitet sie nur mit Zeit vom System: in der Hintergrundaufgabe `com.podcastai.analysis` oder solange Transkripte unter der fortgesetzten Verarbeitung entstehen. Der Ton im Hintergrund zählt nicht. Geht die App in den Hintergrund, hält die laufende Folge an und bleibt vorn in der Warteschlange. Scheitern einzelne Abschnitte einer Folge an Last oder Zeitüberschreitung, speichert die App, was da ist, merkt sich die fehlenden Abschnitte auf diesem Gerät und holt nur sie später nach.
 5. Eine Frage sucht zuerst auf dem Gerät die passenden Belege: Stichworte gewichtet nach Seltenheit und semantische Nähe über Apples NaturalLanguage-Einbettungen. Nur diese Belege sieht das Sprachmodell. Die Antwort verweist mit Nummern auf sie. Ist die Frage auf einen Podcast oder einen Zeitraum eingegrenzt, nimmt der Code die übrigen Folgen vorher heraus; das Modell wählt nur unter dem, was bleibt.
+
+## Verarbeitung in Stufen
+
+Vorbereiten, Laden, Transkript, Fakten und Themen-Updates laufen als Pipeline aus Stufen (Plan, Gegenprüfung und Entscheidungen in [plan-pipeline.md](plan-pipeline.md)). Jede Stufe ist ein Actor im Paket unter `PodcastAIKit/Pipeline` und führt ihren Teil allein, eine Stufe hat nie zwei Besitzer:
+
+| Stufe | Aufgabe |
+|---|---|
+| Vorbereiten (`PrepareStage`) | wählt nach neuen Folgen und dem Aktualisieren, was von selbst in die Warteschlange kommt, lässt ältere Folgen nachrücken und holt Metadaten über Supadata |
+| Download (`DownloadStage`) | hält die neueste Folge je Podcast vor, lädt den Ton der nächsten Folgen voraus und räumt Ton nach Transkript oder Fehlschlag weg |
+| Transkript (`TranscriptStage`) | Warteschlange der Transkripte mit einem Platz, gemerkt über einen Neustart (`AnalysisQueueSnapshot`) |
+| Wissen (`KnowledgeStage`) | Fakten und Kapitel-Tags mit einem Platz, gemerkte Absichten in `PipelineIntents` |
+| Ausgaben (`EditionsStage`) | Themen-Updates von selbst und auf Anforderung, danach Zahlen und Cover |
+
+- **Ereignisse.** Das Modell sendet dort, wo etwas geschieht, ein `PipelineEvent` an den `PipelineHost`: neue Folgen, Ton da oder weg, Feeds aktualisiert, Folgen gelöscht, Änderungen von einem anderen Gerät. Wer es bekommt, sagt allein der `PipelineRouter`, eine reine Funktion. Die Stufen senden selbst weiter, etwa `evidenceReady` an „Wissen“. Befehle eines Menschen gehen direkt an eine Stufe und tragen `origin: .user`; die Herkunft setzt nur der Code (Regel 2).
+- **Der Store ist die Wahrheit, ein Ereignis ist ein Hinweis.** Eine Stufe prüft vor dem Start im `LibraryStore`, ob ihr Ergebnis für diese Fassung schon da ist, schreibt über den Wächter (`CommitGuard`) und meldet erst danach. Verlorene oder doppelte Ereignisse schaden deshalb nicht; `reconcile()` findet beim Start und nach einem Abgleich, was offen ist.
+- **Tor.** `WorkGate` kennt Pause, „Alle abbrechen“, Vorder- und Hintergrund und die Träger mit Zeit vom System (fortgesetzte Verarbeitung, `com.podcastai.analysis`, `com.podcastai.tagging`) und sagt jeder Stufe, ob sie jetzt arbeiten darf.
+- **Löschen.** „Folge löschen“ markiert die Folge synchron im `RemovalLedger`, vermerkt das Aufräumen in `PendingPurges` und sendet `episodesRemoved`, bevor der Store löscht. Jede Stufe prüft das Protokoll beim Entnehmen und vor jedem Schreiben; die Pflege räumt Dateien, Zwischenspeicher und Vermerke dieses Geräts und setzt nach einem Neustart fort (Regel 5).
+- **Oberfläche.** Das `AppModel` bleibt die Fassade: Ansichten rufen dieselben Methoden und lesen dieselben Felder. Die Senke (`PipelineSink`) auf dem Hauptakteur schreibt den Stand der Stufen dorthin, etwa `analysisQueue`, `factsQueue` und die Stufe je Folge. Keine Ansicht abonniert Ereignisse.
+- Host, Senke und Stufen entstehen einmal je Prozess in `AppBootstrap.start`, nicht je Szene. Die Warteschlangen im Modell und die Schalter alt/neu aus der Zeit des Umbaus gibt es nicht mehr.
 
 ## Kapitel einer Folge
 

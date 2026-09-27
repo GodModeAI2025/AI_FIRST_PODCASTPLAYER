@@ -380,7 +380,8 @@ public struct TopicCoverStore: Sendable {
     /// Mit `scheduler` wartet das Bild auf die eine Stelle für Apple
     /// Intelligence, als Art `.cover` mit `priority`. Wird es dort für eine
     /// Anfrage eines Menschen verdrängt, beginnt es danach von vorn. Ohne
-    /// läuft es sofort, wie bis 0.13 (Schalter der Stufe „Ausgaben“).
+    /// läuft es sofort, etwa in Tests oder bevor die App ihre Stufe
+    /// „Ausgaben“ angelegt hat.
     public func generate(
         for recipe: TopicCoverRecipe, scheduler: (any AIScheduling)? = nil, priority: AIWorkPriority = .background
     ) async throws -> TopicCover {

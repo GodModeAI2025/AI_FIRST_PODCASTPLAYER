@@ -6,8 +6,8 @@
 //  von 0.12: Folgen ohne Ergebnis je Systemversion, Lücken und abgelehnte
 //  Abschnitte der Fakten, der Stand angefangener Einordnungen und wie
 //  schnell das Gerätemodell Tags wählt. Bis zur Stufe „Wissen“ lagen die
-//  Zugriffe im `AppModel`. Die Stufe und der alte Weg hinter dem Schalter
-//  lesen und schreiben jetzt dieselben Dateien in `DeviceState`.
+//  Zugriffe im `AppModel`. Jetzt lesen und schreiben die Stufe, die Arbeit
+//  an einer Folge und die Pflege dieselben Dateien in `DeviceState`.
 //
 //  Jede Änderung liest, ändert und schreibt in einem Zug (`update`). Die
 //  Arbeit an einer Folge läuft abseits des Hauptakteurs, die Pflege nach
