@@ -114,6 +114,7 @@ struct ForYouView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
         .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
         .listStyle(.plain)
         .navigationTitle("Für dich")
@@ -341,23 +342,31 @@ struct ResumeRow: View {
     private var duration: Double { episode.declaredDuration?.seconds ?? 0 }
 
     var body: some View {
+        #if os(macOS)
+        // Auf dem Mac öffnet ein Klick auf die Zeile die Folge. Weiter
+        // spielt nur der Knopf daneben oder das Kontextmenü.
+        HStack(spacing: Design.Spacing.control) {
+            NavigationLink(value: MacRoute.episode(episode)) {
+                details.contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            Button { model.playEpisode(episode, at: position) } label: {
+                Label("Weiterhören", systemImage: "play.circle.fill")
+                    .labelStyle(.iconOnly)
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+            }
+            .buttonStyle(.borderless)
+            .help("Weiterhören")
+        }
+        .contextMenu {
+            Button("Weiterhören") { model.playEpisode(episode, at: position) }
+            NavigationLink("Öffnen", value: MacRoute.episode(episode))
+        }
+        #else
         Button { model.playEpisode(episode, at: position) } label: {
             HStack(spacing: Design.Spacing.control) {
-                EpisodeArtwork(url: episode.artworkURL,
-                               fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
-                               size: 48)
-                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                    Text(episode.title).font(.headline).lineLimit(2)
-                    if duration > 0 {
-                        ProgressView(value: min(position, duration), total: duration)
-                        Text("noch \(max(1, Int((duration - position) / 60))) Min.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    } else {
-                        Text("weiter ab \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                Spacer(minLength: 0)
+                details
                 Image(systemName: "play.circle.fill").font(.title2).foregroundStyle(.tint)
                     .accessibilityHidden(true)
             }
@@ -365,6 +374,36 @@ struct ResumeRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Spielt ab der Stelle weiter, an der du aufgehört hast")
+        #endif
+    }
+
+    private var details: some View {
+        HStack(spacing: Design.Spacing.control) {
+            EpisodeArtwork(url: episode.artworkURL,
+                           fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                           size: 48)
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                Text(episode.title).font(.headline).lineLimit(2)
+                if duration > 0 {
+                    ProgressView(value: min(position, duration), total: duration)
+                    Text("noch \(max(1, Int((duration - position) / 60))) Min.")
+                        .font(metadataFont).foregroundStyle(.secondary)
+                } else {
+                    Text("weiter ab \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
+                        .font(metadataFont).foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Auf dem Mac ist `.caption` 10 pt, zu klein für Angaben, die man lesen soll.
+    private var metadataFont: Font {
+        #if os(macOS)
+        .subheadline
+        #else
+        .caption
+        #endif
     }
 }
 
@@ -401,6 +440,19 @@ struct FreshEpisodeRow: View {
                     .tint(.red)
             }
         }
+        #if os(macOS)
+        // Auf dem Mac gibt es kein Wischen. Abspielen steht im Kontextmenü.
+        .contextMenu {
+            if model.canPlay(episode) {
+                Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
+                Button { model.addToUpNext(episode) } label: {
+                    Label("Als Nächstes hören", systemImage: "text.line.first.and.arrowtriangle.forward")
+                }
+            } else {
+                OpenEpisodeWebButton(episode: episode)
+            }
+        }
+        #endif
     }
 }
 
@@ -671,6 +723,7 @@ struct LibraryView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
         .navigationTitle("Meine Podcasts")
         .activityStatusToolbar()
         .confirmationDialog(removalTitle, isPresented: Binding(

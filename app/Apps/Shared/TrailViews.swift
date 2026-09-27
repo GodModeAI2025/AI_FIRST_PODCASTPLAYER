@@ -121,6 +121,7 @@ struct TrailListView: View {
                 }
             }
         }
+        .readingColumn()
         .navigationTitle("Gesicherte Antworten")
     }
 }

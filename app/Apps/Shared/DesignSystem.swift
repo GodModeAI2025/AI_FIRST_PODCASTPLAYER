@@ -98,6 +98,11 @@ public enum Design {
         public static let navigation: Material = .bar
         public static let sheet: Material = .regular
         public static let card: Material = .thin
+        #if os(macOS)
+        /// Karten auf dem Mac: eine ruhige Fläche statt Material. Glas
+        /// liefern Symbolleiste, Seitenleiste und Inspektor.
+        public static var macCard: some ShapeStyle { BackgroundStyle().secondary }
+        #endif
     }
 
     // MARK: - Hinweise
@@ -149,9 +154,17 @@ public extension View {
 
     /// Sorgt dafür, dass ein Element mindestens 44×44 Punkt zum Antippen hat,
     /// ohne es optisch zu vergrößern.
+    ///
+    /// Auf dem Mac gibt es keine Finger: dort bleibt das Element so groß,
+    /// wie es ist, und nur seine ganze Fläche nimmt den Klick an.
+    @ViewBuilder
     func tappableArea() -> some View {
+        #if os(macOS)
+        contentShape(Rectangle())
+        #else
         frame(minWidth: Design.minimumTapTarget, minHeight: Design.minimumTapTarget)
             .contentShape(Rectangle())
+        #endif
     }
 
     /// Eine Karte auf der Inhaltsebene.
@@ -163,6 +176,61 @@ public extension View {
     }
 }
 
+// MARK: - Lesespalte
+
+/// Auf dem Mac läuft der Inhalt einer Seite nicht über die ganze
+/// Fensterbreite. Ab 1080 Punkt Breite wachsen die Ränder statt der Zeilen;
+/// der Rollbalken bleibt am Fensterrand. Auf iPhone und iPad ändert sich nichts.
+public extension View {
+    @ViewBuilder
+    func readingColumn(maxWidth: CGFloat = Design.Layout.readingWidth) -> some View {
+        #if os(macOS)
+        modifier(ReadingColumn(maxWidth: maxWidth))
+        #else
+        self
+        #endif
+    }
+}
+
+public extension Design {
+    enum Layout {
+        /// Höchstbreite einer Seite auf dem Mac.
+        public static let readingWidth: CGFloat = 1080
+        /// Höchstbreite für Fließtext: Transkript, Antworten, Beschreibungen.
+        public static let textWidth: CGFloat = 720
+    }
+}
+
+#if os(macOS)
+private struct ReadingColumn: ViewModifier {
+
+    let maxWidth: CGFloat
+    @State private var width: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .contentMargins(.horizontal, max(Design.Spacing.large, (width - maxWidth) / 2), for: .scrollContent)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+    }
+}
+#endif
+
+#if os(macOS)
+/// Auf dem Mac ein randloser Systemknopf. Hervorhebung beim Drücken und
+/// die gesperrte Darstellung kommen vom System.
+public struct PressableButtonStyle: PrimitiveButtonStyle {
+
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        Button(configuration).buttonStyle(.borderless)
+    }
+}
+
+public extension PrimitiveButtonStyle where Self == PressableButtonStyle {
+    static var pressable: PressableButtonStyle { PressableButtonStyle() }
+}
+#else
 /// Rückmeldung beim Drücken.
 ///
 /// Apple verkleinert leicht und nimmt etwas Deckkraft — nicht mehr. Ein
@@ -209,6 +277,7 @@ public struct PressableButtonStyle: ButtonStyle {
 public extension ButtonStyle where Self == PressableButtonStyle {
     static var pressable: PressableButtonStyle { PressableButtonStyle() }
 }
+#endif
 
 // MARK: - Hauptknöpfe
 
@@ -219,6 +288,19 @@ public extension ButtonStyle where Self == PressableButtonStyle {
 /// die Schrift im hellen Modus weiß auf dunklem Indigo, im dunklen Modus
 /// schwarz auf hellem Blau, beides deutlich über 4,5 : 1. Gesperrt steht
 /// die Schrift gedämpft auf grauer Fläche, lesbar statt blass.
+#if os(macOS)
+/// Auf dem Mac der Glasknopf des Systems in der Akzentfarbe. Kontrast und
+/// gesperrte Darstellung regelt das System, auch bei Gelb oder Graphit als
+/// Akzentfarbe.
+public struct ProminentActionButtonStyle: PrimitiveButtonStyle {
+
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        Button(configuration).buttonStyle(.glassProminent)
+    }
+}
+#else
 public struct ProminentActionButtonStyle: ButtonStyle {
 
     public init() {}
@@ -229,6 +311,7 @@ public struct ProminentActionButtonStyle: ButtonStyle {
         ActionButtonBody(configuration: configuration, prominent: true)
     }
 }
+#endif
 
 /// Ein Nebenknopf neben dem Hauptknopf, etwa „Als Nächstes“ oder
 /// „Transkript erstellen“. Akzentfarbe auf zarter Akzentfläche, gesperrt
@@ -295,9 +378,15 @@ private struct ActionButtonBody: View {
     }
 }
 
+#if os(macOS)
+public extension PrimitiveButtonStyle where Self == ProminentActionButtonStyle {
+    static var prominentAction: ProminentActionButtonStyle { ProminentActionButtonStyle() }
+}
+#else
 public extension ButtonStyle where Self == ProminentActionButtonStyle {
     static var prominentAction: ProminentActionButtonStyle { ProminentActionButtonStyle() }
 }
+#endif
 
 // MARK: - Hinweis
 

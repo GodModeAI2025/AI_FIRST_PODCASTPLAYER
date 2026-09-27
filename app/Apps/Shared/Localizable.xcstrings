@@ -6251,6 +6251,22 @@
         }
       }
     },
+    "Die Zeitmarke spielt ab dieser Zeile. Den Text kannst du markieren und kopieren, das Kontextmenü merkt oder teilt die Stelle." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Zeitmarke spielt ab dieser Zeile. Den Text kannst du markieren und kopieren, das Kontextmenü merkt oder teilt die Stelle."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The timestamp plays from this line. You can select and copy the text; the context menu saves or shares the passage."
+          }
+        }
+      }
+    },
     "Die neueste Folge bleibt für unterwegs auf dem Gerät." : {
       "localizations" : {
         "de" : {

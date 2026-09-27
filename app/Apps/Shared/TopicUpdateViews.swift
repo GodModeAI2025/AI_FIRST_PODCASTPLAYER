@@ -117,6 +117,7 @@ struct SmartFeedListView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
         .navigationTitle("Themen-Updates")
         .activityStatusToolbar()
         // Rechnet „Angesagt“ und gleicht das gleichnamige Update ab. Spielt nichts.
@@ -505,6 +506,7 @@ struct SmartFeedDetailView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
         .navigationTitle(feed?.title ?? String(localized: "Themen-Update"))
         .navigationDestination(item: $openedTag) { id in TagDetailView(tagID: id) }
         .toolbar {

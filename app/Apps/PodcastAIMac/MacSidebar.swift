@@ -20,9 +20,17 @@ struct MacSidebar: View {
         model.sources.filter(\.isSubscribed)
     }
 
+    /// Die Auswahl der Liste. „So funktioniert's“ hat keine Zeile; solange es
+    /// offen ist, ist nichts markiert, und die Liste setzt es nicht zurück.
+    private var listSelection: Binding<SidebarItem?> {
+        Binding(
+            get: { router.selection == .help ? nil : router.selection },
+            set: { item in if let item { router.selection = item } }
+        )
+    }
+
     var body: some View {
-        @Bindable var router = router
-        List(selection: $router.selection) {
+        List(selection: listSelection) {
             // „Wissen“ enthält dieselben Einträge wie der Reiter auf iOS,
             // damit Hinweise wie „Wissen › Meine Tags“ auf beiden Geräten stimmen.
             Section("Hören") {

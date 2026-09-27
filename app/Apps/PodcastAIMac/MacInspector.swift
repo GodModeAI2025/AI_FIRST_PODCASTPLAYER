@@ -62,14 +62,17 @@ struct MacUpNextList: View {
                     HStack {
                         MacQueueRow(episode: episode, detail: remaining(for: episode))
                         Spacer(minLength: 0)
-                        Button { model.playEpisode(episode) } label: {
-                            Label("Abspielen", systemImage: "play.fill")
+                        // Nur sichtbar, wenn der Zeiger darüber ist oder die Zeile
+                        // ausgewählt ist. Unsichtbar gibt es den Knopf gar nicht,
+                        // damit ihn auch die Tastatur nicht unbemerkt drückt.
+                        if hovered == episode.id || selection.contains(episode.id) {
+                            Button { model.playEpisode(episode) } label: {
+                                Label("Abspielen", systemImage: "play.fill")
+                            }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.borderless)
+                            .help("Abspielen")
                         }
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.borderless)
-                        .help("Abspielen")
-                        .opacity(hovered == episode.id || selection.contains(episode.id) ? 1 : 0)
-                        .accessibilityHidden(hovered != episode.id && !selection.contains(episode.id))
                     }
                     .onHover { inside in
                         if inside { hovered = episode.id } else if hovered == episode.id { hovered = nil }

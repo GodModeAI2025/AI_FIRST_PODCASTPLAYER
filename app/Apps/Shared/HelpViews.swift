@@ -214,6 +214,7 @@ struct HelpView: View {
                 HelpSearchResults(query: trimmedQuery)
             }
         }
+        .readingColumn()
         .navigationTitle("So funktioniert's")
         .searchable(text: $query, prompt: Text("Tipps durchsuchen"))
     }

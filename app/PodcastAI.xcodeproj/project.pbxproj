@@ -221,6 +221,7 @@
 		D2575501E8D12ADE3BC070E5 /* StorageUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC62DB44F48DF34BF0C81D3E /* StorageUITests.swift */; };
 		D26041031936163393A2D962 /* AppModel+SingleEpisodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDDA6CEEB01A372CFC82653 /* AppModel+SingleEpisodes.swift */; };
 		D2A29E48B398A8BEF8C7BED8 /* TagFoundationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C1B73D0A1A9E4B3FBCFDCB /* TagFoundationTests.swift */; };
+		D2D41C124F067E5DDD30C092 /* MacWindowUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEEB73D5CC3FA11DC2B4E201 /* MacWindowUITests.swift */; };
 		D2E018D0A6D6353E9E4CD8C0 /* MacScenes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29F4A458F56430338E01803C /* MacScenes.swift */; };
 		D4CF84DB64C4097F6E71ACE0 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE12FB2B75DBFB0812CC03F /* AppModel.swift */; };
 		D5B2D5261B752CA534A9DC60 /* DemoTrends.swift in Sources */ = {isa = PBXBuildFile; fileRef = D65BFED3A557B2AD14B47F50 /* DemoTrends.swift */; };
@@ -297,6 +298,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = F1F49EDFE463F2CEACDAF6CF;
 			remoteInfo = PodcastAIWidget;
+		};
+		75BA20E269B9AAD53B5DE156 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 449EFFA8E136BDCA30B33177 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92F66075A3FC2C3D9B129593;
+			remoteInfo = PodcastAIMac;
 		};
 		BA6966B42AE42EFD6C3A043F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -521,6 +529,7 @@
 		E3D1422822404D4CDACF3C5F /* AppModel+ChatNarrowing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+ChatNarrowing.swift"; sourceTree = "<group>"; };
 		E5EBA507AB230A53302196AA /* ScrollUnderLoadUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollUnderLoadUITests.swift; sourceTree = "<group>"; };
 		E62E4AD033F13CC6F5377BDB /* RemovedEpisodeQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemovedEpisodeQueryTests.swift; sourceTree = "<group>"; };
+		E6E0FA43BA7D683353FD12E5 /* PodcastAIMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PodcastAIMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7559EDE9F251C1BD2FB8E6C /* BackgroundWork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWork.swift; sourceTree = "<group>"; };
 		E8C2BFB9A41A80DC63C8F6ED /* BetaFeedbackUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaFeedbackUITests.swift; sourceTree = "<group>"; };
 		EB8C5BA45BDC57DE4558C77C /* MacSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSidebar.swift; sourceTree = "<group>"; };
@@ -541,6 +550,7 @@
 		FC2DF930D8F6FB3823B061EB /* MentionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentionTests.swift; sourceTree = "<group>"; };
 		FC2E56D149D92E617ADC0ECF /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		FCA596D4A48ED1F0791C8772 /* LiveAnalysisTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAnalysisTests.swift; sourceTree = "<group>"; };
+		FEEB73D5CC3FA11DC2B4E201 /* MacWindowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacWindowUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -619,6 +629,7 @@
 				70629D66FC847860422BD264 /* Apps */,
 				2FD3822E0EFD477B53934CA8 /* Packages */,
 				4A3BE81D070367ABAF865E29 /* UITests */,
+				7B3C839716A9C3F94456EB8B /* UITestsMac */,
 				817BE705010813706CEDFE3F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -882,12 +893,21 @@
 			path = PodcastAIKit;
 			sourceTree = "<group>";
 		};
+		7B3C839716A9C3F94456EB8B /* UITestsMac */ = {
+			isa = PBXGroup;
+			children = (
+				FEEB73D5CC3FA11DC2B4E201 /* MacWindowUITests.swift */,
+			);
+			path = UITestsMac;
+			sourceTree = "<group>";
+		};
 		817BE705010813706CEDFE3F /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				999AF4590A87EB0CB7DBDAFF /* PodcastAI.app */,
 				EDBFAAEDED094DED2F661F3C /* PodcastAIKitTests.xctest */,
 				45FA019254B48BCE4D7AC2AE /* PodcastAIMac.app */,
+				E6E0FA43BA7D683353FD12E5 /* PodcastAIMacUITests.xctest */,
 				8B495BB4F72FD83EE76C4521 /* PodcastAIMacWidget.appex */,
 				BD1F1871B5D8FC7C6B94A3D0 /* PodcastAIShare.appex */,
 				65F4C37B3DA0DD5D679EA277 /* PodcastAIShareMac.appex */,
@@ -1074,6 +1094,24 @@
 			productReference = 45FA019254B48BCE4D7AC2AE /* PodcastAIMac.app */;
 			productType = "com.apple.product-type.application";
 		};
+		E315B01A52C8E615DAD5275D /* PodcastAIMacUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C8B259911E065B05EF80DD92 /* Build configuration list for PBXNativeTarget "PodcastAIMacUITests" */;
+			buildPhases = (
+				E2D9D9993E4D5CE268E7C753 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				013E949155EDA4933BA205A5 /* PBXTargetDependency */,
+			);
+			name = PodcastAIMacUITests;
+			packageProductDependencies = (
+			);
+			productName = PodcastAIMacUITests;
+			productReference = E6E0FA43BA7D683353FD12E5 /* PodcastAIMacUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		F1F49EDFE463F2CEACDAF6CF /* PodcastAIWidget */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 48C47136394FD83503EF9BE2 /* Build configuration list for PBXNativeTarget "PodcastAIWidget" */;
@@ -1132,6 +1170,11 @@
 						DevelopmentTeam = SP73Z8JWXM;
 						ProvisioningStyle = Automatic;
 					};
+					E315B01A52C8E615DAD5275D = {
+						DevelopmentTeam = SP73Z8JWXM;
+						ProvisioningStyle = Automatic;
+						TestTargetID = 92F66075A3FC2C3D9B129593;
+					};
 					F1F49EDFE463F2CEACDAF6CF = {
 						DevelopmentTeam = SP73Z8JWXM;
 						ProvisioningStyle = Automatic;
@@ -1159,6 +1202,7 @@
 				5FD25A6AC63B12951172F54B /* PodcastAI */,
 				4CBD03A8C134C3CD591E05EE /* PodcastAIKitTests */,
 				92F66075A3FC2C3D9B129593 /* PodcastAIMac */,
+				E315B01A52C8E615DAD5275D /* PodcastAIMacUITests */,
 				6168D3A0DCA21FA82284B5E1 /* PodcastAIMacWidget */,
 				4D00721337B4CDF0B26033D6 /* PodcastAIShare */,
 				79DD52FA24413382BFAEC3F6 /* PodcastAIShareMac */,
@@ -1366,6 +1410,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E2D9D9993E4D5CE268E7C753 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D2D41C124F067E5DDD30C092 /* MacWindowUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E7F9ACD231A43221BD406A26 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1529,6 +1581,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		013E949155EDA4933BA205A5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92F66075A3FC2C3D9B129593 /* PodcastAIMac */;
+			targetProxy = 75BA20E269B9AAD53B5DE156 /* PBXContainerItemProxy */;
+		};
 		281C9818105C492ED02C9D8A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 79DD52FA24413382BFAEC3F6 /* PodcastAIShareMac */;
@@ -1738,6 +1795,23 @@
 			};
 			name = Debug;
 		};
+		6F38DC74233EAF308C2FDF3F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.mac.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = PodcastAIMac;
+			};
+			name = Debug;
+		};
 		700ACA154CC46B313BE5F0E8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1839,6 +1913,23 @@
 				SDKROOT = iphoneos;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7C441F1763A1DC1C8EF17E84 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.mac.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = PodcastAIMac;
 			};
 			name = Release;
 		};
@@ -2063,6 +2154,15 @@
 			buildConfigurations = (
 				700ACA154CC46B313BE5F0E8 /* Debug */,
 				33F5C6661A518CACBA3B7E12 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C8B259911E065B05EF80DD92 /* Build configuration list for PBXNativeTarget "PodcastAIMacUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6F38DC74233EAF308C2FDF3F /* Debug */,
+				7C441F1763A1DC1C8EF17E84 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

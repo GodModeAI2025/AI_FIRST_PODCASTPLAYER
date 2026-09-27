@@ -22,6 +22,8 @@ struct MacRootView: View {
     @State private var showingOnboarding = OnboardingView.shouldShow
     @State private var isAddingSource = false
     @State private var showingActivity = false
+    @State private var note = MomentNoteDraft()
+    @State private var showingNote = false
     @State private var windowID = UUID()
 
     /// Zeigt dieses Fenster, was die ganze App betrifft?
@@ -41,7 +43,7 @@ struct MacRootView: View {
         }
         .environment(router)
         .toolbar {
-            MacNowPlayingToolbar(model: model)
+            MacNowPlayingToolbar(note: note, showingNote: $showingNote)
             ToolbarItem(placement: .primaryAction) {
                 activityItem
             }
@@ -79,6 +81,8 @@ struct MacRootView: View {
         }
         .focusedSceneValue(\.isAddingSource, $isAddingSource)
         .focusedSceneValue(\.router, router)
+        .focusedSceneValue(\.momentNote,
+                           MacNowPlayingDisplay.momentNoteAction(model: model, note: note, showingNote: $showingNote))
         // Nur ein Fenster meldet, was die ganze App betrifft. Die Meldungen
         // hängen an einer leeren Ansicht im Hintergrund, damit ein Wechsel
         // des meldenden Fensters den Inhalt nicht neu aufbaut.

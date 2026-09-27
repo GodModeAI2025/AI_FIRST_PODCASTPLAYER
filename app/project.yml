@@ -185,6 +185,20 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: PodcastAI
 
+  # UI-Tests der Mac-App: Bereiche, Inspektor, Hilfe und Regel 1.
+  PodcastAIMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: UITestsMac
+    dependencies:
+      - target: PodcastAIMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: PodcastAIMac
+
   PodcastAIKitTests:
     type: bundle.unit-test
     platform: macOS
@@ -209,9 +223,9 @@ schemes:
 
   PodcastAIMac:
     build:
-      targets: { PodcastAIMac: all, PodcastAIKitTests: [test] }
+      targets: { PodcastAIMac: all, PodcastAIKitTests: [test], PodcastAIMacUITests: [test] }
     run: { config: Debug }
     test:
       config: Debug
-      targets: [PodcastAIKitTests]
+      targets: [PodcastAIKitTests, PodcastAIMacUITests]
     archive: { config: Release }

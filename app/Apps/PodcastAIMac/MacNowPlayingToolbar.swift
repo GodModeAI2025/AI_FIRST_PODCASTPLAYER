@@ -59,14 +59,16 @@ enum NowPlayingState {
 
 struct MacNowPlayingToolbar: ToolbarContent {
 
-    let model: AppModel
+    /// „Moment merken“ gehört dem Fenster, damit auch ⌘D es öffnet.
+    let note: MomentNoteDraft
+    @Binding var showingNote: Bool
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
             MacTransportButtons()
         }
         ToolbarItem(placement: .principal) {
-            MacNowPlayingDisplay()
+            MacNowPlayingDisplay(note: note, showingNote: $showingNote)
         }
     }
 }
@@ -121,10 +123,10 @@ struct MacTransportButtons: View {
 /// Die Anzeige in der Mitte der Symbolleiste.
 struct MacNowPlayingDisplay: View {
 
+    let note: MomentNoteDraft
+    @Binding var showingNote: Bool
     @Environment(AppModel.self) private var model
     @Environment(\.openWindow) private var openWindow
-    @State private var note = MomentNoteDraft()
-    @State private var showingNote = false
 
     private var player: EpisodePlayer { model.episodePlayer }
 
@@ -149,15 +151,17 @@ struct MacNowPlayingDisplay: View {
                 }
             }
         }
-        .focusedSceneValue(\.momentNote, momentNoteAction(state))
     }
 
-    /// „Moment merken“ für das Menü Steuerung.
-    private func momentNoteAction(_ state: NowPlayingState) -> MomentNoteAction? {
-        guard case .episode(let episode) = state else { return nil }
-        return MomentNoteAction { [note, player] in
+    /// „Moment merken“ für das Menü Steuerung, gesetzt vom Fenster. Nur
+    /// solange eine Folge geladen ist; ein Fokus-Plan hat seinen eigenen Weg.
+    static func momentNoteAction(model: AppModel, note: MomentNoteDraft,
+                                 showingNote: Binding<Bool>) -> MomentNoteAction? {
+        guard case .episode(let episode) = NowPlayingState(model: model) else { return nil }
+        let player = model.episodePlayer
+        return MomentNoteAction {
             note.begin(in: episode, at: player.currentTime)
-            showingNote = true
+            showingNote.wrappedValue = true
         }
     }
 

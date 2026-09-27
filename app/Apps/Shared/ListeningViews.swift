@@ -386,6 +386,7 @@ struct EpisodeDetailView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
     }
 
     /// Warum ein Transkript aufs Netz wartet, obwohl Ton auf dem Gerät liegt:
@@ -735,6 +736,7 @@ struct EpisodeDetailView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
     }
 
     /// Holt die Folge in der Warteschlange der Fakten nach vorn.
@@ -1177,6 +1179,11 @@ struct TranscriptSection: View {
     /// Solange jemand im Suchfeld tippt, springt die Liste nicht zur
     /// laufenden Stelle.
     @FocusState private var searchFocused: Bool
+    #if os(macOS)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Die Zeile unter dem Zeiger. Nur dort stehen Merken und Kopieren.
+    @State private var hoveredLine: Int64?
+    #endif
 
     /// Die Suche ohne Leerzeichen am Rand.
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -1267,12 +1274,22 @@ struct TranscriptSection: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
+                        #if os(macOS)
+                        Text("Die Zeitmarke spielt ab dieser Zeile. Den Text kannst du markieren und kopieren, das Kontextmenü merkt oder teilt die Stelle.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        #else
                         Text("Antippen spielt ab dieser Zeile. Über „…“ merkst, kopierst oder teilst du sie.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        #endif
                     }
                 }
                 ForEach(Array(shown.enumerated()), id: \.element.start) { _, paragraph in
+                    #if os(macOS)
+                    macLine(paragraph, query: trimmed)
+                        .id(paragraph.start.milliseconds)
+                    #else
                     HStack(alignment: .top, spacing: Design.Spacing.small) {
                         Button {
                             model.playEpisode(episode, at: paragraph.start.seconds)
@@ -1327,14 +1344,21 @@ struct TranscriptSection: View {
                         PassageActions(text: paragraph.text, start: paragraph.start, episode: episode)
                     }
                     .id(paragraph.start.milliseconds)
+                    #endif
                 }
             }
+            .readingColumn(maxWidth: 900)
             // Nie zur laufenden Stelle springen, solange gesucht wird oder
             // das Suchfeld offen ist. Sonst lag das Feld samt Treffern
             // außerhalb des Bildes, und die Suche wirkte, als täte sie nichts.
             .onChange(of: currentStart) { _, start in
                 guard let start, trimmedQuery.isEmpty, !searchFocused else { return }
+                #if os(macOS)
+                // Mit „Bewegung reduzieren“ springt die Liste, statt zu gleiten.
+                withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(start, anchor: .center) }
+                #else
                 withAnimation { proxy.scrollTo(start, anchor: .center) }
+                #endif
             }
             // Jede neue Eingabe zeigt die Treffer von oben.
             .onChange(of: trimmedQuery) { _, now in
@@ -1379,6 +1403,82 @@ struct TranscriptSection: View {
         .onAppear { translation.viewAppeared() }
         .onDisappear { translation.viewDisappeared() }
     }
+
+    #if os(macOS)
+    /// Eine Zeile auf dem Mac. Der Text ist zum Markieren da und spielt
+    /// nichts; ab dieser Zeile spielt nur die Zeitmarke links. Merken und
+    /// Kopieren erscheinen beim Überfahren und stehen im Kontextmenü.
+    private func macLine(_ paragraph: (start: MediaTime, text: String), query: String) -> some View {
+        let key = paragraph.start.milliseconds
+        let current = isCurrent(paragraph.start)
+        return HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.control) {
+            Button {
+                model.playEpisode(episode, at: paragraph.start.seconds)
+            } label: {
+                Text(paragraph.start.timecode)
+                    .font(.subheadline.monospacedDigit().weight(current ? .bold : .regular))
+                    .foregroundStyle(current ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            }
+            .buttonStyle(.plain)
+            .frame(width: 56, alignment: .leading)
+            .help("Ab hier abspielen")
+            .accessibilityLabel("Ab \(TimecodeLabel.spoken(paragraph.start.timecode)) abspielen")
+            .accessibilityIdentifier("transcript.line")
+
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                if model.hasNote(in: episode.id, at: paragraph.start) {
+                    Label("gemerkt", systemImage: "bookmark.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.subheadline)
+                        .foregroundStyle(.tint)
+                }
+                Text(TranscriptSearch.highlighted(shownText(paragraph), matching: query))
+                    .font(.body)
+                    .foregroundStyle(isHeard(paragraph.start) ? .secondary : .primary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: 720, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: Design.Spacing.small) {
+                if hoveredLine == key {
+                    Button { remember(paragraph) } label: {
+                        Label("Stelle merken", systemImage: "bookmark")
+                    }
+                    .help("Stelle merken")
+                    Button {
+                        Clipboard.copy(model.citation(paragraph.text, at: paragraph.start, in: episode))
+                        confirm(NoteFeedback.copied)
+                    } label: {
+                        Label("Mit Quelle kopieren", systemImage: "doc.on.doc")
+                    }
+                    .help("Mit Quelle kopieren")
+                }
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .frame(width: 52, alignment: .trailing)
+        }
+        .padding(.vertical, Design.Spacing.micro)
+        .overlay(alignment: .leading) {
+            if current {
+                Capsule().fill(.tint).frame(width: 2).offset(x: -Design.Spacing.small)
+            }
+        }
+        .listRowBackground(current ? Color.accentColor.opacity(0.12) : nil)
+        .onHover { inside in
+            if inside { hoveredLine = key } else if hoveredLine == key { hoveredLine = nil }
+        }
+        .contextMenu {
+            PassageActions(text: paragraph.text, start: paragraph.start, episode: episode)
+        }
+        .accessibilityAction(named: "Stelle merken") { remember(paragraph) }
+        .accessibilityAction(named: "Mit Quelle kopieren") {
+            Clipboard.copy(model.citation(paragraph.text, at: paragraph.start, in: episode))
+            confirm(NoteFeedback.copied)
+        }
+    }
+    #endif
 
     private var currentStart: Int64? {
         guard model.episodePlayer.episode?.id == episode.id else { return nil }
