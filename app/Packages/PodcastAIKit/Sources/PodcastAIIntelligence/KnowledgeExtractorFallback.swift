@@ -66,6 +66,12 @@ public struct KnowledgeExtractor: Sendable {
         throw ExtractorError.modelUnavailable(Self.reason)
     }
 
+    public func extractClaimsWithTier(
+        from evidence: [Evidence], availability: ModelStatus
+    ) async throws -> (claims: [Claim], tier: ModelTier?) {
+        throw ExtractorError.modelUnavailable(Self.reason)
+    }
+
     public func summarizeChapter(
         _ evidence: [Evidence], title: String?, availability: ModelStatus
     ) async throws -> ChapterSummary? {

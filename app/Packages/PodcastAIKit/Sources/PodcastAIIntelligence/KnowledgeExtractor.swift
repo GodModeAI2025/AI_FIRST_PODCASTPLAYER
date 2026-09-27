@@ -208,16 +208,26 @@ public struct KnowledgeExtractor: Sendable {
         from evidence: [Evidence],
         availability: ModelStatus
     ) async throws -> [Claim] {
+        try await extractClaimsWithTier(from: evidence, availability: availability).claims
+    }
+
+    /// Wie ``extractClaims(from:availability:)`` und dazu die Stufe, die
+    /// tatsächlich gerechnet hat. Scheitert Private Cloud Compute und das
+    /// Gerät übernimmt, ist es das Gerät. `nil`, wenn kein Modell lief.
+    public func extractClaimsWithTier(
+        from evidence: [Evidence],
+        availability: ModelStatus
+    ) async throws -> (claims: [Claim], tier: ModelTier?) {
 
         if case .failure(let reason) = availability.resolve(.extract) {
             throw ExtractorError.modelUnavailable(reason)
         }
 
         let candidates = configuration.candidateBuilder.build(from: evidence)
-        guard !candidates.isEmpty else { return [] }
+        guard !candidates.isEmpty else { return ([], nil) }
 
         let prompt = claimPrompt(for: candidates)
-        let (response, _, _) = try await generate(
+        let (response, tier, _) = try await generate(
             ClaimExtractionOutput.self, instructions: claimInstructions(),
             profile: .extract, availability: availability) { _ in prompt }
 
@@ -225,9 +235,10 @@ public struct KnowledgeExtractor: Sendable {
             .split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        return Self.claims(
+        let claims = Self.claims(
             from: response.claims.map { ($0.passage, $0.statement) },
             candidates: candidates, openQuestions: questions)
+        return (claims, tier)
     }
 
     /// Macht aus Nummer und Satz des Modells Aussagen mit Beleg.

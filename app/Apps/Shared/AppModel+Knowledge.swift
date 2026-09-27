@@ -1106,9 +1106,8 @@ extension AppModel {
 
         await refreshModelStatus()
         // Fakten laufen über das Profil `.extract`: Private Cloud Compute,
-        // ohne PCC das Gerät. Scheitert PCC mitten in der Folge, rechnet der
-        // Rest auf dem Gerät weiter; die Stufe unter den Fakten ist die, die
-        // zu Beginn aufgelöst wurde.
+        // ohne PCC das Gerät. Scheitert PCC bei einem Abschnitt, rechnet das
+        // Gerät ihn; unter den Fakten steht die Stufe, die ihn gerechnet hat.
         let tier: ModelTier
         switch modelStatus.resolve(.extract) {
         case .success(let resolved):
@@ -1185,11 +1184,14 @@ extension AppModel {
             // Schon bei einem früheren Lauf gelungen.
             guard open.contains(index) else { continue }
             let claims: [Claim]
+            let sliceTier: ModelTier
             do {
                 let availability = modelStatus
-                claims = try await ProcessingTrace.interval("Fakten: Abschnitt") {
+                let extracted = try await ProcessingTrace.interval("Fakten: Abschnitt") {
                     try await Self.extractClaims(from: slice, with: extractor, availability: availability)
                 }
+                claims = extracted.claims
+                sliceTier = extracted.tier ?? tier
             } catch let error as ExtractorError {
                 switch error {
                 case .generationRejected:
@@ -1208,6 +1210,13 @@ extension AppModel {
                         let detail = error.errorDescription ?? ""
                         lastError = String(localized: "Die Fakten konnten nicht ermittelt werden. \(detail)")
                     }
+                    // Mitten in der Folge weggefallen, meist das Netz für Private
+                    // Cloud Compute: sichern, was fertig ist. Der nächste Lauf holt
+                    // nur die offenen Abschnitte nach, statt das Kontingent für die
+                    // ganze Folge noch einmal zu verbrauchen.
+                    _ = await keepFinishedFacts(
+                        result, stored: stored, of: episode, unfinished: Set(slices[index...].indices.filter(open.contains)),
+                        slices: slices, missing: missing, replacing: force && !previous.isEmpty, since: ticket)
                     return .modelUnavailable(unavailable)
                 }
             } catch {
@@ -1228,7 +1237,7 @@ extension AppModel {
             result += await Task.detached(priority: .utility) {
                 ProcessingTrace.measure("Fakten verankern") {
                     Self.placeFacts(claims, episodeID: episodeID, byID: byID, sections: sections,
-                                    quota: quota, transcript: timed, tier: tier)
+                                    quota: quota, transcript: timed, tier: sliceTier)
                 }
             }.value
         }
@@ -1543,12 +1552,12 @@ extension AppModel {
     /// (`generationRejected`), hilft kein zweiter Versuch.
     private static func extractClaims(
         from slice: [Evidence], with extractor: KnowledgeExtractor, availability: ModelStatus
-    ) async throws -> [Claim] {
+    ) async throws -> (claims: [Claim], tier: ModelTier?) {
         do {
-            return try await extractor.extractClaims(from: slice, availability: availability)
+            return try await extractor.extractClaimsWithTier(from: slice, availability: availability)
         } catch let error as ExtractorError {
             guard case .generationFailed = error else { throw error }
-            return try await extractor.extractClaims(from: slice, availability: availability)
+            return try await extractor.extractClaimsWithTier(from: slice, availability: availability)
         }
     }
 
