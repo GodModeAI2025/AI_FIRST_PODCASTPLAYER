@@ -60,6 +60,9 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAI/PodcastAI.entitlements
+        # Auf dem Mac läuft die eigene Mac-App, nicht die iPhone-Fassung
+        # mit Tab-Leiste in einem gestreckten Fenster.
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
 
   PodcastAIMac:
     type: application

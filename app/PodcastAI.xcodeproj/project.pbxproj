@@ -1809,6 +1809,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.mobile;
 				PRODUCT_NAME = PodcastAI;
 				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -1843,6 +1844,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.mobile;
 				PRODUCT_NAME = PodcastAI;
 				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
