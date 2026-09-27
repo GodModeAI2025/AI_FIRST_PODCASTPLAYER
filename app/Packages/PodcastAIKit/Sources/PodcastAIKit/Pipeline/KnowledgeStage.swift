@@ -337,6 +337,12 @@ public actor KnowledgeStage {
 
     // MARK: - Ereignisse
 
+    /// Woraus Fakten und Kapitel-Tags entstehen. Ändert ein anderes Gerät
+    /// eine dieser Arten, gleicht die Stufe neu ab.
+    static let knowledgeInputs: [ChangeSet.Entity] = [
+        .source, .episode, .mediaVersion, .transcript, .segment, .evidence, .fact, .chapterTag, .interest,
+    ]
+
     func receive(_ event: PipelineEvent) async {
         switch event {
         case .evidenceReady(let id, _, _):
@@ -347,10 +353,13 @@ public actor KnowledgeStage {
             break
         case .feedsRefreshed:
             requestReconcile()
-        case .changedElsewhere:
+        case .changedElsewhere(let changes):
             // Ein anderes Gerät kann ein neues Transkript oder andere
             // Kapitel-Tags gebracht haben. Was dieser Start für eingeordnet
-            // hielt, fragt der Abgleich neu ab (Plan, Sync Phase 1).
+            // hielt, fragt der Abgleich neu ab (Plan, Sync Phase 1). Ein
+            // Abgleich nur von Hörzuständen, Notizen oder Themen-Updates
+            // ändert daran nichts (Phase 2).
+            guard changes.touches(Self.knowledgeInputs) else { return }
             tagsCurrent.removeAll()
             tagsCurrentResets += 1
             requestReconcile()

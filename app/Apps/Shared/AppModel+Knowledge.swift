@@ -26,41 +26,129 @@ extension AppModel {
 
     /// Lädt neu, wenn über iCloud Änderungen eines anderen Geräts ankommen.
     /// Mehrere Meldungen kurz hintereinander werden zu einem Neuladen.
+    ///
+    /// Das Hören, Sammeln und Bereinigen übernimmt `SyncObserver` im Paket.
+    /// Er sagt, was sich geändert hat; neu geladen wird nur das Betroffene.
     public func observeRemoteChanges() {
-        Task { [weak self] in
-            var pending: Task<Void, Never>?
-            for await _ in NotificationCenter.default.notifications(named: .NSPersistentStoreRemoteChange) {
-                // Die Meldung kommt auch nach jedem eigenen Speichern, etwa
-                // nach jedem Abschnitt der Fakten. Neu geladen wird nur, wenn
-                // etwas von woanders kam; sonst lud die App während der
-                // Auswertung alle paar Sekunden die ganze Bibliothek neu.
-                guard let store = self?.store, await store.hasForeignChanges() else { continue }
-                // Gemerkte Belege und Wörter können überholt sein. Sofort
-                // vergessen, nicht erst nach der Pause fürs Neuladen.
-                await store.forgetCachedEvidence()
-                pending?.cancel()
-                pending = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(2))
-                    guard !Task.isCancelled else { return }
-                    await self?.reloadAfterSync()
-                }
-            }
-        }
+        guard syncObserver == nil else { return }
+        let observer = SyncObserver(
+            store: { [weak self] in self?.store },
+            apply: { [weak self] changes, report in
+                await self?.applyChangesFromElsewhere(changes, report: report)
+            })
+        syncObserver = observer
+        Task { await observer.start() }
     }
 
-    public func reloadAfterSync() async {
-        // `load()` räumt dabei auch weg, was ein anderes Gerät gelöscht hat.
-        await load()
-        for source in sources where episodes[source.id] != nil {
-            if let list = try? await store.episodes(forSource: source.id) {
-                episodes[source.id] = withSupadataMetadata(list)
-                RemoteMediaRegistry.shared.register(list)
+    /// Nach dem Bereinigen durch die Pflege: Dateien der endgültig
+    /// bereinigten Folgen löschen, dann neu laden.
+    func applyChangesFromElsewhere(_ changes: ChangeSet, report: LibraryStore.RemovalReport) async {
+        if !report.mediaVersionIDs.isEmpty {
+            LocalMediaLocator.removeFiles(for: report.mediaVersionIDs)
+            mediaStorageChanged += 1
+        }
+        await reloadAfterSync(changes)
+    }
+
+    /// Lädt neu, was ein anderes Gerät geändert hat, und sagt es danach den
+    /// Stufen. Mit ``ChangeSet/all`` wie beim Start über `load()`.
+    public func reloadAfterSync(_ changes: ChangeSet = .all) async {
+        guard !changes.isEmpty else { return }
+        if changes.isEverything {
+            // `load()` räumt dabei auch weg, was ein anderes Gerät gelöscht hat.
+            await load()
+            for source in sources where episodes[source.id] != nil {
+                if let list = try? await store.episodes(forSource: source.id) {
+                    episodes[source.id] = withSupadataMetadata(list)
+                    RemoteMediaRegistry.shared.register(list)
+                }
+            }
+            for id in Array(facts.keys) { await loadFacts(for: id) }
+        } else {
+            await reloadChanged(changes)
+        }
+        // Merkzeichen von dort hat das Neuladen schon als `episodesRemoved`
+        // gemeldet. Die Stufen gleichen jetzt mit dem Store ab, soweit ihre
+        // Arten betroffen sind.
+        emit(.changedElsewhere(changes))
+    }
+
+    /// Die Teile von `load()`, die von den Änderungen abhängen, und nur die.
+    /// Was nur der Start braucht (Warteschlange zurückholen, angefangenes
+    /// Löschen fortsetzen, die letzte Folge bereitlegen), bleibt dort.
+    private func reloadChanged(_ changes: ChangeSet) async {
+        let knownHighlights = highlights
+        let episodeLists = changes.touches(.source, .episode)
+        do {
+            if changes.touches(.source) {
+                sources = withSupadataMetadata(sources: try await store.sources())
+                // Auf einem anderen Gerät abbestellt: ein neues Abo desselben
+                // Podcasts beginnt wieder mit den neuesten Folgen.
+                let subscribed = Set(sources.map(\.id))
+                backCatalog.removeAll { !subscribed.contains($0) }
+            }
+            if changes.touches(.interest) { try await reloadProfile() }
+            // Neue Kapitel-Tags oder Tags: offene Folgen und Tag-Seiten laden neu.
+            if changes.touches(.chapterTag, .interest) { chapterTagsRevision += 1 }
+            if changes.touches(.listeningState) { ledger = try await store.ledger() }
+            if changes.touches(.smartFeed, .personalEpisode) {
+                smartFeeds = try await store.smartFeeds()
+                editions = try await store.editions()
+                // Gelöschte Updates und Ausgaben nehmen ihr Bild mit.
+                if !store.isInMemory { retainCoverArt() }
+            }
+            if changes.touches(.smartFeed, .personalEpisode, .fact, .evidence, .listeningState, .episode,
+                               .chapterTag, .interest) {
+                scheduleStatisticsRefresh()
+            }
+            if changes.touches(.highlight) {
+                highlights = try await store.highlights()
+                if highlights != knownHighlights { reindexSpotlight() }
+            }
+            if changes.touches(.trail) { trails = try await store.trails() }
+            if changes.touches(.source, .episode, .mediaVersion, .transcript, .evidence) {
+                analyzedEpisodes = try await store.analyzedEpisodeIDs()
+            }
+            if episodeLists {
+                // Nur die Quellen, deren Folgen sich geändert haben, und neue
+                // Quellen. Ist unbekannt, welche es sind, alle wie beim Start.
+                let changedSources = changes.sourceIDs
+                for source in sources
+                where changedSources?.contains(source.id) ?? true || episodes[source.id] == nil {
+                    let list = try await store.episodes(forSource: source.id)
+                    episodes[source.id] = withSupadataMetadata(list)
+                    RemoteMediaRegistry.shared.register(list)
+                }
+                sources = withSupadataMetadata(sources: sources)
+            }
+            for id in analyzedEpisodes where stages[id] == nil {
+                stages[id] = .evidenceExtracted
+            }
+        } catch {
+            lastError = UserFacingError.describe(error)
+        }
+        if episodeLists {
+            // Auf einem anderen Gerät Gelöschtes auch hier entfernen.
+            await forgetEpisodesRemovedElsewhere()
+        }
+        if changes.touches(.source) { await refreshInstalledSpeechModels() }
+        if changes.touches(.source, .episode, .evidence, .chapterTag, .interest, .listeningState, .fact) {
+            await refreshRelevantToday()
+        }
+        if changes.touches(.source, .episode, .mediaVersion, .transcript, .evidence, .listeningState) {
+            await tidyLocalAudio()
+        }
+        if changes.touches(.source, .episode, .mediaVersion, .transcript, .evidence, .fact, .chapterTag) {
+            await queueMissingFacts()
+        }
+        // Die gezeigten Fakten: nur die Folgen, deren Fakten oder Belege sich
+        // geändert haben, bei unbekannten alle.
+        if changes.touches(.fact, .evidence, .transcript, .segment, .episode, .source) {
+            let changed = changes.episodeIDs
+            for id in Array(facts.keys) where changed?.contains(id) ?? true {
+                await loadFacts(for: id)
             }
         }
-        for id in Array(facts.keys) { await loadFacts(for: id) }
-        // Merkzeichen von dort hat `load()` schon als `episodesRemoved`
-        // gemeldet. Was genau sich sonst änderte, sagt erst die Historie.
-        emit(.changedElsewhere(.all))
     }
 
     /// Wendet Löschungen an, die über iCloud von einem anderen Gerät kommen.

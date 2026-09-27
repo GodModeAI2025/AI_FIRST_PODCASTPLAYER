@@ -45,30 +45,180 @@ public actor LibraryStore: ModelActor {
     private var historyRead = false
 
     /// Kam seit dem letzten Aufruf eine Änderung von woanders, etwa über
-    /// iCloud von einem anderen Gerät?
+    /// iCloud von einem anderen Gerät? Wie ``foreignChanges()``, nur ja
+    /// oder nein. Beide lesen dieselbe Historie weiter, wer fragt, nimmt
+    /// eines von beiden.
+    public func hasForeignChanges() -> Bool {
+        foreignChanges() != nil
+    }
+
+    /// Was seit dem letzten Aufruf von woanders kam, etwa über iCloud von
+    /// einem anderen Gerät. `nil`, wenn nichts.
     ///
     /// `NSPersistentStoreRemoteChange` meldet auch jedes eigene Speichern.
     /// Bis 0.11 lud die App danach jedes Mal alles neu, nach jedem Abschnitt
     /// der Fakten und jeder Einordnung, mit allen Folgen aller Quellen. Jetzt
-    /// zählen nur Änderungen, die nicht von diesem Store stammen. Beim
-    /// ersten Aufruf nach dem Start ist der Stand unbekannt: dann ja.
-    public func hasForeignChanges() -> Bool {
+    /// zählen nur Änderungen, die nicht von diesem Store stammen, und die
+    /// Historie sagt, welche Arten von Zeilen sich geändert haben. Beim
+    /// ersten Aufruf nach dem Start ist der Stand unbekannt: dann alles.
+    /// Ebenso, wenn sich die Historie nicht lesen lässt.
+    public func foreignChanges() -> ChangeSet? {
         guard historyRead else {
             historyRead = true
             var latest = HistoryDescriptor<DefaultHistoryTransaction>(
                 sortBy: [SortDescriptor(\.transactionIdentifier, order: .reverse)])
             latest.fetchLimit = 1
             historyToken = (try? modelContext.fetchHistory(latest))?.first?.token
-            return true
+            return .all
         }
         var descriptor = HistoryDescriptor<DefaultHistoryTransaction>()
         if let token = historyToken { descriptor.predicate = #Predicate { $0.token > token } }
-        guard let transactions = try? modelContext.fetchHistory(descriptor) else { return true }
+        guard let transactions = try? modelContext.fetchHistory(descriptor) else { return .all }
         if let newest = transactions.map(\.token).max() { historyToken = newest }
         // Nur Änderungen an eigenen Daten zählen. Der Abgleich mit iCloud
         // schreibt nach jedem Speichern auch eigene Verwaltungsdaten; sie
         // tragen einen fremden Namen, aber keine Änderung an einem Modell.
-        return transactions.contains { $0.author != Self.localAuthor && !$0.changes.isEmpty }
+        let foreign = transactions.filter { $0.author != Self.localAuthor && !$0.changes.isEmpty }
+        guard !foreign.isEmpty else { return nil }
+        return changeSet(from: foreign.flatMap(\.changes))
+    }
+
+    /// Die Arten der Modelle nach ihrem Namen in der Historie.
+    private static let entitiesByName: [String: ChangeSet.Entity] = [
+        Schema.entityName(for: StoredSource.self): .source,
+        Schema.entityName(for: StoredEpisode.self): .episode,
+        Schema.entityName(for: StoredMediaVersion.self): .mediaVersion,
+        Schema.entityName(for: StoredTranscript.self): .transcript,
+        Schema.entityName(for: StoredSegment.self): .segment,
+        Schema.entityName(for: StoredListeningState.self): .listeningState,
+        Schema.entityName(for: StoredInterest.self): .interest,
+        Schema.entityName(for: StoredEvidence.self): .evidence,
+        Schema.entityName(for: StoredHighlight.self): .highlight,
+        Schema.entityName(for: StoredSmartFeed.self): .smartFeed,
+        Schema.entityName(for: StoredPersonalEpisode.self): .personalEpisode,
+        Schema.entityName(for: StoredKnowledgeTrail.self): .trail,
+        Schema.entityName(for: StoredFact.self): .fact,
+        Schema.entityName(for: StoredChapterTag.self): .chapterTag,
+    ]
+
+    /// So viele geänderte Zeilen einer Art liest der Store nach, um ihre
+    /// Kennungen zu erfahren. Darüber gilt die ganze Art als geändert: ein
+    /// großer Abgleich kostete sonst mehr als das Neuladen, das er spart.
+    static let changeResolutionLimit = 400
+
+    /// Setzt die Änderungen der Historie zu einem ``ChangeSet`` zusammen.
+    private func changeSet(from changes: [HistoryChange]) -> ChangeSet {
+        var counts: [ChangeSet.Entity: ChangeSet.Rows] = [:]
+        var changed: [ChangeSet.Entity: Set<PersistentIdentifier>] = [:]
+        for change in changes {
+            let id = change.changedPersistentIdentifier
+            // Eine Zeile, die dieser Code nicht kennt: lieber alles neu.
+            guard let entity = Self.entitiesByName[id.entityName] else { return .all }
+            switch change {
+            case .insert:
+                counts[entity, default: ChangeSet.Rows()].inserted += 1
+                changed[entity, default: []].insert(id)
+            case .update:
+                counts[entity, default: ChangeSet.Rows()].updated += 1
+                changed[entity, default: []].insert(id)
+            case .delete:
+                counts[entity, default: ChangeSet.Rows()].deleted += 1
+            @unknown default:
+                return .all
+            }
+        }
+
+        var episodeIDs: Set<EpisodeID>? = []
+        var sourceIDs: Set<SourceID>? = []
+        func episode(_ key: String?) {
+            guard let key, !key.isEmpty else { episodeIDs = nil; return }
+            episodeIDs?.insert(EpisodeID(rawValue: key))
+        }
+        func source(_ key: String?) {
+            guard let key, !key.isEmpty else { sourceIDs = nil; return }
+            sourceIDs?.insert(SourceID(rawValue: key))
+        }
+
+        for (entity, ids) in changed {
+            let list = Array(ids)
+            // Segmente kommen zu Tausenden und tragen keine Folge. Hörzustände
+            // haben keine eigene Kennung. Beide liest niemand nach.
+            let resolvable = entity != .segment && entity != .listeningState
+            guard resolvable, list.count <= Self.changeResolutionLimit else {
+                counts[entity]?.identifiers = nil
+                if entity != .listeningState { episodeIDs = nil }
+                if entity == .source || entity == .episode { sourceIDs = nil }
+                continue
+            }
+            var keys: Set<String> = []
+            switch entity {
+            case .source:
+                for row in changedRows(StoredSource.self, list) {
+                    keys.insert(row.identifier)
+                    source(row.identifier)
+                }
+            case .episode:
+                for row in changedRows(StoredEpisode.self, list) {
+                    keys.insert(row.identifier)
+                    episode(row.identifier)
+                    source(row.source?.identifier)
+                }
+            case .mediaVersion:
+                for row in changedRows(StoredMediaVersion.self, list) {
+                    keys.insert(row.identifier)
+                    episode(row.episode?.identifier)
+                }
+            case .transcript:
+                for row in changedRows(StoredTranscript.self, list) {
+                    keys.insert(row.identifier)
+                    episode(row.mediaVersion?.episode?.identifier)
+                }
+            case .evidence:
+                for row in changedRows(StoredEvidence.self, list) {
+                    keys.insert(row.identifier)
+                    episode(row.episodeIdentifier)
+                }
+            case .fact:
+                for row in changedRows(StoredFact.self, list) {
+                    keys.insert(row.identifier)
+                    episode(row.episodeIdentifier)
+                }
+            case .chapterTag:
+                for row in changedRows(StoredChapterTag.self, list) {
+                    keys.insert(row.identifier)
+                    episode(row.episodeIdentifier)
+                }
+            case .interest:
+                keys = Set(changedRows(StoredInterest.self, list).map(\.identifier))
+            case .highlight:
+                keys = Set(changedRows(StoredHighlight.self, list).map(\.identifier))
+            case .smartFeed:
+                keys = Set(changedRows(StoredSmartFeed.self, list).map(\.identifier))
+            case .personalEpisode:
+                keys = Set(changedRows(StoredPersonalEpisode.self, list).map(\.identifier))
+            case .trail:
+                keys = Set(changedRows(StoredKnowledgeTrail.self, list).map(\.identifier))
+            case .segment, .listeningState:
+                break
+            }
+            keys.remove("")
+            counts[entity]?.identifiers = keys
+        }
+
+        // Gelöschte Zeilen nennen keine Kennung mehr (kein
+        // `preserveValueOnDeletion` ohne Schemaänderung). Wer nach Folgen oder
+        // Quellen fragt, bekommt dann „unbekannt“.
+        let episodeData: [ChangeSet.Entity] = [.episode, .mediaVersion, .transcript, .segment, .evidence, .fact,
+                                               .chapterTag]
+        if episodeData.contains(where: { (counts[$0]?.deleted ?? 0) > 0 }) { episodeIDs = nil }
+        if (counts[.source]?.deleted ?? 0) > 0 || (counts[.episode]?.deleted ?? 0) > 0 { sourceIDs = nil }
+        return ChangeSet(rows: counts, episodeIDs: episodeIDs, sourceIDs: sourceIDs)
+    }
+
+    /// Die Zeilen zu Kennungen aus der Historie, soweit es sie noch gibt.
+    private func changedRows<T: PersistentModel>(_ type: T.Type, _ ids: [PersistentIdentifier]) -> [T] {
+        let descriptor = FetchDescriptor<T>(predicate: #Predicate { ids.contains($0.persistentModelID) })
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 
     /// Die zuletzt gelesenen Belege mit Zeitmarken, siehe
@@ -297,72 +447,169 @@ public actor LibraryStore: ModelActor {
     /// Audiodateien der Aufrufer löschen kann, weil eine Kopie der Folge
     /// gelöscht war.
     public func removeDuplicatesWithReport() throws -> RemovalReport {
+        try removeDuplicatesWithReport(in: .all)
+    }
+
+    /// Bereinigt nur, was die Änderungen von woanders betreffen können, als
+    /// Auftrag der Pflege nach einem Abgleich (Plan, Sync Phase 2).
+    ///
+    /// Doppelte entstehen, wenn zwei Geräte dieselbe Zeile anlegen; sie
+    /// kommen also als eingefügte oder geänderte Zeilen an. Ein Schritt
+    /// läuft deshalb nur, wenn sich seine Art geändert hat, und liest nur
+    /// die Zeilen mit den Kennungen aus der Historie. Eine Gruppe steht über
+    /// ihren Schlüssel fest, also findet das dieselben Doppelten wie das
+    /// ganze Bereinigen. Das Wiederanhängen verwaister Kinder folgt auf
+    /// Löschungen: Es läuft, wenn sich die Art der Eltern oder der Kinder
+    /// geändert hat. Mit ``ChangeSet/all`` läuft alles, wie beim Start.
+    public func removeDuplicatesWithReport(in changes: ChangeSet) throws -> RemovalReport {
+        var report = RemovalReport()
+        guard !changes.isEmpty else { return report }
+        let scope = DuplicateScope(changes: changes)
         evidenceChanged()
         defer { evidenceChanged() }
-        var report = RemovalReport()
         // Nach jedem Schritt speichern: Eine Abfrage sieht gelöschte Zeilen
         // sonst noch, und der nächste Schritt muss die umgehängten Kinder sehen.
-        try mergeDuplicateSources()
-        try modelContext.save()
+        if scope.needs(.source) {
+            try mergeDuplicateSources(scope.rows(of: .source) { keys in
+                FetchDescriptor<StoredSource>(predicate: #Predicate { keys.contains($0.identifier) })
+            })
+            try modelContext.save()
+        }
         // Vor dem Zusammenführen der Folgen: Eine Folge ohne Quelle landet
         // sonst in einer eigenen Gruppe und bliebe für immer doppelt.
-        try reattachOrphanedEpisodes()
-        try settleEpisodeDuplicates(into: &report)
-        try modelContext.save()
-        try mergeDuplicateMediaVersions()
-        try modelContext.save()
-        try reattachOrphanedMediaVersions()
-        try reattachOrphanedTranscripts()
-        try mergeDuplicateTranscripts()
+        if changes.touches(.source, .episode) {
+            try reattachOrphanedEpisodes()
+            // Neue oder gelöschte Quellzeilen hängen Folgen um. Dann können
+            // Folgen doppelt sein, deren Zeile sich selbst nicht geändert hat.
+            let movedEpisodes = (changes.rows[.source]?.inserted ?? 0) > 0 || changes.deletes(.source)
+            let keys = movedEpisodes ? nil : changes.identifiers(of: .episode).map { $0.sorted() }
+            try settleEpisodeDuplicates(only: keys, into: &report)
+            try modelContext.save()
+        }
+        if scope.needs(.mediaVersion) {
+            try mergeDuplicateMediaVersions(scope.rows(of: .mediaVersion) { keys in
+                FetchDescriptor<StoredMediaVersion>(predicate: #Predicate { keys.contains($0.identifier) })
+            })
+            try modelContext.save()
+        }
+        if changes.touches(.episode, .mediaVersion) { try reattachOrphanedMediaVersions() }
+        if changes.touches(.mediaVersion, .transcript) { try reattachOrphanedTranscripts() }
+        if scope.needs(.transcript) {
+            try mergeDuplicateTranscripts(scope.rows(of: .transcript) { keys in
+                FetchDescriptor<StoredTranscript>(predicate: #Predicate { keys.contains($0.identifier) })
+            })
+        }
         try modelContext.save()
 
         // Segmente gehören zu ihrem Transkript. Die Kennung allein reicht
-        // nicht, denn sie enthält weder Revision noch Sprache.
-        try removeLeafDuplicates(StoredSegment.self,
-            key: { $0.identifier + "|" + ($0.transcript?.identifier ?? "") },
-            order: [RowOrder.ascending { $0.text },
-                    RowOrder.ascending { $0.speakerLabel ?? "" }])
-        try removeLeafDuplicates(StoredInterest.self, key: \.identifier,
-            order: [RowOrder.ascending { $0.createdAt }])
-        try removeLeafDuplicates(StoredEvidence.self, key: \.identifier,
-            order: [RowOrder.descending { $0.hasTiming ? 1 : 0 },
-                    RowOrder.descending { $0.transcriptIdentifier.isEmpty ? 0 : 1 },
-                    RowOrder.ascending { $0.transcriptIdentifier },
-                    RowOrder.ascending { $0.quotedText },
-                    RowOrder.ascending { $0.attributedSpeaker ?? "" }])
-        try removeLeafDuplicates(StoredHighlight.self, key: \.identifier,
-            order: [RowOrder.ascending { $0.createdAt },
-                    RowOrder.ascending { $0.evidenceIdentifier }])
-        try removeLeafDuplicates(StoredSmartFeed.self, key: \.identifier,
-            order: [RowOrder.ascending { $0.createdAt }])
-        try removeLeafDuplicates(StoredPersonalEpisode.self, key: \.identifier,
-            order: [RowOrder.ascending { $0.feedIdentifier }])
-        try removeLeafDuplicates(StoredKnowledgeTrail.self, key: \.identifier,
-            order: [RowOrder.ascending { $0.parkedAt }])
-        try removeLeafDuplicates(StoredFact.self, key: \.identifier,
-            order: [RowOrder.ascending { $0.createdAt },
-                    RowOrder.ascending { $0.statement }])
+        // nicht, denn sie enthält weder Revision noch Sprache. Ihre Kennungen
+        // liest die Historie nicht nach, es sind zu viele.
+        if scope.needs(.segment) || scope.needs(.transcript) {
+            try removeLeafDuplicates(StoredSegment.self,
+                key: { $0.identifier + "|" + ($0.transcript?.identifier ?? "") },
+                order: [RowOrder.ascending { $0.text },
+                        RowOrder.ascending { $0.speakerLabel ?? "" }])
+        }
+        if scope.needs(.interest) {
+            try removeLeafDuplicates(StoredInterest.self, key: \.identifier,
+                order: [RowOrder.ascending { $0.createdAt }],
+                rows: scope.rows(of: .interest) { keys in
+                    FetchDescriptor<StoredInterest>(predicate: #Predicate { keys.contains($0.identifier) })
+                })
+        }
+        if scope.needs(.evidence) {
+            try removeLeafDuplicates(StoredEvidence.self, key: \.identifier,
+                order: [RowOrder.descending { $0.hasTiming ? 1 : 0 },
+                        RowOrder.descending { $0.transcriptIdentifier.isEmpty ? 0 : 1 },
+                        RowOrder.ascending { $0.transcriptIdentifier },
+                        RowOrder.ascending { $0.quotedText },
+                        RowOrder.ascending { $0.attributedSpeaker ?? "" }],
+                rows: scope.rows(of: .evidence) { keys in
+                    FetchDescriptor<StoredEvidence>(predicate: #Predicate { keys.contains($0.identifier) })
+                })
+        }
+        if scope.needs(.highlight) {
+            try removeLeafDuplicates(StoredHighlight.self, key: \.identifier,
+                order: [RowOrder.ascending { $0.createdAt },
+                        RowOrder.ascending { $0.evidenceIdentifier }],
+                rows: scope.rows(of: .highlight) { keys in
+                    FetchDescriptor<StoredHighlight>(predicate: #Predicate { keys.contains($0.identifier) })
+                })
+        }
+        if scope.needs(.smartFeed) {
+            try removeLeafDuplicates(StoredSmartFeed.self, key: \.identifier,
+                order: [RowOrder.ascending { $0.createdAt }],
+                rows: scope.rows(of: .smartFeed) { keys in
+                    FetchDescriptor<StoredSmartFeed>(predicate: #Predicate { keys.contains($0.identifier) })
+                })
+        }
+        if scope.needs(.personalEpisode) {
+            try removeLeafDuplicates(StoredPersonalEpisode.self, key: \.identifier,
+                order: [RowOrder.ascending { $0.feedIdentifier }],
+                rows: scope.rows(of: .personalEpisode) { keys in
+                    FetchDescriptor<StoredPersonalEpisode>(predicate: #Predicate { keys.contains($0.identifier) })
+                })
+        }
+        if scope.needs(.trail) {
+            try removeLeafDuplicates(StoredKnowledgeTrail.self, key: \.identifier,
+                order: [RowOrder.ascending { $0.parkedAt }],
+                rows: scope.rows(of: .trail) { keys in
+                    FetchDescriptor<StoredKnowledgeTrail>(predicate: #Predicate { keys.contains($0.identifier) })
+                })
+        }
+        if scope.needs(.fact) {
+            try removeLeafDuplicates(StoredFact.self, key: \.identifier,
+                order: [RowOrder.ascending { $0.createdAt },
+                        RowOrder.ascending { $0.statement }],
+                rows: scope.rows(of: .fact) { keys in
+                    FetchDescriptor<StoredFact>(predicate: #Predicate { keys.contains($0.identifier) })
+                })
+        }
         try modelContext.save()
 
         // Tags: fehlende Schlüssel eintragen, Tags mit gleichem Schlüssel
         // zusammenlegen und alle Verweise auf die Kennung umschreiben, die
         // bleibt. Erst danach die Kapitel-Tags, denn nach dem Umschreiben
         // sind Kopien vom anderen Gerät gleich.
-        try settleTags()
-        try settleChapterTags()
+        if changes.touches(.interest) { try settleTags() }
+        if changes.touches(.interest, .chapterTag) { try settleChapterTags() }
         try modelContext.save()
-        try removeChapterTagsOfRemovedEpisodes()
-        try modelContext.save()
+        if changes.touches(.episode, .chapterTag) {
+            try removeChapterTagsOfRemovedEpisodes()
+            try modelContext.save()
+        }
         return report
+    }
+
+    /// Welche Schritte des Bereinigens laufen und welche Zeilen sie lesen.
+    private struct DuplicateScope {
+        let changes: ChangeSet
+
+        /// Können Zeilen dieser Art doppelt geworden sein?
+        func needs(_ entity: ChangeSet.Entity) -> Bool {
+            if changes.isEverything { return true }
+            guard let rows = changes.rows[entity] else { return false }
+            return rows.inserted + rows.updated > 0
+        }
+
+        /// Die Abfrage für die Zeilen, die sich geändert haben, oder alle,
+        /// wenn ihre Kennungen unbekannt sind.
+        func rows<T: PersistentModel>(
+            of entity: ChangeSet.Entity, _ matching: ([String]) -> FetchDescriptor<T>
+        ) -> FetchDescriptor<T> {
+            guard let keys = changes.identifiers(of: entity) else { return FetchDescriptor<T>() }
+            return matching(keys.sorted())
+        }
     }
 
     /// Gruppiert Zeilen nach Schlüssel und ordnet jede Gruppe. Zurück kommen
     /// nur Gruppen, in denen die erste Zeile eindeutig vor der zweiten steht.
     private func duplicateGroups<T: PersistentModel>(
-        _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step]
+        _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step],
+        rows descriptor: FetchDescriptor<T> = FetchDescriptor<T>()
     ) throws -> [(keep: T, drop: [T])] {
         var groups: [String: [T]] = [:]
-        for row in try modelContext.fetch(FetchDescriptor<T>()) {
+        for row in try modelContext.fetch(descriptor) {
             let value = key(row)
             guard !value.isEmpty else { continue }
             groups[value, default: []].append(row)
@@ -383,18 +630,19 @@ public actor LibraryStore: ModelActor {
     /// Für Typen ohne Kinder: Die Kopien tragen dieselben Daten wie die
     /// behaltene Zeile und können gehen.
     private func removeLeafDuplicates<T: PersistentModel>(
-        _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step]
+        _ type: T.Type, key: (T) -> String, order: [RowOrder<T>.Step],
+        rows descriptor: FetchDescriptor<T> = FetchDescriptor<T>()
     ) throws {
-        for group in try duplicateGroups(type, key: key, order: order) {
+        for group in try duplicateGroups(type, key: key, order: order, rows: descriptor) {
             for row in group.drop { modelContext.delete(row) }
         }
     }
 
-    private func mergeDuplicateSources() throws {
+    private func mergeDuplicateSources(_ rows: FetchDescriptor<StoredSource> = FetchDescriptor()) throws {
         let groups = try duplicateGroups(StoredSource.self, key: \.identifier, order: [
             RowOrder.ascending { $0.addedAt },
             RowOrder.ascending { $0.feedURLString ?? "" },
-        ])
+        ], rows: rows)
         guard !groups.isEmpty else { return }
         for (keep, drop) in groups {
             for copy in drop {
@@ -465,9 +713,14 @@ public actor LibraryStore: ModelActor {
     }
 
     /// Folgen: gelöschte Kopien setzen sich durch, lebende werden zusammengeführt.
-    private func settleEpisodeDuplicates(into report: inout RemovalReport) throws {
+    ///
+    /// `keys`: nur die Folgen mit diesen Kennungen, alle bei `nil`.
+    private func settleEpisodeDuplicates(only keys: [String]? = nil, into report: inout RemovalReport) throws {
+        if let keys, keys.isEmpty { return }
+        var descriptor = FetchDescriptor<StoredEpisode>()
+        if let keys { descriptor.predicate = #Predicate { keys.contains($0.identifier) } }
         var groups: [String: [StoredEpisode]] = [:]
-        for row in try modelContext.fetch(FetchDescriptor<StoredEpisode>()) where !row.identifier.isEmpty {
+        for row in try modelContext.fetch(descriptor) where !row.identifier.isEmpty {
             groups[row.identifier + "|" + (row.source?.identifier ?? ""), default: []].append(row)
         }
 
@@ -533,11 +786,13 @@ public actor LibraryStore: ModelActor {
         for (_, drop) in merged { for copy in drop { modelContext.delete(copy) } }
     }
 
-    private func mergeDuplicateMediaVersions() throws {
+    private func mergeDuplicateMediaVersions(
+        _ rows: FetchDescriptor<StoredMediaVersion> = FetchDescriptor()
+    ) throws {
         let groups = try duplicateGroups(StoredMediaVersion.self, key: \.identifier, order: [
             RowOrder.ascending { $0.acquiredAt },
             RowOrder.ascending { $0.remoteURLString ?? "" },
-        ])
+        ], rows: rows)
         guard !groups.isEmpty else { return }
         for (keep, drop) in groups {
             for copy in drop {
@@ -616,11 +871,11 @@ public actor LibraryStore: ModelActor {
         TranscriptID(stable: "\(media)|\(locale)").rawValue
     }
 
-    private func mergeDuplicateTranscripts() throws {
+    private func mergeDuplicateTranscripts(_ rows: FetchDescriptor<StoredTranscript> = FetchDescriptor()) throws {
         let groups = try duplicateGroups(StoredTranscript.self, key: \.identifier, order: [
             RowOrder.ascending { $0.createdAt },
             RowOrder.descending { $0.revisionValue },
-        ])
+        ], rows: rows)
         guard !groups.isEmpty else { return }
         for (keep, drop) in groups {
             for copy in drop {

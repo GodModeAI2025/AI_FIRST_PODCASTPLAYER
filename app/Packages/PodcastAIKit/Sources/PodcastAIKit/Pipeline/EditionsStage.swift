@@ -234,10 +234,11 @@ public actor EditionsStage {
             triggerAutomatic()
         case .editionPublished(let feedID, let parts):
             published(feedID, parts)
-        case .changedElsewhere:
+        case .changedElsewhere(let changes):
             // Die Ausgaben liest der Hauptakteur neu. Die Stufe merkt sich
-            // nur, was auf sein Ereignis wartet, und das ist dann alt.
-            awaitingEvent.removeAll()
+            // nur, was auf sein Ereignis wartet, und das ist dann alt, sobald
+            // sich Updates oder Ausgaben geändert haben.
+            if changes.touches(.smartFeed, .personalEpisode) { awaitingEvent.removeAll() }
         case .episodesRemoved:
             // Nichts zu vergessen: Die Stellen einer gelöschten Folge nimmt
             // der Wächter beim Schreiben heraus, schon geschriebene die Pflege.

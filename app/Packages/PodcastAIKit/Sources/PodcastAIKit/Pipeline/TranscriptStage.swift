@@ -449,10 +449,11 @@ public actor TranscriptStage {
             startRunIfNeeded()
         case .episodesRemoved(let ids, _):
             forget(Set(ids))
-        case .changedElsewhere:
+        case .changedElsewhere(let changes):
             // Ein anderes Gerät kann Transkripte gebracht haben. Geprüft wird
-            // nur, was hier wartet, nicht die ganze Bibliothek.
-            await reconcile()
+            // nur, was hier wartet, nicht die ganze Bibliothek, und nur, wenn
+            // sich an Folgen, Fassungen, Transkripten oder Belegen etwas tat.
+            if changes.touches(.source, .episode, .mediaVersion, .transcript, .evidence) { await reconcile() }
         case .episodesAdded, .transcriptSaved, .transcriptFailed, .evidenceReady, .transcriptsIdle, .factsDone,
              .tagsDone, .feedsRefreshed, .editionPublished:
             // Laut Router nicht für diese Stufe.

@@ -639,6 +639,10 @@ struct KnowledgeStageTests {
         await harness.stage.receive(.feedsRefreshed(byUser: false))
         await harness.stage.reconcile()
         #expect(await harness.stage.queuedTags.isEmpty)
+        // Nur Hörzustände von woanders: an Fakten und Tags ändert das nichts.
+        await harness.stage.receive(.changedElsewhere(ChangeSet(rows: [.listeningState: .init(updated: 1)])))
+        await harness.stage.reconcile()
+        #expect(await harness.stage.queuedTags.isEmpty)
         await harness.stage.receive(.changedElsewhere(.all))
         await harness.stage.reconcile()
         #expect(await harness.stage.queuedTags == [a.id])

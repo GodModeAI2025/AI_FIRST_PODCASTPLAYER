@@ -673,6 +673,8 @@ public final class AppModel {
     @ObservationIgnored var pipeline: PipelineHost?
     /// Das Ende der Pipeline auf dem Hauptakteur. Hört in Schritt 0 noch nicht zu.
     @ObservationIgnored var pipelineSink: PipelineSink?
+    /// Hört auf Änderungen von anderen Geräten, einmal je Prozess.
+    @ObservationIgnored var syncObserver: SyncObserver?
     /// Das letzte Senden, das erst im Store lesen muss. Das nächste wartet
     /// darauf, damit die Reihenfolge bleibt.
     @ObservationIgnored var pendingEmission: Task<Void, Never>?

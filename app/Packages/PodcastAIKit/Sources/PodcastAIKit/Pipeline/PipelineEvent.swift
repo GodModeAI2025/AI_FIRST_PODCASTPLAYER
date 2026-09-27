@@ -93,11 +93,8 @@ public enum RemovalScope: Sendable, Hashable, Codable {
     case elsewhere
 }
 
-/// Was sich auf einem anderen Gerät geändert hat. Bis die Historie das
-/// genauer sagt, gilt immer alles.
-public enum ChangeSet: Sendable, Hashable {
-    case all
-}
+// `ChangeSet`, was sich auf einem anderen Gerät geändert hat, liegt in
+// PodcastAIPersistence (ChangeSet.swift): Der Store liest es aus der Historie.
 
 /// Ein Hinweis zwischen den Stufen. Massenereignisse tragen Listen, damit
 /// ein Aktualisieren mit hundert neuen Folgen ein Ereignis bleibt.
