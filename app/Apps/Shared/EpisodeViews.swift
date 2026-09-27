@@ -19,6 +19,9 @@ struct EpisodeListView: View {
 
     let sourceID: SourceID
     @Environment(AppModel.self) private var model
+    #if os(macOS)
+    @Environment(MacRouter.self) private var router: MacRouter?
+    #endif
     @State private var pendingDelete: Episode?
     // Suche, Filter und Reihenfolge gelten nur für diese Liste.
     @State private var query = ""
@@ -255,11 +258,25 @@ struct EpisodeListView: View {
             loadedOnce = true
         }
         // Was mit dieser Quelle geht und wie weit ihr Archiv zurückreicht.
+        #if os(macOS)
+        .macInfoSubject(.source(sourceID))
+        #endif
         .toolbar {
             ToolbarItem {
+                #if os(macOS)
+                // Auf dem Mac im Inspektor neben der Liste, statt die Liste zu verlassen.
+                Button {
+                    router?.inspectorMode = .info
+                    router?.isInspectorPresented = true
+                } label: {
+                    Label("Über diese Quelle", systemImage: "info.circle")
+                }
+                .help("Informationen zu diesem Podcast (⌘I)")
+                #else
                 NavigationLink { SourceDetailView(sourceID: sourceID) } label: {
                     Label("Über diese Quelle", systemImage: "info.circle")
                 }
+                #endif
             }
             if let source, model.canReload(source) {
                 ToolbarItem { SourceReloadButton(source: source) }

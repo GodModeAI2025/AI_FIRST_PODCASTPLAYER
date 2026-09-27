@@ -96,6 +96,12 @@ struct EpisodeDetailView: View {
                 }
             }
             .pickerStyle(.segmented)
+            #if os(macOS)
+            // Auf dem Mac nicht über die ganze Fensterbreite gezogen.
+            .labelsHidden()
+            .fixedSize()
+            .frame(maxWidth: .infinity)
+            #endif
             .padding(.horizontal, Design.Spacing.standard)
             .padding(.vertical, Design.Spacing.small)
             .accessibilityIdentifier("episode.sections")
@@ -120,6 +126,15 @@ struct EpisodeDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar { ToolbarItem(placement: .primaryAction) { actionsMenu } }
+        #if os(macOS)
+        // Menübefehle: ⌥⌘1 bis ⌥⌘5 wechseln den Reiter, ⇧⌘E exportiert,
+        // ⌘I zeigt die Folge im Inspektor.
+        .focusedSceneValue(\.episodeSection, $section)
+        .focusedSceneValue(\.exportAction, ExportAction {
+            Task { exported = await model.exportEpisode(episode) }
+        })
+        .macInfoSubject(.episode(episode))
+        #endif
         .task(id: model.stages[episode.id]) {
             passages = await model.evidence(forEpisode: episode.id)
             await model.loadFacts(for: episode.id)
@@ -1547,7 +1562,6 @@ struct EpisodePlayerView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var scrubbing: Double?
     @State private var showingNote = false
     /// Tempo oder Schlaf-Timer als Blatt mit scrollbarer Liste. Nur bei
     /// großer Schrift: dort passte das Menü nicht auf den Bildschirm.
@@ -1648,6 +1662,8 @@ struct EpisodePlayerView: View {
                             Button("Fertig") { dismiss() }
                         }
                     }
+                    // Auf dem Mac liegt „Als Nächstes“ im Inspektor des Hauptfensters.
+                    #if os(iOS)
                     ToolbarItem(placement: .primaryAction) {
                         NavigationLink {
                             QueueView()
@@ -1655,6 +1671,7 @@ struct EpisodePlayerView: View {
                             Label("Warteschlange", systemImage: "list.bullet")
                         }
                     }
+                    #endif
                 }
             } else {
                 ContentUnavailableView("Nichts läuft", systemImage: "play.slash")
@@ -1695,58 +1712,7 @@ struct EpisodePlayerView: View {
     }
 
     private var scrubber: some View {
-        let total = max(player.duration, 1)
-        return VStack(spacing: Design.Spacing.micro) {
-            Slider(
-                value: Binding(
-                    get: { scrubbing ?? player.currentTime },
-                    set: { scrubbing = $0 }
-                ),
-                in: 0...total
-            ) { editing in
-                if !editing, let target = scrubbing {
-                    player.seek(to: target)
-                    scrubbing = nil
-                }
-            }
-            // Name, Wert und Schritte auch am Regler selbst. Erscheint er
-            // trotz der Zusammenfassung unten als eigenes Element, hiess er
-            // sonst nur „3 %“, und der Wert blieb über Minuten gleich.
-            .accessibilityLabel("Position")
-            .accessibilityValue(positionValue)
-            .accessibilityAdjustableAction(adjustPosition)
-            HStack {
-                Text(Self.format(scrubbing ?? player.currentTime))
-                Spacer()
-                Text(verbatim: "-" + Self.format(max(0, total - (scrubbing ?? player.currentTime))))
-            }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
-        }
-        // Für VoiceOver ein Element mit hörbarem Wert. Wischen nach oben
-        // oder unten springt wie die Sprungknöpfe, statt um ein Zehntel der Folge.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Position")
-        .accessibilityValue(positionValue)
-        .accessibilityAdjustableAction(adjustPosition)
-    }
-
-    /// „12 Minuten und 5 Sekunden von 53 Minuten“. Die Stelle genau, damit
-    /// jeder Sprung hörbar etwas ändert, die Länge in vollen Minuten.
-    private var positionValue: Text {
-        let now = Self.spoken(scrubbing ?? player.currentTime)
-        guard player.duration > 0 else { return Text(now) }
-        let total = player.duration < 60 ? Self.spoken(player.duration)
-            : Duration.seconds(Int(player.duration)).formatted(.units(allowed: [.hours, .minutes], width: .wide))
-        return Text("\(now) von \(total)")
-    }
-
-    private func adjustPosition(_ direction: AccessibilityAdjustmentDirection) {
-        switch direction {
-        case .increment: player.skipAhead()
-        case .decrement: player.skipBack()
-        @unknown default: break
-        }
+        PlaybackScrubber(player: player)
     }
 
     /// Eine Zeitangabe zum Vorlesen, etwa „12 Minuten und 30 Sekunden“.
@@ -1873,7 +1839,7 @@ struct EpisodePlayerView: View {
         #endif
     }
 
-    private static let rates: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
+    static let rates: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
 
     /// Als Auswahl mit Häkchen und dem Merkmal „ausgewählt“ für VoiceOver.
     private var ratePicker: some View {
@@ -2012,6 +1978,99 @@ struct EpisodePlayerView: View {
     }
 }
 
+/// Der Regler für die Position einer Folge mit verstrichener und
+/// verbleibender Zeit. Im Player stehen die Zeiten unter dem Regler, in der
+/// Symbolleiste des Mac daneben.
+struct PlaybackScrubber: View {
+
+    enum Layout { case stacked, inline }
+
+    let player: EpisodePlayer
+    var layout: Layout = .stacked
+    @State private var scrubbing: Double?
+
+    var body: some View {
+        let total = max(player.duration, 1)
+        return Group {
+            switch layout {
+            case .stacked:
+                VStack(spacing: Design.Spacing.micro) {
+                    slider(total: total)
+                    HStack {
+                        elapsed
+                        Spacer()
+                        remaining(total: total)
+                    }
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                }
+            case .inline:
+                HStack(spacing: Design.Spacing.small) {
+                    elapsed
+                    slider(total: total)
+                        .controlSize(.mini)
+                    remaining(total: total)
+                }
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+            }
+        }
+        // Für VoiceOver ein Element mit hörbarem Wert. Wischen nach oben
+        // oder unten springt wie die Sprungknöpfe, statt um ein Zehntel der Folge.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Position")
+        .accessibilityValue(positionValue)
+        .accessibilityAdjustableAction(adjustPosition)
+    }
+
+    private var elapsed: some View {
+        Text(EpisodePlayerView.format(scrubbing ?? player.currentTime))
+    }
+
+    private func remaining(total: Double) -> some View {
+        Text(verbatim: "-" + EpisodePlayerView.format(max(0, total - (scrubbing ?? player.currentTime))))
+    }
+
+    private func slider(total: Double) -> some View {
+        Slider(
+            value: Binding(
+                get: { scrubbing ?? player.currentTime },
+                set: { scrubbing = $0 }
+            ),
+            in: 0...total
+        ) { editing in
+            if !editing, let target = scrubbing {
+                player.seek(to: target)
+                scrubbing = nil
+            }
+        }
+        // Name, Wert und Schritte auch am Regler selbst. Erscheint er
+        // trotz der Zusammenfassung als eigenes Element, hiess er
+        // sonst nur „3 %“, und der Wert blieb über Minuten gleich.
+        .accessibilityLabel("Position")
+        .accessibilityValue(positionValue)
+        .accessibilityAdjustableAction(adjustPosition)
+    }
+
+    /// „12 Minuten und 5 Sekunden von 53 Minuten“. Die Stelle genau, damit
+    /// jeder Sprung hörbar etwas ändert, die Länge in vollen Minuten.
+    private var positionValue: Text {
+        let now = EpisodePlayerView.spoken(scrubbing ?? player.currentTime)
+        guard player.duration > 0 else { return Text(now) }
+        let total = player.duration < 60 ? EpisodePlayerView.spoken(player.duration)
+            : Duration.seconds(Int(player.duration)).formatted(.units(allowed: [.hours, .minutes], width: .wide))
+        return Text("\(now) von \(total)")
+    }
+
+    private func adjustPosition(_ direction: AccessibilityAdjustmentDirection) {
+        switch direction {
+        case .increment: player.skipAhead()
+        case .decrement: player.skipBack()
+        @unknown default: break
+        }
+    }
+}
+
 /// Kompakte Leiste für die laufende Folge.
 struct EpisodeMiniBar: View {
 
@@ -2092,6 +2151,11 @@ struct EpisodeMiniBar: View {
 /// und was gerade oder demnächst erschlossen wird.
 struct QueueView: View {
 
+    /// Was die Liste zeigt. Auf iOS alles, auf dem Mac steht „Als Nächstes“
+    /// im Inspektor und die Verarbeitung in einem eigenen Fenster.
+    enum Parts { case all, processing }
+
+    var parts: Parts = .all
     @Environment(AppModel.self) private var model
     @State private var confirmingCancel = false
 
@@ -2102,40 +2166,8 @@ struct QueueView: View {
 
     var body: some View {
         List {
-            if let episode = model.episodePlayer.episode {
-                Section("Jetzt läuft") {
-                    NavigationLink { EpisodeDetailView(episode: episode) } label: {
-                        QueueRow(episode: episode, detail: model.episodePlayer.currentChapter?.title)
-                    }
-                }
-            }
-
-            Section {
-                if model.upNext.isEmpty {
-                    Text("Leer. In einer Folge „Als Nächstes“ antippen, dann startet sie, sobald die laufende endet.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                } else {
-                    playUpNextButton
-                }
-                ForEach(model.upNext) { episode in
-                    NavigationLink { EpisodeDetailView(episode: episode) } label: {
-                        QueueRow(episode: episode, detail: nil)
-                    }
-                    .swipeActions {
-                        Button("Entfernen", role: .destructive) { model.removeFromUpNext(episode.id) }
-                    }
-                    // Auf dem Mac ohne Trackpad gibt es kein Wischen.
-                    .contextMenu {
-                        Button(role: .destructive) { model.removeFromUpNext(episode.id) } label: {
-                            Label("Entfernen", systemImage: "minus.circle")
-                        }
-                    }
-                }
-                .onMove { model.moveUpNext(from: $0, to: $1) }
-                .onDelete { model.removeFromUpNext(at: $0) }
-            } header: {
-                Text("Als Nächstes hören")
+            if parts == .all {
+                listeningSections
             }
 
             if showsProcessingControls {
@@ -2155,11 +2187,50 @@ struct QueueView: View {
                 factsSection
             }
         }
-        .navigationTitle("Warteschlange")
+        .navigationTitle(parts == .all ? "Warteschlange" : "Verarbeitung")
         .queueCancelConfirmation(isPresented: $confirmingCancel)
         #if os(iOS)
         .toolbar { EditButton() }
         #endif
+    }
+
+    /// Was läuft und was als Nächstes gehört wird.
+    @ViewBuilder private var listeningSections: some View {
+        if let episode = model.episodePlayer.episode {
+            Section("Jetzt läuft") {
+                NavigationLink { EpisodeDetailView(episode: episode) } label: {
+                    QueueRow(episode: episode, detail: model.episodePlayer.currentChapter?.title)
+                }
+            }
+        }
+
+        Section {
+            if model.upNext.isEmpty {
+                Text("Leer. In einer Folge „Als Nächstes“ antippen, dann startet sie, sobald die laufende endet.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                playUpNextButton
+            }
+            ForEach(model.upNext) { episode in
+                NavigationLink { EpisodeDetailView(episode: episode) } label: {
+                    QueueRow(episode: episode, detail: nil)
+                }
+                .swipeActions {
+                    Button("Entfernen", role: .destructive) { model.removeFromUpNext(episode.id) }
+                }
+                // Auf dem Mac ohne Trackpad gibt es kein Wischen.
+                .contextMenu {
+                    Button(role: .destructive) { model.removeFromUpNext(episode.id) } label: {
+                        Label("Entfernen", systemImage: "minus.circle")
+                    }
+                }
+            }
+            .onMove { model.moveUpNext(from: $0, to: $1) }
+            .onDelete { model.removeFromUpNext(at: $0) }
+        } header: {
+            Text("Als Nächstes hören")
+        }
     }
 
     /// Pausieren, Fortsetzen und „Alle abbrechen“ für Transkripte, Fakten
@@ -2222,10 +2293,14 @@ struct QueueView: View {
             if let unavailable = model.preparationUnavailable {
                 Text("Transkripte für neue Folgen erstellt die App gerade nicht. \(unavailable)")
             } else {
+                #if os(macOS)
+                Text("Die App erstellt ein Transkript nach dem anderen.")
+                #else
                 Text("""
                     Die App erstellt ein Transkript nach dem anderen. Auf dem iPhone geht die Arbeit \
                     im Hintergrund weiter, solange die Fortschrittsanzeige des Systems zu sehen ist.
                     """)
+                #endif
             }
         }
     }

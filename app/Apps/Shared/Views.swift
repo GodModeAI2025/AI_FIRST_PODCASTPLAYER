@@ -120,9 +120,12 @@ struct ForYouView: View {
         .activityStatusToolbar()
         .refreshable { await model.refreshAll(byUser: true) }
         .toolbar {
+            // Auf dem Mac liegt „Als Nächstes“ im Inspektor (⌥⌘U).
+            #if os(iOS)
             NavigationLink { QueueView() } label: {
                 Label("Warteschlange", systemImage: "list.bullet")
             }
+            #endif
             // Nach dem ersten Abo verschwindet der große Suchknopf. Weitere
             // Podcasts kommen dann über das Plus dazu.
             Button { addingSource = true } label: {
@@ -615,6 +618,9 @@ struct LibraryView: View {
 
     var body: some View {
         List {
+            // Auf dem Mac liegt „Als Nächstes“ im Inspektor, die Verarbeitung
+            // hinter dem Aktivitätssymbol der Symbolleiste.
+            #if os(iOS)
             if !model.sources.isEmpty {
                 Section {
                     NavigationLink { QueueView() } label: {
@@ -631,6 +637,7 @@ struct LibraryView: View {
                     }
                 }
             }
+            #endif
             Section {
                 ForEach(model.sources) { source in
                     NavigationLink(value: source.id) {

@@ -321,6 +321,22 @@
         }
       }
     },
+    "%@ · Stelle %lld von %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · Stelle %2$lld von %3$lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · Passage %2$lld of %3$lld"
+          }
+        }
+      }
+    },
     "%@ · ab %@" : {
       "localizations" : {
         "de" : {
@@ -937,6 +953,38 @@
         }
       }
     },
+    "%lld s vor" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s vor"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forward %lld s"
+          }
+        }
+      }
+    },
+    "%lld s zurück" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld s zurück"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back %lld s"
+          }
+        }
+      }
+    },
     "%lld von %lld erledigt" : {
       "localizations" : {
         "de" : {
@@ -1173,6 +1221,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unsubscribe and Delete Data"
+          }
+        }
+      }
+    },
+    "Abbestellen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbestellen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsubscribe …"
           }
         }
       }
@@ -1465,6 +1529,22 @@
         }
       }
     },
+    "Abspielen (Leertaste)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abspielen (Leertaste)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play (Space)"
+          }
+        }
+      }
+    },
     "Abspielen und Laden über Mobilfunk" : {
       "localizations" : {
         "de" : {
@@ -1637,6 +1717,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refresh"
+          }
+        }
+      }
+    },
+    "Aktuelle Folge anzeigen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktuelle Folge anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Current Episode"
           }
         }
       }
@@ -1929,6 +2025,22 @@
         }
       }
     },
+    "Alle abbrechen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle abbrechen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel All …"
+          }
+        }
+      }
+    },
     "Alle abwählen" : {
       "localizations" : {
         "de" : {
@@ -1957,6 +2069,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "All Trending Podcasts"
+          }
+        }
+      }
+    },
+    "Alle anzeigen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle anzeigen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show All …"
           }
         }
       }
@@ -2005,6 +2133,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "All waiting transcripts and facts leave the queue. Whatever has already been recognized stays saved. Episodes the app queued on its own only come back when you refresh by hand or request them yourself."
+          }
+        }
+      }
+    },
+    "Allgemein" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allgemein"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
           }
         }
       }
@@ -2069,6 +2213,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Play Next"
+          }
+        }
+      }
+    },
+    "Als Nächstes und Informationen ein- oder ausblenden (⌥⌘U)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als Nächstes und Informationen ein- oder ausblenden (⌥⌘U)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show or hide Up Next and Information (⌥⌘U)"
           }
         }
       }
@@ -3338,6 +3498,22 @@
         }
       }
     },
+    "Aus „Als Nächstes“ entfernen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus „Als Nächstes“ entfernen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Up Next"
+          }
+        }
+      }
+    },
     "Aus, die Daten bleiben auf diesem Gerät" : {
       "localizations" : {
         "de" : {
@@ -3478,6 +3654,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turn Off"
+          }
+        }
+      }
+    },
+    "Auswahl abspielen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auswahl abspielen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play Selection"
           }
         }
       }
@@ -4003,6 +4195,22 @@
         }
       }
     },
+    "Charts und Kategorien kommen von Apple Podcasts, gesucht wird bei Apple und bei Podcast Index (podcastindex.org). Beide sehen deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es bei keinem." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charts und Kategorien kommen von Apple Podcasts, gesucht wird bei Apple und bei Podcast Index (podcastindex.org). Beide sehen deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es bei keinem."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charts and categories come from Apple Podcasts; searches go to Apple and Podcast Index (podcastindex.org). Both see your search term and your IP address; neither requires an account."
+          }
+        }
+      }
+    },
     "Charts und Verzeichnis: [Apple Podcasts](https://podcasts.apple.com). Die Suche fragt zusätzlich [Podcast Index](https://podcastindex.org)." : {
       "localizations" : {
         "de" : {
@@ -4063,6 +4271,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The links of videos and posts go to supadata.ai, plus the podcast and episode titles when the app looks for an episode on YouTube. Nothing else. Costs and terms are between you and Supadata. The key stays in this device's keychain only, not in iCloud and not in any export."
+          }
+        }
+      }
+    },
+    "Danach" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Danach"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After That"
           }
         }
       }
@@ -5383,6 +5607,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The app creates the transcripts on its own, newest first, and puts new episodes ahead of them."
+          }
+        }
+      }
+    },
+    "Die App erstellt ein Transkript nach dem anderen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die App erstellt ein Transkript nach dem anderen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app creates one transcript after another."
           }
         }
       }
@@ -7627,6 +7867,22 @@
         }
       }
     },
+    "Exportieren …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exportieren …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export …"
+          }
+        }
+      }
+    },
     "Fakten" : {
       "localizations" : {
         "de" : {
@@ -8071,6 +8327,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Resume"
+          }
+        }
+      }
+    },
+    "Fortsetzen (Leertaste)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fortsetzen (Leertaste)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume (Space)"
           }
         }
       }
@@ -9851,6 +10123,54 @@
         }
       }
     },
+    "Informationen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informationen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Information"
+          }
+        }
+      }
+    },
+    "Informationen zu diesem Podcast (⌘I)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informationen zu diesem Podcast (⌘I)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Information about this podcast (⌘I)"
+          }
+        }
+      }
+    },
+    "Inspektor" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspektor"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inspector"
+          }
+        }
+      }
+    },
     "Intelligenz" : {
       "localizations" : {
         "de" : {
@@ -10329,6 +10649,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Episodes"
+          }
+        }
+      }
+    },
+    "Keine Informationen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Informationen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Information"
           }
         }
       }
@@ -11389,6 +11725,22 @@
         }
       }
     },
+    "Moment merken (⌘D)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moment merken (⌘D)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Moment (⌘D)"
+          }
+        }
+      }
+    },
     "Nach dem Abonnieren bereitet die App die %lld neuesten Folgen vor: laden, Transkript erstellen, Fakten finden." : {
       "localizations" : {
         "de" : {
@@ -12173,6 +12525,22 @@
         }
       }
     },
+    "Nichts als Nächstes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nichts als Nächstes"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing Up Next"
+          }
+        }
+      }
+    },
     "Nichts angesagt" : {
       "localizations" : {
         "de" : {
@@ -12749,6 +13117,22 @@
         }
       }
     },
+    "Nächste Stelle" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nächste Stelle"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Passage"
+          }
+        }
+      }
+    },
     "Nächste Stelle: %@, aus %@" : {
       "localizations" : {
         "de" : {
@@ -13065,6 +13449,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pause"
+          }
+        }
+      }
+    },
+    "Pause (Leertaste)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause (Leertaste)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause (Space)"
           }
         }
       }
@@ -13497,6 +13897,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "PodcastAI plays your podcasts like a regular player. Along the way, it creates on-device transcripts of the latest episodes, with timestamps. With those, you can ask questions, look up facts, and get Topic Updates built from the original passages."
+          }
+        }
+      }
+    },
+    "PodcastAI-Hilfe" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PodcastAI-Hilfe"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PodcastAI Help"
           }
         }
       }
@@ -14285,6 +14701,22 @@
         }
       }
     },
+    "Spielt die erste Folge aus „Als Nächstes“" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielt die erste Folge aus „Als Nächstes“"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plays the first episode in Up Next"
+          }
+        }
+      }
+    },
     "Spielt die neueste Ausgabe eines Themen-Updates ab, also Originalstellen aus deinen Podcasts, die du noch nicht gehört hast. Ist sie schon gehört, entsteht vorher eine neue." : {
       "localizations" : {
         "de" : {
@@ -14601,6 +15033,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Asks this question"
+          }
+        }
+      }
+    },
+    "Steuerung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steuerung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controls"
           }
         }
       }
@@ -16256,6 +16704,22 @@
         }
       }
     },
+    "Verarbeitung anzeigen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verarbeitung anzeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Processing"
+          }
+        }
+      }
+    },
     "Verbinden" : {
       "localizations" : {
         "de" : {
@@ -16508,6 +16972,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Previous Chapter"
+          }
+        }
+      }
+    },
+    "Vorspringen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorspringen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip Forward"
           }
         }
       }
@@ -17184,6 +17664,22 @@
         }
       }
     },
+    "Wiedergabe stoppen (⌘.)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergabe stoppen (⌘.)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop Playback (⌘.)"
+          }
+        }
+      }
+    },
     "Wiedergabe öffnen, %@" : {
       "localizations" : {
         "de" : {
@@ -17196,6 +17692,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Player, %@"
+          }
+        }
+      }
+    },
+    "Wiedergabe-Fenster" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergabe-Fenster"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now Playing Window"
+          }
+        }
+      }
+    },
+    "Wiedergabe-Fenster öffnen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergabe-Fenster öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Now Playing Window"
+          }
+        }
+      }
+    },
+    "Wiedergabe-Fenster öffnen (⌥⌘P)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergabe-Fenster öffnen (⌥⌘P)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Now Playing Window (⌥⌘P)"
           }
         }
       }
@@ -17436,6 +17980,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "What is this episode about?"
+          }
+        }
+      }
+    },
+    "Wähle bei einer Folge „Als Nächstes“." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle bei einer Folge „Als Nächstes“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose “Play Next” on an episode."
           }
         }
       }
@@ -18172,6 +18732,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Add to Library"
+          }
+        }
+      }
+    },
+    "Zurückspringen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurückspringen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skip Back"
           }
         }
       }
@@ -19122,6 +19698,22 @@
         }
       }
     },
+    "und %lld weitere" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "und %lld weitere"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "and %lld more"
+          }
+        }
+      }
+    },
     "von %@ bis %@" : {
       "localizations" : {
         "de" : {
@@ -19439,6 +20031,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oldest First"
+          }
+        }
+      }
+    },
+    "Öffne einen Podcast oder eine Folge." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne einen Podcast oder eine Folge."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open a podcast or an episode."
+          }
+        }
+      }
+    },
+    "Öffnen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
           }
         }
       }

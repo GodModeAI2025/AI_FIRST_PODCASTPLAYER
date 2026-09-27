@@ -192,13 +192,17 @@ extension AppModel {
 
 extension View {
     /// Fügt das Aktivitätssymbol in die Navigationsleiste ein.
+    ///
+    /// Auf dem Mac steht das Symbol einmal in der Symbolleiste des Fensters
+    /// (`MacRootView`), nicht auf jeder Seite.
+    @ViewBuilder
     func activityStatusToolbar() -> some View {
+        #if os(iOS)
         toolbar {
-            #if os(iOS)
             ToolbarItem(placement: .topBarLeading) { ActivityStatusButton() }
-            #else
-            ToolbarItem(placement: .navigation) { ActivityStatusButton() }
-            #endif
         }
+        #else
+        self
+        #endif
     }
 }
