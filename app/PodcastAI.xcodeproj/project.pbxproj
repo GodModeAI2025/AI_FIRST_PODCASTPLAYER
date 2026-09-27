@@ -26,6 +26,7 @@
 		12FF4D2C2B1C51C6A0E55A9C /* ForeignChangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19D4AD402CD71C3E055B1714 /* ForeignChangeTests.swift */; };
 		1365B6B3CB6ADDFD79488AC9 /* ChapterPageUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106F4BAA5F66D4CDC1CBCB6D /* ChapterPageUITests.swift */; };
 		147DF42072350360CF96D163 /* ChatTokenViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8212D264CB45F7AE424089DE /* ChatTokenViews.swift */; };
+		1580276EF47E47A0FDE45997 /* MacLibraryGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBC02E701D0E045410B58C65 /* MacLibraryGrid.swift */; };
 		16E83B13154476BC71DAB818 /* Services.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36D6FF63120E3AC935A9B6C4 /* Services.swift */; };
 		180BE8C7D39AF4536046180F /* QuoteAndExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41702FB26670438892E3B149 /* QuoteAndExportTests.swift */; };
 		182B6A03061AA517FEBF2A3F /* ChatScopeAndTrailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C3966FB42AA29D59E7E5FA /* ChatScopeAndTrailTests.swift */; };
@@ -43,6 +44,7 @@
 		281E073128C76F345B4DD128 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B8BCDAB85486C1F8AA3B42EA /* Localizable.xcstrings */; };
 		29A1A669D110E553A5A8D422 /* PodcastAIMacWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8B495BB4F72FD83EE76C4521 /* PodcastAIMacWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2A4A0EBF4403FC44F664DE0E /* AppBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948480C17E0B8900F3A54E83 /* AppBootstrap.swift */; };
+		2BB5FDFCDA56815B732A7C68 /* MacEpisodeTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1B857CFD383E8B7AD488545 /* MacEpisodeTable.swift */; };
 		2BD8A57AC8F1B116B239C0D1 /* TrailViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 452DFF60972193B865F227D8 /* TrailViews.swift */; };
 		2D15E9319E59A5BAB351E081 /* SourceReloadUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B853C90CF38A4D362F0344F /* SourceReloadUITests.swift */; };
 		2EECDEE4546273B46392B438 /* AppModel+Social.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E52240CAE22B9409DC080A /* AppModel+Social.swift */; };
@@ -497,6 +499,7 @@
 		ADA2CFB6537ED27DB238E866 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
 		AE3DEDB1A7C508B8E298DC2B /* SyncMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMergeTests.swift; sourceTree = "<group>"; };
 		B028E6CFAA38A2071402BF48 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B1B857CFD383E8B7AD488545 /* MacEpisodeTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacEpisodeTable.swift; sourceTree = "<group>"; };
 		B3F535F6040F709409ABF8BE /* ChatLookupUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLookupUITests.swift; sourceTree = "<group>"; };
 		B405D5E13DF5CFBEE160C29D /* TagTrendTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagTrendTests.swift; sourceTree = "<group>"; };
 		B56ED3EE14562899B30A5330 /* PlanningContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningContext.swift; sourceTree = "<group>"; };
@@ -506,6 +509,7 @@
 		B9346313A65E2EF6DF2BC09E /* ChatPerformanceBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPerformanceBenchmark.swift; sourceTree = "<group>"; };
 		B9CF3698B86AEC92F42AFB8C /* PodcastAIShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PodcastAIShare.entitlements; sourceTree = "<group>"; };
 		BB35B8C91F743C491DA753DE /* PodcastAIMac.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PodcastAIMac.entitlements; sourceTree = "<group>"; };
+		BBC02E701D0E045410B58C65 /* MacLibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLibraryGrid.swift; sourceTree = "<group>"; };
 		BD1F1871B5D8FC7C6B94A3D0 /* PodcastAIShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PodcastAIShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		BF72E0A8E0D7DD1DE3249856 /* PodcastAI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PodcastAI.entitlements; sourceTree = "<group>"; };
 		C0214559D3F81CE6F87F77AA /* SupadataLiveShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupadataLiveShapeTests.swift; sourceTree = "<group>"; };
@@ -932,7 +936,9 @@
 			children = (
 				09FF998B2941EB7102278C51 /* Info.plist */,
 				86A1994ACEA6BF783CBF340B /* MacCommands.swift */,
+				B1B857CFD383E8B7AD488545 /* MacEpisodeTable.swift */,
 				704F7C3423257A1C7685CA41 /* MacInspector.swift */,
+				BBC02E701D0E045410B58C65 /* MacLibraryGrid.swift */,
 				AB32EDEA5B02F6B27DE92EB8 /* MacMain.swift */,
 				133D9D6F4F44118AF7D3F106 /* MacNowPlayingToolbar.swift */,
 				011F8C0D8D8054AB3BB510AE /* MacRootView.swift */,
@@ -1477,7 +1483,9 @@
 				F804E75826F80089D70B5CF0 /* MCPServer.swift in Sources */,
 				57AE66E11A3EFC768094506F /* MCPSettingsView.swift in Sources */,
 				6FC6D9BA8DD1B749959CB790 /* MacCommands.swift in Sources */,
+				2BB5FDFCDA56815B732A7C68 /* MacEpisodeTable.swift in Sources */,
 				93AA407A1065027514A3A053 /* MacInspector.swift in Sources */,
+				1580276EF47E47A0FDE45997 /* MacLibraryGrid.swift in Sources */,
 				EE129AC4E2EE4BAE98FF84E9 /* MacMain.swift in Sources */,
 				F1F656D5A6B16575F94FBBEF /* MacNowPlayingToolbar.swift in Sources */,
 				9046CA635E38817A5142946D /* MacRootView.swift in Sources */,

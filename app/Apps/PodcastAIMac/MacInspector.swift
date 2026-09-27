@@ -280,10 +280,9 @@ struct MacProcessingWindow: View {
 
 /// „Auswahl abspielen“ (⌘⏎) im vorderen Fenster. Die einzige Taste, die
 /// eine ausgewählte Folge startet.
-struct PlaySelectionAction: Equatable {
+struct PlaySelectionAction {
     let run: @MainActor () -> Void
     @MainActor func callAsFunction() { run() }
-    static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
 extension FocusedValues {

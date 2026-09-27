@@ -681,6 +681,22 @@
         }
       }
     },
+    "%lld Folgen löschen?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Folgen löschen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete %lld Episodes?"
+          }
+        }
+      }
+    },
     "%lld Folgen warten" : {
       "localizations" : {
         "de" : {
@@ -1221,6 +1237,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unsubscribe and Delete Data"
+          }
+        }
+      }
+    },
+    "Abbestellen und Daten löschen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbestellen und Daten löschen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsubscribe and Delete Data …"
           }
         }
       }
@@ -2233,6 +2265,22 @@
         }
       }
     },
+    "Als Raster oder als Liste zeigen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als Raster oder als Liste zeigen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show as grid or as list"
+          }
+        }
+      }
+    },
     "Als Text teilen" : {
       "localizations" : {
         "de" : {
@@ -2325,6 +2373,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Network Requests"
+          }
+        }
+      }
+    },
+    "Angefangen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angefangen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started"
+          }
+        }
+      }
+    },
+    "Angefangene Folgen. Ein Klick öffnet die Folge, der Knopf spielt dort weiter." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angefangene Folgen. Ein Klick öffnet die Folge, der Knopf spielt dort weiter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episodes you started. A click opens the episode; the button resumes playback."
           }
         }
       }
@@ -2524,15 +2604,39 @@
     "Antippen wählt ein Tag aus oder ab. Unter „Weitere Tags“ stehen Tags aus deinen Folgen, denen du nicht folgst." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Antippen wählt ein Tag aus oder ab. Unter „Weitere Tags“ stehen Tags aus deinen Folgen, denen du nicht folgst."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ein Klick wählt ein Tag aus oder ab. Unter „Weitere Tags“ stehen Tags aus deinen Folgen, denen du nicht folgst."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Antippen wählt ein Tag aus oder ab. Unter „Weitere Tags“ stehen Tags aus deinen Folgen, denen du nicht folgst."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tap a tag to select or deselect it. “More Tags” lists tags from your episodes that you don’t follow."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Click a tag to select or deselect it. “More Tags” lists tags from your episodes that you don’t follow."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tap a tag to select or deselect it. “More Tags” lists tags from your episodes that you don’t follow."
+                }
+              }
+            }
           }
         }
       }
@@ -2540,15 +2644,39 @@
     "Antippen öffnet das Video bei YouTube an dieser Stelle. Über „…“ merkst, kopierst oder teilst du sie." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Antippen öffnet das Video bei YouTube an dieser Stelle. Über „…“ merkst, kopierst oder teilst du sie."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Die Zeitmarke öffnet das Video bei YouTube an dieser Stelle. Das Kontextmenü merkt, kopiert oder teilt die Zeile."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Antippen öffnet das Video bei YouTube an dieser Stelle. Über „…“ merkst, kopierst oder teilst du sie."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tap to open the video on YouTube at this point. Use \"…\" to save, copy or share a line."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The timestamp opens the video on YouTube at this point. The context menu saves, copies or shares the line."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tap to open the video on YouTube at this point. Use \"…\" to save, copy or share a line."
+                }
+              }
+            }
           }
         }
       }
@@ -3613,15 +3741,39 @@
     "Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Über „…“ merkst, kopierst oder teilst du eine Aussage. Formuliert von: %@." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Über „…“ merkst, kopierst oder teilst du eine Aussage. Formuliert von: %@."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Aussagen aus der Folge, gesagt, nicht geprüft. Ein Klick spielt den Satz. Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Das Kontextmenü merkt, kopiert oder teilt eine Aussage. Formuliert von: %@."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Aussagen aus der Folge, gesagt, nicht geprüft. Antippen spielt den Satz. Unter „Wortlaut zeigen“ steht, was genau gesagt wurde. Über „…“ merkst, kopierst oder teilst du eine Aussage. Formuliert von: %@."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Statements from the episode, as said, not fact-checked. Tap one to play the sentence. \"Show Exact Wording\" shows exactly what was said. Use \"…\" to save, copy, or share a statement. Written by: %@."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Statements from the episode, as said, not fact-checked. Click one to play the sentence. \"Show Exact Wording\" shows exactly what was said. The context menu saves, copies, or shares a statement. Written by: %@."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Statements from the episode, as said, not fact-checked. Tap one to play the sentence. \"Show Exact Wording\" shows exactly what was said. Use \"…\" to save, copy, or share a statement. Written by: %@."
+                }
+              }
+            }
           }
         }
       }
@@ -4291,6 +4443,22 @@
         }
       }
     },
+    "Darstellung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darstellung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View"
+          }
+        }
+      }
+    },
     "Das Audio nimmt die App danach wieder vom Gerät, abgespielt wird dann aus dem Netz." : {
       "localizations" : {
         "de" : {
@@ -4486,15 +4654,39 @@
     "Das Sprachpaket für diese Übersetzung fehlt auf diesem Gerät. Beim nächsten Tippen auf „Übersetzen“ fragt das System wieder, ob es geladen werden soll." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Sprachpaket für diese Übersetzung fehlt auf diesem Gerät. Beim nächsten Tippen auf „Übersetzen“ fragt das System wieder, ob es geladen werden soll."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Das Sprachpaket für diese Übersetzung fehlt auf diesem Mac. Beim nächsten Klick auf „Übersetzen“ fragt das System wieder, ob es geladen werden soll."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Das Sprachpaket für diese Übersetzung fehlt auf diesem Gerät. Beim nächsten Tippen auf „Übersetzen“ fragt das System wieder, ob es geladen werden soll."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The language pack for this translation is missing on this device. The next time you tap \"Translate\", the system asks again whether to download it."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The language pack for this translation is missing on this Mac. The next time you click \"Translate\", the system asks again whether to download it."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The language pack for this translation is missing on this device. The next time you tap \"Translate\", the system asks again whether to download it."
+                }
+              }
+            }
           }
         }
       }
@@ -4518,15 +4710,39 @@
     "Das Transkript dieser Folge konnte nicht erstellt werden. Tippe in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Transkript dieser Folge konnte nicht erstellt werden. Tippe in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Das Transkript dieser Folge konnte nicht erstellt werden. Klicke in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Das Transkript dieser Folge konnte nicht erstellt werden. Tippe in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The transcript for this episode couldn't be created. Tap \"Try Again\" in the episode, and then I can answer with source passages from the transcript."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The transcript for this episode couldn't be created. Click \"Try Again\" in the episode, and then I can answer with source passages from the transcript."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The transcript for this episode couldn't be created. Tap \"Try Again\" in the episode, and then I can answer with source passages from the transcript."
+                }
+              }
+            }
           }
         }
       }
@@ -4534,15 +4750,39 @@
     "Das Transkript dieser Folge konnte nicht erstellt werden: %@ Tippe in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Transkript dieser Folge konnte nicht erstellt werden: %@ Tippe in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Das Transkript dieser Folge konnte nicht erstellt werden: %@ Klicke in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Das Transkript dieser Folge konnte nicht erstellt werden: %@ Tippe in der Folge auf „Erneut versuchen“, danach kann ich mit Belegen aus dem Transkript antworten."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The transcript for this episode couldn't be created: %@ Tap \"Try Again\" in the episode, and then I can answer with source passages from the transcript."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The transcript for this episode couldn't be created: %@ Click \"Try Again\" in the episode, and then I can answer with source passages from the transcript."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The transcript for this episode couldn't be created: %@ Tap \"Try Again\" in the episode, and then I can answer with source passages from the transcript."
+                }
+              }
+            }
           }
         }
       }
@@ -4550,15 +4790,39 @@
     "Das Transkript dieser Folge steht in der Warteschlange (%@). Tippe in der Folge auf „Transkript jetzt erstellen“, danach kann ich mit Belegen aus dem Transkript antworten." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Transkript dieser Folge steht in der Warteschlange (%@). Tippe in der Folge auf „Transkript jetzt erstellen“, danach kann ich mit Belegen aus dem Transkript antworten."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Das Transkript dieser Folge steht in der Warteschlange (%@). Klicke in der Folge auf „Transkript jetzt erstellen“, danach kann ich mit Belegen aus dem Transkript antworten."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Das Transkript dieser Folge steht in der Warteschlange (%@). Tippe in der Folge auf „Transkript jetzt erstellen“, danach kann ich mit Belegen aus dem Transkript antworten."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The transcript for this episode is in the queue (%@). Tap \"Create Transcript Now\" in the episode, and then I can answer with source passages from the transcript."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The transcript for this episode is in the queue (%@). Click \"Create Transcript Now\" in the episode, and then I can answer with source passages from the transcript."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The transcript for this episode is in the queue (%@). Tap \"Create Transcript Now\" in the episode, and then I can answer with source passages from the transcript."
+                }
+              }
+            }
           }
         }
       }
@@ -4851,6 +5115,22 @@
         }
       }
     },
+    "Datum" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datum"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
+          }
+        }
+      }
+    },
     "Dauer" : {
       "localizations" : {
         "de" : {
@@ -5022,15 +5302,39 @@
     "Den Namen deiner Sendung eintippen und abonnieren. Links aus Apple Podcasts oder von YouTube gehen auch." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Den Namen deiner Sendung eintippen und abonnieren. Links aus Apple Podcasts oder von YouTube gehen auch."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Den Namen deiner Sendung eingeben und abonnieren. Links aus Apple Podcasts oder von YouTube gehen auch."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Den Namen deiner Sendung eintippen und abonnieren. Links aus Apple Podcasts oder von YouTube gehen auch."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type the name of your show and subscribe. Links from Apple Podcasts or YouTube work too."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Enter the name of your show and subscribe. Links from Apple Podcasts or YouTube work too."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Type the name of your show and subscribe. Links from Apple Podcasts or YouTube work too."
+                }
+              }
+            }
           }
         }
       }
@@ -6027,18 +6331,18 @@
         }
       }
     },
-    "Die Hilfe steht links in der Seitenleiste, die Einstellungen findest du im Menü PodcastAI." : {
+    "Die Hilfe findest du im Menü Hilfe, die Einstellungen im Menü PodcastAI." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Hilfe steht links in der Seitenleiste, die Einstellungen findest du im Menü PodcastAI."
+            "value" : "Die Hilfe findest du im Menü Hilfe, die Einstellungen im Menü PodcastAI."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Help is in the sidebar on the left, and you'll find Settings in the PodcastAI menu."
+            "value" : "Help is in the Help menu, settings are in the PodcastAI menu."
           }
         }
       }
@@ -6238,15 +6542,39 @@
     "Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, dann tippe erneut auf Abspielen." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, dann tippe erneut auf Abspielen."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, dann klicke erneut auf Abspielen."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Die Wiedergabe startet nicht. Prüfe die Audioausgabe und das Netz, dann tippe erneut auf Abspielen."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playback won't start. Check your audio output and network connection, then tap Play again."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Playback won't start. Check your audio output and network connection, then click Play again."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Playback won't start. Check your audio output and network connection, then tap Play again."
+                }
+              }
+            }
           }
         }
       }
@@ -6638,15 +6966,39 @@
     "Diese Stellen stammen aus YouTube-Videos. Tippe sie in der App an, dann öffnet sich das Video an der Stelle." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diese Stellen stammen aus YouTube-Videos. Tippe sie in der App an, dann öffnet sich das Video an der Stelle."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Diese Stellen stammen aus YouTube-Videos. Klicke in der App auf ihre Zeitmarke, dann öffnet sich das Video an der Stelle."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Diese Stellen stammen aus YouTube-Videos. Tippe sie in der App an, dann öffnet sich das Video an der Stelle."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These passages come from YouTube videos. Tap them in the app to open the video at that point."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "These passages come from YouTube videos. Click their timestamp in the app to open the video at that point."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "These passages come from YouTube videos. Tap them in the app to open the video at that point."
+                }
+              }
+            }
           }
         }
       }
@@ -6846,15 +7198,39 @@
     "Du folgst noch keinem Tag. Tippe bei einem Tag auf Plus." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Du folgst noch keinem Tag. Tippe bei einem Tag auf Plus."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Du folgst noch keinem Tag. Klicke bei einem Tag auf Plus."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Du folgst noch keinem Tag. Tippe bei einem Tag auf Plus."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You don't follow any tag yet. Tap the plus on a tag."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You don't follow any tag yet. Click the plus on a tag."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "You don't follow any tag yet. Tap the plus on a tag."
+                }
+              }
+            }
           }
         }
       }
@@ -7086,15 +7462,39 @@
     "Ein Tipp öffnet die Folge bei ihren Kapiteln. Abgespielt wird erst, wenn du dort ein Kapitel antippst." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ein Tipp öffnet die Folge bei ihren Kapiteln. Abgespielt wird erst, wenn du dort ein Kapitel antippst."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ein Klick öffnet die Folge bei ihren Kapiteln. Abgespielt wird erst, wenn du dort ein Kapitel anklickst."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ein Tipp öffnet die Folge bei ihren Kapiteln. Abgespielt wird erst, wenn du dort ein Kapitel antippst."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A tap opens the episode at its chapters. Nothing plays until you tap a chapter there."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "A click opens the episode at its chapters. Nothing plays until you click a chapter there."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "A tap opens the episode at its chapters. Nothing plays until you tap a chapter there."
+                }
+              }
+            }
           }
         }
       }
@@ -7575,6 +7975,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove and Delete Data"
+          }
+        }
+      }
+    },
+    "Entfernen und Daten löschen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernen und Daten löschen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove and Delete Data …"
           }
         }
       }
@@ -8155,6 +8571,22 @@
         }
       }
     },
+    "Folge löschen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folge löschen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Episode …"
+          }
+        }
+      }
+    },
     "Folge löschen?" : {
       "localizations" : {
         "de" : {
@@ -8190,15 +8622,39 @@
     "Folge zuerst einem Tag: in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“ auf Plus tippen." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Folge zuerst einem Tag: in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“ auf Plus tippen."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Folge zuerst einem Tag: in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“ auf Plus klicken."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Folge zuerst einem Tag: in einer Folge unter „Kurz gesagt“ oder in „Meine Tags“ auf Plus tippen."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Follow a tag first: tap the plus in an episode under “In Brief” or in “My Tags”."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Follow a tag first: click the plus in an episode under “In Brief” or in “My Tags”."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Follow a tag first: tap the plus in an episode under “In Brief” or in “My Tags”."
+                }
+              }
+            }
           }
         }
       }
@@ -8267,6 +8723,22 @@
         }
       }
     },
+    "Folgen löschen …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folgen löschen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Episodes …"
+          }
+        }
+      }
+    },
     "Folgen mit Shownotes, Kapiteln, Fakten und Transkript, Chat-Antworten mit Belegen und gemerkte Stellen als Markdown, etwa für Obsidian oder Notion." : {
       "localizations" : {
         "de" : {
@@ -8279,6 +8751,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export episodes with show notes, chapters, facts, and transcript, plus chat answers with source passages and saved moments, as Markdown for apps like Obsidian or Notion."
+          }
+        }
+      }
+    },
+    "Folgen und alle Daten löschen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folgen und alle Daten löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Episodes and All Data"
           }
         }
       }
@@ -8907,6 +9395,22 @@
         }
       }
     },
+    "Gehört" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gehört"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Played"
+          }
+        }
+      }
+    },
     "Gehörte Folgen nach einem Tag vom Gerät entfernen" : {
       "localizations" : {
         "de" : {
@@ -9054,15 +9558,39 @@
     "Gemerkt wird die Stelle, die beim Antippen lief, mit Folge, Quelle und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu. Deine Notiz bleibt davon getrennt und wird nie überschrieben." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gemerkt wird die Stelle, die beim Antippen lief, mit Folge, Quelle und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu. Deine Notiz bleibt davon getrennt und wird nie überschrieben."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Gemerkt wird die Stelle, die beim Klick lief, mit Folge, Quelle und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu. Deine Notiz bleibt davon getrennt und wird nie überschrieben."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Gemerkt wird die Stelle, die beim Antippen lief, mit Folge, Quelle und Zeitmarke. Gibt es ein Transkript, kommt der Originaltext dazu. Deine Notiz bleibt davon getrennt und wird nie überschrieben."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This saves the moment that was playing when you tapped, with episode, source, and timestamp. If there's a transcript, the original text is added. Your note stays separate and is never overwritten."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "This saves the moment that was playing when you clicked, with episode, source, and timestamp. If there's a transcript, the original text is added. Your note stays separate and is never overwritten."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "This saves the moment that was playing when you tapped, with episode, source, and timestamp. If there's a transcript, the original text is added. Your note stays separate and is never overwritten."
+                }
+              }
+            }
           }
         }
       }
@@ -9758,15 +10286,39 @@
     "Im Player tippst du auf „Moment merken“ und schreibst auf Wunsch eine Notiz dazu. Im Transkript, bei Fakten und im Chat heißt der Befehl „Stelle merken“. Alles liegt dann mit Zeitmarke unter Wissen › Gemerkte Stellen." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Im Player tippst du auf „Moment merken“ und schreibst auf Wunsch eine Notiz dazu. Im Transkript, bei Fakten und im Chat heißt der Befehl „Stelle merken“. Alles liegt dann mit Zeitmarke unter Wissen › Gemerkte Stellen."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In der Symbolleiste klickst du auf „Moment merken“ (⌘D) und schreibst auf Wunsch eine Notiz dazu. Im Transkript, bei Fakten und im Chat heißt der Befehl „Stelle merken“. Alles liegt dann mit Zeitmarke unter Wissen › Gemerkte Stellen."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Im Player tippst du auf „Moment merken“ und schreibst auf Wunsch eine Notiz dazu. Im Transkript, bei Fakten und im Chat heißt der Befehl „Stelle merken“. Alles liegt dann mit Zeitmarke unter Wissen › Gemerkte Stellen."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In the player, tap \"Save Moment\" and add a note if you like. In transcripts, facts, and Chat the command is \"Save Passage\". Everything then sits with its timestamp under Knowledge › Saved Moments."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In the toolbar, click \"Save Moment\" (⌘D) and add a note if you like. In transcripts, facts, and Chat the command is \"Save Passage\". Everything then sits with its timestamp under Knowledge › Saved Moments."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In the player, tap \"Save Moment\" and add a note if you like. In transcripts, facts, and Chat the command is \"Save Passage\". Everything then sits with its timestamp under Knowledge › Saved Moments."
+                }
+              }
+            }
           }
         }
       }
@@ -10222,15 +10774,39 @@
     "Jede Antwort nennt die Stellen, aus denen sie stammt. Ein Tipp auf einen Beleg spielt die Stelle im Original." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jede Antwort nennt die Stellen, aus denen sie stammt. Ein Tipp auf einen Beleg spielt die Stelle im Original."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Jede Antwort nennt die Stellen, aus denen sie stammt. Ein Klick auf einen Beleg spielt die Stelle im Original."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Jede Antwort nennt die Stellen, aus denen sie stammt. Ein Tipp auf einen Beleg spielt die Stelle im Original."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Every answer names the passages it comes from. Tap a source passage to play it in the original."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Every answer names the passages it comes from. Click a source passage to play it in the original."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Every answer names the passages it comes from. Tap a source passage to play it in the original."
+                }
+              }
+            }
           }
         }
       }
@@ -11325,6 +11901,22 @@
         }
       }
     },
+    "Liste" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Liste"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List"
+          }
+        }
+      }
+    },
     "Los geht's" : {
       "localizations" : {
         "de" : {
@@ -12064,15 +12656,39 @@
     "Neue Ausgaben entstehen nur, wenn du „Neue Ausgabe zusammenstellen“ antippst." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neue Ausgaben entstehen nur, wenn du „Neue Ausgabe zusammenstellen“ antippst."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Neue Ausgaben entstehen nur, wenn du „Neue Ausgabe zusammenstellen“ anklickst."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Neue Ausgaben entstehen nur, wenn du „Neue Ausgabe zusammenstellen“ antippst."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New editions are only created when you tap \"Create New Edition\"."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "New editions are only created when you click \"Create New Edition\"."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "New editions are only created when you tap \"Create New Edition\"."
+                }
+              }
+            }
           }
         }
       }
@@ -12233,6 +12849,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Latest Episode"
+          }
+        }
+      }
+    },
+    "Neueste Folge abspielen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neueste Folge abspielen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play Latest Episode"
           }
         }
       }
@@ -13821,6 +14453,22 @@
         }
       }
     },
+    "Podcast öffnen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podcast öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Podcast"
+          }
+        }
+      }
+    },
     "Podcast-Daten: Charts und Kategorien kommen von Apple Podcasts, gesucht wird bei Apple und bei Podcast Index (podcastindex.org). Beide sehen deinen Suchbegriff und deine IP-Adresse, ein Konto gibt es bei keinem." : {
       "localizations" : {
         "de" : {
@@ -14073,6 +14721,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Source"
+          }
+        }
+      }
+    },
+    "Raster" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raster"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grid"
           }
         }
       }
@@ -15616,15 +16280,39 @@
     "Tags aus dem Inhalt. Plus folgt einem Tag, Minus beendet das. Ein Tipp auf den Namen öffnet die Tag-Seite." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tags aus dem Inhalt. Plus folgt einem Tag, Minus beendet das. Ein Tipp auf den Namen öffnet die Tag-Seite."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tags aus dem Inhalt. Plus folgt einem Tag, Minus beendet das. Ein Klick auf den Namen öffnet die Tag-Seite."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tags aus dem Inhalt. Plus folgt einem Tag, Minus beendet das. Ein Tipp auf den Namen öffnet die Tag-Seite."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tags from the content. Plus follows a tag, minus stops that. Tapping the name opens the tag page."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tags from the content. Plus follows a tag, minus stops that. Clicking the name opens the tag page."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tags from the content. Plus follows a tag, minus stops that. Tapping the name opens the tag page."
+                }
+              }
+            }
           }
         }
       }
@@ -16000,15 +16688,39 @@
     "Tippe beim Hören im Player auf „Moment merken“. Die Stelle wird mit Zeitmarke, Zitat und deinem Kommentar gespeichert." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tippe beim Hören im Player auf „Moment merken“. Die Stelle wird mit Zeitmarke, Zitat und deinem Kommentar gespeichert."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Klicke beim Hören in der Symbolleiste auf „Moment merken“ oder drücke ⌘D. Die Stelle wird mit Zeitmarke, Zitat und deinem Kommentar gespeichert."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tippe beim Hören im Player auf „Moment merken“. Die Stelle wird mit Zeitmarke, Zitat und deinem Kommentar gespeichert."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "While listening, tap \"Save Moment\" in the player. The passage is saved with its timestamp, the quote, and your comment."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "While listening, click \"Save Moment\" in the toolbar or press ⌘D. The passage is saved with its timestamp, the quote, and your comment."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "While listening, tap \"Save Moment\" in the player. The passage is saved with its timestamp, the quote, and your comment."
+                }
+              }
+            }
           }
         }
       }
@@ -16016,15 +16728,39 @@
     "Tippe den Namen der Sendung ein. Ein Link aus Apple Podcasts oder von YouTube geht auch." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tippe den Namen der Sendung ein. Ein Link aus Apple Podcasts oder von YouTube geht auch."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Gib den Namen der Sendung ein. Ein Link aus Apple Podcasts oder von YouTube geht auch."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Tippe den Namen der Sendung ein. Ein Link aus Apple Podcasts oder von YouTube geht auch."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type the name of the show. A link from Apple Podcasts or YouTube works too."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Enter the name of the show. A link from Apple Podcasts or YouTube works too."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Type the name of the show. A link from Apple Podcasts or YouTube works too."
+                }
+              }
+            }
           }
         }
       }
@@ -16302,6 +17038,22 @@
         }
       }
     },
+    "Transkript, Fakten, Belege und der Hörstand werden gelöscht. Deine Notizen bleiben unter Wissen erhalten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transkript, Fakten, Belege und der Hörstand werden gelöscht. Deine Notizen bleiben unter Wissen erhalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcript, facts, source passages and listening progress are deleted. Your notes stay under Knowledge."
+          }
+        }
+      }
+    },
     "Transkripte" : {
       "localizations" : {
         "de" : {
@@ -16321,15 +17073,39 @@
     "Transkripte aus den Untertiteln von YouTube, geholt über Supadata. Ein Tipp auf eine Stelle öffnet das Video dort." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transkripte aus den Untertiteln von YouTube, geholt über Supadata. Ein Tipp auf eine Stelle öffnet das Video dort."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transkripte aus den Untertiteln von YouTube, geholt über Supadata. Ein Klick auf die Zeitmarke einer Stelle öffnet das Video dort."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transkripte aus den Untertiteln von YouTube, geholt über Supadata. Ein Tipp auf eine Stelle öffnet das Video dort."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transcripts from YouTube captions, fetched through Supadata. Tapping a passage opens the video there."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transcripts from YouTube captions, fetched through Supadata. Clicking a passage's timestamp opens the video there."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transcripts from YouTube captions, fetched through Supadata. Tapping a passage opens the video there."
+                }
+              }
+            }
           }
         }
       }
@@ -16435,15 +17211,39 @@
     "Transkripte und Shownotes in einer anderen Sprache übersetzt die App auf dem Gerät, wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal, danach geht es auch ohne Netz. Beim Wortlaut eines Fakts und bei Stellen im Chat öffnet „Übersetzen“ das Übersetzungsfenster von Apple. Merken und Kopieren nehmen immer das Original." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transkripte und Shownotes in einer anderen Sprache übersetzt die App auf dem Gerät, wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal, danach geht es auch ohne Netz. Beim Wortlaut eines Fakts und bei Stellen im Chat öffnet „Übersetzen“ das Übersetzungsfenster von Apple. Merken und Kopieren nehmen immer das Original."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transkripte und Shownotes in einer anderen Sprache übersetzt die App auf dem Mac, wenn du auf „Übersetzen“ klickst. Die Sprachen lädt das System beim ersten Mal, danach geht es auch ohne Netz. Beim Wortlaut eines Fakts und bei Stellen im Chat öffnet „Übersetzen“ das Übersetzungsfenster von Apple. Merken und Kopieren nehmen immer das Original."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transkripte und Shownotes in einer anderen Sprache übersetzt die App auf dem Gerät, wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal, danach geht es auch ohne Netz. Beim Wortlaut eines Fakts und bei Stellen im Chat öffnet „Übersetzen“ das Übersetzungsfenster von Apple. Merken und Kopieren nehmen immer das Original."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "When you tap \"Translate\", the app translates transcripts and show notes from other languages on the device. The system downloads the languages the first time, and after that it works offline too. For the exact wording of a fact and for passages in Chat, \"Translate\" opens Apple's translation window. Saving and copying always use the original."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "When you click \"Translate\", the app translates transcripts and show notes from other languages on the Mac. The system downloads the languages the first time, and after that it works offline too. For the exact wording of a fact and for passages in Chat, \"Translate\" opens Apple's translation window. Saving and copying always use the original."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "When you tap \"Translate\", the app translates transcripts and show notes from other languages on the device. The system downloads the languages the first time, and after that it works offline too. For the exact wording of a fact and for passages in Chat, \"Translate\" opens Apple's translation window. Saving and copying always use the original."
+                }
+              }
+            }
           }
         }
       }
@@ -16451,15 +17251,39 @@
     "Transkripte und Shownotes übersetzt die App auf dem Gerät mit Apples Übersetzung, nur wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal von Apple, danach geht es auch ohne Netz. Einzelne Stellen übersetzt das Übersetzungsfenster des Systems. Es kann den Text dafür an Apple schicken und sagt das dort selbst. Merken und Kopieren nehmen immer den Originaltext." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transkripte und Shownotes übersetzt die App auf dem Gerät mit Apples Übersetzung, nur wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal von Apple, danach geht es auch ohne Netz. Einzelne Stellen übersetzt das Übersetzungsfenster des Systems. Es kann den Text dafür an Apple schicken und sagt das dort selbst. Merken und Kopieren nehmen immer den Originaltext."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transkripte und Shownotes übersetzt die App auf dem Mac mit Apples Übersetzung, nur wenn du auf „Übersetzen“ klickst. Die Sprachen lädt das System beim ersten Mal von Apple, danach geht es auch ohne Netz. Einzelne Stellen übersetzt das Übersetzungsfenster des Systems. Es kann den Text dafür an Apple schicken und sagt das dort selbst. Merken und Kopieren nehmen immer den Originaltext."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Transkripte und Shownotes übersetzt die App auf dem Gerät mit Apples Übersetzung, nur wenn du auf „Übersetzen“ tippst. Die Sprachen lädt das System beim ersten Mal von Apple, danach geht es auch ohne Netz. Einzelne Stellen übersetzt das Übersetzungsfenster des Systems. Es kann den Text dafür an Apple schicken und sagt das dort selbst. Merken und Kopieren nehmen immer den Originaltext."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The app translates transcripts and show notes on the device using Apple's translation feature, and only when you tap \"Translate\". The system downloads the languages from Apple the first time, and after that it works offline too. Individual passages are translated in the system translation window. It may send the text to Apple for this, and it tells you so in the window itself. Saving and copying always use the original text."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The app translates transcripts and show notes on the Mac using Apple's translation feature, and only when you click \"Translate\". The system downloads the languages from Apple the first time, and after that it works offline too. Individual passages are translated in the system translation window. It may send the text to Apple for this, and it tells you so in the window itself. Saving and copying always use the original text."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "The app translates transcripts and show notes on the device using Apple's translation feature, and only when you tap \"Translate\". The system downloads the languages from Apple the first time, and after that it works offline too. Individual passages are translated in the system translation window. It may send the text to Apple for this, and it tells you so in the window itself. Saving and copying always use the original text."
+                }
+              }
+            }
           }
         }
       }
@@ -16608,6 +17432,22 @@
         }
       }
     },
+    "Ungehört" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ungehört"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unplayed"
+          }
+        }
+      }
+    },
     "Unter diesen Namen erkennt die App dasselbe Tag." : {
       "localizations" : {
         "de" : {
@@ -16659,15 +17499,39 @@
     "Unter einer Antwort im Chat tippst du auf „Antwort sichern“. Sie liegt dann mit ihren Belegen unter Wissen › Gesicherte Antworten." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unter einer Antwort im Chat tippst du auf „Antwort sichern“. Sie liegt dann mit ihren Belegen unter Wissen › Gesicherte Antworten."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Unter einer Antwort im Chat klickst du auf „Antwort sichern“. Sie liegt dann mit ihren Belegen unter Wissen › Gesicherte Antworten."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Unter einer Antwort im Chat tippst du auf „Antwort sichern“. Sie liegt dann mit ihren Belegen unter Wissen › Gesicherte Antworten."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Below an answer in Chat, tap \"Save Answer\". It then sits with its source passages under Knowledge › Saved Answers."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Below an answer in Chat, click \"Save Answer\". It then sits with its source passages under Knowledge › Saved Answers."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Below an answer in Chat, tap \"Save Answer\". It then sits with its source passages under Knowledge › Saved Answers."
+                }
+              }
+            }
           }
         }
       }
@@ -16956,6 +17820,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Prepare"
+          }
+        }
+      }
+    },
+    "Vorbereitung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorbereitung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparation"
           }
         }
       }
@@ -18675,15 +19555,39 @@
     "Zu dieser Folge gibt es noch kein Transkript. Tippe in der Folge auf „Transkript erstellen“, danach kann ich mit Belegen aus dem Transkript antworten." : {
       "localizations" : {
         "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zu dieser Folge gibt es noch kein Transkript. Tippe in der Folge auf „Transkript erstellen“, danach kann ich mit Belegen aus dem Transkript antworten."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Zu dieser Folge gibt es noch kein Transkript. Klicke in der Folge auf „Transkript erstellen“, danach kann ich mit Belegen aus dem Transkript antworten."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Zu dieser Folge gibt es noch kein Transkript. Tippe in der Folge auf „Transkript erstellen“, danach kann ich mit Belegen aus dem Transkript antworten."
+                }
+              }
+            }
           }
         },
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This episode doesn't have a transcript yet. Tap \"Create Transcript\" in the episode, then I can answer with source passages from the transcript."
+          "variations" : {
+            "device" : {
+              "mac" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "This episode doesn't have a transcript yet. Click \"Create Transcript\" in the episode, then I can answer with source passages from the transcript."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "This episode doesn't have a transcript yet. Tap \"Create Transcript\" in the episode, then I can answer with source passages from the transcript."
+                }
+              }
+            }
           }
         }
       }
@@ -20547,6 +21451,22 @@
         }
       }
     },
+    "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, das Menü am Knopf bietet „Ans Ende“. Die Warteschlange steht rechts im Inspektor, ein- und ausblenden mit ⌥⌘U." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, das Menü am Knopf bietet „Ans Ende“. Die Warteschlange steht rechts im Inspektor, ein- und ausblenden mit ⌥⌘U."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "\"Play Next\" puts an episode right after the one that's playing; the button's menu offers \"Play Last\". The queue is in the inspector on the right; show or hide it with ⌥⌘U."
+          }
+        }
+      }
+    },
     "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, gedrückt halten bietet „Ans Ende“. Die Warteschlange liegt in „Meine Podcasts“." : {
       "localizations" : {
         "de" : {
@@ -20559,22 +21479,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "\"Play Next\" puts an episode right after the one that's playing. Touch and hold for \"Play Last\". The queue is in \"My Podcasts\"."
-          }
-        }
-      }
-    },
-    "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, gedrückt halten bietet „Ans Ende“. Die Warteschlange steht links in der Seitenleiste und in „Meine Podcasts“." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "„Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, gedrückt halten bietet „Ans Ende“. Die Warteschlange steht links in der Seitenleiste und in „Meine Podcasts“."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "\"Play Next\" puts an episode right after the one that's playing. Click and hold for \"Play Last\". The queue is in the sidebar on the left and in \"My Podcasts\"."
           }
         }
       }

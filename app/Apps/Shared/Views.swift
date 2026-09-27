@@ -23,12 +23,28 @@ struct ForYouView: View {
             let resume = model.continueListening
             if !resume.isEmpty {
                 Section {
+                    #if os(macOS)
+                    // Auf dem Mac ein Regal zum Blättern statt einer Zeile je Folge.
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: Design.Spacing.standard) {
+                            ForEach(resume, id: \.episode.id) { entry in
+                                ResumeTile(episode: entry.episode, position: entry.position)
+                            }
+                        }
+                        .scrollTargetLayout()
+                        .padding(.vertical, Design.Spacing.small)
+                    }
+                    .scrollTargetBehavior(.viewAligned)
+                    .scrollIndicators(.hidden)
+                    .listRowSeparator(.hidden)
+                    #else
                     ForEach(resume, id: \.episode.id) { entry in
                         ResumeRow(episode: entry.episode, position: entry.position)
                     }
+                    #endif
                 } header: {
                     ForYouSectionHeader("Weiterhören", symbol: "play.circle",
-                                        explanation: "Angefangene Folgen. Ein Tipp spielt dort weiter.")
+                                        explanation: Self.resumeExplanation)
                 }
             }
 
@@ -141,6 +157,14 @@ struct ForYouView: View {
 }
 
 extension ForYouView {
+    static var resumeExplanation: LocalizedStringKey {
+        #if os(macOS)
+        "Angefangene Folgen. Ein Klick öffnet die Folge, der Knopf spielt dort weiter."
+        #else
+        "Angefangene Folgen. Ein Tipp spielt dort weiter."
+        #endif
+    }
+
     /// Die Überschrift über allen Stellen zu Tags, mit dem Weg zu „Meine Tags“.
     var tagsHeader: some View {
         ForYouSectionHeader("Zu deinen Tags", symbol: "tag",
@@ -188,16 +212,22 @@ struct ForYouSectionHeader<Trailing: View>: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.primary)
                     .accessibilityAddTraits(.isHeader)
+                // Auf dem Mac steht die Erklärung beim Überfahren der Überschrift.
+                #if os(iOS)
                 if let explanation {
                     explanation
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                #endif
             }
             Spacer(minLength: Design.Spacing.small)
             trailing()
         }
+        #if os(macOS)
+        .help(explanation ?? Text(verbatim: ""))
+        #endif
         .textCase(nil)
         .padding(.top, Design.Spacing.standard)
         .padding(.bottom, Design.Spacing.micro)
@@ -406,6 +436,72 @@ struct ResumeRow: View {
         #endif
     }
 }
+
+#if os(macOS)
+/// Eine angefangene Folge als Kachel im Regal „Weiterhören“. Ein Klick
+/// öffnet die Folge, weiter spielt der Knopf beim Überfahren oder das
+/// Kontextmenü.
+struct ResumeTile: View {
+    let episode: Episode
+    let position: Double
+    @Environment(AppModel.self) private var model
+    @State private var hovering = false
+
+    private var duration: Double { episode.declaredDuration?.seconds ?? 0 }
+
+    var body: some View {
+        NavigationLink(value: MacRoute.episode(episode)) {
+            HStack(alignment: .top, spacing: Design.Spacing.control) {
+                ZStack {
+                    EpisodeArtwork(url: episode.artworkURL,
+                                   fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                                   size: 72)
+                    if hovering {
+                        Button { model.playEpisode(episode, at: position) } label: {
+                            Label("Weiterhören", systemImage: "play.circle.fill")
+                                .labelStyle(.iconOnly)
+                                .font(.largeTitle)
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, Color.black.opacity(0.45))
+                        }
+                        .buttonStyle(.plain)
+                        .help("Weiterhören")
+                    }
+                }
+                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                    Text(episode.title).font(.body.weight(.medium)).lineLimit(2)
+                    if let podcast = model.sources.first(where: { $0.id == episode.sourceID })?.title {
+                        Text(podcast).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    if duration > 0 {
+                        ProgressView(value: min(position, duration), total: duration)
+                            .controlSize(.small)
+                        Text("noch \(max(1, Int((duration - position) / 60))) Min.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    } else {
+                        Text("weiter ab \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(Design.Spacing.control)
+            .frame(width: 300, height: 104, alignment: .topLeading)
+            .background(.quaternary.opacity(hovering ? 0.7 : 0.4),
+                        in: .rect(cornerRadius: Design.Radius.card, style: .continuous))
+            .contentShape(.rect(cornerRadius: Design.Radius.card))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .contextMenu {
+            Button("Weiterhören") { model.playEpisode(episode, at: position) }
+            NavigationLink("Öffnen", value: MacRoute.episode(episode))
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Weiterhören") { model.playEpisode(episode, at: position) }
+    }
+}
+#endif
 
 /// Eine neue Folge aus den Abos.
 struct FreshEpisodeRow: View {
@@ -667,8 +763,95 @@ struct LibraryView: View {
     @State private var importingOPML = false
     @State private var importingTakeout = false
     @State private var pendingRemoval: Source?
+    #if os(macOS)
+    /// Raster aus Covern oder Liste, je Gerät gemerkt.
+    @AppStorage("libraryShowsGrid") private var showsGrid = true
+    #endif
 
     var body: some View {
+        Group {
+            #if os(macOS)
+            if showsGrid, !model.sources.isEmpty {
+                MacLibraryGrid(pendingRemoval: $pendingRemoval)
+            } else {
+                libraryList
+            }
+            #else
+            libraryList
+            #endif
+        }
+        .navigationTitle("Meine Podcasts")
+        .activityStatusToolbar()
+        .confirmationDialog(removalTitle, isPresented: Binding(
+            get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }
+        ), titleVisibility: .visible, presenting: pendingRemoval) { source in
+            // Ein Podcast mit nur einzeln geholten Folgen ist kein Abo.
+            if source.isSubscribed {
+                Button("\(source.title) abbestellen", role: .destructive) {
+                    Task { await model.removeSource(source.id) }
+                }
+            } else {
+                Button("\(source.title) entfernen", role: .destructive) {
+                    Task { await model.removeSource(source.id) }
+                }
+            }
+        } message: { _ in
+            Text("Alle Folgen dieses Podcasts werden mit Transkripten, Fakten und Hörstand gelöscht.")
+        }
+        .navigationDestination(for: SourceID.self) { sourceID in
+            EpisodeListView(sourceID: sourceID)
+        }
+        .toolbar {
+            #if os(macOS)
+            Picker("Darstellung", selection: $showsGrid) {
+                Label("Raster", systemImage: "square.grid.2x2").tag(true)
+                Label("Liste", systemImage: "list.bullet").tag(false)
+            }
+            .pickerStyle(.segmented)
+            .help("Als Raster oder als Liste zeigen")
+            #endif
+            // Abos aus einer anderen App übernehmen oder mitnehmen.
+            Menu {
+                Button { importingOPML = true } label: {
+                    Label("Abos aus Datei importieren", systemImage: "square.and.arrow.down")
+                }
+                Button { importingTakeout = true } label: {
+                    Label("YouTube-Abos aus Google Takeout importieren", systemImage: "play.rectangle.on.rectangle")
+                }
+                ShareLink(item: SubscriptionsExport(feeds: model.exportableFeeds),
+                          preview: SharePreview(SubscriptionsExport.fileName)) {
+                    Label("Abos exportieren (OPML)", systemImage: "square.and.arrow.up")
+                }
+                .disabled(model.exportableFeeds.isEmpty)
+            } label: {
+                Label("Abos importieren oder exportieren", systemImage: "arrow.up.arrow.down.circle")
+            }
+            Button { showingAdd = true } label: {
+                Label("Podcast hinzufügen", systemImage: "plus")
+            }
+            #if os(iOS)
+            SettingsToolbarLink()
+            #endif
+        }
+        .sheet(isPresented: $showingAdd) { AddSourceSheet().sheetFeedback() }
+        .opmlImport(isPresented: $importingOPML)
+        // Eigene Ansicht für die zweite Dateiauswahl, siehe `takeoutImport`.
+        .background { Color.clear.takeoutImport(isPresented: $importingTakeout) }
+        .overlay {
+            if model.sources.isEmpty {
+                ContentUnavailableView {
+                    Label("Noch keine Podcasts", systemImage: "antenna.radiowaves.left.and.right")
+                } description: {
+                    Text("Füge einen Podcast, eine einzelne Folge oder einen YouTube-Kanal hinzu.")
+                } actions: {
+                    Button("Podcast hinzufügen") { showingAdd = true }
+                    Button("Abos aus Datei importieren") { importingOPML = true }
+                }
+            }
+        }
+    }
+
+    private var libraryList: some View {
         List {
             // Auf dem Mac liegt „Als Nächstes“ im Inspektor, die Verarbeitung
             // hinter dem Aktivitätssymbol der Symbolleiste.
@@ -724,67 +907,6 @@ struct LibraryView: View {
         }
         .yieldsAIWhileScrolling()
         .readingColumn()
-        .navigationTitle("Meine Podcasts")
-        .activityStatusToolbar()
-        .confirmationDialog(removalTitle, isPresented: Binding(
-            get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }
-        ), titleVisibility: .visible, presenting: pendingRemoval) { source in
-            // Ein Podcast mit nur einzeln geholten Folgen ist kein Abo.
-            if source.isSubscribed {
-                Button("\(source.title) abbestellen", role: .destructive) {
-                    Task { await model.removeSource(source.id) }
-                }
-            } else {
-                Button("\(source.title) entfernen", role: .destructive) {
-                    Task { await model.removeSource(source.id) }
-                }
-            }
-        } message: { _ in
-            Text("Alle Folgen dieses Podcasts werden mit Transkripten, Fakten und Hörstand gelöscht.")
-        }
-        .navigationDestination(for: SourceID.self) { sourceID in
-            EpisodeListView(sourceID: sourceID)
-        }
-        .toolbar {
-            // Abos aus einer anderen App übernehmen oder mitnehmen.
-            Menu {
-                Button { importingOPML = true } label: {
-                    Label("Abos aus Datei importieren", systemImage: "square.and.arrow.down")
-                }
-                Button { importingTakeout = true } label: {
-                    Label("YouTube-Abos aus Google Takeout importieren", systemImage: "play.rectangle.on.rectangle")
-                }
-                ShareLink(item: SubscriptionsExport(feeds: model.exportableFeeds),
-                          preview: SharePreview(SubscriptionsExport.fileName)) {
-                    Label("Abos exportieren (OPML)", systemImage: "square.and.arrow.up")
-                }
-                .disabled(model.exportableFeeds.isEmpty)
-            } label: {
-                Label("Abos importieren oder exportieren", systemImage: "arrow.up.arrow.down.circle")
-            }
-            Button { showingAdd = true } label: {
-                Label("Podcast hinzufügen", systemImage: "plus")
-            }
-            #if os(iOS)
-            SettingsToolbarLink()
-            #endif
-        }
-        .sheet(isPresented: $showingAdd) { AddSourceSheet().sheetFeedback() }
-        .opmlImport(isPresented: $importingOPML)
-        // Eigene Ansicht für die zweite Dateiauswahl, siehe `takeoutImport`.
-        .background { Color.clear.takeoutImport(isPresented: $importingTakeout) }
-        .overlay {
-            if model.sources.isEmpty {
-                ContentUnavailableView {
-                    Label("Noch keine Podcasts", systemImage: "antenna.radiowaves.left.and.right")
-                } description: {
-                    Text("Füge einen Podcast, eine einzelne Folge oder einen YouTube-Kanal hinzu.")
-                } actions: {
-                    Button("Podcast hinzufügen") { showingAdd = true }
-                    Button("Abos aus Datei importieren") { importingOPML = true }
-                }
-            }
-        }
     }
 }
 

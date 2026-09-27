@@ -12,10 +12,9 @@ import AppKit
 import PodcastAIKit
 
 /// „Exportieren …“ der Seite, die vorn ist.
-struct ExportAction: Equatable {
+struct ExportAction {
     let run: @MainActor () -> Void
     @MainActor func callAsFunction() { run() }
-    static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
 extension FocusedValues {
@@ -42,6 +41,9 @@ struct MacCommands: Commands {
         }
         CommandMenu("Steuerung") {
             PlaybackMenuItems(model: model)
+        }
+        CommandMenu("Folge") {
+            EpisodeMenuItems()
         }
         CommandGroup(replacing: .help) {
             HelpMenuItem()
@@ -191,6 +193,37 @@ private struct PlaybackMenuItems: View {
 
     private var isPlanPaused: Bool {
         if case .paused = model.playerState { true } else { false }
+    }
+}
+
+// MARK: - Folge
+
+/// Wirkt auf die Folgen, die in der Tabelle des vorderen Fensters
+/// ausgewählt sind. „Audio entfernen“ lässt die Daten stehen, „Folge
+/// löschen …“ fragt vorher.
+private struct EpisodeMenuItems: View {
+
+    @FocusedValue(\.episodeActions) private var actions
+
+    var body: some View {
+        Button("Öffnen") { actions?.open?() }
+            .disabled(actions?.open == nil)
+        Divider()
+        Button("Als Nächstes hören") { actions?.playNext?() }
+            .disabled(actions?.playNext == nil)
+        Button("Transkript erstellen") { actions?.analyze?() }
+            .disabled(actions?.analyze == nil)
+        Button("Laden (offline)") { actions?.download?() }
+            .disabled(actions?.download == nil)
+        Button("Audio entfernen, Daten behalten") { actions?.removeAudio?() }
+            .disabled(actions?.removeAudio == nil)
+        Divider()
+        Button("Folge löschen …") {
+            if MacTextInput.forward(#selector(NSResponder.deleteToBeginningOfLine(_:))) { return }
+            actions?.delete()
+        }
+        .keyboardShortcut(.delete, modifiers: .command)
+        .disabled(actions == nil)
     }
 }
 

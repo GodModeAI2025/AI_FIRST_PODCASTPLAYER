@@ -367,10 +367,9 @@ struct MacMomentNotePopover: View {
 }
 
 /// „Moment merken“ aus dem Menü Steuerung, im vorderen Fenster.
-struct MomentNoteAction: Equatable {
+struct MomentNoteAction {
     let run: @MainActor () -> Void
     @MainActor func callAsFunction() { run() }
-    static func == (lhs: Self, rhs: Self) -> Bool { true }
 }
 
 extension FocusedValues {

@@ -98,6 +98,9 @@ struct MacRootView: View {
             if !restored {
                 restored = true
                 router.selection = SidebarItem(storageValue: storedItem)
+                #if DEBUG
+                applyTestSidebarArgument()
+                #endif
             }
         }
         .onDisappear { windows.closed(windowID) }
@@ -144,6 +147,34 @@ struct MacRootView: View {
                 }
         }
     }
+
+    #if DEBUG
+    /// Für Tests: `-uitest-sidebar chat` beginnt bei diesem Eintrag,
+    /// `-uitest-sidebar firstPodcast` beim ersten Podcast, sobald die
+    /// Bibliothek geladen ist, und `-uitest-open-episode` öffnet dort die
+    /// neueste Folge. Nichts davon spielt etwas ab.
+    private func applyTestSidebarArgument() {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-uitest-sidebar"), index + 1 < arguments.count else { return }
+        let value = arguments[index + 1]
+        guard value == "firstPodcast" else {
+            router.show(SidebarItem(storageValue: value))
+            return
+        }
+        let openEpisode = arguments.contains("-uitest-open-episode")
+        Task {
+            await model.ensureLoaded()
+            for _ in 0..<50 where model.sources.isEmpty {
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+            guard let source = model.sources.first else { return }
+            router.show(.podcast(source.id))
+            guard openEpisode else { return }
+            await model.loadEpisodes(for: source.id)
+            if let episode = model.episodes[source.id]?.first { router.push(.episode(episode)) }
+        }
+    }
+    #endif
 
     // MARK: Aktivität
 

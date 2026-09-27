@@ -53,6 +53,9 @@ struct EpisodeDetailView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    #if os(macOS)
+    @Environment(MacRouter.self) private var router: MacRouter?
+    #endif
     @State private var section: Section = .overview
     @State private var passages: [Evidence] = []
     @State private var exported: String?
@@ -239,8 +242,12 @@ struct EpisodeDetailView: View {
     private var overview: some View {
         List {
             SwiftUI.Section {
+                #if os(macOS)
+                macHeader
+                #else
                 header
                 playControls
+                #endif
             }
 
             // Die Angaben aus dem Feed, kompakt unter dem Kopf.
@@ -515,6 +522,91 @@ struct EpisodeDetailView: View {
     private var sourceArtwork: URL? {
         model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL
     }
+
+    #if os(macOS)
+    /// Der Kopf auf dem Mac: Cover links, daneben Podcast als Link, Titel,
+    /// Datum und Dauer, darunter die Knöpfe in ihrer natürlichen Breite.
+    private var macHeader: some View {
+        let source = model.sources.first(where: { $0.id == episode.sourceID })
+        return HStack(alignment: .top, spacing: Design.Spacing.section) {
+            EpisodeArtwork(url: episode.artworkURL, fallback: sourceArtwork, size: 140)
+                .shadow(color: .black.opacity(0.14), radius: 8, y: 4)
+            VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                if let source {
+                    Button(source.title) { router?.show(.podcast(source.id)) }
+                        .buttonStyle(.link)
+                        .pointerStyle(.link)
+                        .help("Podcast öffnen")
+                }
+                Text(episode.title)
+                    .font(.title.bold())
+                    .lineLimit(3)
+                    .textSelection(.enabled)
+                HStack(spacing: Design.Spacing.control) {
+                    if let published = episode.publishedAt {
+                        Text(published, format: .dateTime.day().month(.wide).year())
+                    }
+                    if let duration = episode.declaredDuration {
+                        Text(duration.shortDescription).monospacedDigit()
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                HeardProgress(fraction: model.heardFraction(for: episode))
+                    .frame(maxWidth: 320)
+                HStack(spacing: Design.Spacing.small) {
+                    if model.canPlay(episode) {
+                        Button {
+                            if isCurrent { player.togglePlayPause() } else { model.playEpisode(episode) }
+                        } label: {
+                            Label(playLabel, systemImage: isCurrent && player.isPlayingOrStarting ? "pause.fill" : "play.fill")
+                        }
+                        .buttonStyle(.glassProminent)
+                        .accessibilityIdentifier("episode.play")
+                    } else if let url = episode.webPageURL {
+                        Button { openURL(url) } label: {
+                            Label(episode.webLinkTitle, systemImage: episode.webLinkSymbol)
+                        }
+                        .buttonStyle(.glassProminent)
+                        .accessibilityIdentifier("episode.openWeb")
+                    }
+                    if showsUpNextMenu {
+                        Menu {
+                            Button { queue(.next) } label: {
+                                Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
+                            }
+                            Button { queue(.last) } label: {
+                                Label("Ans Ende", systemImage: "text.line.last.and.arrowtriangle.forward")
+                            }
+                            if model.upNext.contains(where: { $0.id == episode.id }) {
+                                Button(role: .destructive) { model.removeFromUpNext(episode.id) } label: {
+                                    Label("Aus der Warteschlange nehmen", systemImage: "minus.circle")
+                                }
+                            }
+                        } label: {
+                            Label(model.upNext.contains(where: { $0.id == episode.id })
+                                  ? "In der Warteschlange" : "Als Nächstes",
+                                  systemImage: "text.line.first.and.arrowtriangle.forward")
+                        } primaryAction: {
+                            queue(.next)
+                        }
+                        .buttonStyle(.glass)
+                        .fixedSize()
+                    }
+                    if showsTranscriptButton {
+                        transcriptButton
+                            .buttonStyle(.glass)
+                            .fixedSize()
+                    }
+                }
+                .controlSize(.large)
+                .padding(.top, Design.Spacing.micro)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, Design.Spacing.control)
+    }
+    #endif
 
     /// Der Hauptknopf steht allein über die ganze Breite. Neben zwei
     /// Symbolknöpfen wurde „Pause“ bei großer Schrift mitten im Wort
