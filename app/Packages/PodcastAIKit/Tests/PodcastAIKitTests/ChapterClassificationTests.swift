@@ -170,28 +170,14 @@ struct ChapterTagSelectionTests {
         #expect(TagSelectionRules.instructions().contains("Daten"))
     }
 
-    @Test("Langsames Gerätemodell: erst nach mehreren Messungen zählt Private Cloud Compute")
-    func pace() {
-        let both = ModelStatus(onDevice: .available, privateCloudCompute: .available)
-        let noCloud = ModelStatus(onDevice: .available, privateCloudCompute: .unavailable(.userConsentMissing))
-        var pace = TaggingPace()
-        pace.record(onDeviceSeconds: 60)
-        #expect(!pace.prefersCloud(both), "eine Messung genügt nicht")
-        pace.record(onDeviceSeconds: 50)
-        pace.record(onDeviceSeconds: 40)
-        #expect(pace.prefersCloud(both))
-        #expect(!pace.prefersCloud(noCloud), "ohne Erlaubnis nie")
-        for _ in 0..<30 { pace.record(onDeviceSeconds: 3) }
-        #expect(!pace.prefersCloud(both), "wieder schnell")
-    }
-
-    @Test("Profil .tag: Gerät zuerst, Private Cloud Compute nur als Rückfall")
+    @Test("Profil .tag: Private Cloud Compute zuerst, das Gerät nur als Rückfall")
     func router() {
-        #expect(TaskProfile.tag.preferredTier == .onDevice)
+        #expect(TaskProfile.tag.preferredTier == .privateCloudCompute)
         #expect(TaskProfile.tag.allowedTools.isEmpty)
+        let both = ModelStatus(onDevice: .available, privateCloudCompute: .available)
+        #expect(both.resolve(.tag) == .success(.privateCloudCompute))
         let noDevice = ModelStatus(onDevice: .unavailable(.deviceNotEligible), privateCloudCompute: .available)
         #expect(noDevice.resolve(.tag) == .success(.privateCloudCompute))
-        #expect(noDevice.resolve(.extract) != .success(.privateCloudCompute))
         let neither = ModelStatus(onDevice: .unavailable(.deviceNotEligible),
                                   privateCloudCompute: .unavailable(.userConsentMissing))
         #expect(neither.resolve(.tag) == .failure(.deviceNotEligible))
@@ -356,12 +342,9 @@ struct ChapterTagVersionTests {
         #expect(ChapterTagVersion.evidence([], preferred: new) == nil)
     }
 
-    @Test("Ohne Erlaubnis fürs Netz zieht die Einordnung Private Cloud Compute nie vor")
-    func noCloudWithoutNetwork() {
-        var pace = TaggingPace()
-        for _ in 0..<5 { pace.record(onDeviceSeconds: 90) }
+    @Test("Ohne Netz ordnet das Gerät ein")
+    func deviceWithoutNetwork() {
         let blocked = ModelStatus(onDevice: .available, privateCloudCompute: .unavailable(.offline))
-        #expect(!pace.prefersCloud(blocked))
         #expect(blocked.resolve(.tag) == .success(.onDevice))
     }
 }

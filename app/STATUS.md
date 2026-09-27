@@ -37,7 +37,7 @@ Stand 26. September 2026, Version 0.13.
 | Relevanzauswahl, Chat, Fakten | Auf dem iOS-27-Simulator läuft das Gerätemodell; die Qualität der Antworten zeigt sich erst auf einem Gerät mit Apple Intelligence |
 | Nachschlagen im Chat mit echtem Modell | Wie oft Gerät und PCC die Werkzeuge rufen, ob sie Kennungen richtig nennen, wie viel Zeit bis zum ersten Wort dazukommt und ob die Antworten mit weniger Stellen zu Beginn besser oder schlechter werden, ist noch nicht gemessen |
 | Abgleich zwischen iPhone, iPad und Mac | Braucht zwei Geräte mit derselben Apple-ID und das Schema in der Produktionsumgebung |
-| Private Cloud Compute | Berechtigung erteilt und in beiden App-IDs eingeschaltet. Chat und Folgen-Chat antworten im iOS-27-Simulator über PCC; die Qualität zeigt sich auf einem Gerät |
+| Private Cloud Compute | Berechtigung erteilt und in beiden App-IDs eingeschaltet. Chat und Folgen-Chat antworten im iOS-27-Simulator über PCC; die Qualität zeigt sich auf einem Gerät. Seit „PCC Cloud für alles“ laufen auch Fakten, Tags, Satz je Kapitel und Relevanz zuerst über PCC. Offen: wie schnell das Kontingent bei einer großen Bibliothek im Hintergrund aufgebraucht ist, ob das iPhone dabei flüssig bleibt und ob die Hintergrundaufgaben ihre Zeit jetzt schaffen. Stufenwahl und Warten ohne Netz sind in Swift-Tests geprüft (`ModelRoutingTests`) |
 | Transkription auf iPhone und iPad | Der Simulator hat keine Spracherkennung |
 | Wiedergabe im Hintergrund, AirPlay, CarPlay | Nur auf Hardware sinnvoll |
 | Widget „Was ist neu“ | Die Erweiterungen bauen für iOS und macOS, Schnappschuss und Schreibregel sind getestet. Anzeige, Neuladen und die Tipps auf Tag-Zeilen zeigen sich erst mit signiertem Build und eingerichteter App Group |

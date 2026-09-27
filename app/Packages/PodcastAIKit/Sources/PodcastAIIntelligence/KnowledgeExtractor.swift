@@ -267,8 +267,8 @@ public struct KnowledgeExtractor: Sendable {
     /// (``ClaimStatement/validated(_:)``). Besteht er sie nicht, gibt es
     /// keinen Satz, statt eines halben.
     ///
-    /// Die Stufe wählt das Profil `.summarize`: das Gerät, und nur wenn es
-    /// fehlt, Private Cloud Compute.
+    /// Die Stufe wählt das Profil `.summarize`: Private Cloud Compute, und
+    /// nur wenn es fehlt, das Gerät.
     public func summarizeChapter(
         _ evidence: [Evidence], title: String?, availability: ModelStatus
     ) async throws -> ChapterSummary? {
@@ -690,8 +690,8 @@ public struct KnowledgeExtractor: Sendable {
     /// Erzeugt eine Antwort in einer frischen Sitzung. Frisch je Anfrage,
     /// damit der Verlauf einer Folge nicht in die Antwort zu einer anderen
     /// sickert. Die Stufe bestimmt ``ModelStatus/resolve(_:)``: Private Cloud
-    /// Compute für Antworten, wenn verfügbar und erlaubt,
-    /// sonst das Gerätemodell.
+    /// Compute für jedes Profil, wenn verfügbar und erlaubt, sonst das
+    /// Gerätemodell als Ersatz.
     ///
     /// Den Prompt baut `prompt` für die Stufe, die ihn bekommt. Scheitert PCC
     /// an Netz, Kontingent oder Dienst, läuft die Anfrage auf dem Gerät, mit
@@ -739,6 +739,8 @@ public struct KnowledgeExtractor: Sendable {
             } catch {
                 if error is CancellationError || Task.isCancelled { throw error }
                 guard case .available = availability.onDevice else {
+                    // Kein Netz oder kein Kontingent: die Arbeit wartet, statt zu scheitern.
+                    if let pause = Self.privateCloudPause(error) { throw ExtractorError.modelUnavailable(pause) }
                     if Self.isRejection(error) { throw ExtractorError.generationRejected(Self.plainReason(error)) }
                     throw ExtractorError.generationFailed(Self.plainReason(error))
                 }
@@ -833,6 +835,21 @@ public struct KnowledgeExtractor: Sendable {
             return .rateLimited(resetDate: detail.resetDate)
         }
         return nil
+    }
+
+    /// Ist Private Cloud Compute an etwas gescheitert, das von selbst vergeht?
+    /// Fehlendes Netz und erschöpftes Kontingent werden dann zu „nicht
+    /// verfügbar“: Die Warteschlange hält an und läuft weiter, sobald PCC
+    /// wieder da ist, statt die Folge als gescheitert zu führen. Ein Ausfall
+    /// des Dienstes bleibt ein gescheiterter Versuch, der später wiederholt wird.
+    static func privateCloudPause(_ error: any Error) -> ModelUnavailability? {
+        guard let error = error as? PrivateCloudComputeLanguageModel.Error else { return nil }
+        switch error {
+        case .networkFailure: return .offline
+        case .quotaLimitReached(let detail): return .quotaExhausted(resetDate: detail.resetDate)
+        case .serviceUnavailable: return nil
+        @unknown default: return nil
+        }
     }
 
     /// Scheitert jeder weitere Versuch mit derselben Eingabe genauso?

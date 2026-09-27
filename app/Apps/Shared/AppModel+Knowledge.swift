@@ -162,18 +162,11 @@ extension AppModel {
         // kann warten, während das Modell rechnet. Nicht auf dem Hauptthread,
         // und nur ein neuer Stand wird geschrieben: jede Zuweisung zeichnete
         // sonst alles neu, was den Zustand liest.
-        let allowCloud = allowPrivateCloudCompute
-        let status = await Task.detached(priority: .utility) {
-            ModelStatusProbe.current(allowPrivateCloud: allowCloud)
-        }.value
+        let status = await probeModelStatus()
         if status != modelStatus { modelStatus = status }
         guard isLoaded else { return }
-        // Nur ein Modell für Tags, etwa Private Cloud Compute ohne Gerätemodell:
-        // die Einordnung darf laufen, die Fakten warten.
-        guard factsModelReady else {
-            if case .success = modelStatus.resolve(.tag) { startFactsWorker() }
-            return
-        }
+        // Fakten und Tags laufen über dieselbe Stufe. Fehlt sie, wartet beides.
+        guard factsModelReady else { return }
         // Das Modell ist bereit: was auf Fakten wartet, läuft weiter. Läuft
         // die Arbeit schon oder hat die App gerade keine Zeit dafür, tut der
         // Aufruf nichts.
@@ -187,6 +180,18 @@ extension AppModel {
             factsBackfilled = false
             await queueMissingFacts()
         }
+    }
+
+    /// Fragt FoundationModels nach beiden Stufen, außerhalb des Hauptthreads.
+    /// Ohne Netz gilt Private Cloud Compute als nicht verfügbar, denn das
+    /// System selbst merkt es erst an einer gescheiterten Anfrage. Dann
+    /// rechnet das Gerät, und fehlt auch das, wartet die Arbeit aufs Netz.
+    func probeModelStatus() async -> ModelStatus {
+        let allowCloud = allowPrivateCloudCompute
+        let offline = isOffline
+        return await Task.detached(priority: .utility) {
+            ModelStatusProbe.current(allowPrivateCloud: allowCloud).assumingOffline(offline)
+        }.value
     }
 
     /// Wie viele Token das Gerätemodell für Anweisungen, Prompt und Antwort
@@ -1100,10 +1105,10 @@ extension AppModel {
         guard !evidence.isEmpty, !wasRemoved(episode.id, since: ticket) else { return .nothingToDo }
 
         await refreshModelStatus()
-        // Fakten laufen über das Profil `.extract`. Dafür wählt der Router nur
-        // das Gerätemodell, nie Private Cloud Compute. Die hier aufgelöste
-        // Stufe ist also die, die tatsächlich rechnet, und nur sie steht
-        // später unter den Fakten.
+        // Fakten laufen über das Profil `.extract`: Private Cloud Compute,
+        // ohne PCC das Gerät. Scheitert PCC mitten in der Folge, rechnet der
+        // Rest auf dem Gerät weiter; die Stufe unter den Fakten ist die, die
+        // zu Beginn aufgelöst wurde.
         let tier: ModelTier
         switch modelStatus.resolve(.extract) {
         case .success(let resolved):
@@ -1553,21 +1558,23 @@ extension AppModel {
     /// Fakten vom anderen Gerät wartet, bevor dieses Gerät sie selbst sammelt.
     static let factsSyncGrace: TimeInterval = 20 * 60
 
-    /// Kann das Gerätemodell jetzt Fakten ziehen? Fakten laufen über das
-    /// Profil `.extract`, und dafür wählt der Router nur das Gerät. Ein Netz
-    /// braucht es deshalb nicht, und „Nur im WLAN“ gilt hier nicht.
+    /// Kann jetzt ein Modell Fakten ziehen? Fakten laufen über das Profil
+    /// `.extract`: Private Cloud Compute, ohne Netz oder Kontingent das
+    /// Gerät. „Nur im WLAN“ gilt hier nicht, eine Anfrage an PCC ist
+    /// Text von wenigen Kilobyte und kein Laden von Folgen.
     var factsModelReady: Bool {
         if case .success = modelStatus.resolve(.extract) { return true }
         return false
     }
 
-    /// Lohnt es, Folgen einzureihen? Wird das Modell nur noch vorbereitet,
+    /// Lohnt es, Folgen einzureihen? Fehlt das Modell nur vorübergehend
+    /// (es wird vorbereitet, das Netz ist weg, das Kontingent ist erschöpft),
     /// warten sie darauf. Fehlt es ganz, etwa weil Apple Intelligence aus
     /// ist, reiht die App nichts ein und sagt im Reiter „Fakten“, warum.
     var factsModelExpected: Bool {
         switch modelStatus.resolve(.extract) {
         case .success: true
-        case .failure(let reason): reason == .modelNotReady
+        case .failure(let reason): reason.isTemporary
         }
     }
 
@@ -1847,9 +1854,8 @@ extension AppModel {
                 // Vor jeder Folge: das Modell kann bereit geworden oder weggefallen sein.
                 await refreshModelStatus()
                 if case .failure(let reason) = modelStatus.resolve(.extract) {
+                    // Fakten und Tags brauchen dieselbe Stufe: beide warten.
                     factsWait = String(localized: "wartet: \(reason.message)")
-                    // Tags können mit Private Cloud Compute trotzdem weitergehen.
-                    await runTagsBacklog(ignoringFacts: true)
                     return
                 }
                 factsWait = nil

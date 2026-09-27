@@ -23,21 +23,24 @@ struct IntelligenceSettingsSection: View {
 
     var body: some View {
         Section {
-            LabeledContent("Auf diesem Gerät") {
-                Text(ModelAvailabilityText.describe(model.modelStatus.onDevice))
-            }
             PrivateCloudToggle()
             LabeledContent("Apple-Server") {
                 Text(ModelAvailabilityText.describe(model.modelStatus.privateCloudCompute))
+            }
+            // Das Gerät rechnet nur, wenn Apples Server fehlen.
+            LabeledContent("Auf diesem Gerät") {
+                Text(ModelAvailabilityText.describeFallback(model.modelStatus.onDevice))
             }
         } header: {
             Text("Intelligenz")
         } footer: {
             Text("""
-                PodcastAI nutzt nur Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät. \
-                Ist „Apple-Server nutzen“ an, gehen Fragen und Vergleiche an Apples Private Cloud \
-                Compute. Dort passt mehr Text in eine Anfrage, und Apple speichert sie nicht. Fehlt \
-                eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen.
+                PodcastAI nutzt nur Apple Intelligence. Ist „Apple-Server nutzen“ an, laufen Chat, \
+                Fakten, Tags, der Satz je Kapitel und die Relevanz auf Apples Private Cloud Compute. \
+                Dort passt mehr Text in eine Anfrage, das Gerät bleibt flüssig, und Apple speichert \
+                die Anfragen nicht. Das Modell auf diesem Gerät rechnet nur als Ersatz, etwa ohne Netz \
+                oder wenn das Kontingent aufgebraucht ist. Fehlen beide, wartet die Arbeit, statt \
+                einen anderen Anbieter zu nutzen.
                 """)
         }
     }
@@ -204,9 +207,10 @@ struct AutomaticAnalysisSection: View {
                 Text("Über den Hotspot eines Telefons lädt die App nur, wenn der Schalter dafür an ist.")
                 #endif
                 Text("""
-                    Fakten zieht die App nach jedem Transkript mit Apple Intelligence auf dem Gerät \
-                    heraus, auch im Hintergrund und für ältere Folgen mit Transkript. Dafür braucht es \
-                    kein Netz.
+                    Fakten zieht die App nach jedem Transkript mit Apple Intelligence heraus, auch im \
+                    Hintergrund und für ältere Folgen mit Transkript. Das läuft auf Apples Private Cloud \
+                    Compute und braucht Netz. Ohne Netz rechnet das Gerät, falls es Apple Intelligence \
+                    hat, sonst warten die Fakten, bis das Netz wieder da ist.
                     """)
             }
         }
@@ -435,6 +439,14 @@ enum ModelAvailabilityText {
         case .unavailable(let reason): reason.message
         }
     }
+
+    /// Für das Gerätemodell: Es springt nur ein, wenn Private Cloud Compute fehlt.
+    static func describeFallback(_ availability: ModelAvailability) -> String {
+        switch availability {
+        case .available: String(localized: "Bereit, nur als Ersatz")
+        case .unavailable(let reason): reason.message
+        }
+    }
 }
 
 /// Anbieter, Datenschutzerklärung und was die App mit Daten macht.
@@ -486,20 +498,20 @@ struct PrivacyOverviewView: View {
          """),
         ("sparkles", "Antworten und Fakten mit Apple Intelligence",
          """
-         Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel und wählt \
-         die Tags der Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die \
-         passenden Transkriptstellen an Apples Server (Private Cloud Compute). Satz und Tags je \
-         Kapitel kommen nur von Apples Servern, wenn das Modell auf dem Gerät fehlt oder für die \
-         Tags zu langsam ist, dann mit den Transkriptstellen des Kapitels. Apple speichert sie \
-         nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite \
-         und in den Einstellungen unter Intelligenz.
+         Ist „Apple-Server nutzen“ eingeschaltet, rechnet Apple Intelligence auf Apples Servern \
+         (Private Cloud Compute): Antworten, Fakten, den Satz je Kapitel, die Tags der Kapitel und \
+         die Prüfung der Relevanz. Dafür gehen deine Frage, die passenden Transkriptstellen und \
+         für die Relevanz deine Interessen an Apple. Apple speichert sie nach eigenen Angaben \
+         nicht. Das Modell auf dem Gerät springt nur ein, wenn die Server nicht erreichbar sind, \
+         das Kontingent aufgebraucht ist oder der Schalter aus ist. Den Schalter findest du unten \
+         auf dieser Seite und in den Einstellungen unter Intelligenz.
          """),
         ("tag", "Tags aus dem Inhalt",
          """
-         Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf dem \
-         Gerät. Fehlt das Modell dort oder ist es zu langsam, übernehmen das Apples Server, wenn \
-         „Apple-Server nutzen“ an ist. Mit Plus folgst du einem Tag, mit Minus nicht mehr. Welchen \
-         Tags du folgst, liegt auf deinen Geräten und in deiner privaten iCloud-Datenbank.
+         Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf Apples \
+         Servern, wenn „Apple-Server nutzen“ an ist, sonst auf dem Gerät. Mit Plus folgst du einem \
+         Tag, mit Minus nicht mehr. Welchen Tags du folgst, liegt auf deinen Geräten und in deiner \
+         privaten iCloud-Datenbank.
          """),
         ("translate", "Übersetzen",
          """
@@ -583,7 +595,7 @@ struct PrivacyOverviewView: View {
             Section {
                 PrivateCloudToggle()
             } footer: {
-                Text("Aus heißt: Deine Fragen und die Transkriptstellen dazu bleiben auf dem Gerät.")
+                Text("Aus heißt: Fragen, Transkriptstellen und Interessen bleiben auf dem Gerät. Das Modell dort rechnet dann alles selbst, und das Gerät kann dabei spürbar langsamer werden.")
             }
             Section {
                 Link("Vollständige Datenschutzerklärung", destination: LegalSettingsSection.privacyPolicy)

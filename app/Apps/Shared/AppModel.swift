@@ -457,9 +457,11 @@ public final class AppModel {
     /// Was das letzte „Neu laden“ je Quelle ergeben hat, nur für diese Sitzung.
     public internal(set) var sourceReloadResults: [SourceID: SourceReloadResult] = [:]
 
-    /// Apples Server-Modell auf Private Cloud Compute für Antworten und
-    /// Vergleiche nutzen, wenn das Gerät und die App es dürfen. Die Daten
-    /// verlassen dabei das Gerät, werden aber nicht gespeichert.
+    /// Apples Server-Modell auf Private Cloud Compute für alle Anfragen an
+    /// Apple Intelligence nutzen, wenn das Gerät und die App es dürfen: Chat,
+    /// Fakten, Tags, Satz je Kapitel und Relevanz. Das Gerätemodell rechnet
+    /// dann nur noch als Ersatz. Die Daten verlassen dabei das Gerät, werden
+    /// aber nicht gespeichert.
     public var allowPrivateCloudCompute: Bool {
         didSet {
             UserDefaults.standard.set(allowPrivateCloudCompute, forKey: Self.privateCloudKey)
@@ -795,10 +797,7 @@ public final class AppModel {
             // sonst niemand.
             if !isLoaded || highlights != knownHighlights { reindexSpotlight() }
             trails = try await store.trails()
-            let allowCloud = allowPrivateCloudCompute
-            let status = await Task.detached(priority: .utility) {
-                ModelStatusProbe.current(allowPrivateCloud: allowCloud)
-            }.value
+            let status = await probeModelStatus()
             if status != modelStatus { modelStatus = status }
             // Was schon erschlossen ist, steht in der Datenbank. Ohne diesen
             // Abgleich sah nach jedem Start alles unbearbeitet aus.
@@ -1385,7 +1384,12 @@ public final class AppModel {
     /// Netz gewechselt. Im WLAN ohne Datenlimit läuft Wartendes weiter,
     /// sonst bleibt automatisch Eingereihtes stehen und sagt, warum.
     func networkChanged(_ limit: NetworkLimit?) {
+        let wasOffline = isOffline
         networkLimit = limit
+        // Private Cloud Compute braucht Netz. Kommt es wieder, laufen Fakten
+        // und Tags weiter, die darauf gewartet haben. Fällt es weg, rechnet
+        // das Gerät, falls es kann, sonst wartet die Arbeit.
+        if wasOffline != isOffline { Task { await refreshModelStatus() } }
         // Darf die App wieder von selbst laden, versucht sie auch, was vorher
         // scheiterte. Meist war es die Verbindung, die gerade wegfiel.
         if preparationWait == nil { prefetchFailed.removeAll() }

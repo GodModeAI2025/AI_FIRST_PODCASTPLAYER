@@ -12,12 +12,11 @@
 //  Das Modell formuliert kein Schlagwort (Regel 3). Transkript,
 //  Kapiteltitel und Schlagworte sind Daten, keine Anweisungen (Regel 2).
 //
-//  Auf dem Gerät läuft die Auswahl mit dem Anwendungsfall `.contentTagging`,
-//  den das SDK für genau diese Aufgabe mitbringt. Fehlt er, läuft sie mit
-//  dem allgemeinen Gerätemodell. Private Cloud Compute springt ein, wenn
-//  das Gerätemodell fehlt, zu lange braucht (`timeout`) oder der Aufrufer
-//  es wegen gemessener Langsamkeit vorzieht (``TaggingPace``), und nur, wenn
-//  es erlaubt ist.
+//  Die Auswahl läuft auf Private Cloud Compute, mit dem allgemeinen Modell
+//  und demselben Schema: Den Anwendungsfall `.contentTagging` gibt es nur
+//  für das Gerätemodell, `PrivateCloudComputeLanguageModel` hat keinen.
+//  Fehlt PCC, wählt das Gerät, mit `.contentTagging`, und ist der nicht
+//  bereit, mit dem allgemeinen Gerätemodell.
 //
 
 import Foundation
@@ -48,17 +47,9 @@ public struct TagSelection: Sendable, Equatable {
     public let tier: ModelTier
     /// Wie lange der Aufruf gedauert hat, in Sekunden.
     public let seconds: Double
-    /// Scheiterte das Gerät vorher an der Zeit, wie lange es gebraucht hat.
-    /// Zählt für ``TaggingPace`` wie ein langsamer Aufruf auf dem Gerät.
-    public let timedOutOnDeviceSeconds: Double?
 
-    public init(chosenIDs: [String], tier: ModelTier, seconds: Double, timedOutOnDeviceSeconds: Double? = nil) {
+    public init(chosenIDs: [String], tier: ModelTier, seconds: Double) {
         self.chosenIDs = chosenIDs; self.tier = tier; self.seconds = seconds
-        self.timedOutOnDeviceSeconds = timedOutOnDeviceSeconds
-    }
-
-    func afterOnDeviceTimeout(_ seconds: Double) -> TagSelection {
-        TagSelection(chosenIDs: chosenIDs, tier: tier, seconds: self.seconds, timedOutOnDeviceSeconds: seconds)
     }
 }
 
@@ -127,43 +118,8 @@ public enum TagSelectionRules {
     }
 }
 
-/// Wie schnell das Gerätemodell Tags wählt, gemessen auf diesem Gerät.
-///
-/// Braucht es im Mittel länger als ``slowSeconds`` je Aufruf, zieht die
-/// Einordnung Private Cloud Compute vor, sofern es erlaubt ist. Ein
-/// einzelner langsamer Aufruf zählt noch nicht.
-public struct TaggingPace: Codable, Sendable, Equatable {
-    public private(set) var averageSeconds: Double
-    public private(set) var samples: Int
-
-    public static let slowSeconds = 25.0
-    static let minimumSamples = 3
-
-    public init(averageSeconds: Double = 0, samples: Int = 0) {
-        self.averageSeconds = averageSeconds; self.samples = samples
-    }
-
-    /// Nimmt einen Aufruf auf dem Gerät auf. Gleitender Mittelwert, damit
-    /// ein neues Modell oder ein kühleres Gerät bald zählt.
-    public mutating func record(onDeviceSeconds seconds: Double) {
-        guard seconds.isFinite, seconds >= 0 else { return }
-        let weight = samples < 10 ? 1 / Double(samples + 1) : 0.1
-        averageSeconds += (seconds - averageSeconds) * weight
-        samples += 1
-    }
-
-    public var isSlow: Bool { samples >= Self.minimumSamples && averageSeconds > Self.slowSeconds }
-
-    /// Soll die nächste Auswahl zuerst Private Cloud Compute fragen?
-    public func prefersCloud(_ availability: ModelStatus) -> Bool {
-        guard isSlow, TaskProfile.tag.hasCloudFallback else { return false }
-        return availability.privateCloudCompute.isAvailable
-    }
-}
-
 #if canImport(FoundationModels)
 import FoundationModels
-import Synchronization
 
 public struct TagSelector: Sendable {
 
@@ -193,13 +149,13 @@ public struct TagSelector: Sendable {
 
     /// Wählt aus `choices` die Schlagworte für ein Kapitel oder einen Teil davon.
     ///
-    /// Die Stufe bestimmt das Profil `.tag`: das Gerät, ohne Gerätemodell
-    /// Private Cloud Compute. Mit `preferCloud` fragt die Auswahl zuerst
-    /// Private Cloud Compute, wenn es verfügbar ist. Scheitert das Gerät an
-    /// der Zeit, fragt sie danach Private Cloud Compute, sofern erlaubt.
+    /// Die Stufe bestimmt das Profil `.tag`: Private Cloud Compute, ohne PCC
+    /// das Gerät. Scheitert PCC, wählt das Gerät, falls es bereit ist. Ist
+    /// es das nicht, wird fehlendes Netz oder ein erschöpftes Kontingent zu
+    /// ``ExtractorError/modelUnavailable(_:)``: die Einordnung wartet.
     public func select(
         from choices: [TagChoice], passages: [Evidence], title: String?,
-        availability: ModelStatus, preferCloud: Bool = false
+        availability: ModelStatus
     ) async throws -> TagSelection {
         let tier: ModelTier
         switch availability.resolve(.tag) {
@@ -213,61 +169,44 @@ public struct TagSelector: Sendable {
         let instructions = TagSelectionRules.instructions()
         let prompt = TagSelectionRules.prompt(
             title: title, passages: passages, choices: choices, excerptLimit: excerptLimit)
-        let cloudAllowed = availability.privateCloudCompute.isAvailable
 
-        if tier == .privateCloudCompute || (preferCloud && cloudAllowed) {
+        if tier == .privateCloudCompute {
             do {
                 return try await run(cloudSession(instructions), tier: .privateCloudCompute,
                                      prompt: prompt, schema: schema, choices: choices)
             } catch {
                 if error is CancellationError || Task.isCancelled { throw error }
-                guard availability.onDevice.isAvailable else { throw Self.mapped(error) }
+                guard availability.onDevice.isAvailable else {
+                    if let pause = KnowledgeExtractor.privateCloudPause(error) {
+                        throw ExtractorError.modelUnavailable(pause)
+                    }
+                    throw Self.mapped(error)
+                }
             }
         }
-        // Beginn des Aufrufs selbst, nicht der Wartezeit in `AIScheduler`:
-        // Scrollen oder eine Frage im Chat zählen nicht als langsames Modell.
-        let clock = CallClock()
         do {
             return try await run(localSession(instructions), tier: .onDevice,
-                                 prompt: prompt, schema: schema, choices: choices, clock: clock)
+                                 prompt: prompt, schema: schema, choices: choices)
         } catch {
             if error is CancellationError || Task.isCancelled { throw error }
-            // Zu langsam: einmal Private Cloud Compute, wenn es erlaubt ist.
-            if Self.isTimeout(error), cloudAllowed, !preferCloud {
-                let waited = Self.seconds(ContinuousClock.now - (clock.started ?? .now))
-                return try await run(cloudSession(instructions), tier: .privateCloudCompute,
-                                     prompt: prompt, schema: schema, choices: choices)
-                    .afterOnDeviceTimeout(waited)
-            }
             throw Self.mapped(error)
         }
     }
 
     private func run(
         _ session: LanguageModelSession, tier: ModelTier, prompt: String,
-        schema: GenerationSchema, choices: [TagChoice], clock: CallClock = CallClock()
+        schema: GenerationSchema, choices: [TagChoice]
     ) async throws -> TagSelection {
-        // Durch die eine Stelle für Apple Intelligence, im Hintergrund. Gemessen
-        // wird nur der Aufruf selbst, nicht die Zeit in der Warteschlange: danach
-        // richtet sich `TaggingPace`.
+        // Durch die eine Stelle für Apple Intelligence, im Hintergrund.
+        // Gemessen wird nur der Aufruf selbst, nicht die Zeit in der Warteschlange.
         let (raw, seconds) = try await AIScheduler.shared.run(.tags, priority: .background) {
             let started = ContinuousClock.now
-            clock.started = started
             let response = try await session.respond(to: prompt, schema: schema)
             let raw = (try? response.content.value([String].self, forProperty: TagSelectionRules.property)) ?? []
             return (raw, Self.seconds(ContinuousClock.now - started))
         }
         return TagSelection(
             chosenIDs: TagSelectionRules.accepted(raw, from: choices), tier: tier, seconds: seconds)
-    }
-
-    /// Wann der Aufruf wirklich begann, auch wenn er danach scheitert.
-    final class CallClock: Sendable {
-        private let value = Mutex<ContinuousClock.Instant?>(nil)
-        var started: ContinuousClock.Instant? {
-            get { value.withLock { $0 } }
-            set { value.withLock { $0 = newValue } }
-        }
     }
 
     static func seconds(_ elapsed: Duration) -> Double {
@@ -303,11 +242,6 @@ public struct TagSelector: Sendable {
         }
     }
 
-    static func isTimeout(_ error: any Error) -> Bool {
-        if let error = error as? LanguageModelError, case .timeout = error { return true }
-        return false
-    }
-
     /// Dieselbe Einteilung wie bei den Fakten: abgelehnt oder gescheitert.
     static func mapped(_ error: any Error) -> ExtractorError {
         if let error = error as? ExtractorError { return error }
@@ -330,7 +264,7 @@ public struct TagSelector: Sendable {
 
     public func select(
         from choices: [TagChoice], passages: [Evidence], title: String?,
-        availability: ModelStatus, preferCloud: Bool = false
+        availability: ModelStatus
     ) async throws -> TagSelection {
         throw ExtractorError.modelUnavailable(.deviceNotEligible)
     }

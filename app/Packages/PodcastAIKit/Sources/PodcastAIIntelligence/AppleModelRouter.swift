@@ -5,6 +5,12 @@
 //  Nur Apple-Modelle. Kein fremder Anbieter, kein API-Schlüssel, kein
 //  heruntergeladenes Drittmodell.
 //
+//  Seit dem 27. September 2026 (Entscheidung des Product Owners „PCC Cloud
+//  für alles“) läuft jede Anfrage zuerst auf Private Cloud Compute. Das
+//  Gerätemodell ließ das iPhone stocken, und das System beendete Arbeit im
+//  Hintergrund. Es springt nur noch ein, wenn PCC fehlt: ohne Netz, mit
+//  erschöpftem Kontingent, ohne Berechtigung oder ohne Freigabe.
+//
 //  Fehlende Hardware, abgeschaltete Apple Intelligence, kein PCC-Recht oder
 //  ein erschöpftes Kontingent sind **ehrliche Funktionszustände** — und
 //  ausdrücklich keine Erlaubnis, auf etwas anderes auszuweichen. Die App
@@ -16,10 +22,10 @@ import PodcastAICore
 
 /// Wo eine Anfrage verarbeitet werden soll.
 public enum ModelTier: String, Sendable, CaseIterable {
-    /// Auf dem Gerät. Erste Wahl: nichts verlässt das Gerät.
+    /// Auf dem Gerät. Nur noch Ersatz, wenn Private Cloud Compute fehlt.
     case onDevice
-    /// Private Cloud Compute. Nur mit tatsächlicher Berechtigung und
-    /// ausdrücklicher Einwilligung, für größere Synthesen.
+    /// Private Cloud Compute. Erste Wahl für jede Anfrage, nur mit
+    /// tatsächlicher Berechtigung und eingeschaltetem „Apple-Server nutzen“.
     case privateCloudCompute
 
     public var label: String {
@@ -72,6 +78,16 @@ public enum ModelUnavailability: Error, Sendable, Equatable {
         default: false
         }
     }
+
+    /// Vergeht der Zustand von selbst? Dann wartet Arbeit im Hintergrund,
+    /// statt zu scheitern: das Modell lädt noch, das Netz kommt wieder, das
+    /// Kontingent füllt sich auf.
+    public var isTemporary: Bool {
+        switch self {
+        case .modelNotReady, .offline, .quotaExhausted: true
+        default: false
+        }
+    }
 }
 
 public enum ModelAvailability: Sendable, Equatable {
@@ -81,11 +97,11 @@ public enum ModelAvailability: Sendable, Equatable {
     public var isAvailable: Bool { self == .available }
 }
 
-/// Was eine Anfrage braucht. Entscheidet über die Stufe — nicht das Modell
-/// selbst und nicht der Zufall.
+/// Was eine Anfrage braucht. Entscheidet über die Werkzeuge, nicht das
+/// Modell selbst und nicht der Zufall. Die Stufe ist für alle Profile
+/// dieselbe: Private Cloud Compute, das Gerät nur als Ersatz.
 public enum TaskProfile: String, Sendable, CaseIterable {
     /// Aussagen und Belege aus einem einzelnen Abschnitt ziehen.
-    /// Kleinteilig, läuft lokal.
     case extract
     /// Eine Frage über einen begrenzten Bestand beantworten.
     case answer
@@ -93,32 +109,21 @@ public enum TaskProfile: String, Sendable, CaseIterable {
     case recommend
     /// Eine Auswahl von Belegen für einen Hörplan vorschlagen.
     case proposePlayback
-    /// Ein Satz je Kapitel, worum es darin geht. Läuft lokal. Fehlt das
-    /// Gerätemodell, darf Private Cloud Compute einspringen, sofern es
-    /// erlaubt ist (Entscheidung des Product Owners vom 24. September 2026).
+    /// Ein Satz je Kapitel, worum es darin geht.
     case summarize
     /// Tags je Kapitel: das Modell wählt Kennungen aus einer Liste, die der
-    /// Code gebaut hat. Läuft auf dem Gerät. Fehlt das Gerätemodell oder ist
-    /// es zu langsam, darf Private Cloud Compute einspringen, sofern es
-    /// erlaubt ist (Entscheidung des Product Owners vom 24. September 2026).
+    /// Code gebaut hat. PCC kennt den Anwendungsfall `.contentTagging` nicht,
+    /// dort wählt das allgemeine Modell mit demselben Schema.
     case tag
 
-    /// Welche Stufe bevorzugt wird. `answer` profitiert von PCC, funktioniert
-    /// lokal aber weiterhin, nur mit kleineren Häppchen.
-    public var preferredTier: ModelTier {
-        switch self {
-        case .extract, .recommend, .proposePlayback, .summarize, .tag: .onDevice
-        case .answer: .privateCloudCompute
-        }
-    }
+    /// Welche Stufe bevorzugt wird: für jedes Profil Private Cloud Compute
+    /// (Entscheidung des Product Owners vom 27. September 2026).
+    public var preferredTier: ModelTier { .privateCloudCompute }
 
-    /// Darf lokal ausgeführt werden, wenn die bevorzugte Stufe fehlt?
+    /// Darf das Gerät rechnen, wenn Private Cloud Compute fehlt? Für jedes
+    /// Profil ja. Auf dem Gerät passt weniger Text in eine Anfrage, und es
+    /// kostet Rechenzeit, aber die App bleibt benutzbar.
     public var hasLocalFallback: Bool { true }
-
-    /// Darf Private Cloud Compute einspringen, wenn das Gerätemodell fehlt?
-    /// Nur für den Satz und die Tags je Kapitel. Fakten und Relevanz bleiben
-    /// auf dem Gerät.
-    public var hasCloudFallback: Bool { self == .summarize || self == .tag }
 
     /// Kein Profil bekommt Zugriff auf Player, Schlüsselbund, Dateisystem
     /// oder freies Netzwerk. Diese Liste ist die vollständige Werkzeugmenge.
@@ -157,23 +162,28 @@ public struct ModelStatus: Sendable, Equatable {
         }
     }
 
-    /// Welche Stufe für ein Profil tatsächlich benutzt wird — oder warum keine.
+    /// Welche Stufe für ein Profil tatsächlich benutzt wird, oder warum keine.
+    ///
+    /// Private Cloud Compute zuerst, sonst das Gerät. Fehlen beide, nennt
+    /// das Ergebnis den Grund, der weiterhilft: Fehlt PCC nur vorübergehend
+    /// (kein Netz, Kontingent erschöpft, noch nicht bereit), diesen, denn
+    /// danach geht es weiter. Sonst den des Geräts, etwa „Apple Intelligence
+    /// ist nicht aktiviert“.
     public func resolve(_ profile: TaskProfile) -> Result<ModelTier, ModelUnavailability> {
-        let preferred = profile.preferredTier
-        if case .available = availability(for: preferred) { return .success(preferred) }
-
-        if preferred == .privateCloudCompute, profile.hasLocalFallback,
-           case .available = onDevice {
-            return .success(.onDevice)
-        }
-        if preferred == .onDevice, profile.hasCloudFallback,
-           case .available = privateCloudCompute {
-            return .success(.privateCloudCompute)
-        }
-        if case .unavailable(let reason) = availability(for: preferred) {
-            return .failure(reason)
-        }
+        if case .available = privateCloudCompute { return .success(.privateCloudCompute) }
+        if profile.hasLocalFallback, case .available = onDevice { return .success(.onDevice) }
+        if case .unavailable(let cloud) = privateCloudCompute, cloud.isTemporary { return .failure(cloud) }
+        if case .unavailable(let device) = onDevice { return .failure(device) }
+        if case .unavailable(let cloud) = privateCloudCompute { return .failure(cloud) }
         return .failure(.unknown(String(localized: "keine Stufe verfügbar", bundle: .module)))
+    }
+
+    /// Derselbe Zustand ohne Netz: Private Cloud Compute fehlt dann, und das
+    /// Gerät springt ein, falls es kann. Ein schon genannter Grund, etwa das
+    /// erschöpfte Kontingent, bleibt stehen.
+    public func assumingOffline(_ offline: Bool) -> ModelStatus {
+        guard offline, case .available = privateCloudCompute else { return self }
+        return ModelStatus(onDevice: onDevice, privateCloudCompute: .unavailable(.offline))
     }
 
     /// Ist Private Cloud Compute gerade wegen des Kontingents gesperrt? Dann
