@@ -704,8 +704,8 @@ extension AppModel {
         }
         if let index = analysisQueue.firstIndex(where: { $0.id == episode.id }) {
             // Was aufs Netz wartet, von selbst eingereiht oder im Mobilfunk
-            // ohne Zustimmung, läuft nicht vorher. Der Worker überspringt es,
-            // also zählt es auch hier nicht mit.
+            // ohne Zustimmung, läuft nicht vorher. Die Stufe „Transkript“
+            // überspringt es, also zählt es auch hier nicht mit.
             let ahead = analysisQueue.prefix(index).filter(mayRunNow).count + (analyzing == nil ? 0 : 1)
             let detail = stageDetails[episode.id].flatMap { $0 == Self.waitingDetail ? nil : $0 }
             return .waiting(ahead: ahead, detail: detail, heldBy: queueWait(for: episode))

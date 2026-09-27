@@ -36,7 +36,7 @@ import PodcastAICore
 /// Wer der App Zeit gibt, obwohl sie nicht vorn ist.
 public enum WorkCarrier: String, Sendable, Hashable, CaseIterable {
     /// Transkripte entstehen, getragen von der fortgesetzten Verarbeitung
-    /// (`BGContinuedProcessingTask`), angemeldet vom Worker der Transkripte.
+    /// (`BGContinuedProcessingTask`), angemeldet von der Stufe „Transkript“.
     case continued
     /// Die Hintergrundaufgabe `com.podcastai.analysis`.
     case analysisTask
