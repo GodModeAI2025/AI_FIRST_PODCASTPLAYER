@@ -615,12 +615,9 @@ extension HelpTopic {
             kind: .mac, title: "Mac und Agenten", summary: "Siri, Kurzbefehle und MCP",
             symbol: "laptopcomputer", tint: .green,
             tips: [
-                HelpTip(title: "Kurzbefehle und Mac", text: """
-                    Themen-Updates per Siri. Auf dem Mac kann ein KI-Agent über MCP lesend auf dein \
-                    Wissen zugreifen, aber nur mit deiner Freigabe unter PodcastAI › Einstellungen › \
-                    Agenten. Dort steht auch der Eintrag für den Agenten.
-                    """, symbol: "terminal", level: .expert),
-            ],
+                HelpTip(title: "Siri und Kurzbefehle", text: "Themen-Updates per Siri.",
+                        symbol: "mic", level: .expert),
+            ] + agentTips,
             jumps: macJumps
         )
     }
@@ -700,8 +697,36 @@ extension HelpTopic {
     }
     /// Ohne Mobilfunk-Tipp heißt die Karte auf dem Mac nur „Speicher“.
     private static var storageTitle: LocalizedStringResource { "Speicher" }
-    /// Der Agentenzugang wird in den Einstellungen freigegeben.
-    private static var macJumps: [HelpJump] { [.settings] }
+    /// „Zeig es mir“ öffnet die Einstellungen gleich beim Reiter „Agenten“.
+    private static var macJumps: [HelpJump] { [.agentAccess] }
+    /// Der Agentenzugang Schritt für Schritt, so wie ihn der Reiter
+    /// „Agenten“ in den Einstellungen zeigt.
+    private static var agentTips: [HelpTip] {
+        [
+            HelpTip(title: "Was MCP ist", text: """
+                MCP ist ein offenes Verfahren, über das KI-Programme wie Claude Desktop oder Claude Code \
+                andere Programme als Werkzeug nutzen. Mit deiner Freigabe liest ein solcher Agent in \
+                PodcastAI Stellen aus Transkripten, deine gefolgten Tags und auf Wunsch gemerkte Stellen und \
+                gesicherte Antworten. Ändern, löschen oder abspielen kann er nichts.
+                """, symbol: "terminal", level: .expert),
+            HelpTip(title: "Agent verbinden", text: """
+                Unter PodcastAI › Einstellungen › Agenten, in drei Schritten. 1. „Agentenzugang erlauben“ \
+                einschalten. 2. Den Agenten eintragen: für Claude Desktop den Eintrag in die Datei \
+                claude_desktop_config.json kopieren und Claude Desktop neu starten, für Claude Code den \
+                Befehl im Terminal einfügen. Beides steht dort fertig zum Kopieren. 3. Podcasts wählen und \
+                „Freigeben“.
+                """, symbol: "link", level: .expert),
+            HelpTip(title: "Wenn die Freigabe abläuft", text: """
+                Eine Freigabe gilt 1 bis 24 Stunden. Danach bekommt der Agent auf jede Anfrage eine Absage, \
+                die sagt, wann die Freigabe abgelaufen ist. „Erneuern“ in den Einstellungen gibt dieselben \
+                Podcasts für dieselbe Dauer wieder frei.
+                """, symbol: "clock", level: .expert),
+            HelpTip(title: "Was der Agent gelesen hat", text: """
+                Unter „Was gelesen wurde“ stehen die letzten Anfragen mit Uhrzeit, Agent und Zahl der \
+                Treffer, auch jede Absage.
+                """, symbol: "list.bullet.rectangle", level: .expert),
+        ]
+    }
     #else
     private static var queueText: LocalizedStringResource {
         """
@@ -731,6 +756,25 @@ extension HelpTopic {
     private static var storageTitle: LocalizedStringResource { "Speicher und Mobilfunk" }
     /// Den Agentenzugang gibt es nur auf dem Mac, auf iOS gibt es hier kein Ziel.
     private static var macJumps: [HelpJump] { [] }
+    /// Die iPad-App läuft auch auf einem Mac mit Apple-Chip, hat dort aber
+    /// keinen Agentenzugang. Das sagt die Hilfe dann ausdrücklich.
+    private static var agentTips: [HelpTip] {
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            return [
+                HelpTip(title: "Agenten nur in der Mac-App", text: """
+                    Das ist die iPad-App von PodcastAI auf dem Mac. Den Zugang für KI-Agenten über MCP hat \
+                    nur die eigene Mac-App von PodcastAI, dort unter PodcastAI › Einstellungen › Agenten.
+                    """, symbol: "terminal", level: .expert),
+            ]
+        }
+        return [
+            HelpTip(title: "Agenten am Mac", text: """
+                KI-Agenten wie Claude Desktop oder Claude Code können über MCP lesend auf dein Wissen \
+                zugreifen, aber nur in PodcastAI für den Mac und nur mit deiner Freigabe. Auf iPhone und \
+                iPad gibt es diesen Zugang nicht.
+                """, symbol: "terminal", level: .expert),
+        ]
+    }
     #endif
 }
 
@@ -777,6 +821,9 @@ private struct HelpTopicView: View {
     let level: HelpLevel?
 
     @Environment(\.showInApp) private var showInApp
+    #if os(macOS)
+    @Environment(\.openSettings) private var openSettings
+    #endif
     @State private var showsAllLevels = false
     @State private var addingSource = false
 
@@ -859,8 +906,18 @@ private struct HelpTopicView: View {
             }
         case .settingsWindow:
             #if os(macOS)
-            SettingsLink {
-                jumpLabel(jump)
+            if jump == .agentAccess {
+                // `SettingsLink` öffnet nur den zuletzt gezeigten Reiter.
+                Button {
+                    UserDefaults.standard.set(MacSettingsView.Tab.agents.rawValue, forKey: MacSettingsView.tabKey)
+                    openSettings()
+                } label: {
+                    jumpLabel(jump)
+                }
+            } else {
+                SettingsLink {
+                    jumpLabel(jump)
+                }
             }
             #else
             EmptyView()
@@ -978,6 +1035,10 @@ enum HelpJump: Hashable, Sendable {
     case library, queue, chat, topicUpdates
     case highlights, trails, interests
     case addPodcast, settings, privacy
+    #if os(macOS)
+    /// Der Reiter „Agenten“ in den Einstellungen.
+    case agentAccess
+    #endif
 
     /// Wie die Hilfe dorthin kommt.
     enum Route {
@@ -998,7 +1059,7 @@ enum HelpJump: Hashable, Sendable {
         switch self {
         case .library, .queue, .chat, .topicUpdates, .highlights, .trails, .interests: .app
         case .addPodcast: .sheet
-        case .settings: .settingsWindow
+        case .settings, .agentAccess: .settingsWindow
         case .privacy: .push
         }
         #else
@@ -1024,6 +1085,9 @@ enum HelpJump: Hashable, Sendable {
         case .addPodcast: "Podcast hinzufügen"
         case .settings: "Einstellungen"
         case .privacy: "Datenschutz in PodcastAI"
+        #if os(macOS)
+        case .agentAccess: "Einstellungen › Agenten"
+        #endif
         }
     }
 
@@ -1040,6 +1104,9 @@ enum HelpJump: Hashable, Sendable {
         case .addPodcast: "plus"
         case .settings: "gearshape"
         case .privacy: "hand.raised"
+        #if os(macOS)
+        case .agentAccess: "terminal"
+        #endif
         }
     }
 

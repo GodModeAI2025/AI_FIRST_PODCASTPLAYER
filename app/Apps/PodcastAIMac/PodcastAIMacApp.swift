@@ -340,7 +340,7 @@ struct MacRootView: View {
         case .highlights: target = .knowledge
         case .trails: target = .trails
         case .interests: target = .interests
-        case .addPodcast, .settings, .privacy: return
+        case .addPodcast, .settings, .privacy, .agentAccess: return
         }
         helpJumps += 1
         section = target
@@ -349,11 +349,19 @@ struct MacRootView: View {
 
 struct MacSettingsView: View {
 
+    /// Der Reiter, den das Fenster zeigt. Gespeichert, damit die Hilfe mit
+    /// „Zeig es mir“ gleich den Reiter „Agenten“ öffnen kann.
+    enum Tab: String {
+        case intelligence, data, legal, privacy, agents
+    }
+    static let tabKey = "settings.tab"
+
     let mcpAccess: MCPAccess
     @Environment(AppModel.self) private var model
+    @AppStorage(MacSettingsView.tabKey) private var tab = Tab.intelligence
 
     var body: some View {
-        TabView {
+        TabView(selection: $tab) {
             // Dieselben Abschnitte wie auf iOS. Zwei Fassungen desselben
             // Schalters driften — und gedriftet wäre er genau dort, wo es
             // um Einwilligung geht.
@@ -364,6 +372,7 @@ struct MacSettingsView: View {
             }
             .formStyle(.grouped)
             .tabItem { Label("Intelligenz", systemImage: "sparkles") }
+            .tag(Tab.intelligence)
             .frame(width: 420)
 
             Form {
@@ -372,6 +381,7 @@ struct MacSettingsView: View {
             }
             .formStyle(.grouped)
             .tabItem { Label("Daten", systemImage: "icloud") }
+            .tag(Tab.data)
             .frame(width: 420)
 
             NavigationStack {
@@ -381,6 +391,7 @@ struct MacSettingsView: View {
                 .formStyle(.grouped)
             }
             .tabItem { Label("Rechtliches", systemImage: "building.2") }
+            .tag(Tab.legal)
             .frame(width: 420, height: 420)
 
             Form {
@@ -388,13 +399,15 @@ struct MacSettingsView: View {
             }
             .formStyle(.grouped)
             .tabItem { Label("Datenschutz", systemImage: "hand.raised") }
+            .tag(Tab.privacy)
             .frame(width: 420)
 
-            // Der Agentenzugang hatte keinen Schalter — und damit keine
-            // Möglichkeit, ihn einzuschalten oder nachzulesen.
+            // Eine Anleitung in drei Schritten mit Texten zum Kopieren. Sie
+            // braucht mehr Höhe als die anderen Reiter.
             MCPSettingsView(access: mcpAccess)
                 .tabItem { Label("Agenten", systemImage: "terminal") }
-                .frame(width: 480)
+                .tag(Tab.agents)
+                .frame(width: 520, height: 640)
         }
         .frame(minHeight: 220)
     }
