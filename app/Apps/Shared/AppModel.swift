@@ -328,7 +328,7 @@ public final class AppModel {
     /// lesen lässt, eine Adresse, die es nicht mehr gibt. Das Vorbereiten
     /// nimmt sie nicht nach jedem Start wieder, erst ein ausdrückliches
     /// Anfordern. Die Grenze ist hoch, weil ein totes Archiv viele hat.
-    @ObservationIgnored private var failedInPreparation = StoredEpisodeIDs(
+    @ObservationIgnored var failedInPreparation = StoredEpisodeIDs(
         key: AppModel.failedPreparationKey, limit: 2_000)
 
     /// Nach dem Auswerten nur Transkript, Fakten und Notizen behalten.
@@ -352,7 +352,7 @@ public final class AppModel {
     public var keepNewestAudio: Bool {
         didSet {
             UserDefaults.standard.set(keepNewestAudio, forKey: Self.keepNewestKey)
-            if keepNewestAudio { prefetchNewestEpisodes() } else { Task { await tidyLocalAudio() } }
+            if keepNewestAudio { requestPrefetch() } else { Task { await tidyLocalAudio() } }
         }
     }
     static let removeAfterAnalysisKey = "removeAudioAfterAnalysis"
@@ -587,6 +587,33 @@ public final class AppModel {
     /// belegt hat, bevor die Stufe das Zusammenstellen beginnt.
     @ObservationIgnored var reservedEditionBuilds: Set<SmartFeedID> = []
 
+    // MARK: Stufen „Vorbereiten“ und „Download“ (im Paket, docs/plan-pipeline.md, Schritt 5a)
+
+    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe
+    /// „Vorbereiten“ führt Auslöser und Prüfung im Store für das, was von
+    /// selbst in die Warteschlange kommt, und hält die Metadaten über
+    /// Supadata in der Pause an. Aus: der Weg bis 0.13. Gelesen einmal beim
+    /// Anlegen, zu setzen auch als Startargument (`-pipelinePrepareStage NO`).
+    static let prepareStageKey = "pipelinePrepareStage"
+    @ObservationIgnored let usesPrepareStage: Bool
+    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
+    /// bleibt sie leer.
+    @ObservationIgnored var prepareStage: PrepareStage?
+    /// Folgen, die laut Store schon ein Transkript haben, obwohl der
+    /// Speicher keine Belege von ihnen kennt, etwa weil sie gerade von einem
+    /// anderen Gerät kamen. Das Vorbereiten nimmt sie in diesem Start nicht.
+    @ObservationIgnored var knownTranscribed: Set<EpisodeID> = []
+
+    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Download“
+    /// führt Vorhalten, Vorausladen und Aufräumen des Tons und hält das
+    /// Vorhalten in der Pause an. Aus: der Weg bis 0.13. Gelesen einmal beim
+    /// Anlegen, zu setzen auch als Startargument (`-pipelineDownloadStage NO`).
+    static let downloadStageKey = "pipelineDownloadStage"
+    @ObservationIgnored let usesDownloadStage: Bool
+    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
+    /// bleibt sie leer.
+    @ObservationIgnored var downloadStage: DownloadStage?
+
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
     /// danach die Größe neu.
     public internal(set) var mediaStorageChanged = 0
@@ -669,6 +696,8 @@ public final class AppModel {
         self.automaticFacts = Self.storedFlag(Self.automaticFactsKey, default: true)
         self.usesKnowledgeStage = Self.storedFlag(Self.knowledgeStageKey, default: true)
         self.usesEditionsStage = Self.storedFlag(Self.editionsStageKey, default: true)
+        self.usesPrepareStage = Self.storedFlag(Self.prepareStageKey, default: true)
+        self.usesDownloadStage = Self.storedFlag(Self.downloadStageKey, default: true)
         self.queuePaused = Self.storedFlag(Self.queuePausedKey, default: false)
         // Aus, solange dem Build die Berechtigung für Private Cloud Compute
         // fehlt. Ohne sie ginge keine Anfrage an Apples Server, der Schalter
@@ -891,6 +920,8 @@ public final class AppModel {
         restoreAttempted = false
         knowledgeJobsStorage = knowledgeJobs.with(store: newStore)
         await editionsStage?.reset(store: newStore)
+        await prepareStage?.reset(store: newStore)
+        knownTranscribed = []
         if let knowledgeStage {
             await knowledgeStage.reset(store: newStore, work: knowledgeJobs)
         } else {
@@ -1220,11 +1251,18 @@ public final class AppModel {
         // (`feedsOnly`) sendet nichts, dort folgt alles beim nächsten Öffnen.
         if !added.isEmpty { emit(.episodesAdded(added, .automatic)) }
         emit(.feedsRefreshed(byUser: byUser))
-        await prepareNewEpisodes()
+        // Die Stufe „Vorbereiten“ reiht auf `feedsRefreshed` selbst ein, die
+        // Stufe „Download“ hält dann vor.
+        if prepareStage == nil {
+            await prepareNewEpisodes()
+        } else if downloadStage == nil {
+            prefetchNewestEpisodes()
+        }
         // Die Stufe „Wissen“ gleicht auf `feedsRefreshed` selbst ab.
         if knowledgeStage == nil { await queueMissingFacts() }
         await refreshRelevantToday()
-        await tidyLocalAudio()
+        // Die Stufe „Download“ räumt auf `feedsRefreshed` selbst auf.
+        if downloadStage == nil { await tidyLocalAudio() }
         // Neue Folgen können ein Themen-Update füllen. Ohne zu warten: das
         // Ziehen zum Aktualisieren soll nicht auf das Zusammenstellen warten.
         // Die Stufe „Ausgaben“ prüft auf `feedsRefreshed` selbst.
@@ -1293,42 +1331,71 @@ public final class AppModel {
     /// jemand sie anfordert oder für den Podcast „Ältere Folgen auch
     /// vorbereiten“ wählt. Danach sieht die App nach, ob die neueste Folge
     /// jedes Podcasts für unterwegs auf dem Gerät liegt.
+    ///
+    /// Mit der Stufe „Vorbereiten“ ein Befehl an sie, der wartet, bis sie
+    /// eingereiht hat. Das Vorhalten folgt dann der Stufe „Download“.
     public func prepareNewEpisodes(in sourceID: SourceID? = nil) async {
-        // Hat ein Feed die Audioadresse geändert, liegt die vorgehaltene
-        // Datei danach unter der neuen Fassung. Vor dem Einreihen, damit das
-        // Transkript sie findet.
-        adoptMovedPrefetches()
+        if let prepareStage {
+            await prepareStage.prepare(sources: sourceID.map { [$0] })
+            requestPrefetch()
+            return
+        }
         // Auch ohne automatische Transkripte: die neueste Folge vorhalten
         // und fehlende Metadaten von YouTube-Videos holen, falls ein
         // Supadata-Schlüssel eingetragen ist.
         defer {
-            prefetchNewestEpisodes()
+            requestPrefetch()
             fetchMissingMetadata()
         }
-        guard automaticAnalysis, preparationUnavailable == nil else { return }
-        let ids = sourceID.map { [$0] } ?? sources.map(\.id)
-        // Erst die neuesten Folgen aller Podcasts, dann die älteren. So wartet
-        // eine neue Folge nicht hinter dem Archiv eines anderen Podcasts.
-        for id in ids {
-            // Erst die jüngsten N, dann filtern. Umgekehrt rückte nach jeder
-            // fertigen Folge die nächstältere nach, bis durchs ganze Archiv.
-            let candidates = newestCandidates(in: episodes[id] ?? []).filter(isOpenForPreparation)
-            for episode in candidates { enqueueAnalysis(episode, automatic: true) }
+        enqueuePrepared(preparationCandidates(in: sourceID.map { [$0] }))
+        for id in sourceID.map({ [$0] }) ?? sources.map(\.id) { refillBackCatalog(in: id) }
+    }
+
+    /// Die jüngsten offenen Folgen dieser Quellen (`nil`: aller), die das
+    /// Vorbereiten von selbst nimmt, erst die neuesten aller Podcasts. So
+    /// wartet eine neue Folge nicht hinter dem Archiv eines anderen Podcasts.
+    /// Leer, wenn die App nichts von selbst vorbereiten soll.
+    func preparationCandidates(in sourceIDs: [SourceID]?) -> [PreparationCandidate] {
+        // Hat ein Feed die Audioadresse geändert, liegt die vorgehaltene
+        // Datei danach unter der neuen Fassung. Vor dem Einreihen, damit das
+        // Transkript sie findet.
+        adoptMovedPrefetches()
+        guard automaticAnalysis, preparationUnavailable == nil else { return [] }
+        let ids = sourceIDs ?? sources.map(\.id)
+        // Erst die jüngsten N, dann filtern. Umgekehrt rückte nach jeder
+        // fertigen Folge die nächstältere nach, bis durchs ganze Archiv.
+        return ids.flatMap { id in
+            newestCandidates(in: episodes[id] ?? []).filter(isOpenForPreparation)
+                .map { PreparationCandidate(episode: $0, backlog: false) }
         }
-        for id in ids { refillBackCatalog(in: id) }
+    }
+
+    /// Reiht von selbst ein, was das Vorbereiten gefunden hat.
+    func enqueuePrepared(_ candidates: [PreparationCandidate]) {
+        for candidate in candidates {
+            enqueueAnalysis(candidate.episode, automatic: true, backlog: candidate.backlog)
+        }
     }
 
     /// Ältere Folgen in Portionen: höchstens `backCatalogBatch` je Podcast
     /// warten zugleich. Nach jeder fertigen älteren Folge rückt die nächste nach.
     func refillBackCatalog(in sourceID: SourceID) {
-        guard automaticAnalysis, backCatalog.contains(sourceID), preparationUnavailable == nil else { return }
+        if let prepareStage {
+            Task { await prepareStage.refill(sourceID) }
+            return
+        }
+        enqueuePrepared(backCatalogRefill(in: sourceID))
+    }
+
+    /// Die Portion älterer Folgen eines Podcasts, die jetzt nachrücken darf.
+    func backCatalogRefill(in sourceID: SourceID) -> [PreparationCandidate] {
+        guard automaticAnalysis, backCatalog.contains(sourceID), preparationUnavailable == nil else { return [] }
         let waiting = analysisQueue.count { $0.sourceID == sourceID && backlogQueued.contains($0.id) }
         let open = backCatalogCandidates(in: sourceID).filter { episode in
             !backCatalogSkipped.contains(episode.id) && !analysisQueue.contains { $0.id == episode.id }
         }
-        for episode in AutomaticWorkBudget.refill(open, alreadyWaiting: waiting, batch: backCatalogBatch) {
-            enqueueAnalysis(episode, automatic: true, backlog: true)
-        }
+        return AutomaticWorkBudget.refill(open, alreadyWaiting: waiting, batch: backCatalogBatch)
+            .map { PreparationCandidate(episode: $0, backlog: true) }
     }
 
     /// Wie viele ältere Folgen eines Podcasts zugleich warten dürfen.
@@ -1363,7 +1430,8 @@ public final class AppModel {
     /// Noch ohne Transkript, nicht in Arbeit oder gescheitert und nicht aus
     /// der Warteschlange genommen. Was schon wartet, zählt mit.
     private func isOpenForPreparation(_ episode: Episode) -> Bool {
-        !analyzedEpisodes.contains(episode.id) && stages[episode.id] == nil
+        !analyzedEpisodes.contains(episode.id) && !knownTranscribed.contains(episode.id)
+            && stages[episode.id] == nil
             && !dismissedFromPreparation.contains(episode.id) && !failedInPreparation.contains(episode.id)
             && !restingPreparation.contains(episode.id)
             // YouTube: nach einem Fehlversuch wartet das Video seine Zeit ab.
@@ -1445,7 +1513,7 @@ public final class AppModel {
         if preparationWait == nil { prefetchFailed.removeAll() }
         queueConditionsChanged()
         // Darf die App wieder von selbst laden, holt sie die neuesten Folgen.
-        prefetchNewestEpisodes()
+        requestPrefetch()
     }
 
     /// Netz, Einstellung, Zustimmung oder eine Datei auf dem Gerät haben sich
@@ -1816,6 +1884,8 @@ public final class AppModel {
         // Die Stufe „Ausgaben“ bricht eine automatische Ausgabe ab und prüft
         // erst beim nächsten Auslöser wieder (Entscheidung 3).
         await editionsStage?.cancelAll()
+        // Die Stufe „Download“ hält nach der laufenden Übertragung an.
+        await downloadStage?.cancelAll()
         let plan = AnalysisQueueControl.cancelAll(
             running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
         // Auch Downloads, die im Hintergrund weiterliefen. Lädt „Laden
@@ -1871,13 +1941,15 @@ public final class AppModel {
                 // Den Ton der nächsten Folgen schon jetzt über die Sitzung des
                 // Systems laden, solange die App vorn ist. So lädt er weiter,
                 // wenn sie gleich in den Hintergrund geht.
-                self.startDownloadLookahead()
+                self.requestLookahead()
                 let transientFailure = await self.runAnalysis(next, background: background)
                 // Zweimal kurz gescheitert: in diesem Start nicht wieder als ältere Folge.
                 if fromBackCatalog, transientFailure, retried.contains(next.id) {
                     self.backCatalogSkipped.insert(next.id)
                 }
-                if fromBackCatalog { self.refillBackCatalog(in: next.sourceID) }
+                // Mit der Stufe „Vorbereiten“ rückt die nächste auf das
+                // Ereignis der fertigen oder gescheiterten Folge nach.
+                if fromBackCatalog, self.prepareStage == nil { self.refillBackCatalog(in: next.sourceID) }
                 if transientFailure, !retried.contains(next.id) {
                     retried.insert(next.id)
                     self.insertIntoQueue(next)
@@ -1945,8 +2017,10 @@ public final class AppModel {
     ) async {
         forgetOverdueAnalysis(of: episode)
         let wasAutomatic = automaticallyQueued.remove(episode.id) != nil
-        backlogQueued.remove(episode.id)
+        let wasBacklog = backlogQueued.remove(episode.id) != nil
         guard !reason.meansRemoved else { return }
+        // Ohne Ereignis: Die nächste ältere Folge rückt trotzdem nach.
+        if wasBacklog, prepareStage != nil { refillBackCatalog(in: episode.sourceID) }
         if let media { Self.transcriptCheckpoints.remove([media]) }
         if wasAutomatic { await removeAudioAfterFailedPreparation(episode) }
     }
@@ -2009,10 +2083,14 @@ public final class AppModel {
                     defer { ProcessingTrace.end("Sprung auf den Hauptakteur", hop) }
                     // Eine gelöschte Folge taucht nicht wieder unter „Erschließen“ auf.
                     guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }
-                    // Nur ein Schritt im Transkript: die Anzeige des Systems
-                    // bekommt ihn, die Stufe der Folge bleibt.
+                    // Nur ein Schritt im Transkript oder beim Laden: die
+                    // Anzeige des Systems bekommt ihn, die Stufe der Folge bleibt.
                     if let fraction = progress.fraction {
                         background.update(progress.stage, fraction: fraction)
+                        return
+                    }
+                    if let fraction = progress.downloadFraction {
+                        background.update(progress.stage, downloadFraction: fraction)
                         return
                     }
                     ProcessingTrace.event("Neue Stufe")
@@ -2079,7 +2157,8 @@ public final class AppModel {
             // Die Datei gehört jetzt zum Transkript. Ab hier gelten für sie die
             // Regeln nach dem Transkript, nicht mehr die fürs Vorhalten.
             prefetchedNewest.remove(episode.id)
-            await removeAudioAfterAnalysisIfWanted(episode)
+            // Die Stufe „Download“ räumt auf `evidenceReady` selbst auf.
+            if downloadStage == nil { await removeAudioAfterAnalysisIfWanted(episode) }
             // Das Sprachmodell liegt jetzt auf dem Gerät, aber nur, wenn die
             // App selbst transkribiert hat. Für das Transkript vom Podcast
             // wurde keins geladen. Erst hier gefragt: das `await` darf nicht
@@ -2129,11 +2208,13 @@ public final class AppModel {
             backlogQueued.remove(episode.id)
             if wasAutomatic {
                 // Käme der Fehler beim nächsten Start wieder, versucht die
-                // App es nicht von selbst noch einmal.
-                if UserFacingError.isPermanent(error) { failedInPreparation.insert(episode.id) }
+                // App es nicht von selbst noch einmal. Die Stufe
+                // „Vorbereiten“ merkt es sich auf `transcriptFailed` selbst.
+                if prepareStage == nil, UserFacingError.isPermanent(error) { failedInPreparation.insert(episode.id) }
                 // Der Ton war nur fürs Transkript da. Ohne Transkript bliebe
-                // er sonst für immer liegen.
-                await removeAudioAfterFailedPreparation(episode)
+                // er sonst für immer liegen. Die Stufe „Download“ räumt auf
+                // `transcriptFailed` selbst auf.
+                if downloadStage == nil { await removeAudioAfterFailedPreparation(episode) }
                 // Für diese Sprache gibt es kein Modell: die anderen Folgen
                 // des Podcasts scheiterten genauso, erst nach dem Laden. Sie
                 // gelten deshalb auch als gescheitert, sonst reihte das
@@ -2209,6 +2290,10 @@ public final class AppModel {
             let captions = try await ProcessingTrace.interval("Untertitel von Supadata") {
                 try await client.transcript(videoURL: watchURL, apiKey: key, preferredLanguages: preferred)
             }
+            // Wie der Download bei Ton: Die Untertitel sind da. Die Anzeige
+            // der fortgesetzten Verarbeitung sieht damit Fortschritt, auch
+            // wenn Supadata lange an einem Auftrag rechnete.
+            await background.update(.mediaDownloaded)
             let built = ProcessingTrace.measure("Untertitel aufbereiten") {
                 CaptionAnalysis.build(
                     captions: captions, episodeID: episode.id, sourceID: episode.sourceID,

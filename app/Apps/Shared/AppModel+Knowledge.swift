@@ -1892,7 +1892,7 @@ extension AppModel {
 
     /// Die nächste neueste Folge, die auf das Gerät gehört und noch fehlt.
     /// Was in der Warteschlange steht, lädt dort ohnehin für sein Transkript.
-    private func nextEpisodeToPrefetch() -> Episode? {
+    func nextEpisodeToPrefetch() -> Episode? {
         guard keepNewestAudio, preparationWait == nil else { return nil }
         var busy = Set(analysisQueue.map(\.id)).union(downloading)
         if let analyzing { busy.insert(analyzing.id) }
@@ -1904,6 +1904,14 @@ extension AppModel {
             return episode
         }
         return nil
+    }
+
+    /// Für die Stufe „Download“: lädt die Folge und gibt die Fassung zurück,
+    /// wenn ihr Ton danach auf dem Gerät liegt.
+    func prefetchForStage(_ episode: Episode) async -> MediaVersionID? {
+        await prefetch(episode)
+        guard let audioURL = episode.audioURL, localAudioFile(for: episode) != nil else { return nil }
+        return MediaVersionID(stable: audioURL.absoluteString)
     }
 
     private func prefetch(_ episode: Episode) async {

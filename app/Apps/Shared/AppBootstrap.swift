@@ -67,7 +67,8 @@ public enum AppBootstrap {
         return background
     }
 
-    /// Legt Host, Senke und die Stufen „Wissen“ und „Ausgaben“ an und gibt sie dem Modell.
+    /// Legt Host, Senke und die Stufen „Wissen“, „Ausgaben“, „Vorbereiten“
+    /// und „Download“ an und gibt sie dem Modell.
     /// Ein zweiter Aufruf für dasselbe Modell ändert nichts.
     ///
     /// Reihenfolge laut Plan: erst abonnieren, dann gleicht `load()` mit dem
@@ -86,6 +87,8 @@ public enum AppBootstrap {
         sink.start(host: host)
         model.startKnowledgeStage()
         model.startEditionsStage()
+        model.startPrepareStage()
+        model.startDownloadStage()
     }
 
     /// Was `openStore()` geöffnet hat, und was der Nutzer davon wissen muss.

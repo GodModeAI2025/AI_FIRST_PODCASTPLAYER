@@ -1582,6 +1582,25 @@ public actor LibraryStore: ModelActor {
         return try fingerprint(of: row)
     }
 
+    /// Welche dieser Fassungen schon ein Transkript mit Segmenten haben, in
+    /// einem Schritt des Stores. Die Vorprüfung der Stufen „Vorbereiten“ und
+    /// „Transkript“ (docs/plan-pipeline.md, Vertrag (I)): Was hier steht,
+    /// braucht kein Transkript mehr, auch wenn es von einem anderen Gerät
+    /// kam und der Speicher der App es noch nicht kennt. Gefragt wird über
+    /// die Fassung, nicht über die Kennung des Transkripts, denn die trägt
+    /// die Sprache des Geräts.
+    public func mediaVersionsWithTranscript(_ ids: some Sequence<MediaVersionID>) throws -> Set<MediaVersionID> {
+        var found: Set<MediaVersionID> = []
+        for id in Set(ids) {
+            guard let row = try latestTranscriptRow(forMedia: id.rawValue) else { continue }
+            let owner = row.persistentModelID
+            let count = try modelContext.fetchCount(FetchDescriptor<StoredSegment>(
+                predicate: #Predicate { $0.transcript?.persistentModelID == owner }))
+            if count > 0 { found.insert(id) }
+        }
+        return found
+    }
+
     /// Die jüngste Revision des Transkripts einer Fassung, wie in
     /// ``transcript(forMedia:)``, aber ohne Segmente.
     func latestTranscriptRow(forMedia key: String) throws -> StoredTranscript? {

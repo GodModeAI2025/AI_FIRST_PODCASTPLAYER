@@ -24,7 +24,9 @@
 //  Transkripte und die beiden Hintergrundaufgaben. Die Stufe „Wissen“ und
 //  der alte Weg hinter ihrem Schalter fragen beide hier. Seit Schritt 4
 //  fragt auch die Stufe „Ausgaben“ (`.editions`): Pause und „Alle
-//  abbrechen“ halten ihre Automatik an (Entscheidung 3).
+//  abbrechen“ halten ihre Automatik an (Entscheidung 3). Seit Schritt 5a
+//  fragen „Download“ fürs Vorhalten (`.prefetch`) und „Vorbereiten“ für die
+//  Metadaten (`.metadata`), aus demselben Grund.
 //
 
 import Foundation
@@ -57,6 +59,12 @@ public enum GatedWork: String, Sendable, Hashable, CaseIterable {
     /// Eine Ausgabe eines Themen-Updates zusammenstellen und ihr Cover
     /// erzeugen (Stufe „Ausgaben“, seit Schritt 4).
     case editions
+    /// Die neueste Folge je Podcast von selbst aufs Gerät laden (Stufe
+    /// „Download“, seit Schritt 5a).
+    case prefetch
+    /// Metadaten zu Videos über Supadata holen (Stufe „Vorbereiten“, seit
+    /// Schritt 5a).
+    case metadata
 }
 
 /// Der Stand, nach dem das Tor entscheidet.
@@ -105,6 +113,11 @@ public struct WorkConditions: Sendable, Equatable {
             // zusammenstellen“ antippt oder Siri fragt, bekommt die Ausgabe
             // auch in der Pause; Siri wartet auf den Satz, den es vorliest.
             origin == .user || !held
+        case .prefetch, .metadata:
+            // Pause und „Alle abbrechen“ halten auch Vorhalten und
+            // Metadaten an (Entscheidung 3). Sonst gilt wie bis 0.13 nur die
+            // Regel fürs Netz, die die Stufe beim Hauptakteur fragt.
+            !held
         }
     }
 }

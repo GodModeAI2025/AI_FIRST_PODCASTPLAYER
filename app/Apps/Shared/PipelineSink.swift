@@ -15,6 +15,13 @@
 //  `enqueueFacts`, `feedsRefreshed` den von `queueMissingFacts` und
 //  `episodesRemoved` den von `dropFromFactsQueue`.
 //
+//  Seit Schritt 5a hören „Vorbereiten“ und „Download“ zu (`PrepareStage`,
+//  `DownloadStage`). Im neuen Weg ersetzen `episodesAdded` und
+//  `feedsRefreshed` die direkten Aufrufe von `prepareNewEpisodes`,
+//  `prefetchNewestEpisodes` und `tidyLocalAudio`, `evidenceReady` und
+//  `transcriptFailed` das Aufräumen des Tons und das Nachrücken älterer
+//  Folgen in der Warteschlange.
+//
 //  Seit Schritt 4 hört die Stufe „Ausgaben“ zu (`EditionsStage` im Paket).
 //  Im neuen Weg ersetzen `feedsRefreshed` und `transcriptsIdle` die
 //  direkten Aufrufe von `processPendingEditions`, und `editionPublished`
@@ -248,6 +255,104 @@ extension AppModel {
             store: store, gate: pipeline.gate, ledger: removals, host: pipeline, environment: environment)
         editionsStage = stage
         Task { await stage.start() }
+    }
+
+    /// Legt die Stufe „Vorbereiten“ an, wenn der Schalter an ist. Einmal, aus
+    /// `AppBootstrap.start`, nach Host und Senke.
+    func startPrepareStage() {
+        guard usesPrepareStage, prepareStage == nil, let pipeline else { return }
+        let environment = PrepareStage.Environment(
+            candidates: { [weak self] sources in
+                await MainActor.run { self?.preparationCandidates(in: sources) ?? [] }
+            },
+            backCatalog: { [weak self] source in
+                await MainActor.run { self?.backCatalogRefill(in: source) ?? [] }
+            },
+            enqueue: { [weak self] candidates in
+                await MainActor.run { self?.enqueuePrepared(candidates) }
+            },
+            alreadyTranscribed: { [weak self] ids in
+                await MainActor.run { self?.knownTranscribed.formUnion(ids) }
+            },
+            markFailed: { [weak self] id in
+                await MainActor.run { self?.markPreparationFailed(id) }
+            },
+            forget: { [weak self] ids in
+                await MainActor.run { self?.failedInPreparation.removeAll { ids.contains($0) } }
+            },
+            fetchMetadata: { [weak self] in
+                await MainActor.run { self?.fetchMissingMetadata() }
+            })
+        let stage = PrepareStage(store: store, gate: pipeline.gate, ledger: removals, host: pipeline,
+                                 environment: environment)
+        prepareStage = stage
+        Task { await stage.start() }
+    }
+
+    /// Legt die Stufe „Download“ an, wenn der Schalter an ist. Einmal, aus
+    /// `AppBootstrap.start`, nach Host und Senke.
+    func startDownloadStage() {
+        guard usesDownloadStage, downloadStage == nil, let pipeline else { return }
+        let environment = DownloadStage.Environment(
+            nextPrefetch: { [weak self] in
+                await MainActor.run { self?.nextEpisodeToPrefetch() }
+            },
+            prefetch: { [weak self] episode in
+                await self?.prefetchForStage(episode)
+            },
+            tidy: { [weak self] in
+                await self?.tidyLocalAudio()
+            },
+            afterTranscript: { [weak self] id in
+                guard let self, let episode = await self.knownEpisode(id) else { return }
+                await self.removeAudioAfterAnalysisIfWanted(episode)
+            },
+            afterFailedPreparation: { [weak self] id in
+                guard let self, let episode = await self.knownEpisode(id) else { return }
+                await self.removeAudioAfterFailedPreparation(episode)
+            },
+            lookahead: { [weak self] in
+                await MainActor.run { self?.startDownloadLookahead() }
+            })
+        let stage = DownloadStage(gate: pipeline.gate, ledger: removals, host: pipeline, environment: environment)
+        downloadStage = stage
+        Task { await stage.start() }
+    }
+
+    /// Hält die neueste Folge je Podcast vor: über die Stufe „Download“,
+    /// sonst wie bis 0.13.
+    func requestPrefetch() {
+        if let downloadStage {
+            Task { await downloadStage.prefetch() }
+        } else {
+            prefetchNewestEpisodes()
+        }
+    }
+
+    /// Lädt den Ton der nächsten Folgen der Warteschlange im Voraus: über die
+    /// Stufe „Download“, sonst wie bis 0.13.
+    func requestLookahead() {
+        if let downloadStage {
+            Task { await downloadStage.lookahead() }
+        } else {
+            startDownloadLookahead()
+        }
+    }
+
+    /// Ein von selbst eingereihtes Transkript ist an etwas gescheitert, das
+    /// beim nächsten Versuch wieder käme. Nur Folgen mit Ton: Die Wartezeit
+    /// eines Videos nach einem Fehlversuch bei Supadata steht in
+    /// `captionFailures`.
+    func markPreparationFailed(_ id: EpisodeID) {
+        guard let episode = episodes.values.lazy.joined().first(where: { $0.id == id }),
+              episode.audioURL != nil else { return }
+        failedInPreparation.insert(id)
+    }
+
+    /// Eine Folge aus den geladenen Listen, sonst aus dem Store.
+    func knownEpisode(_ id: EpisodeID) async -> Episode? {
+        if let known = episodes.values.lazy.joined().first(where: { $0.id == id }) { return known }
+        return try? await store.episodes(ids: [id]).first
     }
 
 // MARK: - Senden aus dem alten Code

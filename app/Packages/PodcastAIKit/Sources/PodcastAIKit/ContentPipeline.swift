@@ -15,6 +15,7 @@
 //
 
 import Foundation
+import Synchronization
 import PodcastAICore
 import PodcastAIMedia
 import PodcastAIIntelligence
@@ -60,9 +61,40 @@ public struct PipelineProgress: Sendable {
     /// Wie weit das Transkript der Folge ist, von 0 bis 1. Nur während der
     /// Erkennung gesetzt, und nur, wenn die Länge der Datei bekannt ist.
     public let fraction: Double?
+    /// Wie weit der Download des Tons ist, von 0 bis 1. Nur während des
+    /// Ladens gesetzt, und nur, wenn der Server die Größe nennt. Die Stufe
+    /// der Folge ändert sich damit nicht; die Anzeige der fortgesetzten
+    /// Verarbeitung bekommt so auch beim Laden Fortschritt zu sehen, sonst
+    /// hielte das System sie für hängend (BGTask.h, `BGContinuedProcessingTask`).
+    public let downloadFraction: Double?
 
-    public init(episodeID: EpisodeID, stage: ProcessingStage, detail: String? = nil, fraction: Double? = nil) {
+    public init(episodeID: EpisodeID, stage: ProcessingStage, detail: String? = nil, fraction: Double? = nil,
+                downloadFraction: Double? = nil) {
         self.episodeID = episodeID; self.stage = stage; self.detail = detail; self.fraction = fraction
+        self.downloadFraction = downloadFraction
+    }
+}
+
+/// Meldet den Fortschritt eines Downloads höchstens in Schritten von einem
+/// Prozent weiter. Die Meldungen kommen vom Delegaten der Sitzung, auf
+/// einem Thread des Systems.
+final class DownloadProgressThrottle: Sendable {
+    private let reported = Mutex(-1.0)
+    private let report: @Sendable (Double) -> Void
+
+    init(report: @escaping @Sendable (Double) -> Void) {
+        self.report = report
+    }
+
+    func received(_ received: Int64, of expected: Int64?) {
+        guard let expected, expected > 0 else { return }
+        let fraction = min(1, max(0, Double(received) / Double(expected)))
+        let due = reported.withLock { last -> Bool in
+            guard fraction - last >= 0.01 || (fraction >= 1 && last < 1) else { return false }
+            last = fraction
+            return true
+        }
+        if due { report(fraction) }
     }
 }
 
@@ -306,9 +338,15 @@ public actor ContentPipeline {
         if let existing = await downloader.existing(mediaVersionID: mediaVersionID) {
             download = existing
         } else {
+            let onProgress = onProgress
+            let episodeID = episode.id
+            let throttle = DownloadProgressThrottle { fraction in
+                onProgress(PipelineProgress(episodeID: episodeID, stage: .discovered, downloadFraction: fraction))
+            }
             download = try await ProcessingTrace.interval("Laden") {
                 try await downloader.download(
-                    from: audioURL, mediaVersionID: mediaVersionID, background: backgroundDownloads)
+                    from: audioURL, mediaVersionID: mediaVersionID, background: backgroundDownloads,
+                    progress: { received, expected in throttle.received(received, of: expected) })
             }
         }
         onProgress(PipelineProgress(

@@ -62,7 +62,9 @@ extension AppModel {
         // geladen …“ zeigt.
         guard !added.isEmpty else { return }
         emit(.episodesAdded(added, .automatic))
-        await prepareNewEpisodes(in: sourceID)
+        // Die Stufen „Vorbereiten“ und „Download“ nehmen die neuen Folgen
+        // auf `episodesAdded` selbst.
+        if prepareStage == nil { await prepareNewEpisodes(in: sourceID) }
     }
 
     /// Das eigentliche Neuladen. Gibt die neuen Folgen zurück.
