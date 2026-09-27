@@ -29,7 +29,7 @@ Stand 26. September 2026, Version 0.13.
 | Bedienung durch Einsteiger bis Experten | 50 Personas mit Screenshots und Code, danach 10 Personas, die die App im Simulator selbst bedient haben, plus ein Begriffstest mit 12 Personas |
 | Jeder Knopf, jedes Menü, jeder Schalter, jeder Hinweistext | Prüfung auf Wirkung, jeder Fund von Gegenprüfern bestätigt oder verworfen |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
-| Agentenzugang über MCP (Mac) | 16 Swift-Tests mit echten JSON-Zeilen (`AgentAccessTests`). Live über stdio gegen den unsignierten Debug-Build: jedes Werkzeug, Schalter aus, keine Freigabe, abgelaufene Freigabe, Notizen ausgenommen, anderer Agent, Ausschalten und Ablauf während einer Verbindung. Alle Antworten vom offiziellen MCP-SDK 1.30.1 als gültig angenommen |
+| Agentenzugang über MCP (Mac) | 17 Swift-Tests mit echten JSON-Zeilen (`AgentAccessTests`). Live über stdio gegen den unsignierten Debug-Build: jedes Werkzeug, Schalter aus, keine Freigabe, abgelaufene Freigabe, Notizen ausgenommen, anderer Agent, Ausschalten und Ablauf während einer Verbindung. Alle Antworten vom offiziellen MCP-SDK 1.30.1 als gültig angenommen. Claude Code 2.1.283 hat den Debug-Build eingetragen, sich verbunden (erst `server/discover`, dann `initialize`) und `searchEvidence` aufgerufen |
 
 ## Noch auf einem Gerät zu prüfen
 

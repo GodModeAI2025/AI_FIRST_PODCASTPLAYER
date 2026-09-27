@@ -340,6 +340,24 @@ struct AgentAccessTests {
         #expect(fixture.access.auditLog.allSatisfy { $0.client == "claude-code" })
     }
 
+    @Test("Unbrauchbare Argumente stehen im Protokoll, lange Namen und Suchtexte gekürzt")
+    func protocolKeepsEverythingShort() async throws {
+        let fixture = try await Self.fixture()
+        let longName = String(repeating: "n", count: 5_000)
+        _ = try await Self.initialize(fixture.server, client: longName)
+        #expect(fixture.server.clientName?.count == 100)
+        #expect(fixture.access.knownClients.first?.name.count == 100)
+
+        Self.grantAll(fixture)
+        let missing = try await Self.call(fixture.server, "getEvidence")
+        #expect(missing["isError"] as? Bool == true)
+        #expect(fixture.access.auditLog.first?.refusal == .invalidArguments)
+
+        _ = try await Self.call(fixture.server, "searchEvidence", ["query": String(repeating: "Datenschutz ", count: 500)])
+        let logged = try #require(fixture.access.auditLog.first?.query)
+        #expect(logged.count <= 201)
+    }
+
     @Test("Eine Freigabe für einen Agenten gilt für ihn, und ein Erneuern behält den Umfang")
     func grantForOneClient() async throws {
         let fixture = try await Self.fixture()
@@ -453,6 +471,13 @@ struct AgentAccessTests {
         #expect(MCPServer.clampedLimit(Double.nan) == 20)
         #expect(MCPServer.clampedLimit(-5) == 1)
         #expect(MCPServer.clampedLimit(7) == 7)
+        // So wie die Zahlen wirklich ankommen: aus JSON, als `NSNumber`.
+        let decoded = try? JSONSerialization.jsonObject(
+            with: Data(#"{"one":1,"zero":0,"yes":true,"half":1.5}"#.utf8)) as? [String: Any]
+        #expect(MCPServer.clampedLimit(decoded?["one"]) == 1)
+        #expect(MCPServer.clampedLimit(decoded?["zero"]) == 1)
+        #expect(MCPServer.clampedLimit(decoded?["yes"]) == 20)
+        #expect(MCPServer.clampedLimit(decoded?["half"]) == 1)
     }
 }
 /// Benutzereinstellungen nur im Arbeitsspeicher. Eine echte Suite legte bei

@@ -34,6 +34,7 @@ public final class MCPServer {
     /// zurück, sonst die neueste. So verlangt es die Aushandlung.
     public static let supportedProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
     public static let serverName = "podcastai"
+    static let maximumClientNameLength = 100
 
     /// Die Anleitung für das Modell des Agenten, bei `initialize`. In der
     /// Sprache des Macs, wie die Beschreibungen der Werkzeuge.
@@ -135,8 +136,12 @@ public final class MCPServer {
         if let info = params["clientInfo"] as? [String: Any],
            let name = (info["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
            !name.isEmpty {
-            clientName = name
-            access.noteClient(name: name, version: info["version"] as? String)
+            // Den Namen wählt der Agent. Er landet in den Einstellungen und
+            // in der Auswahl, deshalb mit Obergrenze.
+            let limit = Self.maximumClientNameLength
+            let shortened = String(name.prefix(limit))
+            clientName = shortened
+            access.noteClient(name: shortened, version: (info["version"] as? String).map { String($0.prefix(limit)) })
         }
         return encode(result: [
             "protocolVersion": version,
@@ -166,7 +171,9 @@ public final class MCPServer {
         let request: MCPToolRequest
         switch Self.request(for: tool, arguments: arguments) {
         case .success(let parsed): request = parsed
-        case .failure(let problem): return encode(toolError: problem.message, id: id)
+        case .failure(let problem):
+            access.noteInvalidArguments(for: tool, client: clientName)
+            return encode(toolError: problem.message, id: id)
         }
 
         switch await access.run(request, client: clientName) {
@@ -221,7 +228,10 @@ public final class MCPServer {
         let fallback = 20
         // `true` ist keine Zahl, auch wenn `JSONSerialization` es als
         // `NSNumber` liefert. Es als 1 zu lesen wäre eine stille Fehldeutung.
-        if raw is Bool { return fallback }
+        // Erkannt wird es am Typ. `raw is Bool` taugt dafür nicht: das ist
+        // auch für die Zahlen 0 und 1 aus JSON wahr, und `limit: 1` wurde
+        // so still zu 20.
+        if let number = raw as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() { return fallback }
 
         let requested: Int
         switch raw {

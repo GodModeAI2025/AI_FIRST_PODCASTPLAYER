@@ -1,6 +1,22 @@
 {
   "sourceLanguage": "de",
   "strings": {
+    "Abgelehnt: Angaben unbrauchbar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abgelehnt: Angaben unbrauchbar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refused: unusable arguments"
+          }
+        }
+      }
+    },
     "Abgelehnt: Freigabe abgelaufen": {
       "localizations": {
         "de": {
@@ -221,6 +237,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "A short question or keywords in the podcast's language."
+          }
+        }
+      }
+    },
+    "Fehler: Mediathek nicht lesbar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehler: Mediathek nicht lesbar"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Error: library unreadable"
           }
         }
       }

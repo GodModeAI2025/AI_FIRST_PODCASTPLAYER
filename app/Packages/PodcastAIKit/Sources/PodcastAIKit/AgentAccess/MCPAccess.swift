@@ -175,9 +175,12 @@ public enum MCPRefusal: Error, Equatable, Sendable {
     case notesExcluded
     case notFound
 
-    /// Für das Protokoll: nur die Art, ohne Einzelheiten.
+    /// Für das Protokoll: nur die Art, ohne Einzelheiten. Dazu zwei Arten,
+    /// die keine Absage der Freigabe sind, aber ebenso ohne Ergebnis enden:
+    /// ein unbrauchbares Argument und eine Mediathek, die sich nicht lesen ließ.
     public enum Kind: String, Codable, Sendable {
         case switchedOff, noGrant, expired, otherClient, notesExcluded, notFound
+        case invalidArguments, failed
 
         /// Was das Protokoll in den Einstellungen anzeigt.
         public var label: String {
@@ -188,6 +191,8 @@ public enum MCPRefusal: Error, Equatable, Sendable {
             case .otherClient: String(localized: "Abgelehnt: anderer Agent", bundle: .module)
             case .notesExcluded: String(localized: "Abgelehnt: Notizen nicht freigegeben", bundle: .module)
             case .notFound: String(localized: "Nichts Freigegebenes gefunden", bundle: .module)
+            case .invalidArguments: String(localized: "Abgelehnt: Angaben unbrauchbar", bundle: .module)
+            case .failed: String(localized: "Fehler: Mediathek nicht lesbar", bundle: .module)
             }
         }
     }
@@ -267,13 +272,16 @@ public enum MCPToolRequest: Equatable, Sendable {
         }
     }
 
-    /// Was im Protokoll neben dem Werkzeug steht.
+    /// Was im Protokoll neben dem Werkzeug steht. Gekürzt, denn den Text
+    /// wählt der Agent, und 200 Einträge mit je einer langen Zeile machten
+    /// die Einstellungen der App groß und langsam.
     var loggedQuery: String? {
-        switch self {
+        let text: String? = switch self {
         case .searchEvidence(let query, _, _): query
         case .getEvidence(let id): id
         default: nil
         }
+        return text.map { $0.count > 200 ? String($0.prefix(200)) + "…" : $0 }
     }
 }
 
@@ -428,7 +436,7 @@ public final class MCPAccess {
         let grant: MCPGrant
         switch permission(client: client, at: now) {
         case .failure(let refusal):
-            log(request, count: 0, client: client, refusal: refusal.kind)
+            log(request.tool, query: request.loggedQuery, count: 0, client: client, refusal: refusal.kind)
             return .refused(refusal)
         case .success(let granted):
             grant = granted
@@ -437,12 +445,13 @@ public final class MCPAccess {
         do {
             let (result, count) = try await perform(request, grant: grant)
             if case .refused(let refusal) = result {
-                log(request, count: 0, client: client, refusal: refusal.kind)
+                log(request.tool, query: request.loggedQuery, count: 0, client: client, refusal: refusal.kind)
             } else {
-                log(request, count: count, client: client, refusal: nil)
+                log(request.tool, query: request.loggedQuery, count: count, client: client, refusal: nil)
             }
             return result
         } catch {
+            log(request.tool, query: request.loggedQuery, count: 0, client: client, refusal: .failed)
             return .failed(String(localized: """
                 PodcastAI konnte die Mediathek nicht lesen. \(error.localizedDescription)
                 """, bundle: .module))
@@ -650,9 +659,15 @@ public final class MCPAccess {
 
     // MARK: - Protokoll
 
-    private func log(_ request: MCPToolRequest, count: Int, client: String?, refusal: MCPRefusal.Kind?) {
+    /// Ein Aufruf, dessen Argumente nicht passten. Er kommt nie bis zur
+    /// Freigabe, steht aber im Protokoll wie jede andere Anfrage.
+    public func noteInvalidArguments(for tool: MCPTool, client: String?) {
+        log(tool, query: nil, count: 0, client: client, refusal: .invalidArguments)
+    }
+
+    private func log(_ tool: MCPTool, query: String?, count: Int, client: String?, refusal: MCPRefusal.Kind?) {
         var entries = auditLog
-        entries.insert(AuditEntry(tool: request.tool, query: request.loggedQuery, resultCount: count,
+        entries.insert(AuditEntry(tool: tool, query: query, resultCount: count,
                                   at: Date(), client: client, refusal: refusal), at: 0)
         if entries.count > Self.auditLimit { entries.removeLast(entries.count - Self.auditLimit) }
         guard let data = try? JSONEncoder().encode(entries) else { return }
