@@ -71,7 +71,7 @@ public struct ChangeSet: Sendable, Hashable {
     /// Alles hat sich geändert.
     public static let all = ChangeSet(isEverything: true)
     /// Nichts hat sich geändert.
-    public static let none = ChangeSet(isEverything: false)
+    public static let empty = ChangeSet(isEverything: false)
 
     init(isEverything: Bool, rows: [Entity: Rows] = [:],
          episodeIDs: Set<EpisodeID>? = [], sourceIDs: Set<SourceID>? = []) {

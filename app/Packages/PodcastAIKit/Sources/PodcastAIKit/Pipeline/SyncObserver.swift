@@ -48,9 +48,13 @@ public actor SyncObserver {
     private let apply: Apply
 
     /// Was sich seit dem letzten Neuladen geändert hat.
-    private var pending = ChangeSet.none
+    private var pending = ChangeSet.empty
     /// Die Pause vor dem Neuladen. Eine neue Meldung beginnt sie von vorn.
+    /// Sie wartet nur; das Neuladen läuft in einer eigenen Aufgabe, die
+    /// niemand abbricht. Sonst bräche eine neue Meldung ein laufendes
+    /// Neuladen mitten in seinen Abgleichen ab.
     private var quietTask: Task<Void, Never>?
+    private var reloadTask: Task<Void, Never>?
     private var observing: Task<Void, Never>?
     private var reloading = false
     private var reloadAgain = false
@@ -92,28 +96,34 @@ public actor SyncObserver {
         quietTask = Task { [weak self] in
             try? await Task.sleep(for: quiet)
             guard !Task.isCancelled else { return }
-            await self?.reload()
+            await self?.quietPeriodEnded()
         }
     }
 
-    /// Wartet, bis ein angefangenes Neuladen fertig ist. Für Tests.
-    public func settle() async {
-        await quietTask?.value
-    }
-
-    /// Bereinigt und lädt neu, was sich seit dem letzten Mal geändert hat.
-    /// Läuft schon ein Neuladen, kommt das Neue danach dran, nicht daneben.
-    private func reload() async {
+    /// Die Pause ist um: Neuladen, oder nach dem laufenden noch einmal.
+    private func quietPeriodEnded() {
         guard !reloading else {
             reloadAgain = true
             return
         }
         reloading = true
+        reloadTask = Task { [weak self] in await self?.reload() }
+    }
+
+    /// Wartet, bis Pause und Neuladen fertig sind. Für Tests.
+    public func settle() async {
+        await quietTask?.value
+        await reloadTask?.value
+    }
+
+    /// Bereinigt und lädt neu, was sich seit dem letzten Mal geändert hat.
+    /// Läuft schon ein Neuladen, kommt das Neue danach dran, nicht daneben.
+    private func reload() async {
         defer { reloading = false }
         repeat {
             reloadAgain = false
             let changes = pending
-            pending = .none
+            pending = .empty
             guard !changes.isEmpty, let store = await currentStore() else { continue }
             var report = LibraryStore.RemovalReport()
             if !changes.isEverything {

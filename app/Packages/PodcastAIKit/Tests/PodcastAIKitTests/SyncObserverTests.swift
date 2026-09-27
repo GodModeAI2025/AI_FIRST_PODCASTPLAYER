@@ -114,7 +114,7 @@ struct SyncObserverTests {
         #expect(merged.episodeIDs == [EpisodeID(rawValue: "a")])
         #expect(merged.union(.all) == .all)
         #expect(ChangeSet.all.touches(.trail))
-        #expect(ChangeSet.none.isEmpty)
+        #expect(ChangeSet.empty.isEmpty)
         #expect(ChangeSet(rows: [.fact: .init()]).isEmpty, "Leere Arten zählen nicht")
     }
 
@@ -199,6 +199,41 @@ struct SyncObserverTests {
         #expect(changes.touches(.trail))
         #expect(!changes.touches(.episode))
         #expect(sourcesAtApply == 1, "Die Pflege hat vor dem Neuladen bereinigt")
+    }
+
+    @Test("Eine Meldung während des Neuladens bricht es nicht ab und kommt danach dran")
+    func observerReloadsAgainAfterRunningReload() async throws {
+        let file = try FileStore()
+        let store = file.store
+        _ = await store.foreignChanges()
+        let calls = Mutex<[(ChangeSet, Bool)]>([])
+        let started = AsyncStream<Void>.makeStream()
+        let observer = SyncObserver(
+            quietPeriod: .zero,
+            store: { store },
+            apply: { changes, _ in
+                started.continuation.yield()
+                // Ein langes Neuladen, das auf Abbruch achtet wie die Abgleiche.
+                try? await Task.sleep(for: .milliseconds(300))
+                calls.withLock { $0.append((changes, Task.isCancelled)) }
+            })
+        try file.foreign { context in _ = foreignSource(context) }
+        await observer.remoteChangeArrived()
+        var iterator = started.stream.makeAsyncIterator()
+        await iterator.next()
+        try file.foreign { context in
+            context.insert(StoredKnowledgeTrail(identifier: "pfad", question: "Was?", parkedAt: Date(), payload: Data()))
+        }
+        await observer.remoteChangeArrived()
+        await iterator.next()
+        await observer.settle()
+
+        let recorded = calls.withLock { $0 }
+        #expect(recorded.count == 2)
+        #expect(recorded.allSatisfy { !$0.1 }, "Kein Neuladen läuft abgebrochen")
+        #expect(recorded.first?.0.touches(.source) == true)
+        #expect(recorded.last?.0.touches(.trail) == true)
+        #expect(recorded.last?.0.touches(.source) == false)
     }
 
     @Test("Ohne fremde Änderung lädt der Beobachter nichts")
