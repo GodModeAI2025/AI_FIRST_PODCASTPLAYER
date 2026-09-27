@@ -164,6 +164,66 @@ struct SyncObserverTests {
         #expect(try await store.episodes(forSource: sourceID).isEmpty)
     }
 
+    @Test("Was das Bereinigen umschreibt, lädt die App mit neu")
+    func settlingWidensChangesByOwnWrites() async throws {
+        let file = try FileStore()
+        let store = file.store
+        _ = await store.foreignChanges()
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        try await store.insertInterestRowForTesting(identifier: "ds-hier", label: "Datenschutz", createdAt: t0)
+        // Das Themen-Update kennt noch das Tag vom anderen Gerät.
+        let feed = SmartPodcastFeed(title: "Daten", topicIDs: [InterestID(rawValue: "ds-dort")])
+        try await store.save(smartFeeds: [feed])
+        _ = await store.foreignChanges()
+
+        try file.foreign { context in
+            let row = StoredInterest(identifier: "ds-dort", label: "Datenschutz")
+            row.createdAt = t0.addingTimeInterval(60)
+            context.insert(row)
+        }
+        let changes = try #require(await store.foreignChanges())
+        #expect(changes.touches(.interest))
+        #expect(!changes.touches(.smartFeed))
+
+        let settled = try await store.settleForeignChanges(changes)
+        #expect(try await store.rowCountForTesting(StoredInterest.self) == 1)
+        #expect(settled.changes.touches(.interest))
+        #expect(settled.changes.touches(.smartFeed), "Das umgeschriebene Themen-Update lädt neu")
+        #expect(settled.changes.identifiers(of: .smartFeed) == [feed.id.rawValue])
+        #expect(try await store.smartFeeds().first?.topicIDs == [InterestID(rawValue: "ds-hier")])
+        #expect(await store.foreignChanges() == nil, "Das eigene Bereinigen zählt nicht als fremd")
+
+        // Ohne etwas zu bereinigen bleibt es beim Geänderten.
+        let listening = ChangeSet(rows: [.listeningState: .init(updated: 1, identifiers: nil)])
+        #expect(try await store.settleForeignChanges(listening).changes == listening)
+    }
+
+    @Test("Zieht eine Folge auf dem anderen Gerät um, nennt die Historie die neue Quelle")
+    func movedEpisodeNamesNewSource() async throws {
+        let file = try FileStore()
+        let store = file.store
+        _ = await store.foreignChanges()
+        let other = SourceID(stable: "quelle-neu")
+        try await store.upsert(source: Source(id: sourceID, kind: .podcastRSS, title: "Alt"))
+        try await store.upsert(source: Source(id: other, kind: .podcastRSS, title: "Neu"))
+        _ = try await store.upsert(episodes: [Episode(id: episodeID, sourceID: sourceID, title: "Folge")],
+                                   forSource: sourceID)
+        // Der Store hat die Folge unter der alten Quelle schon gelesen.
+        #expect(try await store.episodes(forSource: sourceID).count == 1)
+        _ = await store.foreignChanges()
+
+        let episodeKey = episodeID.rawValue, otherKey = other.rawValue
+        try file.foreign { context in
+            let episode = try #require(try context.fetch(FetchDescriptor<StoredEpisode>(
+                predicate: #Predicate { $0.identifier == episodeKey })).first)
+            episode.source = try context.fetch(FetchDescriptor<StoredSource>(
+                predicate: #Predicate { $0.identifier == otherKey })).first
+        }
+        let changes = try #require(await store.foreignChanges())
+        #expect(changes.touches(.episode))
+        #expect(changes.sourceIDs?.contains(other) == true, "Die neue Quelle lädt ihre Folgen neu")
+    }
+
     @Test("Mehrere Meldungen werden ein Neuladen, bereinigt wird vorher")
     func observerMergesAndCleansFirst() async throws {
         let file = try FileStore()

@@ -13,7 +13,8 @@
 //  2. Gemerkte Belege vergisst der Store sofort, nicht erst nach der Pause.
 //  3. Weitere Meldungen in den nächsten zwei Sekunden kommen dazu. Das
 //     Neuladen beginnt erst, wenn es still wird.
-//  4. Die Pflege bereinigt Doppelte, beschränkt auf das `ChangeSet`.
+//  4. Die Pflege bereinigt Doppelte, beschränkt auf das `ChangeSet`. Was
+//     sie dabei selbst umschreibt, kommt zum `ChangeSet` dazu.
 //  5. Die App lädt neu, was betroffen ist, und sendet danach
 //     `changedElsewhere` an die Stufen.
 //
@@ -125,12 +126,12 @@ public actor SyncObserver {
             let changes = pending
             pending = .empty
             guard !changes.isEmpty, let store = await currentStore() else { continue }
-            var report = LibraryStore.RemovalReport()
-            if !changes.isEverything {
-                // Pflege: nur, was die Änderungen doppelt gemacht haben können.
-                report = (try? await store.removeDuplicatesWithReport(in: changes)) ?? LibraryStore.RemovalReport()
-            }
-            await apply(changes.widened(by: report), report)
+            // Pflege: nur, was die Änderungen doppelt gemacht haben können.
+            // Neu geladen wird danach auch, was das Bereinigen umgeschrieben
+            // hat. Scheitert es, bleibt es beim Neuladen des Geänderten.
+            let settled = (try? await store.settleForeignChanges(changes))
+                ?? (changes: changes, report: LibraryStore.RemovalReport())
+            await apply(settled.changes, settled.report)
         } while reloadAgain
     }
 }

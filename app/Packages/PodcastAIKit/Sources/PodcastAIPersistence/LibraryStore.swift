@@ -65,10 +65,7 @@ public actor LibraryStore: ModelActor {
     public func foreignChanges() -> ChangeSet? {
         guard historyRead else {
             historyRead = true
-            var latest = HistoryDescriptor<DefaultHistoryTransaction>(
-                sortBy: [SortDescriptor(\.transactionIdentifier, order: .reverse)])
-            latest.fetchLimit = 1
-            historyToken = (try? modelContext.fetchHistory(latest))?.first?.token
+            historyToken = newestHistoryToken()
             return .all
         }
         var descriptor = HistoryDescriptor<DefaultHistoryTransaction>()
@@ -81,6 +78,41 @@ public actor LibraryStore: ModelActor {
         let foreign = transactions.filter { $0.author != Self.localAuthor && !$0.changes.isEmpty }
         guard !foreign.isEmpty else { return nil }
         return changeSet(from: foreign.flatMap(\.changes))
+    }
+
+    /// Die jüngste Stelle der Historie, `nil` bei leerer Historie.
+    private func newestHistoryToken() -> DefaultHistoryToken? {
+        var latest = HistoryDescriptor<DefaultHistoryTransaction>(
+            sortBy: [SortDescriptor(\.transactionIdentifier, order: .reverse)])
+        latest.fetchLimit = 1
+        return (try? modelContext.fetchHistory(latest))?.first?.token
+    }
+
+    /// Bereinigt nach einem Abgleich, was die Änderungen von woanders
+    /// betreffen (``removeDuplicatesWithReport(in:)``), und sagt, was danach
+    /// neu zu laden ist: die Änderungen von woanders und dazu alles, was das
+    /// Bereinigen selbst geschrieben hat.
+    ///
+    /// Das Bereinigen schreibt über die Art hinaus, die es auslöst. Legt es
+    /// zwei Tags zusammen, schreibt es Themen-Updates, Ausgaben, Notizen und
+    /// Kapitel-Tags auf das bleibende Tag um; legt es Quellen zusammen,
+    /// hängt es Folgen um. Diese Zeilen stehen mit dem eigenen Namen in der
+    /// Historie. Ohne sie lüde die App nur die Tags neu und hielte Themen-
+    /// Updates mit dem gelöschten Tag im Speicher. `historyToken` bleibt
+    /// dabei stehen: ``foreignChanges()`` überspringt eigene Änderungen ohnehin.
+    public func settleForeignChanges(_ changes: ChangeSet) throws -> (changes: ChangeSet, report: RemovalReport) {
+        guard !changes.isEverything, !changes.isEmpty else { return (changes, RemovalReport()) }
+        let before = newestHistoryToken()
+        let report = try removeDuplicatesWithReport(in: changes)
+        var result = changes.widened(by: report)
+        var descriptor = HistoryDescriptor<DefaultHistoryTransaction>()
+        if let before { descriptor.predicate = #Predicate { $0.token > before } }
+        // Lässt sich die Historie nicht lesen, weiß niemand, was das
+        // Bereinigen geschrieben hat: dann alles neu, wie beim Start.
+        guard let transactions = try? modelContext.fetchHistory(descriptor) else { return (.all, report) }
+        let own = transactions.filter { $0.author == Self.localAuthor }.flatMap(\.changes)
+        if !own.isEmpty { result.formUnion(changeSet(from: own)) }
+        return (result, report)
     }
 
     /// Die Arten der Modelle nach ihrem Namen in der Historie.

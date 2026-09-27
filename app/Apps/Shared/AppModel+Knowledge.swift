@@ -131,7 +131,11 @@ extension AppModel {
             // Auf einem anderen Gerät Gelöschtes auch hier entfernen.
             await forgetEpisodesRemovedElsewhere()
         }
-        if changes.touches(.source) { await refreshInstalledSpeechModels() }
+        // Liest die Sprachen der Quellen und stößt am Ende die Warteschlange
+        // der Transkripte an. Nach `load()` geschah das nach jedem Abgleich;
+        // der alte Weg der Transkripte braucht den Anstoß, wenn Folgen,
+        // Fassungen oder Transkripte angekommen sind.
+        if changes.touches(.source, .episode, .mediaVersion, .transcript) { await refreshInstalledSpeechModels() }
         if changes.touches(.source, .episode, .evidence, .chapterTag, .interest, .listeningState, .fact) {
             await refreshRelevantToday()
         }

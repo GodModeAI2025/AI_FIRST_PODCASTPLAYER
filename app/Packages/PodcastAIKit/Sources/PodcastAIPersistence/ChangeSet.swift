@@ -40,13 +40,13 @@ public struct ChangeSet: Sendable, Hashable {
         /// etwa bei sehr vielen Zeilen.
         public internal(set) var identifiers: Set<String>? = []
 
-    /// Für Tests und Aufrufer, die eine Änderung selbst beschreiben.
-    public init(inserted: Int = 0, updated: Int = 0, deleted: Int = 0, identifiers: Set<String>? = []) {
-        self.inserted = inserted
-        self.updated = updated
-        self.deleted = deleted
-        self.identifiers = identifiers
-    }
+        /// Für Tests und Aufrufer, die eine Änderung selbst beschreiben.
+        public init(inserted: Int = 0, updated: Int = 0, deleted: Int = 0, identifiers: Set<String>? = []) {
+            self.inserted = inserted
+            self.updated = updated
+            self.deleted = deleted
+            self.identifiers = identifiers
+        }
 
         mutating func formUnion(_ other: Rows) {
             inserted += other.inserted
