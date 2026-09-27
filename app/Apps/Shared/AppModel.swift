@@ -90,7 +90,7 @@ public final class AppModel {
     /// Nach „Alle abbrechen“: von selbst Eingereihtes, das das Vorbereiten
     /// erst nach dem nächsten Aktualisieren von Hand wieder nimmt. Sonst
     /// stünde es nach dem nächsten Takt von `AutoRefresh` wieder da.
-    @ObservationIgnored private var restingPreparation = StoredEpisodeIDs(
+    @ObservationIgnored var restingPreparation = StoredEpisodeIDs(
         key: AppModel.restingPreparationKey, limit: 2_000)
     /// Die Frage, ob die App Bescheid sagen darf, wenn Transkripte im
     /// Hintergrund pausieren (`TranscriptNotificationQuestion`).
@@ -154,7 +154,7 @@ public final class AppModel {
     /// Ältere Folgen, die das Vorbereiten von selbst eingereiht hat. Neue
     /// Folgen reihen sich vor ihnen ein, damit sie nicht hinter einem ganzen
     /// Archiv warten.
-    @ObservationIgnored private var backlogQueued: Set<EpisodeID> = [] {
+    @ObservationIgnored var backlogQueued: Set<EpisodeID> = [] {
         didSet { persistAnalysisQueue() }
     }
 
@@ -316,12 +316,12 @@ public final class AppModel {
     @ObservationIgnored var analyzedEpisodes: Set<EpisodeID> = []
     /// Von der App selbst eingereihte Folgen. Ihre Fehler unterbrechen
     /// niemanden: wer nicht darum gebeten hat, will dafür keinen Dialog.
-    @ObservationIgnored private var automaticallyQueued: Set<EpisodeID> = [] {
+    @ObservationIgnored var automaticallyQueued: Set<EpisodeID> = [] {
         didSet { persistAnalysisQueue() }
     }
     /// Aus der Warteschlange genommen. Das Vorbereiten reiht sie nicht wieder
     /// ein, erst ein ausdrückliches Anfordern.
-    @ObservationIgnored private var dismissedFromPreparation = StoredEpisodeIDs(key: "dismissedFromPreparation")
+    @ObservationIgnored var dismissedFromPreparation = StoredEpisodeIDs(key: "dismissedFromPreparation")
     static let failedPreparationKey = "failedInPreparation"
     /// Von selbst eingereiht und an etwas gescheitert, das beim nächsten
     /// Versuch wieder käme: keine Sprache dafür, eine Datei, die sich nicht
@@ -614,6 +614,20 @@ public final class AppModel {
     /// bleibt sie leer.
     @ObservationIgnored var downloadStage: DownloadStage?
 
+    // MARK: Stufe „Transkript“ (TranscriptStage im Paket, docs/plan-pipeline.md, Schritt 5b)
+
+    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Transkript“
+    /// führt Warteschlange, Reihenfolge, den einen Platz, das Tor und die
+    /// gemerkte Warteschlange; `analysisQueue`, `analyzing` und die Vermerke
+    /// der Herkunft spiegeln nur ihren Stand. Aus: der Worker bis 0.13.
+    /// Gelesen einmal beim Anlegen, zu setzen auch als Startargument
+    /// (`-pipelineTranscriptStage NO`). Die gemerkte Warteschlange lesen beide.
+    static let transcriptStageKey = "pipelineTranscriptStage"
+    @ObservationIgnored let usesTranscriptStage: Bool
+    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
+    /// bleibt sie leer.
+    @ObservationIgnored var transcriptStage: TranscriptStage?
+
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
     /// danach die Größe neu.
     public internal(set) var mediaStorageChanged = 0
@@ -698,6 +712,7 @@ public final class AppModel {
         self.usesEditionsStage = Self.storedFlag(Self.editionsStageKey, default: true)
         self.usesPrepareStage = Self.storedFlag(Self.prepareStageKey, default: true)
         self.usesDownloadStage = Self.storedFlag(Self.downloadStageKey, default: true)
+        self.usesTranscriptStage = Self.storedFlag(Self.transcriptStageKey, default: true)
         self.queuePaused = Self.storedFlag(Self.queuePausedKey, default: false)
         // Aus, solange dem Build die Berechtigung für Private Cloud Compute
         // fehlt. Ohne sie ginge keine Anfrage an Apples Server, der Schalter
@@ -921,6 +936,7 @@ public final class AppModel {
         knowledgeJobsStorage = knowledgeJobs.with(store: newStore)
         await editionsStage?.reset(store: newStore)
         await prepareStage?.reset(store: newStore)
+        await transcriptStage?.reset(store: newStore)
         knownTranscribed = []
         if let knowledgeStage {
             await knowledgeStage.reset(store: newStore, work: knowledgeJobs)
@@ -1493,9 +1509,10 @@ public final class AppModel {
     }
 
     /// Nimmt von selbst Eingereihtes wieder aus der Warteschlange.
-    private func dropAutomaticallyQueued(where shouldDrop: (Episode) -> Bool) {
+    func dropAutomaticallyQueued(where shouldDrop: (Episode) -> Bool) {
         let dropped = Set(analysisQueue.filter { automaticallyQueued.contains($0.id) && shouldDrop($0) }.map(\.id))
         guard !dropped.isEmpty else { return }
+        transcriptStage?.submit(.drop(dropped, onlyAutomatic: true))
         analysisQueue.removeAll { dropped.contains($0.id) }
         for id in dropped {
             automaticallyQueued.remove(id)
@@ -1548,7 +1565,11 @@ public final class AppModel {
     /// sonst lüde die Erkennung es still aus dem Netz, rund 300 MB. Die
     /// Datei wird erst geprüft, wenn das Netz die Folge sonst anhielte.
     func queueWait(for episode: Episode) -> NetworkLimit? {
-        let automatic = automaticallyQueued.contains(episode.id)
+        queueWait(for: episode, automatic: automaticallyQueued.contains(episode.id))
+    }
+
+    /// Wie ``queueWait(for:)``, mit der Herkunft aus der Stufe „Transkript“.
+    func queueWait(for episode: Episode, automatic: Bool) -> NetworkLimit? {
         let wait = automatic
             ? preparationWait
             : (mobileDataNeedsConsent ? networkLimit ?? .cellular : nil)
@@ -1634,6 +1655,10 @@ public final class AppModel {
             }
             return
         }
+        if let transcriptStage {
+            enqueue(episode, automatic: automatic, backlog: backlog, into: transcriptStage)
+            return
+        }
         let queued = analysisQueue.firstIndex { $0.id == episode.id }
         if automatic {
             // Schon eingereiht oder in Arbeit: so bleibt es. Sonst würde aus
@@ -1687,6 +1712,56 @@ public final class AppModel {
         startAnalysisWorker()
     }
 
+    /// Wie ``enqueueAnalysis(_:automatic:backlog:)`` mit der Stufe
+    /// „Transkript“: Platz und Reihenfolge bestimmt sie, hier bleibt, was
+    /// beim Antippen geschehen muss. Die Frage nach Mobilfunk kommt beim
+    /// Tippen, nie später, und die Folge sagt sofort, worauf sie wartet.
+    /// Ob sie schon wartet, sagt der Spiegel der Stufe; einen Augenblick
+    /// alt, doch die Stufe prüft beim Ankommen selbst noch einmal.
+    private func enqueue(_ episode: Episode, automatic: Bool, backlog: Bool, into stage: TranscriptStage) {
+        guard episode.audioURL != nil || isCaptionVideo(episode) else { return }
+        let queued = analysisQueue.contains { $0.id == episode.id }
+        let running = analyzing?.id == episode.id
+        if automatic {
+            // Schon eingereiht oder in Arbeit: so bleibt es. Sonst würde aus
+            // einer Folge, die jemand angefordert hat, eine, die aufs WLAN wartet.
+            guard preparationUnavailable == nil, !queued, !running else { return }
+            stages[episode.id] = nil
+            stageDetails[episode.id] = queueWait(for: episode, automatic: true)?.queueDetail ?? Self.waitingDetail
+            stage.submit(.enqueue(episode, backlog ? .backlog : .automatic))
+            return
+        }
+        // Von Hand angefordert und Mobilfunk aus: erst fragen, falls der Ton
+        // dafür aus dem Netz käme. Ein Ja gilt auch für die Transkripte, die
+        // schon im Mobilfunk warten, also zählen sie mit.
+        if !running, mobileDataNeedsConsent, !hasAudioForTranscript(episode) {
+            // Wartet sie schon von Hand eingereiht, rückt sie gleich nach
+            // vorn. Nach einem Ja läuft sie dann als Nächste.
+            if queued, !automaticallyQueued.contains(episode.id) { stage.submit(.moveToFront(episode.id)) }
+            _ = askBeforeMobileData(.transcripts(
+                transcriptsWaitingForMobileData.filter { $0.id != episode.id } + [episode]))
+            return
+        }
+        dismissedFromPreparation.remove(episode.id)
+        failedInPreparation.remove(episode.id)
+        restingPreparation.remove(episode.id)
+        // Beim ersten angeforderten Transkript: darf die App Bescheid sagen,
+        // wenn es im Hintergrund pausiert?
+        askForTranscriptNotificationsIfNeeded()
+        // Von Hand angefordert heißt: auch auf einem Gerät ohne
+        // Spracherkennung darf man es erneut versuchen.
+        preparationUnavailable = nil
+        if !running {
+            if !queued { stages[episode.id] = nil }
+            stageDetails[episode.id] = queued
+                ? Self.waitingDetail
+                : queueWait(for: episode, automatic: false)?.queueDetail ?? Self.waitingDetail
+        }
+        // Wartet die Folge schon, läuft sie jetzt als Nächste. Läuft sie
+        // gerade, gilt sie ab jetzt als angefordert.
+        stage.submit(.request(episode))
+    }
+
     /// Reiht eine Folge an ihrem Platz ein: von Hand Angefordertes vor alles,
     /// was die App von selbst eingereiht hat, neue Folgen vor die älteren aus
     /// „Ältere Folgen auch vorbereiten“, diese ans Ende. Sonst wartete ein
@@ -1710,6 +1785,9 @@ public final class AppModel {
     /// Benutzereinstellungen. Gebündelt: viele Änderungen hintereinander,
     /// etwa beim Vorbereiten eines ganzen Archivs, schreiben einmal.
     private func persistAnalysisQueue() {
+        // Mit der Stufe „Transkript“ merkt sie sich die Warteschlange selbst;
+        // die Felder hier spiegeln nur ihren Stand.
+        guard transcriptStage == nil else { return }
         // Vor dem Wiederherstellen nichts schreiben, sonst wäre der gemerkte
         // Stand weg, bevor ihn jemand gelesen hat.
         guard analysisQueueRestored, !analysisQueuePersistScheduled else { return }
@@ -1734,6 +1812,13 @@ public final class AppModel {
         // Zwischenstände, die kein Lauf mehr liest, etwa weil ein anderes
         // Gerät das Transkript schrieb, verfallen hier.
         Task.detached(priority: .background) { Self.transcriptCheckpoints.removeExpired() }
+        // Die Stufe „Transkript“ holt die gemerkte Warteschlange selbst
+        // zurück, einmal, und gleicht danach nur noch mit dem Store ab.
+        if let transcriptStage {
+            analysisQueueRestored = true
+            await transcriptStage.reconcile()
+            return
+        }
         let saved = AnalysisQueueSnapshot.decoded(
             from: UserDefaults.standard.data(forKey: Self.analysisQueueKey))
         let ids = saved?.entries.map(\.episodeID) ?? []
@@ -1778,6 +1863,11 @@ public final class AppModel {
     /// Hält die Transkripte an, weil die Zeit im Hintergrund endet. Die
     /// laufende Folge behält ihren Zwischenstand und kommt wieder nach vorn.
     func pauseTranscripts() {
+        if let transcriptStage {
+            transcriptStage.submit(.interrupt)
+            pipelineRun?.cancel()
+            return
+        }
         guard let analysisTask else { return }
         analysisTask.cancel()
         pipelineRun?.cancel()
@@ -1794,6 +1884,7 @@ public final class AppModel {
         let wasQueued = analysisQueue.contains { $0.id == episodeID }
         let episode = analysisQueue.first { $0.id == episodeID }
         dropFromAnalysisQueue(episodeID)
+        transcriptStage?.submit(.drop([episodeID], onlyAutomatic: false))
         if wasQueued { dismissedFromPreparation.insert(episodeID) }
         // Sonst lüde der Ton im Hintergrund zu Ende, für eine Folge, die
         // niemand mehr vorbereitet. Wartet „Laden (offline)“ darauf, bleibt er.
@@ -1826,7 +1917,10 @@ public final class AppModel {
     }
 
     public func moveAnalysisQueue(from offsets: IndexSet, to destination: Int) {
+        // Die Liste zieht sofort mit, sonst spränge die Zeile zurück. Die
+        // Stufe bekommt die ganze neue Reihenfolge.
         analysisQueue.move(fromOffsets: offsets, toOffset: destination)
+        transcriptStage?.submit(.reorder(analysisQueue.map(\.id)))
     }
 
     /// „Pausieren“: keine neue Folge beginnt. Die laufende hält am nächsten
@@ -1839,6 +1933,16 @@ public final class AppModel {
         let running = analysisTask
         pauseTranscripts()
         factsTask?.cancel()
+        // Die Stufe „Transkript“ hält am Tor an. Danach halten ihre Downloads mit an.
+        if let transcriptStage {
+            Task { [weak self] in
+                await transcriptStage.untilIdle()
+                guard let self, self.queuePaused else { return }
+                BackgroundDownloads.shared.suspend(
+                    ([self.analyzing].compactMap { $0 } + self.analysisQueue).compactMap(Self.downloadID(of:)))
+            }
+            return
+        }
         // Downloads im Hintergrund halten mit an und merken sich den Stand,
         // auch die einer Folge, die schon wieder wartet, weil ihre Zeit im
         // Hintergrund endete. Erst wenn die laufende Folge aufgeräumt hat:
@@ -1874,10 +1978,13 @@ public final class AppModel {
         // unten mit den anderen.
         let transcripts = analysisTask
         let facts = factsTask
-        pauseTranscripts()
+        // Die Stufe „Transkript“ hält selbst an, wartet auf die laufende Folge
+        // und leert dann ihre Warteschlange.
+        if transcriptStage == nil { pauseTranscripts() }
         facts?.cancel()
         await transcripts?.value
         await facts?.value
+        let cancelledTranscripts = await transcriptStage?.cancelAll()
         // Die Stufe „Wissen“ hält selbst an, wartet auf die laufende Folge
         // und leert dann ihre Warteschlangen.
         await knowledgeStage?.cancelAll()
@@ -1886,13 +1993,21 @@ public final class AppModel {
         await editionsStage?.cancelAll()
         // Die Stufe „Download“ hält nach der laufenden Übertragung an.
         await downloadStage?.cancelAll()
-        let plan = AnalysisQueueControl.cancelAll(
-            running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
-        // Auch Downloads, die im Hintergrund weiterliefen. Lädt „Laden
-        // (offline)“ oder die neueste Folge dieselbe Datei, bleibt sie.
-        BackgroundDownloads.shared.cancelUnlessAwaited(
-            ([analyzing].compactMap { $0 } + analysisQueue).compactMap(Self.downloadID(of:)))
-        restingPreparation.insert(contentsOf: plan.restingUntilRefresh)
+        let plan: (removed: [EpisodeID], resting: Set<EpisodeID>)
+        if let cancelledTranscripts {
+            plan = (cancelledTranscripts.removed.map(\.episode.id), cancelledTranscripts.resting)
+            BackgroundDownloads.shared.cancelUnlessAwaited(
+                cancelledTranscripts.removed.map(\.episode).compactMap(Self.downloadID(of:)))
+        } else {
+            let cancellation = AnalysisQueueControl.cancelAll(
+                running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
+            plan = (cancellation.removed, cancellation.restingUntilRefresh)
+            // Auch Downloads, die im Hintergrund weiterliefen. Lädt „Laden
+            // (offline)“ oder die neueste Folge dieselbe Datei, bleibt sie.
+            BackgroundDownloads.shared.cancelUnlessAwaited(
+                ([analyzing].compactMap { $0 } + analysisQueue).compactMap(Self.downloadID(of:)))
+        }
+        restingPreparation.insert(contentsOf: plan.resting)
         for id in plan.removed {
             automaticallyQueued.remove(id)
             backlogQueued.remove(id)
@@ -1912,6 +2027,11 @@ public final class AppModel {
     }
 
     private func startAnalysisWorker() {
+        // Mit der Stufe „Transkript“ entscheidet sie, ob etwas beginnt.
+        if let transcriptStage {
+            transcriptStage.submit(.conditionsChanged)
+            return
+        }
         // Transkripte beginnen nur vorn. Im Hintergrund trägt sie nur die
         // fortgesetzte Verarbeitung, und die lässt sich nur im Vordergrund
         // anmelden. Eine Aktualisierung im Hintergrund reiht deshalb ein,
@@ -1942,14 +2062,17 @@ public final class AppModel {
                 // Systems laden, solange die App vorn ist. So lädt er weiter,
                 // wenn sie gleich in den Hintergrund geht.
                 self.requestLookahead()
-                let transientFailure = await self.runAnalysis(next, background: background)
+                let outcome = await self.runAnalysis(next, background: background)
+                let transientFailure = if case .failed(_, true) = outcome { true } else { false }
                 // Zweimal kurz gescheitert: in diesem Start nicht wieder als ältere Folge.
                 if fromBackCatalog, transientFailure, retried.contains(next.id) {
                     self.backCatalogSkipped.insert(next.id)
                 }
                 // Mit der Stufe „Vorbereiten“ rückt die nächste auf das
-                // Ereignis der fertigen oder gescheiterten Folge nach.
-                if fromBackCatalog, self.prepareStage == nil { self.refillBackCatalog(in: next.sourceID) }
+                // Ereignis der fertigen oder gescheiterten Folge nach, sonst hier.
+                if fromBackCatalog, self.prepareStage == nil || !outcome.announces {
+                    self.refillBackCatalog(in: next.sourceID)
+                }
                 if transientFailure, !retried.contains(next.id) {
                     retried.insert(next.id)
                     self.insertIntoQueue(next)
@@ -1984,7 +2107,7 @@ public final class AppModel {
     /// es inzwischen verlassen hat. Eine Frage für alle, einmal bis zum
     /// nächsten WLAN. Nach „Abbrechen“ warten sie, und „Transkript jetzt
     /// erstellen“ an der Folge fragt erneut.
-    private func askAboutWaitingTranscripts() {
+    func askAboutWaitingTranscripts() {
         queueConditionsChanged()
         let waiting = transcriptsWaitingForMobileData
         guard !waiting.isEmpty, !askedAboutWaitingTranscripts else { return }
@@ -1997,34 +2120,6 @@ public final class AppModel {
         _ = askBeforeMobileData(.transcripts(waiting))
     }
 
-    /// Eine Erschließung ist überholt, bevor sie etwas geschrieben hat: die
-    /// Folge fehlt, ist gelöscht, oder der Store hat das Schreiben abgelehnt.
-    /// Sie verschwindet still aus der Anzeige.
-    private func forgetOverdueAnalysis(of episode: Episode) {
-        analyzing = nil
-        stages[episode.id] = nil
-        stageDetails[episode.id] = nil
-    }
-
-    /// Der Wächter im Store hat das Schreiben abgelehnt. Die Folge verlässt
-    /// die Warteschlange still, ohne zweiten Versuch. Nach einer Löschung
-    /// räumt das Löschen selbst auf. Hat dagegen die Fassung, auf die der
-    /// Feed jetzt zeigt, schon ein Transkript, war die Arbeit nur überholt:
-    /// Ihr Zwischenstand geht, und von selbst geladener Ton geht wie nach
-    /// einem gescheiterten Vorbereiten.
-    private func settleStaleAnalysis(
-        of episode: Episode, reason: CommitGuard.StaleReason, media: MediaVersionID?
-    ) async {
-        forgetOverdueAnalysis(of: episode)
-        let wasAutomatic = automaticallyQueued.remove(episode.id) != nil
-        let wasBacklog = backlogQueued.remove(episode.id) != nil
-        guard !reason.meansRemoved else { return }
-        // Ohne Ereignis: Die nächste ältere Folge rückt trotzdem nach.
-        if wasBacklog, prepareStage != nil { refillBackCatalog(in: episode.sourceID) }
-        if let media { Self.transcriptCheckpoints.remove([media]) }
-        if wasAutomatic { await removeAudioAfterFailedPreparation(episode) }
-    }
-
     /// Der Wächter für das Schreiben einer Erschließung: Folge, Quelle und
     /// Löschungen seit `ticket`, dazu die Fassung, auf die der Feed zeigt.
     func commitGuard(for episode: Episode, since ticket: RemovalLedger.Ticket) -> CommitGuard {
@@ -2032,363 +2127,23 @@ public final class AppModel {
                     feedMedia: { CaptionAnalysis.feedMediaVersionID(of: $0) })
     }
 
-    /// Erschließt eine Folge. Gibt `true` zurück, wenn der Fehler
-    /// vorübergehend war und ein zweiter Versuch lohnt.
-    private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
-        guard let audioURL = episode.audioURL else {
-            return isCaptionVideo(episode) ? await runCaptionAnalysis(episode, background: background) : false
-        }
+    /// Erschließt eine Folge im alten Weg hinter dem Schalter: die Arbeit
+    /// aus AppModel+Transcripts.swift, danach Warteschlange und Vermerke wie
+    /// bis 0.13.
+    private func runAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> TranscriptJobOutcome {
         // Gleich als laufend vormerken, vor dem ersten `await`. Der Worker hat
         // die Folge schon aus der Warteschlange genommen. Ohne diese Zeile
-        // stünde sie während der Prüfung unten nirgends, `enqueueAnalysis`
-        // reihte sie ein zweites Mal ein, und das Abbestellen ihrer Quelle
-        // fände sie nicht.
+        // stünde sie während der Prüfung nirgends, `enqueueAnalysis` reihte
+        // sie ein zweites Mal ein, und das Abbestellen ihrer Quelle fände sie nicht.
         analyzing = episode
-        // Stand der Löschungen beim Start. Wird die Folge währenddessen
-        // gelöscht, darf nichts von ihr zurückkommen.
-        let ticket = removals.ticket
-        // Inzwischen gelöscht, hier oder auf einem anderen Gerät: überspringen.
-        let live = try? await store.episodes(ids: [episode.id])
-        if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
-            forgetOverdueAnalysis(of: episode)
-            return false
-        }
-        // Die Folge wird in ihrer eigenen Sprache transkribiert, nicht in der
-        // des Geräts. Ohne Angabe im Feed bleibt es bei der Gerätesprache.
-        let locale = transcriptionLocale(for: episode)
-        stages[episode.id] = .discovered
-        stageDetails[episode.id] = nil
-        background.update(.discovered)
-        let remaining = analysisQueue.count
-        if remaining > 0 {
-            // Zahl und Wort für sich, der Titel außerhalb des Markdowns.
-            let more = String(AttributedString(localized: "^[\(remaining) Folge](inflect: true)").characters)
-            activity = String(localized: "Transkript für „\(episode.title)“ wird erstellt, danach noch \(more) …")
-        } else {
-            activity = String(localized: "Transkript für „\(episode.title)“ wird erstellt …")
-        }
-
-        let pipeline = ContentPipeline(
-            store: store,
-            mediaDirectory: LocalMediaLocator.mediaDirectory,
-            // Zwischen dem Transkript des Podcasts und der eigenen Erkennung:
-            // die Untertitel des YouTube-Zwillings, nur mit eigenem Schlüssel.
-            twin: twinCaptionHook(for: episode),
-            // Im WLAN lädt die Sitzung des Systems und lädt weiter, wenn die
-            // App anhält. Das Transkript entsteht danach, sobald sie vorn ist.
-            backgroundDownloads: backgroundDownloadSession(automatic: automaticallyQueued.contains(episode.id)),
-            onProgress: { [weak self] progress in
-                let hop = ProcessingTrace.begin("Sprung auf den Hauptakteur")
-                Task { @MainActor in
-                    defer { ProcessingTrace.end("Sprung auf den Hauptakteur", hop) }
-                    // Eine gelöschte Folge taucht nicht wieder unter „Erschließen“ auf.
-                    guard let self, !self.wasRemoved(progress.episodeID, since: ticket) else { return }
-                    // Nur ein Schritt im Transkript oder beim Laden: die
-                    // Anzeige des Systems bekommt ihn, die Stufe der Folge bleibt.
-                    if let fraction = progress.fraction {
-                        background.update(progress.stage, fraction: fraction)
-                        return
-                    }
-                    if let fraction = progress.downloadFraction {
-                        background.update(progress.stage, downloadFraction: fraction)
-                        return
-                    }
-                    ProcessingTrace.event("Neue Stufe")
-                    self.stages[progress.episodeID] = progress.stage
-                    // Nach dem Download ändert sich der belegte Speicher.
-                    if progress.stage == .mediaDownloaded { self.mediaStorageChanged += 1 }
-                    if let detail = progress.detail {
-                        self.stageDetails[progress.episodeID] = detail
-                    }
-                    background.update(progress.stage)
-                }
-            }
-        )
-        // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
-        // Gespeichert wird hinter dem Wächter im Store, gegen den Stand der
-        // Löschungen von oben.
-        let run = Task(priority: .utility) {
-            try await pipeline.analyze(
-                episode: episode, audioURL: audioURL,
-                sourceID: episode.sourceID, locale: locale, since: ticket
-            ).receipt
-        }
-        pipelineRun = run
-        pipelineEpisodeID = episode.id
-        defer {
-            pipelineRun = nil
-            pipelineEpisodeID = nil
-        }
-        do {
-            // Die eigene Aufgabe erbt keinen Abbruch. Hält die Warteschlange
-            // an, bevor `pipelineRun` steht, liefe das Transkript sonst ohne
-            // Träger im Hintergrund weiter.
-            let receipt = try await withTaskCancellationHandler {
-                try await run.value
-            } onCancel: {
-                run.cancel()
-            }
-            if wasRemoved(episode.id, since: ticket) {
-                await purgeLateWrites(of: episode, receipt: receipt)
-                return false
-            }
-            analyzedEpisodes.insert(episode.id)
-            // Transkript und Belege sind gespeichert. Ohne `await`. Wer die
-            // Folge wollte, gilt jetzt und nicht beim Start: „Transkript jetzt
-            // erstellen“ während des Laufs macht daraus eine Anforderung von
-            // Hand, und die Ansage unten richtet sich danach. Die Stufe
-            // „Wissen“ reiht die Fakten auf `evidenceReady` selbst ein.
-            emitTranscriptFinished(
-                episode.id, media: MediaVersionID(stable: audioURL.absoluteString),
-                origin: transcriptOrigin(of: episode.id))
-            if knowledgeStage == nil {
-                transcriptChangedForTags(episode.id)
-                // Die Fakten kommen in ihre eigene Warteschlange, vor dem
-                // ersten `await`: eine Löschung danach nimmt sie dort wieder
-                // heraus. Das nächste Transkript wartet nicht auf sie.
-                if automaticFacts { enqueueFacts(episode) }
-            }
-            // Nur was jemand selbst angefordert hat, wird angesagt. Das
-            // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
-            if automaticallyQueued.remove(episode.id) == nil {
-                AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(episode.title)")).post()
-            }
-            backlogQueued.remove(episode.id)
-            // Die Datei gehört jetzt zum Transkript. Ab hier gelten für sie die
-            // Regeln nach dem Transkript, nicht mehr die fürs Vorhalten.
-            prefetchedNewest.remove(episode.id)
-            // Die Stufe „Download“ räumt auf `evidenceReady` selbst auf.
-            if downloadStage == nil { await removeAudioAfterAnalysisIfWanted(episode) }
-            // Das Sprachmodell liegt jetzt auf dem Gerät, aber nur, wenn die
-            // App selbst transkribiert hat. Für das Transkript vom Podcast
-            // wurde keins geladen. Erst hier gefragt: das `await` darf nicht
-            // zwischen Löschprüfung und Einreihen der Fakten liegen.
-            if await TimedTranscriptionEngine.hasInstalledModel(for: locale) {
-                installedSpeechModels.insert(locale.identifier)
-            }
-            await refreshRelevantToday()
-            return false
-        } catch {
-            // Abgebrochen, weil gelöscht: kein zweiter Versuch, nur aufräumen.
-            if wasRemoved(episode.id, since: ticket) {
-                await purgeLateWrites(of: episode)
-                return false
-            }
-            // Der Wächter im Store hat widersprochen: Die Folge ist inzwischen
-            // woanders gelöscht, ihre Quelle fehlt, oder die Datei, auf die
-            // der Feed jetzt zeigt, hat schon ein Transkript. Wie oben, wenn
-            // die Folge schon vor dem Start fehlte: still zurück, kein
-            // zweiter Versuch.
-            if let stale = error as? StaleWriteError {
-                await settleStaleAnalysis(
-                    of: episode, reason: stale.reason, media: MediaVersionID(stable: audioURL.absoluteString))
-                return false
-            }
-            // Angehalten, weil die Zeit im Hintergrund endete: kein Fehler.
-            // Die Folge kommt wieder nach vorn und setzt beim nächsten Lauf
-            // an ihrem Zwischenstand an.
-            if error is CancellationError || Task.isCancelled {
-                analysisQueue.insert(episode, at: 0)
-                stages[episode.id] = nil
-                stageDetails[episode.id] = String(localized: "pausiert")
-                return false
-            }
-            if UserFacingError.isTransient(error) {
-                stages[episode.id] = nil
-                emit(.transcriptFailed(episode.id, TranscriptFailure(.transient), transcriptOrigin(of: episode.id)))
-                return true
-            }
-            stages[episode.id] = .failed
-            let message = UserFacingError.describe(error)
-            stageDetails[episode.id] = message
-            // Vor dem Vermerk unten, der sagt, wer die Folge wollte.
-            emit(.transcriptFailed(
-                episode.id, Self.transcriptFailure(error, message: message), transcriptOrigin(of: episode.id)))
-            let wasAutomatic = automaticallyQueued.remove(episode.id) != nil
-            backlogQueued.remove(episode.id)
-            if wasAutomatic {
-                // Käme der Fehler beim nächsten Start wieder, versucht die
-                // App es nicht von selbst noch einmal. Die Stufe
-                // „Vorbereiten“ merkt es sich auf `transcriptFailed` selbst.
-                if prepareStage == nil, UserFacingError.isPermanent(error) { failedInPreparation.insert(episode.id) }
-                // Der Ton war nur fürs Transkript da. Ohne Transkript bliebe
-                // er sonst für immer liegen. Die Stufe „Download“ räumt auf
-                // `transcriptFailed` selbst auf.
-                if downloadStage == nil { await removeAudioAfterFailedPreparation(episode) }
-                // Für diese Sprache gibt es kein Modell: die anderen Folgen
-                // des Podcasts scheiterten genauso, erst nach dem Laden. Sie
-                // gelten deshalb auch als gescheitert, sonst reihte das
-                // nächste Aktualisieren sie wieder ein.
-                if case TranscriptionError.localeNotSupported = error {
-                    failedInPreparation.insert(contentsOf: analysisQueue
-                        .filter { automaticallyQueued.contains($0.id) && $0.sourceID == episode.sourceID }
-                        .map(\.id))
-                    dropAutomaticallyQueued { $0.sourceID == episode.sourceID }
-                }
-            }
-            // Kann das Gerät überhaupt nicht transkribieren, hat es keinen
-            // Sinn, die nächsten Folgen trotzdem zu laden.
-            if case TranscriptionError.speechUnavailableOnDevice = error {
-                preparationUnavailable = message
-                for waiting in analysisQueue where automaticallyQueued.contains(waiting.id) {
-                    stageDetails[waiting.id] = nil
-                }
-                analysisQueue.removeAll { automaticallyQueued.contains($0.id) }
-                automaticallyQueued.removeAll()
-                backlogQueued.removeAll()
-            }
-            // Nur selbst angeforderte Arbeit meldet sich mit einem Dialog.
-            if !wasAutomatic { lastError = String(localized: "„\(episode.title)“: \(message)") }
-            return false
-        }
-    }
-
-    // MARK: YouTube-Untertitel in der Warteschlange
-
-    /// Holt die Untertitel eines YouTube-Videos über Supadata und macht daraus
-    /// Transkript und Belege. Gibt `true` zurück, wenn ein zweiter Versuch lohnt.
-    ///
-    /// Scheitert es, gibt es keinen Dialog, auch nicht auf Wunsch: die Folge
-    /// sagt in einem Satz, woran es lag, und die Reihenfolge greift weiter
-    /// (Audio-Podcast, sonst nur Metadaten). Der Fehlversuch wird gemerkt,
-    /// damit dasselbe Video nicht nach jedem Start wieder angefragt wird.
-    /// Die Spracherkennung braucht es dafür nicht, und die Frist des
-    /// Clients hält die Warteschlange höchstens anderthalb Minuten auf.
-    private func runCaptionAnalysis(_ episode: Episode, background: BackgroundContinuation) async -> Bool {
-        analyzing = episode
-        let ticket = removals.ticket
-        let live = try? await store.episodes(ids: [episode.id])
-        if live?.isEmpty == true || wasRemoved(episode.id, since: ticket) {
-            forgetOverdueAnalysis(of: episode)
-            return false
-        }
-        let wasAutomatic = automaticallyQueued.contains(episode.id)
-        guard let watchURL = captionURL(of: episode), let key = SupadataKeychain.read(),
-              canTranscribe(episode, byHand: true) else {
-            // Inzwischen ohne Schlüssel oder ausgeschaltet: still zurück.
-            automaticallyQueued.remove(episode.id)
-            backlogQueued.remove(episode.id)
-            stages[episode.id] = nil
-            stageDetails[episode.id] = nil
-            hasSupadataKey = SupadataKeychain.hasKey
-            return false
-        }
-        stages[episode.id] = .discovered
-        stageDetails[episode.id] = nil
-        background.update(.discovered)
-        activity = String(localized: "Untertitel für „\(episode.title)“ werden über Supadata geholt …")
-
-        let client = supadata
-        let store = store
-        let preferred = [AppLanguage.current.rawValue]
-        let origin: TranscriptOrigin = isYouTubeVideo(episode) ? .youTubeCaptions : .postCaptions
-        let fallbackLocale = sources.first { $0.id == episode.sourceID }?.language ?? AppLanguage.current.rawValue
-        let writeGuard = commitGuard(for: episode, since: ticket)
-        // Als eigene Aufgabe, damit Löschen genau diese Folge abbrechen kann.
-        // Losgelöst vom Hauptakteur: das Aufbereiten der Untertitel rechnet.
-        let run = Task.detached(priority: .utility) {
-            let captions = try await ProcessingTrace.interval("Untertitel von Supadata") {
-                try await client.transcript(videoURL: watchURL, apiKey: key, preferredLanguages: preferred)
-            }
-            // Wie der Download bei Ton: Die Untertitel sind da. Die Anzeige
-            // der fortgesetzten Verarbeitung sieht damit Fortschritt, auch
-            // wenn Supadata lange an einem Auftrag rechnete.
-            await background.update(.mediaDownloaded)
-            let built = ProcessingTrace.measure("Untertitel aufbereiten") {
-                CaptionAnalysis.build(
-                    captions: captions, episodeID: episode.id, sourceID: episode.sourceID,
-                    watchURL: watchURL, fallbackLocale: fallbackLocale,
-                    declaredDuration: episode.declaredDuration, origin: origin)
-            }
-            guard let result = built else {
-                throw SupadataError.noTranscript
-            }
-            try Task.checkCancellation()
-            return try await store.commit(captions: result, under: writeGuard).get().receipt
-        }
-        pipelineRun = run
-        pipelineEpisodeID = episode.id
-        defer {
-            pipelineRun = nil
-            pipelineEpisodeID = nil
-        }
-        do {
-            let receipt = try await run.value
-            if wasRemoved(episode.id, since: ticket) {
-                await purgeLateWrites(of: episode, receipt: receipt)
-                return false
-            }
-            captionFailures[episode.id.rawValue] = nil
-            supadataRestingUntil = nil
-            analyzedEpisodes.insert(episode.id)
-            if knowledgeStage == nil { transcriptChangedForTags(episode.id) }
-            // Wie bei Ton: wer die Folge jetzt will, vor dem Vermerk unten.
-            emitTranscriptFinished(
-                episode.id, media: CaptionAnalysis.mediaVersionID(watchURL: watchURL),
-                origin: transcriptOrigin(of: episode.id))
-            stages[episode.id] = .evidenceExtracted
-            stageDetails[episode.id] = origin.sourceLabel
-            // Die Fassung des Videos kennt jetzt ihre Kennung; Stellen daraus
-            // öffnen YouTube statt den Player.
-            if let reloaded = try? await store.episodes(ids: [episode.id]) {
-                RemoteMediaRegistry.shared.register(reloaded)
-            }
-            if knowledgeStage == nil, automaticFacts { enqueueFacts(episode) }
-            if automaticallyQueued.remove(episode.id) == nil {
-                AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(episode.title)")).post()
-            }
-            backlogQueued.remove(episode.id)
-            await refreshRelevantToday()
-            return false
-        } catch {
-            if wasRemoved(episode.id, since: ticket) {
-                await purgeLateWrites(of: episode)
-                return false
-            }
-            // Der Wächter im Store hat widersprochen. Kein Fehlversuch bei
-            // Supadata: Die Untertitel waren da, nur die Folge nicht mehr.
-            if let stale = error as? StaleWriteError {
-                await settleStaleAnalysis(of: episode, reason: stale.reason, media: nil)
-                return false
-            }
-            let failure = (error as? SupadataError) ?? (error is CancellationError ? .cancelled : .network)
-            // Wer die Folge wollte, bevor die Vermerke gleich darunter wegfallen.
-            let requestedBy = transcriptOrigin(of: episode.id)
-            automaticallyQueued.remove(episode.id)
-            backlogQueued.remove(episode.id)
-            // Wie bei Ton: die Folge sagt, woran es lag. Hat das Video keine
-            // Untertitel oder liegt es am Schlüssel, steht dort stattdessen der
-            // ruhige Satz aus `youTubeTranscriptHint`, auch nach einem Neustart.
-            if failure == .cancelled {
-                stages[episode.id] = nil
-                stageDetails[episode.id] = nil
-            } else {
-                stages[episode.id] = .failed
-                stageDetails[episode.id] = failure.errorDescription
-                emit(.transcriptFailed(episode.id, Self.transcriptFailure(failure), requestedBy))
-            }
-            await noteCaptionFailure(failure, for: episode, wasAutomatic: wasAutomatic)
-            // Vorübergehend: der Worker versucht es einmal nach kurzer Pause.
-            // Ein offener Schutzschalter lässt den zweiten Versuch ohne Anfrage enden.
-            return failure.isTransient && failure != .cancelled && !failure.affectsAccount
-                && supadataRestingUntil == nil
-        }
-    }
-
-    /// Merkt sich, woran es lag, und nimmt den Rest der Reihenfolge.
-    private func noteCaptionFailure(_ failure: SupadataError, for episode: Episode, wasAutomatic: Bool) async {
-        if failure != .cancelled {
-            captionFailures[episode.id.rawValue] = CaptionFailure(error: failure, at: Date())
-        }
-        await noteSupadataAccountError(failure)
-        // Gibt es die Folge als Ton im abonnierten Audio-Podcast, entsteht das
-        // Transkript dort. Nach denselben Regeln fürs Netz wie der Auftrag.
-        let inputs = youTubeInputs(for: episode, byHand: !wasAutomatic)
-        if case .counterpartEpisode(let id, _) = YouTubeTranscriptPlanner.fallback(after: failure, inputs: inputs),
-           !analyzedEpisodes.contains(id),
-           let audio = episodes.values.lazy.flatMap({ $0 }).first(where: { $0.id == id }) {
-            enqueueAnalysis(audio, automatic: wasAutomatic)
-        }
+        let id = episode.id
+        let job = TranscriptJob(
+            episode: episode, origin: transcriptOrigin(of: id), ticket: removals.ticket,
+            remaining: analysisQueue.count,
+            currentOrigin: { [weak self] in await self?.transcriptOrigin(of: id) ?? .automatic })
+        let outcome = await transcribe(job, background: background)
+        applyLegacyOutcome(outcome, of: episode)
+        return outcome
     }
 
     /// Nimmt YouTube-Folgen aus der Warteschlange, die gerade nicht laufen
@@ -2397,6 +2152,7 @@ public final class AppModel {
     func dropYouTubeItemsThatCannotRun() {
         let blocked = Set(analysisQueue.filter { isCaptionVideo($0) && !canTranscribe($0, byHand: true) }.map(\.id))
         guard !blocked.isEmpty else { return }
+        transcriptStage?.submit(.drop(blocked, onlyAutomatic: false))
         analysisQueue.removeAll { blocked.contains($0.id) }
         for id in blocked {
             automaticallyQueued.remove(id)

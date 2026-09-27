@@ -33,12 +33,17 @@
 //  `factsWait`, `factsIssues` und `chapterTagsRevision`, dazu aus der
 //  Arbeit an einer Folge (`KnowledgeJobs`, seit Schritt 3b abseits des
 //  Hauptakteurs) `facts`, `factsInProgress`, `factsProgress`, `lastError`
-//  und `chapterCache`. Stufe und Angabe der Transkripte folgen mit
-//  Schritt 5; bis dahin schreibt sie dort nichts, denn sonst stünde jede
-//  Änderung doppelt da und jede Ansage käme zweimal.
+//  und `chapterCache`. Seit Schritt 5b spiegelt sie die Stufe „Transkript“
+//  in `analysisQueue`, `analyzing`, `automaticallyQueued` und
+//  `backlogQueued`, setzt auf `transcriptSaved` und `evidenceReady` die
+//  Stufe der Folge und sagt ein fertiges Transkript an, das jemand
+//  angefordert hat. Im alten Weg hinter dem Schalter tut das weiter der
+//  Worker selbst; die Senke schreibt dann dort nichts, sonst käme jede
+//  Ansage zweimal.
 //
 
 import Foundation
+import SwiftUI
 import PodcastAIKit
 
 /// Das Ende der Pipeline auf dem Hauptakteur. Keine Ansicht abonniert
@@ -70,32 +75,72 @@ final class PipelineSink {
         })
     }
 
+    /// Schreibt den Stand der Stufe „Transkript“ in die Felder, die Ansichten
+    /// und die Regeln fürs Netz lesen.
+    func follow(_ stage: TranscriptStage) {
+        let snapshots = stage.snapshots
+        listeners.append(Task { [weak self] in
+            for await snapshot in snapshots { self?.apply(snapshot) }
+        })
+    }
+
     /// Was die Senke mit einem Ereignis tut. Erschöpfend, damit ein neues
     /// Ereignis hier eine Entscheidung verlangt. Jeder offene Fall nennt,
     /// welcher Schritt ihn füllt.
     func receive(_ event: PipelineEvent) {
         guard let model else { return }
         switch event {
-        case .transcriptSaved:
-            // Schritt 5b: Stufe `.transcribed` der Folge.
-            break
-        case .evidenceReady:
-            // Schritt 5b: Stufe `.evidenceExtracted`. Angesagt wird nur bei
-            // `.user`, nie für Arbeit, die `reconcile()` gefunden hat.
-            break
+        case .transcriptSaved(let id, _, _):
+            // Die Arbeit hat die Stufe meist schon weiter gesetzt, samt der
+            // Zahl der Fundstellen. Zurück geht sie nie.
+            guard model.transcriptStage != nil else { return }
+            switch model.stages[id] {
+            case nil, .discovered, .mediaDownloaded: model.stages[id] = .transcribed
+            case .transcribed, .evidenceExtracted, .failed: break
+            }
+        case .evidenceReady(let id, _, let origin):
+            guard model.transcriptStage != nil else { return }
+            if model.stages[id] != .evidenceExtracted { model.stages[id] = .evidenceExtracted }
+            // Nur was jemand selbst angefordert hat, wird angesagt. Das
+            // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
+            // Die Herkunft setzt nur der Code beim Anfordern (Regel 2).
+            if origin == .user, let title = model.episodes.values.lazy.joined().first(where: { $0.id == id })?.title {
+                AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(title)")).post()
+            }
         case .tagsDone(_, _, let outcome, _):
             // Neue Kapitel-Tags: Offene Folgen und Tag-Seiten laden sie neu.
             // Ein Themen-Update lösen sie nicht aus (Entscheidung 6).
             if outcome == .stored { model.chapterTagsRevision += 1 }
-        case .episodesRemoved:
-            // Schritt 5: Stufe, Angabe und Fortschritt der Folgen fallen weg.
-            // Fakten und Vermerke räumt bis dahin die Pflege.
-            break
+        case .episodesRemoved(let ids, _):
+            // Stufe, Angabe und Fortschritt der Folgen fallen gleich weg.
+            // Fakten und Vermerke räumt die Pflege.
+            for id in ids {
+                model.stages[id] = nil
+                model.stageDetails[id] = nil
+                model.factsProgress[id] = nil
+                model.downloadProgress[id] = nil
+            }
         case .episodesAdded, .audioAvailable, .audioRemoved, .transcriptFailed, .transcriptsIdle,
              .factsDone, .feedsRefreshed, .editionPublished, .changedElsewhere:
             // Laut Router nicht für die Senke.
             break
         }
+    }
+
+    /// Ein neuer Stand der Stufe „Transkript“. Geschrieben wird nur, was
+    /// sich geändert hat. Die Stufe merkt sich die Warteschlange selbst;
+    /// diese Felder schreiben dann nichts in die Benutzereinstellungen.
+    func apply(_ snapshot: TranscriptSnapshot) {
+        guard let model else { return }
+        if model.analysisQueue.map(\.id) != snapshot.queue.map(\.episode.id) {
+            model.analysisQueue = snapshot.queue.map(\.episode)
+        }
+        if model.analyzing?.id != snapshot.running?.episode.id { model.analyzing = snapshot.running?.episode }
+        let items = snapshot.queue + [snapshot.running].compactMap { $0 }
+        let automatic = Set(items.filter { $0.origin != .user }.map(\.episode.id))
+        let backlog = Set(items.filter { $0.origin == .backlog }.map(\.episode.id))
+        if model.automaticallyQueued != automatic { model.automaticallyQueued = automatic }
+        if model.backlogQueued != backlog { model.backlogQueued = backlog }
     }
 
     /// Ein neuer Stand der Stufe „Wissen“. Geschrieben wird nur, was sich
