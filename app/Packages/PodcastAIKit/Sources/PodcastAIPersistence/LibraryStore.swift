@@ -1582,13 +1582,27 @@ public actor LibraryStore: ModelActor {
         return try fingerprint(of: row)
     }
 
+    /// Welche dieser Fassungen schon Belege mit Zeitmarke haben, in einem
+    /// Schritt des Stores. Dasselbe Merkmal wie ``analyzedEpisodeIDs()``,
+    /// nach dem das Vorbereiten bis 0.13 im Speicher fragte, nur je Fassung
+    /// und frisch aus dem Store (docs/plan-pipeline.md, Vertrag (I)): Was
+    /// hier steht, braucht kein Transkript mehr, auch wenn es von einem
+    /// anderen Gerät kam und der Speicher der App es noch nicht kennt. Ein
+    /// Transkript ohne Belege zählt nicht, daraus entstünden nie Fakten.
+    public func mediaVersionsWithEvidence(_ ids: some Sequence<MediaVersionID>) throws -> Set<MediaVersionID> {
+        let keys = Set(ids.map(\.rawValue))
+        guard !keys.isEmpty else { return [] }
+        var descriptor = FetchDescriptor<StoredEvidence>(
+            predicate: #Predicate { $0.hasTiming == true && keys.contains($0.mediaVersionIdentifier) })
+        descriptor.propertiesToFetch = [\.mediaVersionIdentifier]
+        return Set(try modelContext.fetch(descriptor).map { MediaVersionID(rawValue: $0.mediaVersionIdentifier) })
+    }
+
     /// Welche dieser Fassungen schon ein Transkript mit Segmenten haben, in
-    /// einem Schritt des Stores. Die Vorprüfung der Stufen „Vorbereiten“ und
-    /// „Transkript“ (docs/plan-pipeline.md, Vertrag (I)): Was hier steht,
-    /// braucht kein Transkript mehr, auch wenn es von einem anderen Gerät
-    /// kam und der Speicher der App es noch nicht kennt. Gefragt wird über
-    /// die Fassung, nicht über die Kennung des Transkripts, denn die trägt
-    /// die Sprache des Geräts.
+    /// einem Schritt des Stores. Die Vorprüfung der Stufe „Transkript“
+    /// (docs/plan-pipeline.md, Vertrag (I)). Gefragt wird über die Fassung,
+    /// nicht über die Kennung des Transkripts, denn die trägt die Sprache
+    /// des Geräts.
     public func mediaVersionsWithTranscript(_ ids: some Sequence<MediaVersionID>) throws -> Set<MediaVersionID> {
         var found: Set<MediaVersionID> = []
         for id in Set(ids) {

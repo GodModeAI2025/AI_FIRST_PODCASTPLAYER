@@ -21,7 +21,8 @@
 //    Auslöser.
 //  - Ton aufräumen nach dem Transkript (`evidenceReady`), nach einem
 //    gescheiterten Vorbereiten (`transcriptFailed`, nicht bei einer Folge,
-//    die jemand angefordert hat) und nach dem Aktualisieren.
+//    die jemand angefordert hat, und nicht vor dem zweiten Versuch) und
+//    nach dem Aktualisieren.
 //  - Vorausladen ist ein Befehl der Warteschlange der Transkripte, wenn sie
 //    die nächste Folge beginnt.
 //
@@ -135,10 +136,12 @@ public actor DownloadStage {
             // Einstellungen. Eine inzwischen gelöschte Folge findet der
             // Hauptakteur nicht mehr, ihre Datei räumt die Pflege.
             await environment.afterTranscript(id)
-        case .transcriptFailed(let id, _, let origin):
+        case .transcriptFailed(let id, let failure, let origin):
             // Was jemand angefordert hat, behält seinen Ton. Von selbst
-            // Geladenes ginge sonst nie wieder vom Gerät.
-            guard origin != .user else { return }
+            // Geladenes ginge sonst nie wieder vom Gerät. Nach einem Fehler,
+            // der vorbeigeht, bleibt er: Der zweite Versuch kommt gleich und
+            // liest dieselbe Datei.
+            guard origin != .user, failure.kind != .transient else { return }
             await environment.afterFailedPreparation(id)
         case .audioRemoved:
             // Der Ton ist schon weg. Worauf ein Transkript nun wartet, rechnet

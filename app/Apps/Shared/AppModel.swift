@@ -599,9 +599,9 @@ public final class AppModel {
     /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
     /// bleibt sie leer.
     @ObservationIgnored var prepareStage: PrepareStage?
-    /// Folgen, die laut Store schon ein Transkript haben, obwohl der
-    /// Speicher keine Belege von ihnen kennt, etwa weil sie gerade von einem
-    /// anderen Gerät kamen. Das Vorbereiten nimmt sie in diesem Start nicht.
+    /// Folgen, die laut Store schon Belege haben, obwohl der Speicher sie
+    /// nicht kennt, etwa weil sie gerade von einem anderen Gerät kamen. Das
+    /// Vorbereiten nimmt sie in diesem Start nicht.
     @ObservationIgnored var knownTranscribed: Set<EpisodeID> = []
 
     /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Download“

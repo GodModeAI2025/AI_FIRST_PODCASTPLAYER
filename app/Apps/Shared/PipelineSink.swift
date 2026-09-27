@@ -15,17 +15,17 @@
 //  `enqueueFacts`, `feedsRefreshed` den von `queueMissingFacts` und
 //  `episodesRemoved` den von `dropFromFactsQueue`.
 //
+//  Seit Schritt 4 hört die Stufe „Ausgaben“ zu (`EditionsStage` im Paket).
+//  Im neuen Weg ersetzen `feedsRefreshed` und `transcriptsIdle` die
+//  direkten Aufrufe von `processPendingEditions`, und `editionPublished`
+//  stößt Zahlen und Cover an, die bisher gleich nach dem Zusammenstellen kamen.
+//
 //  Seit Schritt 5a hören „Vorbereiten“ und „Download“ zu (`PrepareStage`,
 //  `DownloadStage`). Im neuen Weg ersetzen `episodesAdded` und
 //  `feedsRefreshed` die direkten Aufrufe von `prepareNewEpisodes`,
 //  `prefetchNewestEpisodes` und `tidyLocalAudio`, `evidenceReady` und
 //  `transcriptFailed` das Aufräumen des Tons und das Nachrücken älterer
 //  Folgen in der Warteschlange.
-//
-//  Seit Schritt 4 hört die Stufe „Ausgaben“ zu (`EditionsStage` im Paket).
-//  Im neuen Weg ersetzen `feedsRefreshed` und `transcriptsIdle` die
-//  direkten Aufrufe von `processPendingEditions`, und `editionPublished`
-//  stößt Zahlen und Cover an, die bisher gleich nach dem Zusammenstellen kamen.
 //
 //  Die Senke ist das Ende der Pipeline auf dem Hauptakteur. Sie schreibt
 //  die Felder, die die Oberfläche heute liest, sobald eine Stufe sie

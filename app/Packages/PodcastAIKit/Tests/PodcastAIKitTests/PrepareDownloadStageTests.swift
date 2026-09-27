@@ -31,14 +31,16 @@ private func media(of episode: Episode) -> MediaVersionID {
 }
 
 /// Ein Speicher mit zwei Quellen und diesen Folgen. `transcribed` bekommen
-/// ein Transkript mit einem Segment.
-private func makeStore(_ episodes: [Episode], transcribed: [Episode] = []) async throws -> LibraryStore {
+/// ein Transkript mit einem Segment und einen Beleg, `withoutEvidence` nur
+/// das Transkript.
+private func makeStore(_ episodes: [Episode], transcribed: [Episode] = [],
+                       withoutEvidence: [Episode] = []) async throws -> LibraryStore {
     let store = LibraryStore.make(container: try LibraryStore.makeContainer(inMemory: true))
     for source in [sourceA, sourceB] {
         try await store.upsert(source: Source(id: source, kind: .podcastRSS, title: source.rawValue))
         _ = try await store.upsert(episodes: episodes.filter { $0.sourceID == source }, forSource: source)
     }
-    for episode in transcribed {
+    for episode in transcribed + withoutEvidence {
         let media = media(of: episode)
         let range = MediaTimeRange(start: MediaTime(milliseconds: 0), end: MediaTime(milliseconds: 5_000))
         let transcript = Transcript(
@@ -50,6 +52,11 @@ private func makeStore(_ episodes: [Episode], transcribed: [Episode] = []) async
         try await store.save(transcript: transcript,
                              media: MediaVersion(id: media, episodeID: episode.id, remoteURL: episode.audioURL),
                              forEpisode: episode.id)
+        guard transcribed.contains(where: { $0.id == episode.id }) else { continue }
+        try await store.store(evidence: [Evidence(
+            id: Evidence.stableID(mediaVersionID: media, transcriptRevision: .initial, range: range),
+            mediaVersionID: media, episodeID: episode.id, sourceID: episode.sourceID, transcriptID: transcript.id,
+            transcriptRevision: .initial, range: range, quotedText: "Ein Satz.")])
     }
     return store
 }
@@ -131,7 +138,9 @@ struct PrepareStageTests {
     @Test("Nach dem Aktualisieren reiht sie ein, was laut Store noch kein Transkript hat, und holt Metadaten")
     func refreshSkipsTranscribed() async throws {
         let a = episode("A"), b = episode("B"), c = episode("C", in: sourceB)
-        let store = try await makeStore([a, b, c], transcribed: [b])
+        // C hat ein Transkript, aber keine Belege: Daraus entstünden nie
+        // Fakten, also bereitet die Stufe es vor wie bisher.
+        let store = try await makeStore([a, b, c], transcribed: [b], withoutEvidence: [c])
         let recorder = Recorder()
         let stage = prepareStage(store: store, gate: WorkGate(alwaysInForeground: true), ledger: RemovalLedger(),
                                  recorder: recorder, candidates: [a, b, c])
@@ -139,7 +148,7 @@ struct PrepareStageTests {
         await stage.untilIdle()
         let calls = recorder.calls
         #expect(calls.first == "candidates:alle")
-        #expect(calls.contains("schon:1"), "B hat im Store schon ein Transkript")
+        #expect(calls.contains("schon:1"), "B hat im Store schon Transkript und Belege")
         #expect(calls.contains("einreihen:A,C"))
         // Danach die älteren Folgen jeder Quelle, zuletzt die Metadaten.
         #expect(calls.contains("archiv:\(sourceA.rawValue)"))
@@ -343,7 +352,10 @@ struct DownloadStageTests {
                                    revision: .initial, segmentCount: 1, lastEndMs: 1)
         await stage.receive(.evidenceReady(a.id, version, .user))
         await stage.receive(.transcriptFailed(a.id, TranscriptFailure(.permanent), .user))
+        // Vor dem zweiten Versuch bleibt der Ton.
         await stage.receive(.transcriptFailed(a.id, TranscriptFailure(.transient), .backlog))
+        #expect(recorder.calls == ["nachTranskript:\(a.id.rawValue)"])
+        await stage.receive(.transcriptFailed(a.id, TranscriptFailure(.permanent), .automatic))
         #expect(recorder.calls == ["nachTranskript:\(a.id.rawValue)", "nachFehlschlag:\(a.id.rawValue)"])
     }
 }

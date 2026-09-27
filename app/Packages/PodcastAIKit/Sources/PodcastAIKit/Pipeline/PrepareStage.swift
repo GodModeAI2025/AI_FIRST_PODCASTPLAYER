@@ -23,8 +23,8 @@
 //    beim nächsten Versuch wieder käme, merkt sie sich auf `transcriptFailed`
 //    (`failedInPreparation`), damit das nächste Aktualisieren es nicht
 //    wieder nimmt.
-//  - Vor dem Einreihen fragt sie den Store, ob die Fassung schon ein
-//    Transkript hat (Vertrag (I)). Bis 0.13 fragte die App nur ihren
+//  - Vor dem Einreihen fragt sie den Store, ob die Fassung schon Belege
+//    mit Zeitmarke hat (Vertrag (I)), dasselbe Merkmal wie bisher. Bis 0.13 fragte die App nur ihren
 //    Speicher, und der kannte ein Transkript von einem anderen Gerät erst
 //    nach dem nächsten Laden.
 //  - Einreihen hält keine Pause an (architektur.md: „Was das Vorbereiten
@@ -72,8 +72,8 @@ public actor PrepareStage {
         public var backCatalog: @Sendable (_ source: SourceID) async -> [PreparationCandidate]
         /// Reiht ein, von selbst, in dieser Reihenfolge.
         public var enqueue: @Sendable ([PreparationCandidate]) async -> Void
-        /// Diese Folgen haben laut Store schon ein Transkript. Das Vorbereiten
-        /// nimmt sie in diesem Start nicht wieder.
+        /// Diese Folgen haben laut Store schon Transkript und Belege. Das
+        /// Vorbereiten nimmt sie in diesem Start nicht wieder.
         public var alreadyTranscribed: @Sendable (Set<EpisodeID>) async -> Void
         /// Ein von selbst eingereihtes Transkript ist gescheitert, und der
         /// Fehler käme beim nächsten Versuch wieder.
@@ -326,15 +326,15 @@ public actor PrepareStage {
         }
     }
 
-    /// Reiht ein, was laut Store noch kein Transkript hat. Gibt die Folgen
-    /// zurück, die es schon hatten. `ticket`: der Stand des Löschprotokolls,
+    /// Reiht ein, was laut Store noch keine Belege hat. Gibt die Folgen
+    /// zurück, die schon welche hatten. `ticket`: der Stand des Löschprotokolls,
     /// bevor die Stufe den Hauptakteur fragte.
     @discardableResult
     private func enqueue(_ candidates: [PreparationCandidate], since ticket: RemovalLedger.Ticket) async
         -> Set<EpisodeID> {
         guard !candidates.isEmpty else { return [] }
         let media = candidates.compactMap(\.media)
-        let done = (try? await store.mediaVersionsWithTranscript(media)) ?? []
+        let done = (try? await store.mediaVersionsWithEvidence(media)) ?? []
         var skipped: Set<EpisodeID> = []
         var open: [PreparationCandidate] = []
         for candidate in candidates {
