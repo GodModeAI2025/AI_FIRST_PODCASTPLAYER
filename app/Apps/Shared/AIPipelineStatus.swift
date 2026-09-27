@@ -59,6 +59,7 @@ final class AIPipelineStatus {
         case .facts: String(localized: "Fakten")
         case .tags: String(localized: "Tags je Kapitel")
         case .relevance: String(localized: "Relevanz prüfen")
+        case .cover: String(localized: "Cover für Themen-Updates")
         case .other: String(localized: "Sonstiges")
         }
     }

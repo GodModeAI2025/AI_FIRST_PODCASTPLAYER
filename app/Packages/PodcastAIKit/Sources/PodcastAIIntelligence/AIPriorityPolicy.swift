@@ -10,7 +10,13 @@
 //  Wer ruft, gibt die echte Herkunft mit. Dass Tags nach „Jetzt ermitteln“
 //  und die Relevanz einer angeforderten Ausgabe mit `.user` laufen
 //  (Entscheidung 1 in docs/plan-pipeline.md), ändert nur diese Tabelle: die
-//  Tags seit der Stufe „Wissen“, die Relevanz mit den Ausgaben.
+//  Tags seit der Stufe „Wissen“, die Relevanz seit der Stufe „Ausgaben“.
+//
+//  Das Cover (`.cover`, Entscheidung 2) folgt derselben Regel: Wer eine
+//  Ausgabe öffnet oder ein neues Bild wünscht, wartet darauf und kommt vor
+//  Arbeit im Hintergrund. Das Bild nach dem Zusammenstellen und das
+//  Nachholen beim Wechsel in den Vordergrund warten wie alles, was von
+//  selbst kommt. Den Vorrang hatte die Gegenprüfung offen gelassen.
 //
 //  Die Tabelle regelt den Vorrang je Aufruf, nicht die Reihenfolge der
 //  Folgen und nicht, ob Arbeit überhaupt laufen darf. Das bleiben die
@@ -42,10 +48,10 @@ public enum AIPriorityPolicy {
             // Die Tags erben die Herkunft des Faktenlaufs: nach „Jetzt
             // ermitteln“ vorn, sonst im Hintergrund, auch aus dem Rückstand.
             origin == .user ? .user : .background
-        case .relevance:
-            // Im Hintergrund, auch für eine angeforderte Ausgabe und eine
-            // Anfrage über Siri. Mit den Ausgaben als Stufe kommt `.user`.
-            .background
+        case .relevance, .cover:
+            // Eine angeforderte Ausgabe, eine Anfrage über Siri und ein
+            // geöffnetes Cover kommen vorn dran, die Automatik wartet.
+            origin == .user ? .user : .background
         case .other:
             .background
         }

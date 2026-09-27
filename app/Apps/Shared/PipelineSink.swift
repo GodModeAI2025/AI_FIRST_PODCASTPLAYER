@@ -15,6 +15,11 @@
 //  `enqueueFacts`, `feedsRefreshed` den von `queueMissingFacts` und
 //  `episodesRemoved` den von `dropFromFactsQueue`.
 //
+//  Seit Schritt 4 hört die Stufe „Ausgaben“ zu (`EditionsStage` im Paket).
+//  Im neuen Weg ersetzen `feedsRefreshed` und `transcriptsIdle` die
+//  direkten Aufrufe von `processPendingEditions`, und `editionPublished`
+//  stößt Zahlen und Cover an, die bisher gleich nach dem Zusammenstellen kamen.
+//
 //  Die Senke ist das Ende der Pipeline auf dem Hauptakteur. Sie schreibt
 //  die Felder, die die Oberfläche heute liest, sobald eine Stufe sie
 //  übernommen hat: für „Wissen“ `factsQueue`, `gatheringFacts`,
@@ -213,6 +218,35 @@ extension AppModel {
             work: knowledgeJobs, environment: environment)
         knowledgeStage = stage
         pipelineSink.follow(stage)
+        Task { await stage.start() }
+    }
+
+    /// Legt die Stufe „Ausgaben“ an, wenn der Schalter an ist. Einmal, aus
+    /// `AppBootstrap.start`, nach Host und Senke. Ab dann entstehen die
+    /// Cover über die eine Stelle für Apple Intelligence.
+    func startEditionsStage() {
+        guard usesEditionsStage, editionsStage == nil, let pipeline else { return }
+        coverArt.scheduler = AIScheduler.shared
+        let environment = EditionsStage.Environment(
+            dueFeeds: { [weak self] in
+                await MainActor.run { self?.dueAutomaticFeeds() ?? [] }
+            },
+            compose: { [weak self] request, committer in
+                guard let self else { return EditionComposition(note: "") }
+                return await self.runEdition(request, committer: committer)
+            },
+            published: { [weak self] feedID, parts, chapters, origin, covers in
+                await self?.editionPublished(feedID, parts: parts, chapters: chapters, origin: origin, covers: covers)
+            },
+            refreshStatistics: { [weak self] in
+                await MainActor.run { self?.scheduleStatisticsRefresh() }
+            },
+            prepareMissingCovers: { [weak self] in
+                await self?.prepareMissingEditionCovers()
+            })
+        let stage = EditionsStage(
+            store: store, gate: pipeline.gate, ledger: removals, host: pipeline, environment: environment)
+        editionsStage = stage
         Task { await stage.start() }
     }
 

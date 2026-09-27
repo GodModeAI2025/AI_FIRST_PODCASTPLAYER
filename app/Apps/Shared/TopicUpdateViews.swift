@@ -644,7 +644,7 @@ struct EditionHeader: View {
             if let feed = model.smartFeeds.first(where: { $0.id == episode.feedID }) {
                 FeedCoverView(feed: feed, edition: episode, size: 148, createsEditionCover: true)
                     .shadow(color: .black.opacity(0.12), radius: 10, y: 5)
-                if model.coverArt.isGenerating(TopicCoverKey(feedID: feed.id, editionID: episode.id)) {
+                if model.coverArt.isGenerating(TopicCoverKey(edition: episode)) {
                     Label {
                         Text("Cover wird mit Image Playground erzeugt …")
                     } icon: {

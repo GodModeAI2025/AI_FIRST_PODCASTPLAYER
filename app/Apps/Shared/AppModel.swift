@@ -571,6 +571,22 @@ public final class AppModel {
     /// Die Arbeit an einer Folge (`knowledgeJobs` in PipelineSink.swift).
     @ObservationIgnored var knowledgeJobsStorage: KnowledgeJobs?
 
+    // MARK: Stufe „Ausgaben“ (EditionsStage im Paket, docs/plan-pipeline.md, Schritt 4)
+
+    /// Schalter alt/neu für eine TestFlight-Runde. An: Die Stufe „Ausgaben“
+    /// führt Auslöser und Tor der Themen-Updates, schreibt jede Ausgabe je
+    /// Zeile hinter dem Wächter und erzeugt Cover über die eine Stelle für
+    /// Apple Intelligence. Aus: der Weg bis 0.13. Gelesen einmal beim
+    /// Anlegen, zu setzen auch als Startargument (`-pipelineEditionsStage NO`).
+    static let editionsStageKey = "pipelineEditionsStage"
+    @ObservationIgnored let usesEditionsStage: Bool
+    /// Die Stufe, sobald `AppBootstrap.start` sie angelegt hat. Im alten Weg
+    /// bleibt sie leer.
+    @ObservationIgnored var editionsStage: EditionsStage?
+    /// Updates, für die „Neue Ausgabe zusammenstellen“ den Platz schon
+    /// belegt hat, bevor die Stufe das Zusammenstellen beginnt.
+    @ObservationIgnored var reservedEditionBuilds: Set<SmartFeedID> = []
+
     /// Zählt hoch, wenn sich der belegte Speicher ändert; Ansichten lesen
     /// danach die Größe neu.
     public internal(set) var mediaStorageChanged = 0
@@ -652,6 +668,7 @@ public final class AppModel {
         self.automaticAnalysis = Self.storedFlag(Self.automaticAnalysisKey, default: true)
         self.automaticFacts = Self.storedFlag(Self.automaticFactsKey, default: true)
         self.usesKnowledgeStage = Self.storedFlag(Self.knowledgeStageKey, default: true)
+        self.usesEditionsStage = Self.storedFlag(Self.editionsStageKey, default: true)
         self.queuePaused = Self.storedFlag(Self.queuePausedKey, default: false)
         // Aus, solange dem Build die Berechtigung für Private Cloud Compute
         // fehlt. Ohne sie ginge keine Anfrage an Apples Server, der Schalter
@@ -873,6 +890,7 @@ public final class AppModel {
         // wartete, gehörte zum alten Speicher, und gesucht wird ohne Wartezeit.
         restoreAttempted = false
         knowledgeJobsStorage = knowledgeJobs.with(store: newStore)
+        await editionsStage?.reset(store: newStore)
         if let knowledgeStage {
             await knowledgeStage.reset(store: newStore, work: knowledgeJobs)
         } else {
@@ -1209,7 +1227,8 @@ public final class AppModel {
         await tidyLocalAudio()
         // Neue Folgen können ein Themen-Update füllen. Ohne zu warten: das
         // Ziehen zum Aktualisieren soll nicht auf das Zusammenstellen warten.
-        Task { await processPendingEditions() }
+        // Die Stufe „Ausgaben“ prüft auf `feedsRefreshed` selbst.
+        if editionsStage == nil { Task { await processPendingEditions() } }
     }
 
     /// Liest die Folgenlisten aller Quellen neu aus der Datenbank.
@@ -1794,6 +1813,9 @@ public final class AppModel {
         // Die Stufe „Wissen“ hält selbst an, wartet auf die laufende Folge
         // und leert dann ihre Warteschlangen.
         await knowledgeStage?.cancelAll()
+        // Die Stufe „Ausgaben“ bricht eine automatische Ausgabe ab und prüft
+        // erst beim nächsten Auslöser wieder (Entscheidung 3).
+        await editionsStage?.cancelAll()
         let plan = AnalysisQueueControl.cancelAll(
             running: analyzing?.id, queue: analysisQueue.map(\.id), automatic: automaticallyQueued)
         // Auch Downloads, die im Hintergrund weiterliefen. Lädt „Laden
@@ -1879,8 +1901,9 @@ public final class AppModel {
             self.askAboutWaitingTranscripts()
             self.emit(.transcriptsIdle)
             // Frisch ausgewertetes Material ist genau das, worauf die
-            // automatischen Themen-Updates warten.
-            await self.processPendingEditions()
+            // automatischen Themen-Updates warten. Die Stufe „Ausgaben“
+            // prüft auf `transcriptsIdle` selbst.
+            if self.editionsStage == nil { await self.processPendingEditions() }
         }
     }
 
@@ -2624,13 +2647,22 @@ public final class AppModel {
     /// Löscht eine einzelne Ausgabe.
     public func removeEdition(_ episode: PersonalEpisode) {
         editions[episode.feedID]?.removeAll { $0.id == episode.id }
-        coverArt.removeEdition(TopicCoverKey(feedID: episode.feedID, editionID: episode.id))
-        persistEditions(for: episode.feedID)
+        coverArt.removeEdition(TopicCoverKey(edition: episode))
+        // Mit der Stufe „Ausgaben“ nur diese Zeile. Die ganze Liste zu
+        // schreiben, nähme eine Ausgabe mit, die gerade entsteht oder ein
+        // anderes Gerät angelegt hat.
+        if editionsStage != nil {
+            let id = episode.id
+            Task { await persist { try await $0.removeEdition(id) } }
+        } else {
+            persistEditions(for: episode.feedID)
+        }
     }
 
-    /// Behält nur die Bildcover der Updates und Ausgaben, die es gibt.
+    /// Behält nur die Bildcover der Updates und Ausgaben, die es gibt, bei
+    /// einer Ausgabe nur das Bild zu ihren jetzigen Stellen (Entscheidung 10).
     func retainCoverArt() {
-        let editionKeys = editions.values.flatMap { $0 }.map { TopicCoverKey(feedID: $0.feedID, editionID: $0.id) }
+        let editionKeys = editions.values.flatMap { $0 }.map(TopicCoverKey.init(edition:))
         coverArt.retain(feeds: Set(smartFeeds.map(\.id)), editions: Set(editionKeys))
     }
 
@@ -2643,6 +2675,8 @@ public final class AppModel {
         let publisher = PersonalEpisodePublisher()
         for (feedID, list) in editions {
             var changed = false
+            var replaced: [PersonalEpisode] = []
+            var removed: [PersonalEpisodeID] = []
             let kept = list.compactMap { episode -> PersonalEpisode? in
                 let result = publisher.removingSegments(from: episode) { segment in
                     removedEpisodes.contains(segment.episodeID)
@@ -2653,13 +2687,24 @@ public final class AppModel {
                 // Eine Ausgabe ohne Stelle verschwindet, ihr Bild mit ihr.
                 // Verliert sie nur Stellen, geht das Bild trotzdem: Seine
                 // Namen können aus der gelöschten Folge stammen.
-                let key = TopicCoverKey(feedID: feedID, editionID: episode.id)
-                if result == nil { coverArt.removeEdition(key) } else { coverArt.invalidateEdition(key) }
+                let key = TopicCoverKey(edition: episode)
+                if let result {
+                    coverArt.invalidateEdition(key)
+                    replaced.append(result)
+                } else {
+                    coverArt.removeEdition(key)
+                    removed.append(episode.id)
+                }
                 return result
             }
             guard changed else { continue }
             editions[feedID] = kept
-            persistEditions(for: feedID)
+            // Mit der Stufe „Ausgaben“ je Zeile, sonst die ganze Liste.
+            if editionsStage != nil {
+                persistEditionRows(replacing: replaced, removing: removed)
+            } else {
+                persistEditions(for: feedID)
+            }
         }
         // Die Zahlen im Kopf zählen gelöschte Folgen nicht mehr mit.
         scheduleStatisticsRefresh()
@@ -2712,6 +2757,20 @@ public final class AppModel {
     private func persistEditions(for feedID: SmartFeedID) -> Task<Void, Never> {
         let list = editions[feedID] ?? []
         return Task { await persist { try await $0.save(editions: list, forFeed: feedID) } }
+    }
+
+    /// Schreibt geänderte Ausgaben je Zeile und löscht verschwundene.
+    /// Andere Zeilen des Updates bleiben unberührt.
+    @discardableResult
+    private func persistEditionRows(
+        replacing replaced: [PersonalEpisode], removing removed: [PersonalEpisodeID]
+    ) -> Task<Void, Never> {
+        Task {
+            await persist { store in
+                for edition in replaced { try await store.replace(edition: edition) }
+                for id in removed { try await store.removeEdition(id) }
+            }
+        }
     }
 
     func saveHighlights() { persistHighlights() }
@@ -2782,27 +2841,53 @@ public final class AppModel {
     /// gefragt. Dann gilt die Mindestmenge der Automatik nicht, und die
     /// Aktivitätszeile zeigt, dass gearbeitet wird. Der automatische Lauf
     /// arbeitet still.
+    ///
+    /// Mit der Stufe „Ausgaben“ geht der Auftrag an sie, sie schreibt je
+    /// Zeile hinter dem Wächter und meldet danach `editionPublished`.
     @discardableResult
     public func buildEdition(
         feedID: SmartFeedID, budget: MediaDuration? = nil, requestedByUser: Bool = true
     ) async -> String {
+        let request = EditionRequest(feedID: feedID, budget: budget, origin: requestedByUser ? .user : .automatic)
+        guard let editionsStage else { return await runEdition(request, committer: nil).note }
+        // Den Platz schon jetzt belegen, sonst stünde zwischen Tippen und
+        // dem Beginn in der Stufe kurz „Noch keine Ausgabe“.
+        guard requestedByUser, !buildingFeeds.contains(feedID) else { return await editionsStage.build(request) }
+        buildingFeeds.insert(feedID)
+        reservedEditionBuilds.insert(feedID)
+        let note = await editionsStage.build(request)
+        // Kam das Zusammenstellen gar nicht an die Reihe, gibt der Knopf den Platz frei.
+        if reservedEditionBuilds.remove(feedID) != nil { buildingFeeds.remove(feedID) }
+        return note
+    }
+
+    /// Das Zusammenstellen, in beiden Stellungen des Schalters. Mit
+    /// `committer` schreibt die Stufe „Ausgaben“ je Zeile hinter dem Wächter,
+    /// ohne ihn schreibt der Weg bis 0.13 die ganze Liste des Updates.
+    func runEdition(_ request: EditionRequest, committer: EditionCommitter?) async -> EditionComposition {
+        let feedID = request.feedID
+        let requestedByUser = request.requestedByUser
+        // Den Platz hat der Knopf schon belegt (`buildEdition`).
+        let reserved = requestedByUser && reservedEditionBuilds.remove(feedID) != nil
         guard var feed = smartFeeds.first(where: { $0.id == feedID }) else {
-            return String(localized: "Dieses Themen-Update gibt es nicht.")
+            if reserved { buildingFeeds.remove(feedID) }
+            return EditionComposition(note: String(localized: "Dieses Themen-Update gibt es nicht."))
         }
         // Zweimal gleichzeitig ergäbe zwei fast gleiche Ausgaben.
-        guard !buildingFeeds.contains(feedID) else {
-            return String(localized: "Die Ausgabe wird gerade zusammengestellt.")
+        guard reserved || !buildingFeeds.contains(feedID) else {
+            return EditionComposition(note: String(localized: "Die Ausgabe wird gerade zusammengestellt."))
         }
         // Sonst stünde hier „noch keine Folge mit Transkript“, und niemand
         // wüsste, dass nur die Auswahl der Podcasts fehlt. Auch beim
         // automatischen Lauf: nach einem Neustart oder auf einem anderen
         // Gerät ist das der einzige Weg, auf dem der Hinweis erscheint.
         guard !hasOnlyUnsubscribedSources(feed) else {
+            if reserved { buildingFeeds.remove(feedID) }
             let note = Self.unsubscribedScopeNote
             editionNotes[feedID] = note
-            return note
+            return EditionComposition(note: note)
         }
-        if let budget { feed.editionMode = .budgeted(budget) }
+        if let budget = request.budget { feed.editionMode = .budgeted(budget) }
 
         buildingFeeds.insert(feedID)
         if requestedByUser { activity = String(localized: "Ausgabe wird zusammengestellt …") }
@@ -2810,16 +2895,16 @@ public final class AppModel {
             buildingFeeds.remove(feedID)
             if requestedByUser { activity = nil }
         }
-        let note = await composeEdition(for: feed, requestedByUser: requestedByUser)
+        let note = await composeEdition(for: feed, requestedByUser: requestedByUser, committer: committer)
         // Die Automatik überschreibt keine Rückmeldung, um die jemand gebeten
         // hat, außer sie hat tatsächlich etwas veröffentlicht.
         if requestedByUser || note.published { editionNotes[feedID] = note.text }
-        return note.text
+        return EditionComposition(note: note.text, published: note.parts, chapters: note.chapters)
     }
 
     private func composeEdition(
-        for feed: SmartPodcastFeed, requestedByUser: Bool
-    ) async -> (text: String, published: Bool) {
+        for feed: SmartPodcastFeed, requestedByUser: Bool, committer: EditionCommitter?
+    ) async -> (text: String, published: Bool, parts: [PersonalEpisode], chapters: [EditionChapter]?) {
         let feedID = feed.id
         do {
             // Titel mitgeben, statt sie in der Ausgabe durch „Quelle“ und
@@ -2830,9 +2915,14 @@ public final class AppModel {
             let chapters = try await editionChapters(
                 tags: editionTags(for: feed), knownEvidence: known,
                 priority: AIPriorityPolicy.priority(kind: .relevance, origin: requestedByUser ? .user : .automatic))
+            // Was schon erschienen ist, sagt mit der Stufe die Datenbank: Dort
+            // steht jede Ausgabe, bevor sie im Speicher erscheint.
+            let previous = committer == nil
+                ? editions[feedID] ?? []
+                : try await store.editions(forFeed: feedID)
             // Auswählen und Aufteilen rechnet außerhalb des Hauptthreads.
             let outcome = await Task.detached(priority: .utility) {
-                [ledger, previous = editions[feedID] ?? [], followed = followedTagIDs, labels = tagLabels] in
+                [ledger, previous, followed = followedTagIDs, labels = tagLabels] in
                 ProcessingTrace.measure("Themen-Update zusammenstellen") {
                     PersonalEpisodePublisher().makeEditions(
                         feed: feed, chapters: chapters, ledger: ledger,
@@ -2856,40 +2946,66 @@ public final class AppModel {
             switch outcome {
             case .published(let run):
                 // Während des Zusammenstellens gelöscht: nichts anlegen.
-                guard await smartFeedStillExists(feedID), let first = run.parts.first else {
-                    return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false)
+                guard await smartFeedStillExists(feedID), !run.parts.isEmpty else {
+                    return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false, [], nil)
                 }
-                // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn.
-                editions[feedID, default: []].insert(contentsOf: run.parts, at: 0)
-                // Gemeldet wird erst, wenn die Ausgabe gespeichert ist. Das
-                // Zusammenstellen wartet darauf nicht.
-                emit(.editionPublished(feedID, run.parts.map(\.id)), after: persistEditions(for: feedID))
-                await updateStatistics(for: [feed], chapters: chapters)
-                // Das Cover je Teil entsteht gleich, wenn die App vorn ist.
-                // Im Hintergrund lehnt Image Playground ab; dann holt es der
-                // nächste Wechsel in den Vordergrund nach.
-                if appInForeground {
-                    Task { for part in run.parts { await prepareCover(for: part) } }
+                let parts: [PersonalEpisode]
+                if let committer {
+                    // Je Teil eine Zeile, hinter dem Wächter. Stellen aus
+                    // Folgen, die inzwischen gelöscht sind, fallen dabei heraus.
+                    let written = try await committer.commit(run.parts)
+                    parts = pruneRemovedSegments(of: written, since: committer.ticket, in: committer.ledger)
+                    guard !parts.isEmpty else {
+                        guard await smartFeedStillExists(feedID) else {
+                            return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false, [], nil)
+                        }
+                        return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false, [], nil)
+                    }
+                    // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn. Hat
+                    // ein Neuladen sie schon aus der Datenbank geholt, stehen
+                    // sie nicht doppelt da.
+                    let ids = Set(parts.map(\.id))
+                    editions[feedID, default: []].removeAll { ids.contains($0.id) }
+                    editions[feedID, default: []].insert(contentsOf: parts, at: 0)
+                    // Melden, Zahlen und Cover übernimmt die Stufe, wenn
+                    // `editionPublished` zurückkommt (`editionPublished(_:…)`).
+                } else {
+                    parts = run.parts
+                    // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn.
+                    editions[feedID, default: []].insert(contentsOf: run.parts, at: 0)
+                    // Gemeldet wird erst, wenn die Ausgabe gespeichert ist. Das
+                    // Zusammenstellen wartet darauf nicht.
+                    emit(.editionPublished(feedID, run.parts.map(\.id)), after: persistEditions(for: feedID))
+                    await updateStatistics(for: [feed], chapters: chapters)
+                    // Das Cover je Teil entsteht gleich, wenn die App vorn ist.
+                    // Im Hintergrund lehnt Image Playground ab; dann holt es der
+                    // nächste Wechsel in den Vordergrund nach.
+                    if appInForeground {
+                        Task { for part in run.parts { await prepareCover(for: part) } }
+                    }
                 }
+                let first = parts[0]
                 // Die Zählung für sich, der Titel außerhalb des Markdowns.
-                let segments = run.parts.reduce(0) { $0 + $1.segments.count }
-                let sources = Set(run.parts.flatMap { $0.segments.map(\.sourceID) }).count
+                let segments = parts.reduce(0) { $0 + $1.segments.count }
+                let sources = Set(parts.flatMap { $0.segments.map(\.sourceID) }).count
                 let content = String(AttributedString(localized: """
                     ^[\(segments) Stelle](inflect: true) aus \
                     ^[\(sources) Podcast](inflect: true)
                     """).characters)
-                guard run.parts.count > 1 else {
-                    return (String(localized: "\(first.title): \(content)."), true)
+                guard parts.count > 1 else {
+                    return (String(localized: "\(first.title): \(content)."), true, parts, chapters)
                 }
-                return (String(localized: "\(first.title): \(content), verteilt auf \(run.parts.count) Teile."), true)
+                return (String(localized: "\(first.title): \(content), verteilt auf \(parts.count) Teile."),
+                        true, parts, chapters)
             case .noNewMaterial(let count):
                 if known.isEmpty {
                     return (String(localized: """
                         Noch hat keine Folge ein Transkript. Sobald Transkripte fertig sind, sucht das Update darin.
-                        """), false)
+                        """), false, [], nil)
                 }
                 guard count == 0 else {
-                    return (String(localized: "Nichts Neues. Alle passenden Stellen hast du schon gehört."), false)
+                    return (String(localized: "Nichts Neues. Alle passenden Stellen hast du schon gehört."), false, [],
+                            nil)
                 }
                 // Welche Themen nichts treffen, steht mit Namen da.
                 let labels = profile.interests
@@ -2897,30 +3013,89 @@ public final class AppModel {
                     .map(\.label)
                 guard !labels.isEmpty else {
                     return (String(localized: "Zu diesen Themen passt noch keine Stelle in deinen Folgen mit Transkript."),
-                            false)
+                            false, [], nil)
                 }
                 let named = labels.formatted(.list(type: .and))
                 return (String(localized: "Zu \(named) passt noch keine Stelle in deinen Folgen mit Transkript."),
-                        false)
+                        false, [], nil)
             case .belowThreshold(let available, let required):
                 // Von Hand angefordert gilt keine Mindestmenge. Dann passt
                 // nichts in die gewählte Länge.
                 if requestedByUser {
-                    return (String(localized: "Keine passende Stelle ist kurz genug für \(feed.editionMode.label)."), false)
+                    return (String(localized: "Keine passende Stelle ist kurz genug für \(feed.editionMode.label)."),
+                            false, [], nil)
                 }
                 return (String(localized: """
                     Erst \(available.shortDescription) neues Material, \
                     nötig sind \(required.shortDescription).
-                    """), false)
+                    """), false, [], nil)
             case .alreadyPublished:
-                return (String(localized: "Seit der letzten Ausgabe ist nichts dazugekommen."), false)
+                return (String(localized: "Seit der letzten Ausgabe ist nichts dazugekommen."), false, [], nil)
             }
         } catch {
             // Die Automatik meldet sich nicht mit einem Dialog. Wer nicht
-            // gefragt hat, will dafür keinen.
-            if requestedByUser { lastError = UserFacingError.describe(error) }
-            return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false)
+            // gefragt hat, will dafür keinen. Eine Pause, die eine
+            // automatische Ausgabe anhält, ist kein Fehlschlag.
+            if requestedByUser, !(error is CancellationError) { lastError = UserFacingError.describe(error) }
+            return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false, [], nil)
         }
+    }
+
+    /// Nimmt Stellen aus Folgen heraus, die gelöscht wurden, nachdem die
+    /// Stufe die Ausgabe geschrieben hatte, aber bevor sie im Speicher
+    /// steht. Die Pflege des Löschens hat die Ausgabe dann nicht gesehen,
+    /// ihre Stellen kämen sonst mit ihr zurück (Regel 5). Schreibt das
+    /// Ergebnis je Zeile.
+    private func pruneRemovedSegments(
+        of parts: [PersonalEpisode], since ticket: RemovalLedger.Ticket, in ledger: RemovalLedger
+    ) -> [PersonalEpisode] {
+        guard ledger.hasRemovals(since: ticket) else { return parts }
+        let publisher = PersonalEpisodePublisher()
+        var replaced: [PersonalEpisode] = []
+        var removed: [PersonalEpisodeID] = []
+        let kept = parts.compactMap { part -> PersonalEpisode? in
+            let result = publisher.removingSegments(from: part) { segment in
+                ledger.wasRemoved(segment.episodeID, since: ticket)
+                    || ledger.wasRemoved(source: segment.sourceID, since: ticket)
+            }
+            guard result?.segments.count != part.segments.count else { return result }
+            if let result { replaced.append(result) } else { removed.append(part.id) }
+            return result
+        }
+        if !replaced.isEmpty || !removed.isEmpty { persistEditionRows(replacing: replaced, removing: removed) }
+        return kept
+    }
+
+    /// Die Stufe „Ausgaben“ hat eine Ausgabe geschrieben und gemeldet: die
+    /// Zahlen des Updates und, wenn die App vorn ist, die Cover je Teil.
+    /// Im Hintergrund lehnt Image Playground ab; dann holt es der nächste
+    /// Wechsel in den Vordergrund nach.
+    ///
+    /// `chapters` stammen aus dem Zusammenstellen. Fehlen sie, etwa weil
+    /// ein Abgleich dazwischenkam, rechnen die Zahlen aller Updates neu.
+    func editionPublished(
+        _ feedID: SmartFeedID, parts: [PersonalEpisodeID], chapters: [EditionChapter]?, origin: Origin,
+        covers: Bool
+    ) async {
+        guard let feed = smartFeeds.first(where: { $0.id == feedID }) else { return }
+        if let chapters {
+            await updateStatistics(for: [feed], chapters: chapters)
+        } else {
+            scheduleStatisticsRefresh()
+        }
+        guard covers, appInForeground else { return }
+        let list = editions[feedID] ?? []
+        let published = parts.compactMap { id in list.first { $0.id == id } }
+        Task { for part in published { await prepareCover(for: part, origin: origin) } }
+    }
+
+    /// Die automatischen Updates, deren nächste Ausgabe jetzt entstehen darf.
+    func dueAutomaticFeeds() -> [SmartFeedID] {
+        smartFeeds.filter { feed in
+            feed.publicationPolicy.isAutomatic && !buildingFeeds.contains(feed.id)
+                && earliestAutomaticEdition(for: feed) == nil
+        }
+        .map(\.id)
     }
 
     /// Gibt es den Themenfeed noch?
@@ -3151,6 +3326,12 @@ public final class AppModel {
     /// jedem Aktualisieren eine fast gleiche Ausgabe über der vorigen.
     /// Startet nie Ton.
     public func processPendingEditions() async {
+        // Mit der Stufe „Ausgaben“ prüft sie, dieser Aufruf wartet auf den
+        // Durchgang. `com.podcastai.analysis` endet erst danach.
+        if let editionsStage {
+            await editionsStage.runAutomatic()
+            return
+        }
         for feed in smartFeeds where feed.publicationPolicy.isAutomatic {
             guard !buildingFeeds.contains(feed.id) else { continue }
             if earliestAutomaticEdition(for: feed) != nil { continue }

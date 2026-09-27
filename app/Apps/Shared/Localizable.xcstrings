@@ -3715,6 +3715,22 @@
         }
       }
     },
+    "Cover für Themen-Updates" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cover für Themen-Updates"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Covers for topic updates"
+          }
+        }
+      }
+    },
     "Cover wird mit Image Playground erzeugt …" : {
       "localizations" : {
         "de" : {

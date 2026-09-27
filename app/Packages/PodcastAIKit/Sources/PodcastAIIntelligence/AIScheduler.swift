@@ -5,7 +5,8 @@
 //  Der eine Weg zu Apple Intelligence. Jeder Aufruf eines Sprachmodells,
 //  auf dem Gerät oder über Private Cloud Compute, geht durch diese Stelle:
 //  Fakten, Satz je Kapitel, Tags, Relevanz, Auswahl für Themen-Updates und
-//  Antworten im Chat.
+//  Antworten im Chat. Seit Schritt 4 der Pipeline auch die Bilder von Image
+//  Playground für die Cover der Themen-Updates (`.cover`).
 //
 //  Warum eine Stelle: Das Gerätemodell rechnet auf GPU und Neural Engine.
 //  Zwei Anfragen gleichzeitig teilen sich beide, und die Oberfläche verliert
@@ -31,7 +32,11 @@ import os
 
 /// Welche Art Arbeit eine Anfrage ist. Für die Anzeige in der Warteschlange.
 public enum AIWorkKind: String, Sendable, CaseIterable, Codable {
-    case answer, chapterSummary, facts, tags, relevance, other
+    case answer, chapterSummary, facts, tags, relevance
+    /// Ein Bild von Image Playground für ein Themen-Update oder eine Ausgabe.
+    /// Es rechnet auf derselben GPU und Neural Engine wie die Sprachmodelle.
+    case cover
+    case other
 }
 
 /// Wer auf das Ergebnis wartet.

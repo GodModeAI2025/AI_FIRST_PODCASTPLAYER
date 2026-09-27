@@ -79,7 +79,7 @@ struct AISeamTests {
 
     // MARK: - Tabelle
 
-    @Test("Die Tabelle: Werte von 0.12, Tags erben die Herkunft, für jede Art, Herkunft und „Jetzt ermitteln“")
+    @Test("Die Tabelle: Werte von 0.12, Tags, Relevanz und Cover erben die Herkunft, für jede Art, Herkunft und „Jetzt ermitteln“")
     func policyKeepsTodaysValues() {
         for kind in AIWorkKind.allCases {
             for origin in Origin.allCases {
@@ -87,10 +87,10 @@ struct AISeamTests {
                     let expected: AIWorkPriority = switch kind {
                     case .answer, .chapterSummary: .user
                     case .facts: force ? .user : .background
-                    // Tags erben die Herkunft des Faktenlaufs (Entscheidung 1),
-                    // die Relevanz noch nicht.
-                    case .tags: origin == .user ? .user : .background
-                    case .relevance, .other: .background
+                    // Tags, Relevanz und Cover erben die Herkunft (Entscheidung 1
+                    // und 2): angefordert vorn, sonst im Hintergrund.
+                    case .tags, .relevance, .cover: origin == .user ? .user : .background
+                    case .other: .background
                     }
                     #expect(AIPriorityPolicy.priority(kind: kind, origin: origin, force: force) == expected,
                             "\(kind) \(origin) force: \(force)")

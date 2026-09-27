@@ -22,7 +22,9 @@
 //  Vorder- und Hintergrund. Die Träger melden sich an den Stellen an, an
 //  denen bis 0.13 `factsGrants` und `tagGrants` zählten: der Worker der
 //  Transkripte und die beiden Hintergrundaufgaben. Die Stufe „Wissen“ und
-//  der alte Weg hinter ihrem Schalter fragen beide hier.
+//  der alte Weg hinter ihrem Schalter fragen beide hier. Seit Schritt 4
+//  fragt auch die Stufe „Ausgaben“ (`.editions`): Pause und „Alle
+//  abbrechen“ halten ihre Automatik an (Entscheidung 3).
 //
 
 import Foundation
@@ -52,6 +54,9 @@ public enum GatedWork: String, Sendable, Hashable, CaseIterable {
     case facts
     /// Kapitel einer Folge einordnen.
     case tags
+    /// Eine Ausgabe eines Themen-Updates zusammenstellen und ihr Cover
+    /// erzeugen (Stufe „Ausgaben“, seit Schritt 4).
+    case editions
 }
 
 /// Der Stand, nach dem das Tor entscheidet.
@@ -92,6 +97,14 @@ public struct WorkConditions: Sendable, Equatable {
         case .tags:
             // Wie die Fakten, und zusätzlich in `com.podcastai.tagging`.
             mayRun(.facts, origin: origin) || (holds(.taggingTask) && !held)
+        case .editions:
+            // Pause und „Alle abbrechen“ halten die Automatik an
+            // (Entscheidung 3). Vorder- und Hintergrund bleiben wie bis 0.13:
+            // Die Automatik läuft nach dem Aktualisieren, nach den
+            // Transkripten und in `com.podcastai.analysis`. Wer „Neue Ausgabe
+            // zusammenstellen“ antippt oder Siri fragt, bekommt die Ausgabe
+            // auch in der Pause; Siri wartet auf den Satz, den es vorliest.
+            origin == .user || !held
         }
     }
 }

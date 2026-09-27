@@ -43,7 +43,7 @@ let package = Package(
         .target(name: "PodcastAIPlayback", dependencies: ["PodcastAICore", "PodcastAIKnowledge", "PodcastAIMedia"], resources: [.process("Localizable.xcstrings")]),
 
         // Persönliche Themenfeeds.
-        .target(name: "PodcastAISmartFeeds", dependencies: ["PodcastAICore", "PodcastAIKnowledge", "PodcastAIPlayback"], resources: [.process("Localizable.xcstrings")]),
+        .target(name: "PodcastAISmartFeeds", dependencies: ["PodcastAICore", "PodcastAIIntelligence", "PodcastAIKnowledge", "PodcastAIPlayback"], resources: [.process("Localizable.xcstrings")]),
 
         // Markdown-Export mit sicheren Quellenlinks.
         .target(name: "PodcastAIExport", dependencies: ["PodcastAICore", "PodcastAIKnowledge"], resources: [.process("Localizable.xcstrings")]),
