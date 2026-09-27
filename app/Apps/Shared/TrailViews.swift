@@ -121,6 +121,7 @@ struct TrailListView: View {
                 }
             }
         }
+        .readingColumn()
         .navigationTitle("Gesicherte Antworten")
     }
 }
@@ -376,6 +377,7 @@ struct AppFeedbackModifier: ViewModifier {
                 if let closure = model.pendingClosure {
                     SessionClosureSheet(closure: closure)
                         .sheetFeedback()
+                        .macFormSheet()
                         .environment(model)
                 }
             }

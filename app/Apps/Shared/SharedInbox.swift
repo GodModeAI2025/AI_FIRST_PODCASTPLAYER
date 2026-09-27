@@ -15,6 +15,9 @@
 
 import SwiftUI
 import PodcastAIKit
+#if os(macOS)
+import UniformTypeIdentifiers
+#endif
 
 /// Wartende Übergaben für die ganze App. Ein Fenster zeigt jeweils eine;
 /// ist sie erledigt oder verworfen, kommt die nächste.
@@ -105,6 +108,27 @@ final class SharedInboxCenter {
             advance()
         } while readAgain
     }
+
+    #if os(macOS)
+    /// Aufs Fenster gezogene Links und Audiodateien. Sie gehen in denselben
+    /// Eingang wie eine Übergabe aus „An PodcastAI senden“ und erscheinen
+    /// im selben Blatt. Andere Dateien bleiben ohne Wirkung.
+    func accept(dropped urls: [URL]) {
+        guard let inbox else { return }
+        for url in urls {
+            if url.isFileURL {
+                let type = UTType(filenameExtension: url.pathExtension)
+                guard type?.conforms(to: .audio) == true else { continue }
+                let access = url.startAccessingSecurityScopedResource()
+                defer { if access { url.stopAccessingSecurityScopedResource() } }
+                _ = try? inbox.deposit(audioFileAt: url, originalName: url.lastPathComponent)
+            } else if url.scheme == "https" || url.scheme == "http" {
+                _ = try? inbox.deposit(link: url.absoluteString)
+            }
+        }
+        Task { await refresh() }
+    }
+    #endif
 
     /// Ein Fenster übernimmt die aktuelle Übergabe.
     func claim(_ offer: Offer, by window: UUID) -> Bool {

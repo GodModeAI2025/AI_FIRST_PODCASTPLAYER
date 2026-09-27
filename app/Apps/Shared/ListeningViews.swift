@@ -53,6 +53,9 @@ struct EpisodeDetailView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    #if os(macOS)
+    @Environment(MacRouter.self) private var router: MacRouter?
+    #endif
     @State private var section: Section = .overview
     @State private var passages: [Evidence] = []
     @State private var exported: String?
@@ -96,6 +99,12 @@ struct EpisodeDetailView: View {
                 }
             }
             .pickerStyle(.segmented)
+            #if os(macOS)
+            // Auf dem Mac nicht über die ganze Fensterbreite gezogen.
+            .labelsHidden()
+            .fixedSize()
+            .frame(maxWidth: .infinity)
+            #endif
             .padding(.horizontal, Design.Spacing.standard)
             .padding(.vertical, Design.Spacing.small)
             .accessibilityIdentifier("episode.sections")
@@ -120,6 +129,15 @@ struct EpisodeDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar { ToolbarItem(placement: .primaryAction) { actionsMenu } }
+        #if os(macOS)
+        // Menübefehle: ⌥⌘1 bis ⌥⌘5 wechseln den Reiter, ⇧⌘E exportiert,
+        // ⌘I zeigt die Folge im Inspektor.
+        .focusedSceneValue(\.episodeSection, $section)
+        .focusedSceneValue(\.exportAction, ExportAction {
+            Task { exported = await model.exportEpisode(episode) }
+        })
+        .macInfoSubject(.episode(episode))
+        #endif
         .task(id: model.stages[episode.id]) {
             passages = await model.evidence(forEpisode: episode.id)
             await model.loadFacts(for: episode.id)
@@ -224,8 +242,12 @@ struct EpisodeDetailView: View {
     private var overview: some View {
         List {
             SwiftUI.Section {
+                #if os(macOS)
+                macHeader
+                #else
                 header
                 playControls
+                #endif
             }
 
             // Die Angaben aus dem Feed, kompakt unter dem Kopf.
@@ -371,6 +393,7 @@ struct EpisodeDetailView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
     }
 
     /// Warum ein Transkript aufs Netz wartet, obwohl Ton auf dem Gerät liegt:
@@ -499,6 +522,96 @@ struct EpisodeDetailView: View {
     private var sourceArtwork: URL? {
         model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL
     }
+
+    #if os(macOS)
+    /// Der Kopf auf dem Mac: Cover links, daneben Podcast als Link, Titel,
+    /// Datum und Dauer, darunter die Knöpfe in ihrer natürlichen Breite.
+    private var macHeader: some View {
+        let source = model.sources.first(where: { $0.id == episode.sourceID })
+        return HStack(alignment: .top, spacing: Design.Spacing.section) {
+            EpisodeArtwork(url: episode.artworkURL, fallback: sourceArtwork, size: 140)
+                .shadow(color: .black.opacity(0.14), radius: 8, y: 4)
+            VStack(alignment: .leading, spacing: Design.Spacing.small) {
+                // Im Fenster „Wiedergabe“ gibt es keine Seitenleiste, dorthin
+                // führt der Link nicht.
+                if let source, let router {
+                    Button(source.title) { router.show(.podcast(source.id)) }
+                        .buttonStyle(.link)
+                        .pointerStyle(.link)
+                        .help("Podcast öffnen")
+                } else if let source {
+                    Text(source.title)
+                        .foregroundStyle(.secondary)
+                }
+                Text(episode.title)
+                    .font(.title.bold())
+                    .lineLimit(3)
+                    .textSelection(.enabled)
+                HStack(spacing: Design.Spacing.control) {
+                    if let published = episode.publishedAt {
+                        Text(published, format: .dateTime.day().month(.wide).year())
+                    }
+                    if let duration = episode.declaredDuration {
+                        Text(duration.shortDescription).monospacedDigit()
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                HeardProgress(fraction: model.heardFraction(for: episode))
+                    .frame(maxWidth: 320)
+                HStack(spacing: Design.Spacing.small) {
+                    if model.canPlay(episode) {
+                        Button {
+                            if isCurrent { player.togglePlayPause() } else { model.playEpisode(episode) }
+                        } label: {
+                            Label(playLabel, systemImage: isCurrent && player.isPlayingOrStarting ? "pause.fill" : "play.fill")
+                        }
+                        .buttonStyle(.glassProminent)
+                        .accessibilityIdentifier("episode.play")
+                    } else if let url = episode.webPageURL {
+                        Button { openURL(url) } label: {
+                            Label(episode.webLinkTitle, systemImage: episode.webLinkSymbol)
+                        }
+                        .buttonStyle(.glassProminent)
+                        .accessibilityIdentifier("episode.openWeb")
+                    }
+                    if showsUpNextMenu {
+                        Menu {
+                            Button { queue(.next) } label: {
+                                Label("Als Nächstes", systemImage: "text.line.first.and.arrowtriangle.forward")
+                            }
+                            Button { queue(.last) } label: {
+                                Label("Ans Ende", systemImage: "text.line.last.and.arrowtriangle.forward")
+                            }
+                            if model.upNext.contains(where: { $0.id == episode.id }) {
+                                Button(role: .destructive) { model.removeFromUpNext(episode.id) } label: {
+                                    Label("Aus der Warteschlange nehmen", systemImage: "minus.circle")
+                                }
+                            }
+                        } label: {
+                            Label(model.upNext.contains(where: { $0.id == episode.id })
+                                  ? "In der Warteschlange" : "Als Nächstes",
+                                  systemImage: "text.line.first.and.arrowtriangle.forward")
+                        } primaryAction: {
+                            queue(.next)
+                        }
+                        .buttonStyle(.bordered)
+                        .fixedSize()
+                    }
+                    if showsTranscriptButton {
+                        transcriptButton
+                            .buttonStyle(.bordered)
+                            .fixedSize()
+                    }
+                }
+                .controlSize(.large)
+                .padding(.top, Design.Spacing.micro)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, Design.Spacing.control)
+    }
+    #endif
 
     /// Der Hauptknopf steht allein über die ganze Breite. Neben zwei
     /// Symbolknöpfen wurde „Pause“ bei großer Schrift mitten im Wort
@@ -720,6 +833,7 @@ struct EpisodeDetailView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
     }
 
     /// Holt die Folge in der Warteschlange der Fakten nach vorn.
@@ -951,6 +1065,9 @@ struct FactRow: View {
             .buttonStyle(.borderless)
             .accessibilityLabel("Aktionen zur Aussage")
             .accessibilityHint("Merken, mit Quelle kopieren oder teilen")
+            #if os(macOS)
+            .help("Aktionen zur Aussage")
+            #endif
         }
         .contextMenu {
             FactActions(fact: fact, episode: episode, quote: quote)
@@ -1162,6 +1279,11 @@ struct TranscriptSection: View {
     /// Solange jemand im Suchfeld tippt, springt die Liste nicht zur
     /// laufenden Stelle.
     @FocusState private var searchFocused: Bool
+    #if os(macOS)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Die Zeile unter dem Zeiger. Nur dort stehen Merken und Kopieren.
+    @State private var hoveredLine: Int64?
+    #endif
 
     /// Die Suche ohne Leerzeichen am Rand.
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -1252,12 +1374,22 @@ struct TranscriptSection: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
+                        #if os(macOS)
+                        Text("Die Zeitmarke spielt ab dieser Zeile. Den Text kannst du markieren und kopieren, das Kontextmenü merkt oder teilt die Stelle.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        #else
                         Text("Antippen spielt ab dieser Zeile. Über „…“ merkst, kopierst oder teilst du sie.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        #endif
                     }
                 }
                 ForEach(Array(shown.enumerated()), id: \.element.start) { _, paragraph in
+                    #if os(macOS)
+                    macLine(paragraph, query: trimmed)
+                        .id(paragraph.start.milliseconds)
+                    #else
                     HStack(alignment: .top, spacing: Design.Spacing.small) {
                         Button {
                             model.playEpisode(episode, at: paragraph.start.seconds)
@@ -1312,14 +1444,21 @@ struct TranscriptSection: View {
                         PassageActions(text: paragraph.text, start: paragraph.start, episode: episode)
                     }
                     .id(paragraph.start.milliseconds)
+                    #endif
                 }
             }
+            .readingColumn(maxWidth: 900)
             // Nie zur laufenden Stelle springen, solange gesucht wird oder
             // das Suchfeld offen ist. Sonst lag das Feld samt Treffern
             // außerhalb des Bildes, und die Suche wirkte, als täte sie nichts.
             .onChange(of: currentStart) { _, start in
                 guard let start, trimmedQuery.isEmpty, !searchFocused else { return }
+                #if os(macOS)
+                // Mit „Bewegung reduzieren“ springt die Liste, statt zu gleiten.
+                withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(start, anchor: .center) }
+                #else
                 withAnimation { proxy.scrollTo(start, anchor: .center) }
+                #endif
             }
             // Jede neue Eingabe zeigt die Treffer von oben.
             .onChange(of: trimmedQuery) { _, now in
@@ -1364,6 +1503,82 @@ struct TranscriptSection: View {
         .onAppear { translation.viewAppeared() }
         .onDisappear { translation.viewDisappeared() }
     }
+
+    #if os(macOS)
+    /// Eine Zeile auf dem Mac. Der Text ist zum Markieren da und spielt
+    /// nichts; ab dieser Zeile spielt nur die Zeitmarke links. Merken und
+    /// Kopieren erscheinen beim Überfahren und stehen im Kontextmenü.
+    private func macLine(_ paragraph: (start: MediaTime, text: String), query: String) -> some View {
+        let key = paragraph.start.milliseconds
+        let current = isCurrent(paragraph.start)
+        return HStack(alignment: .firstTextBaseline, spacing: Design.Spacing.control) {
+            Button {
+                model.playEpisode(episode, at: paragraph.start.seconds)
+            } label: {
+                Text(paragraph.start.timecode)
+                    .font(.subheadline.monospacedDigit().weight(current ? .bold : .regular))
+                    .foregroundStyle(current ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+            }
+            .buttonStyle(.plain)
+            .frame(width: 56, alignment: .leading)
+            .help("Ab hier abspielen")
+            .accessibilityLabel("Ab \(TimecodeLabel.spoken(paragraph.start.timecode)) abspielen")
+            .accessibilityIdentifier("transcript.line")
+
+            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                if model.hasNote(in: episode.id, at: paragraph.start) {
+                    Label("gemerkt", systemImage: "bookmark.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.subheadline)
+                        .foregroundStyle(.tint)
+                }
+                Text(TranscriptSearch.highlighted(shownText(paragraph), matching: query))
+                    .font(.body)
+                    .foregroundStyle(isHeard(paragraph.start) ? .secondary : .primary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: 720, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: Design.Spacing.small) {
+                if hoveredLine == key {
+                    Button { remember(paragraph) } label: {
+                        Label("Stelle merken", systemImage: "bookmark")
+                    }
+                    .help("Stelle merken")
+                    Button {
+                        Clipboard.copy(model.citation(paragraph.text, at: paragraph.start, in: episode))
+                        confirm(NoteFeedback.copied)
+                    } label: {
+                        Label("Mit Quelle kopieren", systemImage: "doc.on.doc")
+                    }
+                    .help("Mit Quelle kopieren")
+                }
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            .frame(width: 52, alignment: .trailing)
+        }
+        .padding(.vertical, Design.Spacing.micro)
+        .overlay(alignment: .leading) {
+            if current {
+                Capsule().fill(.tint).frame(width: 2).offset(x: -Design.Spacing.small)
+            }
+        }
+        .listRowBackground(current ? Color.accentColor.opacity(0.12) : nil)
+        .onHover { inside in
+            if inside { hoveredLine = key } else if hoveredLine == key { hoveredLine = nil }
+        }
+        .contextMenu {
+            PassageActions(text: paragraph.text, start: paragraph.start, episode: episode)
+        }
+        .accessibilityAction(named: "Stelle merken") { remember(paragraph) }
+        .accessibilityAction(named: "Mit Quelle kopieren") {
+            Clipboard.copy(model.citation(paragraph.text, at: paragraph.start, in: episode))
+            confirm(NoteFeedback.copied)
+        }
+    }
+    #endif
 
     private var currentStart: Int64? {
         guard model.episodePlayer.episode?.id == episode.id else { return nil }
@@ -1547,7 +1762,6 @@ struct EpisodePlayerView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var scrubbing: Double?
     @State private var showingNote = false
     /// Tempo oder Schlaf-Timer als Blatt mit scrollbarer Liste. Nur bei
     /// großer Schrift: dort passte das Menü nicht auf den Bildschirm.
@@ -1648,6 +1862,8 @@ struct EpisodePlayerView: View {
                             Button("Fertig") { dismiss() }
                         }
                     }
+                    // Auf dem Mac liegt „Als Nächstes“ im Inspektor des Hauptfensters.
+                    #if os(iOS)
                     ToolbarItem(placement: .primaryAction) {
                         NavigationLink {
                             QueueView()
@@ -1655,6 +1871,7 @@ struct EpisodePlayerView: View {
                             Label("Warteschlange", systemImage: "list.bullet")
                         }
                     }
+                    #endif
                 }
             } else {
                 ContentUnavailableView("Nichts läuft", systemImage: "play.slash")
@@ -1695,58 +1912,7 @@ struct EpisodePlayerView: View {
     }
 
     private var scrubber: some View {
-        let total = max(player.duration, 1)
-        return VStack(spacing: Design.Spacing.micro) {
-            Slider(
-                value: Binding(
-                    get: { scrubbing ?? player.currentTime },
-                    set: { scrubbing = $0 }
-                ),
-                in: 0...total
-            ) { editing in
-                if !editing, let target = scrubbing {
-                    player.seek(to: target)
-                    scrubbing = nil
-                }
-            }
-            // Name, Wert und Schritte auch am Regler selbst. Erscheint er
-            // trotz der Zusammenfassung unten als eigenes Element, hiess er
-            // sonst nur „3 %“, und der Wert blieb über Minuten gleich.
-            .accessibilityLabel("Position")
-            .accessibilityValue(positionValue)
-            .accessibilityAdjustableAction(adjustPosition)
-            HStack {
-                Text(Self.format(scrubbing ?? player.currentTime))
-                Spacer()
-                Text(verbatim: "-" + Self.format(max(0, total - (scrubbing ?? player.currentTime))))
-            }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
-        }
-        // Für VoiceOver ein Element mit hörbarem Wert. Wischen nach oben
-        // oder unten springt wie die Sprungknöpfe, statt um ein Zehntel der Folge.
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Position")
-        .accessibilityValue(positionValue)
-        .accessibilityAdjustableAction(adjustPosition)
-    }
-
-    /// „12 Minuten und 5 Sekunden von 53 Minuten“. Die Stelle genau, damit
-    /// jeder Sprung hörbar etwas ändert, die Länge in vollen Minuten.
-    private var positionValue: Text {
-        let now = Self.spoken(scrubbing ?? player.currentTime)
-        guard player.duration > 0 else { return Text(now) }
-        let total = player.duration < 60 ? Self.spoken(player.duration)
-            : Duration.seconds(Int(player.duration)).formatted(.units(allowed: [.hours, .minutes], width: .wide))
-        return Text("\(now) von \(total)")
-    }
-
-    private func adjustPosition(_ direction: AccessibilityAdjustmentDirection) {
-        switch direction {
-        case .increment: player.skipAhead()
-        case .decrement: player.skipBack()
-        @unknown default: break
-        }
+        PlaybackScrubber(player: player)
     }
 
     /// Eine Zeitangabe zum Vorlesen, etwa „12 Minuten und 30 Sekunden“.
@@ -1873,7 +2039,7 @@ struct EpisodePlayerView: View {
         #endif
     }
 
-    private static let rates: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
+    static let rates: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
 
     /// Als Auswahl mit Häkchen und dem Merkmal „ausgewählt“ für VoiceOver.
     private var ratePicker: some View {
@@ -2012,6 +2178,99 @@ struct EpisodePlayerView: View {
     }
 }
 
+/// Der Regler für die Position einer Folge mit verstrichener und
+/// verbleibender Zeit. Im Player stehen die Zeiten unter dem Regler, in der
+/// Symbolleiste des Mac daneben.
+struct PlaybackScrubber: View {
+
+    enum Layout { case stacked, inline }
+
+    let player: EpisodePlayer
+    var layout: Layout = .stacked
+    @State private var scrubbing: Double?
+
+    var body: some View {
+        let total = max(player.duration, 1)
+        return Group {
+            switch layout {
+            case .stacked:
+                VStack(spacing: Design.Spacing.micro) {
+                    slider(total: total)
+                    HStack {
+                        elapsed
+                        Spacer()
+                        remaining(total: total)
+                    }
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                }
+            case .inline:
+                HStack(spacing: Design.Spacing.small) {
+                    elapsed
+                    slider(total: total)
+                        .controlSize(.mini)
+                    remaining(total: total)
+                }
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+            }
+        }
+        // Für VoiceOver ein Element mit hörbarem Wert. Wischen nach oben
+        // oder unten springt wie die Sprungknöpfe, statt um ein Zehntel der Folge.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Position")
+        .accessibilityValue(positionValue)
+        .accessibilityAdjustableAction(adjustPosition)
+    }
+
+    private var elapsed: some View {
+        Text(EpisodePlayerView.format(scrubbing ?? player.currentTime))
+    }
+
+    private func remaining(total: Double) -> some View {
+        Text(verbatim: "-" + EpisodePlayerView.format(max(0, total - (scrubbing ?? player.currentTime))))
+    }
+
+    private func slider(total: Double) -> some View {
+        Slider(
+            value: Binding(
+                get: { scrubbing ?? player.currentTime },
+                set: { scrubbing = $0 }
+            ),
+            in: 0...total
+        ) { editing in
+            if !editing, let target = scrubbing {
+                player.seek(to: target)
+                scrubbing = nil
+            }
+        }
+        // Name, Wert und Schritte auch am Regler selbst. Erscheint er
+        // trotz der Zusammenfassung als eigenes Element, hiess er
+        // sonst nur „3 %“, und der Wert blieb über Minuten gleich.
+        .accessibilityLabel("Position")
+        .accessibilityValue(positionValue)
+        .accessibilityAdjustableAction(adjustPosition)
+    }
+
+    /// „12 Minuten und 5 Sekunden von 53 Minuten“. Die Stelle genau, damit
+    /// jeder Sprung hörbar etwas ändert, die Länge in vollen Minuten.
+    private var positionValue: Text {
+        let now = EpisodePlayerView.spoken(scrubbing ?? player.currentTime)
+        guard player.duration > 0 else { return Text(now) }
+        let total = player.duration < 60 ? EpisodePlayerView.spoken(player.duration)
+            : Duration.seconds(Int(player.duration)).formatted(.units(allowed: [.hours, .minutes], width: .wide))
+        return Text("\(now) von \(total)")
+    }
+
+    private func adjustPosition(_ direction: AccessibilityAdjustmentDirection) {
+        switch direction {
+        case .increment: player.skipAhead()
+        case .decrement: player.skipBack()
+        @unknown default: break
+        }
+    }
+}
+
 /// Kompakte Leiste für die laufende Folge.
 struct EpisodeMiniBar: View {
 
@@ -2092,6 +2351,11 @@ struct EpisodeMiniBar: View {
 /// und was gerade oder demnächst erschlossen wird.
 struct QueueView: View {
 
+    /// Was die Liste zeigt. Auf iOS alles, auf dem Mac steht „Als Nächstes“
+    /// im Inspektor und die Verarbeitung in einem eigenen Fenster.
+    enum Parts { case all, processing }
+
+    var parts: Parts = .all
     @Environment(AppModel.self) private var model
     @State private var confirmingCancel = false
 
@@ -2102,40 +2366,8 @@ struct QueueView: View {
 
     var body: some View {
         List {
-            if let episode = model.episodePlayer.episode {
-                Section("Jetzt läuft") {
-                    NavigationLink { EpisodeDetailView(episode: episode) } label: {
-                        QueueRow(episode: episode, detail: model.episodePlayer.currentChapter?.title)
-                    }
-                }
-            }
-
-            Section {
-                if model.upNext.isEmpty {
-                    Text("Leer. In einer Folge „Als Nächstes“ antippen, dann startet sie, sobald die laufende endet.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                } else {
-                    playUpNextButton
-                }
-                ForEach(model.upNext) { episode in
-                    NavigationLink { EpisodeDetailView(episode: episode) } label: {
-                        QueueRow(episode: episode, detail: nil)
-                    }
-                    .swipeActions {
-                        Button("Entfernen", role: .destructive) { model.removeFromUpNext(episode.id) }
-                    }
-                    // Auf dem Mac ohne Trackpad gibt es kein Wischen.
-                    .contextMenu {
-                        Button(role: .destructive) { model.removeFromUpNext(episode.id) } label: {
-                            Label("Entfernen", systemImage: "minus.circle")
-                        }
-                    }
-                }
-                .onMove { model.moveUpNext(from: $0, to: $1) }
-                .onDelete { model.removeFromUpNext(at: $0) }
-            } header: {
-                Text("Als Nächstes hören")
+            if parts == .all {
+                listeningSections
             }
 
             if showsProcessingControls {
@@ -2155,11 +2387,50 @@ struct QueueView: View {
                 factsSection
             }
         }
-        .navigationTitle("Warteschlange")
+        .navigationTitle(parts == .all ? "Warteschlange" : "Verarbeitung")
         .queueCancelConfirmation(isPresented: $confirmingCancel)
         #if os(iOS)
         .toolbar { EditButton() }
         #endif
+    }
+
+    /// Was läuft und was als Nächstes gehört wird.
+    @ViewBuilder private var listeningSections: some View {
+        if let episode = model.episodePlayer.episode {
+            Section("Jetzt läuft") {
+                NavigationLink { EpisodeDetailView(episode: episode) } label: {
+                    QueueRow(episode: episode, detail: model.episodePlayer.currentChapter?.title)
+                }
+            }
+        }
+
+        Section {
+            if model.upNext.isEmpty {
+                Text("Leer. In einer Folge „Als Nächstes“ antippen, dann startet sie, sobald die laufende endet.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                playUpNextButton
+            }
+            ForEach(model.upNext) { episode in
+                NavigationLink { EpisodeDetailView(episode: episode) } label: {
+                    QueueRow(episode: episode, detail: nil)
+                }
+                .swipeActions {
+                    Button("Entfernen", role: .destructive) { model.removeFromUpNext(episode.id) }
+                }
+                // Auf dem Mac ohne Trackpad gibt es kein Wischen.
+                .contextMenu {
+                    Button(role: .destructive) { model.removeFromUpNext(episode.id) } label: {
+                        Label("Entfernen", systemImage: "minus.circle")
+                    }
+                }
+            }
+            .onMove { model.moveUpNext(from: $0, to: $1) }
+            .onDelete { model.removeFromUpNext(at: $0) }
+        } header: {
+            Text("Als Nächstes hören")
+        }
     }
 
     /// Pausieren, Fortsetzen und „Alle abbrechen“ für Transkripte, Fakten
@@ -2222,10 +2493,14 @@ struct QueueView: View {
             if let unavailable = model.preparationUnavailable {
                 Text("Transkripte für neue Folgen erstellt die App gerade nicht. \(unavailable)")
             } else {
+                #if os(macOS)
+                Text("Die App erstellt ein Transkript nach dem anderen.")
+                #else
                 Text("""
                     Die App erstellt ein Transkript nach dem anderen. Auf dem iPhone geht die Arbeit \
                     im Hintergrund weiter, solange die Fortschrittsanzeige des Systems zu sehen ist.
                     """)
+                #endif
             }
         }
     }
@@ -2785,6 +3060,9 @@ struct NoteActionsMenu: View {
         .buttonStyle(.borderless)
         .accessibilityLabel("Aktionen zur gemerkten Stelle")
         .accessibilityHint("Abspielen, mit Quelle kopieren oder teilen")
+        #if os(macOS)
+        .help("Aktionen zur gemerkten Stelle")
+        #endif
     }
 }
 

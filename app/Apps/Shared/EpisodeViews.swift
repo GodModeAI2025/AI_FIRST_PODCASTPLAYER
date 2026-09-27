@@ -14,11 +14,17 @@
 
 import SwiftUI
 import PodcastAIKit
+#if os(macOS)
+import UniformTypeIdentifiers
+#endif
 
 struct EpisodeListView: View {
 
     let sourceID: SourceID
     @Environment(AppModel.self) private var model
+    #if os(macOS)
+    @Environment(MacRouter.self) private var router: MacRouter?
+    #endif
     @State private var pendingDelete: Episode?
     // Suche, Filter und Reihenfolge gelten nur für diese Liste.
     @State private var query = ""
@@ -37,6 +43,12 @@ struct EpisodeListView: View {
     /// Hat die Liste die Folgen aus der Datenbank einmal gelesen? Vorher
     /// ist eine leere Liste nur noch nicht geladen.
     @State private var loadedOnce = false
+    #if os(macOS)
+    /// Auswahl in der Tabelle. Sie spielt nichts; Return öffnet, ⌘⏎ spielt.
+    @State private var tableSelection: Set<EpisodeID> = []
+    /// Mehrere Folgen, die nach Rückfrage gelöscht werden.
+    @State private var pendingBatchDelete: [Episode] = []
+    #endif
 
     private var source: Source? { model.sources.first { $0.id == sourceID } }
     private var episodes: [Episode] { model.episodes[sourceID] ?? [] }
@@ -47,68 +59,17 @@ struct EpisodeListView: View {
         let analyzed = options.onlyUnanalyzed
             ? Set(episodes.lazy.map(\.id).filter { model.stages[$0] == .evidenceExtracted }) : []
         let shown = EpisodeArchive.arrange(episodes, options: options, analyzed: analyzed, matches: matches)
+        Group {
+        #if os(macOS)
+        // Auf dem Mac eine Tabelle mit Kopf statt einer Liste über die ganze Breite.
+        macContent(shown)
+        #else
         List {
             // „Neu laden“: läuft gerade, hat geklappt oder nicht.
             SourceReloadStatus(sourceID: sourceID)
             // Beschreibung, Herausgeber und Rubriken aus dem Feed.
             if let source { SourceMetadataSection(source: source) }
-            // Nur einzelne Folgen geholt: der Podcast ist kein Abo und wird
-            // nicht von selbst aktualisiert. Ein Tipp abonniert ihn, die
-            // geholten Folgen bleiben.
-            if let source, !source.isSubscribed {
-                Section {
-                    NoticeLabel(String(localized: """
-                        Nicht abonniert. Hier stehen die Folgen, die du einzeln geholt hast. \
-                        Neue Folgen kommen erst nach dem Abonnieren.
-                        """), kind: .info)
-                    Button {
-                        Task { await model.subscribeToSource(source) }
-                    } label: {
-                        Label("Abonnieren", systemImage: "plus.circle.fill")
-                    }
-                    .accessibilityIdentifier("source.subscribe")
-                }
-            }
-
-            if source?.kind == .youTubeChannel {
-                YouTubeChannelTranscriptNotice()
-                if model.allowsSupadataRequests, let source, AppModel.youTubeChannelID(of: source) != nil {
-                    OlderYouTubeVideosSection(sourceID: sourceID)
-                }
-            } else if !(source?.capabilities.supportsTimedKnowledge ?? true),
-               let reason = source?.capabilities.limitationReason {
-                Section {
-                    // Eine Grenze der Quelle, kein Fehler.
-                    NoticeLabel(reason, kind: .info)
-                        .font(.callout)
-                }
-            }
-
-            // Zum YouTube-Kanal gibt es oft denselben Inhalt als Audio-Podcast.
-            // Dessen Folgen lassen sich laden und transkribieren.
-            if let counterparts = model.podcastCounterparts[sourceID], !counterparts.isEmpty {
-                Section {
-                    ForEach(counterparts) { podcast in
-                        Button {
-                            Task { await model.addSource(from: podcast.feedURL.absoluteString) }
-                        } label: {
-                            VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
-                                Label("\(podcast.title) abonnieren", systemImage: "plus.circle")
-                                Text(podcast.author)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                } header: {
-                    Text("Als Audio-Podcast verfügbar")
-                } footer: {
-                    Text("""
-                        Der Audio-Podcast liefert die Tonspur, die PodcastAI transkribieren darf. \
-                        Das Audio der YouTube-Videos selbst lädt die App nicht.
-                        """)
-                }
-            }
+            sourceNotices
 
             Section {
                 // Leere Zustände als Zeile unter der Beschreibung, nicht als
@@ -215,6 +176,9 @@ struct EpisodeListView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
+        #endif
+        }
         .navigationTitle(source?.title ?? String(localized: "Folgen"))
         // Auf dem iPhone steht die Suche immer da. Sonst erscheint sie erst
         // beim Herunterziehen, und niemand weiß, dass es sie gibt.
@@ -255,6 +219,12 @@ struct EpisodeListView: View {
             loadedOnce = true
         }
         // Was mit dieser Quelle geht und wie weit ihr Archiv zurückreicht.
+        #if os(macOS)
+        .macInfoSubject(.source(sourceID))
+        #endif
+        // Auf dem Mac stehen „Informationen“ und „Neu laden“ im Kopf der
+        // Seite. Doppelt in der Symbolleiste drängten sie den Player ab.
+        #if os(iOS)
         .toolbar {
             ToolbarItem {
                 NavigationLink { SourceDetailView(sourceID: sourceID) } label: {
@@ -263,6 +233,124 @@ struct EpisodeListView: View {
             }
             if let source, model.canReload(source) {
                 ToolbarItem { SourceReloadButton(source: source) }
+            }
+        }
+        #endif
+    }
+
+    #if os(macOS)
+    // MARK: Mac
+
+    /// Kopf mit Cover, Beschreibung und Aktionen, darunter die Folgen als
+    /// Tabelle. Auswahl mit ↑↓, ⇧ und ⌘; Return öffnet, ⌘⏎ spielt, ⌘⌫ löscht
+    /// nach Rückfrage.
+    @ViewBuilder
+    private func macContent(_ shown: [Episode]) -> some View {
+        VStack(spacing: 0) {
+            MacPodcastHeader(sourceID: sourceID, newest: episodes.first(where: model.canPlay)) {
+                SourceReloadStatus(sourceID: sourceID)
+                sourceNotices
+            } archive: {
+                if !episodes.isEmpty {
+                    EpisodeCoverageLine(sourceID: sourceID)
+                    if matches != nil || options.onlyUnanalyzed {
+                        Text(shown.count == 1 ? "1 Folge angezeigt" : "\(shown.count) Folgen angezeigt")
+                    }
+                    backCatalogControls
+                }
+            }
+            Divider()
+            if shown.isEmpty {
+                emptyState(shown: shown)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                MacEpisodeTable(
+                    episodes: shown,
+                    selection: $tableSelection,
+                    open: { router?.push(.episode($0)) },
+                    delete: { pendingBatchDelete = $0 },
+                    analyze: { analyze($0) },
+                    canAnalyze: canQueue
+                )
+            }
+        }
+        .confirmationDialog(batchDeleteTitle, isPresented: Binding(
+            get: { !pendingBatchDelete.isEmpty }, set: { if !$0 { pendingBatchDelete = [] } }
+        ), titleVisibility: .visible) {
+            Button("Folgen und alle Daten löschen", role: .destructive) {
+                let doomed = pendingBatchDelete
+                tableSelection.subtract(doomed.map(\.id))
+                Task { for episode in doomed { await model.removeEpisode(episode) } }
+            }
+        } message: {
+            Text("Transkript, Fakten, Belege und der Hörstand werden gelöscht. Deine Notizen bleiben unter Wissen erhalten.")
+        }
+    }
+
+    private var batchDeleteTitle: String {
+        pendingBatchDelete.count == 1
+            ? String(localized: "Folge löschen?")
+            : String(localized: "\(pendingBatchDelete.count) Folgen löschen?")
+    }
+    #endif
+
+    /// Hinweise zur Quelle: kein Abo, Grenzen, YouTube, Audio-Podcast dazu.
+    @ViewBuilder private var sourceNotices: some View {
+        // Nur einzelne Folgen geholt: der Podcast ist kein Abo und wird
+        // nicht von selbst aktualisiert. Ein Tipp abonniert ihn, die
+        // geholten Folgen bleiben.
+        if let source, !source.isSubscribed {
+            Section {
+                NoticeLabel(String(localized: """
+                    Nicht abonniert. Hier stehen die Folgen, die du einzeln geholt hast. \
+                    Neue Folgen kommen erst nach dem Abonnieren.
+                    """), kind: .info)
+                Button {
+                    Task { await model.subscribeToSource(source) }
+                } label: {
+                    Label("Abonnieren", systemImage: "plus.circle.fill")
+                }
+                .accessibilityIdentifier("source.subscribe")
+            }
+        }
+
+        if source?.kind == .youTubeChannel {
+            YouTubeChannelTranscriptNotice()
+            if model.allowsSupadataRequests, let source, AppModel.youTubeChannelID(of: source) != nil {
+                OlderYouTubeVideosSection(sourceID: sourceID)
+            }
+        } else if !(source?.capabilities.supportsTimedKnowledge ?? true),
+           let reason = source?.capabilities.limitationReason {
+            Section {
+                // Eine Grenze der Quelle, kein Fehler.
+                NoticeLabel(reason, kind: .info)
+                    .font(.callout)
+            }
+        }
+
+        // Zum YouTube-Kanal gibt es oft denselben Inhalt als Audio-Podcast.
+        // Dessen Folgen lassen sich laden und transkribieren.
+        if let counterparts = model.podcastCounterparts[sourceID], !counterparts.isEmpty {
+            Section {
+                ForEach(counterparts) { podcast in
+                    Button {
+                        Task { await model.addSource(from: podcast.feedURL.absoluteString) }
+                    } label: {
+                        VStack(alignment: .leading, spacing: Design.Spacing.micro / 2) {
+                            Label("\(podcast.title) abonnieren", systemImage: "plus.circle")
+                            Text(podcast.author)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } header: {
+                Text("Als Audio-Podcast verfügbar")
+            } footer: {
+                Text("""
+                    Der Audio-Podcast liefert die Tonspur, die PodcastAI transkribieren darf. \
+                    Das Audio der YouTube-Videos selbst lädt die App nicht.
+                    """)
             }
         }
     }
@@ -464,6 +552,8 @@ struct EpisodeListView: View {
             }
             .accessibilityIdentifier("episodes.filter")
 
+            // Auf dem Mac wählt man in der Tabelle mit ⇧ und ⌘ aus, ohne eigenen Modus.
+            #if os(iOS)
             if episodes.contains(where: { model.canTranscribe($0) }) {
                 Button(selecting ? "Fertig" : "Auswählen") {
                     selecting.toggle()
@@ -471,6 +561,7 @@ struct EpisodeListView: View {
                 }
                 .accessibilityIdentifier("episodes.select")
             }
+            #endif
         }
     }
 
@@ -510,8 +601,16 @@ struct EpisodeListView: View {
     /// In beiden Gruppen bleibt die Reihenfolge der Liste. Abgespielt wird
     /// dabei nichts.
     private func analyzeSelection() {
+        analyze(selection)
+        selection.removeAll()
+        selecting = false
+    }
+
+    /// Reiht die Folgen mit diesen Kennungen zum Transkript ein, in der
+    /// Reihenfolge der Liste.
+    private func analyze(_ ids: Set<EpisodeID>) {
         let ordered = options.oldestFirst ? EpisodeArchive.oldestFirst(episodes) : episodes
-        let chosen = ordered.filter { selection.contains($0.id) && canQueue($0) }
+        let chosen = ordered.filter { ids.contains($0.id) && canQueue($0) }
         let waiting = Set(model.analysisQueue.map(\.id))
         // Jede wartende Folge springt an den Anfang. Rückwärts eingereiht,
         // steht die erste der Liste am Ende ganz vorn.
@@ -521,8 +620,6 @@ struct EpisodeListView: View {
         for episode in chosen where !waiting.contains(episode.id) {
             model.enqueueAnalysis(episode)
         }
-        selection.removeAll()
-        selecting = false
     }
 
     private struct SearchRequest: Equatable {
@@ -1140,6 +1237,7 @@ struct KnowledgeView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
         .navigationTitle("Gemerkte Stellen")
         .task(id: model.highlights.compactMap(\.episodeID)) {
             model.fillMissingNoteTitles()
@@ -1278,11 +1376,23 @@ struct ExportPreviewSheet: View {
                     }
                     .accessibilityIdentifier("export.copy")
                 }
+                #if os(macOS)
+                // Auf dem Mac der gewohnte Weg: als Datei sichern.
+                ToolbarItem(placement: .primaryAction) {
+                    Button { saveToFile() } label: {
+                        Label("Sichern …", systemImage: "square.and.arrow.down")
+                    }
+                    .accessibilityIdentifier("export.save")
+                }
+                #endif
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fertig") { dismiss() }
                 }
             }
         }
+        #if os(macOS)
+        .presentationSizing(.form)
+        #endif
         .task(id: text) {
             MarkdownFile.remove(file)
             file = MarkdownFile.write(text, named: fileName ?? MarkdownFile.title(of: text))
@@ -1294,6 +1404,23 @@ struct ExportPreviewSheet: View {
         }
         .onDisappear { MarkdownFile.remove(file) }
     }
+
+    #if os(macOS)
+    /// Sichert den Export als Markdown-Datei an einem Ort, den du wählst.
+    private func saveToFile() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = (file?.lastPathComponent)
+            ?? MarkdownFile.fileName(fileName ?? MarkdownFile.title(of: text)) + ".md"
+        if let markdown = UTType(filenameExtension: "md") { panel.allowedContentTypes = [markdown] }
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
+    }
+    #endif
 }
 
 /// Der Export als echte Datei mit Endung .md, benannt nach seinem Inhalt.

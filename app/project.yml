@@ -60,6 +60,9 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAI/PodcastAI.entitlements
+        # Auf dem Mac läuft die eigene Mac-App, nicht die iPhone-Fassung
+        # mit Tab-Leiste in einem gestreckten Fenster.
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
 
   PodcastAIMac:
     type: application
@@ -182,6 +185,20 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_TARGET_NAME: PodcastAI
 
+  # UI-Tests der Mac-App: Bereiche, Inspektor, Hilfe und Regel 1.
+  PodcastAIMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: UITestsMac
+    dependencies:
+      - target: PodcastAIMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: PodcastAIMac
+
   PodcastAIKitTests:
     type: bundle.unit-test
     platform: macOS
@@ -206,9 +223,9 @@ schemes:
 
   PodcastAIMac:
     build:
-      targets: { PodcastAIMac: all, PodcastAIKitTests: [test] }
+      targets: { PodcastAIMac: all, PodcastAIKitTests: [test], PodcastAIMacUITests: [test] }
     run: { config: Debug }
     test:
       config: Debug
-      targets: [PodcastAIKitTests]
+      targets: [PodcastAIKitTests, PodcastAIMacUITests]
     archive: { config: Release }

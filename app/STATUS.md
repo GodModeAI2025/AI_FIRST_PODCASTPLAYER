@@ -30,6 +30,7 @@ Stand 26. September 2026, Version 0.13.
 | Jeder Knopf, jedes Menü, jeder Schalter, jeder Hinweistext | Prüfung auf Wirkung, jeder Fund von Gegenprüfern bestätigt oder verworfen |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
 | Agentenzugang über MCP (Mac) | 17 Swift-Tests mit echten JSON-Zeilen (`AgentAccessTests`). Live über stdio gegen den unsignierten Debug-Build: jedes Werkzeug, Schalter aus, keine Freigabe, abgelaufene Freigabe, Notizen ausgenommen, anderer Agent, Ausschalten und Ablauf während einer Verbindung. Alle Antworten vom offiziellen MCP-SDK 1.30.1 als gültig angenommen. Claude Code 2.1.283 hat den Debug-Build eingetragen, sich verbunden (erst `server/discover`, dann `initialize`) und `searchEvidence` aufgerufen |
+| Mac-Oberfläche: Seitenleiste, Player in der Symbolleiste, Inspektor, Podcast als Tabelle, Menüs | Baut ohne Warnung; jede Seite startet mit Demo-Inhalten ohne Absturz (`-uitest-sidebar`, nur Debug), erstes Fenster 1280 × 820 |
 
 ## Noch auf einem Gerät zu prüfen
 
@@ -49,6 +50,7 @@ Stand 26. September 2026, Version 0.13.
 | Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
 | Agentenzugang mit dem signierten Mac-Build | Geprüft ist nur der unsignierte Build und eine ad hoc signierte Kopie mit Sandbox. Offen: ob Claude Desktop und Claude Code das Programm aus der TestFlight-Mac-App starten, ob der Prozess dort Freigabe und Mediathek des App-Containers sieht und wie er sich verhält, während die App mit iCloud abgleicht. Auf einem Mac mit Apple-Chip installiert TestFlight womöglich die iPad-App unter demselben Namen `PodcastAI.app`; sie hat keinen Agentenzugang |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |
+| Mac-Oberfläche im Betrieb | Die UI-Tests `PodcastAIMacUITests` (⌘1 bis ⌘7, ⌥⌘U, Hilfe-Menü, gesperrtes Abspielen, Öffnen spielt nichts) sind gebaut, liefen aber noch nicht: ohne Signatur startet der Test-Runner nicht. Offen sind außerdem, ob die Anzeige in der Symbolleiste bei 1000 Punkt Breite ohne Überlauf passt, ob die Leertaste in Textfeldern ankommt, wie Hell und Dunkel, „Bewegung reduzieren“ und Gelb oder Graphit als Akzentfarbe aussehen und ob die Kacheln und Tabellen mit Tastatur erreichbar sind |
 | „An PodcastAI senden“ | Das Teilen-Menü lässt sich im UI-Test nicht bedienen; geprüft sind Eingang, Vorschau und Audiodatei über Startargumente. Offen: ob die Erweiterung nur bei Links und Audio erscheint, wie Finder und AirDrop Dateien anbieten, ob der Mac die App öffnet, wie lange eine große Datei beim Kopieren braucht. Signierte Builds brauchen einmal neue Profile mit der App Group |
 
 ## Bewusst nicht enthalten

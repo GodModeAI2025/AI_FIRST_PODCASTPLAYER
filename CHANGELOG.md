@@ -20,6 +20,20 @@ Agentenzugang auf dem Mac (MCP), aus dem Feedback „verstehe nicht, wie das mit
 - `limit: 1` kam als 20 Treffer an, weil eine 1 aus JSON auch als Wahrheitswert durchging. Aufrufe mit unbrauchbaren Argumenten und Lesefehler stehen jetzt ebenfalls im Protokoll, Suchtext und Agentenname dort gekürzt.
 - Die Hilfe „Mac und Agenten“ erklärt die Schritte, und „Zeig es mir“ öffnet gleich den Reiter „Agenten“. In der iPad-App auf dem Mac sagt sie, dass es den Zugang nur in der Mac-App gibt.
 
+Mac:
+- Auf dem Mac läuft nur noch die eigene Mac-App. Die iPhone-Fassung mit Tab-Leiste im gestreckten Fenster wird dort nicht mehr angeboten.
+- Das Fenster öffnet mit 1280 × 820 Punkt und merkt sich den Eintrag der Seitenleiste über einen Neustart. Jeder Eintrag behält seinen eigenen Stapel: Wer von einem Podcast zum Chat und zurück wechselt, findet den Podcast noch offen.
+- Seitenleiste mit „Hören“, „Wissen“ und einem einklappbaren Abschnitt „Podcasts“ mit allen Abos. Rechtsklick auf ein Abo: Neu laden, Informationen, Abbestellen.
+- Der Player sitzt in der Symbolleiste: Zurück, Abspielen/Pause und Vor links, in der Mitte Cover, Titel, Kapitel und ein Regler mit verstrichener und verbleibender Zeit, dazu Tempo und „Moment merken“. Läuft eine Ausgabe oder „Nur diese Stellen hören“, stehen dort Pause, „Nächste Stelle“ und Stopp. Ohne geladene Folge steht „Nichts wird abgespielt“, und die Knöpfe sind gesperrt. Der große Player öffnet sich als eigenes Fenster „Wiedergabe“.
+- „Als Nächstes“ und die Informationen zu Podcast und Folge stehen im Inspektor rechts (⌥⌘U, ⌘I). Was die App gerade erschließt, zeigt das Aktivitätssymbol als Popover, alles Weitere das Fenster „Verarbeitung“.
+- Die Seite eines Podcasts hat einen Kopf mit Cover und Beschreibung und zeigt die Folgen als Tabelle mit Zustand, Datum, Dauer und Vorbereitung. Mehrere Folgen lassen sich mit ⇧ und ⌘ auswählen und gemeinsam einreihen, laden, transkribieren oder löschen. Return öffnet eine Folge, ⌘⏎ spielt sie.
+- „Meine Podcasts“ zeigt die Abos als Raster aus Covern oder als Liste. „Weiterhören“ in „Für dich“ ist ein Regal zum Blättern.
+- Im Transkript lässt sich Text markieren und mit ⌘C kopieren. Ab einer Zeile spielt nur ihre Zeitmarke, ein Klick auf den Text spielt nichts.
+- Seiten, Chat und Transkript laufen nicht mehr über die ganze Fensterbreite. Hauptknöpfe sind Glasknöpfe des Systems in der Akzentfarbe.
+- Menüs: ⌘1 bis ⌘7 für die Bereiche, ⌥⌘1 bis ⌥⌘5 für die Reiter einer Folge, „Steuerung“ mit Leertaste, ⌥⌘←/→, ⇧⌘←/→ für Kapitel, ⌘D, ⌘L und ⌥⌘P, ein neues Menü „Folge“ und ⌘? für die Hilfe. Steht der Cursor in einem Textfeld, bekommt das Feld die Leertaste.
+- Einstellungen: neuer Reiter „Allgemein“ mit den Sprungweiten, Impressum und Datenschutz stehen unter „Datenschutz“.
+- Links und Audiodateien lassen sich aufs Fenster ziehen und öffnen dieselbe Vorschau wie „An PodcastAI senden“. Abgespielt wird dabei nichts.
+
 ## App 0.13 · 2026-09-26
 Neu: Angesagt als Themen-Update, Widget, Teilen-Menü, YouTube-Abos aus Google Takeout, und der Chat schlägt selbst nach.
 

@@ -151,7 +151,7 @@ struct OnboardingView: View {
     /// Wo Hilfe und Einstellungen liegen. Auf dem Mac anders als auf iOS.
     private static var helpHint: LocalizedStringKey {
         #if os(macOS)
-        "Die Hilfe steht links in der Seitenleiste, die Einstellungen findest du im Menü PodcastAI."
+        "Die Hilfe findest du im Menü Hilfe, die Einstellungen im Menü PodcastAI."
         #else
         "Hilfe, Einstellungen und Datenschutz findest du jederzeit über das Zahnrad oben in „Für dich“."
         #endif
@@ -214,6 +214,7 @@ struct HelpView: View {
                 HelpSearchResults(query: trimmedQuery)
             }
         }
+        .readingColumn()
         .navigationTitle("So funktioniert's")
         .searchable(text: $query, prompt: Text("Tipps durchsuchen"))
     }
@@ -673,8 +674,8 @@ extension HelpTopic {
     #if os(macOS)
     private static var queueText: LocalizedStringResource {
         """
-        „Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, gedrückt halten bietet \
-        „Ans Ende“. Die Warteschlange steht links in der Seitenleiste und in „Meine Podcasts“.
+        „Als Nächstes“ reiht eine Folge direkt hinter der laufenden ein, das Menü am Knopf bietet \
+        „Ans Ende“. Die Warteschlange steht rechts im Inspektor, ein- und ausblenden mit ⌥⌘U.
         """
     }
     private static var askText: LocalizedStringResource {

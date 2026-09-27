@@ -23,12 +23,28 @@ struct ForYouView: View {
             let resume = model.continueListening
             if !resume.isEmpty {
                 Section {
+                    #if os(macOS)
+                    // Auf dem Mac ein Regal zum Blättern statt einer Zeile je Folge.
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: Design.Spacing.standard) {
+                            ForEach(resume, id: \.episode.id) { entry in
+                                ResumeTile(episode: entry.episode, position: entry.position)
+                            }
+                        }
+                        .scrollTargetLayout()
+                        .padding(.vertical, Design.Spacing.small)
+                    }
+                    .scrollTargetBehavior(.viewAligned)
+                    .scrollIndicators(.hidden)
+                    .listRowSeparator(.hidden)
+                    #else
                     ForEach(resume, id: \.episode.id) { entry in
                         ResumeRow(episode: entry.episode, position: entry.position)
                     }
+                    #endif
                 } header: {
                     ForYouSectionHeader("Weiterhören", symbol: "play.circle",
-                                        explanation: "Angefangene Folgen. Ein Tipp spielt dort weiter.")
+                                        explanation: Self.resumeExplanation)
                 }
             }
 
@@ -114,15 +130,19 @@ struct ForYouView: View {
             }
         }
         .yieldsAIWhileScrolling()
+        .readingColumn()
         .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
         .listStyle(.plain)
         .navigationTitle("Für dich")
         .activityStatusToolbar()
         .refreshable { await model.refreshAll(byUser: true) }
         .toolbar {
+            // Auf dem Mac liegt „Als Nächstes“ im Inspektor (⌥⌘U).
+            #if os(iOS)
             NavigationLink { QueueView() } label: {
                 Label("Warteschlange", systemImage: "list.bullet")
             }
+            #endif
             // Nach dem ersten Abo verschwindet der große Suchknopf. Weitere
             // Podcasts kommen dann über das Plus dazu.
             Button { addingSource = true } label: {
@@ -137,6 +157,14 @@ struct ForYouView: View {
 }
 
 extension ForYouView {
+    static var resumeExplanation: LocalizedStringKey {
+        #if os(macOS)
+        "Angefangene Folgen. Ein Klick öffnet die Folge, der Knopf spielt dort weiter."
+        #else
+        "Angefangene Folgen. Ein Tipp spielt dort weiter."
+        #endif
+    }
+
     /// Die Überschrift über allen Stellen zu Tags, mit dem Weg zu „Meine Tags“.
     var tagsHeader: some View {
         ForYouSectionHeader("Zu deinen Tags", symbol: "tag",
@@ -184,16 +212,22 @@ struct ForYouSectionHeader<Trailing: View>: View {
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.primary)
                     .accessibilityAddTraits(.isHeader)
+                // Auf dem Mac steht die Erklärung beim Überfahren der Überschrift.
+                #if os(iOS)
                 if let explanation {
                     explanation
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                #endif
             }
             Spacer(minLength: Design.Spacing.small)
             trailing()
         }
+        #if os(macOS)
+        .help(explanation ?? Text(verbatim: ""))
+        #endif
         .textCase(nil)
         .padding(.top, Design.Spacing.standard)
         .padding(.bottom, Design.Spacing.micro)
@@ -365,6 +399,80 @@ struct ResumeRow: View {
     }
 }
 
+#if os(macOS)
+/// Eine angefangene Folge als Kachel im Regal „Weiterhören“. Ein Klick
+/// öffnet die Folge, weiter spielt der Knopf beim Überfahren oder das
+/// Kontextmenü.
+///
+/// Der Knopf liegt über der Kachel, nicht in ihr: ein Knopf im Link
+/// konnte mit demselben Klick öffnen und abspielen.
+struct ResumeTile: View {
+    let episode: Episode
+    let position: Double
+    @Environment(AppModel.self) private var model
+    @Environment(MacRouter.self) private var router: MacRouter?
+    @State private var hovering = false
+
+    private var duration: Double { episode.declaredDuration?.seconds ?? 0 }
+
+    var body: some View {
+        NavigationLink(value: MacRoute.episode(episode)) {
+            HStack(alignment: .top, spacing: Design.Spacing.control) {
+                EpisodeArtwork(url: episode.artworkURL,
+                               fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                               size: 72)
+                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                    Text(episode.title).font(.body.weight(.medium)).lineLimit(2)
+                    if let podcast = model.sources.first(where: { $0.id == episode.sourceID })?.title {
+                        Text(podcast).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    if duration > 0 {
+                        ProgressView(value: min(position, duration), total: duration)
+                            .controlSize(.small)
+                        Text("noch \(max(1, Int((duration - position) / 60))) Min.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    } else {
+                        Text("weiter ab \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(Design.Spacing.control)
+            .frame(width: 300, height: 104, alignment: .topLeading)
+            .background(.quaternary.opacity(hovering ? 0.7 : 0.4),
+                        in: .rect(cornerRadius: Design.Radius.card, style: .continuous))
+            .contentShape(.rect(cornerRadius: Design.Radius.card))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Weiterhören") { model.playEpisode(episode, at: position) }
+        .overlay(alignment: .topLeading) {
+            if hovering {
+                Button { model.playEpisode(episode, at: position) } label: {
+                    Label("Weiterhören", systemImage: "play.circle.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.largeTitle)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, Color.black.opacity(0.45))
+                        .frame(width: 72, height: 72)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .padding(Design.Spacing.control)
+                .help("Weiterhören")
+                .accessibilityHidden(true)
+            }
+        }
+        .onHover { hovering = $0 }
+        .contextMenu {
+            Button("Weiterhören") { model.playEpisode(episode, at: position) }
+            Button("Öffnen") { router?.push(.episode(episode)) }
+        }
+    }
+}
+#endif
+
 /// Eine neue Folge aus den Abos.
 struct FreshEpisodeRow: View {
     let episode: Episode
@@ -398,6 +506,19 @@ struct FreshEpisodeRow: View {
                     .tint(.red)
             }
         }
+        #if os(macOS)
+        // Auf dem Mac gibt es kein Wischen. Abspielen steht im Kontextmenü.
+        .contextMenu {
+            if model.canPlay(episode) {
+                Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
+                Button { model.addToUpNext(episode) } label: {
+                    Label("Als Nächstes hören", systemImage: "text.line.first.and.arrowtriangle.forward")
+                }
+            } else {
+                OpenEpisodeWebButton(episode: episode)
+            }
+        }
+        #endif
     }
 }
 
@@ -612,58 +733,23 @@ struct LibraryView: View {
     @State private var importingOPML = false
     @State private var importingTakeout = false
     @State private var pendingRemoval: Source?
+    #if os(macOS)
+    /// Raster aus Covern oder Liste, je Gerät gemerkt.
+    @AppStorage("libraryShowsGrid") private var showsGrid = true
+    #endif
 
     var body: some View {
-        List {
-            if !model.sources.isEmpty {
-                Section {
-                    NavigationLink { QueueView() } label: {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Warteschlange")
-                                Text(queueSummary)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            Image(systemName: "list.bullet")
-                        }
-                    }
-                }
+        Group {
+            #if os(macOS)
+            if showsGrid, !model.sources.isEmpty {
+                MacLibraryGrid(pendingRemoval: $pendingRemoval)
+            } else {
+                libraryList
             }
-            Section {
-                ForEach(model.sources) { source in
-                    NavigationLink(value: source.id) {
-                        SourceRow(source: source)
-                    }
-                    .swipeActions {
-                        Button(role: .destructive) { pendingRemoval = source } label: {
-                            if source.isSubscribed {
-                                Label("Abbestellen", systemImage: "minus.circle")
-                            } else {
-                                Label("Entfernen", systemImage: "minus.circle")
-                            }
-                        }
-                    }
-                    .contextMenu {
-                        if !source.isSubscribed, source.feedURL != nil {
-                            Button { Task { await model.subscribeToSource(source) } } label: {
-                                Label("Abonnieren", systemImage: "plus.circle")
-                            }
-                        }
-                        SourceReloadButton(source: source)
-                        Button(role: .destructive) { pendingRemoval = source } label: {
-                            if source.isSubscribed {
-                                Label("Abbestellen und Daten löschen", systemImage: "minus.circle")
-                            } else {
-                                Label("Entfernen und Daten löschen", systemImage: "minus.circle")
-                            }
-                        }
-                    }
-                }
-            }
+            #else
+            libraryList
+            #endif
         }
-        .yieldsAIWhileScrolling()
         .navigationTitle("Meine Podcasts")
         .activityStatusToolbar()
         .confirmationDialog(removalTitle, isPresented: Binding(
@@ -686,6 +772,14 @@ struct LibraryView: View {
             EpisodeListView(sourceID: sourceID)
         }
         .toolbar {
+            #if os(macOS)
+            Picker("Darstellung", selection: $showsGrid) {
+                Label("Raster", systemImage: "square.grid.2x2").tag(true)
+                Label("Liste", systemImage: "list.bullet").tag(false)
+            }
+            .pickerStyle(.segmented)
+            .help("Als Raster oder als Liste zeigen")
+            #endif
             // Abos aus einer anderen App übernehmen oder mitnehmen.
             Menu {
                 Button { importingOPML = true } label: {
@@ -725,6 +819,64 @@ struct LibraryView: View {
                 }
             }
         }
+    }
+
+    private var libraryList: some View {
+        List {
+            // Auf dem Mac liegt „Als Nächstes“ im Inspektor, die Verarbeitung
+            // hinter dem Aktivitätssymbol der Symbolleiste.
+            #if os(iOS)
+            if !model.sources.isEmpty {
+                Section {
+                    NavigationLink { QueueView() } label: {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Warteschlange")
+                                Text(queueSummary)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "list.bullet")
+                        }
+                    }
+                }
+            }
+            #endif
+            Section {
+                ForEach(model.sources) { source in
+                    NavigationLink(value: source.id) {
+                        SourceRow(source: source)
+                    }
+                    .swipeActions {
+                        Button(role: .destructive) { pendingRemoval = source } label: {
+                            if source.isSubscribed {
+                                Label("Abbestellen", systemImage: "minus.circle")
+                            } else {
+                                Label("Entfernen", systemImage: "minus.circle")
+                            }
+                        }
+                    }
+                    .contextMenu {
+                        if !source.isSubscribed, source.feedURL != nil {
+                            Button { Task { await model.subscribeToSource(source) } } label: {
+                                Label("Abonnieren", systemImage: "plus.circle")
+                            }
+                        }
+                        SourceReloadButton(source: source)
+                        Button(role: .destructive) { pendingRemoval = source } label: {
+                            if source.isSubscribed {
+                                Label("Abbestellen und Daten löschen", systemImage: "minus.circle")
+                            } else {
+                                Label("Entfernen und Daten löschen", systemImage: "minus.circle")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .yieldsAIWhileScrolling()
+        .readingColumn()
     }
 }
 

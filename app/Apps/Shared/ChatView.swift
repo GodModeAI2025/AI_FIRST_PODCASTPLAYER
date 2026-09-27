@@ -16,6 +16,9 @@ import PodcastAIKit
 struct ChatView: View {
 
     @Environment(AppModel.self) private var model
+    #if os(macOS)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #endif
     @State private var question = ""
     @State private var isAsking = false
     /// Die Frage, auf die gerade eine Antwort gesucht wird, und ihr Bereich.
@@ -63,6 +66,15 @@ struct ChatView: View {
         model.chatAnswers.filter { $0.scope == scope }
     }
 
+    /// Mit „Bewegung reduzieren“ springt der Verlauf auf dem Mac, statt zu gleiten.
+    private var scrollAnimation: Animation? {
+        #if os(macOS)
+        reduceMotion ? nil : .default
+        #else
+        .default
+        #endif
+    }
+
     var body: some View {
         VStack(spacing: Design.Spacing.none) {
             if !fixedScope {
@@ -100,21 +112,28 @@ struct ChatView: View {
                     .padding()
                 }
                 .scrollDismissesKeyboard(.interactively)
+                // Auf dem Mac eine Lesespalte statt Zeilen über die ganze Breite.
+                .readingColumn(maxWidth: Design.Layout.textWidth + 2 * Design.Spacing.standard)
                 .onChange(of: pendingQuestion) { _, waiting in
                     guard waiting != nil else { return }
-                    withAnimation { proxy.scrollTo(Self.pendingID, anchor: .bottom) }
+                    withAnimation(scrollAnimation) { proxy.scrollTo(Self.pendingID, anchor: .bottom) }
                 }
                 .onChange(of: answers.last?.id) { _, newest in
                     guard let newest else { return }
-                    withAnimation { proxy.scrollTo(newest, anchor: .top) }
+                    withAnimation(scrollAnimation) { proxy.scrollTo(newest, anchor: .top) }
                 }
             }
 
-            if playerHoldsScope, !answers.isEmpty, !isAsking {
-                momentChip
+            VStack(spacing: Design.Spacing.none) {
+                if playerHoldsScope, !answers.isEmpty, !isAsking {
+                    momentChip
+                }
+                narrowingArea
+                askField
             }
-            narrowingArea
-            askField
+            #if os(macOS)
+            .frame(maxWidth: Design.Layout.textWidth + 2 * Design.Spacing.standard)
+            #endif
         }
         .modifier(ChatTitle(show: !fixedScope))
         // Belege und ihre Wörter liegen bereit, bevor die erste Frage kommt.
@@ -297,6 +316,9 @@ struct ChatView: View {
             .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || isAsking)
             .accessibilityLabel(sendLabel)
             .accessibilityIdentifier("chat.send")
+            #if os(macOS)
+            .help("Senden (Return)")
+            #endif
         }
         .padding(.horizontal, Design.Spacing.standard)
         .padding(.vertical, Design.Spacing.small)
@@ -731,6 +753,9 @@ struct AnswerCard: View {
                 }
                 .accessibilityLabel("Weitere Aktionen zur Antwort")
                 .accessibilityIdentifier("chat.answerMenu")
+                #if os(macOS)
+                .help("Weitere Aktionen zur Antwort")
+                #endif
             }
 
             AnswerText(text: answer.text, citations: Set(numbered.map(\.number)),

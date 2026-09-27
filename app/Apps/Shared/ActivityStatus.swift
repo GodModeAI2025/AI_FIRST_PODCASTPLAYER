@@ -84,7 +84,11 @@ struct ActivityStatusButton: View {
     /// Lange drücken: dieselben Knöpfe wie oben in der Warteschlange.
     @ViewBuilder private var controls: some View {
         Button { openQueue?() } label: {
+            #if os(macOS)
+            Label("Verarbeitung anzeigen", systemImage: "list.bullet")
+            #else
             Label("Warteschlange öffnen", systemImage: "list.bullet")
+            #endif
         }
         if model.queueWaitingCount > 0 || model.queuePaused {
             QueuePauseButton()
@@ -192,13 +196,17 @@ extension AppModel {
 
 extension View {
     /// Fügt das Aktivitätssymbol in die Navigationsleiste ein.
+    ///
+    /// Auf dem Mac steht das Symbol einmal in der Symbolleiste des Fensters
+    /// (`MacRootView`), nicht auf jeder Seite.
+    @ViewBuilder
     func activityStatusToolbar() -> some View {
+        #if os(iOS)
         toolbar {
-            #if os(iOS)
             ToolbarItem(placement: .topBarLeading) { ActivityStatusButton() }
-            #else
-            ToolbarItem(placement: .navigation) { ActivityStatusButton() }
-            #endif
         }
+        #else
+        self
+        #endif
     }
 }

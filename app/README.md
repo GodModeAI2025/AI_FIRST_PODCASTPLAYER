@@ -44,6 +44,13 @@ xcodebuild -project PodcastAI.xcodeproj -scheme PodcastAI \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 ```
 
+Die Mac-App hat eigene UI-Tests (`PodcastAIMacUITests`): Bereiche über ⌘1 bis ⌘7, Inspektor, Hilfe-Menü und dass Öffnen nichts abspielt. Sie brauchen einen signierten Build und die Freigabe für Bedienungshilfen:
+
+```bash
+xcodebuild -project PodcastAI.xcodeproj -scheme PodcastAIMac \
+  -only-testing:PodcastAIMacUITests test
+```
+
 ## iCloud
 
 Beide Apps nutzen den CloudKit-Container `iCloud.com.godmodeai.podcastai`. Nach Änderungen am Datenmodell das Schema neu anlegen und in der CloudKit-Konsole nach Production übertragen:
@@ -136,11 +143,12 @@ Packages/PodcastAIKit/Sources/
 Apps/
   Shared/                AppModel, Dienste, gemeinsame Ansichten
   PodcastAI/             iOS: fünf Tabs, Mini-Player
-  PodcastAIMac/          macOS: Seitenleiste, Menübefehle, Prozess für --mcp (MCPHost)
+  PodcastAIMac/          macOS: Seitenleiste, Inspektor, Player in der Symbolleiste, Menübefehle, Prozess für --mcp (MCPHost)
   PodcastAIWidget/       Widget „Was ist neu“ für iOS und macOS
   ShareExtension/        „An PodcastAI senden“ für iOS und macOS
 
 UITests/                 UI-Tests für iOS
+UITestsMac/              UI-Tests für die Mac-App
 ```
 
 ## Regeln im Code
