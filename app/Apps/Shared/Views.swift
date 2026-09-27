@@ -372,31 +372,23 @@ struct ResumeRow: View {
     private var duration: Double { episode.declaredDuration?.seconds ?? 0 }
 
     var body: some View {
-        #if os(macOS)
-        // Auf dem Mac öffnet ein Klick auf die Zeile die Folge. Weiter
-        // spielt nur der Knopf daneben oder das Kontextmenü.
-        HStack(spacing: Design.Spacing.control) {
-            NavigationLink(value: MacRoute.episode(episode)) {
-                details.contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            Button { model.playEpisode(episode, at: position) } label: {
-                Label("Weiterhören", systemImage: "play.circle.fill")
-                    .labelStyle(.iconOnly)
-                    .font(.title2)
-                    .foregroundStyle(.tint)
-            }
-            .buttonStyle(.borderless)
-            .help("Weiterhören")
-        }
-        .contextMenu {
-            Button("Weiterhören") { model.playEpisode(episode, at: position) }
-            NavigationLink("Öffnen", value: MacRoute.episode(episode))
-        }
-        #else
         Button { model.playEpisode(episode, at: position) } label: {
             HStack(spacing: Design.Spacing.control) {
-                details
+                EpisodeArtwork(url: episode.artworkURL,
+                               fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                               size: 48)
+                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                    Text(episode.title).font(.headline).lineLimit(2)
+                    if duration > 0 {
+                        ProgressView(value: min(position, duration), total: duration)
+                        Text("noch \(max(1, Int((duration - position) / 60))) Min.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text("weiter ab \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
                 Image(systemName: "play.circle.fill").font(.title2).foregroundStyle(.tint)
                     .accessibilityHidden(true)
             }
@@ -404,36 +396,6 @@ struct ResumeRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Spielt ab der Stelle weiter, an der du aufgehört hast")
-        #endif
-    }
-
-    private var details: some View {
-        HStack(spacing: Design.Spacing.control) {
-            EpisodeArtwork(url: episode.artworkURL,
-                           fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
-                           size: 48)
-            VStack(alignment: .leading, spacing: Design.Spacing.micro) {
-                Text(episode.title).font(.headline).lineLimit(2)
-                if duration > 0 {
-                    ProgressView(value: min(position, duration), total: duration)
-                    Text("noch \(max(1, Int((duration - position) / 60))) Min.")
-                        .font(metadataFont).foregroundStyle(.secondary)
-                } else {
-                    Text("weiter ab \(MediaTime(milliseconds: Int64(position * 1000)).timecode)")
-                        .font(metadataFont).foregroundStyle(.secondary)
-                }
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    /// Auf dem Mac ist `.caption` 10 pt, zu klein für Angaben, die man lesen soll.
-    private var metadataFont: Font {
-        #if os(macOS)
-        .subheadline
-        #else
-        .caption
-        #endif
     }
 }
 
@@ -441,10 +403,14 @@ struct ResumeRow: View {
 /// Eine angefangene Folge als Kachel im Regal „Weiterhören“. Ein Klick
 /// öffnet die Folge, weiter spielt der Knopf beim Überfahren oder das
 /// Kontextmenü.
+///
+/// Der Knopf liegt über der Kachel, nicht in ihr: ein Knopf im Link
+/// konnte mit demselben Klick öffnen und abspielen.
 struct ResumeTile: View {
     let episode: Episode
     let position: Double
     @Environment(AppModel.self) private var model
+    @Environment(MacRouter.self) private var router: MacRouter?
     @State private var hovering = false
 
     private var duration: Double { episode.declaredDuration?.seconds ?? 0 }
@@ -452,22 +418,9 @@ struct ResumeTile: View {
     var body: some View {
         NavigationLink(value: MacRoute.episode(episode)) {
             HStack(alignment: .top, spacing: Design.Spacing.control) {
-                ZStack {
-                    EpisodeArtwork(url: episode.artworkURL,
-                                   fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
-                                   size: 72)
-                    if hovering {
-                        Button { model.playEpisode(episode, at: position) } label: {
-                            Label("Weiterhören", systemImage: "play.circle.fill")
-                                .labelStyle(.iconOnly)
-                                .font(.largeTitle)
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, Color.black.opacity(0.45))
-                        }
-                        .buttonStyle(.plain)
-                        .help("Weiterhören")
-                    }
-                }
+                EpisodeArtwork(url: episode.artworkURL,
+                               fallback: model.sources.first(where: { $0.id == episode.sourceID })?.artworkURL,
+                               size: 72)
                 VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Text(episode.title).font(.body.weight(.medium)).lineLimit(2)
                     if let podcast = model.sources.first(where: { $0.id == episode.sourceID })?.title {
@@ -492,13 +445,30 @@ struct ResumeTile: View {
             .contentShape(.rect(cornerRadius: Design.Radius.card))
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(named: "Weiterhören") { model.playEpisode(episode, at: position) }
+        .overlay(alignment: .topLeading) {
+            if hovering {
+                Button { model.playEpisode(episode, at: position) } label: {
+                    Label("Weiterhören", systemImage: "play.circle.fill")
+                        .labelStyle(.iconOnly)
+                        .font(.largeTitle)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, Color.black.opacity(0.45))
+                        .frame(width: 72, height: 72)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .padding(Design.Spacing.control)
+                .help("Weiterhören")
+                .accessibilityHidden(true)
+            }
+        }
         .onHover { hovering = $0 }
         .contextMenu {
             Button("Weiterhören") { model.playEpisode(episode, at: position) }
-            NavigationLink("Öffnen", value: MacRoute.episode(episode))
+            Button("Öffnen") { router?.push(.episode(episode)) }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityAction(named: "Weiterhören") { model.playEpisode(episode, at: position) }
     }
 }
 #endif

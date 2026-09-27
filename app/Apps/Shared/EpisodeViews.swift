@@ -222,27 +222,20 @@ struct EpisodeListView: View {
         #if os(macOS)
         .macInfoSubject(.source(sourceID))
         #endif
+        // Auf dem Mac stehen „Informationen“ und „Neu laden“ im Kopf der
+        // Seite. Doppelt in der Symbolleiste drängten sie den Player ab.
+        #if os(iOS)
         .toolbar {
             ToolbarItem {
-                #if os(macOS)
-                // Auf dem Mac im Inspektor neben der Liste, statt die Liste zu verlassen.
-                Button {
-                    router?.inspectorMode = .info
-                    router?.isInspectorPresented = true
-                } label: {
-                    Label("Über diese Quelle", systemImage: "info.circle")
-                }
-                .help("Informationen zu diesem Podcast (⌘I)")
-                #else
                 NavigationLink { SourceDetailView(sourceID: sourceID) } label: {
                     Label("Über diese Quelle", systemImage: "info.circle")
                 }
-                #endif
             }
             if let source, model.canReload(source) {
                 ToolbarItem { SourceReloadButton(source: source) }
             }
         }
+        #endif
     }
 
     #if os(macOS)
@@ -1421,7 +1414,11 @@ struct ExportPreviewSheet: View {
         if let markdown = UTType(filenameExtension: "md") { panel.allowedContentTypes = [markdown] }
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? text.write(to: url, atomically: true, encoding: .utf8)
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
     }
     #endif
 }

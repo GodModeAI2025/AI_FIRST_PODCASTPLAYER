@@ -532,11 +532,16 @@ struct EpisodeDetailView: View {
             EpisodeArtwork(url: episode.artworkURL, fallback: sourceArtwork, size: 140)
                 .shadow(color: .black.opacity(0.14), radius: 8, y: 4)
             VStack(alignment: .leading, spacing: Design.Spacing.small) {
-                if let source {
-                    Button(source.title) { router?.show(.podcast(source.id)) }
+                // Im Fenster „Wiedergabe“ gibt es keine Seitenleiste, dorthin
+                // führt der Link nicht.
+                if let source, let router {
+                    Button(source.title) { router.show(.podcast(source.id)) }
                         .buttonStyle(.link)
                         .pointerStyle(.link)
                         .help("Podcast öffnen")
+                } else if let source {
+                    Text(source.title)
+                        .foregroundStyle(.secondary)
                 }
                 Text(episode.title)
                     .font(.title.bold())
@@ -590,12 +595,12 @@ struct EpisodeDetailView: View {
                         } primaryAction: {
                             queue(.next)
                         }
-                        .buttonStyle(.glass)
+                        .buttonStyle(.bordered)
                         .fixedSize()
                     }
                     if showsTranscriptButton {
                         transcriptButton
-                            .buttonStyle(.glass)
+                            .buttonStyle(.bordered)
                             .fixedSize()
                     }
                 }

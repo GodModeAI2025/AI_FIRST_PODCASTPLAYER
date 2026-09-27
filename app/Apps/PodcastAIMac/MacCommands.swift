@@ -252,10 +252,16 @@ enum MacTextInput {
         return view
     }
 
-    /// Fügt ein Leerzeichen ein, wenn ein Textfeld den Cursor hat.
+    /// Gibt die Leertaste an das Textfeld, das den Cursor hat. Der Tastendruck
+    /// selbst geht weiter, nicht nur ein Leerzeichen: so wählt eine
+    /// Eingabemethode für Japanisch oder Chinesisch damit weiter Zeichen aus.
     static func insertSpaceIfEditing() -> Bool {
         guard let view = focusedTextView else { return false }
-        view.insertText(" ", replacementRange: view.selectedRange())
+        if let event = NSApp.currentEvent, event.type == .keyDown {
+            view.keyDown(with: event)
+        } else {
+            view.insertText(" ", replacementRange: view.selectedRange())
+        }
         return true
     }
 

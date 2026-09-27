@@ -100,11 +100,11 @@ struct MacPodcastHeader<Notices: View, Archive: View>: View {
                 } label: {
                     Label("Abonnieren", systemImage: "plus")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.bordered)
             }
             if let source, model.canReload(source) {
                 SourceReloadButton(source: source)
-                    .buttonStyle(.glass)
+                    .buttonStyle(.bordered)
             }
             Button {
                 router?.inspectorMode = .info
@@ -112,7 +112,7 @@ struct MacPodcastHeader<Notices: View, Archive: View>: View {
             } label: {
                 Label("Informationen", systemImage: "info.circle")
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.bordered)
             .help("Informationen zu diesem Podcast (⌘I)")
         }
         .controlSize(.large)

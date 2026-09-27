@@ -105,11 +105,6 @@ public enum Design {
         public static let navigation: Material = .bar
         public static let sheet: Material = .regular
         public static let card: Material = .thin
-        #if os(macOS)
-        /// Karten auf dem Mac: eine ruhige Fläche statt Material. Glas
-        /// liefern Symbolleiste, Seitenleiste und Inspektor.
-        public static var macCard: some ShapeStyle { BackgroundStyle().secondary }
-        #endif
     }
 
     // MARK: - Hinweise
