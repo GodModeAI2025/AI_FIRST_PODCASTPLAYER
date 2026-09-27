@@ -64,7 +64,7 @@ struct AgentAccessTests {
 
         try await store.upsert(interest: Interest(label: "Datenschutz", kind: .topic))
 
-        let defaults = UserDefaults(suiteName: "mcp-tests-\(UUID().uuidString)")!
+        let defaults = MemoryDefaults()
         let access = MCPAccess(store: store, defaults: defaults)
         return Fixture(store: store, defaults: defaults, access: access,
                        server: MCPServer(access: access, version: "9.9"),
@@ -399,9 +399,7 @@ struct AgentAccessTests {
         #expect(grant.allowedSourceIDs == [Self.shared])
         #expect(grant.validity == 3600)
 
-        let suite = "mcp-legacy-\(UUID().uuidString)"
-        let defaults = try #require(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let defaults = MemoryDefaults()
         let legacyLog = """
             [{"id":"\(UUID().uuidString)","tool":"searchEvidence","query":"Datenschutz","resultCount":1,"at":780000000},
              {"id":"kaputt"},
@@ -455,6 +453,40 @@ struct AgentAccessTests {
         #expect(MCPServer.clampedLimit(Double.nan) == 20)
         #expect(MCPServer.clampedLimit(-5) == 1)
         #expect(MCPServer.clampedLimit(7) == 7)
+    }
+}
+/// Benutzereinstellungen nur im Arbeitsspeicher. Eine echte Suite legte bei
+/// jedem Testlauf eine Datei in ~/Library/Preferences an, die liegen bliebe.
+final class MemoryDefaults: UserDefaults {
+    private let lock = NSLock()
+    private var values: [String: Any] = [:]
+
+    init() {
+        super.init(suiteName: nil)!
+    }
+
+    override func object(forKey defaultName: String) -> Any? {
+        lock.withLock { values[defaultName] }
+    }
+
+    override func set(_ value: Any?, forKey defaultName: String) {
+        lock.withLock { values[defaultName] = value }
+    }
+
+    override func set(_ value: Bool, forKey defaultName: String) {
+        set(NSNumber(value: value), forKey: defaultName)
+    }
+
+    override func removeObject(forKey defaultName: String) {
+        lock.withLock { _ = values.removeValue(forKey: defaultName) }
+    }
+
+    override func data(forKey defaultName: String) -> Data? {
+        object(forKey: defaultName) as? Data
+    }
+
+    override func bool(forKey defaultName: String) -> Bool {
+        (object(forKey: defaultName) as? NSNumber)?.boolValue ?? false
     }
 }
 #endif
