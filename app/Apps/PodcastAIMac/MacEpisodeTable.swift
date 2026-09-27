@@ -183,8 +183,10 @@ struct MacEpisodeTable: View {
             let chosen = episodes.filter { selection.contains($0.id) }
             if !chosen.isEmpty { delete(chosen) }
         }
-        .focusedSceneValue(\.playSelection, playSelection)
-        .focusedSceneValue(\.episodeActions, actions)
+        // An den Fokus gebunden: ⌘⏎ und das Menü „Folge“ gelten der Tabelle
+        // nur, solange sie die Tastatur hat.
+        .focusedValue(\.playSelection, playSelection)
+        .focusedValue(\.episodeActions, actions)
     }
 
     private func single(_ ids: Set<EpisodeID>) -> Episode? {

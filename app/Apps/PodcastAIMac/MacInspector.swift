@@ -125,7 +125,9 @@ struct MacUpNextList: View {
             selection.forEach(model.removeFromUpNext)
             selection = []
         }
-        .focusedSceneValue(\.playSelection, playSelectionAction)
+        // An den Fokus gebunden, nicht an das Fenster: ⌘⏎ gilt der Liste,
+        // die gerade die Tastatur hat, auch wenn daneben die Tabelle steht.
+        .focusedValue(\.playSelection, playSelectionAction)
     }
 
     private func single(_ ids: Set<EpisodeID>) -> Episode? {

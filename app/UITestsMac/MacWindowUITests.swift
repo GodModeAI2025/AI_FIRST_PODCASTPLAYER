@@ -16,10 +16,11 @@ final class MacWindowUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launch(demo: Bool = false) -> XCUIApplication {
+    private func launch(demo: Bool = false, extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-uitest-fresh", "-skip-onboarding", "-AppleLanguages", "(de)"]
         if demo { app.launchArguments.append("-demo-content") }
+        app.launchArguments += extra
         app.launch()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15), "Kein Fenster")
         return app
@@ -37,7 +38,9 @@ final class MacWindowUITests: XCTestCase {
 
     func testCommandNumbersSwitchSections() {
         let app = launch()
-        let titles = ["Für dich", "Themen-Updates", "Meine Podcasts", "Chat",
+        // Der Chat heißt in der Seitenleiste „Chat“, sein Fenstertitel ist
+        // „Frag deine Podcasts“.
+        let titles = ["Für dich", "Themen-Updates", "Meine Podcasts", "Frag deine Podcasts",
                       "Gemerkte Stellen", "Gesicherte Antworten", "Meine Tags"]
         for (index, title) in titles.enumerated() {
             app.typeKey("\(index + 1)", modifierFlags: .command)
@@ -68,26 +71,21 @@ final class MacWindowUITests: XCTestCase {
         waitForTitle("So funktioniert's", in: app)
     }
 
-    /// Eine Folge öffnen spielt nichts. Die Anzeige bleibt bei „Nichts wird
-    /// abgespielt“.
-    func testOpeningAnEpisodeDoesNotPlay() throws {
-        let app = launch(demo: true)
-        app.typeKey("3", modifierFlags: .command)
-        waitForTitle("Meine Podcasts", in: app)
-        let podcast = app.windows.firstMatch.cells.element(boundBy: 0)
-        guard podcast.waitForExistence(timeout: 10) else {
+    /// Eine Folge auswählen und mit Return öffnen spielt nichts. Die Anzeige
+    /// bleibt bei „Nichts wird abgespielt“.
+    func testReturnOpensEpisodeWithoutPlaying() throws {
+        let app = launch(demo: true, extra: ["-uitest-sidebar", "firstPodcast"])
+        let table = app.tables.firstMatch
+        guard table.waitForExistence(timeout: 15) else {
             throw XCTSkip("Keine Demo-Inhalte geladen")
         }
-        podcast.click()
-        // Die ersten Zeilen der Folgenliste sind Beschreibung und Hinweise,
-        // die letzte ist sicher eine Folge.
-        let cells = app.windows.firstMatch.cells
-        guard cells.element(boundBy: 1).waitForExistence(timeout: 10) else {
-            throw XCTSkip("Keine Folgen in den Demo-Inhalten")
-        }
-        cells.element(boundBy: cells.count - 1).click()
+        let row = table.tableRows.element(boundBy: 0)
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "Die Tabelle hat keine Folge")
+        row.click()
+        XCTAssertTrue(app.staticTexts["nowPlaying.idle"].exists, "Auswählen hat Ton gestartet")
+        row.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.descendants(matching: .any)["episode.sections"].firstMatch.waitForExistence(timeout: 10),
-                      "Die Folge hat sich nicht geöffnet")
+                      "Return hat die Folge nicht geöffnet")
         XCTAssertTrue(app.staticTexts["nowPlaying.idle"].exists, "Öffnen hat Ton gestartet")
     }
 }

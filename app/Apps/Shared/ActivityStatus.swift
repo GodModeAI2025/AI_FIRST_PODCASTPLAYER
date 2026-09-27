@@ -84,7 +84,11 @@ struct ActivityStatusButton: View {
     /// Lange drücken: dieselben Knöpfe wie oben in der Warteschlange.
     @ViewBuilder private var controls: some View {
         Button { openQueue?() } label: {
+            #if os(macOS)
+            Label("Verarbeitung anzeigen", systemImage: "list.bullet")
+            #else
             Label("Warteschlange öffnen", systemImage: "list.bullet")
+            #endif
         }
         if model.queueWaitingCount > 0 || model.queuePaused {
             QueuePauseButton()

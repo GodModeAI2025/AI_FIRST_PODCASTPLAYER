@@ -134,7 +134,7 @@ struct MacNowPlayingDisplay: View {
         let state = NowPlayingState(model: model)
         HStack(spacing: Design.Spacing.small) {
             display(state)
-                .frame(minWidth: 280, idealWidth: 440, maxWidth: 560)
+                .frame(minWidth: 280, idealWidth: 380, maxWidth: 560)
             if case .episode(let episode) = state {
                 MacRateMenu(player: player)
                 Button {
