@@ -273,15 +273,15 @@ struct ChapterSectionTests {
         #expect(ChapterSections.reopened(slices, gaps: []).isEmpty)
     }
 
-    @Test("Der Satz je Kapitel läuft auf dem Gerät, ohne Gerät über PCC, Fakten nie über PCC")
+    @Test("Der Satz je Kapitel läuft über PCC, ohne PCC auf dem Gerät, wie die Fakten")
     func summaryRouting() {
         let both = ModelStatus(onDevice: .available, privateCloudCompute: .available)
-        #expect(both.resolve(.summarize) == .success(.onDevice))
+        #expect(both.resolve(.summarize) == .success(.privateCloudCompute))
+        #expect(both.resolve(.extract) == .success(.privateCloudCompute))
         let cloudOnly = ModelStatus(onDevice: .unavailable(.modelNotReady), privateCloudCompute: .available)
         #expect(cloudOnly.resolve(.summarize) == .success(.privateCloudCompute))
-        #expect(cloudOnly.resolve(.extract) == .failure(.modelNotReady))
         let none = ModelStatus(onDevice: .unavailable(.modelNotReady), privateCloudCompute: .unavailable(.offline))
-        #expect(none.resolve(.summarize) == .failure(.modelNotReady))
+        #expect(none.resolve(.summarize) == .failure(.offline))
         #expect(TaskProfile.summarize.allowedTools.isEmpty)
     }
 

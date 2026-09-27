@@ -661,9 +661,10 @@ extension HelpTopic {
                     „Wissen“.
                     """),
                 HelpTerm(word: "Apple-Server (Private Cloud Compute)", meaning: """
-                    Rechner von Apple, auf denen Apple Intelligence Fragen mit mehr Text auf einmal \
-                    bearbeitet. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus, antwortet \
-                    das Modell auf dem Gerät.
+                    Rechner von Apple, auf denen Apple Intelligence für PodcastAI rechnet: Chat, Fakten, \
+                    Tags und der Satz je Kapitel. Dort passt mehr Text in eine Anfrage, und das Gerät \
+                    bleibt flüssig. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus oder \
+                    fehlt das Netz, rechnet das Modell auf dem Gerät.
                     """),
             ]
         )
@@ -687,8 +688,8 @@ extension HelpTopic {
     }
     private static var intelligenceText: LocalizedStringResource {
         """
-        Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar unter PodcastAI › \
-        Einstellungen › Intelligenz. Kein anderer KI-Anbieter.
+        Auf Apple-Servern (Private Cloud Compute), das Gerät nur als Ersatz, einstellbar unter \
+        PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter.
         """
     }
     private static var subscribeText: LocalizedStringResource {
@@ -717,8 +718,8 @@ extension HelpTopic {
     }
     private static var intelligenceText: LocalizedStringResource {
         """
-        Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar über das Zahnrad \
-        › Intelligenz. Kein anderer KI-Anbieter.
+        Auf Apple-Servern (Private Cloud Compute), das Gerät nur als Ersatz, einstellbar über das \
+        Zahnrad › Intelligenz. Kein anderer KI-Anbieter.
         """
     }
     private static var subscribeText: LocalizedStringResource {

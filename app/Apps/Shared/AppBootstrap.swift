@@ -143,7 +143,7 @@ public enum AppBootstrap {
             "episodePlaybackPositions", "recentEpisodeIDs", "upNextEpisodeIDs",
             "dismissedFromPreparation", "keptOfflineEpisodes", AppModel.dismissedRelevantKey,
             AppModel.factsSettledKey, AppModel.backCatalogKey, AppModel.prefetchedNewestKey,
-            AppModel.tagsSettledKey, AppModel.taggingProgressKey, AppModel.taggingPaceKey,
+            AppModel.tagsSettledKey, AppModel.taggingProgressKey,
             AppModel.prefetchDeclinedKey, AppModel.prefetchedFilesKey, AppModel.failedPreparationKey,
             AppModel.analysisQueueKey, AppModel.transcriptNotificationsAskedKey,
             AppModel.queuePausedKey, AppModel.restingPreparationKey,

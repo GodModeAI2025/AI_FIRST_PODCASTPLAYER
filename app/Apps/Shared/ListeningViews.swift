@@ -2248,9 +2248,9 @@ struct QueueView: View {
             Text(factsHeader)
         } footer: {
             Text("""
-                Nach dem Transkript zieht die App mit Apple Intelligence auf dem Gerät überprüfbare \
-                Aussagen heraus, eine Folge nach der anderen. Das läuft neben den Transkripten und \
-                hält sie nicht auf.
+                Nach dem Transkript zieht die App mit Apple Intelligence überprüfbare Aussagen heraus, \
+                eine Folge nach der anderen, auf Apples Servern und nur als Ersatz auf dem Gerät. Das \
+                läuft neben den Transkripten und hält sie nicht auf.
                 """)
         }
     }

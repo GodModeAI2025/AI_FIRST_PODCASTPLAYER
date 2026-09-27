@@ -19,7 +19,6 @@
 //
 
 import Foundation
-import Synchronization
 import PodcastAIKit
 
 /// Wie eine Einordnung ausging.
@@ -28,23 +27,13 @@ enum ChapterTagsOutcome: Equatable {
     case stored
     /// Nichts zu tun: schon eingeordnet, keine Belege oder gelöscht.
     case nothingToDo
-    /// Kein Modell für Tags. Die Folge wartet.
+    /// Kein Modell für Tags, etwa ohne Netz und ohne Gerätemodell. Die Folge wartet.
     case modelUnavailable
-    /// Nur Private Cloud Compute stünde bereit, und das Netz erlaubt gerade
-    /// kein Vorbereiten. Die Folge wartet.
-    case waiting
     /// Abgebrochen, etwa weil die Zeit im Hintergrund endete. Die fertigen
     /// Kapitel bleiben gemerkt.
     case cancelled
     /// Ein Aufruf ist an Last oder Zeit gescheitert. Ein späterer Lauf setzt fort.
     case failed
-}
-
-/// Sammelt die Auswahlen eines Kapitels, auch aus einer anderen Aufgabe.
-private final class TagSelectionLog: Sendable {
-    let selections = Mutex<[TagSelection]>([])
-    func add(_ selection: TagSelection) { selections.withLock { $0.append(selection) } }
-    var all: [TagSelection] { selections.withLock { $0 } }
 }
 
 extension AppModel {
@@ -54,11 +43,12 @@ extension AppModel {
     /// In der Pause arbeitet auch sie nicht.
     var tagsMayRun: Bool { factsMayRun || (tagGrants > 0 && !queueHeld) }
 
-    /// Ist ein Modell für Tags da oder wird es gerade vorbereitet?
+    /// Ist ein Modell für Tags da oder fehlt es nur vorübergehend, etwa
+    /// weil das Netz weg ist oder das Gerätemodell noch lädt?
     var tagsModelExpected: Bool {
         switch modelStatus.resolve(.tag) {
         case .success: true
-        case .failure(let reason): reason == .modelNotReady
+        case .failure(let reason): reason.isTemporary
         }
     }
 
@@ -90,16 +80,10 @@ extension AppModel {
             return .nothingToDo
         }
 
+        // Private Cloud Compute zuerst, ohne Netz das Gerät. Fehlen beide,
+        // wartet die Folge. `refreshModelStatus` kennt das Netz schon.
         await refreshModelStatus()
-        let tier: ModelTier
-        switch modelStatus.resolve(.tag) {
-        case .success(let resolved): tier = resolved
-        case .failure: return .modelUnavailable
-        }
-        // Private Cloud Compute braucht Netz. Automatisch gilt dafür, was
-        // fürs Vorbereiten gilt: Datensparmodus immer, Mobilfunk mit „Nur im WLAN“.
-        let cloudPermitted = preparationWait == nil && !isOffline
-        if tier == .privateCloudCompute, !cloudPermitted { return .waiting }
+        guard case .success = modelStatus.resolve(.tag) else { return .modelUnavailable }
 
         let sections = await Self.chapterSections(
             chapters: feedChapters(for: episode), duration: episode.declaredDuration, evidence: evidence)
@@ -126,28 +110,20 @@ extension AppModel {
             // Frisch je Kapitel: ein Oberbegriff aus dem vorigen Kapitel ist
             // jetzt ein bekanntes Tag.
             let tags = (try? await store.tags()) ?? []
-            // Ohne Erlaubnis fürs Netz kennt die Auswahl Private Cloud
-            // Compute gar nicht, auch nicht als Rückfall nach einem timeout.
-            let status = cloudPermitted ? modelStatus : ModelStatus(
-                onDevice: modelStatus.onDevice, privateCloudCompute: .unavailable(.offline))
-            let preferCloud = Self.taggingPace.prefersCloud(status)
+            let status = modelStatus
             let title = section.isDerived ? nil : section.title
-            let log = TagSelectionLog()
             let picks: [ChapterTagPick]
             do {
                 picks = try await Self.detached {
                     try await ChapterClassifier.classify(
                         material, tags: tags, budget: budget, cost: Self.tagTokenCost
                     ) { choices, part in
-                        let selection = try await selector.select(
-                            from: choices, passages: part, title: title,
-                            availability: status, preferCloud: preferCloud)
-                        log.add(selection)
-                        return selection.chosenIDs
+                        try await selector.select(
+                            from: choices, passages: part, title: title, availability: status
+                        ).chosenIDs
                     }
                 }
             } catch let error as ExtractorError {
-                Self.recordTaggingPace(log.all)
                 switch error {
                 case .generationRejected:
                     // Dieselbe Eingabe scheitert jedes Mal gleich: das Kapitel
@@ -167,7 +143,6 @@ extension AppModel {
                 Self.setTaggingProgress(progress, for: episode.id)
                 return .cancelled
             }
-            Self.recordTaggingPace(log.all)
             guard !wasRemoved(episode.id, since: ticket) else {
                 Self.setTaggingProgress(nil, for: episode.id)
                 return .nothingToDo
@@ -242,8 +217,8 @@ extension AppModel {
     ///
     /// Die Tags kommen nach den Fakten: Eine Folge wartet, bis sie Fakten hat
     /// oder ein Lauf ohne Fakten endete. Kann dieses Gerät gar keine Fakten
-    /// sammeln, etwa ohne Gerätemodell, aber mit Private Cloud Compute,
-    /// wartet sie nicht darauf.
+    /// sammeln, wartet sie nicht darauf. Fakten und Tags laufen über dieselbe
+    /// Stufe, das kommt also nur vor, wenn für beide kein Modell da ist.
     func queueMissingChapterTags(withFacts: Set<EpisodeID>) async {
         guard automaticFacts, isLoaded, tagsModelExpected else { return }
         let settled = StoredEpisodeIDs(key: Self.tagsSettledKey)
@@ -273,11 +248,9 @@ extension AppModel {
     }
 
     /// Ordnet eingereihte Folgen ein, bis keine mehr wartet, eine Folge auf
-    /// Fakten wartet, die Zeit endet oder das Modell fehlt. Mit
-    /// `ignoringFacts` auch, wenn Folgen auf Fakten warten, etwa weil nur
-    /// Private Cloud Compute bereitsteht und die Fakten ohnehin warten.
-    func runTagsBacklog(ignoringFacts: Bool = false) async {
-        while !Task.isCancelled, tagsMayRun, ignoringFacts || factsQueue.isEmpty || !factsMayRun {
+    /// Fakten wartet, die Zeit endet oder das Modell fehlt.
+    func runTagsBacklog() async {
+        while !Task.isCancelled, tagsMayRun, factsQueue.isEmpty || !factsMayRun {
             if tagsQueue.isEmpty {
                 // Die Portion ist durch: die nächste, falls noch Folgen fehlen.
                 guard tagsBackfillPending, let withFacts = try? await store.episodeIDsWithFacts() else { return }
@@ -302,7 +275,7 @@ extension AppModel {
                 // das Modell ausgelastet, also etwas Luft vor der nächsten.
                 await pauseBetweenFactRuns()
                 continue
-            case .modelUnavailable, .waiting, .cancelled:
+            case .modelUnavailable, .cancelled:
                 tagsQueue.insert(next, at: 0)
                 return
             }
@@ -370,13 +343,6 @@ extension AppModel {
     }
 
     static let taggingProgressKey = "chapterTaggingProgress"
-    /// Je Systemversion: Ein neues Modell wird neu gemessen. Sonst bliebe
-    /// ein einmal langsames Gerät bei Private Cloud Compute, denn dort
-    /// entstehen keine neuen Messungen auf dem Gerät.
-    static var taggingPaceKey: String {
-        let system = ProcessInfo.processInfo.operatingSystemVersion
-        return "chapterTaggingPace-\(system.majorVersion).\(system.minorVersion)"
-    }
 
     /// Der Stand aller angefangenen Folgen, als Datei in `DeviceState`. Er
     /// trägt die fertigen Kapitel-Tags und wächst mit jeder angefangenen Folge.
@@ -401,24 +367,5 @@ extension AppModel {
             stored[id.rawValue] = nil
         }
         DeviceState.shared.set(stored, for: taggingProgressKey)
-    }
-
-    /// Wie schnell das Gerätemodell auf diesem Gerät Tags wählt.
-    static var taggingPace: TaggingPace {
-        guard let data = UserDefaults.standard.data(forKey: taggingPaceKey),
-              let pace = try? JSONDecoder().decode(TaggingPace.self, from: data) else { return TaggingPace() }
-        return pace
-    }
-
-    static func recordTaggingPace(_ selections: [TagSelection]) {
-        // Auch ein Aufruf, der auf dem Gerät an der Zeit scheiterte und dann
-        // von Private Cloud Compute kam, zählt als langsamer Aufruf.
-        let local = selections.compactMap { $0.tier == .onDevice ? $0.seconds : $0.timedOutOnDeviceSeconds }
-        guard !local.isEmpty else { return }
-        var pace = taggingPace
-        for seconds in local { pace.record(onDeviceSeconds: seconds) }
-        if let data = try? JSONEncoder().encode(pace) {
-            UserDefaults.standard.set(data, forKey: taggingPaceKey)
-        }
     }
 }

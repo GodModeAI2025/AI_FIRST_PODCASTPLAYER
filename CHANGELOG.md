@@ -4,6 +4,13 @@
 Aus dem TestFlight-Feedback zu 0.13:
 - Läuft eine Ausgabe eines Themen-Updates, zeigt ihre Seite „Pause“ statt „Abspielen“, angehalten „Weiter“.
 
+Apple Intelligence rechnet auf Apples Servern (Entscheidung vom 27. September 2026, „PCC Cloud für alles“):
+- Fakten, Tags je Kapitel, der Satz je Kapitel, die Relevanz für Themen-Updates und der Chat laufen zuerst auf Private Cloud Compute. Das Modell auf dem Gerät ließ das iPhone stocken, und im Hintergrund beendete das System die Arbeit. Es springt nur noch ein, wenn Apples Server fehlen: ohne Netz, mit aufgebrauchtem Kontingent oder wenn „Apple-Server nutzen“ aus ist.
+- Tags wählt auf Apples Servern das allgemeine Modell aus derselben Liste von Kennungen. Den Anwendungsfall für Tags gibt es nur auf dem Gerät.
+- Ohne Netz und ohne Apple Intelligence auf dem Gerät warten Fakten und Tags, statt als gescheitert zu gelten, und laufen weiter, sobald das Netz zurück ist. Dasselbe gilt, wenn eine Anfrage an Apples Server am Netz oder am Kontingent scheitert.
+- Anfragen an Apples Server sind Text von wenigen Kilobyte. Sie gehen auch über Mobilfunk und im Datensparmodus hinaus, auch für Tags, die bisher dort auf WLAN warteten. „Neue Folgen auch über Mobilfunk vorbereiten“ gilt weiter für das Laden von Folgen.
+- Die Einstellungen unter Intelligenz zeigen das Gerät als „Bereit, nur als Ersatz“. Datenschutzseite und Hilfe sagen, dass dafür auch Transkriptstellen und für die Relevanz deine Interessen an Apple gehen.
+
 ## App 0.13 · 2026-09-26
 Neu: Angesagt als Themen-Update, Widget, Teilen-Menü, YouTube-Abos aus Google Takeout, und der Chat schlägt selbst nach.
 

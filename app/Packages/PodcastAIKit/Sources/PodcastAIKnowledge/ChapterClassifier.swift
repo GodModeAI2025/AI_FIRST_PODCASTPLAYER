@@ -270,7 +270,7 @@ public enum ChapterClassifier {
     public static let maximumParts = 6
 
     /// Wählt aus einer Liste für einen Teil des Kapitels. In der App
-    /// ``TagSelector/select(from:passages:title:availability:preferCloud:)``.
+    /// ``TagSelector/select(from:passages:title:availability:)``.
     public typealias Select = @Sendable (_ choices: [TagChoice], _ passages: [Evidence]) async throws -> [String]
 
     /// Teilt die Belege eines Kapitels in Teile, die ins Fenster passen.

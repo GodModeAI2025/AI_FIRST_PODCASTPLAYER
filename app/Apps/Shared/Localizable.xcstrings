@@ -3065,6 +3065,38 @@
         }
       }
     },
+    "Auf Apple-Servern (Private Cloud Compute), das Gerät nur als Ersatz, einstellbar unter PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf Apple-Servern (Private Cloud Compute), das Gerät nur als Ersatz, einstellbar unter PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On Apple servers (Private Cloud Compute), with the device only as a fallback, adjustable under PodcastAI › Settings › Intelligence. No other AI provider."
+          }
+        }
+      }
+    },
+    "Auf Apple-Servern (Private Cloud Compute), das Gerät nur als Ersatz, einstellbar über das Zahnrad › Intelligenz. Kein anderer KI-Anbieter." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf Apple-Servern (Private Cloud Compute), das Gerät nur als Ersatz, einstellbar über das Zahnrad › Intelligenz. Kein anderer KI-Anbieter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On Apple servers (Private Cloud Compute), with the device only as a fallback, adjustable via the gear › Intelligence. No other AI provider."
+          }
+        }
+      }
+    },
     "Auf dem Gerät" : {
       "localizations" : {
         "de" : {
@@ -3093,38 +3125,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keep on Device"
-          }
-        }
-      }
-    },
-    "Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar unter PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar unter PodcastAI › Einstellungen › Intelligenz. Kein anderer KI-Anbieter."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "On device or on Apple servers (Private Cloud Compute), adjustable under PodcastAI › Settings › Intelligence. No other AI provider."
-          }
-        }
-      }
-    },
-    "Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar über das Zahnrad › Intelligenz. Kein anderer KI-Anbieter." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auf dem Gerät oder auf Apple-Servern (Private Cloud Compute), einstellbar über das Zahnrad › Intelligenz. Kein anderer KI-Anbieter."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "On device or on Apple servers (Private Cloud Compute), adjustable via the gear button › Intelligence. No other AI provider."
           }
         }
       }
@@ -3322,18 +3322,18 @@
         }
       }
     },
-    "Aus heißt: Deine Fragen und die Transkriptstellen dazu bleiben auf dem Gerät." : {
+    "Aus heißt: Fragen, Transkriptstellen und Interessen bleiben auf dem Gerät. Das Modell dort rechnet dann alles selbst, und das Gerät kann dabei spürbar langsamer werden." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aus heißt: Deine Fragen und die Transkriptstellen dazu bleiben auf dem Gerät."
+            "value" : "Aus heißt: Fragen, Transkriptstellen und Interessen bleiben auf dem Gerät. Das Modell dort rechnet dann alles selbst, und das Gerät kann dabei spürbar langsamer werden."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Off means your questions and the related transcript passages stay on the device."
+            "value" : "Off means questions, transcript passages and interests stay on the device. The model there then does all the work itself, and the device can become noticeably slower."
           }
         }
       }
@@ -3826,6 +3826,22 @@
         }
       }
     },
+    "Bereit, nur als Ersatz" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bereit, nur als Ersatz"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready, fallback only"
+          }
+        }
+      }
+    },
     "Bereitet auch ältere Folgen vor, gerade angehalten." : {
       "localizations" : {
         "de" : {
@@ -4159,22 +4175,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The result couldn't be formatted."
-          }
-        }
-      }
-    },
-    "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel und wählt die Tags der Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Satz und Tags je Kapitel kommen nur von Apples Servern, wenn das Modell auf dem Gerät fehlt oder für die Tags zu langsam ist, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Modell auf dem Gerät formuliert Antworten, Fakten und den Satz je Kapitel und wählt die Tags der Kapitel. Ist „Apple-Server nutzen“ eingeschaltet, gehen deine Frage und die passenden Transkriptstellen an Apples Server (Private Cloud Compute). Satz und Tags je Kapitel kommen nur von Apples Servern, wenn das Modell auf dem Gerät fehlt oder für die Tags zu langsam ist, dann mit den Transkriptstellen des Kapitels. Apple speichert sie nach eigenen Angaben nicht. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The on-device model writes answers, facts and the one-sentence summary of each chapter, and picks each chapter's tags. If \"Use Apple Servers\" is turned on, your question and the matching transcript passages go to Apple's servers (Private Cloud Compute). Chapter summaries and tags come from Apple's servers only when the on-device model is missing or, for tags, too slow, and then with that chapter's transcript passages. Apple says it doesn't store them. You'll find the switch at the bottom of this page and in Settings under Intelligence."
           }
         }
       }
@@ -7723,18 +7723,18 @@
         }
       }
     },
-    "Fakten zieht die App nach jedem Transkript mit Apple Intelligence auf dem Gerät heraus, auch im Hintergrund und für ältere Folgen mit Transkript. Dafür braucht es kein Netz." : {
+    "Fakten zieht die App nach jedem Transkript mit Apple Intelligence heraus, auch im Hintergrund und für ältere Folgen mit Transkript. Das läuft auf Apples Private Cloud Compute und braucht Netz. Ohne Netz rechnet das Gerät, falls es Apple Intelligence hat, sonst warten die Fakten, bis das Netz wieder da ist." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Fakten zieht die App nach jedem Transkript mit Apple Intelligence auf dem Gerät heraus, auch im Hintergrund und für ältere Folgen mit Transkript. Dafür braucht es kein Netz."
+            "value" : "Fakten zieht die App nach jedem Transkript mit Apple Intelligence heraus, auch im Hintergrund und für ältere Folgen mit Transkript. Das läuft auf Apples Private Cloud Compute und braucht Netz. Ohne Netz rechnet das Gerät, falls es Apple Intelligence hat, sonst warten die Fakten, bis das Netz wieder da ist."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "After each transcript, the app extracts facts with Apple Intelligence on device, also in the background and for older episodes with a transcript. No network is needed."
+            "value" : "The app extracts facts with Apple Intelligence after every transcript, in the background too and for older episodes with a transcript. This runs on Apple's Private Cloud Compute and needs a connection. Without one, the device does the work if it has Apple Intelligence; otherwise the facts wait until the connection is back."
           }
         }
       }
@@ -9867,6 +9867,22 @@
         }
       }
     },
+    "Ist „Apple-Server nutzen“ eingeschaltet, rechnet Apple Intelligence auf Apples Servern (Private Cloud Compute): Antworten, Fakten, den Satz je Kapitel, die Tags der Kapitel und die Prüfung der Relevanz. Dafür gehen deine Frage, die passenden Transkriptstellen und für die Relevanz deine Interessen an Apple. Apple speichert sie nach eigenen Angaben nicht. Das Modell auf dem Gerät springt nur ein, wenn die Server nicht erreichbar sind, das Kontingent aufgebraucht ist oder der Schalter aus ist. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ist „Apple-Server nutzen“ eingeschaltet, rechnet Apple Intelligence auf Apples Servern (Private Cloud Compute): Antworten, Fakten, den Satz je Kapitel, die Tags der Kapitel und die Prüfung der Relevanz. Dafür gehen deine Frage, die passenden Transkriptstellen und für die Relevanz deine Interessen an Apple. Apple speichert sie nach eigenen Angaben nicht. Das Modell auf dem Gerät springt nur ein, wenn die Server nicht erreichbar sind, das Kontingent aufgebraucht ist oder der Schalter aus ist. Den Schalter findest du unten auf dieser Seite und in den Einstellungen unter Intelligenz."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If “Use Apple Servers” is on, Apple Intelligence runs on Apple's servers (Private Cloud Compute): answers, facts, the chapter sentence, chapter tags and the relevance check. For this, your question, the matching transcript passages and, for relevance, your interests go to Apple. According to Apple, they are not stored. The model on the device only steps in when the servers can't be reached, the quota is used up or the switch is off. You'll find the switch at the bottom of this page and in Settings under Intelligence."
+          }
+        }
+      }
+    },
     "Ja" : {
       "localizations" : {
         "de" : {
@@ -11453,18 +11469,18 @@
         }
       }
     },
-    "Nach dem Transkript zieht die App mit Apple Intelligence auf dem Gerät überprüfbare Aussagen heraus, eine Folge nach der anderen. Das läuft neben den Transkripten und hält sie nicht auf." : {
+    "Nach dem Transkript zieht die App mit Apple Intelligence überprüfbare Aussagen heraus, eine Folge nach der anderen, auf Apples Servern und nur als Ersatz auf dem Gerät. Das läuft neben den Transkripten und hält sie nicht auf." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nach dem Transkript zieht die App mit Apple Intelligence auf dem Gerät überprüfbare Aussagen heraus, eine Folge nach der anderen. Das läuft neben den Transkripten und hält sie nicht auf."
+            "value" : "Nach dem Transkript zieht die App mit Apple Intelligence überprüfbare Aussagen heraus, eine Folge nach der anderen, auf Apples Servern und nur als Ersatz auf dem Gerät. Das läuft neben den Transkripten und hält sie nicht auf."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "After the transcript, the app extracts verifiable statements with Apple Intelligence on device, one episode at a time. This runs alongside the transcripts and doesn't hold them up."
+            "value" : "After the transcript, the app uses Apple Intelligence to extract verifiable statements, one episode at a time, on Apple's servers and on the device only as a fallback. This runs alongside the transcripts and doesn't hold them up."
           }
         }
       }
@@ -13469,18 +13485,18 @@
         }
       }
     },
-    "PodcastAI nutzt nur Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät. Ist „Apple-Server nutzen“ an, gehen Fragen und Vergleiche an Apples Private Cloud Compute. Dort passt mehr Text in eine Anfrage, und Apple speichert sie nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen." : {
+    "PodcastAI nutzt nur Apple Intelligence. Ist „Apple-Server nutzen“ an, laufen Chat, Fakten, Tags, der Satz je Kapitel und die Relevanz auf Apples Private Cloud Compute. Dort passt mehr Text in eine Anfrage, das Gerät bleibt flüssig, und Apple speichert die Anfragen nicht. Das Modell auf diesem Gerät rechnet nur als Ersatz, etwa ohne Netz oder wenn das Kontingent aufgebraucht ist. Fehlen beide, wartet die Arbeit, statt einen anderen Anbieter zu nutzen." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PodcastAI nutzt nur Apple Intelligence. Antworten und Fakten entstehen auf dem Gerät. Ist „Apple-Server nutzen“ an, gehen Fragen und Vergleiche an Apples Private Cloud Compute. Dort passt mehr Text in eine Anfrage, und Apple speichert sie nicht. Fehlt eine Stufe, sagt die App das, statt einen anderen Anbieter zu nutzen."
+            "value" : "PodcastAI nutzt nur Apple Intelligence. Ist „Apple-Server nutzen“ an, laufen Chat, Fakten, Tags, der Satz je Kapitel und die Relevanz auf Apples Private Cloud Compute. Dort passt mehr Text in eine Anfrage, das Gerät bleibt flüssig, und Apple speichert die Anfragen nicht. Das Modell auf diesem Gerät rechnet nur als Ersatz, etwa ohne Netz oder wenn das Kontingent aufgebraucht ist. Fehlen beide, wartet die Arbeit, statt einen anderen Anbieter zu nutzen."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PodcastAI uses only Apple Intelligence. Answers and facts are generated on device. If \"Use Apple Servers\" is on, questions and comparisons go to Apple's Private Cloud Compute. More text fits into a single request there, and Apple doesn't store the requests. If a tier isn't available, the app says so instead of using another provider."
+            "value" : "PodcastAI uses only Apple Intelligence. If “Use Apple Servers” is on, chat, facts, tags, the chapter sentence and relevance run on Apple's Private Cloud Compute. More text fits into a single request there, your device stays responsive, and Apple doesn't store the requests. The model on this device is only a fallback, for example without a connection or when the quota is used up. If neither is available, the work waits instead of using another provider."
           }
         }
       }
@@ -13645,18 +13661,18 @@
         }
       }
     },
-    "Rechner von Apple, auf denen Apple Intelligence Fragen mit mehr Text auf einmal bearbeitet. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus, antwortet das Modell auf dem Gerät." : {
+    "Rechner von Apple, auf denen Apple Intelligence für PodcastAI rechnet: Chat, Fakten, Tags und der Satz je Kapitel. Dort passt mehr Text in eine Anfrage, und das Gerät bleibt flüssig. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus oder fehlt das Netz, rechnet das Modell auf dem Gerät." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rechner von Apple, auf denen Apple Intelligence Fragen mit mehr Text auf einmal bearbeitet. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus, antwortet das Modell auf dem Gerät."
+            "value" : "Rechner von Apple, auf denen Apple Intelligence für PodcastAI rechnet: Chat, Fakten, Tags und der Satz je Kapitel. Dort passt mehr Text in eine Anfrage, und das Gerät bleibt flüssig. Apple speichert die Anfragen nicht. Ist der Schalter dafür aus oder fehlt das Netz, rechnet das Modell auf dem Gerät."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple's servers, where Apple Intelligence handles questions with more text at once. Apple doesn't store the requests. If that setting is off, the on-device model answers."
+            "value" : "Apple computers on which Apple Intelligence works for PodcastAI: chat, facts, tags and the chapter sentence. More text fits into a single request there, and your device stays responsive. Apple doesn't store the requests. If the switch for it is off or there's no connection, the model on the device does the work."
           }
         }
       }
@@ -15261,18 +15277,18 @@
         }
       }
     },
-    "Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf dem Gerät. Fehlt das Modell dort oder ist es zu langsam, übernehmen das Apples Server, wenn „Apple-Server nutzen“ an ist. Mit Plus folgst du einem Tag, mit Minus nicht mehr. Welchen Tags du folgst, liegt auf deinen Geräten und in deiner privaten iCloud-Datenbank." : {
+    "Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf Apples Servern, wenn „Apple-Server nutzen“ an ist, sonst auf dem Gerät. Mit Plus folgst du einem Tag, mit Minus nicht mehr. Welchen Tags du folgst, liegt auf deinen Geräten und in deiner privaten iCloud-Datenbank." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf dem Gerät. Fehlt das Modell dort oder ist es zu langsam, übernehmen das Apples Server, wenn „Apple-Server nutzen“ an ist. Mit Plus folgst du einem Tag, mit Minus nicht mehr. Welchen Tags du folgst, liegt auf deinen Geräten und in deiner privaten iCloud-Datenbank."
+            "value" : "Tags ordnet Apple Intelligence aus Transkript und Shownotes deiner Folgen zu, auf Apples Servern, wenn „Apple-Server nutzen“ an ist, sonst auf dem Gerät. Mit Plus folgst du einem Tag, mit Minus nicht mehr. Welchen Tags du folgst, liegt auf deinen Geräten und in deiner privaten iCloud-Datenbank."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple Intelligence assigns tags from the transcripts and show notes of your episodes, on the device. If the model is missing there or too slow, Apple's servers take over when “Use Apple Servers” is on. Plus follows a tag, minus stops following it. Which tags you follow is stored on your devices and in your private iCloud database."
+            "value" : "Apple Intelligence assigns tags from the transcripts and show notes of your episodes, on Apple's servers when “Use Apple Servers” is on, otherwise on the device. Plus follows a tag, minus stops following it. Which tags you follow is stored on your devices and in your private iCloud database."
           }
         }
       }
