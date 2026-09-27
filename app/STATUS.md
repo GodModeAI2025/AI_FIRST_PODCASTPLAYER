@@ -29,6 +29,7 @@ Stand 26. September 2026, Version 0.13.
 | Bedienung durch Einsteiger bis Experten | 50 Personas mit Screenshots und Code, danach 10 Personas, die die App im Simulator selbst bedient haben, plus ein Begriffstest mit 12 Personas |
 | Jeder Knopf, jedes Menü, jeder Schalter, jeder Hinweistext | Prüfung auf Wirkung, jeder Fund von Gegenprüfern bestätigt oder verworfen |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
+| Mac-Oberfläche: Seitenleiste, Player in der Symbolleiste, Inspektor, Podcast als Tabelle, Menüs | Baut ohne Warnung; jede Seite startet mit Demo-Inhalten ohne Absturz (`-uitest-sidebar`, nur Debug), erstes Fenster 1280 × 820 |
 
 ## Noch auf einem Gerät zu prüfen
 
@@ -47,6 +48,7 @@ Stand 26. September 2026, Version 0.13.
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
 | Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |
+| Mac-Oberfläche im Betrieb | Die UI-Tests `PodcastAIMacUITests` (⌘1 bis ⌘7, ⌥⌘U, Hilfe-Menü, gesperrtes Abspielen, Öffnen spielt nichts) sind gebaut, liefen aber noch nicht: ohne Signatur startet der Test-Runner nicht. Offen sind außerdem, ob die Anzeige in der Symbolleiste bei 1000 Punkt Breite ohne Überlauf passt, ob die Leertaste in Textfeldern ankommt, wie Hell und Dunkel, „Bewegung reduzieren“ und Gelb oder Graphit als Akzentfarbe aussehen und ob die Kacheln und Tabellen mit Tastatur erreichbar sind |
 | „An PodcastAI senden“ | Das Teilen-Menü lässt sich im UI-Test nicht bedienen; geprüft sind Eingang, Vorschau und Audiodatei über Startargumente. Offen: ob die Erweiterung nur bei Links und Audio erscheint, wie Finder und AirDrop Dateien anbieten, ob der Mac die App öffnet, wie lange eine große Datei beim Kopieren braucht. Signierte Builds brauchen einmal neue Profile mit der App Group |
 
 ## Bewusst nicht enthalten

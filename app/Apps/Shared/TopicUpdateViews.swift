@@ -137,8 +137,8 @@ struct SmartFeedListView: View {
                 Label("Neu", systemImage: "plus")
             }
         }
-        .sheet(isPresented: $showingNewFeed) { NewSmartFeedSheet().sheetFeedback() }
-        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback() }
+        .sheet(isPresented: $showingNewFeed) { NewSmartFeedSheet().sheetFeedback().macFormSheet() }
+        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback().macFormSheet() }
         .smartFeedDeletionDialog(for: $pendingDeletion)
     }
 }
@@ -542,7 +542,7 @@ struct SmartFeedDetailView: View {
                 }
             }
         }
-        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback() }
+        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback().macFormSheet() }
         .coverPlaygroundSheet(isPresented: $showingPlayground, recipe: feed.map(model.coverRecipe(for:))) { url in
             guard let feed else { return }
             let recipe = model.coverRecipe(for: feed)
@@ -1366,7 +1366,7 @@ struct TagSelectChip: View {
             .background {
                 Capsule()
                     .fill(isSelected ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.12))
-                    .padding(.vertical, (Design.minimumTapTarget - 32) / 2)
+                    .padding(.vertical, max(0, Design.minimumTapTarget - 32) / 2)
             }
             .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
             .contentShape(.rect)

@@ -14997,6 +14997,22 @@
         }
       }
     },
+    "Senden (Return)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden (Return)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send (Return)"
+          }
+        }
+      }
+    },
     "Session beenden" : {
       "localizations" : {
         "de" : {
@@ -15089,6 +15105,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save and check"
+          }
+        }
+      }
+    },
+    "Sichern …" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sichern …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save …"
           }
         }
       }

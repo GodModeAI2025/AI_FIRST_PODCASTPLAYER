@@ -1060,6 +1060,9 @@ struct FactRow: View {
             .buttonStyle(.borderless)
             .accessibilityLabel("Aktionen zur Aussage")
             .accessibilityHint("Merken, mit Quelle kopieren oder teilen")
+            #if os(macOS)
+            .help("Aktionen zur Aussage")
+            #endif
         }
         .contextMenu {
             FactActions(fact: fact, episode: episode, quote: quote)
@@ -3052,6 +3055,9 @@ struct NoteActionsMenu: View {
         .buttonStyle(.borderless)
         .accessibilityLabel("Aktionen zur gemerkten Stelle")
         .accessibilityHint("Abspielen, mit Quelle kopieren oder teilen")
+        #if os(macOS)
+        .help("Aktionen zur gemerkten Stelle")
+        #endif
     }
 }
 

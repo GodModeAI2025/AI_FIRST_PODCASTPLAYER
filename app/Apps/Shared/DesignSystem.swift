@@ -62,7 +62,14 @@ public enum Design {
 
     /// Apples Mindestmass. Alles, was angetippt wird, ist mindestens so groß —
     /// auch wenn das Symbol darin kleiner ist.
+    ///
+    /// Auf dem Mac gibt es keine Finger. Dort gilt die Höhe eines großen
+    /// Steuerelements, damit Knöpfe und Chips nicht aufgebläht wirken.
+    #if os(macOS)
+    public static let minimumTapTarget: CGFloat = 28
+    #else
     public static let minimumTapTarget: CGFloat = 44
+    #endif
 
     // MARK: - Bewegung
 
@@ -173,6 +180,21 @@ public extension View {
             .background(.quaternary.opacity(0.35), in: RoundedRectangle(
                 cornerRadius: Design.Radius.card, style: .continuous
             ))
+    }
+}
+
+// MARK: - Blätter
+
+public extension View {
+    /// Auf dem Mac die Blattgröße eines Formulars, statt so klein wie der
+    /// Inhalt gerade ist. Auf iPhone und iPad ändert sich nichts.
+    @ViewBuilder
+    func macFormSheet() -> some View {
+        #if os(macOS)
+        presentationSizing(.form)
+        #else
+        self
+        #endif
     }
 }
 

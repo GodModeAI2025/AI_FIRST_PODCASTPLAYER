@@ -316,6 +316,9 @@ struct ChatView: View {
             .disabled(question.trimmingCharacters(in: .whitespaces).isEmpty || isAsking)
             .accessibilityLabel(sendLabel)
             .accessibilityIdentifier("chat.send")
+            #if os(macOS)
+            .help("Senden (Return)")
+            #endif
         }
         .padding(.horizontal, Design.Spacing.standard)
         .padding(.vertical, Design.Spacing.small)
@@ -750,6 +753,9 @@ struct AnswerCard: View {
                 }
                 .accessibilityLabel("Weitere Aktionen zur Antwort")
                 .accessibilityIdentifier("chat.answerMenu")
+                #if os(macOS)
+                .help("Weitere Aktionen zur Antwort")
+                #endif
             }
 
             AnswerText(text: answer.text, citations: Set(numbered.map(\.number)),

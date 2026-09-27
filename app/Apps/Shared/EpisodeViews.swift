@@ -14,6 +14,9 @@
 
 import SwiftUI
 import PodcastAIKit
+#if os(macOS)
+import UniformTypeIdentifiers
+#endif
 
 struct EpisodeListView: View {
 
@@ -1380,11 +1383,23 @@ struct ExportPreviewSheet: View {
                     }
                     .accessibilityIdentifier("export.copy")
                 }
+                #if os(macOS)
+                // Auf dem Mac der gewohnte Weg: als Datei sichern.
+                ToolbarItem(placement: .primaryAction) {
+                    Button { saveToFile() } label: {
+                        Label("Sichern …", systemImage: "square.and.arrow.down")
+                    }
+                    .accessibilityIdentifier("export.save")
+                }
+                #endif
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Fertig") { dismiss() }
                 }
             }
         }
+        #if os(macOS)
+        .presentationSizing(.form)
+        #endif
         .task(id: text) {
             MarkdownFile.remove(file)
             file = MarkdownFile.write(text, named: fileName ?? MarkdownFile.title(of: text))
@@ -1396,6 +1411,19 @@ struct ExportPreviewSheet: View {
         }
         .onDisappear { MarkdownFile.remove(file) }
     }
+
+    #if os(macOS)
+    /// Sichert den Export als Markdown-Datei an einem Ort, den du wählst.
+    private func saveToFile() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = (file?.lastPathComponent)
+            ?? MarkdownFile.fileName(fileName ?? MarkdownFile.title(of: text)) + ".md"
+        if let markdown = UTType(filenameExtension: "md") { panel.allowedContentTypes = [markdown] }
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? text.write(to: url, atomically: true, encoding: .utf8)
+    }
+    #endif
 }
 
 /// Der Export als echte Datei mit Endung .md, benannt nach seinem Inhalt.

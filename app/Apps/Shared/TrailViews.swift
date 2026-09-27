@@ -377,6 +377,7 @@ struct AppFeedbackModifier: ViewModifier {
                 if let closure = model.pendingClosure {
                     SessionClosureSheet(closure: closure)
                         .sheetFeedback()
+                        .macFormSheet()
                         .environment(model)
                 }
             }

@@ -2,7 +2,7 @@
 
 ## Aufbau
 
-Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `app/Apps`. iPhone, iPad und Mac teilen fast alle Ansichten; nur die Wurzel unterscheidet sich (Tab-Leiste auf iOS, Seitenleiste auf dem Mac).
+Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `app/Apps`. iPhone, iPad und Mac teilen fast alle Ansichten; die Wurzel unterscheidet sich (Tab-Leiste auf iOS, Seitenleiste mit Inspektor und Player in der Symbolleiste auf dem Mac, siehe „Die Mac-App“), und einige geteilte Ansichten haben einen Zweig für den Mac.
 
 | Modul | Aufgabe |
 |---|---|
@@ -219,6 +219,33 @@ Die Warteschlange lädt, transkribiert, bildet Belege, sammelt Fakten und ordnet
 ```sh
 PODCASTAI_PROCESSING_BENCH=1 swift test --filter ProcessingBenchmark
 ```
+
+## Die Mac-App
+
+Der Mac hat ein eigenes Ziel (`PodcastAIMac`), die iPhone-Fassung wird dort nicht angeboten (`SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO`). Die Dateien unter `app/Apps/PodcastAIMac`:
+
+| Datei | Inhalt |
+|---|---|
+| `MacScenes.swift` | App, Hauptfenster (1280 × 820, mindestens 1000 × 640), Fenster „Wiedergabe“ und „Verarbeitung“, Einstellungen |
+| `MacRootView.swift` | `NavigationSplitView` mit einem `NavigationStack` je Eintrag der Seitenleiste, Inspektor, Symbolleiste, Ziehen aufs Fenster |
+| `MacRouting.swift` | `SidebarItem`, `MacRouter` mit den Stapeln im Speicher, Sprüngen aus der Hilfe und Adressen aus dem Widget |
+| `MacSidebar.swift` | Hören, Wissen, Abschnitt „Podcasts“ mit den Abos |
+| `MacNowPlayingToolbar.swift` | Transport und Anzeige in der Symbolleiste, „Moment merken“ als Popover, Fenster „Wiedergabe“ |
+| `MacInspector.swift` | „Als Nächstes“ und Informationen, Popover hinter dem Aktivitätssymbol, Fenster „Verarbeitung“ |
+| `MacEpisodeTable.swift` | Kopf und Folgentabelle eines Podcasts, Befehle für das Menü „Folge“ |
+| `MacLibraryGrid.swift` | „Meine Podcasts“ als Raster |
+| `MacCommands.swift` | Menüleiste über `FocusedValues` des vorderen Fensters |
+| `MacSettingsView.swift` | Einstellungsfenster |
+
+Gespeichert wird je Fenster nur der Eintrag der Seitenleiste (`@SceneStorage("sidebarItem")`, als Text wie „library“ oder „podcast:<Kennung>“; die alten Einträge „queue“ und „player“ führen zu „Für dich“). Die Stapel liegen im Speicher, je Eintrag ein `NavigationPath`. Was nach Wert auf einen Stapel kommt (`MacRoute`: Folge, Informationen zur Quelle, und `SourceID` in „Meine Podcasts“), überlebt den Wechsel zu einem anderen Eintrag; Seiten, die eine Ansicht über einen `NavigationLink` mit Ziel-Closure öffnet, nicht. „Zeig es mir“ aus der Hilfe und Adressen aus dem Widget beginnen den Stapel ihres Ziels von vorn (`MacRouter.show`). Eine Tag-Adresse öffnet wie auf iOS die Themen-Updates und dort die Seite des Tags.
+
+Regel 1 auf dem Mac: Auswahl, Pfeiltasten, Überfahren, Ziehen, Öffnen eines Fensters und Wiederherstellen spielen nie etwas. Return und Doppelklick öffnen. Ton startet nur über einen sichtbaren Abspielknopf, eine Zeitmarke, „Auswahl abspielen“ (⌘⏎), Leertaste oder Abspielen/Pause in der Symbolleiste (beide nur `EpisodePlayer.toggleActivePlayback()`, ohne geladene Folge gesperrt), das Menü „Steuerung“, Medientasten und Siri. Im Transkript ist der Text deshalb markierbar und spielt nichts; ab einer Zeile spielt nur die Zeitmarke. In „Weiterhören“ öffnet ein Klick die Folge.
+
+Leertaste, ⇧⌘←/→ und ⌘⌫ sind Menübefehle. Steht der Cursor in einem Textfeld, gibt `MacTextInput` die Taste an das Feld weiter (Leerzeichen, Auswahl bis Zeilenanfang oder -ende, Löschen bis Zeilenanfang), wie in Musik. Ist der Befehl gesperrt, erreicht die Taste das Feld ohnehin.
+
+Geteilte Bausteine mit Mac-Zweig: `readingColumn()` (Seiten höchstens 1080 Punkt breit, der Rollbalken bleibt am Rand), `macFormSheet()`, `ProminentActionButtonStyle` als `.glassProminent`, `.pressable` als randloser Systemknopf, `Design.minimumTapTarget` 28 statt 44, `PlaybackScrubber` (im Player gestapelt, in der Symbolleiste in einer Zeile) und `QueueView(parts: .processing)`. Texte mit „Tippen“ haben im String-Katalog eine Variante für den Mac (`device: mac`).
+
+Mit `-uitest-sidebar <Eintrag>` beginnt ein Debug-Build bei einem Eintrag, mit `firstPodcast` beim ersten Podcast, `-uitest-open-episode` öffnet dort die neueste Folge. Die UI-Tests `PodcastAIMacUITests` liegen in `app/UITestsMac`.
 
 ## Was wo liegt
 
