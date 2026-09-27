@@ -29,6 +29,7 @@ Stand 26. September 2026, Version 0.13.
 | Bedienung durch Einsteiger bis Experten | 50 Personas mit Screenshots und Code, danach 10 Personas, die die App im Simulator selbst bedient haben, plus ein Begriffstest mit 12 Personas |
 | Jeder Knopf, jedes Menü, jeder Schalter, jeder Hinweistext | Prüfung auf Wirkung, jeder Fund von Gegenprüfern bestätigt oder verworfen |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
+| Agentenzugang über MCP (Mac) | 17 Swift-Tests mit echten JSON-Zeilen (`AgentAccessTests`). Live über stdio gegen den unsignierten Debug-Build: jedes Werkzeug, Schalter aus, keine Freigabe, abgelaufene Freigabe, Notizen ausgenommen, anderer Agent, Ausschalten und Ablauf während einer Verbindung. Alle Antworten vom offiziellen MCP-SDK 1.30.1 als gültig angenommen. Claude Code 2.1.283 hat den Debug-Build eingetragen, sich verbunden (erst `server/discover`, dann `initialize`) und `searchEvidence` aufgerufen |
 
 ## Noch auf einem Gerät zu prüfen
 
@@ -46,6 +47,7 @@ Stand 26. September 2026, Version 0.13.
 | Tokens und letzte Fragen im Chat | Zeitangaben, Vorschläge und die Auswahl vor dem Modell mit Swift-Tests geprüft, die Rückschritttaste am Mac in einem eigenen Testfenster. Dass sie nur im Fenster des Chats greift und nicht in den Einstellungen, einem zweiten Fenster oder bei einer offenen Tottaste, ist gebaut, aber noch nicht am Mac ausprobiert. Der UI-Test ist gebaut, lief aber noch nicht im Simulator. Auf iPhone und iPad nimmt nur ein Tipp ein Token heraus, die Bildschirmtastatur meldet den Rückschritt im leeren Feld nicht |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
 | Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
+| Agentenzugang mit dem signierten Mac-Build | Geprüft ist nur der unsignierte Build und eine ad hoc signierte Kopie mit Sandbox. Offen: ob Claude Desktop und Claude Code das Programm aus der TestFlight-Mac-App starten, ob der Prozess dort Freigabe und Mediathek des App-Containers sieht und wie er sich verhält, während die App mit iCloud abgleicht. Auf einem Mac mit Apple-Chip installiert TestFlight womöglich die iPad-App unter demselben Namen `PodcastAI.app`; sie hat keinen Agentenzugang |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |
 | „An PodcastAI senden“ | Das Teilen-Menü lässt sich im UI-Test nicht bedienen; geprüft sind Eingang, Vorschau und Audiodatei über Startargumente. Offen: ob die Erweiterung nur bei Links und Audio erscheint, wie Finder und AirDrop Dateien anbieten, ob der Mac die App öffnet, wie lange eine große Datei beim Kopieren braucht. Signierte Builds brauchen einmal neue Profile mit der App Group |
 

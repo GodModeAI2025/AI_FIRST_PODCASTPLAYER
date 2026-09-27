@@ -61,20 +61,45 @@ Das Widget öffnet die App über `podcastai://topicupdates` und `podcastai://tag
 
 ## Agentenzugang auf dem Mac
 
-Ein KI-Agent kann über MCP lesend auf das Wissen zugreifen. Er startet dafür die Mac-App selbst, mit `--mcp`, und spricht über Standardein- und -ausgabe mit ihr. Einen Netzwerk-Port gibt es nicht. In diesem Modus startet keine Oberfläche; der Prozess öffnet die Datenbank ohne iCloud-Abgleich, liest nur und endet mit dem Ende der Eingabe.
+MCP (Model Context Protocol) ist das Verfahren, mit dem KI-Programme wie Claude Desktop oder Claude Code andere Programme als Werkzeug nutzen. Die Mac-App bringt einen solchen Zugang mit, nur lesend. Die iPhone- und iPad-App haben ihn nicht, auch nicht, wenn die iPad-App auf einem Mac mit Apple-Chip läuft; ihre Hilfe sagt das dann ausdrücklich.
 
-```json
-{
-  "mcpServers": {
-    "podcastai": {
-      "args": ["--mcp"],
-      "command": "/Applications/PodcastAI.app/Contents/MacOS/PodcastAI"
-    }
-  }
-}
-```
+Was ein Agent lesen kann, mit einer Freigabe für ausgewählte Podcasts:
 
-Den Eintrag mit dem richtigen Pfad zeigt die App unter PodcastAI › Einstellungen › Agenten. Dort wird der Zugang eingeschaltet, eine Freigabe mit Quellen und Ablaufzeit vergeben und das Protokoll gelesen. Schalter, Freigabe und Protokoll liegen in den Einstellungen der App, die der Agentenprozess bei jeder Anfrage neu liest. Ohne Freigabe beantwortet er keine Werkzeuganfrage.
+| Werkzeug | Liefert |
+|---|---|
+| `listPodcasts` | die freigegebenen Podcasts mit Kennung, Titel, Sprache und Zahl der Folgen mit Transkript |
+| `listInterests` | die Tags, denen der Nutzer folgt, für die ganze Mediathek |
+| `searchEvidence` | Stellen aus Transkripten mit Podcast, Folge, Datum und Zeitmarke; gesucht wird wie im Chat, mit Stichworten und Sätzen ähnlicher Bedeutung, optional nur in einem Podcast |
+| `getEvidence` | eine Stelle über ihre Kennung |
+| `listHighlights` | gemerkte Stellen mit Notiz, nur wenn Notizen freigegeben sind |
+| `listTrails` | gesicherte Antworten mit Frage, Antwort und Stellen, nur wenn Notizen freigegeben sind |
+
+Kein Werkzeug schreibt, löscht oder startet Wiedergabe.
+
+In drei Schritten, alles unter PodcastAI › Einstellungen › Agenten:
+
+1. „Agentenzugang erlauben“ einschalten.
+2. Den Agenten eintragen. Die Einstellungen zeigen beides fertig zum Kopieren, mit dem Pfad, unter dem die App gerade liegt.
+   - Claude Desktop: den Eintrag in den Block `mcpServers` der Datei `~/Library/Application Support/Claude/claude_desktop_config.json` setzen, dann Claude Desktop mit ⌘Q beenden und neu öffnen. Meldungen von PodcastAI stehen danach in `~/Library/Logs/Claude/mcp-server-podcastai.log`.
+     ```json
+     "podcastai": {
+       "command": "/Applications/PodcastAI.app/Contents/MacOS/PodcastAI",
+       "args": ["--mcp"]
+     }
+     ```
+     Für eine neue oder leere Datei gibt es „Ganze Datei kopieren“, mit der Hülle `{"mcpServers": {…}}`.
+   - Claude Code: im Terminal
+     ```sh
+     claude mcp add --scope user podcastai -- /Applications/PodcastAI.app/Contents/MacOS/PodcastAI --mcp
+     ```
+     `--scope user` trägt den Server für alle Projekte ein. `claude mcp list` zeigt danach, ob die Verbindung steht.
+3. Podcasts wählen, auf Wunsch Notizen einschließen, eine Dauer von 1 bis 24 Stunden wählen und „Freigeben“. Wahlweise gilt die Freigabe nur für einen Agenten, der sich schon einmal verbunden hat; zur Wahl stehen nur Namen, die Agenten selbst gemeldet haben, sodass sich der echte Agent nicht durch einen Tippfehler aussperren lässt. Der Name ist keine Sicherheitsgrenze.
+
+Läuft die Freigabe ab, bekommt der Agent auf jede Anfrage eine Absage mit Datum und Uhrzeit des Ablaufs. „Erneuern“ gibt denselben Umfang für dieselbe Dauer wieder frei. Unter „Was gelesen wurde“ stehen die letzten Anfragen mit Uhrzeit, Agent, Suchbegriff und Zahl der Treffer, auch jede Absage.
+
+Technisch: Der Agent startet das Programm der Mac-App selbst, mit `--mcp`, und spricht über Standardein- und -ausgabe mit ihm (JSON-RPC, eine Nachricht pro Zeile). Einen Netzwerk-Port gibt es nicht, die App muss nicht offen sein. In diesem Modus startet keine Oberfläche; der Prozess öffnet die Datenbank ohne iCloud-Abgleich, ändert an der Mediathek nichts und endet mit dem Ende der Eingabe. Schreiben tut er nur in die Einstellungen der App: sein Protokoll und den Namen, mit dem sich der Agent meldet. Schalter, Freigabe und Protokoll liegen in den Benutzereinstellungen der App, die der Prozess bei jeder Anfrage neu liest. Ist der Schalter aus, beantwortet er `initialize` und `tools/list` weiter, jeder Werkzeugaufruf bekommt aber eine Absage. Einzelheiten in [docs/architektur.md](../docs/architektur.md#agentenzugang-über-mcp).
+
+Startet macOS die App frisch geladen aus einem vorläufigen Ordner, warnt die Seite: Eintrag und Befehl zeigten sonst beim nächsten Start ins Leere. Liegt die App später woanders, braucht der Agent den neuen Eintrag.
 
 ## Podcast-Katalog
 
@@ -106,11 +131,12 @@ Packages/PodcastAIKit/Sources/
   PodcastAIPersistence   SwiftData mit iCloud-Abgleich
   PodcastAIWidgetData    Schnappschuss fürs Widget in der App Group
   PodcastAIShareInbox    Eingang für „An PodcastAI senden“, eigenes Produkt für die Erweiterung
+  PodcastAIKit           Sammelziel für die Apps, dazu AgentAccess/: MCP-Server, nur macOS
 
 Apps/
   Shared/                AppModel, Dienste, gemeinsame Ansichten
   PodcastAI/             iOS: fünf Tabs, Mini-Player
-  PodcastAIMac/          macOS: Seitenleiste, Menübefehle, MCP-Server
+  PodcastAIMac/          macOS: Seitenleiste, Menübefehle, Prozess für --mcp (MCPHost)
   PodcastAIWidget/       Widget „Was ist neu“ für iOS und macOS
   ShareExtension/        „An PodcastAI senden“ für iOS und macOS
 

@@ -1081,6 +1081,54 @@
         }
       }
     },
+    "1. Zugang einschalten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1. Zugang einschalten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1. Turn On Access"
+          }
+        }
+      }
+    },
+    "2. Agent eintragen: Claude Code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2. Agent eintragen: Claude Code"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2. Add the Agent: Claude Code"
+          }
+        }
+      }
+    },
+    "2. Agent eintragen: Claude Desktop" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2. Agent eintragen: Claude Desktop"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2. Add the Agent: Claude Desktop"
+          }
+        }
+      }
+    },
     "20 ältere Videos über Supadata laden" : {
       "localizations" : {
         "de" : {
@@ -1093,6 +1141,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Load 20 older videos via Supadata"
+          }
+        }
+      }
+    },
+    "3. Freigeben" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3. Freigeben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3. Share"
           }
         }
       }
@@ -1209,12 +1273,12 @@
         }
       }
     },
-    "Abgelaufen" : {
+    "Abgelaufen am" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abgelaufen"
+            "value" : "Abgelaufen am"
           }
         },
         "en" : {
@@ -1529,6 +1593,38 @@
         }
       }
     },
+    "Agent ohne Namen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent ohne Namen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unnamed agent"
+          }
+        }
+      }
+    },
+    "Agent verbinden" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent verbinden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect an Agent"
+          }
+        }
+      }
+    },
     "Agenten" : {
       "localizations" : {
         "de" : {
@@ -1541,6 +1637,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agents"
+          }
+        }
+      }
+    },
+    "Agenten am Mac" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agenten am Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agents on the Mac"
+          }
+        }
+      }
+    },
+    "Agenten nur in der Mac-App" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agenten nur in der Mac-App"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agents Only in the Mac App"
           }
         }
       }
@@ -4083,6 +4211,22 @@
         }
       }
     },
+    "Danach bekommt der Agent eine Absage, die Datum und Uhrzeit des Ablaufs nennt. „Erneuern“ lässt dieselbe Freigabe ab jetzt wieder ^[%lld Stunde](inflect: true) gelten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Danach bekommt der Agent eine Absage, die Datum und Uhrzeit des Ablaufs nennt. „Erneuern“ lässt dieselbe Freigabe ab jetzt wieder ^[%lld Stunde](inflect: true) gelten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "After that the agent gets a refusal that names the date and time of expiry. “Renew” makes the same grant valid again for ^[%lld hour](inflect: true) from now."
+          }
+        }
+      }
+    },
     "Das Audio nimmt die App danach wieder vom Gerät, abgespielt wird dann aus dem Netz." : {
       "localizations" : {
         "de" : {
@@ -4159,22 +4303,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The date is approximate. What was said: \"%@\""
-          }
-        }
-      }
-    },
-    "Das Ergebnis ließ sich nicht darstellen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Das Ergebnis ließ sich nicht darstellen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The result couldn't be formatted."
           }
         }
       }
@@ -4483,6 +4611,22 @@
         }
       }
     },
+    "Das ist die iPad-App von PodcastAI auf dem Mac. Den Zugang für KI-Agenten über MCP hat nur die eigene Mac-App von PodcastAI, dort unter PodcastAI › Einstellungen › Agenten." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ist die iPad-App von PodcastAI auf dem Mac. Den Zugang für KI-Agenten über MCP hat nur die eigene Mac-App von PodcastAI, dort unter PodcastAI › Einstellungen › Agenten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is the iPad app of PodcastAI running on a Mac. Only the separate PodcastAI Mac app has access for AI agents through MCP, under PodcastAI › Settings › Agents."
+          }
+        }
+      }
+    },
     "Datei lässt sich nicht einlesen" : {
       "localizations" : {
         "de" : {
@@ -4779,22 +4923,6 @@
         }
       }
     },
-    "Den Eintrag übernimmst du in die MCP-Einstellungen deines Agenten, etwa in die Konfigurationsdatei von Claude Desktop. Agenten im Terminal bekommen stattdessen den Befehl. Der Agent startet PodcastAI dann selbst mit „%@“, im Hintergrund ohne Fenster und ohne Symbol im Dock, und beendet es wieder, wenn er fertig ist. Die App muss dafür nicht offen sein. Liegt PodcastAI später an einem anderen Ort, braucht der Agent den neuen Eintrag. Ohne Freigabe darunter bekommt er nichts zu lesen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Den Eintrag übernimmst du in die MCP-Einstellungen deines Agenten, etwa in die Konfigurationsdatei von Claude Desktop. Agenten im Terminal bekommen stattdessen den Befehl. Der Agent startet PodcastAI dann selbst mit „%@“, im Hintergrund ohne Fenster und ohne Symbol im Dock, und beendet es wieder, wenn er fertig ist. Die App muss dafür nicht offen sein. Liegt PodcastAI später an einem anderen Ort, braucht der Agent den neuen Eintrag. Ohne Freigabe darunter bekommt er nichts zu lesen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add this entry to your agent's MCP settings, for example the Claude Desktop configuration file. Agents in the terminal get the command instead. The agent then starts PodcastAI itself with \"%@\", in the background without a window or Dock icon, and quits it when it's done. The app doesn't need to be open. If PodcastAI moves to another location later, the agent needs the new entry. Without access granted below, it can't read anything."
-          }
-        }
-      }
-    },
     "Den Namen deiner Sendung eintippen und abonnieren. Links aus Apple Podcasts oder von YouTube gehen auch." : {
       "localizations" : {
         "de" : {
@@ -4843,6 +4971,38 @@
         }
       }
     },
+    "Der Agent sieht nur die gewählten Podcasts, und eine neue Freigabe ersetzt die alte. Zur Wahl stehen außer „Jeder Agent“ die Agenten, die sich schon einmal verbunden haben, mit dem Namen, den sie selbst melden. Das hält einen zweiten Agenten fern, schützt aber nicht vor einem Programm, das sich mit falschem Namen meldet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Agent sieht nur die gewählten Podcasts, und eine neue Freigabe ersetzt die alte. Zur Wahl stehen außer „Jeder Agent“ die Agenten, die sich schon einmal verbunden haben, mit dem Namen, den sie selbst melden. Das hält einen zweiten Agenten fern, schützt aber nicht vor einem Programm, das sich mit falschem Namen meldet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent sees only the chosen podcasts, and a new grant replaces the old one. Besides “Any Agent”, you can choose agents that have connected before, under the name they report themselves. That keeps a second agent out, but it does not protect against a program that reports a false name."
+          }
+        }
+      }
+    },
+    "Der Agent startet PodcastAI selbst, im Hintergrund ohne Fenster, und spricht nur über die Standardeingabe mit ihm. Einen Netzwerk-Port gibt es nicht, und die App muss dafür nicht offen sein. Ist der Schalter aus, sieht der Agent die Werkzeuge noch, bekommt aber auf jede Anfrage eine Absage, auch in einer laufenden Verbindung. Ausschalten zieht auch die Freigabe zurück." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Agent startet PodcastAI selbst, im Hintergrund ohne Fenster, und spricht nur über die Standardeingabe mit ihm. Einen Netzwerk-Port gibt es nicht, und die App muss dafür nicht offen sein. Ist der Schalter aus, sieht der Agent die Werkzeuge noch, bekommt aber auf jede Anfrage eine Absage, auch in einer laufenden Verbindung. Ausschalten zieht auch die Freigabe zurück."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent starts PodcastAI itself, in the background without a window, and talks to it only through standard input. There is no network port, and the app does not need to be open. With the switch off, the agent still sees the tools but gets a refusal for every request, even in a running connection. Turning it off also withdraws the grant."
+          }
+        }
+      }
+    },
     "Der Agentenzugang ist ausgeschaltet. Einschalten lässt er sich in PodcastAI unter Einstellungen › Agenten." : {
       "localizations" : {
         "de" : {
@@ -4855,22 +5015,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agent access is turned off. You can turn it on in PodcastAI under Settings › Agents."
-          }
-        }
-      }
-    },
-    "Der Agentenzugang ist in PodcastAI ausgeschaltet." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Agentenzugang ist in PodcastAI ausgeschaltet."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Agent access is turned off in PodcastAI."
           }
         }
       }
@@ -6859,22 +7003,6 @@
         }
       }
     },
-    "Ein Zugang ohne Protokoll ist kein kontrollierter Zugang." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ein Zugang ohne Protokoll ist kein kontrollierter Zugang."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access without a log isn't controlled access."
-          }
-        }
-      }
-    },
     "Ein eigener Podcast aus Tags. Du wählst Tags aus, gefolgte und über „Weitere Tags“ auch andere, und ob ein Kapitel eines davon oder alle zusammen behandeln muss. Mit „Datenschutz“ und „USA“ auf „Alle zusammen“ kommen nur Kapitel, die beides behandeln. Jede Ausgabe besteht aus ungehörten Kapiteln mehrerer Podcasts und bekommt ein eigenes Cover." : {
       "localizations" : {
         "de" : {
@@ -6987,18 +7115,18 @@
         }
       }
     },
-    "Eine Fundstelle mit Quelle und Zeitmarke abrufen" : {
+    "Eine Freigabe gilt 1 bis 24 Stunden. Danach bekommt der Agent auf jede Anfrage eine Absage, die sagt, wann die Freigabe abgelaufen ist. „Erneuern“ in den Einstellungen gibt dieselben Podcasts für dieselbe Dauer wieder frei." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine Fundstelle mit Quelle und Zeitmarke abrufen"
+            "value" : "Eine Freigabe gilt 1 bis 24 Stunden. Danach bekommt der Agent auf jede Anfrage eine Absage, die sagt, wann die Freigabe abgelaufen ist. „Erneuern“ in den Einstellungen gibt dieselben Podcasts für dieselbe Dauer wieder frei."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Get a passage with its source and timestamp"
+            "value" : "A grant lasts 1 to 24 hours. After that the agent gets a refusal for every request that says when the grant expired. “Renew” in Settings shares the same podcasts again for the same length of time."
           }
         }
       }
@@ -7163,6 +7291,22 @@
         }
       }
     },
+    "Einstellungen › Agenten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen › Agenten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings › Agents"
+          }
+        }
+      }
+    },
     "Eintrag kopieren" : {
       "localizations" : {
         "de" : {
@@ -7175,6 +7319,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy Entry"
+          }
+        }
+      }
+    },
+    "Eintrag und Befehl enthalten den Ort dieser App. Liegt PodcastAI später woanders, trage den Agenten neu ein." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eintrag und Befehl enthalten den Ort dieser App. Liegt PodcastAI später woanders, trage den Agenten neu ein."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The entry and the command contain the location of this app. If PodcastAI moves later, add the agent again."
           }
         }
       }
@@ -7399,6 +7559,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Allow"
+          }
+        }
+      }
+    },
+    "Erneuern" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneuern"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renew"
           }
         }
       }
@@ -8283,22 +8459,6 @@
         }
       }
     },
-    "Freigabe" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Freigabe"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access"
-          }
-        }
-      }
-    },
     "Freigeben" : {
       "localizations" : {
         "de" : {
@@ -8315,6 +8475,22 @@
         }
       }
     },
+    "Freigeben geht erst, wenn der Zugang eingeschaltet ist." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freigeben geht erst, wenn der Zugang eingeschaltet ist."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can share once access is turned on."
+          }
+        }
+      }
+    },
     "Frühere Ausgaben" : {
       "localizations" : {
         "de" : {
@@ -8327,6 +8503,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Earlier Editions"
+          }
+        }
+      }
+    },
+    "Füge den Befehl im Terminal ein. Er trägt PodcastAI für alle deine Projekte ein. Danach zeigt „%@“, ob die Verbindung steht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Füge den Befehl im Terminal ein. Er trägt PodcastAI für alle deine Projekte ein. Danach zeigt „%@“, ob die Verbindung steht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste the command into Terminal. It adds PodcastAI for all your projects. Afterwards “%@” shows whether the connection works."
           }
         }
       }
@@ -8555,18 +8747,18 @@
         }
       }
     },
-    "Für „%@“ liegt keine gültige Freigabe vor. Freigeben lässt sie sich in PodcastAI unter Einstellungen › Agenten." : {
+    "Ganze Datei kopieren" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Für „%@“ liegt keine gültige Freigabe vor. Freigeben lässt sie sich in PodcastAI unter Einstellungen › Agenten."
+            "value" : "Ganze Datei kopieren"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "\"%@\" doesn't have valid access. You can grant access in PodcastAI under Settings › Agents."
+            "value" : "Copy Whole File"
           }
         }
       }
@@ -8583,22 +8775,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Followed tags fill “For You” and the Topic Updates. Minus stops following, the tag stays."
-          }
-        }
-      }
-    },
-    "Gefolgte Tags lesen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gefolgte Tags lesen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read followed tags"
           }
         }
       }
@@ -8871,22 +9047,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saved moments appear in system search only if you turn this on. The index stays on the device."
-          }
-        }
-      }
-    },
-    "Gemerkte Stellen lesen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gemerkte Stellen lesen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read Saved Moments"
           }
         }
       }
@@ -9195,22 +9355,6 @@
         }
       }
     },
-    "Gesicherte Antworten lesen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gesicherte Antworten lesen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read Saved Answers"
-          }
-        }
-      }
-    },
     "Geteilte Audiodatei" : {
       "localizations" : {
         "de" : {
@@ -9259,6 +9403,22 @@
         }
       }
     },
+    "Gültig bis" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gültig bis"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valid Until"
+          }
+        }
+      }
+    },
     "Gültig für ^[%lld Stunde](inflect: true)" : {
       "localizations" : {
         "de" : {
@@ -9303,6 +9463,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ask all your podcasts at once here. Every answer shows the passages it's based on."
+          }
+        }
+      }
+    },
+    "Hier stehen die letzten 20 Anfragen mit Uhrzeit, Agent und Zahl der Treffer, auch jede Absage." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier stehen die letzten 20 Anfragen mit Uhrzeit, Agent und Zahl der Treffer, auch jede Absage."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last 20 requests with time, agent and number of results, including every refusal."
           }
         }
       }
@@ -9627,22 +9803,6 @@
         }
       }
     },
-    "In Folgen mit Transkript suchen" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In Folgen mit Transkript suchen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search Episodes with Transcripts"
-          }
-        }
-      }
-    },
     "In Karten öffnen" : {
       "localizations" : {
         "de" : {
@@ -9803,6 +9963,22 @@
         }
       }
     },
+    "In drei Schritten: Zugang einschalten, Agent eintragen, Podcasts freigeben." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In drei Schritten: Zugang einschalten, Agent eintragen, Podcasts freigeben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Three steps: turn on access, add the agent, grant access to podcasts."
+          }
+        }
+      }
+    },
     "In einer Folge unter „Fragen“, über alle Podcasts im Reiter „Chat“. Die Nummern in der Antwort führen zu den Belegen." : {
       "localizations" : {
         "de" : {
@@ -9947,6 +10123,22 @@
         }
       }
     },
+    "Jeder Agent auf diesem Mac" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeder Agent auf diesem Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Any Agent on This Mac"
+          }
+        }
+      }
+    },
     "Jetzt ermitteln" : {
       "localizations" : {
         "de" : {
@@ -9991,6 +10183,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Now Playing"
+          }
+        }
+      }
+    },
+    "KI-Agenten wie Claude Desktop oder Claude Code können über MCP lesend auf dein Wissen zugreifen, aber nur in PodcastAI für den Mac und nur mit deiner Freigabe. Auf iPhone und iPad gibt es diesen Zugang nicht." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KI-Agenten wie Claude Desktop oder Claude Code können über MCP lesend auf dein Wissen zugreifen, aber nur in PodcastAI für den Mac und nur mit deiner Freigabe. Auf iPhone und iPad gibt es diesen Zugang nicht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI agents like Claude Desktop or Claude Code can read your knowledge through MCP, but only in PodcastAI for Mac and only with your permission. iPhone and iPad do not have this access."
           }
         }
       }
@@ -10251,40 +10459,6 @@
         }
       }
     },
-    "Kein `method`." : {
-      "comment" : "`method` ist ein JSON-RPC-Feld, nicht übersetzen.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kein `method`."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No `method`."
-          }
-        }
-      }
-    },
-    "Kein `name`." : {
-      "comment" : "`name` ist ein MCP-Feld, nicht übersetzen.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kein `name`."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No `name`."
-          }
-        }
-      }
-    },
     "Kein gefolgtes Tag passt zur Suche." : {
       "localizations" : {
         "de" : {
@@ -10297,22 +10471,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No followed tag matches the search."
-          }
-        }
-      }
-    },
-    "Kein gültiges JSON." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kein gültiges JSON."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not valid JSON."
           }
         }
       }
@@ -10733,22 +10891,6 @@
         }
       }
     },
-    "Kurzbefehle und Mac" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kurzbefehle und Mac"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shortcuts and Mac"
-          }
-        }
-      }
-    },
     "Laden" : {
       "localizations" : {
         "de" : {
@@ -11021,22 +11163,6 @@
         }
       }
     },
-    "Läuft ab" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Läuft ab"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expires"
-          }
-        }
-      }
-    },
     "Löschen" : {
       "localizations" : {
         "de" : {
@@ -11049,6 +11175,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete"
+          }
+        }
+      }
+    },
+    "MCP ist ein offenes Verfahren, über das KI-Programme wie Claude Desktop oder Claude Code andere Programme als Werkzeug nutzen. Mit deiner Freigabe liest ein solcher Agent hier Stellen aus Transkripten mit Podcast, Folge und Zeitmarke, deine gefolgten Tags und auf Wunsch deine gemerkten Stellen und gesicherten Antworten. Ändern, löschen oder abspielen kann er nichts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MCP ist ein offenes Verfahren, über das KI-Programme wie Claude Desktop oder Claude Code andere Programme als Werkzeug nutzen. Mit deiner Freigabe liest ein solcher Agent hier Stellen aus Transkripten mit Podcast, Folge und Zeitmarke, deine gefolgten Tags und auf Wunsch deine gemerkten Stellen und gesicherten Antworten. Ändern, löschen oder abspielen kann er nichts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MCP is an open protocol that lets AI apps like Claude Desktop or Claude Code use other apps as tools. With your permission, such an agent can read passages from transcripts here, with podcast, episode and timestamp, the tags you follow and, if you want, your saved moments and saved answers. It cannot change, delete or play anything."
+          }
+        }
+      }
+    },
+    "MCP ist ein offenes Verfahren, über das KI-Programme wie Claude Desktop oder Claude Code andere Programme als Werkzeug nutzen. Mit deiner Freigabe liest ein solcher Agent in PodcastAI Stellen aus Transkripten, deine gefolgten Tags und auf Wunsch gemerkte Stellen und gesicherte Antworten. Ändern, löschen oder abspielen kann er nichts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MCP ist ein offenes Verfahren, über das KI-Programme wie Claude Desktop oder Claude Code andere Programme als Werkzeug nutzen. Mit deiner Freigabe liest ein solcher Agent in PodcastAI Stellen aus Transkripten, deine gefolgten Tags und auf Wunsch gemerkte Stellen und gesicherte Antworten. Ändern, löschen oder abspielen kann er nichts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "MCP is an open protocol that lets AI apps like Claude Desktop or Claude Code use other apps as tools. With your permission, such an agent reads passages from transcripts in PodcastAI, the tags you follow and, if you want, saved moments and saved answers. It cannot change, delete or play anything."
           }
         }
       }
@@ -11161,6 +11319,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "My Tags"
+          }
+        }
+      }
+    },
+    "Meldungen von PodcastAI schreibt Claude Desktop in die Datei %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meldungen von PodcastAI schreibt Claude Desktop in die Datei %@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claude Desktop writes messages from PodcastAI to the file %@."
           }
         }
       }
@@ -11497,22 +11671,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Name"
-          }
-        }
-      }
-    },
-    "Name des Agenten" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name des Agenten"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Agent Name"
           }
         }
       }
@@ -12397,6 +12555,22 @@
         }
       }
     },
+    "Noch keine Podcasts abonniert." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine Podcasts abonniert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No podcasts subscribed yet."
+          }
+        }
+      }
+    },
     "Noch keine Tags" : {
       "localizations" : {
         "de" : {
@@ -12649,22 +12823,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Just This Video"
-          }
-        }
-      }
-    },
-    "Nur lesend und nur auf diesem Mac. Der Agent startet PodcastAI selbst und spricht über die Standardeingabe mit ihm, einen Netzwerk-Port gibt es nicht. Es gibt kein Werkzeug, das schreibt, löscht oder Wiedergabe startet. Ausgeschaltet beantwortet PodcastAI keine Anfrage mehr, auch nicht in einer laufenden Verbindung." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nur lesend und nur auf diesem Mac. Der Agent startet PodcastAI selbst und spricht über die Standardeingabe mit ihm, einen Netzwerk-Port gibt es nicht. Es gibt kein Werkzeug, das schreibt, löscht oder Wiedergabe startet. Ausgeschaltet beantwortet PodcastAI keine Anfrage mehr, auch nicht in einer laufenden Verbindung."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read-only, and only on this Mac. The agent launches PodcastAI itself and talks to it over standard input. There's no network port. No tool can write, delete, or start playback. When this is off, PodcastAI stops answering requests, even on a connection that's already open."
           }
         }
       }
@@ -13165,6 +13323,22 @@
         }
       }
     },
+    "Pfad kopieren" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pfad kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Path"
+          }
+        }
+      }
+    },
     "Player und Warteschlange" : {
       "localizations" : {
         "de" : {
@@ -13481,6 +13655,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "PodcastAI has no sign-in, no ads, and no analytics or tracking services. The app's developer gets none of your data."
+          }
+        }
+      }
+    },
+    "PodcastAI läuft gerade aus einem vorläufigen Ordner. Zieh die App in den Ordner Programme und öffne sie von dort, sonst zeigen Eintrag und Befehl beim nächsten Start ins Leere." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PodcastAI läuft gerade aus einem vorläufigen Ordner. Zieh die App in den Ordner Programme und öffne sie von dort, sonst zeigen Eintrag und Befehl beim nächsten Start ins Leere."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PodcastAI is running from a temporary folder right now. Drag the app into the Applications folder and open it from there, otherwise the entry and the command will point nowhere after the next launch."
           }
         }
       }
@@ -13901,6 +14091,22 @@
         }
       }
     },
+    "Seit dem Ablauf bekommt der Agent auf jede Anfrage eine Absage, die Datum und Uhrzeit des Ablaufs nennt. „Erneuern“ gibt dieselben Podcasts ab jetzt wieder für ^[%lld Stunde](inflect: true) frei." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seit dem Ablauf bekommt der Agent auf jede Anfrage eine Absage, die Datum und Uhrzeit des Ablaufs nennt. „Erneuern“ gibt dieselben Podcasts ab jetzt wieder für ^[%lld Stunde](inflect: true) frei."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Since it expired, the agent gets a refusal for every request that names the date and time of expiry. “Renew” grants the same podcasts again for ^[%lld hour](inflect: true) from now."
+          }
+        }
+      }
+    },
     "Seit der letzten Ausgabe ist nichts dazugekommen." : {
       "localizations" : {
         "de" : {
@@ -13929,6 +14135,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "End Session"
+          }
+        }
+      }
+    },
+    "Setze den Eintrag in den Block „mcpServers“, zwischen dessen geschweifte Klammern. Steht dort schon ein Server, trennt ein Komma die beiden. Ist die Datei leer oder fehlt sie, nimm den Text hinter „Ganze Datei kopieren“. Danach Claude Desktop mit ⌘Q beenden und neu öffnen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setze den Eintrag in den Block „mcpServers“, zwischen dessen geschweifte Klammern. Steht dort schon ein Server, trennt ein Komma die beiden. Ist die Datei leer oder fehlt sie, nimm den Text hinter „Ganze Datei kopieren“. Danach Claude Desktop mit ⌘Q beenden und neu öffnen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Put the entry inside the “mcpServers” block, between its curly braces. If a server is already there, separate the two with a comma. If the file is empty or missing, use the text from “Copy Whole File” instead. Then quit Claude Desktop with ⌘Q and open it again."
           }
         }
       }
@@ -14025,6 +14247,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "It was deleted or hasn't arrived on this device yet."
+          }
+        }
+      }
+    },
+    "Siri und Kurzbefehle" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri und Kurzbefehle"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri and Shortcuts"
           }
         }
       }
@@ -15533,18 +15771,18 @@
         }
       }
     },
-    "Themen-Updates per Siri. Auf dem Mac kann ein KI-Agent über MCP lesend auf dein Wissen zugreifen, aber nur mit deiner Freigabe unter PodcastAI › Einstellungen › Agenten. Dort steht auch der Eintrag für den Agenten." : {
+    "Themen-Updates per Siri." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Themen-Updates per Siri. Auf dem Mac kann ein KI-Agent über MCP lesend auf dein Wissen zugreifen, aber nur mit deiner Freigabe unter PodcastAI › Einstellungen › Agenten. Dort steht auch der Eintrag für den Agenten."
+            "value" : "Themen-Updates per Siri."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Topic Updates with Siri. On a Mac, an AI agent can read your knowledge over MCP, but only if you allow it in PodcastAI › Settings › Agents. That's also where you'll find the entry for the agent."
+            "value" : "Topic updates with Siri."
           }
         }
       }
@@ -16064,22 +16302,6 @@
         }
       }
     },
-    "Unbekannte Methode „%@“." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unbekannte Methode „%@“."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unknown method \"%@\"."
-          }
-        }
-      }
-    },
     "Unbekannte Quelle" : {
       "localizations" : {
         "de" : {
@@ -16112,22 +16334,6 @@
         }
       }
     },
-    "Unbekanntes Werkzeug „%@“." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unbekanntes Werkzeug „%@“."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unknown tool \"%@\"."
-          }
-        }
-      }
-    },
     "Unbenannter Podcast" : {
       "localizations" : {
         "de" : {
@@ -16156,6 +16362,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Approximate, said: \"%@\""
+          }
+        }
+      }
+    },
+    "Unter PodcastAI › Einstellungen › Agenten, in drei Schritten. 1. „Agentenzugang erlauben“ einschalten. 2. Den Agenten eintragen: für Claude Desktop den Eintrag in die Datei claude_desktop_config.json kopieren und Claude Desktop neu starten, für Claude Code den Befehl im Terminal einfügen. Beides steht dort fertig zum Kopieren. 3. Podcasts wählen und „Freigeben“." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter PodcastAI › Einstellungen › Agenten, in drei Schritten. 1. „Agentenzugang erlauben“ einschalten. 2. Den Agenten eintragen: für Claude Desktop den Eintrag in die Datei claude_desktop_config.json kopieren und Claude Desktop neu starten, für Claude Code den Befehl im Terminal einfügen. Beides steht dort fertig zum Kopieren. 3. Podcasts wählen und „Freigeben“."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Under PodcastAI › Settings › Agents, in three steps. 1. Turn on “Allow Agent Access”. 2. Add the agent: for Claude Desktop, copy the entry into the file claude_desktop_config.json and restart Claude Desktop; for Claude Code, paste the command into Terminal. Both are there, ready to copy. 3. Choose podcasts and click “Grant Access”."
           }
         }
       }
@@ -16224,6 +16446,22 @@
         }
       }
     },
+    "Unter „Was gelesen wurde“ stehen die letzten Anfragen mit Uhrzeit, Agent und Zahl der Treffer, auch jede Absage." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter „Was gelesen wurde“ stehen die letzten Anfragen mit Uhrzeit, Agent und Zahl der Treffer, auch jede Absage."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“What Was Read” lists the latest requests with time, agent and number of results, including every refusal."
+          }
+        }
+      }
+    },
     "Untertitel für „%@“ werden über Supadata geholt …" : {
       "localizations" : {
         "de" : {
@@ -16268,22 +16506,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Processing"
-          }
-        }
-      }
-    },
-    "Verbinden" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verbinden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect"
           }
         }
       }
@@ -16688,6 +16910,22 @@
         }
       }
     },
+    "Was MCP ist" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was MCP ist"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What MCP Is"
+          }
+        }
+      }
+    },
     "Was auf dem Gerät liegt" : {
       "localizations" : {
         "de" : {
@@ -16700,6 +16938,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "What's stored on your device"
+          }
+        }
+      }
+    },
+    "Was der Agent gelesen hat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was der Agent gelesen hat"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What the Agent Read"
           }
         }
       }
@@ -17132,6 +17386,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Less"
+          }
+        }
+      }
+    },
+    "Wenn die Freigabe abläuft" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn die Freigabe abläuft"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When the Grant Expires"
           }
         }
       }
@@ -18128,22 +18398,6 @@
         }
       }
     },
-    "Zu dieser Kennung liegt nichts Freigegebenes vor." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zu dieser Kennung liegt nichts Freigegebenes vor."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing has been shared for this ID."
-          }
-        }
-      }
-    },
     "Zu „%@“ ließ sich kein YouTube-Kanal finden. Prüf die Schreibweise oder füge den Link zu einem Video des Kanals ein." : {
       "localizations" : {
         "de" : {
@@ -18156,22 +18410,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No YouTube channel found for \"%@\". Check the spelling or paste a link to one of the channel's videos."
-          }
-        }
-      }
-    },
-    "Zugang" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zugang"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access"
           }
         }
       }
@@ -18604,40 +18842,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show ^[%lld More Passage](inflect: true)"
-          }
-        }
-      }
-    },
-    "`id` fehlt." : {
-      "comment" : "`id` ist ein Werkzeugargument, nicht übersetzen.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "`id` fehlt."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "`id` is missing."
-          }
-        }
-      }
-    },
-    "`query` fehlt oder ist leer." : {
-      "comment" : "`query` ist ein Werkzeugargument, nicht übersetzen.",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "`query` fehlt oder ist leer."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "`query` is missing or empty."
           }
         }
       }
@@ -19455,6 +19659,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oldest First"
+          }
+        }
+      }
+    },
+    "Öffne die Datei claude_desktop_config.json. In Claude Desktop führt Einstellungen › Entwickler dorthin, im Finder „Gehe zu Ordner“ (⇧⌘G) mit diesem Pfad:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne die Datei claude_desktop_config.json. In Claude Desktop führt Einstellungen › Entwickler dorthin, im Finder „Gehe zu Ordner“ (⇧⌘G) mit diesem Pfad:"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the file claude_desktop_config.json. In Claude Desktop, Settings › Developer leads there. In the Finder, use “Go to Folder” (⇧⌘G) with this path:"
           }
         }
       }
