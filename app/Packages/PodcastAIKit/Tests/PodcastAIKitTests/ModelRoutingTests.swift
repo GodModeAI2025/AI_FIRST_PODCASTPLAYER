@@ -72,6 +72,13 @@ struct ModelRoutingTests {
         let disabled = ModelStatus(onDevice: .unavailable(.appleIntelligenceDisabled),
                                    privateCloudCompute: .unavailable(.entitlementMissing))
         #expect(disabled.resolve(.summarize) == .failure(.appleIntelligenceDisabled))
+        // Apple Intelligence aus: das sagt die App, auch wenn PCC nur „noch
+        // nicht bereit“ meldet. Sonst warteten Fakten ewig auf ein Modell.
+        for reason in [ModelUnavailability.modelNotReady, .offline, .quotaExhausted(resetDate: nil)] {
+            let off = ModelStatus(onDevice: .unavailable(.appleIntelligenceDisabled),
+                                  privateCloudCompute: .unavailable(reason))
+            #expect(off.resolve(.extract) == .failure(.appleIntelligenceDisabled), "PCC: \(reason)")
+        }
     }
 
     @Test("Vorübergehend ist nur, was von selbst vergeht")

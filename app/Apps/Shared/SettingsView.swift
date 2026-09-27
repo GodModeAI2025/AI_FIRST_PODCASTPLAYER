@@ -29,7 +29,7 @@ struct IntelligenceSettingsSection: View {
             }
             // Das Gerät rechnet nur, wenn Apples Server fehlen.
             LabeledContent("Auf diesem Gerät") {
-                Text(ModelAvailabilityText.describeFallback(model.modelStatus.onDevice))
+                Text(ModelAvailabilityText.describeFallback(model.modelStatus))
             }
         } header: {
             Text("Intelligenz")
@@ -440,11 +440,15 @@ enum ModelAvailabilityText {
         }
     }
 
-    /// Für das Gerätemodell: Es springt nur ein, wenn Private Cloud Compute fehlt.
-    static func describeFallback(_ availability: ModelAvailability) -> String {
-        switch availability {
-        case .available: String(localized: "Bereit, nur als Ersatz")
-        case .unavailable(let reason): reason.message
+    /// Für das Gerätemodell: Es springt nur ein, wenn Private Cloud Compute
+    /// fehlt. Ist PCC aus (Schalter, keine Berechtigung), ist das Gerät die
+    /// einzige Stufe und kein Ersatz, dann steht dort nur „Verfügbar“.
+    static func describeFallback(_ status: ModelStatus) -> String {
+        guard case .available = status.onDevice else { return describe(status.onDevice) }
+        switch status.privateCloudCompute {
+        case .available: return String(localized: "Bereit, nur als Ersatz")
+        case .unavailable(let reason):
+            return reason.isTemporary ? String(localized: "Bereit, nur als Ersatz") : describe(status.onDevice)
         }
     }
 }

@@ -165,13 +165,15 @@ public struct ModelStatus: Sendable, Equatable {
     /// Welche Stufe für ein Profil tatsächlich benutzt wird, oder warum keine.
     ///
     /// Private Cloud Compute zuerst, sonst das Gerät. Fehlen beide, nennt
-    /// das Ergebnis den Grund, der weiterhilft: Fehlt PCC nur vorübergehend
-    /// (kein Netz, Kontingent erschöpft, noch nicht bereit), diesen, denn
-    /// danach geht es weiter. Sonst den des Geräts, etwa „Apple Intelligence
-    /// ist nicht aktiviert“.
+    /// das Ergebnis den Grund, der weiterhilft: Ist Apple Intelligence in den
+    /// Systemeinstellungen aus, diesen, denn das Einschalten hilft beiden
+    /// Stufen. Fehlt PCC nur vorübergehend (kein Netz, Kontingent erschöpft,
+    /// noch nicht bereit), diesen, denn danach geht es weiter. Sonst den des
+    /// Geräts.
     public func resolve(_ profile: TaskProfile) -> Result<ModelTier, ModelUnavailability> {
         if case .available = privateCloudCompute { return .success(.privateCloudCompute) }
         if profile.hasLocalFallback, case .available = onDevice { return .success(.onDevice) }
+        if onDevice == .unavailable(.appleIntelligenceDisabled) { return .failure(.appleIntelligenceDisabled) }
         if case .unavailable(let cloud) = privateCloudCompute, cloud.isTemporary { return .failure(cloud) }
         if case .unavailable(let device) = onDevice { return .failure(device) }
         if case .unavailable(let cloud) = privateCloudCompute { return .failure(cloud) }
