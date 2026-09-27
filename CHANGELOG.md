@@ -4,6 +4,14 @@
 Aus dem TestFlight-Feedback zu 0.13:
 - Läuft eine Ausgabe eines Themen-Updates, zeigt ihre Seite „Pause“ statt „Abspielen“, angehalten „Weiter“.
 
+Agentenzugang auf dem Mac (MCP), aus dem Feedback „verstehe nicht, wie das mit MCP laufen soll“:
+- Vier von fünf Werkzeugen lieferten eine Antwort, die Claude Desktop, Claude Code und das offizielle MCP-SDK als ungültig verwarfen. Jetzt kommt jedes Ergebnis als Objekt, geprüft mit dem SDK gegen den gebauten Server.
+- Der Reiter „Agenten“ ist eine Anleitung in drei Schritten: Zugang einschalten, Agent eintragen, Podcasts freigeben. Für Claude Desktop stehen Dateipfad, der Eintrag für den Block „mcpServers“ und eine ganze Datei zum Kopieren da, für Claude Code der Befehl `claude mcp add --scope user …`. Vorher gab es nur einen JSON-Block mit eigener Hülle, der eingefügt ungültiges JSON ergab, und den nackten Programmpfad.
+- Treffer nennen Podcast, Folge, Datum und Zeitmarke, gesicherte Antworten auch die Antwort. Neu ist `listPodcasts`: welche Podcasts freigegeben sind und wie viele Folgen ein Transkript haben. Die Suche arbeitet wie der Chat, auch mit ganzen Fragen, und findet Folgen, die während einer laufenden Verbindung transkribiert wurden.
+- Absagen sagen, was los ist: Zugang aus, nichts freigegeben, abgelaufen am … um …, anderer Agent, Notizen nicht freigegeben. Sie kommen als Werkzeugergebnis, das der Agent lesen und weitergeben kann, und stehen im Protokoll. „Erneuern“ gibt eine abgelaufene Freigabe mit demselben Umfang wieder frei, die Seite zeigt Datum und Uhrzeit des Ablaufs.
+- Das Feld „Name des Agenten“ prüfte nichts. Jetzt gilt eine Freigabe für jeden Agenten auf diesem Mac oder für einen, der sich schon einmal verbunden hat, mit dem Namen, den er selbst meldet.
+- Die Hilfe „Mac und Agenten“ erklärt die Schritte, und „Zeig es mir“ öffnet gleich den Reiter „Agenten“. In der iPad-App auf dem Mac sagt sie, dass es den Zugang nur in der Mac-App gibt.
+
 ## App 0.13 · 2026-09-26
 Neu: Angesagt als Themen-Update, Widget, Teilen-Menü, YouTube-Abos aus Google Takeout, und der Chat schlägt selbst nach.
 
