@@ -1808,17 +1808,24 @@ public final class AppModel {
     /// Die laufende Folge von damals steht vorn und setzt an ihrem
     /// Zwischenstand an.
     func restoreAnalysisQueue() async {
+        // Die Stufe „Transkript“ holt die gemerkte Warteschlange selbst
+        // zurück, einmal je Speicher, und gleicht danach nur noch mit dem
+        // Store ab. Nach `replaceStore` wieder: Die Stufe hat ihre
+        // Warteschlange dort geleert und schriebe sonst nie wieder.
+        if let transcriptStage {
+            guard !analysisQueueRestored else {
+                await transcriptStage.restoreIfNeeded()
+                return
+            }
+            analysisQueueRestored = true
+            Task.detached(priority: .background) { Self.transcriptCheckpoints.removeExpired() }
+            await transcriptStage.reconcile()
+            return
+        }
         guard !analysisQueueRestored else { return }
         // Zwischenstände, die kein Lauf mehr liest, etwa weil ein anderes
         // Gerät das Transkript schrieb, verfallen hier.
         Task.detached(priority: .background) { Self.transcriptCheckpoints.removeExpired() }
-        // Die Stufe „Transkript“ holt die gemerkte Warteschlange selbst
-        // zurück, einmal, und gleicht danach nur noch mit dem Store ab.
-        if let transcriptStage {
-            analysisQueueRestored = true
-            await transcriptStage.reconcile()
-            return
-        }
         let saved = AnalysisQueueSnapshot.decoded(
             from: UserDefaults.standard.data(forKey: Self.analysisQueueKey))
         let ids = saved?.entries.map(\.episodeID) ?? []
@@ -2142,7 +2149,7 @@ public final class AppModel {
             remaining: analysisQueue.count,
             currentOrigin: { [weak self] in await self?.transcriptOrigin(of: id) ?? .automatic })
         let outcome = await transcribe(job, background: background)
-        applyLegacyOutcome(outcome, of: episode)
+        applyLegacyOutcome(outcome, of: episode, since: job.ticket)
         return outcome
     }
 

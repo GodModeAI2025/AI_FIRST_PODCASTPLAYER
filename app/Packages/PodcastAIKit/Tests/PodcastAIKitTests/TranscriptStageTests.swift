@@ -287,8 +287,74 @@ struct TranscriptStageTests {
         harness.gate.setInForeground(true)
         #expect(await expectSignal("ende:leer", in: harness.work.signals))
         #expect(!harness.work.calls.contains("job:A"), "Ein zweiter Lauf ruft keine Spracherkennung")
-        #expect(harness.work.calls.contains("gemeldet:\(TranscriptSettlement.alreadyTranscribed(a.id))"))
+        #expect(harness.work.calls.contains(
+            "gemeldet:\(TranscriptSettlement.alreadyTranscribed(TranscriptQueueItem(episode: a, origin: .automatic)))"))
         #expect(harness.work.calls.contains("job:B"))
+    }
+
+    @Test("Eine ältere Folge, die laut Store schon Belege hat, meldet sich mit Herkunft, damit die nächste nachrückt")
+    func preCheckReportsBacklog() async throws {
+        let a = episode("A")
+        let store = try await makeStore([a])
+        try await writeTranscript(of: a, into: store)
+        let harness = await makeHarness(store: store)
+        await harness.stage.handle(.enqueue(a, .backlog))
+        harness.gate.setInForeground(true)
+        #expect(await expectSignal("ende:leer", in: harness.work.signals))
+        #expect(harness.work.calls.contains(
+            "gemeldet:\(TranscriptSettlement.alreadyTranscribed(TranscriptQueueItem(episode: a, origin: .backlog)))"))
+    }
+
+    @Test("Vor einer Löschung geschickt, danach angekommen: Die Folge kommt nicht in die Warteschlange")
+    func commandSentBeforeRemoval() async throws {
+        let a = episode("A"), b = episode("B")
+        let harness = await makeHarness(store: try await makeStore([a, b]))
+        let sent = harness.ledger.ticket
+        harness.ledger.markRemoved([a.id, b.id])
+        // Das Löschen kam schon an, die Befehle erst jetzt.
+        await harness.stage.receive(.episodesRemoved([a.id, b.id], .episode))
+        await harness.stage.handle(.enqueue(a, .automatic), ticket: sent)
+        await harness.stage.handle(.request(b), ticket: sent)
+        #expect(await harness.stage.queuedIDs.isEmpty)
+        // Über `submit` gilt der Stand beim Schicken.
+        let c = episode("C")
+        harness.stage.submit(.enqueue(c, .automatic))
+        await harness.stage.settleCommands()
+        #expect(await harness.stage.queuedIDs == [c.id])
+    }
+
+    @Test("Angehalten, bevor der Befehl ankommt: Der Lauf endet und beginnt nicht mit derselben Folge weiter")
+    func interruptedOutcomeEndsRun() async throws {
+        let a = episode("A"), b = episode("B")
+        var plan = RecordingWork.Plan()
+        plan.outcomes[a.id] = [.interrupted]
+        let harness = await makeHarness(store: try await makeStore([a, b]), plan: plan)
+        await harness.stage.handle(.enqueue(a, .automatic))
+        await harness.stage.handle(.enqueue(b, .automatic))
+        harness.gate.setInForeground(true)
+        #expect(await expectSignal("ende:leer", in: harness.work.signals))
+        // Vorn beginnt danach ein neuer Lauf; der angehaltene meldete sich ab.
+        #expect(harness.work.calls == ["start:A", "job:A", "ende:angehalten", "start:A", "job:A", "job:B", "ende:leer"])
+    }
+
+    @Test("Nach einem anderen Speicher kommt die gemerkte Warteschlange zurück, und die Stufe merkt sich wieder")
+    func restoreAfterStoreReset() async throws {
+        let a = episode("A"), b = episode("B")
+        let store = try await makeStore([a, b])
+        let suite = makeSuite()
+        UserDefaults(suiteName: suite)?.set(
+            AnalysisQueueSnapshot(running: nil, queue: [a.id], automatic: [], backlog: []).encoded(),
+            forKey: TranscriptStage.snapshotKey)
+        let harness = await makeHarness(store: store, suite: suite)
+        await harness.stage.reconcile()
+        #expect(await harness.stage.queuedIDs == [a.id])
+        await harness.stage.reset(store: store)
+        #expect(await harness.stage.queuedIDs.isEmpty)
+        await harness.stage.restoreIfNeeded()
+        #expect(await harness.stage.queuedIDs == [a.id])
+        await harness.stage.handle(.enqueue(b, .automatic))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(savedQueue(in: suite)?.entries.map(\.episodeID) == [a.id, b.id])
     }
 
     @Test("Angetippt während des Laufs: Das Ereignis trägt `.user`")

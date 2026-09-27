@@ -287,7 +287,14 @@ extension AppModel {
             pipelineEpisodeID = nil
         }
         do {
-            let receipt = try await run.value
+            // Wie bei Ton: Die losgelöste Aufgabe erbt keinen Abbruch. Hält
+            // die Stufe an, etwa bei „Alle abbrechen“, bräche die Anfrage an
+            // Supadata sonst erst nach ihrer Frist ab und schriebe danach.
+            let receipt = try await withTaskCancellationHandler {
+                try await run.value
+            } onCancel: {
+                run.cancel()
+            }
             if wasRemoved(episode.id, since: ticket) {
                 await purgeLateWrites(of: episode, receipt: receipt)
                 return .dropped
@@ -377,7 +384,7 @@ extension AppModel {
                 return await self.transcribeForStage(job)
             },
             settled: { [weak self] settlement in
-                await MainActor.run { self?.transcriptSettled(settlement) }
+                await self?.transcriptSettled(settlement)
             },
             restore: { [weak self] entries, episodes in
                 await MainActor.run { self?.restorableTranscripts(entries, episodes: episodes) ?? [] }
@@ -430,7 +437,7 @@ extension AppModel {
     }
 
     /// Was nach einer Folge für Oberfläche und Vermerke dieses Geräts zu tun ist.
-    private func transcriptSettled(_ settlement: TranscriptSettlement) {
+    private func transcriptSettled(_ settlement: TranscriptSettlement) async {
         switch settlement {
         case .retrying(let id):
             stageDetails[id] = String(localized: "wartet auf zweiten Versuch")
@@ -446,9 +453,19 @@ extension AppModel {
             for id in ids { stageDetails[id] = nil }
         case .droppedAutomatic(let ids):
             for id in ids { stageDetails[id] = nil }
-        case .alreadyTranscribed(let id):
-            knownTranscribed.insert(id)
-            stageDetails[id] = nil
+        case .alreadyTranscribed(let item):
+            // Wie bis 0.13, als der Wächter im Store das Schreiben ablehnte,
+            // weil die Fassung schon ein Transkript hatte: Der Zwischenstand
+            // geht, von selbst geladener Ton auch, und nach einer älteren
+            // Folge rückt die nächste nach. Nur die Arbeit dazwischen entfällt.
+            let episode = item.episode
+            knownTranscribed.insert(episode.id)
+            stageDetails[episode.id] = nil
+            if let media = CaptionAnalysis.feedMediaVersionID(of: episode) {
+                Self.transcriptCheckpoints.remove([media])
+            }
+            if item.origin == .backlog { refillBackCatalog(in: episode.sourceID) }
+            if item.origin != .user { await removeAudioAfterFailedPreparation(episode) }
         }
     }
 
@@ -490,22 +507,26 @@ extension AppModel {
 
     /// Wendet an, was der Worker bis 0.13 nach einer Folge mit Warteschlange
     /// und Vermerken tat. Nur im alten Weg hinter dem Schalter.
-    func applyLegacyOutcome(_ outcome: TranscriptJobOutcome, of episode: Episode) {
+    /// `ticket`: der Stand der Löschungen beim Start der Folge. Die Arbeit
+    /// kehrt erst nach einigen `await` zurück; eine Löschung dazwischen
+    /// meldet nichts mehr.
+    func applyLegacyOutcome(_ outcome: TranscriptJobOutcome, of episode: Episode, since ticket: RemovalLedger.Ticket) {
         let id = episode.id
+        let removed = wasRemoved(id, since: ticket)
         switch outcome {
         case .transcribed(let media):
             // Wer die Folge jetzt will, vor dem Vermerk unten. Die Stufe
             // „Wissen“ reiht die Fakten auf `evidenceReady` selbst ein.
-            emitTranscriptFinished(id, media: media, origin: transcriptOrigin(of: id))
+            if !removed { emitTranscriptFinished(id, media: media, origin: transcriptOrigin(of: id)) }
             // Nur was jemand selbst angefordert hat, wird angesagt. Das
             // automatische Vorbereiten spräche sonst Folge um Folge dazwischen.
-            if automaticallyQueued.remove(id) == nil {
+            if automaticallyQueued.remove(id) == nil, !removed {
                 AccessibilityNotification.Announcement(String(localized: "Transkript fertig: \(episode.title)")).post()
             }
             backlogQueued.remove(id)
         case .failed(let failure, let retry):
             // Vor den Vermerken unten, die sagen, wer die Folge wollte.
-            emit(.transcriptFailed(id, failure, transcriptOrigin(of: id)))
+            if !removed { emit(.transcriptFailed(id, failure, transcriptOrigin(of: id))) }
             let isCaption = episode.audioURL == nil
             // Ton, der Fehler geht vorbei: Die Folge behält ihre Vermerke für
             // den zweiten Versuch.

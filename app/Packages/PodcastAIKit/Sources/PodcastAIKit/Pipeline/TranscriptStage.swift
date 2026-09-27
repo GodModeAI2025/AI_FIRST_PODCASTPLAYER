@@ -116,8 +116,11 @@ public enum TranscriptSettlement: Sendable, Equatable {
     case preparationFailed([EpisodeID])
     /// Von selbst Eingereihtes fällt heraus, weil das Gerät nicht transkribieren kann.
     case droppedAutomatic([EpisodeID])
-    /// Die Fassung hatte laut Store schon Belege, etwa von einem anderen Gerät.
-    case alreadyTranscribed(EpisodeID)
+    /// Die Fassung hatte laut Store schon Belege, etwa von einem anderen
+    /// Gerät. Mit der Herkunft: Von selbst Geladenes geht wie nach einem
+    /// überholten Vorbereiten, und nach einer älteren Folge rückt die
+    /// nächste nach, denn ein Ereignis gibt es dafür nicht.
+    case alreadyTranscribed(TranscriptQueueItem)
 }
 
 /// Was „Alle abbrechen“ aus der Warteschlange genommen hat, die laufende
@@ -244,13 +247,19 @@ public actor TranscriptStage {
     /// Ist die gemerkte Warteschlange schon zurück? Vorher wird sie nicht
     /// überschrieben.
     private var restored = false
+    /// Die gemerkte Warteschlange kommt gerade zurück. Solange wird auch
+    /// nicht geschrieben, sonst fehlten ihre Folgen im gemerkten Stand.
+    private var restoring = false
     private var persistScheduled = false
     private var idleWaiters: [CheckedContinuation<Void, Never>] = []
     private var listeners: [Task<Void, Never>] = []
     private var started = false
 
-    private let commandContinuation: AsyncStream<TranscriptCommand>.Continuation
-    private let commands: AsyncStream<TranscriptCommand>
+    /// Befehle samt dem Stand des Löschprotokolls beim Schicken. Befehle
+    /// und Postfach sind zwei Ströme: Ein Einreihen, das vor einer Löschung
+    /// geschickt wurde, kann erst nach `episodesRemoved` ankommen.
+    private let commandContinuation: AsyncStream<(TranscriptCommand, RemovalLedger.Ticket)>.Continuation
+    private let commands: AsyncStream<(TranscriptCommand, RemovalLedger.Ticket)>
     private let snapshotContinuation: AsyncStream<TranscriptSnapshot>.Continuation
     private var lastSnapshot = TranscriptSnapshot()
 
@@ -286,7 +295,7 @@ public actor TranscriptStage {
         started = true
         let commands = self.commands
         listeners.append(Task(priority: .utility) { [weak self] in
-            for await command in commands { await self?.handle(command) }
+            for await (command, ticket) in commands { await self?.handle(command, ticket: ticket) }
         })
         if let mailbox {
             listeners.append(Task(priority: .utility) { [weak self] in
@@ -310,7 +319,7 @@ public actor TranscriptStage {
     /// Schickt einen Befehl. Wartet nie; die Befehle kommen in dieser
     /// Reihenfolge an.
     public nonisolated func submit(_ command: TranscriptCommand) {
-        commandContinuation.yield(command)
+        commandContinuation.yield((command, ledger.ticket))
     }
 
     /// Wartet, bis alle vorher geschickten Befehle angekommen sind.
@@ -321,12 +330,17 @@ public actor TranscriptStage {
 
     // MARK: - Befehle
 
-    func handle(_ command: TranscriptCommand) {
+    /// `ticket`: der Stand des Löschprotokolls beim Schicken, ohne Angabe der jetzige.
+    func handle(_ command: TranscriptCommand, ticket sent: RemovalLedger.Ticket? = nil) {
+        let ticket = sent ?? ledger.ticket
         switch command {
         case .enqueue(let episode, let origin):
-            enqueue(episode, origin: origin == .user ? .automatic : origin)
+            // Seit dem Schicken gelöscht: Das Löschen kam hier schon an.
+            guard !ledger.wasRemoved(episode.id, since: ticket) else { return }
+            enqueue(episode, origin: origin == .user ? .automatic : origin, ticket: ticket)
         case .request(let episode):
-            request(episode)
+            guard !ledger.wasRemoved(episode.id, since: ticket) else { return }
+            request(episode, ticket: ticket)
         case .moveToFront(let id):
             guard let index = queue.firstIndex(where: { $0.id == id }), queue[index].origin == .user else { return }
             queue.insert(queue.remove(at: index), at: 0)
@@ -346,14 +360,14 @@ public actor TranscriptStage {
         }
     }
 
-    private func enqueue(_ episode: Episode, origin: Origin) {
+    private func enqueue(_ episode: Episode, origin: Origin, ticket: RemovalLedger.Ticket) {
         guard running?.id != episode.id, !queue.contains(where: { $0.id == episode.id }) else { return }
-        insert(Entry(episode: episode, origin: origin, ticket: ledger.ticket))
+        insert(Entry(episode: episode, origin: origin, ticket: ticket))
         changed()
         startRunIfNeeded()
     }
 
-    private func request(_ episode: Episode) {
+    private func request(_ episode: Episode, ticket: RemovalLedger.Ticket) {
         if running?.id == episode.id {
             // Läuft schon: Ab jetzt gilt sie als angefordert. Die Ansage und
             // die Fehlermeldung richten sich danach.
@@ -366,7 +380,7 @@ public actor TranscriptStage {
             entry.origin = .user
             queue.insert(entry, at: 0)
         } else {
-            insert(Entry(episode: episode, origin: .user, ticket: ledger.ticket))
+            insert(Entry(episode: episode, origin: .user, ticket: ticket))
         }
         changed()
         startRunIfNeeded()
@@ -475,9 +489,7 @@ public actor TranscriptStage {
     /// die inzwischen Belege haben. Danach, etwa nach einem Abgleich: Was
     /// wartet und inzwischen Belege hat, fällt heraus.
     public func reconcile() async {
-        if !restored {
-            await restore()
-        }
+        await restoreIfNeeded()
         let waiting = queue.compactMap { entry in CaptionAnalysis.feedMediaVersionID(of: entry.episode) }
         guard !waiting.isEmpty, let done = try? await store.mediaVersionsWithEvidence(waiting), !done.isEmpty
         else { return }
@@ -488,7 +500,19 @@ public actor TranscriptStage {
         let ids = Set(finished.map(\.id))
         queue.removeAll { ids.contains($0.id) }
         changed()
-        for id in ids { await environment.settled(.alreadyTranscribed(id)) }
+        for entry in finished { await environment.settled(.alreadyTranscribed(entry.item)) }
+    }
+
+    /// Holt die gemerkte Warteschlange zurück, einmal je Speicher. Auch nach
+    /// `reset(store:)`: Sonst schriebe die Stufe danach nie wieder.
+    public func restoreIfNeeded() async {
+        guard !restored, !restoring else { return }
+        restoring = true
+        await restore()
+        restoring = false
+        restored = true
+        schedulePersist()
+        startRunIfNeeded()
     }
 
     private func restore() async {
@@ -496,12 +520,7 @@ public actor TranscriptStage {
         let ids = saved?.entries.map(\.episodeID) ?? []
         let ticket = ledger.ticket
         let found = ids.isEmpty ? [] : ((try? await store.episodes(ids: ids)) ?? [])
-        guard !restored else { return }
-        restored = true
-        guard let saved else {
-            schedulePersist()
-            return
-        }
+        guard let saved else { return }
         let items = await environment.restore(saved.entries, found)
         let media = items.compactMap { CaptionAnalysis.feedMediaVersionID(of: $0.episode) }
         let done = (try? await store.mediaVersionsWithEvidence(media)) ?? []
@@ -513,7 +532,6 @@ public actor TranscriptStage {
             insert(Entry(episode: item.episode, origin: item.origin, ticket: ticket))
         }
         changed()
-        startRunIfNeeded()
     }
 
     // MARK: - Der eine Platz
@@ -568,7 +586,7 @@ public actor TranscriptStage {
                (try? await store.mediaVersionsWithEvidence([media]))?.contains(media) == true {
                 running = nil
                 changed()
-                await environment.settled(.alreadyTranscribed(entry.id))
+                await environment.settled(.alreadyTranscribed(entry.item))
                 continue
             }
             let ticket = ledger.ticket
@@ -583,6 +601,11 @@ public actor TranscriptStage {
             running = nil
             await finish(entry, current: current, outcome: outcome, ticket: ticket, retried: &retried)
             changed()
+            // Angehalten heißt: Der Lauf ist zu Ende, auch wenn der Befehl
+            // dazu noch unterwegs ist. `pauseTranscripts()` bricht die Arbeit
+            // sofort ab, `.interrupt` kommt erst danach an; die Folge begänne
+            // sonst gleich wieder, ohne Zeit vom System.
+            if outcome == .interrupted { runStopped = true }
         }
         let cancelled = Task.isCancelled || runStopped
         lease?.release()
@@ -684,7 +707,7 @@ public actor TranscriptStage {
     /// Wiederherstellen nie, sonst wäre der gemerkte Stand weg, bevor ihn
     /// jemand gelesen hat.
     private func schedulePersist() {
-        guard restored, !persistScheduled else { return }
+        guard restored, !restoring, !persistScheduled else { return }
         persistScheduled = true
         Task(priority: .utility) { [weak self] in await self?.persist() }
     }
