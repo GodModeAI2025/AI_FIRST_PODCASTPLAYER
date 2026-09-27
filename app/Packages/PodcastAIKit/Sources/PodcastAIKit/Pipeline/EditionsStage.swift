@@ -286,13 +286,29 @@ public actor EditionsStage {
 
     /// Prüft die automatischen Updates und wartet, bis der Durchgang fertig
     /// ist. Für `com.podcastai.analysis`: Die Aufgabe endet erst danach.
+    ///
+    /// Wird der Aufrufer abgebrochen, etwa weil die Zeit der
+    /// Hintergrundaufgabe endet, bricht auch der Durchgang ab. Das Warten
+    /// auf eine Aufgabe allein gäbe den Abbruch nicht weiter, und die
+    /// Ausgabe entstünde nach dem Ende der Aufgabe weiter.
     public func runAutomatic() async {
         guard gate.mayRun(.editions, origin: .automatic) else {
             if !gate.current.cancelling { heldCheck = true }
             return
         }
         if automatic == nil { startAutomatic() } else { automaticAgain = true }
-        await automatic?.value
+        guard let running = automatic else { return }
+        await withTaskCancellationHandler {
+            await running.value
+        } onCancel: {
+            running.cancel()
+            Task { await self.forgetFollowUp() }
+        }
+    }
+
+    /// Nach einem Abbruch von außen kommt kein weiterer Durchgang hinterher.
+    private func forgetFollowUp() {
+        automaticAgain = false
     }
 
     /// „Alle abbrechen“: Die Automatik hält an, bis der nächste Auslöser kommt.

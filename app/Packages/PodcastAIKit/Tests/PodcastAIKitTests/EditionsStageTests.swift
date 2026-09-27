@@ -275,6 +275,23 @@ struct EditionsStageTests {
         await stage.stop()
     }
 
+    @Test("Endet die Hintergrundaufgabe, bricht der Durchgang ab, den sie abwartet")
+    func cancellingTheCallerStopsThePass() async throws {
+        let store = try await makeStore()
+        let recorder = Recorder()
+        let stage = makeStage(store: store, gate: WorkGate(alwaysInForeground: true), recorder: recorder,
+                              parts: [edition("a")], hold: .milliseconds(300))
+
+        let caller = Task { await stage.runAutomatic() }
+        #expect(await eventually { recorder.composed.count == 1 })
+        caller.cancel()
+        await caller.value
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(try await store.editions().isEmpty)
+        #expect(recorder.composed.count == 1)
+        #expect(recorder.statistics == 0)
+    }
+
     @Test("editionPublished geht erst nach dem Schreiben hinaus und bringt Zahlen und Cover")
     func publishesAfterCommit() async throws {
         let store = try await makeStore()
