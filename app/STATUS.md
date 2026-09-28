@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 28. September 2026, Version 0.13 mit der Pipeline aus Stufen.
+Stand 28. September 2026, Version 0.14.
 
 ## Geprüft
 
