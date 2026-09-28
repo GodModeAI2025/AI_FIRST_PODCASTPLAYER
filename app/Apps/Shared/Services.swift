@@ -367,7 +367,10 @@ public actor FeedRefresher {
         let sourceID = SourceID(stable: "single-episodes")
         let sourceTitle = String(localized: "Einzelne Folgen")
         let existing = try await store.sources().first { $0.id == sourceID }
-        if existing == nil {
+        // Anderswo abbestellt und hier noch nicht nachgeholt: Die neue Folge
+        // ist ein neues Abo, sonst nähme die Quelle sie nicht an.
+        let awaitsRemoval = try await store.sourceAwaitsRemoval(sourceID)
+        if existing == nil || awaitsRemoval {
             try await store.upsert(source: Source(
                 id: sourceID, kind: .singleEpisodeLink, title: sourceTitle,
                 capabilities: SourceCapabilities(metadata: true, audioDownload: true)

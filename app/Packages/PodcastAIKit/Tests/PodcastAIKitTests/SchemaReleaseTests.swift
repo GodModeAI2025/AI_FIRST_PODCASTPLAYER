@@ -196,6 +196,25 @@ struct SourceRemovalTombstoneTests {
     }
 }
 
+extension SourceRemovalTombstoneTests {
+
+    @Test("Abonniert eine ältere App neu, gewinnt das neue Abo beim Zusammenführen doppelter Quellzeilen")
+    func resubscriptionFromOlderAppSurvivesMerge() async throws {
+        let mac = try Device("mac")
+        try await seed(mac.store)
+        let removedAt = Date()
+        try await mac.store.insertSourceRemovalForTesting(sourceID, at: removedAt, device: "iphone")
+        // Eine ältere App auf dem iPad hat den Podcast danach wieder
+        // abonniert, ohne das Merkzeichen zu kennen: eine zweite, neuere Zeile.
+        try await mac.store.insertSourceCopyForTesting(
+            Source(id: sourceID, kind: .podcastRSS, title: "Quelle"), addedAt: removedAt.addingTimeInterval(60))
+        try await mac.store.removeDuplicates()
+        #expect(try await mac.store.rowCountForTesting(StoredSource.self) == 1)
+        #expect(try await mac.store.sourceRemovalsToApply().isEmpty, "Das neue Abo bleibt")
+        #expect(try await mac.store.sources().map(\.id) == [sourceID])
+    }
+}
+
 // MARK: - localRelativePath
 
 @Suite("Schema nach 0.14: Pfade der Audiodateien je Gerät")

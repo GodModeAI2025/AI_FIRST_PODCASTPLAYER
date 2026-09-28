@@ -194,7 +194,7 @@ public actor LibraryStore: ModelActor {
             guard resolvable, list.count <= Self.changeResolutionLimit else {
                 counts[entity]?.identifiers = nil
                 if entity != .listeningState && entity != .lease && entity != .conversation { episodeIDs = nil }
-                if entity == .source || entity == .episode { sourceIDs = nil }
+                if entity == .source || entity == .episode || entity == .sourceRemoval { sourceIDs = nil }
                 continue
             }
             var keys: Set<String> = []
@@ -722,6 +722,17 @@ public actor LibraryStore: ModelActor {
                 // eine einzelne Folge daraus geholt hat, gilt das Abo.
                 keep.isSubscribed = keep.isSubscribed || copy.isSubscribed
                 keep.revisionValue = max(keep.revisionValue, copy.revisionValue)
+            }
+            // Behalten wird die älteste Zeile. Steht sie unter einem
+            // Merkzeichen „Quelle abbestellt“ und ist eine Kopie ein neueres
+            // Abo, etwa aus einer älteren App, die kein Merkzeichen kennt,
+            // gilt das neue Abo. Sonst holte das Nachholen es gleich mit ab.
+            let key = keep.identifier
+            let newestRemoval = try modelContext.fetch(FetchDescriptor<StoredSourceRemoval>(
+                predicate: #Predicate { $0.sourceIdentifier == key })).map(\.removedAt).max()
+            if let newestRemoval, keep.addedAt <= newestRemoval,
+               let resubscribed = drop.map(\.addedAt).filter({ $0 > newestRemoval }).max() {
+                keep.addedAt = resubscribed
             }
         }
         // Erst die umgehängten Kinder sichern, dann die leeren Kopien löschen.

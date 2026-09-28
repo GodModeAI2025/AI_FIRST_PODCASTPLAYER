@@ -128,7 +128,7 @@ extension AppModel {
             lastError = UserFacingError.describe(error)
         }
         // Auf einem anderen Gerät abbestellt: dieselbe Abbestellung hier.
-        if changes.touches(.sourceRemoval, .source, .episode, .evidence, .fact, .chapterTag) {
+        if changes.touches(.sourceRemoval, .source, .episode) {
             await applySourceRemovalsFromElsewhere()
         }
         if episodeLists {

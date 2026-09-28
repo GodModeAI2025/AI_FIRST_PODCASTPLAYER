@@ -105,6 +105,18 @@ extension LibraryStore {
         for removal in removals { modelContext.delete(removal) }
     }
 
+    /// Wartet diese Quelle darauf, dass eine Abbestellung von woanders
+    /// nachgeholt wird? Wer sie jetzt von Hand wieder braucht, etwa für eine
+    /// einzelne Folge, abonniert sie über ``upsert(source:)`` neu.
+    public func sourceAwaitsRemoval(_ sourceID: SourceID) throws -> Bool {
+        let key = sourceID.rawValue
+        for row in try modelContext.fetch(FetchDescriptor<StoredSource>(
+            predicate: #Predicate { $0.identifier == key })) where try isAwaitingRemoval(row) {
+            return true
+        }
+        return false
+    }
+
     /// Steht die Quellzeile unter einem Merkzeichen, das noch nachzuholen
     /// ist? Dann legt das Aktualisieren keine Folgen mehr an ihr an.
     func isAwaitingRemoval(_ source: StoredSource) throws -> Bool {

@@ -329,6 +329,8 @@ public actor TranscriptStage {
         for listener in listeners { listener.cancel() }
         listeners.removeAll()
         run?.cancel()
+        wake?.cancel()
+        wake = nil
         started = false
     }
 

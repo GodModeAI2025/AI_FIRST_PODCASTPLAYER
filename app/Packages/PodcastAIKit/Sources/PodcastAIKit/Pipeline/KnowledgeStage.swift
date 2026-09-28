@@ -350,6 +350,8 @@ public actor KnowledgeStage {
         listeners.removeAll()
         slot?.task?.cancel()
         slot = nil
+        leaseWake?.cancel()
+        leaseWake = nil
         started = false
         becameIdle()
     }
