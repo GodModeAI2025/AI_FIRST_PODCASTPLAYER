@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 28. September 2026, Version 0.14, dazu der Branch `schema-release` für die nächste Version (Unterhaltungen im Chat und die Schemaänderung aus Entscheidung 11).
+Stand 28. September 2026, Version 0.15.
 
 ## Geprüft
 
