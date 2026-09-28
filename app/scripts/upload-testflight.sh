@@ -1,6 +1,8 @@
 #!/bin/bash
 # Baut iOS und macOS als Release, erhöht die Buildnummer und lädt beide
 # nach TestFlight hoch. Nutzt den in Xcode angemeldeten Account.
+# INTERNAL_ONLY=true lädt Builds nur für interne Tester hoch; solche Builds
+# lassen sich nicht im App Store einreichen.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,7 +21,7 @@ cat > "$OUT/ExportOptions.plist" <<PLIST
   <key>teamID</key><string>SP73Z8JWXM</string>
   <key>signingStyle</key><string>automatic</string>
   <key>uploadSymbols</key><true/>
-  <key>testFlightInternalTestingOnly</key><true/>
+  <key>testFlightInternalTestingOnly</key><${INTERNAL_ONLY:-false}/>
 </dict></plist>
 PLIST
 
