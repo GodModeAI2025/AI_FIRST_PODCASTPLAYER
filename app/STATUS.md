@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 28. September 2026, Version 0.15.
+Stand 28. September 2026, Version 1.0 (zur Prüfung bei Apple).
 
 ## Geprüft
 

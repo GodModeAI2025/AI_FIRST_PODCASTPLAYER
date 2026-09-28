@@ -1,5 +1,8 @@
 # Änderungsverlauf
 
+## App 1.0 · 2026-09-28
+Erste Version für den App Store, inhaltlich wie 0.15.
+
 ## App 0.15 · 2026-09-28
 Neu: Unterhaltungen im Chat mit Rückfragen, Themen-Updates als eine Folge statt Teile, Abgleich über Geräte robuster (Abmeldungen, Sperre, feste Transkript-Kennung).
 
