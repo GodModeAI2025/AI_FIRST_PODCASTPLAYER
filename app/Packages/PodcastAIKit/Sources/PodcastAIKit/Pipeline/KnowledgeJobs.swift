@@ -56,6 +56,15 @@ public protocol KnowledgeReporting: Sendable {
     /// Kapitel aus der Kapiteldatei, eben geladen.
     func chaptersLoaded(_ chapters: [Chapter], for id: EpisodeID,
                         unlessRemovedSince ticket: RemovalLedger.Ticket) async
+    /// Wie weit die Kapitel-Tags einer Folge sind, von 0 bis 1, nach jedem
+    /// eingeordneten Kapitel. Für die Anzeige der fortgesetzten
+    /// Verarbeitung, die sonst während der Tags stillstünde.
+    func tagsProgress(_ id: EpisodeID, fraction: Double) async
+}
+
+extension KnowledgeReporting {
+    /// Ohne Anzeige im Hintergrund, etwa in Tests: nichts zu tun.
+    public func tagsProgress(_ id: EpisodeID, fraction: Double) async {}
 }
 
 public struct KnowledgeJobs: KnowledgeWorking {
@@ -710,6 +719,9 @@ public struct KnowledgeJobs: KnowledgeWorking {
             return ChapterTagsRun(.nothingToDo)
         }
 
+        let reporter = self.reporter
+        let sectionCount = Double(max(sections.count, 1))
+        await reporter.tagsProgress(id, fraction: Double(sections.count - progress.remaining(sections).count) / sectionCount)
         for section in progress.remaining(sections) {
             if Task.isCancelled || !environment.tagsMayContinue() {
                 keep(progress)
@@ -777,6 +789,8 @@ public struct KnowledgeJobs: KnowledgeWorking {
             }
             progress.finish(section, tags: chapterTags)
             keep(progress)
+            await reporter.tagsProgress(
+                id, fraction: Double(sections.count - progress.remaining(sections).count) / sectionCount)
         }
 
         guard !ledger.wasRemoved(id, since: ticket) else { return await abandon() }

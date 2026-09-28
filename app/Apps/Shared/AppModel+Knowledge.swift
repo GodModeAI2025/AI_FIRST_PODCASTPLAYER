@@ -1222,6 +1222,15 @@ extension AppModel {
                     self.transcriptsEnteredBackground()
                 }
             },
+            // Noch vorn, gleich vielleicht im Hintergrund: Steht Arbeit an,
+            // meldet sich die fortgesetzte Verarbeitung jetzt an. Im
+            // Hintergrund lehnte das System die Anmeldung ab.
+            center.addObserver(forName: UIApplication.willResignActiveNotification,
+                               object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.beginBackgroundRunIfNeeded()
+                }
+            },
             center.addObserver(forName: UIApplication.didBecomeActiveNotification,
                                object: nil, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated {

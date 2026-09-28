@@ -353,7 +353,11 @@ struct TranscriptStageTests {
         await harness.stage.restoreIfNeeded()
         #expect(await harness.stage.queuedIDs == [a.id])
         await harness.stage.handle(.enqueue(b, .automatic))
-        try await Task.sleep(for: .milliseconds(50))
+        // Gemerkt wird gebündelt: bis zu zwei Sekunden warten statt fester
+        // 50 ms, die unter Last der ganzen Suite nicht immer reichten.
+        for _ in 0..<40 where savedQueue(in: suite)?.entries.map(\.episodeID) != [a.id, b.id] {
+            try await Task.sleep(for: .milliseconds(50))
+        }
         #expect(savedQueue(in: suite)?.entries.map(\.episodeID) == [a.id, b.id])
     }
 
@@ -503,7 +507,9 @@ struct TranscriptStageTests {
         await first.stage.handle(.enqueue(b, .backlog))
         // Das Merken ist gebündelt; nach einem Befehl mehr steht es sicher.
         await first.stage.settleCommands()
-        try await Task.sleep(for: .milliseconds(50))
+        for _ in 0..<40 where savedQueue(in: suite)?.entries.map(\.episodeID) != [v.id, a.id, b.id] {
+            try await Task.sleep(for: .milliseconds(50))
+        }
         let saved = try #require(savedQueue(in: suite))
         #expect(saved.entries.map(\.episodeID) == [v.id, a.id, b.id])
         #expect(saved.entries.map(\.automatic) == [false, true, true])

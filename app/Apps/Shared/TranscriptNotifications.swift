@@ -71,11 +71,11 @@ extension AppModel {
     func transcriptsEnteredBackground() {
         #if os(iOS)
         Task { [weak self] in
-            if self?.transcriptContinuation?.carrier == .pending {
+            if self?.backgroundContinuation?.carrier == .pending {
                 try? await Task.sleep(for: .seconds(3))
             }
             guard let self else { return }
-            await self.noticeTranscriptPauseIfNeeded(carrier: self.transcriptContinuation?.carrier ?? .none)
+            await self.noticeTranscriptPauseIfNeeded(carrier: self.backgroundContinuation?.carrier ?? .none)
         }
         #endif
     }
@@ -107,7 +107,7 @@ extension AppModel {
     /// `BGProcessing`), halten auch Transkripte an, die ohne fortgesetzte
     /// Verarbeitung laufen. Trägt sie diese, laufen sie weiter.
     public func stopTranscriptsWithoutCarrier() {
-        guard transcriptContinuation?.carrier != .carrying else { return }
+        guard backgroundContinuation?.carrier != .carrying else { return }
         pauseTranscripts()
     }
 

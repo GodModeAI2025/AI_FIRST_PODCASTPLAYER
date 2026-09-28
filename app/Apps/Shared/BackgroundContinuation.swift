@@ -4,11 +4,26 @@
 //
 //  Hält die Erschließung am Leben, wenn die App in den Hintergrund geht.
 //
-//  Auf dem iPhone meldet die App dafür eine „fortgesetzte Verarbeitung“ an.
-//  Das System zeigt dann eine Fortschrittsanzeige und lässt die Arbeit
-//  weiterlaufen, solange die Anzeige Fortschritt sieht. Klappt die
-//  Anmeldung nicht, etwa weil die App schon im Hintergrund ist, bleibt die
-//  kurze Hintergrundzeit von UIKit. Der Mac braucht nichts davon.
+//  Auf dem iPhone meldet die App dafür eine „fortgesetzte Verarbeitung“ an
+//  (`BGContinuedProcessingTask`). Das System zeigt dann eine
+//  Fortschrittsanzeige und lässt die Arbeit weiterlaufen, solange die
+//  Anzeige Fortschritt sieht; eine Aufgabe, die hängend wirkt, beendet es
+//  (BGTask.h im SDK 27.0). Die Anmeldung gilt nur für die App, die gerade
+//  vorn ist. Deshalb meldet die App sie an, wenn ein Lauf beginnt und
+//  spätestens, wenn sie inaktiv wird, noch bevor sie in den Hintergrund geht
+//  (`AppModel.beginBackgroundRunIfNeeded`). Klappt die Anmeldung nicht,
+//  bleibt die kurze Hintergrundzeit von UIKit. Der Mac braucht nichts davon.
+//
+//  Eine Anmeldung trägt den ganzen Lauf: Transkripte, danach Fakten und
+//  Kapitel-Tags, bis nichts mehr ansteht. Solange sie läuft, hält sie den
+//  Träger `.continued` am Tor, damit Fakten und Tags auch nach dem letzten
+//  Transkript im Hintergrund weiterlaufen dürfen. Den Fortschritt rechnet
+//  `BackgroundRunProgress` im Paket: eine Summe über die Warteschlange, die
+//  nur wächst, mit einem Herzschlag für lange Schritte ohne Meldung.
+//
+//  Endet die Zeit, gibt die Anmeldung den Träger zurück. Transkripte halten
+//  mit Zwischenstand an, Fakten und Tags am Tor; alles bleibt vorn in der
+//  Warteschlange und läuft weiter, sobald die App wieder vorn ist.
 //
 
 import Foundation
@@ -24,17 +39,29 @@ public final class BackgroundContinuation {
 
     public static let identifierPrefix = "com.godmodeai.podcastai.mobile.analysis"
 
-    #if os(iOS)
-    /// Die Überschrift der Fortschrittsanzeige des Systems.
-    private static var displayTitle: String {
-        String(localized: "Transkripte erstellen", comment: "Titel der Fortschrittsanzeige im Hintergrund")
+    /// Die Überschrift der Fortschrittsanzeige für einen Schritt.
+    static func title(for step: BackgroundRunProgress.Step) -> String {
+        switch step {
+        case .transcript:
+            String(localized: "Transkripte erstellen", comment: "Titel der Fortschrittsanzeige im Hintergrund")
+        case .facts:
+            String(localized: "Fakten sammeln", comment: "Titel der Fortschrittsanzeige im Hintergrund")
+        case .tags:
+            String(localized: "Kapitel einordnen", comment: "Titel der Fortschrittsanzeige im Hintergrund")
+        }
     }
 
+    #if os(iOS)
     private var task: BGContinuedProcessingTask?
     private var fallbackID: UIBackgroundTaskIdentifier = .invalid
-    private var pendingProgress: Int64 = 0
-    private var pendingSubtitle: String
+    private var heartbeat: Task<Void, Never>?
     #endif
+    private var title: String
+    private var subtitle: String
+    /// Der Fortschritt über den ganzen Lauf.
+    private(set) var progress = BackgroundRunProgress()
+    /// Der Träger `.continued` am Tor, solange die Anmeldung trägt.
+    private var lease: WorkLease?
     private var ended = false
     /// Wird gerufen, wenn die Zeit des Systems endet. Die Arbeit hält dann an
     /// und bleibt vorn in der Warteschlange.
@@ -44,68 +71,97 @@ public final class BackgroundContinuation {
     /// „Transkripte pausieren“.
     public private(set) var carrier: TranscriptPauseNotice.Carrier = .none
 
-    private init(title: String, onExpire: @escaping @MainActor () -> Void) {
+    private init(title: String, subtitle: String, lease: WorkLease?, onExpire: @escaping @MainActor () -> Void) {
+        self.title = title
+        self.subtitle = subtitle
+        self.lease = lease
         self.onExpire = onExpire
-        #if os(iOS)
-        pendingSubtitle = title
-        #endif
     }
 
-    /// Beginnt eine Hintergrundphase für die ganze Warteschlange.
+    /// Beginnt eine Hintergrundphase für den ganzen Lauf. `lease` ist der
+    /// Träger am Tor; er geht mit dem Ende oder dem Ablauf zurück.
     public static func begin(
-        title: String, onExpire: @escaping @MainActor () -> Void = {}
+        title: String, subtitle: String, lease: WorkLease? = nil,
+        onExpire: @escaping @MainActor () -> Void = {}
     ) -> BackgroundContinuation {
-        let continuation = BackgroundContinuation(title: title, onExpire: onExpire)
+        let continuation = BackgroundContinuation(title: title, subtitle: subtitle, lease: lease, onExpire: onExpire)
         #if os(iOS)
-        continuation.start(subtitle: title)
+        continuation.start()
         #endif
         return continuation
     }
 
+    /// Angemeldet oder schon getragen, und nicht zu Ende.
+    public var isActive: Bool {
+        !ended && (carrier == .pending || carrier == .carrying)
+    }
+
+    /// Gehört der laufende Schritt schon zu dieser Folge?
+    func isCurrent(_ step: BackgroundRunProgress.Step, episode: EpisodeID) -> Bool {
+        progress.current == step && progress.currentEpisode == episode
+    }
+
     /// Meldet eine neue Folge, die gerade erschlossen wird.
     public func setSubtitle(_ subtitle: String) {
+        self.subtitle = subtitle
         #if os(iOS)
-        pendingSubtitle = subtitle
-        task?.updateTitle(Self.displayTitle, subtitle: subtitle)
+        task?.updateTitle(title, subtitle: subtitle)
         #endif
     }
 
-    /// Meldet den Fortschritt der laufenden Folge. `fraction` ist der Anteil
-    /// des Transkripts, von 0 bis 1. Er füllt die Strecke zwischen „geladen“
-    /// und „transkribiert“ in feinen Schritten, damit das System Fortschritt
-    /// sieht und die Arbeit nicht für hängend hält. `downloadFraction` ist
-    /// der Anteil des Downloads und füllt ebenso die Strecke zwischen
-    /// „begonnen“ und „geladen“: Bis 0.13 stand die Anzeige während eines
-    /// langen Downloads still (docs/plan-pipeline.md, Schritt 5a).
-    public func update(_ stage: ProcessingStage, fraction: Double? = nil, downloadFraction: Double? = nil) {
-        #if os(iOS)
-        let value: Int64
+    /// Ein Schritt meldet, wie weit er ist. Ein neuer Schritt schließt den
+    /// vorigen ab; der Stand wächst nur. Mit `subtitle` wechselt auch die
+    /// Zeile unter der Überschrift, etwa auf den Titel der Folge.
+    func report(_ step: BackgroundRunProgress.Step, episode: EpisodeID,
+                _ phase: BackgroundRunProgress.Phase, subtitle: String? = nil) {
+        guard !ended else { return }
+        let changedStep = progress.current != step
+        progress.report(step, episode: episode, phase)
+        if changedStep || subtitle != nil {
+            title = Self.title(for: step)
+            if let subtitle { self.subtitle = subtitle }
+            #if os(iOS)
+            task?.updateTitle(title, subtitle: self.subtitle)
+            #endif
+        }
+        applyProgress()
+    }
+
+    /// Wie bisher aus dem Transkript: die Stufe der Folge, dazu der Anteil
+    /// des Transkripts (`fraction`) oder des Downloads (`downloadFraction`).
+    public func update(_ stage: ProcessingStage, episode: EpisodeID,
+                       fraction: Double? = nil, downloadFraction: Double? = nil) {
+        let phase: BackgroundRunProgress.Phase
         if let fraction {
-            value = 100 + Int64((min(max(fraction, 0), 1) * 850).rounded())
+            phase = .transcription(fraction)
         } else if let downloadFraction {
-            value = 20 + Int64((min(max(downloadFraction, 0), 1) * 80).rounded())
+            phase = .download(downloadFraction)
         } else {
-            value = switch stage {
-            case .discovered: 20
-            case .mediaDownloaded: 100
-            case .transcribed: 950
-            case .evidenceExtracted, .failed: 1_000
+            phase = switch stage {
+            case .discovered: .download(0)
+            case .mediaDownloaded: .download(1)
+            case .transcribed, .evidenceExtracted, .failed: .transcribed
             }
         }
-        // Eine neue Folge beginnt wieder vorn. Innerhalb einer Folge geht es
-        // nur vorwärts, auch beim Laden.
-        let restarts = stage == .discovered && downloadFraction == nil
-        guard restarts || value >= pendingProgress else { return }
-        pendingProgress = value
-        task?.progress.completedUnitCount = value
-        #endif
+        report(.transcript, episode: episode, phase)
+    }
+
+    /// Was nach dem laufenden Schritt noch aussteht.
+    func expect(_ expected: BackgroundRunProgress.Expected) {
+        guard !ended, expected != progress.expected else { return }
+        progress.expect(expected)
+        applyProgress()
     }
 
     public func end() {
         guard !ended else { return }
         ended = true
         carrier = .none
+        lease?.release()
+        lease = nil
         #if os(iOS)
+        heartbeat?.cancel()
+        heartbeat = nil
         if let task {
             task.progress.completedUnitCount = task.progress.totalUnitCount
             task.setTaskCompleted(success: true)
@@ -118,8 +174,19 @@ public final class BackgroundContinuation {
         #endif
     }
 
+    private func applyProgress() {
+        #if os(iOS)
+        guard let task else { return }
+        // Erst die Gesamtzahl, sie liegt immer über dem Stand.
+        let total = progress.totalUnitCount
+        if task.progress.totalUnitCount != total { task.progress.totalUnitCount = total }
+        let completed = progress.completedUnitCount
+        if task.progress.completedUnitCount != completed { task.progress.completedUnitCount = completed }
+        #endif
+    }
+
     #if os(iOS)
-    private func start(subtitle: String) {
+    private func start() {
         // Kurze Hintergrundzeit als Netz, bis die fortgesetzte Verarbeitung läuft.
         fallbackID = UIApplication.shared.beginBackgroundTask(withName: "Erschließen") { [weak self] in
             MainActor.assumeIsolated {
@@ -147,9 +214,9 @@ public final class BackgroundContinuation {
         }
         guard registered else { return }
         carrier = .pending
-        let request = BGContinuedProcessingTaskRequest(
-            identifier: identifier, title: Self.displayTitle, subtitle: subtitle
-        )
+        let request = BGContinuedProcessingTaskRequest(identifier: identifier, title: title, subtitle: subtitle)
+        // Sofort oder gar nicht: Die Mitteilung „Transkripte pausieren“
+        // wartet nur kurz auf die Antwort.
         request.strategy = .fail
         // Das System will die Anfrage nicht vom Hauptthread.
         Task.detached(priority: .userInitiated) { [weak self] in
@@ -169,9 +236,9 @@ public final class BackgroundContinuation {
     private func attach(_ processing: BGContinuedProcessingTask) {
         task = processing
         carrier = .carrying
-        processing.progress.totalUnitCount = 1_000
-        processing.progress.completedUnitCount = pendingProgress
-        processing.updateTitle(Self.displayTitle, subtitle: pendingSubtitle)
+        processing.progress.totalUnitCount = progress.totalUnitCount
+        processing.progress.completedUnitCount = progress.completedUnitCount
+        processing.updateTitle(title, subtitle: subtitle)
         processing.expirationHandler = { [weak self] in
             Task { @MainActor in
                 guard let self, let task = self.task else { return }
@@ -180,12 +247,33 @@ public final class BackgroundContinuation {
                 self.expire()
             }
         }
+        startHeartbeat()
     }
 
-    /// Die Zeit ist um. Die Arbeit hält an, ihr Zwischenstand bleibt.
+    /// Ein Takt alle paar Sekunden: Steht der laufende Schritt ohne Meldung,
+    /// rückt die Anzeige ein wenig vor (`BackgroundRunProgress.tick`).
+    private func startHeartbeat() {
+        heartbeat?.cancel()
+        let interval = BackgroundRunProgress.creepInterval
+        heartbeat = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled, let self, !self.ended, self.task != nil else { return }
+                self.progress.tick(seconds: interval)
+                self.applyProgress()
+            }
+        }
+    }
+
+    /// Die Zeit ist um. Der Träger geht zurück, die Arbeit hält an, ihr
+    /// Zwischenstand bleibt.
     private func expire() {
         guard !ended else { return }
         carrier = .expired
+        heartbeat?.cancel()
+        heartbeat = nil
+        lease?.release()
+        lease = nil
         onExpire()
     }
     #endif

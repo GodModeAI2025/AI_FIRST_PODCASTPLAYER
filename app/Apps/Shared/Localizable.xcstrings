@@ -8427,6 +8427,23 @@
         }
       }
     },
+    "Fakten sammeln" : {
+      "comment" : "Titel der Fortschrittsanzeige im Hintergrund",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fakten sammeln"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gather Facts"
+          }
+        }
+      }
+    },
     "Fakten werden gesammelt · %@" : {
       "localizations" : {
         "de" : {
@@ -11079,6 +11096,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chapters from your episodes that match the tags you follow."
+          }
+        }
+      }
+    },
+    "Kapitel einordnen" : {
+      "comment" : "Titel der Fortschrittsanzeige im Hintergrund",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kapitel einordnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Chapters"
           }
         }
       }

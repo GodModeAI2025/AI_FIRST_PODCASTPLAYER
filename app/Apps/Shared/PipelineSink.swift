@@ -126,6 +126,7 @@ final class PipelineSink {
         let backlog = Set(items.filter { $0.origin == .backlog }.map(\.episode.id))
         if model.automaticallyQueued != automatic { model.automaticallyQueued = automatic }
         if model.backlogQueued != backlog { model.backlogQueued = backlog }
+        model.backgroundWorkChanged()
     }
 
     /// Ein neuer Stand der Stufe „Wissen“. Geschrieben wird nur, was sich
@@ -144,6 +145,9 @@ final class PipelineSink {
             }
         }
         if model.factsIssues != issues { model.factsIssues = issues }
+        model.knowledgeTagsQueued = snapshot.tagsQueued
+        model.knowledgeTagsRunning = snapshot.tagsRunning
+        model.backgroundWorkChanged()
     }
 }
 
@@ -156,15 +160,23 @@ extension PipelineSink: KnowledgeReporting {
 
     func factsStarted(_ id: EpisodeID) {
         model?.factsInProgress.insert(id)
+        model?.backgroundFactsProgress(id, fraction: 0)
     }
 
     func factsProgress(_ id: EpisodeID, fraction: Double) {
         model?.factsProgress[id] = fraction
+        model?.backgroundFactsProgress(id, fraction: fraction)
     }
 
     func factsFinished(_ id: EpisodeID) {
         model?.factsInProgress.remove(id)
         model?.factsProgress[id] = nil
+        model?.backgroundFactsProgress(id, fraction: 1)
+    }
+
+    /// Nur für die Anzeige der fortgesetzten Verarbeitung.
+    func tagsProgress(_ id: EpisodeID, fraction: Double) {
+        model?.backgroundTagsProgress(id, fraction: fraction)
     }
 
     /// Geprüft wird hier, auf dem Hauptakteur, wo auch gelöscht wird. Eine

@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 26. September 2026, Version 0.13.
+Stand 28. September 2026, Version 0.13 mit der Pipeline aus Stufen.
 
 ## Geprüft
 
@@ -30,6 +30,8 @@ Stand 26. September 2026, Version 0.13.
 | Jeder Knopf, jedes Menü, jeder Schalter, jeder Hinweistext | Prüfung auf Wirkung, jeder Fund von Gegenprüfern bestätigt oder verworfen |
 | Upload nach App Store Connect | Jede Version für iOS und macOS, interne TestFlight-Gruppe „Intern“ je App |
 | Agentenzugang über MCP (Mac) | 17 Swift-Tests mit echten JSON-Zeilen (`AgentAccessTests`). Live über stdio gegen den unsignierten Debug-Build: jedes Werkzeug, Schalter aus, keine Freigabe, abgelaufene Freigabe, Notizen ausgenommen, anderer Agent, Ausschalten und Ablauf während einer Verbindung. Alle Antworten vom offiziellen MCP-SDK 1.30.1 als gültig angenommen. Claude Code 2.1.283 hat den Debug-Build eingetragen, sich verbunden (erst `server/discover`, dann `initialize`) und `searchEvidence` aufgerufen |
+| Verarbeitung als Pipeline aus Stufen, zusammengeführt mit Trends, Widget, Teilen-Menü, Nachschlagen im Chat, „PCC für alles“ und Mac-Oberfläche | 939 Swift-Tests im Paket, beide Apps bauen ohne Fehler und Warnung, komplette UI-Suite im iOS-Simulator |
+| Fortschritt der Arbeit im Hintergrund: wächst nur, über Folgen, Fakten und Tags hinweg, rückt in langen Schritten weiter, ohne das Ende zu erreichen | Swift-Tests ohne Uhr (`BackgroundRunProgressTests`, `BackgroundWorkLoadTests`) |
 | Mac-Oberfläche: Seitenleiste, Player in der Symbolleiste, Inspektor, Podcast als Tabelle, Menüs | Baut ohne Warnung; jede Seite startet mit Demo-Inhalten ohne Absturz (`-uitest-sidebar`, nur Debug), erstes Fenster 1280 × 820 |
 
 ## Noch auf einem Gerät zu prüfen
@@ -47,7 +49,7 @@ Stand 26. September 2026, Version 0.13.
 | YouTube-Abos aus Google Takeout | Leser und Auswahl mit Swift-Tests geprüft, der UI-Test ist gebaut, lief aber noch nicht im Simulator. Offen sind eine echte Takeout-Datei mit deutscher Kopfzeile und Apples Drosselung bei mehreren hundert Kanälen |
 | Tokens und letzte Fragen im Chat | Zeitangaben, Vorschläge und die Auswahl vor dem Modell mit Swift-Tests geprüft, die Rückschritttaste am Mac in einem eigenen Testfenster. Dass sie nur im Fenster des Chats greift und nicht in den Einstellungen, einem zweiten Fenster oder bei einer offenen Tottaste, ist gebaut, aber noch nicht am Mac ausprobiert. Der UI-Test ist gebaut, lief aber noch nicht im Simulator. Auf iPhone und iPad nimmt nur ein Tipp ein Token heraus, die Bildschirmtastatur meldet den Rückschritt im leeren Feld nicht |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
-| Transkripte und Fakten im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad |
+| Transkripte, Fakten und Tags im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad. Offen: ob iOS die fortgesetzte Verarbeitung mit dem neuen Fortschritt über einen ganzen Lauf mit Fakten bei Private Cloud Compute trägt, ob die Anmeldung beim Verlassen der App angenommen wird und ob nach einem Ablauf alles beim Öffnen weiterläuft |
 | Agentenzugang mit dem signierten Mac-Build | Geprüft ist nur der unsignierte Build und eine ad hoc signierte Kopie mit Sandbox. Offen: ob Claude Desktop und Claude Code das Programm aus der TestFlight-Mac-App starten, ob der Prozess dort Freigabe und Mediathek des App-Containers sieht und wie er sich verhält, während die App mit iCloud abgleicht. Auf einem Mac mit Apple-Chip installiert TestFlight womöglich die iPad-App unter demselben Namen `PodcastAI.app`; sie hat keinen Agentenzugang |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |
 | Mac-Oberfläche im Betrieb | Die UI-Tests `PodcastAIMacUITests` (⌘1 bis ⌘7, ⌥⌘U, Hilfe-Menü, gesperrtes Abspielen, Öffnen spielt nichts) sind gebaut, liefen aber noch nicht: ohne Signatur startet der Test-Runner nicht. Offen sind außerdem, ob die Anzeige in der Symbolleiste bei 1000 Punkt Breite ohne Überlauf passt, ob die Leertaste in Textfeldern ankommt, wie Hell und Dunkel, „Bewegung reduzieren“ und Gelb oder Graphit als Akzentfarbe aussehen und ob die Kacheln und Tabellen mit Tastatur erreichbar sind |

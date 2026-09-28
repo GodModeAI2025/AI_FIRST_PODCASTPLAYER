@@ -43,7 +43,7 @@ extension AppModel {
         let locale = transcriptionLocale(for: episode)
         stages[episode.id] = .discovered
         stageDetails[episode.id] = nil
-        background?.update(.discovered)
+        background?.update(.discovered, episode: episode.id)
         let remaining = job.remaining
         if remaining > 0 {
             // Zahl und Wort für sich, der Titel außerhalb des Markdowns.
@@ -72,11 +72,11 @@ extension AppModel {
                     // Nur ein Schritt im Transkript oder beim Laden: die
                     // Anzeige des Systems bekommt ihn, die Stufe der Folge bleibt.
                     if let fraction = progress.fraction {
-                        background?.update(progress.stage, fraction: fraction)
+                        background?.update(progress.stage, episode: progress.episodeID, fraction: fraction)
                         return
                     }
                     if let fraction = progress.downloadFraction {
-                        background?.update(progress.stage, downloadFraction: fraction)
+                        background?.update(progress.stage, episode: progress.episodeID, downloadFraction: fraction)
                         return
                     }
                     ProcessingTrace.event("Neue Stufe")
@@ -86,7 +86,7 @@ extension AppModel {
                     if let detail = progress.detail {
                         self.stageDetails[progress.episodeID] = detail
                     }
-                    background?.update(progress.stage)
+                    background?.update(progress.stage, episode: progress.episodeID)
                 }
             }
         )
@@ -236,7 +236,7 @@ extension AppModel {
         }
         stages[episode.id] = .discovered
         stageDetails[episode.id] = nil
-        background?.update(.discovered)
+        background?.update(.discovered, episode: episode.id)
         activity = String(localized: "Untertitel für „\(episode.title)“ werden über Supadata geholt …")
 
         let client = supadata
@@ -254,7 +254,7 @@ extension AppModel {
             // Wie der Download bei Ton: Die Untertitel sind da. Die Anzeige
             // der fortgesetzten Verarbeitung sieht damit Fortschritt, auch
             // wenn Supadata lange an einem Auftrag rechnete.
-            await background?.update(.mediaDownloaded)
+            await background?.update(.mediaDownloaded, episode: episode.id)
             let built = ProcessingTrace.measure("Untertitel aufbereiten") {
                 CaptionAnalysis.build(
                     captions: captions, episodeID: episode.id, sourceID: episode.sourceID,
@@ -389,20 +389,21 @@ extension AppModel {
         Set(items.filter { queueWait(for: $0.episode, automatic: $0.origin != .user) == nil }.map(\.episode.id))
     }
 
-    /// Der Lauf beginnt: Die fortgesetzte Verarbeitung meldet sich an. Den
-    /// Träger `.continued` hält die Stufe selbst.
+    /// Der Lauf beginnt, vorn: Die fortgesetzte Verarbeitung meldet sich
+    /// an, falls sie nicht schon trägt. Eine laufende Anmeldung bleibt, eine
+    /// neue im Hintergrund lehnte das System ab. Den Träger `.continued`
+    /// hält die Stufe zusätzlich selbst.
     private func transcriptRunStarted(title: String) {
-        transcriptContinuation?.end()
-        transcriptContinuation = BackgroundContinuation.begin(
-            title: title, onExpire: { [weak self] in self?.transcriptTimeExpired() })
+        beginBackgroundRunIfNeeded(subtitle: title, transcriptStarting: true)
     }
 
-    /// Der Lauf ist zu Ende. Leer gelaufen: nach den Transkripten fragen,
-    /// die im Mobilfunk warten. Die Automatik der Themen-Updates prüft die
-    /// Stufe „Ausgaben“ auf `transcriptsIdle`.
+    /// Der Lauf ist zu Ende. Die fortgesetzte Verarbeitung endet erst, wenn
+    /// auch Fakten und Tags nichts mehr vorhaben (`backgroundWorkChanged`).
+    /// Leer gelaufen: nach den Transkripten fragen, die im Mobilfunk warten.
+    /// Die Automatik der Themen-Updates prüft die Stufe „Ausgaben“ auf
+    /// `transcriptsIdle`.
     private func transcriptRunEnded(cancelled: Bool) async {
-        transcriptContinuation?.end()
-        transcriptContinuation = nil
+        backgroundWorkChanged()
         activity = nil
         guard !cancelled else { return }
         askAboutWaitingTranscripts()
@@ -411,11 +412,11 @@ extension AppModel {
     /// Die Arbeit an einer Folge für die Stufe: Untertitel der
     /// Fortschrittsanzeige, Vorausladen, dann die Arbeit selbst.
     private func transcribeForStage(_ job: TranscriptJob) async -> TranscriptJobOutcome {
-        transcriptContinuation?.setSubtitle(job.episode.title)
+        backgroundContinuation?.report(.transcript, episode: job.episode.id, .download(0), subtitle: job.episode.title)
         // Den Ton der nächsten Folgen schon jetzt über die Sitzung des
         // Systems laden, solange die App vorn ist.
         requestLookahead()
-        return await transcribe(job, background: transcriptContinuation)
+        return await transcribe(job, background: backgroundContinuation)
     }
 
     /// Was nach einer Folge für Oberfläche und Vermerke dieses Geräts zu tun ist.

@@ -3,6 +3,10 @@
 ## Nächste Version
 Aus dem TestFlight-Feedback zu 0.13:
 - Läuft eine Ausgabe eines Themen-Updates, zeigt ihre Seite „Pause“ statt „Abspielen“, angehalten „Weiter“.
+- Die Arbeit im Hintergrund brach auf dem iPhone nach kurzer Zeit ab. iOS beendet die fortgesetzte Verarbeitung, wenn ihre Anzeige keinen Fortschritt zeigt, und die Anzeige bewegte sich nur beim Transkribieren: Der Download sprang auf einmal, Fakten und Tags zählten gar nicht, und jede neue Folge begann wieder vorn. Jetzt zählt der ganze Lauf als eine Summe: Laden nach Bytes, Transkript, Fakten je Abschnitt und Tags je Kapitel, über alle Folgen der Warteschlange. Der Balken geht nur vorwärts. Rechnet Apple Intelligence an einem Abschnitt länger, rückt er in kleinen Schritten weiter, ohne das Ende vorwegzunehmen.
+- Die fortgesetzte Verarbeitung endete mit dem letzten Transkript, auch wenn dessen Fakten und Tags noch liefen. Jetzt trägt sie den ganzen Lauf und endet erst, wenn nichts mehr ansteht. Die Überschrift sagt, was gerade passiert: „Transkripte erstellen“, „Fakten sammeln“ oder „Kapitel einordnen“.
+- Die App meldet die Arbeit im Hintergrund an, solange sie noch vorn ist: wenn Transkripte beginnen und spätestens, wenn du die App verlässt. Vorher gab es die Anmeldung nur beim Start der Transkripte.
+- Endet die Zeit im Hintergrund trotzdem, hält alles sauber an: Transkripte mit Zwischenstand, Fakten mit den fertigen Abschnitten. Öffnest du die App, geht es an derselben Stelle weiter.
 
 Verarbeitung als Pipeline aus Stufen (Umbau nach 0.12, docs/plan-pipeline.md):
 - Vorbereiten, Laden, Transkript, Fakten mit Tags und Themen-Updates laufen als eigene Stufen, die sich über Ereignisse Bescheid geben. Die Oberfläche bleibt dieselbe. Nach einem Absturz oder Neustart findet jede Stufe selbst, was offen ist.

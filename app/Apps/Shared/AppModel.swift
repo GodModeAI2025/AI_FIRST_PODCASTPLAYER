@@ -59,9 +59,16 @@ public final class AppModel {
     /// sich die Warteschlange selbst merkt (`AnalysisQueueSnapshot`).
     public internal(set) var analysisQueue: [Episode] = []
     public internal(set) var analyzing: Episode?
-    /// Die Hintergrundphase der laufenden Warteschlange. Sagt, ob die
-    /// fortgesetzte Verarbeitung die Transkripte gerade trägt.
-    @ObservationIgnored var transcriptContinuation: BackgroundContinuation?
+    /// Die Hintergrundphase des laufenden Laufs: Transkripte, Fakten und
+    /// Kapitel-Tags (AppModel+BackgroundRun.swift). Sagt, ob die
+    /// fortgesetzte Verarbeitung die Arbeit gerade trägt.
+    @ObservationIgnored var backgroundContinuation: BackgroundContinuation?
+    /// Prüft kurz nach dem letzten Schritt, ob wirklich nichts mehr ansteht.
+    @ObservationIgnored var backgroundEndCheck: Task<Void, Never>?
+    /// Kapitel-Tags aus der Stufe „Wissen“: wie viele warten, ob welche
+    /// entstehen. Nur für die fortgesetzte Verarbeitung, keine Ansicht liest sie.
+    @ObservationIgnored var knowledgeTagsQueued = 0
+    @ObservationIgnored var knowledgeTagsRunning = false
     /// Hat die Stufe „Transkript“ in diesem Start schon abgeglichen? Danach
     /// holt `restoreAnalysisQueue` nur noch zurück, was ein anderer Speicher
     /// geleert hat.

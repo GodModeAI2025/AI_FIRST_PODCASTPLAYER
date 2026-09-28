@@ -101,13 +101,19 @@ public struct KnowledgeSnapshot: Sendable, Equatable {
     /// Warum die Fakten stehen: das Modell fehlt.
     public var waitReason: ModelUnavailability?
     public var issues: [EpisodeID: KnowledgeIssue]
+    /// Wie viele Folgen auf ihre Kapitel-Tags warten, ohne die laufende.
+    public var tagsQueued: Int
+    /// Entstehen gerade Kapitel-Tags, nach den Fakten oder aus dem Rückstand?
+    public var tagsRunning: Bool
 
     public init(queue: [Episode] = [], running: Episode? = nil, waitReason: ModelUnavailability? = nil,
-                issues: [EpisodeID: KnowledgeIssue] = [:]) {
+                issues: [EpisodeID: KnowledgeIssue] = [:], tagsQueued: Int = 0, tagsRunning: Bool = false) {
         self.queue = queue
         self.running = running
         self.waitReason = waitReason
         self.issues = issues
+        self.tagsQueued = tagsQueued
+        self.tagsRunning = tagsRunning
     }
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
@@ -115,6 +121,7 @@ public struct KnowledgeSnapshot: Sendable, Equatable {
         // die hier niemand vergleichen muss.
         lhs.queue.map(\.id) == rhs.queue.map(\.id) && lhs.running?.id == rhs.running?.id
             && lhs.waitReason == rhs.waitReason && lhs.issues == rhs.issues
+            && lhs.tagsQueued == rhs.tagsQueued && lhs.tagsRunning == rhs.tagsRunning
     }
 }
 
@@ -1168,8 +1175,14 @@ public actor KnowledgeStage {
     }
 
     private func publish() {
+        let tagsRunning: Bool = switch slot?.work {
+        case .tags: true
+        case .facts: slot?.chainedTags == true
+        default: false
+        }
         let snapshot = KnowledgeSnapshot(
-            queue: factsQueue.map(\.episode), running: runningFacts?.episode, waitReason: waitReason, issues: issues)
+            queue: factsQueue.map(\.episode), running: runningFacts?.episode, waitReason: waitReason, issues: issues,
+            tagsQueued: tagsQueue.count, tagsRunning: tagsRunning)
         guard snapshot != lastSnapshot else { return }
         lastSnapshot = snapshot
         snapshotContinuation.yield(snapshot)
