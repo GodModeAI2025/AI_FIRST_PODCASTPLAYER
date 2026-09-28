@@ -25,6 +25,12 @@ final class AtlasUITests: XCTestCase {
         add(tree)
     }
 
+    /// Tab Bar auf dem iPhone, Leiste oben auf dem iPad.
+    private func tab(_ app: XCUIApplication, _ name: String) {
+        let button = app.tabBars.buttons[name]
+        (button.exists ? button : app.buttons[name].firstMatch).tap()
+    }
+
     private func tapIfExists(_ element: XCUIElement, timeout: TimeInterval = 5) {
         if element.waitForExistence(timeout: timeout) { element.tap() }
     }
@@ -46,19 +52,19 @@ final class AtlasUITests: XCTestCase {
         sleep(3)
         snap(app, "01-fuer-dich")
 
-        app.tabBars.buttons["Themen-Updates"].tap()
+        tab(app, "Themen-Updates")
         snap(app, "02-themen-updates")
         tapIfExists(app.navigationBars.buttons["Neu"].firstMatch)
         snap(app, "03-themen-update-anlegen")
         tapIfExists(app.buttons["Abbrechen"].firstMatch)
 
-        app.tabBars.buttons["Chat"].firstMatch.tap()
+        tab(app, "Chat")
         snap(app, "04-chat")
         tapIfExists(app.buttons["Welche Folgen behandeln künstliche Intelligenz?"])
         sleep(4)
         snap(app, "05-chat-antwort")
 
-        app.tabBars.buttons["Meine Podcasts"].tap()
+        tab(app, "Meine Podcasts")
         snap(app, "06-meine-podcasts")
         tapIfExists(app.staticTexts["Warteschlange"].firstMatch)
         snap(app, "07-warteschlange")
@@ -91,13 +97,13 @@ final class AtlasUITests: XCTestCase {
         snap(app, "16-player")
         tapIfExists(app.buttons["Fertig"].firstMatch)
 
-        app.tabBars.buttons["Meine Podcasts"].tap()
-        app.tabBars.buttons["Meine Podcasts"].tap()
+        tab(app, "Meine Podcasts")
+        tab(app, "Meine Podcasts")
         tapIfExists(app.navigationBars.buttons["Podcast hinzufügen"].firstMatch)
         snap(app, "17-podcast-hinzufuegen")
         tapIfExists(app.buttons["Abbrechen"].firstMatch)
 
-        app.tabBars.buttons["Wissen"].tap()
+        tab(app, "Wissen")
         snap(app, "18-wissen")
         for (label, file) in [("Gemerkte Stellen", "19-gemerkte-stellen"), ("Gesicherte Antworten", "20-gesicherte-antworten"),
                               ("Meine Tags", "22-meine-tags"),
@@ -109,7 +115,7 @@ final class AtlasUITests: XCTestCase {
                 app.navigationBars.buttons.element(boundBy: 0).tap()
             }
         }
-        app.tabBars.buttons["Für dich"].tap()
+        tab(app, "Für dich")
         snap(app, "25-fuer-dich-spaeter")
     }
 }
