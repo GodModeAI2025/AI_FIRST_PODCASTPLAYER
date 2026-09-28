@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 28. September 2026, Version 0.14.
+Stand 28. September 2026, Version 0.14, dazu der Branch `schema-release` für die nächste Version (Unterhaltungen im Chat und die Schemaänderung aus Entscheidung 11).
 
 ## Geprüft
 
@@ -19,6 +19,7 @@ Stand 28. September 2026, Version 0.14.
 | Löschregeln: Audio entfernen behält Daten, Folge löschen entfernt alles und bleibt gelöscht, Quelle abbestellen, Doppelte aus dem Abgleich | Swift-Tests mit Speicher im Arbeitsspeicher |
 | CloudKit-Schema für die Datentypen bis 0.13 | angelegt und nach Production übertragen |
 | Zusammenführen doppelter Datensätze, Hörstand je Gerät, verwaiste Zeilen | Swift-Tests, zuerst rot gegen den alten Stand |
+| Schema nach 0.14: Merkzeichen „Quelle abbestellt“ über zwei Speicher, Pfade der Audiodateien je Gerät mit Umzug, feste Sprache in der Kennung des Transkripts, Sperre über Geräte hinweg (nehmen, übernehmen, ablaufen, freigeben, in beiden Stufen), neue Arten in der Historie | Swift-Tests (`SchemaReleaseTests`, dazu Fälle in `TranscriptStageTests` und `KnowledgeStageTests`), 981 Swift-Tests im Paket, beide Apps ohne Fehler und Warnung, komplette UI-Suite im iOS-Simulator (71 Tests, 3 bewusst übersprungen) |
 | Code-Prüfung | mehrstufig: Funde je Bereich, jeder von zwei Prüfern gegengeprüft, jede Korrektur einzeln nachgeprüft |
 | Kernlogik: Intervalle, Hörplan, Relevanz, Suche für den Chat, Export, Freigaben, Sprache der Modelltexte, Archiv, Nennungen, Kapitelschnitt, Behalten des Tons, Unterhaltungen im Chat | 782 Swift-Tests im Paket |
 | Podcastsuche nach Namen, Spotify-Hinweis, Moment merken, OPML-Import, YouTube-@-Links, Archiv, Speicher, Themen-Updates bearbeiten | UI-Tests im Simulator |
@@ -49,6 +50,7 @@ Stand 28. September 2026, Version 0.14.
 | YouTube-Abos aus Google Takeout | Leser und Auswahl mit Swift-Tests geprüft, der UI-Test ist gebaut, lief aber noch nicht im Simulator. Offen sind eine echte Takeout-Datei mit deutscher Kopfzeile und Apples Drosselung bei mehreren hundert Kanälen |
 | Unterhaltungen im Chat | Verlauf im Prompt, Kürzen auf den Platz in Token, Stellen einer Folgefrage, geerbte Eingrenzung, Löschen einer Folge, gespeichertes Format, feste Kennung je Folge und doppelte Zeilen zweier Geräte mit Swift-Tests geprüft (`ChatConversationTests`). Der UI-Test `ConversationUITests` läuft im Simulator durch: Folgefragen in beiden Chats, „Unterhaltung löschen“ im Reiter „Fragen“, „Neue Unterhaltung“, Wiederöffnen mit weiterer Folgefrage und Löschen per Wischen. Offen: der neue Datensatz `StoredChatConversation` im CloudKit-Schema (anlegen, nach Production übertragen), der Abgleich zweier Geräte und ob Folgefragen mit echtem Modell besser werden |
 | Tokens und letzte Fragen im Chat | Zeitangaben, Vorschläge und die Auswahl vor dem Modell mit Swift-Tests geprüft, die Rückschritttaste am Mac in einem eigenen Testfenster. Dass sie nur im Fenster des Chats greift und nicht in den Einstellungen, einem zweiten Fenster oder bei einer offenen Tottaste, ist gebaut, aber noch nicht am Mac ausprobiert. Der UI-Test ist gebaut, lief aber noch nicht im Simulator. Auf iPhone und iPad nimmt nur ein Tipp ein Token heraus, die Bildschirmtastatur meldet den Rückschritt im leeren Feld nicht |
+| Schemaänderung nach 0.14 in CloudKit | Die drei neuen Record-Typen (docs/cloudkit-schema-0.15.md) sind weder in Development noch in Production angelegt. Offen außerdem mit zwei Geräten: ob ein abbestellter Podcast auf dem anderen Gerät vollständig verschwindet, ob die Sperre ein doppeltes Transkript verhindert und wie oft ihr Verlängern im Hintergrund durchkommt |
 | Hintergrundaktualisierung | Das System plant sie erst nach einiger Nutzung ein |
 | Transkripte, Fakten und Tags im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad. Offen: ob iOS die fortgesetzte Verarbeitung mit dem neuen Fortschritt über einen ganzen Lauf mit Fakten bei Private Cloud Compute trägt, ob die Anmeldung beim Verlassen der App angenommen wird und ob nach einem Ablauf alles beim Öffnen weiterläuft |
 | Agentenzugang mit dem signierten Mac-Build | Geprüft ist nur der unsignierte Build und eine ad hoc signierte Kopie mit Sandbox. Offen: ob Claude Desktop und Claude Code das Programm aus der TestFlight-Mac-App starten, ob der Prozess dort Freigabe und Mediathek des App-Containers sieht und wie er sich verhält, während die App mit iCloud abgleicht. Auf einem Mac mit Apple-Chip installiert TestFlight womöglich die iPad-App unter demselben Namen `PodcastAI.app`; sie hat keinen Agentenzugang |

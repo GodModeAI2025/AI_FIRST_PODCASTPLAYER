@@ -243,7 +243,7 @@ Nach jedem Schritt laufen `swift test`, beide Schemata und die UI-Tests, dazu `S
 8. **Fehler je Folge** in `lastFailure` speichern. *Empfehlung: speichern ja, anzeigen wie heute.*
 9. **Fortgesetzte Verarbeitung nur für Angefordertes** (BGTask.h:121). *Empfehlung: Verhalten behalten* und den Fortschritt nachrüsten. Nach einer Messung neu entscheiden.
 10. **Cover-Schlüssel mit der Menge der Segmente** (daten 6), ohne Schemaänderung. *Empfehlung: ja, in Schritt 4.*
-11. **Schemaänderungen:** ein Merkmal „Quelle abbestellt“, `localRelativePath` nicht mehr abgleichen, eine feste Sprache für die Kennung des Transkripts, eine Sperre über Geräte hinweg. *Empfehlung: nächste Release.* In dieser Release sucht die App beim Start nur lokal nach verwaisten Dateien.
+11. **Schemaänderungen:** ein Merkmal „Quelle abbestellt“, `localRelativePath` nicht mehr abgleichen, eine feste Sprache für die Kennung des Transkripts, eine Sperre über Geräte hinweg. *Empfehlung: nächste Release.* In dieser Release sucht die App beim Start nur lokal nach verwaisten Dateien. *Umgesetzt für die nächste Version (Branch `schema-release`), CloudKit-Typen in [cloudkit-schema-0.15.md](cloudkit-schema-0.15.md).*
 
 ## Gegenprüfung
 

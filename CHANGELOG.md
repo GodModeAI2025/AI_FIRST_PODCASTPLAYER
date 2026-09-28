@@ -1,7 +1,7 @@
 # Änderungsverlauf
 
 ## Nächste Version
-Neu: Der Chat führt Unterhaltungen.
+Neu: Der Chat führt Unterhaltungen, und deine Geräte stimmen sich beim Abbestellen und Erschließen ab.
 
 Unterhaltungen im Chat:
 - Folgefragen wie „Und was sagt er dazu?“ wissen, worum es gerade ging. Apple Intelligence bekommt die letzten Fragen und den Kernsatz jeder Antwort mit, als Daten gekennzeichnet und nie als Anweisung. Die Suche nach Stellen beginnt bei dem, was die Antwort davor belegt hat, und bleibt im gewählten Bereich.
@@ -11,8 +11,15 @@ Unterhaltungen im Chat:
 - „Folge löschen“ nimmt die Unterhaltung der Folge mit. In anderen Unterhaltungen verliert eine Antwort die Belege aus der Folge und ihren Text, ohne übrigen Beleg geht die Frage ganz. „Audio entfernen“ lässt alles stehen, gesicherte Antworten bleiben, wie sie sind.
 - Fragen iPhone und Mac vor dem Abgleich dieselbe Folge, bleibt es eine Unterhaltung. Ändern zwei Geräte dieselbe Unterhaltung, bevor der Abgleich sie erreicht, gilt die zuletzt geschriebene Fassung auf beiden.
 
+Abgleich zwischen iPhone, iPad und Mac (die Schemaänderung, die 0.14 aufgeschoben hat):
+- Bestellst du einen Podcast auf einem Gerät ab, holen die anderen das nach, mit allem, was daraus entstanden ist: Folgen, Transkripte, Fakten, Tags, Stellen in Themen-Updates, Unterhaltungen und Ton. Bisher konnte ein Gerät, das gerade an dem Podcast arbeitete, Reste behalten oder den Podcast zurückbringen. Abonnierst du ihn später wieder, beginnt er neu.
+- Zwei Geräte transkribieren dieselbe Folge nicht mehr gleichzeitig und sammeln nicht zweimal ihre Fakten. Wer anfängt, sagt es den anderen; die warten, bis er fertig ist, oder übernehmen nach einer Viertelstunde ohne Lebenszeichen, etwa wenn die App dort beendet wurde.
+- iPhone und Mac mit verschiedener Systemsprache legen für dieselbe Folge kein zweites Transkript mehr an. Kommen doch zwei an, bleibt eines.
+- Wo die Audiodatei einer Folge liegt, merkt sich jedes Gerät selbst. Bisher ging der Pfad über iCloud an alle Geräte, wo er nichts bedeutete. Beim ersten Start zieht er einmal um.
+- Unterhaltungen, die ein anderes Gerät ändert, und die Abstimmung beim Erschließen laden nicht mehr die ganze Bibliothek neu.
+
 Für Entwickler:
-- Neuer Datensatz `StoredChatConversation`. Vor dem ersten TestFlight-Build das CloudKit-Schema in der Entwicklungsumgebung anlegen und nach Production übertragen.
+- Neue Datensätze `StoredChatConversation`, `StoredSourceRemoval` und `StoredProcessingLease`, keine neuen Felder an vorhandenen. `localRelativePath` bleibt im Schema, wird aber nicht mehr geschrieben. Die Liste mit allen CloudKit-Typen steht in [docs/cloudkit-schema-0.15.md](docs/cloudkit-schema-0.15.md). Vor dem ersten TestFlight-Build in der Entwicklungsumgebung anlegen und nach Production übertragen.
 
 ## App 0.14 · 2026-09-28
 Neu: Apple Intelligence rechnet auf Private Cloud Compute, die Verarbeitung läuft als Pipeline in Stufen, Arbeit im Hintergrund bricht nicht mehr ab, neue Mac-Oberfläche, Agentenzugang über MCP neu.
