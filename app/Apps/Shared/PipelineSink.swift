@@ -263,7 +263,7 @@ extension AppModel {
             })
         let stage = KnowledgeStage(
             store: store, gate: pipeline.gate, ledger: removals, host: pipeline,
-            work: knowledgeJobs, environment: environment)
+            work: knowledgeJobs, environment: environment, leases: leasePolicy)
         knowledgeStage = stage
         pipelineSink.follow(stage)
         Task { await stage.start() }

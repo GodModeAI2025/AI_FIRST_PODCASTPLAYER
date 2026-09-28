@@ -637,7 +637,9 @@ public final class AppModel {
     public let spotlight = SpotlightIndex()
 
     @ObservationIgnored var refresher: FeedRefresher
-    private let deviceID: String
+    /// Die Kennung dieses Geräts aus dem Schlüsselbund: für Hörzustand,
+    /// Merkzeichen „Quelle abbestellt“ und die Sperre über Geräte hinweg.
+    let deviceID: String
 
     /// Ein gespeicherter Schalter. `bool(forKey:)` versteht auch Werte aus
     /// Startargumenten wie `-automaticAnalysis NO`, die als Text ankommen.
@@ -777,6 +779,10 @@ public final class AppModel {
     }
 
     public func load() async {
+        // Pfade der Audiodateien merkt sich jedes Gerät selbst (`DeviceState`),
+        // seit dem Schema nach 0.14. Beim ersten Start danach ziehen die
+        // alten aus der Datenbank um, soweit ihre Datei hier liegt.
+        await prepareLocalMediaPaths()
         if DemoContent.isRequested { await DemoContent.seed(into: store) }
         if DemoContent.isRequested, DemoBacklog.isRequested { await DemoBacklog.seed(into: store) }
         // Nach einem iCloud-Abgleich können Datensätze doppelt vorliegen.
@@ -843,6 +849,9 @@ public final class AppModel {
         } catch {
             lastError = UserFacingError.describe(error)
         }
+        // Auf einem anderen Gerät abbestellt: dieselbe Abbestellung hier,
+        // mit allem, was daraus entstanden ist (Regel 5).
+        await applySourceRemovalsFromElsewhere()
         // Auf einem anderen Gerät Gelöschtes auch hier entfernen: Audiodateien,
         // „Als Nächstes“, Warteschlange und gemerkte Stellen.
         await forgetEpisodesRemovedElsewhere()
@@ -868,6 +877,7 @@ public final class AppModel {
     /// war nie gesichert und geht dabei verloren.
     public func replaceStore(_ newStore: LibraryStore) async {
         store = newStore
+        await prepareLocalMediaPaths()
         refresher = FeedRefresher(store: newStore)
         episodes = [:]
         // Ein neuer Speicher ist ein neuer Start. Auch für die Fakten: was

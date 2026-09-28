@@ -168,7 +168,7 @@ private func savedQueue(in suite: String) -> AnalysisQueueSnapshot? {
 /// Reihenfolge prüfen lassen, ohne dass etwas läuft.
 private func makeHarness(
     store: LibraryStore, open: Bool = false, plan: RecordingWork.Plan = RecordingWork.Plan(),
-    suite: String = makeSuite(), ownsSuite: Bool = true,
+    suite: String = makeSuite(), ownsSuite: Bool = true, leases: LeasePolicy? = nil,
     restore: @escaping @Sendable ([AnalysisQueueSnapshot.Entry], [Episode]) async -> [TranscriptQueueItem] = { entries, found in
         entries.compactMap { entry in
             found.first { $0.id == entry.episodeID }.map {
@@ -193,7 +193,7 @@ private func makeHarness(
             transcribe: { await work.transcribe($0) },
             settled: { settlement in work.note("gemeldet:\(settlement)") },
             restore: restore),
-        defaultsSuite: suite, retryPause: .milliseconds(1))
+        defaultsSuite: suite, retryPause: .milliseconds(1), leases: leases)
     await stage.start()
     return Harness(store: store, gate: gate, ledger: ledger, host: host, work: work, suite: suite,
                    ownsSuite: ownsSuite, stage: stage, events: events, editions: editions)
@@ -538,5 +538,53 @@ struct TranscriptStageTests {
         #expect(savedQueue(in: suite)?.entries.map(\.episodeID) == [a.id])
         await harness.stage.reconcile()
         #expect(await harness.stage.queuedIDs == [a.id, b.id])
+    }
+
+    // MARK: - Sperre über Geräte hinweg (Schema nach 0.14)
+
+    @Test("Transkribiert ein anderes Gerät die Folge, wartet sie bis zum Ablauf und übernimmt dann")
+    func leaseHeldElsewhereWaitsAndTakesOver() async throws {
+        let a = episode("A"), b = episode("B")
+        let store = try await makeStore([a, b])
+        // Das iPad hält die Sperre für A noch 0,8 Sekunden.
+        try await store.insertLeaseForTesting(.transcript, for: a.id, device: "ipad",
+                                              acquiredAt: Date(), expiresAt: Date().addingTimeInterval(0.8))
+        let harness = await makeHarness(store: store, leases: LeasePolicy(deviceID: "iphone"))
+        await harness.stage.handle(.enqueue(a, .automatic))
+        await harness.stage.handle(.enqueue(b, .automatic))
+        harness.gate.setInForeground(true)
+        // B läuft, A wartet an seinem Platz.
+        #expect(await expectSignal("job:B", in: harness.work.signals))
+        #expect(!harness.work.calls.contains("job:A"))
+        #expect(await harness.stage.queuedIDs.contains(a.id), "A bleibt in der Warteschlange")
+        // Nach dem Ablauf übernimmt dieses Gerät.
+        #expect(await expectSignal("job:A", in: harness.work.signals))
+        #expect(await expectSignal("ende:leer", in: harness.work.signals))
+        // Danach ist die eigene Sperre freigegeben, die abgelaufene fremde weg.
+        #expect(try await store.leases(for: a.id).isEmpty)
+    }
+
+    @Test("Ohne fremde Sperre nimmt die Stufe die eigene und gibt sie nach dem Transkript frei")
+    func leaseTakenAndReleased() async throws {
+        let a = episode("A")
+        let store = try await makeStore([a])
+        let plan = RecordingWork.Plan(hangs: [a.id])
+        let harness = await makeHarness(store: store, plan: plan, leases: LeasePolicy(deviceID: "iphone"))
+        await harness.stage.handle(.request(a))
+        harness.gate.setInForeground(true)
+        #expect(await expectSignal("job:A", in: harness.work.signals))
+        let held = try await store.leases(for: a.id)
+        #expect(held.map(\.deviceID) == ["iphone"])
+        #expect(held.first?.kind == .transcript)
+        // Die App geht in den Hintergrund ohne fortgesetzte Verarbeitung:
+        // angehalten bleibt die Sperre bis zum Ablauf.
+        harness.gate.setInForeground(false)
+        await harness.stage.handle(.interrupt)
+        #expect(await expectSignal("ende:angehalten", in: harness.work.signals))
+        #expect(try await store.leases(for: a.id).map(\.deviceID) == ["iphone"])
+        // Wieder vorn: dieselbe Sperre gilt weiter, nach dem Transkript ist sie weg.
+        harness.gate.setInForeground(true)
+        #expect(await expectSignal("ende:leer", in: harness.work.signals))
+        #expect(try await store.leases(for: a.id).isEmpty)
     }
 }

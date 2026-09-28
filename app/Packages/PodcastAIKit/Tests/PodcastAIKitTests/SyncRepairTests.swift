@@ -191,11 +191,15 @@ struct SyncRepairTests {
         #expect(try await store.rowCountForTesting(StoredSegment.self) == 0)
     }
 
-    @Test("Die Kennung eines Transkripts lässt sich aus Fassung und Sprache nachrechnen")
+    @Test("Die Kennung eines Transkripts lässt sich aus der Fassung nachrechnen, die alte aus Fassung und Sprache")
     func transcriptKeyMatchesAssembler() {
         let built = TranscriptAssembler().finish(
             segments: [], mediaVersionID: mediaID, locale: "de_DE", origin: .speechAnalysis)
-        #expect(LibraryStore.transcriptKey(media: mediaID.rawValue, locale: "de_DE") == built.id.rawValue)
+        // Seit dem Schema nach 0.14 mit fester Sprache in der Kennung.
+        #expect(LibraryStore.transcriptKey(media: mediaID.rawValue) == built.id.rawValue)
+        // Die Kennung älterer Fassungen bleibt nachrechenbar.
+        #expect(LibraryStore.transcriptKey(media: mediaID.rawValue, locale: "de_DE")
+                == TranscriptID(stable: "\(mediaID.rawValue)|de_DE").rawValue)
     }
 }
 

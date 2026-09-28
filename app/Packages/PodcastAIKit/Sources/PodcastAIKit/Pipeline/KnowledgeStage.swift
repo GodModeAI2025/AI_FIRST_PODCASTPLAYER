@@ -29,6 +29,11 @@
 //  nicht wartet, und meldet sich danach zurück. So nimmt die Stufe auch
 //  während eines Laufs Ereignisse an, etwa das Löschen der laufenden Folge.
 //
+//  Seit dem Schema nach 0.14 nehmen die Fakten vor dem Start eine Sperre
+//  über Geräte hinweg (`LeasePolicy`). Sammelt ein anderes Gerät gerade die
+//  Fakten derselben Folge, wartet sie bis zum Ablauf dieser Sperre; gemerkt
+//  wird sie in der Zeit wie jede wartende Folge.
+//
 //  Was die Arbeit an einer Folge tut, sagt `KnowledgeWorking`. Die Stufe
 //  liest Folge, Kapitel und Belege dafür beim Start frisch aus dem Store,
 //  nie aus dem Wert, der in der Warteschlange steht.
@@ -232,6 +237,11 @@ public actor KnowledgeStage {
     private var store: LibraryStore
     private let gate: WorkGate
     private let ledger: RemovalLedger
+    private let leases: LeasePolicy?
+    /// Folgen, deren Fakten ein anderes Gerät gerade sammelt, bis zum Ablauf
+    /// seiner Sperre.
+    private var parked: [EpisodeID: (entry: Entry, until: Date)] = [:]
+    private var leaseWake: Task<Void, Never>?
     private let intents: PipelineIntents
     private let marks: DeviceState
     private let monitor: ModelAvailabilityMonitor
@@ -288,11 +298,13 @@ public actor KnowledgeStage {
         monitor: ModelAvailabilityMonitor = .shared, host: PipelineHost? = nil,
         work: any KnowledgeWorking, environment: Environment,
         clock: @escaping @Sendable () -> Date = { Date() },
-        pauseStep: Duration = .seconds(5), pauseSteps: Int = 12
+        pauseStep: Duration = .seconds(5), pauseSteps: Int = 12,
+        leases: LeasePolicy? = nil
     ) {
         self.store = store
         self.gate = gate
         self.ledger = ledger
+        self.leases = leases
         self.intents = intents
         self.marks = marks
         self.monitor = monitor
@@ -361,6 +373,8 @@ public actor KnowledgeStage {
         case .feedsRefreshed:
             requestReconcile()
         case .changedElsewhere(let changes):
+            // Eine fremde Sperre kann freigegeben sein: Wartende fragen neu.
+            if changes.touches(.lease) { unparkAll() }
             // Ein anderes Gerät kann ein neues Transkript oder andere
             // Kapitel-Tags gebracht haben. Was dieser Start für eingeordnet
             // hielt, fragt der Abgleich neu ab (Plan, Sync Phase 1). Ein
@@ -404,6 +418,7 @@ public actor KnowledgeStage {
         guard !gone.isEmpty else { return }
         factsQueue.removeAll { gone.contains($0.id) }
         tagsQueue.removeAll { gone.contains($0.id) }
+        for id in gone { parked[id] = nil }
         deferred.subtract(gone)
         tagsFailed.subtract(gone)
         tagsCurrent.subtract(gone)
@@ -534,6 +549,7 @@ public actor KnowledgeStage {
     public func dropAutomatic() async {
         guard await !environment.settings().automaticFacts else { return }
         factsQueue.removeAll { !$0.requested }
+        parked = parked.filter { $0.value.entry.requested }
         tagsQueue.removeAll()
         // Keine nächste Portion von selbst.
         factsBackfillPending = false
@@ -555,7 +571,9 @@ public actor KnowledgeStage {
             await current.task?.value
         }
         deferred.formUnion(factsQueue.map(\.id))
+        deferred.formUnion(parked.keys)
         factsQueue.removeAll()
+        parked.removeAll()
         tagsQueue.removeAll()
         // Auch keine nächste Portion: Sonst holte die Stufe die Tags der
         // Bibliothek gleich wieder, sobald das Tor nach dem Leeren aufgeht.
@@ -575,6 +593,7 @@ public actor KnowledgeStage {
         store = newStore
         if let newWork { work = newWork }
         factsQueue.removeAll()
+        parked.removeAll()
         tagsQueue.removeAll()
         session = Session()
         deferred.removeAll()
@@ -630,6 +649,12 @@ public actor KnowledgeStage {
         guard runningFactsID != episode.id,
               requested || Self.isExpected(monitor.current, for: .extract) else { return }
         guard !ledger.wasRemoved(episode.id, since: ticket) else { return }
+        // Wartet auf die Sperre eines anderen Geräts: Von selbst bleibt es
+        // dabei, eine Anforderung fragt gleich noch einmal.
+        if parked[episode.id] != nil {
+            guard requested else { return }
+            parked[episode.id] = nil
+        }
         if let index = factsQueue.firstIndex(where: { $0.id == episode.id }) {
             guard requested else { return }
             factsQueue.remove(at: index)
@@ -991,7 +1016,20 @@ public actor KnowledgeStage {
         let ticket = entry.ticket
         var outcome = FactsOutcome.nothingToDo
         var tags: ChapterTagsRun?
+        var heartbeat: Task<Void, Never>?
         if let episode = try? await store.episodes(ids: [entry.id]).first, !ledger.wasRemoved(entry.id, since: ticket) {
+            // Sperre über Geräte hinweg: Sammelt ein anderes Gerät die Fakten
+            // gerade, wartet die Folge bis zum Ablauf seiner Sperre.
+            if let leases {
+                let decision = await leases.acquire(.knowledge, for: entry.id, in: store, now: clock())
+                if case .heldElsewhere(_, let until) = decision {
+                    guard slot?.token == token else { return }
+                    if !isGone(entry.id, since: ticket) { park(entry, until: until) }
+                    end(token)
+                    return
+                }
+                heartbeat = leases.heartbeat(.knowledge, for: entry.id, in: store, clock: clock)
+            }
             let work = self.work
             outcome = await ProcessingTrace.interval("Fakten einer Folge") {
                 await work.gatherFacts(for: episode, force: entry.requested, origin: entry.origin, since: ticket)
@@ -1014,6 +1052,12 @@ public actor KnowledgeStage {
             default:
                 break
             }
+        }
+        heartbeat?.cancel()
+        // Angehalten bleibt die Sperre bis zum Ablauf, wie beim Transkript:
+        // Die fertigen Abschnitte liegen hier, und dieses Gerät macht weiter.
+        if let leases, heartbeat != nil, outcome != .cancelled {
+            await leases.release(.knowledge, for: entry.id, in: store)
         }
         guard slot?.token == token else { return }
         if let tags { applyChained(tags, to: entry.id, since: ticket) }
@@ -1147,6 +1191,54 @@ public actor KnowledgeStage {
 
     /// Eine Minute Pause nach einem Fehlschlag. Wer inzwischen selbst eine
     /// Folge anfordert, wartet nicht darauf.
+    /// Die Folge wartet auf die Sperre eines anderen Geräts. Läuft sie ab,
+    /// kommt die Folge von selbst an ihren Platz zurück.
+    private func park(_ entry: Entry, until: Date) {
+        parked[entry.id] = (entry, until)
+        persistQueue()
+        publish()
+        scheduleLeaseWake()
+    }
+
+    private func scheduleLeaseWake() {
+        leaseWake?.cancel()
+        guard let earliest = parked.values.map(\.until).min() else {
+            leaseWake = nil
+            return
+        }
+        let delay = LeasePolicy.delay(until: earliest, now: clock())
+        leaseWake = Task(priority: .utility) { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            await self?.unparkExpired()
+        }
+    }
+
+    private func unparkExpired() {
+        let now = clock()
+        let due = parked.values.filter { $0.until <= now }.map(\.entry)
+        unpark(due)
+        scheduleLeaseWake()
+    }
+
+    /// Nach einer Änderung an Sperren von woanders: Alle Wartenden fragen neu.
+    private func unparkAll() {
+        guard !parked.isEmpty else { return }
+        unpark(parked.values.map(\.entry))
+        scheduleLeaseWake()
+    }
+
+    private func unpark(_ entries: [Entry]) {
+        guard !entries.isEmpty else { return }
+        for entry in entries { parked[entry.id] = nil }
+        for entry in entries.sorted(by: { ($0.episode.publishedAt ?? .distantPast) > ($1.episode.publishedAt ?? .distantPast) }) {
+            enqueue(entry.episode, requested: entry.requested, origin: entry.origin, ticket: entry.ticket, kick: false)
+        }
+        persistQueue()
+        publish()
+        kick()
+    }
+
     private func coolDown(_ token: UInt64) async {
         guard slot?.token == token else { return }
         slot?.cooling = true
@@ -1170,6 +1262,12 @@ public actor KnowledgeStage {
         for entry in factsQueue where !ledger.wasRemoved(entry.id, since: entry.ticket) {
             list.append(entry.intent)
         }
+        // Auch was auf ein anderes Gerät wartet, sonst ginge eine
+        // Anforderung über einen Neustart verloren.
+        for (entry, _) in parked.values.sorted(by: { $0.until < $1.until })
+        where !ledger.wasRemoved(entry.id, since: entry.ticket) {
+            list.append(entry.intent)
+        }
         guard list != persisted else { return }
         if intents.setFactsQueue(list) { persisted = list }
     }
@@ -1180,8 +1278,9 @@ public actor KnowledgeStage {
         case .facts: slot?.chainedTags == true
         default: false
         }
+        let waiting = parked.values.sorted { $0.until < $1.until }.map(\.entry.episode)
         let snapshot = KnowledgeSnapshot(
-            queue: factsQueue.map(\.episode), running: runningFacts?.episode, waitReason: waitReason, issues: issues,
+            queue: factsQueue.map(\.episode) + waiting, running: runningFacts?.episode, waitReason: waitReason, issues: issues,
             tagsQueued: tagsQueue.count, tagsRunning: tagsRunning)
         guard snapshot != lastSnapshot else { return }
         lastSnapshot = snapshot

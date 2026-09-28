@@ -71,6 +71,29 @@ public typealias PlaybackPlanID = TypedID<PlaybackPlanSubject>
 public typealias KnowledgeNodeID = TypedID<KnowledgeNodeSubject>
 public typealias ChapterTagID = TypedID<ChapterTagSubject>
 
+extension TypedID where Subject == TranscriptSubject {
+    /// Die Sprache, die seit dem Schema nach 0.14 in der Kennung eines
+    /// Transkripts steht, gleich in welcher Sprache es erkannt wurde. Bis
+    /// dahin stand dort die Sprache der Erkennung, und zwei Geräte mit
+    /// verschiedener Systemsprache legten für dieselbe Fassung zwei
+    /// Transkripte an. Die echte Sprache steht weiter in `Transcript.locale`.
+    ///
+    /// „und“ ist das BCP-47-Kürzel für „unbestimmt“. Eine Erkennung liefert
+    /// es nicht, eine Kennung älterer Fassungen fällt also nie damit zusammen.
+    public static let fixedLanguage = "und"
+
+    /// Die Kennung des Transkripts einer Fassung, auf jedem Gerät dieselbe.
+    public static func forMedia(_ mediaVersionID: MediaVersionID) -> TranscriptID {
+        TranscriptID(stable: "\(mediaVersionID.rawValue)|\(fixedLanguage)")
+    }
+
+    /// Die Kennung, die ältere Fassungen der App aus Fassung und Sprache
+    /// der Erkennung bildeten. Nur zum Wiederfinden vorhandener Zeilen.
+    public static func legacy(media mediaVersionID: MediaVersionID, locale: String) -> TranscriptID {
+        TranscriptID(stable: "\(mediaVersionID.rawValue)|\(locale)")
+    }
+}
+
 /// Deterministischer Hash ohne CryptoKit, damit die Domäne plattformfrei bleibt.
 ///
 /// Zweck ist **Identität und Deduplizierung**, nicht Sicherheit — und das

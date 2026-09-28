@@ -152,7 +152,8 @@ private struct Harness {
 private func makeHarness(
     store: LibraryStore, open: Bool = false, work: RecordingWork = RecordingWork(),
     settings: FakeSettings = FakeSettings(), state: DeviceState = makeState(),
-    clock: TestClock = TestClock(), host: PipelineHost? = nil, status: ModelStatus = ready
+    clock: TestClock = TestClock(), host: PipelineHost? = nil, status: ModelStatus = ready,
+    leases: LeasePolicy? = nil
 ) async -> Harness {
     let gate = WorkGate(alwaysInForeground: false, inForeground: open)
     let ledger = RemovalLedger()
@@ -161,7 +162,7 @@ private func makeHarness(
         store: store, gate: gate, ledger: ledger, intents: PipelineIntents(state: state), marks: state,
         monitor: monitor, host: host, work: work,
         environment: KnowledgeStage.Environment(settings: { settings.value }, refreshModel: { status }),
-        clock: { clock.date }, pauseStep: .milliseconds(1), pauseSteps: 3)
+        clock: { clock.date }, pauseStep: .milliseconds(1), pauseSteps: 3, leases: leases)
     await stage.start()
     return Harness(store: store, gate: gate, ledger: ledger, state: state, work: work, settings: settings,
                    clock: clock, host: host, stage: stage)
@@ -932,5 +933,32 @@ struct DeviceMarksConcurrencyTests {
         #expect(gapped.count == 100)
         #expect(KnowledgeMarks.taggingProgress(for: gone, in: state) == nil)
         #expect((0..<100).allSatisfy { KnowledgeMarks.taggingProgress(for: episodeID("n\($0)"), in: state) != nil })
+    }
+
+    // MARK: - Sperre über Geräte hinweg (Schema nach 0.14)
+
+    @Test("Sammelt ein anderes Gerät die Fakten, wartet die Folge gemerkt bis zum Ablauf, dann läuft sie hier")
+    func leaseHeldElsewhereParksFacts() async throws {
+        let a = episode("A", daysAgo: 1), b = episode("B", daysAgo: 2)
+        let store = try await makeStore([a, b], transcripts: true)
+        let clock = TestClock()
+        try await store.insertLeaseForTesting(.knowledge, for: a.id, device: "mac", acquiredAt: clock.date,
+                                              expiresAt: clock.date.addingTimeInterval(0.2))
+        let harness = await makeHarness(store: store, clock: clock, leases: LeasePolicy(deviceID: "iphone"))
+        await harness.stage.request(a)
+        await harness.stage.enqueue(b)
+        harness.gate.setInForeground(true)
+        // B läuft, A wartet auf das Mac.
+        #expect(await next(harness.work.started) == "facts:B")
+        #expect(!harness.work.calls.contains("facts:A!"))
+        // Gemerkt wie jede wartende Folge: Eine Anforderung übersteht einen Neustart.
+        #expect(harness.intents.factsQueue()?.contains { $0.episodeID == a.id && $0.requested } == true)
+        #expect(await harness.stage.snapshot.queue.map(\.id).contains(a.id))
+        // Die Sperre des Macs läuft ab: Dieses Gerät übernimmt.
+        clock.advance(1)
+        while let signal = await next(harness.work.started), signal != "facts:A" { continue }
+        #expect(harness.work.calls.contains("facts:A!"))
+        await harness.stage.untilIdle()
+        #expect(try await store.leases(for: a.id).isEmpty, "Nach den Fakten ist die eigene Sperre frei")
     }
 }

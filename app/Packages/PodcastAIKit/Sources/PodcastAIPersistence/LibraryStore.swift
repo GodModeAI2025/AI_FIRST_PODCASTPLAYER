@@ -38,6 +38,16 @@ public actor LibraryStore: ModelActor {
         LibraryStore(modelContainer: container)
     }
 
+    /// Wo dieses Gerät seine Audiodateien liegen hat. Die App setzt es beim
+    /// Start (``useLocalMediaPaths(_:)``), Tests lassen es meist leer. Leer
+    /// merkt sich der Store keine Pfade.
+    public private(set) var localMediaPaths: LocalMediaPaths?
+
+    /// Setzt die Ablage der Pfade dieses Geräts.
+    public func useLocalMediaPaths(_ paths: LocalMediaPaths?) {
+        localMediaPaths = paths
+    }
+
     /// Name der eigenen Änderungen in der Historie der Datenbank.
     public static let localAuthor = "com.godmodeai.podcastai.store"
     /// Bis hier ist die Historie gelesen.
@@ -131,6 +141,9 @@ public actor LibraryStore: ModelActor {
         Schema.entityName(for: StoredKnowledgeTrail.self): .trail,
         Schema.entityName(for: StoredFact.self): .fact,
         Schema.entityName(for: StoredChapterTag.self): .chapterTag,
+        Schema.entityName(for: StoredChatConversation.self): .conversation,
+        Schema.entityName(for: StoredSourceRemoval.self): .sourceRemoval,
+        Schema.entityName(for: StoredProcessingLease.self): .lease,
     ]
 
     /// So viele geänderte Zeilen einer Art liest der Store nach, um ihre
@@ -174,11 +187,13 @@ public actor LibraryStore: ModelActor {
         for (entity, ids) in changed {
             let list = Array(ids)
             // Segmente kommen zu Tausenden und tragen keine Folge. Hörzustände
-            // haben keine eigene Kennung. Beide liest niemand nach.
-            let resolvable = entity != .segment && entity != .listeningState
+            // haben keine eigene Kennung. Beide liest niemand nach. Sperren
+            // ändern sich mit jeder Verlängerung und sagen nichts über Folgen
+            // oder Quellen, die neu zu laden wären.
+            let resolvable = entity != .segment && entity != .listeningState && entity != .lease
             guard resolvable, list.count <= Self.changeResolutionLimit else {
                 counts[entity]?.identifiers = nil
-                if entity != .listeningState { episodeIDs = nil }
+                if entity != .listeningState && entity != .lease && entity != .conversation { episodeIDs = nil }
                 if entity == .source || entity == .episode { sourceIDs = nil }
                 continue
             }
@@ -230,7 +245,14 @@ public actor LibraryStore: ModelActor {
                 keys = Set(changedRows(StoredPersonalEpisode.self, list).map(\.identifier))
             case .trail:
                 keys = Set(changedRows(StoredKnowledgeTrail.self, list).map(\.identifier))
-            case .segment, .listeningState:
+            case .conversation:
+                keys = Set(changedRows(StoredChatConversation.self, list).map(\.identifier))
+            case .sourceRemoval:
+                for row in changedRows(StoredSourceRemoval.self, list) {
+                    keys.insert(row.sourceIdentifier)
+                    source(row.sourceIdentifier)
+                }
+            case .segment, .listeningState, .lease:
                 break
             }
             keys.remove("")
@@ -270,8 +292,10 @@ public actor LibraryStore: ModelActor {
         StoredInterest.self, StoredEvidence.self, StoredHighlight.self,
         StoredSmartFeed.self, StoredPersonalEpisode.self, StoredKnowledgeTrail.self,
         StoredFact.self, StoredChapterTag.self,
-        // Seit dem Schema nach 0.13: Unterhaltungen im Chat.
-        StoredChatConversation.self,
+        // Seit dem Schema nach 0.14 (docs/cloudkit-schema-0.15.md):
+        // Unterhaltungen im Chat, das Merkzeichen „Quelle abbestellt“ und
+        // die Sperre über Geräte hinweg. Nur ergänzt, nichts entfernt.
+        StoredChatConversation.self, StoredSourceRemoval.self, StoredProcessingLease.self,
     ]
 
     public static let schema = Schema(modelTypes)
@@ -612,6 +636,10 @@ public actor LibraryStore: ModelActor {
             try removeChapterTagsOfRemovedEpisodes()
             try modelContext.save()
         }
+        // Seit dem Schema nach 0.14: je Quelle ein Merkzeichen, und Sperren
+        // abgestürzter Geräte gehen nach einem Tag.
+        if changes.touches(.sourceRemoval, .source) { try settleSourceRemovals() }
+        if changes.isEverything { try removeStaleLeases() }
         return report
     }
 
@@ -833,7 +861,8 @@ public actor LibraryStore: ModelActor {
                 for transcript in Array(copy.transcripts ?? []) { transcript.mediaVersion = keep }
                 keep.episode = keep.episode ?? copy.episode
                 keep.remoteURLString = keep.remoteURLString ?? copy.remoteURLString
-                keep.localRelativePath = keep.localRelativePath ?? copy.localRelativePath
+                // `localRelativePath` nicht: Das Feld wird seit dem Schema
+                // nach 0.14 nicht mehr geschrieben (`LocalMediaPaths`).
                 keep.contentHash = keep.contentHash ?? copy.contentHash
                 keep.mimeType = keep.mimeType ?? copy.mimeType
                 if keep.byteCount == 0 { keep.byteCount = copy.byteCount }
@@ -886,6 +915,12 @@ public actor LibraryStore: ModelActor {
         let versions = try modelContext.fetch(FetchDescriptor<StoredMediaVersion>(
             sortBy: [SortDescriptor(\.acquiredAt)]))
         var byTranscriptKey: [String: StoredMediaVersion] = [:]
+        for version in versions where !version.identifier.isEmpty {
+            // Die Kennung mit fester Sprache, seit dem Schema nach 0.14 …
+            let key = Self.transcriptKey(media: version.identifier)
+            if byTranscriptKey[key] == nil { byTranscriptKey[key] = version }
+        }
+        // … und die älterer Fassungen mit der Sprache der Erkennung.
         for locale in Set(orphans.map(\.locale)) {
             for version in versions where !version.identifier.isEmpty {
                 let key = Self.transcriptKey(media: version.identifier, locale: locale)
@@ -898,11 +933,17 @@ public actor LibraryStore: ModelActor {
         try modelContext.save()
     }
 
-    /// Die Kennung des Transkripts einer Fassung in einer Sprache. Dieselbe
-    /// Rechnung wie in `TranscriptAssembler.finish`. Die Kennung ist ein
-    /// Hashwert, die Fassung lässt sich aus ihr nicht ablesen, nur nachrechnen.
+    /// Die Kennung des Transkripts einer Fassung in einer Sprache, wie sie
+    /// ältere Fassungen der App bildeten. Die Kennung ist ein Hashwert, die
+    /// Fassung lässt sich aus ihr nicht ablesen, nur nachrechnen.
     static func transcriptKey(media: String, locale: String) -> String {
-        TranscriptID(stable: "\(media)|\(locale)").rawValue
+        TranscriptID.legacy(media: MediaVersionID(rawValue: media), locale: locale).rawValue
+    }
+
+    /// Die Kennung mit fester Sprache, dieselbe Rechnung wie in
+    /// `TranscriptAssembler.finish` (``TranscriptID/forMedia(_:)``).
+    static func transcriptKey(media: String) -> String {
+        TranscriptID.forMedia(MediaVersionID(rawValue: media)).rawValue
     }
 
     private func mergeDuplicateTranscripts(_ rows: FetchDescriptor<StoredTranscript> = FetchDescriptor()) throws {
@@ -937,6 +978,9 @@ public actor LibraryStore: ModelActor {
         var rows = try modelContext.fetch(
             FetchDescriptor<StoredSource>(predicate: #Predicate { $0.identifier == identifier })
         )
+        // Ein neues Abo hebt eine frühere Abbestellung auf, auch eine von
+        // einem anderen Gerät. Nur hier: Das Aktualisieren legt nichts an.
+        try clearSourceRemovals(for: identifier, rows: rows)
         if rows.isEmpty {
             let fresh = StoredSource(identifier: identifier, kind: source.kind, title: source.title)
             modelContext.insert(fresh)
@@ -1026,6 +1070,8 @@ public actor LibraryStore: ModelActor {
                 predicate: #Predicate { $0.identifier == identifier },
                 sortBy: [SortDescriptor(\.addedAt)])
         ).first else { return [] }
+        // Anderswo abbestellt, hier noch nicht nachgeholt: keine neuen Folgen.
+        guard try !isAwaitingRemoval(source) else { return [] }
 
         var inserted: [EpisodeID] = []
         for episode in episodes {
@@ -1326,7 +1372,9 @@ public actor LibraryStore: ModelActor {
         }()
 
         stored.remoteURLString = media.remoteURL?.absoluteString
-        stored.localRelativePath = media.localRelativePath
+        // Der Pfad der Datei gilt nur auf diesem Gerät und geht nicht mehr
+        // in die Datenbank, sondern nach `DeviceState`.
+        if let path = media.localRelativePath { localMediaPaths?.record(path, for: media.id) }
         stored.byteCount = Int(media.byteCount ?? 0)
         stored.contentHash = media.contentHash
         stored.durationMs = Int(media.duration?.milliseconds ?? 0)
@@ -1497,11 +1545,20 @@ public actor LibraryStore: ModelActor {
         var report = RemovalReport()
         try purgeEpisode(episodeID.rawValue, keepTombstone: true, into: &report)
         try modelContext.save()
+        localMediaPaths?.forget(report.mediaVersionIDs)
         return report
     }
 
     /// Bestellt eine Quelle ab und löscht alle ihre Folgen samt Daten.
-    public func removeSource(_ sourceID: SourceID) throws -> RemovalReport {
+    ///
+    /// Seit dem Schema nach 0.14 bleibt ein Merkzeichen „Quelle abbestellt“
+    /// (`StoredSourceRemoval`) mit `recordingRemovalAt`, damit andere Geräte
+    /// dieselbe Abbestellung nachholen. `nil` schreibt keines: So holt ein
+    /// Gerät eine Abbestellung von woanders nach, ohne ein zweites
+    /// Merkzeichen zu hinterlassen.
+    public func removeSource(
+        _ sourceID: SourceID, recordingRemovalAt removedAt: Date? = Date(), device: String? = nil
+    ) throws -> RemovalReport {
         var report = RemovalReport()
         let key = sourceID.rawValue
         let sources = try modelContext.fetch(
@@ -1512,6 +1569,16 @@ public actor LibraryStore: ModelActor {
             for episode in source.episodes ?? [] where !episodeKeys.contains(episode.identifier) {
                 episodeKeys.append(episode.identifier)
             }
+        }
+        // Folgen, die ihre Quellzeile schon verloren haben, etwa weil die
+        // Löschung vom anderen Gerät vor dem Merkzeichen ankam. Ihre Quelle
+        // nennen Belege, Fakten und Kapitel-Tags.
+        for orphan in try orphanedEpisodeKeys(ofSource: key).sorted() where !episodeKeys.contains(orphan) {
+            let orphanKey = orphan
+            let rows = try modelContext.fetch(FetchDescriptor<StoredEpisode>(
+                predicate: #Predicate { $0.identifier == orphanKey }))
+            guard rows.allSatisfy({ $0.source == nil || $0.source?.identifier == key }) else { continue }
+            episodeKeys.append(orphan)
         }
         for episodeKey in episodeKeys {
             try purgeEpisode(episodeKey, keepTombstone: false, into: &report)
@@ -1530,8 +1597,18 @@ public actor LibraryStore: ModelActor {
         for tag in orphanTags where !livingElsewhere.contains(tag.episodeIdentifier) {
             modelContext.delete(tag)
         }
+        // Ein Merkzeichen, das diese Abbestellung schon abdeckt, etwa nach
+        // einem Neustart mitten im Abbestellen, bekommt keinen Zwilling.
+        let newestAdded = sources.map(\.addedAt).max()
+        if let removedAt {
+            let existing = try modelContext.fetch(FetchDescriptor<StoredSourceRemoval>(
+                predicate: #Predicate { $0.sourceIdentifier == key }))
+            let covered = existing.contains { row in newestAdded.map { row.removedAt >= $0 } ?? true }
+            if !covered { recordSourceRemoval(sourceID, at: removedAt, device: device) }
+        }
         for source in sources { modelContext.delete(source) }
         try modelContext.save()
+        localMediaPaths?.forget(report.mediaVersionIDs)
         return report
     }
 
@@ -1579,6 +1656,11 @@ public actor LibraryStore: ModelActor {
             FetchDescriptor<StoredChapterTag>(predicate: #Predicate { $0.episodeIdentifier == key })) {
             modelContext.delete(tag)
         }
+        // Sperren über Geräte hinweg gelten der Folge und gehen mit ihr.
+        for lease in try modelContext.fetch(
+            FetchDescriptor<StoredProcessingLease>(predicate: #Predicate { $0.episodeIdentifier == key })) {
+            modelContext.delete(lease)
+        }
         // Gemerkte Stellen und Notizen bleiben. Sie sind eigenes Wissen und
         // tragen Zitat und Titel als Kopie, verlieren also nur den Sprung in
         // den Originalton.
@@ -1611,7 +1693,8 @@ public actor LibraryStore: ModelActor {
             predicate: #Predicate { $0.mediaVersion == nil })) {
             let belongs = evidenceTranscriptKeys.contains(transcript.identifier)
                 || mediaKeys.contains { !$0.isEmpty
-                    && Self.transcriptKey(media: $0, locale: transcript.locale) == transcript.identifier }
+                    && (Self.transcriptKey(media: $0) == transcript.identifier
+                        || Self.transcriptKey(media: $0, locale: transcript.locale) == transcript.identifier) }
             if belongs { modelContext.delete(transcript) }
         }
         report.mediaVersionIDs += mediaKeys.filter { !$0.isEmpty }.sorted().map(MediaVersionID.init(rawValue:))
@@ -1619,15 +1702,27 @@ public actor LibraryStore: ModelActor {
 
     /// Merkt, dass die Audiodatei einer Fassung gelöscht wurde. Transkript,
     /// Belege, Fakten und Hörzustand bleiben.
+    ///
+    /// Bis 0.14 leerte das `localRelativePath` in der Datenbank. Seit dem
+    /// Schema nach 0.14 liegt der Pfad nur in `DeviceState`, und die
+    /// Datenbank bleibt unberührt (Regel 5: „Audio entfernen“ ändert keine
+    /// Daten der Folge).
     public func markAudioRemoved(_ mediaVersionIDs: [MediaVersionID]) throws {
-        for id in mediaVersionIDs {
-            let key = id.rawValue
-            for media in try modelContext.fetch(FetchDescriptor<StoredMediaVersion>(
-                predicate: #Predicate { $0.identifier == key })) {
-                media.localRelativePath = nil
-            }
+        localMediaPaths?.forget(mediaVersionIDs)
+    }
+
+    /// Die Pfade, die ältere Fassungen der App in die Datenbank schrieben,
+    /// für den einmaligen Umzug nach `DeviceState` (``LocalMediaPaths``).
+    /// Sie können von einem anderen Gerät stammen; ob die Datei hier liegt,
+    /// prüft der Aufrufer.
+    public func legacyLocalRelativePaths() throws -> [MediaVersionID: String] {
+        var result: [MediaVersionID: String] = [:]
+        for row in try modelContext.fetch(FetchDescriptor<StoredMediaVersion>(
+            predicate: #Predicate { $0.localRelativePath != nil })) {
+            guard let path = row.localRelativePath, !path.isEmpty, !row.identifier.isEmpty else { continue }
+            result[MediaVersionID(rawValue: row.identifier)] = path
         }
-        try modelContext.save()
+        return result
     }
 
     /// Die Medienfassungen einer Folge.
@@ -1890,8 +1985,8 @@ public actor LibraryStore: ModelActor {
     /// Welche dieser Fassungen schon ein Transkript mit Segmenten haben, in
     /// einem Schritt des Stores. Die Vorprüfung der Stufe „Transkript“
     /// (docs/plan-pipeline.md, Vertrag (I)). Gefragt wird über die Fassung,
-    /// nicht über die Kennung des Transkripts, denn die trägt die Sprache
-    /// des Geräts.
+    /// nicht über die Kennung des Transkripts: Bei älteren Fassungen der App
+    /// trägt sie die Sprache des Geräts, das transkribiert hat.
     public func mediaVersionsWithTranscript(_ ids: some Sequence<MediaVersionID>) throws -> Set<MediaVersionID> {
         var found: Set<MediaVersionID> = []
         for id in Set(ids) {

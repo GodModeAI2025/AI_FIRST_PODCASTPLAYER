@@ -153,7 +153,9 @@ public struct TranscriptAssembler: Sendable {
         }
 
         return Transcript(
-            id: TranscriptID(stable: "\(mediaVersionID.rawValue)|\(locale)"),
+            // Feste Sprache in der Kennung: Zwei Geräte mit verschiedener
+            // Systemsprache erzeugen für dieselbe Fassung dieselbe Kennung.
+            id: TranscriptID.forMedia(mediaVersionID),
             mediaVersionID: mediaVersionID,
             revision: previousRevision?.next() ?? .initial,
             origin: origin,

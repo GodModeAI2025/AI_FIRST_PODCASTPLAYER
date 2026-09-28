@@ -920,8 +920,21 @@ public struct LocalMediaLocator: MediaLocating {
     }
 
     public func localFile(for mediaVersionID: MediaVersionID) -> URL? {
+        // Der Pfad, den dieses Gerät beim Laden gemerkt hat (`DeviceState`,
+        // seit dem Schema nach 0.14), sonst der übliche Name der Datei.
+        if let path = LocalMediaPaths(state: .shared).path(for: mediaVersionID), path != mediaVersionID.rawValue {
+            let stored = Self.mediaDirectory.appendingPathComponent(path)
+            if FileManager.default.fileExists(atPath: stored.path) { return stored }
+        }
         let candidate = Self.mediaDirectory.appendingPathComponent(mediaVersionID.rawValue)
         return FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
+    }
+
+    /// Liegt die Datei unter diesem Pfad relativ zum Audioordner? Für den
+    /// Umzug der Pfade aus der Datenbank (`LocalMediaPaths.migrate`).
+    public static func fileExists(relativePath: String) -> Bool {
+        guard !relativePath.isEmpty, !relativePath.contains("..") else { return false }
+        return FileManager.default.fileExists(atPath: mediaDirectory.appendingPathComponent(relativePath).path)
     }
 
     /// Belegter Speicher aller geladenen Audiodateien in Byte.
@@ -937,9 +950,15 @@ public struct LocalMediaLocator: MediaLocating {
 
     /// Löscht die Audiodateien der genannten Fassungen.
     public static func removeFiles(for ids: [MediaVersionID]) {
+        let paths = LocalMediaPaths(state: .shared)
         for id in ids {
+            if let path = paths.path(for: id), path != id.rawValue, fileExists(relativePath: path) {
+                try? FileManager.default.removeItem(at: mediaDirectory.appendingPathComponent(path))
+            }
             try? FileManager.default.removeItem(at: mediaDirectory.appendingPathComponent(id.rawValue))
         }
+        // Mit der Datei geht der gemerkte Pfad dieses Geräts.
+        paths.forget(ids)
     }
 
     /// Löscht alle geladenen Audiodateien und gibt ihre Fassungen zurück.
@@ -951,6 +970,7 @@ public struct LocalMediaLocator: MediaLocating {
             try? FileManager.default.removeItem(at: url)
             removed.append(MediaVersionID(rawValue: url.lastPathComponent))
         }
+        LocalMediaPaths(state: .shared).forget(LocalMediaPaths(state: .shared).all.keys)
         return removed
     }
 

@@ -160,6 +160,10 @@ public final class StoredEpisode {
 public final class StoredMediaVersion {
     public var identifier: String = ""
     public var remoteURLString: String?
+    /// Nur noch für ältere Fassungen der App. Seit dem Schema nach 0.14
+    /// schreibt die App das Feld nicht mehr und liest es nur einmal für den
+    /// Umzug nach `DeviceState` (`LocalMediaPaths`): Der Pfad gilt auf einem
+    /// Gerät, kam über iCloud aber auf alle.
     public var localRelativePath: String?
     public var byteCount: Int = 0
     /// SHA-256 der vollständigen Datei. Solange leer, ist die Identität
@@ -184,7 +188,8 @@ public final class StoredMediaVersion {
             id: MediaVersionID(rawValue: identifier),
             episodeID: EpisodeID(rawValue: episode?.identifier ?? ""),
             remoteURL: remoteURLString.flatMap(URL.init(string:)),
-            localRelativePath: localRelativePath,
+            // Der Wert aus der Datenbank kann von einem anderen Gerät sein.
+            localRelativePath: nil,
             byteCount: byteCount > 0 ? Int64(byteCount) : nil,
             contentHash: contentHash,
             duration: durationMs > 0 ? MediaDuration(milliseconds: Int64(durationMs)) : nil,

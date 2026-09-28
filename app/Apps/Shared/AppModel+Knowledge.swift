@@ -127,10 +127,16 @@ extension AppModel {
         } catch {
             lastError = UserFacingError.describe(error)
         }
+        // Auf einem anderen Gerät abbestellt: dieselbe Abbestellung hier.
+        if changes.touches(.sourceRemoval, .source, .episode, .evidence, .fact, .chapterTag) {
+            await applySourceRemovalsFromElsewhere()
+        }
         if episodeLists {
             // Auf einem anderen Gerät Gelöschtes auch hier entfernen.
             await forgetEpisodesRemovedElsewhere()
         }
+        // Unterhaltungen im Chat, die ein anderes Gerät geändert hat.
+        if changes.touches(.conversation) { await reloadConversations() }
         // Liest die Sprachen der Quellen und stößt am Ende die Warteschlange
         // der Transkripte an. Nach `load()` geschah das nach jedem Abgleich;
         // die Stufe „Transkript“ braucht den Anstoß, wenn Folgen, Fassungen
@@ -1874,8 +1880,16 @@ extension AppModel {
         }
     }
 
-    /// Bestellt eine Quelle ab und löscht alle ihre Folgen samt Daten.
+    /// Bestellt eine Quelle ab und löscht alle ihre Folgen samt Daten. Ein
+    /// Merkzeichen sagt es den anderen Geräten (`StoredSourceRemoval`).
     public func removeSource(_ sourceID: SourceID) async {
+        await removeSource(sourceID, fromElsewhere: false)
+    }
+
+    /// Derselbe Weg für eine Abbestellung, die ein anderes Gerät per
+    /// Merkzeichen gemeldet hat (`fromElsewhere`): Dann schreibt dieses Gerät
+    /// kein zweites Merkzeichen.
+    func removeSource(_ sourceID: SourceID, fromElsewhere: Bool) async {
         var affected = episodes[sourceID] ?? []
         // Auch was außerhalb der geladenen Liste spielt, wartet oder läuft.
         for episode in episodesInUse
@@ -1914,7 +1928,8 @@ extension AppModel {
         }
         await pendingPurges.waitUntilWritten()
         do {
-            let report = try await store.removeSource(sourceID)
+            let report = try await store.removeSource(
+                sourceID, recordingRemovalAt: fromElsewhere ? nil : purge.requestedAt, device: deviceID)
             episodes[sourceID] = nil
             sources.removeAll { $0.id == sourceID }
             await finishRemoval(purge, report: report, marked: Set(purge.episodeIDs))
@@ -2082,7 +2097,10 @@ extension AppModel {
                     if current.map({ $0.addedAt <= purge.requestedAt }) ?? true {
                         // Wie beim Abbestellen: erst im Löschprotokoll, dann im Store.
                         removals.markRemoved(purge.episodeIDs, source: sourceID)
-                        report = (try? await store.removeSource(sourceID)) ?? report
+                        // Mit dem Zeitpunkt der Abbestellung. Ein Merkzeichen,
+                        // das sie schon abdeckt, bekommt der Store kein zweites.
+                        report = (try? await store.removeSource(
+                            sourceID, recordingRemovalAt: purge.requestedAt, device: deviceID)) ?? report
                         episodes[sourceID] = nil
                         sources.removeAll { $0.id == sourceID }
                     }

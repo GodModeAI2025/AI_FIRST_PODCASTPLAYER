@@ -13,10 +13,10 @@
 //  sich alles dieser Art geändert.
 //
 //  Gelöschte Zeilen tragen keine Kennung. Das ginge nur mit
-//  `preserveValueOnDeletion`, und das ändert den Hash des Modells und damit
-//  das Schema. In dieser Release gibt es keine Schemaänderung
-//  (Entscheidung 11). Eine Löschung macht deshalb Kennungen, Folgen und
-//  Quellen ihrer Art unbekannt.
+//  `preserveValueOnDeletion`, und das ändert den Hash des Modells. Die
+//  Schemaänderung nach 0.14 (Entscheidung 11, docs/cloudkit-schema-0.15.md)
+//  ergänzt nur neue Arten und nimmt das nicht mit. Eine Löschung macht
+//  deshalb Kennungen, Folgen und Quellen ihrer Art unbekannt.
 //
 
 import Foundation
@@ -28,6 +28,8 @@ public struct ChangeSet: Sendable, Hashable {
     public enum Entity: String, Sendable, Hashable, CaseIterable {
         case source, episode, mediaVersion, transcript, segment, listeningState, interest
         case evidence, highlight, smartFeed, personalEpisode, trail, fact, chapterTag
+        /// Seit dem Schema nach 0.14.
+        case conversation, sourceRemoval, lease
     }
 
     /// Was sich an Zeilen einer Art geändert hat.

@@ -148,7 +148,8 @@ extension LibraryStore {
             receipt.mediaVersionIDs.append(media.id)
         }
         storedMedia.remoteURLString = media.remoteURL?.absoluteString
-        storedMedia.localRelativePath = media.localRelativePath
+        // Der Pfad gilt nur auf diesem Gerät: `DeviceState`, nicht die Datenbank.
+        if let path = media.localRelativePath { localMediaPaths?.record(path, for: media.id) }
         storedMedia.byteCount = Int(media.byteCount ?? 0)
         storedMedia.contentHash = media.contentHash
         storedMedia.durationMs = Int(media.duration?.milliseconds ?? 0)

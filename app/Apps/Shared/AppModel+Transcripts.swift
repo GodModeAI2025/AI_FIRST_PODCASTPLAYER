@@ -374,8 +374,10 @@ extension AppModel {
             restore: { [weak self] entries, episodes in
                 await MainActor.run { self?.restorableTranscripts(entries, episodes: episodes) ?? [] }
             })
+        // Mit der Sperre über Geräte hinweg: Transkribiert ein anderes Gerät
+        // die Folge gerade, wartet sie hier.
         let stage = TranscriptStage(store: store, gate: pipeline.gate, ledger: removals, host: pipeline,
-                                    environment: environment)
+                                    environment: environment, leases: leasePolicy)
         transcriptStage = stage
         pipelineSink.follow(stage)
         Task { await stage.start() }

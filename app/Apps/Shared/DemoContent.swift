@@ -93,7 +93,7 @@ enum DemoContent {
                                           end: MediaTime(milliseconds: start + 38_000)),
                     text: line))
             }
-            let transcriptID = TranscriptID(stable: "\(media.rawValue)|de_DE")
+            let transcriptID = TranscriptID.forMedia(media)
             let transcript = Transcript(
                 id: transcriptID, mediaVersionID: media, revision: .initial, origin: .speechAnalysis,
                 locale: "de_DE", segments: segments,

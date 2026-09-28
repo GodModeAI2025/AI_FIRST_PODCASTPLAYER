@@ -32,6 +32,12 @@
 //  Ende gilt: Wer „Transkript jetzt erstellen“ während des Laufs antippt,
 //  macht daraus eine Anforderung von Hand.
 //
+//  Seit dem Schema nach 0.14 nimmt die Stufe vor dem Start eine Sperre über
+//  Geräte hinweg (`LeasePolicy`). Transkribiert ein anderes Gerät die Folge
+//  gerade, bleibt sie in der Warteschlange stehen, läuft aber erst nach dem
+//  Ablauf dieser Sperre oder wenn der Abgleich eine Änderung daran bringt.
+//  Kommt vorher das Transkript an, fällt sie still heraus.
+//
 //  Befehle kommen über `submit(_:)` in der Reihenfolge, in der der
 //  Hauptakteur sie schickt. Die Arbeit an einer Folge (`Environment.transcribe`)
 //  läuft noch auf dem Hauptakteur, wie in Schritt 3a bei der Stufe „Wissen“:
@@ -229,6 +235,13 @@ public actor TranscriptStage {
     private let host: PipelineHost?
     private let mailbox: AsyncStream<PipelineEvent>?
     private let environment: Environment
+    private let leases: LeasePolicy?
+    private let clock: @Sendable () -> Date
+    /// Folgen, die ein anderes Gerät gerade transkribiert, bis zum Ablauf
+    /// seiner Sperre. Sie bleiben in der Warteschlange und werden übersprungen.
+    private var parked: [EpisodeID: Date] = [:]
+    /// Weckt die Stufe, wenn die früheste fremde Sperre abläuft.
+    private var wake: Task<Void, Never>?
     private let defaults: UserDefaults
     private let snapshotKey: String
     private let retryPause: Duration
@@ -270,12 +283,15 @@ public actor TranscriptStage {
     public init(
         store: LibraryStore, gate: WorkGate, ledger: RemovalLedger = .shared, host: PipelineHost?,
         environment: Environment, defaultsSuite: String? = nil,
-        snapshotKey: String = TranscriptStage.snapshotKey, retryPause: Duration = TranscriptStage.retryPause
+        snapshotKey: String = TranscriptStage.snapshotKey, retryPause: Duration = TranscriptStage.retryPause,
+        leases: LeasePolicy? = nil, clock: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.store = store
         self.gate = gate
         self.ledger = ledger
         self.host = host
+        self.leases = leases
+        self.clock = clock
         // Das Postfach öffnet sich schon hier, damit kein Ereignis zwischen
         // Anlegen und `start()` verloren geht.
         self.mailbox = host?.mailbox(for: .transcript)
@@ -420,6 +436,7 @@ public actor TranscriptStage {
             running: nil, queue: queue.map(\.id), automatic: Set(queue.filter { $0.origin != .user }.map(\.id)))
         let byID = Dictionary(queue.map { ($0.id, $0.item) }, uniquingKeysWith: { first, _ in first })
         queue.removeAll()
+        parked.removeAll()
         changed()
         return TranscriptCancellation(removed: plan.removed.compactMap { byID[$0] }, resting: plan.restingUntilRefresh)
     }
@@ -435,6 +452,7 @@ public actor TranscriptStage {
         stopRun()
         store = newStore
         queue.removeAll()
+        parked.removeAll()
         restored = false
         changed()
     }
@@ -454,6 +472,12 @@ public actor TranscriptStage {
             // nur, was hier wartet, nicht die ganze Bibliothek, und nur, wenn
             // sich an Folgen, Fassungen, Transkripten oder Belegen etwas tat.
             if changes.touches(.source, .episode, .mediaVersion, .transcript, .evidence) { await reconcile() }
+            // Eine fremde Sperre kann freigegeben oder verlängert sein: Die
+            // wartenden Folgen fragen beim nächsten Durchgang neu.
+            if changes.touches(.lease), !parked.isEmpty {
+                parked.removeAll()
+                startRunIfNeeded()
+            }
         case .episodesAdded, .transcriptSaved, .transcriptFailed, .evidenceReady, .transcriptsIdle, .factsDone,
              .tagsDone, .feedsRefreshed, .editionPublished:
             // Laut Router nicht für diese Stufe.
@@ -465,6 +489,7 @@ public actor TranscriptStage {
     private func forget(_ gone: Set<EpisodeID>) {
         guard !gone.isEmpty else { return }
         queue.removeAll { gone.contains($0.id) }
+        for id in gone { parked[id] = nil }
         if let id = running?.id, gone.contains(id) {
             // Die Arbeit bricht das Löschen über ihre eigene Aufgabe ab. Die
             // Folge kommt danach nirgends mehr hin.
@@ -500,6 +525,7 @@ public actor TranscriptStage {
         guard !finished.isEmpty else { return }
         let ids = Set(finished.map(\.id))
         queue.removeAll { ids.contains($0.id) }
+        for id in ids { parked[id] = nil }
         changed()
         for entry in finished { await environment.settled(.alreadyTranscribed(entry.item)) }
     }
@@ -564,8 +590,11 @@ public actor TranscriptStage {
         var retried: Set<EpisodeID> = []
         while !Task.isCancelled, !runStopped, !gate.current.held, !queue.isEmpty {
             let runnable = await environment.runnable(queue.map(\.item))
+            let now = clock()
+            parked = parked.filter { $0.value > now }
             guard !Task.isCancelled, !runStopped,
-                  let index = queue.firstIndex(where: { runnable.contains($0.id) }) else { break }
+                  let index = queue.firstIndex(where: { runnable.contains($0.id) && parked[$0.id] == nil })
+            else { break }
             let entry = queue.remove(at: index)
             // Seit dem Einreihen gelöscht, das Löschen kam aber noch nicht an.
             guard !ledger.wasRemoved(entry.id, since: entry.ticket) else {
@@ -590,12 +619,33 @@ public actor TranscriptStage {
                 await environment.settled(.alreadyTranscribed(entry.item))
                 continue
             }
+            // Sperre über Geräte hinweg: Transkribiert ein anderes Gerät die
+            // Folge gerade, wartet sie an ihrem Platz bis zum Ablauf.
+            var heartbeat: Task<Void, Never>?
+            if let leases {
+                let decision = await leases.acquire(.transcript, for: entry.id, in: store, now: clock())
+                if case .heldElsewhere(_, let until) = decision {
+                    running = nil
+                    // Während des Nehmens gelöscht: nicht zurück.
+                    if !ledger.wasRemoved(entry.id, since: entry.ticket) {
+                        queue.insert(entry, at: min(index, queue.count))
+                        park(entry.id, until: until)
+                    }
+                    changed()
+                    continue
+                }
+                heartbeat = leases.heartbeat(.transcript, for: entry.id, in: store, clock: clock)
+            }
             let ticket = ledger.ticket
             let id = entry.id
             let job = TranscriptJob(
                 episode: entry.episode, origin: entry.origin, ticket: ticket, remaining: queue.count,
                 currentOrigin: { [weak self] in await self?.origin(of: id) ?? entry.origin })
             let outcome = await environment.transcribe(job)
+            heartbeat?.cancel()
+            // Angehalten bleibt die Sperre bis zum Ablauf: Dieses Gerät hat
+            // einen Zwischenstand und setzt dort an.
+            if let leases, outcome != .interrupted { await leases.release(.transcript, for: id, in: store) }
             // Wer die Folge jetzt will, und ob sie noch im Platz steht. Nach
             // dem Löschen steht sie dort nicht mehr.
             let current = running?.id == id ? running : nil
@@ -624,6 +674,30 @@ public actor TranscriptStage {
         // Hintergrund nicht, das prüft das Tor. Ohne Anlass nicht: Eine
         // Warteschlange, in der nichts laufen darf, fragte sonst ohne Ende.
         if cancelled || runAgain { startRunIfNeeded() }
+    }
+
+    /// Die Folge wartet auf die Sperre eines anderen Geräts. Läuft sie ab,
+    /// fragt die Stufe von selbst neu.
+    private func park(_ id: EpisodeID, until: Date) {
+        parked[id] = until
+        guard let earliest = parked.values.min() else { return }
+        wake?.cancel()
+        let delay = LeasePolicy.delay(until: earliest, now: clock())
+        wake = Task(priority: .utility) { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            await self?.wakeFromLease()
+        }
+    }
+
+    private func wakeFromLease() {
+        wake = nil
+        let now = clock()
+        parked = parked.filter { $0.value > now }
+        startRunIfNeeded()
+        if let earliest = parked.values.min(), let id = parked.first(where: { $0.value == earliest })?.key {
+            park(id, until: earliest)
+        }
     }
 
     /// Wer die Folge im Platz jetzt will.
