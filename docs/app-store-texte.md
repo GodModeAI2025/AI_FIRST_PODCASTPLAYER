@@ -12,7 +12,7 @@ Stand 0.15. Grenzen von App Store Connect: Name 30 Zeichen, Untertitel 30, Werbe
 Frag deine Podcasts, was gesagt wurde, und spring mit einem Tipp an die Stelle. Transkript, Fakten und eigene Themen-Updates aus allen Abos.
 
 **Schlüsselwörter:**
-podcast,player,transkript,mitschrift,fakten,chat,notizen,kapitel,themen,wissen,youtube,export,obsidian
+podcast,player,transkript,mitschrift,fakten,chat,notizen,kapitel,themen,wissen,youtube,obsidian
 
 **Beschreibung:**
 PodcastAI ist ein Podcast-Player, der mitschreibt. Er spielt deine Podcasts wie jeder gute Player, erstellt zu jeder Folge ein Transkript mit Zeitmarken und macht daraus Wissen, das du befragen und nachlesen kannst. Jede Aussage führt zurück zur Stelle im Originalton.
@@ -60,7 +60,7 @@ Unterhaltungen im Chat: Rückfragen wie „Und was sagt er dazu?“ beziehen sic
 
 **Name:** PodcastAI
 
-**Subtitle:** Listen to and ask your podcasts
+**Subtitle:** Hear and ask your podcasts
 
 **Promotional text:**
 Ask your podcasts what was said and jump to the moment with one tap. Transcripts, key facts and your own topic updates from all your subscriptions.
