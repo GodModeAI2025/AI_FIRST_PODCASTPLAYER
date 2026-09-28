@@ -2,8 +2,8 @@
 //  TopicUpdateUITests.swift
 //  PodcastAIUITests
 //
-//  Themen-Updates seit 0.11: Tags als Kapseln, „alle zusammen“, Ausgaben in
-//  Teilen wie Folgen, die Übersicht als Kapitel 0 und kein Ton ohne Tipp.
+//  Themen-Updates seit 0.11: Tags als Kapseln, „alle zusammen“, eine Ausgabe
+//  je Lauf wie eine Folge, die Übersicht als Kapitel 0 und kein Ton ohne Tipp.
 //
 //  Grundlage sind die Beispieldaten (`-demo-content`): eine Folge mit vier
 //  Kapiteln. „Datenschutz und Modelle“ trägt Datenschutz und Sprachmodelle,
@@ -121,53 +121,53 @@ final class TopicUpdateUITests: XCTestCase {
         XCTAssertFalse(miniBar(app).exists, "Das Öffnen der Ausgabe hat Ton gestartet")
     }
 
-    /// Drei Kapitel mit je drei bis vier Minuten und Teile zu fünf Minuten:
-    /// Die Ausgaben stehen wie Folgen da, mit „Teil 2 von …“.
-    @MainActor func testEditionsListShowsParts() {
+    /// Drei Kapitel mit je drei bis vier Minuten aus drei Tags: Sie kommen
+    /// alle in eine Ausgabe, ohne Teile und ohne Einstellung für eine Länge.
+    @MainActor func testEditionCollectsAllChaptersInOneEdition() {
         let app = launchDemo()
-        openEditor(app, name: "In Teilen")
+        openEditor(app, name: "Alles in einem")
         pickMoreTags(app, ["Automatisierung", "Haftung"])
 
-        // Von 20 auf 5 Minuten je Teil.
-        let stepper = app.steppers.firstMatch
-        if !stepper.isHittable { app.swipeUp() }
-        XCTAssertTrue(stepper.waitForExistence(timeout: 5), "Die Länge je Teil fehlt")
-        let decrement = stepper.buttons.matching(NSPredicate(
-            format: "label CONTAINS[c] 'Verringern' OR label CONTAINS[c] 'Decrement' OR identifier CONTAINS[c] 'Decrement'"
-        )).firstMatch
-        for _ in 0..<3 { decrement.tap() }
-        XCTAssertTrue(app.staticTexts["5 Minuten je Teil"].firstMatch.waitForExistence(timeout: 5),
-                      "Die Länge je Teil steht nicht auf 5 Minuten")
-        attach(app, "editor-teile")
+        // Eine Länge je Teil gibt es nicht mehr, dafür den Satz zum Umfang.
+        XCTAssertFalse(app.steppers.firstMatch.exists, "Das Blatt bietet noch eine Länge je Teil an")
+        let scope = element(app, "feed.editionScope")
+        if !scope.waitForExistence(timeout: 2) { app.swipeUp() }
+        XCTAssertTrue(scope.waitForExistence(timeout: 5), "Der Satz, was in eine Ausgabe kommt, fehlt")
+        attach(app, "editor-eine-ausgabe")
         create(app)
 
-        let row = app.staticTexts["In Teilen"].firstMatch
+        let row = app.staticTexts["Alles in einem"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
-        let second = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS 'Teil 2 von'")).firstMatch
-        let found = second.waitForExistence(timeout: 90)
-        attach(app, "ausgaben-in-teilen")
+        let edition = element(app, "edition.row")
+        let found = edition.waitForExistence(timeout: 90)
+        attach(app, "eine-ausgabe")
         let note = element(app, "edition.result")
-        XCTAssertTrue(found, "Kein Teil 2 in der Liste. Hinweis: \(note.exists ? note.label : "keiner")")
-        XCTAssertGreaterThanOrEqual(
-            app.descendants(matching: .any).matching(identifier: "edition.row").count, 2,
-            "Die Teile stehen nicht einzeln in der Liste")
-        XCTAssertFalse(miniBar(app).exists, "Die neuen Teile haben von selbst Ton gestartet")
+        XCTAssertTrue(found, "Keine Ausgabe in der Liste. Hinweis: \(note.exists ? note.label : "keiner")")
+        XCTAssertEqual(
+            app.descendants(matching: .any).matching(identifier: "edition.row").count, 1,
+            "Der Lauf steht nicht als eine Ausgabe in der Liste")
+        let partLabel = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS 'Teil 2' OR label CONTAINS ' von 2'")).firstMatch
+        XCTAssertFalse(partLabel.exists, "Die Liste nennt noch Teile: \(partLabel.exists ? partLabel.label : "")")
+        XCTAssertFalse(miniBar(app).exists, "Die neue Ausgabe hat von selbst Ton gestartet")
 
-        second.tap()
-        XCTAssertTrue(element(app, "edition.part").waitForExistence(timeout: 10), "Die Ausgabe nennt ihren Teil nicht")
-        XCTAssertTrue(element(app, "edition.overview").exists, "Kapitel 0, die Übersicht, fehlt")
-        XCTAssertFalse(miniBar(app).exists, "Das Öffnen eines Teils hat Ton gestartet")
+        edition.tap()
+        XCTAssertTrue(element(app, "edition.overview").waitForExistence(timeout: 10), "Kapitel 0, die Übersicht, fehlt")
+        XCTAssertFalse(element(app, "edition.part").exists, "Die Ausgabe nennt einen Teil")
+        // Alle drei Kapitel stehen in dieser einen Ausgabe, je eine Stelle.
+        let count = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '3 Stellen'")).firstMatch
+        XCTAssertTrue(count.waitForExistence(timeout: 5), "Die Ausgabe enthält nicht alle drei Kapitel")
+        XCTAssertFalse(miniBar(app).exists, "Das Öffnen der Ausgabe hat Ton gestartet")
 
-        // Läuft der Teil, sagt der Knopf das auch (TestFlight-Feedback zu 0.13).
+        // Läuft die Ausgabe, sagt der Knopf das auch (TestFlight-Feedback zu 0.13).
         let play = app.buttons["edition.play"].firstMatch
         XCTAssertTrue(play.waitForExistence(timeout: 5))
         XCTAssertEqual(play.label, "Abspielen")
         play.tap()
         let running = NSPredicate(format: "label == 'Pause' OR label == 'Weiter'")
         XCTAssertEqual(XCTWaiter.wait(for: [expectation(for: running, evaluatedWith: play)], timeout: 10), .completed,
-                       "Der Teil spielt, der Knopf sagt weiter „\(play.label)“")
+                       "Die Ausgabe spielt, der Knopf sagt weiter „\(play.label)“")
         attach(app, "ausgabe-spielt")
         if play.label == "Pause" {
             play.tap()

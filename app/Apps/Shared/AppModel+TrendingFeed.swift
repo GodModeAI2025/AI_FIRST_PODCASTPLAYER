@@ -184,7 +184,7 @@ extension AppModel {
         editionChecks[TrendingFeed.id] = nil
         createSmartFeed(
             title: String(localized: "Angesagt"), topicIDs: tags, matchMode: .any,
-            minutes: TrendingFeed.partMinutes, buildFirstEdition: buildFirstEdition && !tags.isEmpty,
+            buildFirstEdition: buildFirstEdition && !tags.isEmpty,
             id: TrendingFeed.id)
         trendingFeedAppliedTags = tags
     }

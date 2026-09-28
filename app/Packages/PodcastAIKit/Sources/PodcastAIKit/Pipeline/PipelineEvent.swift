@@ -121,7 +121,8 @@ public enum PipelineEvent: Sendable, Equatable {
     case tagsDone(EpisodeID, InputVersion, ChapterTagsOutcome, Origin)
     /// Die Feeds sind aktualisiert.
     case feedsRefreshed(byUser: Bool)
-    /// Eine Ausgabe eines Themen-Updates ist erschienen, mit allen Teilen.
+    /// Eine Ausgabe eines Themen-Updates ist erschienen. Die Liste enthält ihre
+    /// Kennung; bis 0.14 konnten es mehrere Teile eines Laufs sein.
     case editionPublished(SmartFeedID, [PersonalEpisodeID])
     /// Diese Folgen verschwinden. Kommt, bevor der Store löscht.
     case episodesRemoved([EpisodeID], RemovalScope)

@@ -110,19 +110,19 @@
         }
       }
     },
-    "Datenschutz und USA, Teil 1" : {
+    "Datenschutz und USA · 24.09." : {
       "comment" : "Beispiel-Ausgabe in der Widget-Galerie",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Datenschutz und USA, Teil 1"
+            "value" : "Datenschutz und USA · 24.09."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Privacy and the US, Part 1"
+            "value" : "Privacy and the US · 9/24"
           }
         }
       }

@@ -93,7 +93,7 @@ extension WidgetSnapshot {
             ],
             latestEdition: Edition(
                 id: "sample",
-                title: String(localized: "Datenschutz und USA, Teil 1", comment: "Beispiel-Ausgabe in der Widget-Galerie"),
+                title: String(localized: "Datenschutz und USA · 24.09.", comment: "Beispiel-Ausgabe in der Widget-Galerie"),
                 feedTitle: String(localized: "Datenschutz und USA", comment: "Beispiel-Update in der Widget-Galerie"),
                 publishedAt: Date()))
     }

@@ -3,7 +3,8 @@
 //  PodcastAIKitTests
 //
 //  Cover je Ausgabe (0.11): Rezept aus Tags und Namen, Ablage neben dem
-//  Cover des Updates, Aufräumen, die häufigsten Namen und „Teil 2 von 3“.
+//  Cover des Updates, Aufräumen, die häufigsten Namen und das Layoutcover
+//  ohne Teil.
 //
 
 import Testing
@@ -169,15 +170,14 @@ struct EditionCoverTests {
         #expect(names == ["Meta", "Max Schrems"])
     }
 
-    // MARK: Teile
+    // MARK: Ältere Teile
 
-    @Test("„Teil 2 von 3“ zählt den Lauf, auch wenn ein Teil gelöscht ist")
-    func partCount() {
-        let parts = [edition("a", part: 1), edition("b", part: 2), edition("c", part: 3)]
-        let other = edition("x", part: 1, runKey: "anderer")
-        #expect(parts[1].partCount(in: parts + [other]) == 3)
-        #expect(other.partCount(in: parts + [other]) == 1)
-        #expect(parts[2].partCount(in: [parts[0], parts[2]]) == 3)
+    @Test("Das Layoutcover zeigt nur das Datum, auch bei einem gespeicherten Teil 2")
+    func layoutCoverWithoutPart() {
+        let legacy = edition("b", part: 2)
+        let cover = NativeCoverRenderer().makeCover(for: legacy, feedTitle: feed.title)
+        #expect(cover.subtitle == legacy.publishedAt.formatted(date: .abbreviated, time: .omitted))
+        #expect(!(cover.subtitle ?? "").contains(TestLanguage.pick(de: "Teil", en: "Part")))
     }
 
     private static func image() -> CGImage? {

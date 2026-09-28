@@ -1512,8 +1512,8 @@ struct FocusPlayerView: View {
 
             // Worum es in dieser Wiedergabe geht. Bei einer einzelnen Stelle
             // ist das die Folge selbst, dann steht sie nur einmal da.
-            // Eine Ausgabe steht da wie eine Folge: ihr Titel mit Teil,
-            // darüber der Name des Updates wie der eines Podcasts.
+            // Eine Ausgabe steht da wie eine Folge: ihr Titel, darüber der
+            // Name des Updates wie der eines Podcasts.
             if plan.requestSummary != segment.episodeTitle {
                 VStack(spacing: Design.Spacing.micro) {
                     if let feed {
@@ -1523,11 +1523,6 @@ struct FocusPlayerView: View {
                     }
                     Text(plan.requestSummary)
                         .font(.title3.weight(.semibold))
-                    if let edition, let part = model.partLabel(for: edition) {
-                        Text(part)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(Color.accentColor)
-                    }
                 }
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)

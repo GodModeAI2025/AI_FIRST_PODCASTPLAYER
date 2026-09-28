@@ -8,9 +8,14 @@
 //
 //    Eingrenzen → Tags prüfen → Veröffentlichtes abziehen → Gehörtes
 //    abziehen → Grenze je Tag → Schlüssel und Schwelle → schneiden →
-//    auf Teile verteilen → Manifest, Übersicht und Shownotes je Teil
+//    Gesamtlänge prüfen → Manifest, Übersicht und Shownotes
 //
-//  Zeiten, Schnitte und Teile bestimmt nur dieser Code (Regel 3). Ein Modell
+//  Seit der Entscheidung vom 28. September 2026 wird ein Lauf genau eine
+//  Ausgabe mit allen passenden Kapiteln, nicht mehr Teil 1, 2, 3. Nur bei
+//  sehr viel Material greift eine großzügige Grenze der Gesamtlänge; der
+//  Rest bleibt für die nächste Ausgabe und steht in ihrer Abdeckung.
+//
+//  Zeiten, Schnitte und Längen bestimmt nur dieser Code (Regel 3). Ein Modell
 //  hat hier nichts zu sagen, die Tags der Kapitel stehen schon fest.
 //  Veröffentlichen startet nie Ton (Regel 1).
 //
@@ -39,7 +44,7 @@ public struct EditionChapter: Sendable, Hashable {
     /// Die Belege im Kapitel, nach Anfang geordnet.
     public let passages: [Evidence]
     /// Welche Belege ein Tag wörtlich treffen. Daraus schneidet der Code,
-    /// wenn das Kapitel nicht ganz in einen Teil passt.
+    /// wenn das Kapitel länger ist als ``EditionLimits/maximumChapterLength``.
     public let passageHits: [EvidenceID: Set<InterestID>]
     /// Die Zeitbereiche der Fakten im Kapitel, eine je Aussage.
     public let statements: [MediaTimeRange]
@@ -114,24 +119,34 @@ public struct EditionChapter: Sendable, Hashable {
 
 /// Grenzen eines Laufs.
 public struct EditionLimits: Sendable {
-    /// Höchstens so viele Teile entstehen auf einmal. Was danach übrig ist,
-    /// bleibt für die nächste Ausgabe liegen und steht im Protokoll.
-    public var maximumParts: Int
+    /// Ein Kapitel bis zu dieser Hörlänge kommt ganz hinein. Ein längeres
+    /// schneidet der Code auf die Belege mit Tag-Treffer zusammen.
+    public var maximumChapterLength: MediaDuration
+    /// Die Ausgabe wird höchstens so lang. Das ist eine Sicherung für sehr
+    /// viel Material, keine Länge, auf die hin geplant wird. Was danach
+    /// kommt, bleibt für die nächste Ausgabe und steht in der Abdeckung.
+    public var maximumLength: MediaDuration
     /// Höchstens so viele Kapitel je Tag, gezählt nach dem Abzug von
     /// Gehörtem und Veröffentlichtem.
     public var maximumChaptersPerTag: Int
 
-    public init(maximumParts: Int = 5, maximumChaptersPerTag: Int = 25) {
-        self.maximumParts = max(1, maximumParts)
+    public init(
+        maximumChapterLength: MediaDuration = MediaDuration(minutes: 20),
+        maximumLength: MediaDuration = MediaDuration(minutes: 180),
+        maximumChaptersPerTag: Int = 25
+    ) {
+        self.maximumChapterLength = MediaDuration(milliseconds: max(60_000, maximumChapterLength.milliseconds))
+        self.maximumLength = MediaDuration(milliseconds: max(self.maximumChapterLength.milliseconds,
+                                                             maximumLength.milliseconds))
         self.maximumChaptersPerTag = max(1, maximumChaptersPerTag)
     }
 }
 
 /// Was ein Lauf veröffentlicht und was er liegen lässt.
 public struct EditionRun: Sendable {
-    /// Teil 1 zuerst.
-    public let parts: [PersonalEpisode]
-    /// Kapitel, die nach dem letzten erlaubten Teil keinen Platz hatten.
+    /// Die eine Ausgabe des Laufs.
+    public let edition: PersonalEpisode
+    /// Kapitel, die nach der Grenze der Gesamtlänge keinen Platz mehr hatten.
     public let droppedChapterCount: Int
     public let droppedDuration: MediaDuration
     /// Kapitel, die über der Grenze je Tag lagen.
@@ -152,12 +167,12 @@ extension PersonalEpisodePublisher {
 
     static let logger = Logger(subsystem: "com.godmodeai.podcastai", category: "editions")
 
-    /// Baut die Teile einer Ausgabe aus Kapiteln.
+    /// Baut eine Ausgabe aus Kapiteln.
     ///
     /// - `followedTagIDs`: gilt, wenn das Update selbst keine Tags nennt,
     ///   nicht für „Angesagt“ (``SmartPodcastFeed/searchTags(followed:)``).
-    /// - `previousEditions`: die bisherigen Ausgaben dieses Updates. Kein
-    ///   Kapitel kommt zweimal vor, weder über Teile noch über Ausgaben.
+    /// - `previousEditions`: die bisherigen Ausgaben dieses Updates, auch
+    ///   Teile älterer Läufe. Kein Kapitel kommt zweimal vor.
     /// - `tagLabels`: für den Satz „Passt zu …“ in den Shownotes.
     ///
     /// Rein funktional, ohne Store und ohne Netz.
@@ -182,8 +197,8 @@ extension PersonalEpisodePublisher {
         guard !matching.isEmpty else { return .noNewMaterial(candidateCount: 0) }
 
         // 1. Veröffentlichtes vor allem anderen abziehen. Sonst hinge der
-        //    Schlüssel des Laufs am Bestand der letzten Ausgabe, und Teil 2
-        //    käme nie zustande.
+        //    Schlüssel des Laufs am Bestand der letzten Ausgabe, und was eine
+        //    volle Ausgabe liegen ließ, käme nie zustande.
         let published = PublishedChapters(previousEditions)
         var items: [ChapterItem] = []
         var excludedAsPublished = 0
@@ -252,20 +267,20 @@ extension PersonalEpisodePublisher {
             return .belowThreshold(available: available, required: required)
         }
 
-        // 5. Schneiden und auf Teile verteilen, streng der Reihe nach.
-        let budget = feed.partBudget?.milliseconds
-        let planned = items.map { cut($0, budget: budget, tags: tags, options: options) }
-        var parts: [[PlannedChapter]] = [[]]
+        // 5. Schneiden und der Reihe nach aufnehmen, bis die Gesamtlänge
+        //    erreicht ist. Passt ein Kapitel nicht mehr, bleibt es mit allen
+        //    folgenden für die nächste Ausgabe: So beginnt sie genau dort,
+        //    wo diese aufhört, und die Folgen bleiben am Stück.
+        let chapterLimit = limits.maximumChapterLength.milliseconds
+        let planned = items.map { cut($0, budget: chapterLimit, tags: tags, options: options) }
+        var included: [PlannedChapter] = []
         var used: Int64 = 0
         var dropped: [PlannedChapter] = []
         for chapter in planned {
-            let transition = parts[parts.count - 1].isEmpty ? 0 : options.transition.milliseconds
-            if used + transition + chapter.listening <= budget ?? .max {
-                parts[parts.count - 1].append(chapter)
+            let transition = included.isEmpty ? 0 : options.transition.milliseconds
+            if dropped.isEmpty, used + transition + chapter.listening <= limits.maximumLength.milliseconds {
+                included.append(chapter)
                 used += transition + chapter.listening
-            } else if parts.count < limits.maximumParts {
-                parts.append([chapter])
-                used = chapter.listening
             } else {
                 dropped.append(chapter)
             }
@@ -274,8 +289,9 @@ extension PersonalEpisodePublisher {
         if !dropped.isEmpty {
             Self.logger.notice("""
                 Themen-Update \(feed.id.rawValue, privacy: .public): \(dropped.count) Kapitel \
-                (\(droppedDuration.seconds, format: .fixed(precision: 0)) s) nach \(limits.maximumParts) Teilen \
-                liegen gelassen: \(dropped.map(\.item.key).joined(separator: ", "), privacy: .public)
+                (\(droppedDuration.seconds, format: .fixed(precision: 0)) s) nach \
+                \(limits.maximumLength.seconds, format: .fixed(precision: 0)) s Gesamtlänge \
+                für die nächste Ausgabe gelassen: \(dropped.map(\.item.key).joined(separator: ", "), privacy: .public)
                 """)
         }
         if capped > 0 {
@@ -285,21 +301,14 @@ extension PersonalEpisodePublisher {
                 """)
         }
 
-        // 6. Je Teil ein Manifest.
-        let editions = parts.enumerated().map { index, chapters in
-            buildPart(
-                index + 1, of: chapters, feed: feed, batchKey: batchKey,
-                candidateCount: items.count, remaining: droppedDuration,
-                tagLabels: tagLabels, options: options, now: now)
-        }
+        // 6. Ein Manifest für die ganze Ausgabe.
+        let edition = buildEdition(
+            of: included, feed: feed, batchKey: batchKey,
+            candidateCount: items.count, remaining: droppedDuration,
+            tagLabels: tagLabels, options: options, now: now)
         return .published(EditionRun(
-            parts: editions, droppedChapterCount: dropped.count, droppedDuration: droppedDuration,
+            edition: edition, droppedChapterCount: dropped.count, droppedDuration: droppedDuration,
             cappedChapterCount: capped))
-    }
-
-    /// Schlüssel eines weiteren Teils. Teil 1 trägt den Schlüssel des Laufs.
-    static func partKey(_ batchKey: String, part: Int) -> String {
-        part <= 1 ? batchKey : StableDigest.hex(ofOrdered: [batchKey, "part", String(part)])
     }
 
     /// Dasselbe Kapitel zweimal in der Liste, etwa aus zwei Pfaden: das
@@ -311,7 +320,7 @@ extension PersonalEpisodePublisher {
 
     // MARK: - Schneiden
 
-    /// Ein Kapitel, bereit für einen Teil.
+    /// Ein Kapitel, bereit für die Ausgabe.
     struct PlannedChapter {
         let item: ChapterItem
         /// Kern und Abspielbereich jeder Stelle, in der Zeitfolge der Folge.
@@ -322,12 +331,12 @@ extension PersonalEpisodePublisher {
         var coreLength: Int64 { pieces.reduce(0) { $0 + $1.core.duration.milliseconds } }
     }
 
-    /// Ein Kapitel geht ganz hinein, wenn es in einen Teil passt. Sonst
-    /// nimmt der Code die Belege mit Tag-Treffer, jeweils mit Vorlauf, bis
-    /// der Teil voll ist. Trifft kein Beleg ein Tag wörtlich, beginnt er
-    /// vorn im Kapitel.
+    /// Ein Kapitel geht ganz hinein, wenn seine Hörlänge `budget` nicht
+    /// übersteigt. Sonst nimmt der Code die Belege mit Tag-Treffer, jeweils
+    /// mit Vorlauf, bis `budget` erreicht ist. Trifft kein Beleg ein Tag
+    /// wörtlich, beginnt er vorn im Kapitel.
     func cut(
-        _ item: ChapterItem, budget: Int64?, tags: Set<InterestID>, options: PublisherOptions
+        _ item: ChapterItem, budget: Int64, tags: Set<InterestID>, options: PublisherOptions
     ) -> PlannedChapter {
         let chapterStart = item.chapter.range.start.milliseconds
         let lead = options.contextLeadIn.milliseconds
@@ -346,7 +355,7 @@ extension PersonalEpisodePublisher {
 
         let whole = item.open.ranges.map { (core: $0, playback: playback(for: $0)) }
         let wholeLength = length(whole)
-        guard let budget, wholeLength > budget else {
+        guard wholeLength > budget else {
             return PlannedChapter(item: item, pieces: whole, isWhole: true, listening: wholeLength)
         }
 
@@ -377,7 +386,7 @@ extension PersonalEpisodePublisher {
             }
             total = length(pieces)
         }
-        // Schon die erste Stelle ist länger als ein Teil: dann gekürzt,
+        // Schon die erste Stelle ist länger als `budget`: dann gekürzt,
         // und zwar diese Stelle, nicht der Anfang des Kapitels.
         if pieces.isEmpty, let first = firstCore ?? item.open.ranges.first {
             let playbackStart = playback(for: first).start
@@ -390,10 +399,10 @@ extension PersonalEpisodePublisher {
         return PlannedChapter(item: item, pieces: pieces, isWhole: false, listening: total)
     }
 
-    // MARK: - Ein Teil
+    // MARK: - Die Ausgabe
 
-    func buildPart(
-        _ part: Int, of chapters: [PlannedChapter], feed: SmartPodcastFeed, batchKey: String,
+    func buildEdition(
+        of chapters: [PlannedChapter], feed: SmartPodcastFeed, batchKey: String,
         candidateCount: Int, remaining: MediaDuration, tagLabels: [InterestID: String],
         options: PublisherOptions, now: Date
     ) -> PersonalEpisode {
@@ -443,18 +452,17 @@ extension PersonalEpisodePublisher {
             partiallyAnalyzedSourceIDs: Array(Set(
                 chapters.filter { !$0.item.chapter.sourceFullyAnalyzed }.map(\.item.chapter.sourceID)
             )).sorted { $0.rawValue < $1.rawValue })
-        let key = Self.partKey(batchKey, part: part)
         let titles = EditionTitleBuilder()
-        let base = titles.title(for: feed, segments: segments, at: now)
+        // `part` und `runKey` bleiben im Schema für Läufe älterer Fassungen.
+        // Eine neue Ausgabe ist Teil 1 ihres eigenen Laufs.
         return PersonalEpisode(
-            id: PersonalEpisodeID(stable: key), feedID: feed.id, policyRevision: feed.policyRevision,
-            batchKey: key, title: titles.title(base, part: part),
+            id: PersonalEpisodeID(stable: batchKey), feedID: feed.id, policyRevision: feed.policyRevision,
+            batchKey: batchKey, title: titles.title(for: feed, segments: segments, at: now),
             subtitle: titles.subtitle(for: segments, coverage: coverage),
-            // Teil 1 ist der neueste, damit er in Listen nach Datum oben steht.
-            publishedAt: now.addingTimeInterval(-Double(part - 1)),
+            publishedAt: now,
             segments: segments, shownotes: ShownotesBuilder().build(from: segments),
             coverAssetID: feed.confirmedCoverAssetID, coverage: coverage,
-            part: part, runKey: batchKey, overviewEntries: overview)
+            part: 1, runKey: batchKey, overviewEntries: overview)
     }
 
     static func reason(tags: [InterestID], labels: [InterestID: String], chapter: EditionChapter) -> String {
@@ -530,22 +538,17 @@ struct PublishedChapters {
 }
 
 extension PersonalEpisode {
-    /// Die Teile des jüngsten Laufs, Teil 1 zuerst. Leer ohne Ausgabe.
+    /// Die jüngste Ausgabe. Stammt sie aus einem Lauf einer älteren Fassung,
+    /// die noch in Teilen veröffentlichte, alle Teile dieses Laufs, Teil 1
+    /// zuerst. Leer ohne Ausgabe.
     public static func latestRun(in editions: [PersonalEpisode]) -> [PersonalEpisode] {
         guard let latest = editions.max(by: { $0.publishedAt < $1.publishedAt }) else { return [] }
         return editions.filter { $0.runKey == latest.runKey }.sorted { $0.part < $1.part }
     }
 
-    /// Aus wie vielen Teilen der Lauf dieser Ausgabe besteht, für „Teil 2
-    /// von 3“. Ist ein Teil gelöscht, zählt trotzdem der höchste Teil, damit
-    /// aus „Teil 3 von 3“ nicht „Teil 3 von 2“ wird.
-    public func partCount(in editions: [PersonalEpisode]) -> Int {
-        let run = editions.filter { $0.runKey == runKey }
-        return max(part, run.count, run.map(\.part).max() ?? 1)
-    }
-
-    /// Wie viel von allen Teilen zusammen gehört ist, nach Länge gewichtet.
-    /// Wer nur Teil 1 von fünf gehört hat, hat den Lauf nicht gehört.
+    /// Wie viel von allen Ausgaben zusammen gehört ist, nach Länge gewichtet.
+    /// Für ältere Läufe in Teilen: Wer nur Teil 1 von fünf gehört hat, hat
+    /// den Lauf nicht gehört.
     public static func heardFraction(of parts: [PersonalEpisode], in ledger: ListeningLedger) -> Double {
         var total: Double = 0
         var heard: Double = 0
@@ -556,12 +559,5 @@ extension PersonalEpisode {
             heard += length * part.heardFraction(in: ledger)
         }
         return total > 0 ? heard / total : 0
-    }
-}
-
-extension EditionTitleBuilder {
-    /// „Mein KI Update · 24.09.“, ab Teil 2 „Mein KI Update · 24.09., Teil 2“.
-    public func title(_ base: String, part: Int) -> String {
-        part <= 1 ? base : String(localized: "\(base), Teil \(part)", bundle: .module)
     }
 }

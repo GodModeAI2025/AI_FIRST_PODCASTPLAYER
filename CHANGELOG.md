@@ -1,6 +1,8 @@
 # Änderungsverlauf
 
-## Nächste Version
+## App 0.15 · 2026-09-28
+Neu: Unterhaltungen im Chat mit Rückfragen, Themen-Updates als eine Folge statt Teile, Abgleich über Geräte robuster (Abmeldungen, Sperre, feste Transkript-Kennung).
+
 Neu: Der Chat führt Unterhaltungen, und deine Geräte stimmen sich beim Abbestellen und Erschließen ab.
 
 Unterhaltungen im Chat:
@@ -20,6 +22,15 @@ Abgleich zwischen iPhone, iPad und Mac (die Schemaänderung, die 0.14 aufgeschob
 
 Für Entwickler:
 - Neue Datensätze `StoredChatConversation`, `StoredSourceRemoval` und `StoredProcessingLease`, keine neuen Felder an vorhandenen. `localRelativePath` bleibt im Schema, wird aber nicht mehr geschrieben. Die Liste mit allen CloudKit-Typen steht in [docs/cloudkit-schema-0.15.md](docs/cloudkit-schema-0.15.md). Vor dem ersten TestFlight-Build in der Entwicklungsumgebung anlegen und nach Production übertragen.
+
+Themen-Updates in einer Folge (Entscheidung vom 28. September 2026: „Alle Folgen, die du eigenständig generierst, zu einer Folge machen und sie nicht in mehrere Teile aufteilen.“):
+- Ein Themen-Update stellt je Lauf genau eine Ausgabe zusammen, mit allen passenden Kapiteln, die du noch nicht gehört hast. Bisher war nach 20 Minuten Schluss, der Rest kam als Teil 2, 3 und so weiter, bis zu fünf Teile. Die Ordnung bleibt: Folge für Folge, die neueste Quelle zuerst, vorn die Übersicht als Kapitel 0.
+- Ein Kapitel über 20 Minuten kürzt die App wie bisher auf die Stellen, in denen ein Tag vorkommt.
+- Erst bei sehr viel Material greift eine Grenze von drei Stunden. Was danach kommt, bleibt für die nächste Ausgabe. Unter „Umfang“ steht dann „Die übrigen … kommen in die nächste Ausgabe.“, und die Rückmeldung nach dem Zusammenstellen nennt Kapitel und Länge des Rests.
+- Im Blatt eines Updates fällt „Minuten je Teil“ weg. Ein Satz unter „Ausgaben“ sagt stattdessen, was in eine Ausgabe kommt. „Teil 2 von 3“ steht nicht mehr in der Liste, auf der Seite einer Ausgabe, im Player und auf dem Layoutcover.
+- „Angesagt“ folgt derselben Regel. Siri fragt bei „Themen-Update erstellen“ keine Dauer mehr ab.
+- Gespeicherte Ausgaben in Teilen bleiben erhalten und behalten ihren Titel „…, Teil 2“. Die Automatik wartet bei ihnen weiter, bis der ganze Lauf gehört ist. Am Speicher und am iCloud-Schema ändert sich nichts.
+- Eine neue Ausgabe spielt weiterhin nicht von selbst. Ton gibt es erst, wenn du „Abspielen“ antippst.
 
 ## App 0.14 · 2026-09-28
 Neu: Apple Intelligence rechnet auf Private Cloud Compute, die Verarbeitung läuft als Pipeline in Stufen, Arbeit im Hintergrund bricht nicht mehr ab, neue Mac-Oberfläche, Agentenzugang über MCP neu.

@@ -1,38 +1,6 @@
 {
   "sourceLanguage": "de",
   "strings": {
-    "%@ · Teil %lld": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ · Teil %2$lld"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ · Part %2$lld"
-          }
-        }
-      }
-    },
-    "%@, Teil %lld": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@, Teil %2$lld"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@, Part %2$lld"
-          }
-        }
-      }
-    },
     "Alle zusammen": {
       "localizations": {
         "de": {
@@ -193,18 +161,18 @@
         }
       }
     },
-    "Enthält %lld von ^[%lld Stelle](inflect: true). Es bleiben %@.": {
+    "Enthält %lld von ^[%lld Stelle](inflect: true). Die übrigen %@ kommen in die nächste Ausgabe.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Enthält %1$lld von ^[%2$lld Stelle](inflect: true). Es bleiben %3$@."
+            "value": "Enthält %1$lld von ^[%2$lld Stelle](inflect: true). Die übrigen %3$@ kommen in die nächste Ausgabe."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Includes %1$lld of ^[%2$lld passage](inflect: true). %3$@ remaining."
+            "value": "Includes %1$lld of ^[%2$lld passage](inflect: true). The remaining %3$@ will be in the next edition."
           }
         }
       }
