@@ -218,10 +218,13 @@ extension AppModel {
     /// kommen zum Platz des Überblicks dazu, statt ihn zu kürzen; der Plan
     /// hat sie mit dem Platz für die Werkzeuge schon freigehalten. Ohne Buch
     /// ist es die Antwort wie bisher.
+    ///
+    /// Mit `history` ist es eine Folgefrage; die früheren Runden gehen als
+    /// Datenblock in den Prompt (`ConversationHistory`).
     func answerWithLookup(
         question: String, candidates: [Evidence], libraryContext: String,
         device: ContextBudget, budget: ContextBudget, lookup: ChatLookupLedger?,
-        status: ModelStatus, number: Int
+        status: ModelStatus, number: Int, history: ConversationHistory? = nil
     ) async throws -> ComposedAnswer {
         // Nur die Frage, die noch gilt, zeigt, was nachgeschlagen wird. Eine
         // abgebrochene, die spät hier ankommt, nähme sonst der neuen die Zeile.
@@ -239,7 +242,7 @@ extension AppModel {
         #if DEBUG
         if ChatLookupFixture.isRequested, let lookup {
             return try await ChatLookupFixture.answer(question: question, candidates: candidates,
-                                                      budget: deviceBudget, lookup: lookup)
+                                                      budget: deviceBudget, lookup: lookup, history: history)
         }
         #endif
         let extractor = KnowledgeExtractor(configuration: ExtractorConfiguration(
@@ -253,7 +256,7 @@ extension AppModel {
         return try await extractor.answer(
             question: question, from: candidates,
             libraryContext: String(context.prefix(answerBudget.libraryContextLimit)),
-            availability: status, lookup: lookup,
+            availability: status, lookup: lookup, history: history,
             onPartial: { [weak self] text in await self?.showPartialAnswer(text, number: number) })
     }
 

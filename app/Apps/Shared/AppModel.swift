@@ -579,9 +579,10 @@ public final class AppModel {
     /// jede Folge, ob ihr Ton schon da ist, auch aus Ansichten heraus. Ein
     /// Blick ins Verzeichnis ersetzt so eine Dateiprüfung je Folge.
     @ObservationIgnored var mediaFileCache: (generation: Int, names: Set<String>)?
-    /// Bisherige Antworten, neueste zuerst. Bleiben beim Wechsel zwischen
-    /// Ansichten erhalten.
-    public var chatAnswers: [ChatAnswer] = []
+    /// Die geladenen Unterhaltungen im Chat, je Bereich eine: die Mediathek
+    /// und jede Folge, deren Chat offen war. Sie liegen in der Datenbank und
+    /// gleichen sich ab (AppModel+Conversations.swift).
+    public internal(set) var conversations: [ChatConversationKey: ChatConversation] = [:]
     /// Der Antworttext, während er entsteht, als reiner Text. Leer, solange
     /// nichts da ist. Die fertige Antwort ersetzt ihn.
     public internal(set) var partialAnswer = ""
@@ -813,6 +814,8 @@ public final class AppModel {
             // sonst niemand.
             if !isLoaded || highlights != knownHighlights { reindexSpotlight() }
             trails = try await store.trails()
+            // Nach einem Abgleich: geladene Unterhaltungen auf den neuesten Stand.
+            await reloadConversations()
             let status = await probeModelStatus()
             if status != modelStatus { modelStatus = status }
             // Was schon erschlossen ist, steht in der Datenbank. Ohne diesen

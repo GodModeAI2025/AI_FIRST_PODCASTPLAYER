@@ -1,5 +1,19 @@
 # Änderungsverlauf
 
+## Nächste Version
+Neu: Der Chat führt Unterhaltungen.
+
+Unterhaltungen im Chat:
+- Folgefragen wie „Und was sagt er dazu?“ wissen, worum es gerade ging. Apple Intelligence bekommt die letzten Fragen und den Kernsatz jeder Antwort mit, als Daten gekennzeichnet und nie als Anweisung. Die Suche nach Stellen beginnt bei dem, was die Antwort davor belegt hat, und bleibt im gewählten Bereich.
+- Eine Folgefrage behält die Eingrenzung der Frage davor, bis du sie änderst. Tokens der neuen Frage gelten wie bisher, Streaming, „Abbrechen“ und das Nachschlagen ebenso.
+- Die Unterhaltung bleibt nach einem Neustart und kommt über iCloud auf iPhone, iPad und Mac. Jede Folge hat im Reiter „Fragen“ ihre eigene.
+- In „Frag deine Podcasts“ beginnt „Neue Unterhaltung“ oben rechts leer. Unter „Frühere Unterhaltungen“ öffnest du eine alte wieder oder löschst sie per Wischen. Im Reiter „Fragen“ einer Folge löscht „Unterhaltung löschen“ im Menü oben rechts die Unterhaltung der Folge.
+- „Folge löschen“ nimmt die Unterhaltung der Folge mit. In anderen Unterhaltungen verliert eine Antwort die Belege aus der Folge und ihren Text, ohne übrigen Beleg geht die Frage ganz. „Audio entfernen“ lässt alles stehen, gesicherte Antworten bleiben, wie sie sind.
+- Fragen iPhone und Mac vor dem Abgleich dieselbe Folge, bleibt es eine Unterhaltung. Ändern zwei Geräte dieselbe Unterhaltung, bevor der Abgleich sie erreicht, gilt die zuletzt geschriebene Fassung auf beiden.
+
+Für Entwickler:
+- Neuer Datensatz `StoredChatConversation`. Vor dem ersten TestFlight-Build das CloudKit-Schema in der Entwicklungsumgebung anlegen und nach Production übertragen.
+
 ## App 0.14 · 2026-09-28
 Neu: Apple Intelligence rechnet auf Private Cloud Compute, die Verarbeitung läuft als Pipeline in Stufen, Arbeit im Hintergrund bricht nicht mehr ab, neue Mac-Oberfläche, Agentenzugang über MCP neu.
 

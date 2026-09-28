@@ -337,6 +337,22 @@
         }
       }
     },
+    "%@ · ^[%lld Frage](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · ^[%2$lld Frage](inflect: true)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · ^[%2$lld question](inflect: true)"
+          }
+        }
+      }
+    },
     "%@ · ab %@" : {
       "localizations" : {
         "de" : {
@@ -5531,6 +5547,22 @@
         }
       }
     },
+    "Der Antworttext ist weg, weil eine Folge gelöscht wurde, auf die er sich stützte. Die übrigen Belege stehen darunter." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Antworttext ist weg, weil eine Folge gelöscht wurde, auf die er sich stützte. Die übrigen Belege stehen darunter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The answer text is gone because an episode it relied on was deleted. The remaining source passages are below."
+          }
+        }
+      }
+    },
     "Der Audio-Podcast liefert die Tonspur, die PodcastAI transkribieren darf. Das Audio der YouTube-Videos selbst lädt die App nicht." : {
       "localizations" : {
         "de" : {
@@ -7063,6 +7095,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "These tags look similar. They are only merged if you want. The other name stays as a spelling."
+          }
+        }
+      }
+    },
+    "Diese Unterhaltung stammt aus einer neueren Version der App. Eine neue Frage beginnt eine neue Unterhaltung." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Unterhaltung stammt aus einer neueren Version der App. Eine neue Frage beginnt eine neue Unterhaltung."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This conversation comes from a newer version of the app. A new question starts a new conversation."
           }
         }
       }
@@ -9108,6 +9156,22 @@
         }
       }
     },
+    "Fragen und Antworten dieser Unterhaltung verschwinden auf allen deinen Geräten. Gesicherte Antworten bleiben." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragen und Antworten dieser Unterhaltung verschwinden auf allen deinen Geräten. Gesicherte Antworten bleiben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The questions and answers in this conversation disappear on all your devices. Saved answers stay."
+          }
+        }
+      }
+    },
     "Fragen und Chat" : {
       "localizations" : {
         "de" : {
@@ -9184,6 +9248,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Earlier Editions"
+          }
+        }
+      }
+    },
+    "Frühere Unterhaltungen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frühere Unterhaltungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Earlier Conversations"
           }
         }
       }
@@ -10088,6 +10168,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Shared Audio File"
+          }
+        }
+      }
+    },
+    "Geöffnet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geöffnet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
           }
         }
       }
@@ -12349,6 +12445,22 @@
         }
       }
     },
+    "Mit „Neue Unterhaltung“ bleibt die bisherige hier stehen und lässt sich wieder öffnen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit „Neue Unterhaltung“ bleibt die bisherige hier stehen und lässt sich wieder öffnen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When you choose “New Conversation”, the current one stays here and can be opened again."
+          }
+        }
+      }
+    },
     "Mit „Neueste Folge je Podcast behalten“ bleibt die neueste Folge jedes Podcasts auf dem Gerät und spielt ohne Netz, bis eine neuere geladen ist. Mit „Audio entfernen, wenn das Transkript fertig ist“ nimmt die App die anderen Folgen nach dem Transkript wieder vom Gerät, abgespielt wird dann aus dem Netz. Was du mit „Laden (offline)“ holst, bleibt, bis du „Audio entfernen“ wählst. „Audio entfernen“ löscht nur den Ton; Transkripte, Fakten, gemerkte Stellen und der Hörstand bleiben. Eine einzelne Folge löschst du in der Folge selbst, dann verschwinden auch ihre Daten." : {
       "localizations" : {
         "de" : {
@@ -12817,6 +12929,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Prepare New Episodes over a Personal Hotspot"
+          }
+        }
+      }
+    },
+    "Neue Unterhaltung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Unterhaltung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New Conversation"
+          }
+        }
+      }
+    },
+    "Neue Unterhaltung begonnen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Unterhaltung begonnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New conversation started"
           }
         }
       }
@@ -13505,6 +13649,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Tags Yet"
+          }
+        }
+      }
+    },
+    "Noch keine früheren Unterhaltungen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch keine früheren Unterhaltungen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Earlier Conversations Yet"
           }
         }
       }
@@ -17728,6 +17888,70 @@
         }
       }
     },
+    "Unterhaltung" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterhaltung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conversation"
+          }
+        }
+      }
+    },
+    "Unterhaltung gelöscht" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterhaltung gelöscht"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conversation deleted"
+          }
+        }
+      }
+    },
+    "Unterhaltung löschen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterhaltung löschen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Conversation"
+          }
+        }
+      }
+    },
+    "Unterhaltung löschen?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterhaltung löschen?"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Conversation?"
+          }
+        }
+      }
+    },
     "Untertitel für „%@“ werden über Supadata geholt …" : {
       "localizations" : {
         "de" : {
@@ -21205,6 +21429,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opens the queue"
+          }
+        }
+      }
+    },
+    "Öffnet diese Unterhaltung wieder" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet diese Unterhaltung wieder"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens this conversation again"
           }
         }
       }

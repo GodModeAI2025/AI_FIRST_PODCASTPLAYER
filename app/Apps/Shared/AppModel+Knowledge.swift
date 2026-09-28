@@ -273,8 +273,11 @@ extension AppModel {
 
     // MARK: - Fragen
 
-    /// Stellt eine Frage und hängt die Antwort an den Verlauf an. Er liest
-    /// sich von oben nach unten, die neueste Antwort steht unten.
+    /// Stellt eine Frage und hängt die Antwort an die Unterhaltung ihres
+    /// Bereichs an (AppModel+Conversations.swift). Sie liest sich von oben
+    /// nach unten, die neueste Antwort steht unten. Gibt es schon Runden,
+    /// ist die Frage eine Folgefrage: Die letzten Runden gehen als Daten mit,
+    /// und die Auswahl der Stellen kennt die Belege der Antwort davor.
     ///
     /// Eine Antwort braucht einige Sekunden. Wird in dieser Zeit eine Folge
     /// gelöscht, hat das Aufräumen in `pruneChatAnswers` die Antwort noch
@@ -306,7 +309,13 @@ extension AppModel {
         // das Zählen der Token hinter einem Abschnitt der Fakten.
         await AIScheduler.shared.beginUserActivity()
         defer { Task { await AIScheduler.shared.endUserActivity() } }
-        guard let answered = await composeAnswer(question, scope: scope, position: moment, number: number),
+        // Kam die Frage, bevor der Chat seine Unterhaltung geladen hat, holt
+        // sie sie hier. Sonst begänne sie eine neue, und die bisherige wäre
+        // bei einer Folge nicht mehr zu erreichen.
+        await restoreConversation(for: ChatConversationKey(scope: scope))
+        let context = followUpContext(for: scope)
+        guard let answered = await composeAnswer(question, scope: scope, position: moment, number: number,
+                                                 history: context.history, followUp: context.followUp),
               !Task.isCancelled else { return nil }
         let composed = answered.asked(at: moment)
         let removed = { (id: EpisodeID) in self.wasRemoved(id, since: ticket) }
@@ -331,14 +340,14 @@ extension AppModel {
                     """),
                 citations: [])
         }
-        chatAnswers.append(kept)
+        appendToConversation(kept)
         return kept
     }
 
-    /// Nimmt eine Antwort aus dem Verlauf. Eine gesicherte Fassung unter
-    /// „Gesicherte Antworten“ bleibt.
+    /// Nimmt eine Antwort aus ihrer Unterhaltung. Eine gesicherte Fassung
+    /// unter „Gesicherte Antworten“ bleibt.
     public func removeChatAnswer(_ id: UUID) {
-        chatAnswers.removeAll { $0.id == id }
+        removeTurn(id)
     }
 
     /// Stellt eine Frage als eigene Aufgabe, die „Abbrechen“ anhalten kann.
@@ -414,7 +423,8 @@ extension AppModel {
     }
 
     private func composeAnswer(_ question: String, scope: ChatScope, position: MediaTime?,
-                               number: Int) async -> ChatAnswer? {
+                               number: Int, history historyTurns: [ConversationHistory.Turn] = [],
+                               followUp: ChatFollowUp = ChatFollowUp()) async -> ChatAnswer? {
         activity = String(localized: "Antwort wird gesucht …")
         defer { activity = nil }
         // Fragen nach Links, Terminen, Adressen oder Namen beantworten die
@@ -425,6 +435,9 @@ extension AppModel {
                 await mentionAnswer(question, kinds: asked, scope: scope)
             }
         }
+        // Eine Folgefrage bringt ihre früheren Runden mit. Gekürzt auf ihren
+        // Platz im Plan wird gezählt, während Belege und Überblick laden.
+        let historyFit = Task.detached(priority: .userInitiated) { await Self.fittedHistory(historyTurns) }
         // Seit dem Start kann das Modell bereit geworden oder das Kontingent
         // aufgebraucht sein. Die Abfrage ist billig.
         await ChatTrace.interval("Modellzustand") { await refreshModelStatus() }
@@ -556,7 +569,11 @@ extension AppModel {
             let ceilingLimit = ceiling.maximumCandidates
             ranking = Task.detached(priority: .userInitiated) {
                 await ChatTrace.interval("Rangfolge") {
-                    PassageRanker().rank(pool, for: question, limit: ceilingLimit, embeddingLimit: embeddingLimit)
+                    // Eine Folgefrage findet auch, was die Antwort davor belegt
+                    // hat, soweit es im Bereich dieser Frage liegt.
+                    followUp.isEmpty
+                        ? PassageRanker().rank(pool, for: question, limit: ceilingLimit, embeddingLimit: embeddingLimit)
+                        : followUp.rank(pool, for: question, limit: ceilingLimit, embeddingLimit: embeddingLimit)
                 }
             }
         }
@@ -568,14 +585,16 @@ extension AppModel {
         let planner = KnowledgeExtractor()
         let deviceLibrary = String(libraryContext.prefix(deviceCeiling.libraryContextLimit))
         let cloudLibrary = String(libraryContext.prefix(ceiling.libraryContextLimit))
+        // Der Block der früheren Runden zählt zum festen Teil.
+        let history = await historyFit.value
         let (device, budget) = await ChatTrace.interval("Token zählen") {
             async let deviceFit = planner.fittedAnswerBudget(
                 deviceCeiling, tier: .onDevice, question: question, sample: sample, libraryContext: deviceLibrary,
-                lookup: lookup != nil)
+                lookup: lookup != nil, history: history)
             async let cloudFit: ContextBudget? = usesPrivateCloud
                 ? planner.fittedAnswerBudget(
                     ceiling, tier: .privateCloudCompute, question: question, sample: sample,
-                    libraryContext: cloudLibrary, lookup: lookup != nil)
+                    libraryContext: cloudLibrary, lookup: lookup != nil, history: history)
                 : nil
             let device = await deviceFit
             return (device, await cloudFit ?? device)
@@ -609,7 +628,8 @@ extension AppModel {
         do {
             let composed = try await answerWithLookup(
                 question: question, candidates: candidates, libraryContext: libraryContext,
-                device: device, budget: budget, lookup: lookup, status: status, number: number)
+                device: device, budget: budget, lookup: lookup, status: status, number: number,
+                history: history)
             // Belegt wird mit der Kandidatenliste und mit dem, was die
             // Werkzeuge geliefert haben, sonst mit nichts.
             let byID = Dictionary((candidates + composed.lookedUp).map { ($0.id, $0) },
@@ -2129,16 +2149,14 @@ extension AppModel {
         }
     }
 
-    /// Nimmt Antworten heraus, die sich auf gelöschte Folgen stützen. Ganz,
-    /// nicht nur den Beleg: ihr Text ist aus diesen Stellen formuliert und
-    /// zitiert sie ohne Modell sogar wörtlich.
+    /// Kürzt die Unterhaltungen um das, was aus gelöschten Folgen entstanden
+    /// ist, geladene und gespeicherte (AppModel+Conversations.swift). Eine
+    /// Antwort verliert Belege und Text, denn der ist aus diesen Stellen
+    /// formuliert und zitiert sie ohne Modell sogar wörtlich. Bleibt kein
+    /// Beleg, geht die Runde, die Unterhaltung einer gelöschten Folge ganz.
     private func pruneChatAnswers(removedEpisodes: Set<EpisodeID>, removedEvidence: Set<EvidenceID> = []) {
         guard !removedEpisodes.isEmpty || !removedEvidence.isEmpty else { return }
-        chatAnswers.removeAll { answer in
-            Self.answer(answer, touches: removedEpisodes)
-                || answer.citations.contains { removedEvidence.contains($0.id) }
-                || answer.citationNumbers.values.contains { removedEvidence.contains($0) }
-        }
+        pruneConversations(removedEpisodes: removedEpisodes, removedEvidence: removedEvidence)
     }
 
     /// Stützt sich die Antwort auf eine dieser Folgen oder gilt ihr?

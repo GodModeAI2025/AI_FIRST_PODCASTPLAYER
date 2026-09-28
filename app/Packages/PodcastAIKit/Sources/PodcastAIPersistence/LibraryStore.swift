@@ -270,6 +270,8 @@ public actor LibraryStore: ModelActor {
         StoredInterest.self, StoredEvidence.self, StoredHighlight.self,
         StoredSmartFeed.self, StoredPersonalEpisode.self, StoredKnowledgeTrail.self,
         StoredFact.self, StoredChapterTag.self,
+        // Seit dem Schema nach 0.13: Unterhaltungen im Chat.
+        StoredChatConversation.self,
     ]
 
     public static let schema = Schema(modelTypes)
