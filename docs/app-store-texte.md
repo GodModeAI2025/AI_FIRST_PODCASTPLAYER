@@ -110,11 +110,11 @@ Requires iOS 27 or macOS 27 and a device that supports Apple Intelligence.
 **What's new (0.15):**
 Conversations in chat: follow-ups like "And what does he say about that?" refer to the question before, and conversations stay, on your Mac too. Topic updates now arrive as one episode per run instead of parts. Syncing between your devices is more robust.
 
-## Für die Einreichung noch nötig
+## Angaben für die Einreichung
 
-- Datenschutz-URL (Webseite des Product Owners, mit dem Stand „Private Cloud Compute für alles“)
-- Support-URL
-- Screenshots: iPhone 6,9", iPad 13", Mac (aus TestFlight-Builds oder dem Simulator)
-- App-Datenschutzangaben in App Store Connect: keine Daten zur Nachverfolgung; Inhalte werden nicht beim Entwickler gespeichert
-- Altersfreigabe-Fragebogen, Kategorie (Hauptkategorie: Nachrichten oder Bildung; Vorschlag: Nachrichten, Zweitkategorie Bildung)
-- Hinweise für das Review: kein Konto nötig; Apple Intelligence erforderlich; zum Ausprobieren einen Podcast über die Suche abonnieren
+- Datenschutz-URL: https://github.com/GodModeAI2025/AI_FIRST_PODCASTPLAYER/blob/main/docs/datenschutz.md
+- Support-URL: https://github.com/GodModeAI2025/AI_FIRST_PODCASTPLAYER/issues
+- Kategorie: Nachrichten, Zweitkategorie Bildung
+- Screenshots: iPhone 6,9" und iPad 13" aus dem Atlas-Test (app/build/store-screenshots/auswahl), Mac noch offen
+- App-Datenschutzangaben: keine Datenerhebung durch den Entwickler, kein Tracking
+- Hinweise für das Review: kein Konto nötig; Apple Intelligence erforderlich; zum Ausprobieren einen Podcast über die Suche abonnieren, nach dem Transkript im Reiter „Fragen“ eine Frage stellen
