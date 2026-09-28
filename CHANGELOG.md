@@ -1,6 +1,8 @@
 # Änderungsverlauf
 
-## Nächste Version
+## App 0.14 · 2026-09-28
+Neu: Apple Intelligence rechnet auf Private Cloud Compute, die Verarbeitung läuft als Pipeline in Stufen, Arbeit im Hintergrund bricht nicht mehr ab, neue Mac-Oberfläche, Agentenzugang über MCP neu.
+
 Aus dem TestFlight-Feedback zu 0.13:
 - Läuft eine Ausgabe eines Themen-Updates, zeigt ihre Seite „Pause“ statt „Abspielen“, angehalten „Weiter“.
 - Die Arbeit im Hintergrund brach auf dem iPhone nach kurzer Zeit ab. iOS beendet die fortgesetzte Verarbeitung, wenn ihre Anzeige keinen Fortschritt zeigt, und die Anzeige bewegte sich nur beim Transkribieren: Der Download sprang auf einmal, Fakten und Tags zählten gar nicht, und jede neue Folge begann wieder vorn. Jetzt zählt der ganze Lauf als eine Summe: Laden nach Bytes, Transkript, Fakten je Abschnitt und Tags je Kapitel, über alle Folgen der Warteschlange. Der Balken geht nur vorwärts. Rechnet Apple Intelligence an einem Abschnitt länger, rückt er in kleinen Schritten weiter, ohne das Ende vorwegzunehmen.
