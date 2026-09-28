@@ -3,8 +3,8 @@
 //  PodcastAIKitTests
 //
 //  Themen-Updates aus Kapiteln (0.11): Auswahl mit „eines“ und „alle“,
-//  Teile, Budget, Reihenfolge, Schnitt mit Vorlauf, Zahlen und ältere
-//  gespeicherte Ausgaben.
+//  eine Ausgabe je Lauf mit Grenze der Gesamtlänge, Reihenfolge, Schnitt
+//  mit Vorlauf, Zahlen und ältere gespeicherte Ausgaben.
 //
 
 import Testing
@@ -64,13 +64,14 @@ struct ChapterEditionTests {
             statements: statements.map { range($0, $0 + 30_000) })
     }
 
-    private func feed(
-        _ tags: [InterestID], mode: TagMatchMode = .any, minutes: Int = 20
-    ) -> SmartPodcastFeed {
+    private func feed(_ tags: [InterestID], mode: TagMatchMode = .any) -> SmartPodcastFeed {
         SmartPodcastFeed(
             id: SmartFeedID(rawValue: "feed"), title: "Mein Update", topicIDs: tags, matchMode: mode,
-            editionMode: .budgeted(MediaDuration(minutes: minutes)), publicationPolicy: .manual)
+            publicationPolicy: .manual)
     }
+
+    /// Kapitel über fünf Minuten werden geschnitten.
+    private let shortChapters = EditionLimits(maximumChapterLength: MediaDuration(minutes: 5))
 
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
@@ -84,8 +85,9 @@ struct ChapterEditionTests {
             limits: limits, now: now)
     }
 
+    /// Die Ausgabe eines Laufs als Liste, leer ohne Ausgabe.
     private func parts(_ outcome: EditionRunOutcome) -> [PersonalEpisode] {
-        if case .published(let run) = outcome { return run.parts }
+        if case .published(let run) = outcome { return [run.edition] }
         return []
     }
 
@@ -166,48 +168,80 @@ struct ChapterEditionTests {
         guard case .published(let result) = run(
             feed([privacy]), chapters, ledger: ledger, limits: EditionLimits(maximumChaptersPerTag: 1)
         ) else { Issue.record("keine Ausgabe"); return }
-        #expect(result.parts.flatMap(\.segments).map(\.mediaVersionID.rawValue) == ["o1"])
+        #expect(result.edition.segments.map(\.mediaVersionID.rawValue) == ["o1"])
         #expect(result.cappedChapterCount == 1)
     }
 
-    // MARK: Teile
+    // MARK: Eine Ausgabe
 
-    @Test("Jeder Teil hält sein Budget, der Rest wird Teil 2 mit eigenem Titel")
-    func partsKeepBudget() {
-        // Sechs Kapitel zu je acht Minuten, Teile zu 20 Minuten: je zwei passen.
+    @Test("Alle passenden Kapitel kommen in eine Ausgabe, ohne Teil im Titel")
+    func allChaptersInOneEdition() {
+        // Sechs Kapitel zu je acht Minuten: früher drei Teile zu 20 Minuten.
         let chapters = (0..<6).map { chapter(media: "m\($0)", 0, ms(8), tags: [privacy], daysAgo: Double($0 + 1)) }
-        let editions = parts(run(feed([privacy]), chapters))
-        #expect(editions.count == 3)
-        #expect(editions.map(\.part) == [1, 2, 3])
-        for edition in editions {
-            #expect(edition.totalMediaDuration <= MediaDuration(minutes: 20))
-            #expect(edition.overviewEntries.count == 2)
-        }
-        let partWord = TestLanguage.pick(de: "Teil", en: "Part")
-        #expect(!editions[0].title.contains(partWord))
-        #expect(editions[1].title.hasSuffix(", \(partWord) 2"))
-        #expect(editions[2].title.hasPrefix("Mein Update"))
-        #expect(Set(editions.map(\.id)).count == 3)
-        #expect(Set(editions.map(\.batchKey)).count == 3)
-        // Teil 1 steht in einer Liste nach Datum oben.
-        #expect(editions[0].publishedAt > editions[1].publishedAt)
-        // Kein Kapitel zweimal über die Teile.
-        let keys = chapterKeys(editions)
-        #expect(keys.count == 6 && Set(keys).count == 6)
-    }
-
-    @Test("Höchstens fünf Teile, der Rest bleibt liegen und steht in der Abdeckung")
-    func partCap() {
-        let chapters = (0..<8).map { chapter(media: "m\($0)", 0, ms(15), tags: [privacy], daysAgo: Double($0 + 1)) }
         guard case .published(let result) = run(feed([privacy]), chapters) else {
             Issue.record("keine Ausgabe"); return
         }
-        #expect(result.parts.count == 5)
-        #expect(result.droppedChapterCount == 3)
-        #expect(result.droppedDuration == MediaDuration(minutes: 45))
-        #expect(result.parts.allSatisfy { $0.coverage.remaining == MediaDuration(minutes: 45) })
+        let edition = result.edition
+        #expect(edition.part == 1)
+        #expect(edition.runKey == edition.batchKey)
+        #expect(edition.overviewEntries.count == 6)
+        #expect(edition.totalMediaDuration > MediaDuration(minutes: 48))
+        #expect(edition.coverage.remaining == .zero)
+        #expect(edition.coverage.isExhaustive)
+        #expect(result.droppedChapterCount == 0)
+        let partWord = TestLanguage.pick(de: "Teil", en: "Part")
+        #expect(!edition.title.contains(partWord))
+        #expect(edition.title.hasPrefix("Mein Update"))
+        #expect(edition.publishedAt == now)
+        // Folge für Folge, neueste Quelle zuerst, kein Kapitel zweimal.
+        #expect(edition.segments.map(\.mediaVersionID.rawValue) == ["m0", "m1", "m2", "m3", "m4", "m5"])
+        let keys = chapterKeys([edition])
+        #expect(keys.count == 6 && Set(keys).count == 6)
+    }
+
+    @Test("Über der Gesamtlänge bleibt der Rest für die nächste Ausgabe und steht in der Abdeckung")
+    func totalLengthCap() throws {
+        // Acht Kapitel zu je 15 Minuten, höchstens eine Stunde: vier passen.
+        let chapters = (0..<8).map { chapter(media: "m\($0)", 0, ms(15), tags: [privacy], daysAgo: Double($0 + 1)) }
+        let limits = EditionLimits(maximumLength: MediaDuration(minutes: 61))
+        guard case .published(let result) = run(feed([privacy]), chapters, limits: limits) else {
+            Issue.record("keine Ausgabe"); return
+        }
+        #expect(result.droppedChapterCount == 4)
+        #expect(result.droppedDuration == MediaDuration(minutes: 60))
+        #expect(result.edition.coverage.remaining == MediaDuration(minutes: 60))
+        #expect(!result.edition.coverage.isExhaustive)
+        #expect(result.edition.coverage.label.contains(TestLanguage.pick(de: "nächste Ausgabe", en: "next edition")))
         // Liegen bleiben die ältesten.
-        #expect(result.parts.flatMap(\.segments).map(\.mediaVersionID.rawValue) == ["m0", "m1", "m2", "m3", "m4"])
+        #expect(result.edition.segments.map(\.mediaVersionID.rawValue) == ["m0", "m1", "m2", "m3"])
+
+        // Die nächste Ausgabe beginnt dort, wo diese aufgehört hat.
+        guard case .published(let next) = run(feed([privacy]), chapters, previous: [result.edition], limits: limits)
+        else { Issue.record("keine zweite Ausgabe"); return }
+        #expect(next.edition.segments.map(\.mediaVersionID.rawValue) == ["m4", "m5", "m6", "m7"])
+        #expect(next.edition.id != result.edition.id)
+    }
+
+    @Test("Passt ein Kapitel nicht mehr, bleiben auch die kürzeren danach für die nächste Ausgabe")
+    func capKeepsOrder() throws {
+        let chapters = [
+            chapter(media: "a", 0, ms(15), tags: [privacy], daysAgo: 1),
+            chapter(media: "b", 0, ms(15), tags: [privacy], daysAgo: 2),
+            chapter(media: "c", 0, ms(2), tags: [privacy], daysAgo: 3),
+        ]
+        let limits = EditionLimits(maximumLength: MediaDuration(minutes: 20))
+        guard case .published(let result) = run(feed([privacy]), chapters, limits: limits) else {
+            Issue.record("keine Ausgabe"); return
+        }
+        #expect(result.edition.segments.map(\.mediaVersionID.rawValue) == ["a"])
+        #expect(result.droppedChapterCount == 2)
+    }
+
+    @Test("Die Standardgrenze der Gesamtlänge ist großzügig")
+    func defaultLimits() {
+        let limits = EditionLimits()
+        #expect(limits.maximumLength == MediaDuration(minutes: 180))
+        #expect(limits.maximumChapterLength == MediaDuration(minutes: 20))
     }
 
     @Test("Keine Ausgabe wiederholt ein Kapitel, und der nächste Lauf bringt nur Neues")
@@ -265,29 +299,36 @@ struct ChapterEditionTests {
         #expect(next.segments.map(\.coreRange) == [range(ms(10), ms(20))])
     }
 
-    @Test("Alle Teile eines Laufs tragen denselben Laufschlüssel und gelten zusammen als gehört")
-    func runKeyGroupsParts() throws {
+    @Test("Ältere Läufe in Teilen gelten zusammen als gehört, eine neue Ausgabe ist ein Lauf für sich")
+    func legacyRunsStayGrouped() throws {
         let chapters = (0..<4).map { chapter(media: "m\($0)", 0, ms(8), tags: [privacy], daysAgo: Double($0 + 1)) }
-        let editions = parts(run(feed([privacy]), chapters))
-        #expect(editions.count == 2)
-        #expect(Set(editions.map(\.runKey)) == [editions[0].batchKey])
-        #expect(PersonalEpisode.latestRun(in: editions.reversed()).map(\.part) == [1, 2])
+        let edition = try #require(parts(run(feed([privacy]), chapters)).first)
+        #expect(PersonalEpisode.latestRun(in: [edition]).map(\.id) == [edition.id])
+
+        // Zwei Teile eines Laufs, wie 0.14 sie gespeichert hat.
+        let legacy = [
+            legacyPart(edition, part: 1, runKey: "lauf", segments: Array(edition.segments.prefix(2))),
+            legacyPart(edition, part: 2, runKey: "lauf", segments: Array(edition.segments.suffix(2)),
+                      publishedAt: now.addingTimeInterval(-1)),
+        ]
+        #expect(PersonalEpisode.latestRun(in: legacy.reversed()).map(\.part) == [1, 2])
 
         // Nur Teil 1 gehört: der Lauf ist nicht gehört.
         var ledger = ListeningLedger()
-        for segment in editions[0].segments {
+        for segment in legacy[0].segments {
             ledger.apply(LedgerEvent(mediaVersionID: segment.mediaVersionID, range: segment.coreRange,
                                      kind: .played, via: .smartFeedEpisode, deviceID: "t"))
         }
-        #expect(editions[0].heardFraction(in: ledger) == 1)
-        #expect(PersonalEpisode.heardFraction(of: editions, in: ledger) < 0.8)
+        #expect(legacy[0].heardFraction(in: ledger) == 1)
+        #expect(PersonalEpisode.heardFraction(of: legacy, in: ledger) < 0.8)
 
         // Das Umschreiben von Tags und das Löschen einer Folge behalten den Lauf.
-        #expect(editions[1].replacingTopicIDs([privacy: usa]).runKey == editions[0].batchKey)
-        let pruned = PersonalEpisodePublisher().removingSegments(from: editions[1]) {
+        #expect(legacy[1].replacingTopicIDs([privacy: usa]).runKey == "lauf")
+        let pruned = PersonalEpisodePublisher().removingSegments(from: legacy[1]) {
             $0.mediaVersionID.rawValue == "m2"
         }
-        #expect(pruned?.runKey == editions[0].batchKey)
+        #expect(pruned?.runKey == "lauf")
+        #expect(pruned?.part == 2)
     }
 
     @Test("Ohne eigene Tags gilt „eines“, auch wenn „alle“ gespeichert ist")
@@ -299,7 +340,7 @@ struct ChapterEditionTests {
         #expect(Set(parts(outcome).flatMap(\.segments).map(\.mediaVersionID.rawValue)) == ["a", "b"])
     }
 
-    @Test("Ist schon die erste Stelle mit Treffer länger als ein Teil, wird sie gekürzt, nicht der Kapitelanfang")
+    @Test("Ist schon die erste Stelle mit Treffer länger als die Grenze je Kapitel, wird sie gekürzt, nicht der Kapitelanfang")
     func overlongHitIsTruncatedAtTheHit() throws {
         let media = MediaVersionID(rawValue: "a")
         let intro = evidence("intro", media: "a", 0, ms(12))
@@ -309,7 +350,7 @@ struct ChapterEditionTests {
             sourceTitle: "Quelle", episodeTitle: "Folge", originalPublishedAt: now,
             transcriptRevision: .initial, range: range(0, ms(30)), title: "Kapitel",
             tagIDs: [privacy], passages: [intro, hit], passageHits: [hit.id: [privacy]])
-        let edition = try #require(parts(run(feed([privacy], minutes: 5), [long])).first)
+        let edition = try #require(parts(run(feed([privacy]), [long], limits: shortChapters)).first)
         #expect(edition.totalMediaDuration <= MediaDuration(minutes: 5))
         #expect(edition.segments.first?.playbackRange.start == MediaTime(milliseconds: ms(12) - 6_000))
     }
@@ -332,7 +373,7 @@ struct ChapterEditionTests {
         })
     }
 
-    @Test("Ein Kapitel, das in den Teil passt, kommt ganz und ohne Vorlauf")
+    @Test("Ein Kapitel bis 20 Minuten kommt ganz und ohne Vorlauf")
     func wholeChapterWithoutLeadIn() throws {
         let edition = try #require(parts(run(feed([privacy]), [
             chapter(media: "a", ms(4), ms(16), tags: [privacy]),
@@ -345,7 +386,7 @@ struct ChapterEditionTests {
 
     @Test("Ein zu langes Kapitel bringt die Stellen mit Treffer, je mit sechs Sekunden Vorlauf")
     func longChapterCutsToHits() throws {
-        // 30 Minuten Kapitel, Teile zu 20 Minuten. Treffer in Minute 3, 4 und 12.
+        // 30 Minuten Kapitel, Grenze je Kapitel 20 Minuten. Treffer in Minute 3, 4 und 12.
         let long = chapter(media: "a", 0, ms(30), tags: [privacy],
                            hits: [3: [privacy], 4: [privacy], 12: [privacy], 20: [cars]])
         let edition = try #require(parts(run(feed([privacy]), [long])).first)
@@ -360,11 +401,11 @@ struct ChapterEditionTests {
         #expect(edition.overviewEntries[0].segmentIDs == edition.segments.map(\.id))
     }
 
-    @Test("Ohne wörtlichen Treffer beginnt der Schnitt vorn und hält das Budget")
+    @Test("Ohne wörtlichen Treffer beginnt der Schnitt vorn und hält die Grenze je Kapitel")
     func longChapterWithoutHits() throws {
-        let edition = try #require(parts(run(feed([privacy], minutes: 5), [
+        let edition = try #require(parts(run(feed([privacy]), [
             chapter(media: "a", 0, ms(30), tags: [privacy]),
-        ])).first)
+        ], limits: shortChapters)).first)
         #expect(edition.totalMediaDuration <= MediaDuration(minutes: 5))
         #expect(edition.segments.first?.coreRange.start == .zero)
     }
@@ -454,7 +495,8 @@ struct ChapterEditionTests {
         let decoded = try decodeWithout(["matchMode"], feed([privacy], mode: .all))
         #expect(decoded.matchMode == .any)
         #expect(decoded.topicIDs == [privacy])
-        #expect(decoded.partBudget == MediaDuration(minutes: 20))
+        // Die Länge bleibt im Schema, auch wenn sie nichts mehr steuert.
+        #expect(decoded.editionMode == .budgeted(MediaDuration(minutes: 20)))
         // Und zurück: das neue Feld wird geschrieben.
         let current = try roundTrip(feed([privacy], mode: .all))
         #expect(current.matchMode == .all)
@@ -516,6 +558,18 @@ struct ChapterEditionTests {
     }
 
     // MARK: Hilfen
+
+    /// Ein Teil eines Laufs, wie ihn 0.11 bis 0.14 gespeichert haben.
+    private func legacyPart(
+        _ edition: PersonalEpisode, part: Int, runKey: String, segments: [PersonalEpisodeSegment],
+        publishedAt: Date? = nil
+    ) -> PersonalEpisode {
+        PersonalEpisode(
+            id: PersonalEpisodeID(rawValue: "\(runKey)-\(part)"), feedID: edition.feedID,
+            policyRevision: edition.policyRevision, batchKey: "\(runKey)-\(part)", title: edition.title,
+            publishedAt: publishedAt ?? edition.publishedAt, segments: segments, shownotes: [],
+            coverage: edition.coverage, part: part, runKey: runKey)
+    }
 
     private func published(_ edition: PersonalEpisode, at date: Date) -> PersonalEpisode {
         PersonalEpisode(

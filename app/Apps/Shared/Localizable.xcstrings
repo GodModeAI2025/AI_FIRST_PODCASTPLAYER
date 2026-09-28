@@ -481,22 +481,6 @@
         }
       }
     },
-    "%@: %@, verteilt auf %lld Teile." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@: %2$@, verteilt auf %3$lld Teile."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@: %2$@, split into %3$lld parts."
-          }
-        }
-      }
-    },
     "%@: %@." : {
       "localizations" : {
         "de" : {
@@ -509,6 +493,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@: %2$@."
+          }
+        }
+      }
+    },
+    "%@: %@. Eine Ausgabe fasst höchstens %@. Für die nächste bleibt der Rest: %@, %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@. Eine Ausgabe fasst höchstens %3$@. Für die nächste bleibt der Rest: %4$@, %5$@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: %2$@. An edition holds at most %3$@. The rest is left for the next one: %4$@, %5$@."
           }
         }
       }
@@ -745,22 +745,6 @@
         }
       }
     },
-    "%lld Minuten je Teil" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Minuten je Teil"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld minutes per part"
-          }
-        }
-      }
-    },
     "%lld Sekunden" : {
       "localizations" : {
         "de" : {
@@ -821,22 +805,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld passages in this episode"
-          }
-        }
-      }
-    },
-    "%lld Teile" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Teile"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld parts"
           }
         }
       }
@@ -2117,22 +2085,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "All tags you follow"
-          }
-        }
-      }
-    },
-    "Alle Tags, denen du folgst, je Teil %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Alle Tags, denen du folgst, je Teil %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "All tags you follow, %@ per part"
           }
         }
       }
@@ -3818,6 +3770,22 @@
         }
       }
     },
+    "Ausgaben" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ausgaben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editions"
+          }
+        }
+      }
+    },
     "Aussagen aus Folgen, die seitdem erschienen sind und die du noch nicht gehört hast." : {
       "localizations" : {
         "de" : {
@@ -5255,22 +5223,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Duration"
-          }
-        }
-      }
-    },
-    "Dauer in Minuten" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dauer in Minuten"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Duration in Minutes"
           }
         }
       }
@@ -6739,18 +6691,18 @@
         }
       }
     },
-    "Die nächste Ausgabe kommt frühestens %@ oder sobald du alle ihre Teile gehört hast, wenn dann mindestens %@ neues Material da ist." : {
+    "Die nächste Ausgabe kommt frühestens %@ oder sobald du die letzte gehört hast, wenn dann mindestens %@ neues Material da ist." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die nächste Ausgabe kommt frühestens %1$@ oder sobald du alle ihre Teile gehört hast, wenn dann mindestens %2$@ neues Material da ist."
+            "value" : "Die nächste Ausgabe kommt frühestens %1$@ oder sobald du die letzte gehört hast, wenn dann mindestens %2$@ neues Material da ist."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The next edition comes %1$@ at the earliest, or once you've listened to all parts of this one, as long as there's at least %2$@ of new material by then."
+            "value" : "The next edition comes %1$@ at the earliest, or once you've listened to the last one, as long as there's at least %2$@ of new material by then."
           }
         }
       }
@@ -7427,22 +7379,6 @@
         }
       }
     },
-    "Ein Kapitel kommt ganz hinein, wenn es in einen Teil passt. Was nicht mehr passt, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ein Kapitel kommt ganz hinein, wenn es in einen Teil passt. Was nicht mehr passt, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A chapter goes in whole if it fits into a part. Whatever no longer fits goes into part 2, part 3 and so on, up to five parts at a time."
-          }
-        }
-      }
-    },
     "Ein Podcast" : {
       "localizations" : {
         "de" : {
@@ -7579,18 +7515,18 @@
         }
       }
     },
-    "Ein eigener Podcast zu Tags, die du auswählst. Die App stellt seine Ausgaben aus Kapiteln deiner Podcasts zusammen, die du noch nicht gehört hast, in Teilen zu 20 Minuten." : {
+    "Ein eigener Podcast zu Tags, die du auswählst. Die App stellt seine Ausgaben aus Kapiteln deiner Podcasts zusammen, die du noch nicht gehört hast, alles Passende in einer Folge." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ein eigener Podcast zu Tags, die du auswählst. Die App stellt seine Ausgaben aus Kapiteln deiner Podcasts zusammen, die du noch nicht gehört hast, in Teilen zu 20 Minuten."
+            "value" : "Ein eigener Podcast zu Tags, die du auswählst. Die App stellt seine Ausgaben aus Kapiteln deiner Podcasts zusammen, die du noch nicht gehört hast, alles Passende in einer Folge."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A podcast of your own about tags you pick. The app builds its editions from chapters of your podcasts you haven’t heard yet, in parts of 20 minutes."
+            "value" : "A podcast of your own about tags you pick. The app builds its editions from chapters of your podcasts you haven’t heard yet, with everything that fits in a single episode."
           }
         }
       }
@@ -7627,18 +7563,18 @@
         }
       }
     },
-    "Eine Ausgabe dauert so lange, wie du im Update einstellst, anfangs 20 Minuten. Was nicht mehr hineinpasst, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal. Kein Kapitel kommt zweimal vor. Eine neue Ausgabe startet nie von selbst, abgespielt wird erst, wenn du „Abspielen“ antippst." : {
+    "Eine Ausgabe" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine Ausgabe dauert so lange, wie du im Update einstellst, anfangs 20 Minuten. Was nicht mehr hineinpasst, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal. Kein Kapitel kommt zweimal vor. Eine neue Ausgabe startet nie von selbst, abgespielt wird erst, wenn du „Abspielen“ antippst."
+            "value" : "Eine Ausgabe"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "An edition is as long as you set in the update, 20 minutes to start with. Whatever no longer fits goes into part 2, part 3 and so on, up to five parts at a time. No chapter appears twice. A new edition never starts on its own; it only plays when you tap “Play”."
+            "value" : "One Edition"
           }
         }
       }
@@ -7723,18 +7659,18 @@
         }
       }
     },
-    "Eine neue Ausgabe entsteht von selbst, sobald mindestens %@ neues Material zu den Tags da ist und du alle Teile der letzten Ausgabe gehört hast oder sie älter als %lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material." : {
+    "Eine neue Ausgabe entsteht von selbst, sobald mindestens %@ neues Material zu den Tags da ist und du die letzte Ausgabe gehört hast oder sie älter als %lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eine neue Ausgabe entsteht von selbst, sobald mindestens %1$@ neues Material zu den Tags da ist und du alle Teile der letzten Ausgabe gehört hast oder sie älter als %2$lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material."
+            "value" : "Eine neue Ausgabe entsteht von selbst, sobald mindestens %1$@ neues Material zu den Tags da ist und du die letzte Ausgabe gehört hast oder sie älter als %2$lld Stunden ist. Das prüft die App, wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ geht jederzeit, auch mit weniger Material."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A new edition is created automatically once there's at least %1$@ of new material on the tags and you've listened to all parts of the last edition or it's older than %2$lld hours. The app checks this when it refreshes podcasts or when transcripts are ready. \"Create New Edition\" works at any time, even with less material."
+            "value" : "A new edition is created automatically once there's at least %1$@ of new material on the tags and you've listened to the last edition or it's older than %2$lld hours. The app checks this when it refreshes podcasts or when transcripts are ready. \"Create New Edition\" works at any time, even with less material."
           }
         }
       }
@@ -10892,6 +10828,38 @@
         }
       }
     },
+    "Jede Ausgabe bringt alle passenden Kapitel, die du noch nicht gehört hast, Folge für Folge und die neueste zuerst. Kapitel über %@ kürzt die App auf die Stellen mit deinen Tags. Kommt einmal mehr als %@ zusammen, bleibt der Rest für die nächste Ausgabe." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede Ausgabe bringt alle passenden Kapitel, die du noch nicht gehört hast, Folge für Folge und die neueste zuerst. Kapitel über %1$@ kürzt die App auf die Stellen mit deinen Tags. Kommt einmal mehr als %2$@ zusammen, bleibt der Rest für die nächste Ausgabe."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each edition brings every matching chapter you haven't heard yet, episode by episode, newest first. The app trims chapters longer than %1$@ to the passages with your tags. If more than %2$@ ever comes together, the rest is left for the next edition."
+          }
+        }
+      }
+    },
+    "Jede Ausgabe ist eine einzige Folge mit allen passenden Kapiteln, die du noch nicht gehört hast. Sie laufen Folge für Folge, die neueste zuerst. Ein Kapitel über 20 Minuten kürzt die App auf die Stellen mit deinen Tags. Erst ab drei Stunden bleibt der Rest für die nächste Ausgabe, und das steht unter „Umfang“. Kein Kapitel kommt zweimal vor. Eine neue Ausgabe startet nie von selbst, abgespielt wird erst, wenn du „Abspielen“ antippst." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede Ausgabe ist eine einzige Folge mit allen passenden Kapiteln, die du noch nicht gehört hast. Sie laufen Folge für Folge, die neueste zuerst. Ein Kapitel über 20 Minuten kürzt die App auf die Stellen mit deinen Tags. Erst ab drei Stunden bleibt der Rest für die nächste Ausgabe, und das steht unter „Umfang“. Kein Kapitel kommt zweimal vor. Eine neue Ausgabe startet nie von selbst, abgespielt wird erst, wenn du „Abspielen“ antippst."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each edition is a single episode with every matching chapter you haven't heard yet. They play episode by episode, newest first. The app trims a chapter longer than 20 minutes to the passages with your tags. Only past three hours is the rest left for the next edition, and it says so under \"Coverage\". No chapter appears twice. A new edition never starts on its own; playback begins only when you tap \"Play\"."
+          }
+        }
+      }
+    },
     "Jede Folge dieser Quelle hat ein Transkript. Ohne den Filter siehst du alle." : {
       "localizations" : {
         "de" : {
@@ -11117,34 +11085,34 @@
         }
       }
     },
-    "Kapitel mit einem der Tags, je Teil %@" : {
+    "Kapitel mit einem der Tags" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kapitel mit einem der Tags, je Teil %@"
+            "value" : "Kapitel mit einem der Tags"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chapters with any of the tags, %@ per part"
+            "value" : "Chapters with any of the tags"
           }
         }
       }
     },
-    "Kapitel mit einem der angesagten Tags, je Teil %@. Die Tags wechseln mit den Trends." : {
+    "Kapitel mit einem der angesagten Tags. Die Tags wechseln mit den Trends." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kapitel mit einem der angesagten Tags, je Teil %@. Die Tags wechseln mit den Trends."
+            "value" : "Kapitel mit einem der angesagten Tags. Die Tags wechseln mit den Trends."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chapters with any of the trending tags, %@ per part. The tags change with the trends."
+            "value" : "Chapters with any of the trending tags. The tags change with the trends."
           }
         }
       }
@@ -11545,22 +11513,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No new episodes"
-          }
-        }
-      }
-    },
-    "Keine passende Stelle ist kurz genug für %@." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Keine passende Stelle ist kurz genug für %@."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No matching passage is short enough for %@."
           }
         }
       }
@@ -13637,18 +13589,18 @@
         }
       }
     },
-    "Nur Kapitel mit allen Tags, je Teil %@" : {
+    "Nur Kapitel mit allen Tags" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nur Kapitel mit allen Tags, je Teil %@"
+            "value" : "Nur Kapitel mit allen Tags"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Only chapters with all tags, %@ per part"
+            "value" : "Only chapters with all tags"
           }
         }
       }
@@ -16649,38 +16601,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tags that came up at least %2$@ times as often in the last %1$lld days as in the weeks before, in at least %3$lld podcasts."
-          }
-        }
-      }
-    },
-    "Teil %lld von %lld" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Teil %1$lld von %2$lld"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Part %1$lld of %2$lld"
-          }
-        }
-      }
-    },
-    "Teile" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Teile"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parts"
           }
         }
       }

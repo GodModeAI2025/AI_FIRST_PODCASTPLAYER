@@ -787,11 +787,4 @@ extension AppModel {
         guard let url = podcastArtworkURL(for: segment) else { return nil }
         return EpisodePlayer.FocusArtwork(key: url.absoluteString, url: url)
     }
-
-    /// „Teil 2 von 3“, bei einem Lauf aus einem Teil nichts.
-    func partLabel(for edition: PersonalEpisode) -> String? {
-        let count = edition.partCount(in: editions[edition.feedID] ?? [])
-        guard count > 1 else { return nil }
-        return String(localized: "Teil \(edition.part) von \(count)")
-    }
 }

@@ -2084,12 +2084,11 @@ public final class AppModel {
     /// wieder angelegt werden; dann gilt es nicht mehr als gelöscht.
     @discardableResult
     public func createSmartFeed(
-        title: String, topicIDs: [InterestID], matchMode: TagMatchMode = .any, minutes: Int,
+        title: String, topicIDs: [InterestID], matchMode: TagMatchMode = .any,
         sourceIDs: [SourceID] = [], buildFirstEdition: Bool = false, id: SmartFeedID = SmartFeedID()
     ) -> SmartFeedID {
         let feed = SmartPodcastFeed(
-            id: id, title: title, topicIDs: topicIDs, matchMode: matchMode, restrictedToSourceIDs: sourceIDs,
-            editionMode: .budgeted(MediaDuration(minutes: minutes))
+            id: id, title: title, topicIDs: topicIDs, matchMode: matchMode, restrictedToSourceIDs: sourceIDs
         )
         removedSmartFeeds.remove(id)
         smartFeeds.append(feed)
@@ -2328,9 +2327,9 @@ public final class AppModel {
     /// hinter dem Wächter und meldet danach `editionPublished`.
     @discardableResult
     public func buildEdition(
-        feedID: SmartFeedID, budget: MediaDuration? = nil, requestedByUser: Bool = true
+        feedID: SmartFeedID, requestedByUser: Bool = true
     ) async -> String {
-        let request = EditionRequest(feedID: feedID, budget: budget, origin: requestedByUser ? .user : .automatic)
+        let request = EditionRequest(feedID: feedID, origin: requestedByUser ? .user : .automatic)
         // Vor `AppBootstrap.start` gibt es keine Stufe und nichts zu tun.
         guard let editionsStage else { return "" }
         // Den Platz schon jetzt belegen, sonst stünde zwischen Tippen und
@@ -2381,7 +2380,6 @@ public final class AppModel {
                 return EditionComposition(note: note)
             }
         }
-        if let budget = request.budget { feed.editionMode = .budgeted(budget) }
 
         buildingFeeds.insert(feedID)
         if requestedByUser { activity = String(localized: "Ausgabe wird zusammengestellt …") }
@@ -2412,7 +2410,7 @@ public final class AppModel {
             // Was schon erschienen ist, sagt die Datenbank: Dort steht jede
             // Ausgabe, bevor sie im Speicher erscheint.
             let previous = try await store.editions(forFeed: feedID)
-            // Auswählen und Aufteilen rechnet außerhalb des Hauptthreads.
+            // Das Auswählen rechnet außerhalb des Hauptthreads.
             let outcome = await Task.detached(priority: .utility) {
                 [ledger, previous, followed = followedTagIDs, labels = tagLabels] in
                 ProcessingTrace.measure("Themen-Update zusammenstellen") {
@@ -2438,12 +2436,12 @@ public final class AppModel {
             switch outcome {
             case .published(let run):
                 // Während des Zusammenstellens gelöscht: nichts anlegen.
-                guard await smartFeedStillExists(feedID), !run.parts.isEmpty else {
+                guard await smartFeedStillExists(feedID) else {
                     return (String(localized: "Dieses Themen-Update gibt es nicht mehr."), false, [], nil)
                 }
-                // Je Teil eine Zeile, hinter dem Wächter. Stellen aus Folgen,
-                // die inzwischen gelöscht sind, fallen dabei heraus.
-                let written = try await committer.commit(run.parts)
+                // Eine Zeile, hinter dem Wächter. Stellen aus Folgen, die
+                // inzwischen gelöscht sind, fallen dabei heraus.
+                let written = try await committer.commit([run.edition])
                 let parts = pruneRemovedSegments(of: written, since: committer.ticket, in: committer.ledger)
                 guard !parts.isEmpty else {
                     guard await smartFeedStillExists(feedID) else {
@@ -2451,9 +2449,8 @@ public final class AppModel {
                     }
                     return (String(localized: "Die Ausgabe konnte nicht erstellt werden."), false, [], nil)
                 }
-                // Teil 1 zuerst, wie die Liste: neueste Ausgabe vorn. Hat ein
-                // Neuladen sie schon aus der Datenbank geholt, stehen sie
-                // nicht doppelt da.
+                // Neueste Ausgabe vorn, wie die Liste. Hat ein Neuladen sie
+                // schon aus der Datenbank geholt, steht sie nicht doppelt da.
                 let ids = Set(parts.map(\.id))
                 editions[feedID, default: []].removeAll { ids.contains($0.id) }
                 editions[feedID, default: []].insert(contentsOf: parts, at: 0)
@@ -2467,11 +2464,18 @@ public final class AppModel {
                     ^[\(segments) Stelle](inflect: true) aus \
                     ^[\(sources) Podcast](inflect: true)
                     """).characters)
-                guard parts.count > 1 else {
+                // Bei sehr viel Material bleibt der Rest für die nächste
+                // Ausgabe. Das steht hier mit, nicht nur unter „Umfang“.
+                guard run.droppedChapterCount > 0 else {
                     return (String(localized: "\(first.title): \(content)."), true, parts, chapters)
                 }
-                return (String(localized: "\(first.title): \(content), verteilt auf \(parts.count) Teile."),
-                        true, parts, chapters)
+                let rest = String(AttributedString(
+                    localized: "^[\(run.droppedChapterCount) Kapitel](inflect: true)").characters)
+                let limit = EditionLimits().maximumLength.shortDescription
+                return (String(localized: """
+                    \(first.title): \(content). Eine Ausgabe fasst höchstens \(limit). \
+                    Für die nächste bleibt der Rest: \(rest), \(run.droppedDuration.shortDescription).
+                    """), true, parts, chapters)
             case .noNewMaterial(let count):
                 if known.isEmpty {
                     return (String(localized: """
@@ -2494,12 +2498,7 @@ public final class AppModel {
                 return (String(localized: "Zu \(named) passt noch keine Stelle in deinen Folgen mit Transkript."),
                         false, [], nil)
             case .belowThreshold(let available, let required):
-                // Von Hand angefordert gilt keine Mindestmenge. Dann passt
-                // nichts in die gewählte Länge.
-                if requestedByUser {
-                    return (String(localized: "Keine passende Stelle ist kurz genug für \(feed.editionMode.label)."),
-                            false, [], nil)
-                }
+                // Nur die Automatik kennt eine Mindestmenge.
                 return (String(localized: """
                     Erst \(available.shortDescription) neues Material, \
                     nötig sind \(required.shortDescription).
@@ -2542,7 +2541,7 @@ public final class AppModel {
     }
 
     /// Die Stufe „Ausgaben“ hat eine Ausgabe geschrieben und gemeldet: die
-    /// Zahlen des Updates und, wenn die App vorn ist, die Cover je Teil.
+    /// Zahlen des Updates und, wenn die App vorn ist, ihr Cover.
     /// Im Hintergrund lehnt Image Playground ab; dann holt es der nächste
     /// Wechsel in den Vordergrund nach.
     ///
@@ -2827,8 +2826,8 @@ public final class AppModel {
     /// nächste Prüfung eine Ausgabe veröffentlichen darf: es gibt noch
     /// keine, die letzte ist gehört oder älter als ``editionRestInterval``.
     func earliestAutomaticEdition(for feed: SmartPodcastFeed, now: Date = Date()) -> Date? {
-        // Ein Lauf aus mehreren Teilen gilt als Ganzes: Wer nur Teil 1
-        // gehört hat, bekommt nicht schon den nächsten Stapel dazu.
+        // Ein Lauf einer älteren Fassung in mehreren Teilen gilt als Ganzes:
+        // Wer nur Teil 1 gehört hat, bekommt nicht schon die nächste dazu.
         let run = PersonalEpisode.latestRun(in: editions[feed.id] ?? [])
         guard let latest = run.max(by: { $0.publishedAt < $1.publishedAt }),
               PersonalEpisode.heardFraction(of: run, in: ledger) < Self.editionHeardThreshold else { return nil }
@@ -2845,7 +2844,7 @@ public final class AppModel {
         let hours = Int(editionRestInterval / 3_600)
         return String(localized: """
             Eine neue Ausgabe entsteht von selbst, sobald mindestens \(minimum) neues Material zu den Tags da ist \
-            und du alle Teile der letzten Ausgabe gehört hast oder sie älter als \(hours) Stunden ist. Das prüft die App, \
+            und du die letzte Ausgabe gehört hast oder sie älter als \(hours) Stunden ist. Das prüft die App, \
             wenn sie Podcasts aktualisiert oder Transkripte fertig werden. „Neue Ausgabe zusammenstellen“ \
             geht jederzeit, auch mit weniger Material.
             """)
@@ -2860,7 +2859,7 @@ public final class AppModel {
         let minimum = policy.minimumMaterial.shortDescription
         if let earliest = earliestAutomaticEdition(for: feed) {
             return String(localized: """
-                Die nächste Ausgabe kommt frühestens \(Self.editionMoment(earliest)) oder sobald du alle ihre Teile gehört hast, \
+                Die nächste Ausgabe kommt frühestens \(Self.editionMoment(earliest)) oder sobald du die letzte gehört hast, \
                 wenn dann mindestens \(minimum) neues Material da ist.
                 """)
         }

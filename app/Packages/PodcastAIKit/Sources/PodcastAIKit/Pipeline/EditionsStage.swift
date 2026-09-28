@@ -21,7 +21,7 @@
 //    Eine laufende automatische Ausgabe bricht ab, ohne dass es als
 //    Fehlschlag zählt. Nach einer Pause holt die Stufe die Prüfung nach,
 //    nach „Alle abbrechen“ erst der nächste Auslöser.
-//  - Jeder Teil eines Laufs wird einzeln geschrieben, hinter dem Wächter
+//  - Die Ausgabe eines Laufs wird geschrieben, hinter dem Wächter
 //    für jede seiner Folgen (`LibraryStore.commit(edition:since:)`). Der
 //    Stand des Löschprotokolls ist der vom Beginn des Zusammenstellens:
 //    Eine Folge, die währenddessen gelöscht wurde, verliert ihre Stellen,
@@ -31,7 +31,9 @@
 //    Cover an.
 //
 //  Was eine Ausgabe enthält, entscheidet weiter der Code im `AppModel`
-//  (`Environment.compose`): Kapitel, Auswahl, Teile und die Rückmeldung.
+//  (`Environment.compose`): Kapitel, Auswahl und die Rückmeldung. Seit dem
+//  28. September 2026 ist das eine Ausgabe je Lauf. Die Wege hier nehmen
+//  weiter Listen, weil sie so auch mit keiner Ausgabe auskommen.
 //  Er kennt Bestand, Tags und Hörstand. Die Stufe reicht ihm den Weg zum
 //  Schreiben (`EditionCommitter`), damit keine Ausgabe am Wächter vorbei in
 //  die Datenbank kommt.
@@ -46,13 +48,10 @@ import PodcastAISmartFeeds
 /// Eine Ausgabe, um die jemand gebeten hat oder die die Automatik prüft.
 public struct EditionRequest: Sendable, Equatable {
     public let feedID: SmartFeedID
-    /// Eine andere Länge nur für diese Ausgabe, etwa von Siri.
-    public let budget: MediaDuration?
     public let origin: Origin
 
-    public init(feedID: SmartFeedID, budget: MediaDuration? = nil, origin: Origin) {
+    public init(feedID: SmartFeedID, origin: Origin) {
         self.feedID = feedID
-        self.budget = budget
         self.origin = origin
     }
 
@@ -60,8 +59,8 @@ public struct EditionRequest: Sendable, Equatable {
     public var requestedByUser: Bool { origin == .user }
 }
 
-/// Der Weg, auf dem eine neue Ausgabe in die Datenbank kommt: je Teil eine
-/// Zeile, hinter dem Wächter, mit dem Stand des Löschprotokolls vom Beginn
+/// Der Weg, auf dem eine neue Ausgabe in die Datenbank kommt: je Ausgabe
+/// eine Zeile, hinter dem Wächter, mit dem Stand des Löschprotokolls vom Beginn
 /// des Zusammenstellens.
 public struct EditionCommitter: Sendable {
     /// Der Stand des Löschprotokolls, als das Zusammenstellen begann.
@@ -75,15 +74,15 @@ public struct EditionCommitter: Sendable {
         self.ticket = ticket
     }
 
-    /// Schreibt die Teile eines Laufs in ihrer Reihenfolge und gibt zurück,
-    /// was geschrieben wurde, ohne Stellen aus Folgen, die der Wächter
-    /// ablehnte. Ein Teil ohne übrige Stelle fehlt, und gibt es das Update
-    /// nicht mehr, wird nichts mehr geschrieben.
+    /// Schreibt die Ausgaben in ihrer Reihenfolge, heute genau eine, und
+    /// gibt zurück, was geschrieben wurde, ohne Stellen aus Folgen, die der
+    /// Wächter ablehnte. Eine Ausgabe ohne übrige Stelle fehlt, und gibt es
+    /// das Update nicht mehr, wird nichts mehr geschrieben.
     ///
     /// Wurde die Arbeit vorher abgebrochen, etwa weil die Pause begann,
     /// schreibt es nichts und wirft `CancellationError`. Einmal begonnen,
-    /// schreibt es alle Teile: Ein halber Lauf wäre schlimmer als ein
-    /// ganzer, der einen Augenblick nach der Pause erscheint.
+    /// schreibt es alles: Eine halbe Arbeit wäre schlimmer als eine ganze,
+    /// die einen Augenblick nach der Pause erscheint.
     public func commit(_ parts: [PersonalEpisode]) async throws -> [PersonalEpisode] {
         try Task.checkCancellation()
         var written: [PersonalEpisode] = []
@@ -102,7 +101,7 @@ public struct EditionCommitter: Sendable {
 public struct EditionComposition: Sendable {
     /// Der Satz für die Rückmeldung.
     public var note: String
-    /// Die Teile, wie sie geschrieben wurden. Leer, wenn nichts erschien.
+    /// Die Ausgabe, wie sie geschrieben wurde. Leer, wenn nichts erschien.
     public var published: [PersonalEpisode]
     /// Die Kapitel, aus denen ausgewählt wurde. Die Zahlen des Updates
     /// rechnen damit, statt die Bibliothek ein zweites Mal zu lesen.

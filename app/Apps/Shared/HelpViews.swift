@@ -522,11 +522,12 @@ extension HelpTopic {
                     Jede Ausgabe besteht aus ungehörten Kapiteln mehrerer Podcasts und bekommt ein eigenes \
                     Cover.
                     """, symbol: "waveform.circle", level: .advanced),
-                HelpTip(title: "Teile", text: """
-                    Eine Ausgabe dauert so lange, wie du im Update einstellst, anfangs 20 Minuten. Was nicht \
-                    mehr hineinpasst, kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal. \
-                    Kein Kapitel kommt zweimal vor. Eine neue Ausgabe startet nie von selbst, abgespielt \
-                    wird erst, wenn du „Abspielen“ antippst.
+                HelpTip(title: "Eine Ausgabe", text: """
+                    Jede Ausgabe ist eine einzige Folge mit allen passenden Kapiteln, die du noch nicht \
+                    gehört hast. Sie laufen Folge für Folge, die neueste zuerst. Ein Kapitel über 20 Minuten kürzt die App \
+                    auf die Stellen mit deinen Tags. Erst ab drei Stunden bleibt der Rest für die nächste \
+                    Ausgabe, und das steht unter „Umfang“. Kein Kapitel kommt zweimal vor. Eine neue \
+                    Ausgabe startet nie von selbst, abgespielt wird erst, wenn du „Abspielen“ antippst.
                     """, symbol: "square.stack", level: .advanced),
                 HelpTip(title: "Übersicht", text: """
                     Kapitel 0 jeder Ausgabe ist eine Übersicht ohne Ton: je Kapitel Podcast, Folge, Datum \
@@ -635,7 +636,7 @@ extension HelpTopic {
                     """),
                 HelpTerm(word: "Themen-Update", meaning: """
                     Ein eigener Podcast zu Tags, die du auswählst. Die App stellt seine Ausgaben aus Kapiteln \
-                    deiner Podcasts zusammen, die du noch nicht gehört hast, in Teilen zu 20 Minuten.
+                    deiner Podcasts zusammen, die du noch nicht gehört hast, alles Passende in einer Folge.
                     """),
                 HelpTerm(word: "Tag", meaning: """
                     Ein Stichwort aus dem Inhalt einer Folge, etwa „Datenschutz“ oder „USA“. Die App \

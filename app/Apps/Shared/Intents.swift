@@ -101,7 +101,8 @@ struct PlaySmartFeedIntent: AppIntent {
         // gehört oder gibt es keine, wird zuerst eine neue zusammengestellt.
         // Das hat jemand ausdrücklich verlangt, es ist keine Empfehlung.
         // Entsteht keine, sagt Siri warum, statt Gehörtes zu wiederholen.
-        // Hat der letzte Lauf mehrere Teile, kommt der erste ungehörte dran.
+        // Stammt die letzte Ausgabe aus einem älteren Lauf in Teilen, kommt
+        // der erste ungehörte Teil dran.
         let previous = PersonalEpisode.latestRun(in: model.editions[feedID] ?? [])
         var edition = previous.first { $0.heardFraction(in: model.ledger) < 0.8 }
         if edition == nil {
@@ -153,7 +154,8 @@ struct PlaySmartFeedIntent: AppIntent {
     }
 }
 
-/// „Erstelle mir ein 20-Minuten-Datenschutz-Update.“
+/// „Erstelle mir ein Datenschutz-Update.“ Eine Länge gibt es nicht mehr:
+/// Die Ausgabe enthält alles Passende, wie jede andere auch.
 struct BuildEditionIntent: AppIntent {
 
     static let title: LocalizedStringResource = "Themen-Update erstellen"
@@ -167,19 +169,12 @@ struct BuildEditionIntent: AppIntent {
     @Parameter(title: "Themen-Update")
     var feed: SmartFeedEntity
 
-    @Parameter(title: "Dauer in Minuten", default: 20,
-               inclusiveRange: (5, 120))
-    var minutes: Int
-
     @Dependency private var model: AppModel
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         await model.ensureLoaded()
-        let summary = await model.buildEdition(
-            feedID: SmartFeedID(rawValue: feed.id),
-            budget: MediaDuration(minutes: minutes)
-        )
+        let summary = await model.buildEdition(feedID: SmartFeedID(rawValue: feed.id))
         // Eine fertige Ausgabe ist ein Zustand, kein Tonstart.
         return .result(dialog: "\(summary)")
     }

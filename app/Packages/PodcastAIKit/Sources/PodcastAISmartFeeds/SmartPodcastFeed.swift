@@ -33,6 +33,10 @@ public enum UnheardFilter: String, Codable, Sendable, CaseIterable {
 /// Die Trennung ist ausdrücklich gefordert (FR-126): „alles Ungehörte“ ist
 /// ein anderer Modus als ein kurzes budgetiertes Update, und das eine darf
 /// nicht stillschweigend als das andere ausgeliefert werden.
+///
+/// Themen-Updates aus Kapiteln lesen den Modus seit dem 28. September 2026
+/// nicht mehr: Jeder Lauf wird eine Ausgabe mit allem Passenden. Das Feld
+/// bleibt im Schema, damit gesicherte Updates und ältere Fassungen es lesen.
 public enum EditionMode: Codable, Sendable, Hashable {
     case allUnheard
     case budgeted(MediaDuration)
@@ -161,10 +165,6 @@ public struct SmartPodcastFeed: Codable, Sendable, Identifiable, Hashable {
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         confirmedCoverAssetID = try c.decodeIfPresent(String.self, forKey: .confirmedCoverAssetID)
     }
-
-    /// Die Länge eines Teils, je Feed einstellbar. Ohne Budget („Alles
-    /// Ungehörte“) gibt es nur einen Teil.
-    public var partBudget: MediaDuration? { editionMode.budget }
 
     /// Der Modus, der wirklich gilt. Ohne eigene Tags sucht das Update nach
     /// allen gefolgten; „alle zusammen“ verlangte dann ein Kapitel, das jedes
@@ -295,12 +295,14 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
     /// Ausgabe nicht alles enthält.
     public let coverage: EditionCoverage
 
-    /// Teil 1, 2, 3 … eines Laufs. Was nicht in die Länge eines Teils
-    /// passt, kommt in den nächsten. Ältere Ausgaben sind Teil 1.
+    /// Von 0.11 bis 0.14 verteilte ein Lauf sein Material auf Teil 1, 2, 3.
+    /// Seitdem ist jede neue Ausgabe Teil 1 und ein Lauf für sich. Das Feld
+    /// bleibt, damit gesicherte Teile älterer Läufe lesbar bleiben; die
+    /// Oberfläche zeigt es nicht mehr.
     public let part: Int
-    /// Der Schlüssel des Laufs, aus dem der Teil stammt, bei allen Teilen
-    /// gleich. Daran erkennt die Automatik, welche Teile zusammengehören.
-    /// Ältere Ausgaben bilden je einen Lauf für sich.
+    /// Der Schlüssel des Laufs, bei den Teilen eines älteren Laufs gleich.
+    /// Daran erkennt die Automatik, welche davon zusammengehören. Eine neue
+    /// Ausgabe trägt hier ihren eigenen Schlüssel.
     public let runKey: String
     /// Die Übersicht am Anfang: je Kapitel Quelle, Folge, Datum und die
     /// Zahl neuer Aussagen. Leer bei Ausgaben vor 0.11.
@@ -356,7 +358,7 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
         overviewEntries = try c.decodeIfPresent([EditionOverviewEntry].self, forKey: .overviewEntries) ?? []
     }
 
-    /// Neue Aussagen je Tag in diesem Teil, aus der Übersicht gezählt.
+    /// Neue Aussagen je Tag in dieser Ausgabe, aus der Übersicht gezählt.
     /// Ein Kapitel mit zwei Tags zählt bei beiden.
     public var statementsByTag: [InterestID: Int] {
         var result: [InterestID: Int] = [:]
@@ -366,7 +368,7 @@ public struct PersonalEpisode: Codable, Sendable, Identifiable, Hashable {
         return result
     }
 
-    /// Alle neuen Aussagen dieses Teils.
+    /// Alle neuen Aussagen dieser Ausgabe.
     public var newStatementCount: Int { overviewEntries.reduce(0) { $0 + $1.newStatementCount } }
 
     /// Gesamtlänge der Ausgabe in ihrer eigenen Zeitachse.
@@ -446,7 +448,7 @@ public struct EditionCoverage: Codable, Sendable, Hashable {
         }
         return String(AttributedString(localized: """
             Enthält \(includedCount) von ^[\(candidateCount) Stelle](inflect: true). \
-            Es bleiben \(remaining.shortDescription).
+            Die übrigen \(remaining.shortDescription) kommen in die nächste Ausgabe.
             """, bundle: .module).characters)
     }
 }

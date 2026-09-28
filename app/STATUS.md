@@ -33,6 +33,7 @@ Stand 28. September 2026, Version 0.14.
 | Verarbeitung als Pipeline aus Stufen, zusammengeführt mit Trends, Widget, Teilen-Menü, Nachschlagen im Chat, „PCC für alles“ und Mac-Oberfläche | 939 Swift-Tests im Paket, beide Apps bauen ohne Fehler und Warnung, komplette UI-Suite im iOS-Simulator |
 | Fortschritt der Arbeit im Hintergrund: wächst nur, über Folgen, Fakten und Tags hinweg, rückt in langen Schritten weiter, ohne das Ende zu erreichen | Swift-Tests ohne Uhr (`BackgroundRunProgressTests`, `BackgroundWorkLoadTests`) |
 | Mac-Oberfläche: Seitenleiste, Player in der Symbolleiste, Inspektor, Podcast als Tabelle, Menüs | Baut ohne Warnung; jede Seite startet mit Demo-Inhalten ohne Absturz (`-uitest-sidebar`, nur Debug), erstes Fenster 1280 × 820 |
+| Themen-Updates als eine Ausgabe je Lauf: alle passenden Kapitel in einer Folge, Grenze von drei Stunden mit Rest für die nächste Ausgabe, gespeicherte Teile ohne „Teil x von y“ | 941 Swift-Tests im Paket (neu in `ChapterEditionTests` und `EditionCoverTests`), beide Apps bauen ohne Fehler und Warnung, 11 UI-Tests zu Themen-Updates im iOS-Simulator grün (darunter `testEditionCollectsAllChaptersInOneEdition`) |
 
 ## Noch auf einem Gerät zu prüfen
 

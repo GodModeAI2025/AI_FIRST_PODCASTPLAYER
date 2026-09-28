@@ -4,8 +4,8 @@
 //
 //  „Angesagt“ seit 0.12: ein Themen-Update, das die App selbst führt. Seine
 //  Tags sind die Tags, die gerade angesagt sind (`TrendDetector`), im Modus
-//  „eines davon“. Sonst ist es ein Themen-Update wie jedes andere: Teile zu
-//  20 Minuten, Übersicht, Cover, Hörzustand, dieselbe Automatik.
+//  „eines davon“. Sonst ist es ein Themen-Update wie jedes andere: eine
+//  Ausgabe je Lauf, Übersicht, Cover, Hörzustand, dieselbe Automatik.
 //
 //  Gespeichert wird es als gewöhnlicher `StoredSmartFeed`, ohne neues Feld
 //  im Schema. Die Kennung ist fest und auf jedem Gerät dieselbe. Legen zwei
@@ -31,9 +31,6 @@ public enum TrendingFeed {
     /// Zeile „Angesagt“ im Tab zeigt. Mehr ergäben kein Thema mehr, sondern
     /// einen Querschnitt.
     public static let maximumTags = 5
-
-    /// Die Länge eines Teils, wie bei einem neuen Themen-Update.
-    public static let partMinutes = 20
 
     /// Hat jemand diesem Tag mit Minus das Folgen entzogen?
     ///

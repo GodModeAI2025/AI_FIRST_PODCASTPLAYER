@@ -130,7 +130,7 @@ struct TrendingFeedTests {
             Issue.record("Keine Ausgabe: \(outcome)")
             return
         }
-        let media = Set(run.parts.flatMap { $0.segments.map(\.mediaVersionID.rawValue) })
+        let media = Set(run.edition.segments.map(\.mediaVersionID.rawValue))
         #expect(media == ["chip"], "Ein Kapitel nur mit dem Tag mit Minus kam in die Ausgabe")
     }
 
@@ -163,8 +163,8 @@ struct TrendingFeedTests {
             Issue.record("Mit einem angesagten Tag entstand keine Ausgabe")
             return
         }
-        #expect(Set(run.parts.flatMap { $0.segments.map(\.mediaVersionID.rawValue) }) == ["eu"])
-        #expect(run.parts.allSatisfy { $0.feedID == TrendingFeed.id })
+        #expect(Set(run.edition.segments.map(\.mediaVersionID.rawValue)) == ["eu"])
+        #expect(run.edition.feedID == TrendingFeed.id)
     }
 
     // MARK: Abgleichen
@@ -243,8 +243,8 @@ struct TrendingFeedTests {
             Issue.record("Keine Ausgaben zum Löschen")
             return
         }
-        try await store.save(editions: trendingRun.parts, forFeed: TrendingFeed.id)
-        try await store.save(editions: ownRun.parts, forFeed: own.id)
+        try await store.save(editions: [trendingRun.edition], forFeed: TrendingFeed.id)
+        try await store.save(editions: [ownRun.edition], forFeed: own.id)
 
         // Derselbe Weg wie `AppModel.removeSmartFeed`.
         try await store.save(smartFeeds: [own])
@@ -253,7 +253,7 @@ struct TrendingFeedTests {
         #expect(try await store.smartFeeds().map(\.id) == [own.id])
         let stored = try await store.editions()
         #expect(stored[TrendingFeed.id] == nil)
-        #expect(stored[own.id]?.map(\.id) == ownRun.parts.map(\.id))
+        #expect(stored[own.id]?.map(\.id) == [ownRun.edition.id])
     }
 }
 
@@ -262,7 +262,7 @@ extension TrendingFeed {
     static func makeFeed(title: String, tagIDs: [InterestID], createdAt: Date = Date()) -> SmartPodcastFeed {
         SmartPodcastFeed(
             id: id, title: title, topicIDs: tagIDs, matchMode: .any,
-            editionMode: .budgeted(MediaDuration(minutes: partMinutes)), createdAt: createdAt)
+            createdAt: createdAt)
     }
 }
 

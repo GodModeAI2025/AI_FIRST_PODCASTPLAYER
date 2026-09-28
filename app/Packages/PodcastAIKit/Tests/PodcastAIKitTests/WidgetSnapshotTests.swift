@@ -21,7 +21,7 @@ private func tag(_ id: String, _ label: String, _ count: Int) -> WidgetSnapshot.
 }
 
 private func edition(_ id: String, at offset: TimeInterval) -> WidgetSnapshot.Edition {
-    WidgetSnapshot.Edition(id: id, title: "Datenschutz, Teil 1", feedTitle: "Datenschutz",
+    WidgetSnapshot.Edition(id: id, title: "Datenschutz · 24.09.", feedTitle: "Datenschutz",
                            publishedAt: start.addingTimeInterval(offset))
 }
 

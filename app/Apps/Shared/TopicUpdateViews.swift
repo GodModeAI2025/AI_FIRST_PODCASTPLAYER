@@ -5,16 +5,17 @@
 //  Themen-Updates seit 0.11: generierte Podcasts aus Tags.
 //
 //  Ein Update sieht aus wie ein Podcast: Cover, Titel, Tags. Seine
-//  Ausgaben stehen darunter wie Folgen, mit Datum, Länge und „Teil 2 von
-//  3“. Eine Ausgabe öffnet sich wie eine Folge: Kapitel 0 ist die
-//  Übersicht ohne Ton, danach die Kapitel mit „Original öffnen“. Der Kopf
+//  Ausgaben stehen darunter wie Folgen, mit Datum und Länge. Jeder Lauf
+//  ist seit dem 28. September 2026 eine Ausgabe mit allen passenden
+//  Kapiteln, ohne Teile. Eine Ausgabe öffnet sich wie eine Folge: Kapitel
+//  0 ist die Übersicht ohne Ton, danach die Kapitel mit „Original öffnen“. Der Kopf
 //  des Tabs zählt neue Aussagen je Tag seit dem letzten Hören. Darüber
 //  steht seit 0.12 eine Zeile mit den Tags, die gerade angesagt sind, dazu
 //  der Schalter für das Update „Angesagt“, das die App aus ihnen führt.
 //
 //  Angelegt wird ein Update aus Tags, nicht aus Freitext: gefolgte Tags als
 //  Kapseln, weitere bekannte Tags über eine Suche, dazu „eines davon“ oder
-//  „alle zusammen“ und die Länge eines Teils.
+//  „alle zusammen“.
 //
 //  Nichts hier startet Ton von selbst. Abgespielt wird nur über „Abspielen“
 //  auf der Seite einer Ausgabe (`EditionHeader`) oder „Original öffnen“.
@@ -351,9 +352,8 @@ struct SmartFeedRow: View {
         }
         let since = SmartFeedDetailView.readySince(latest.publishedAt)
         var parts = [String(localized: "Bereit seit \(since)")]
-        if run.count > 1 {
-            parts.append(String(localized: "\(run.count) Teile"))
-        }
+        // Ein Lauf einer älteren Fassung kann noch aus Teilen bestehen; die
+        // Länge zählt sie zusammen, eine Zahl der Teile steht nicht da.
         let total = MediaDuration(milliseconds: run.reduce(0) { $0 + $1.totalMediaDuration.milliseconds })
         parts.append(total.shortDescription)
         if PersonalEpisode.heardFraction(of: run, in: model.ledger) >= AppModel.editionHeardThreshold {
@@ -382,8 +382,8 @@ struct SmartFeedRow: View {
 // MARK: - Seite eines Updates
 
 /// Ein Themen-Update wie die Seite eines Podcasts: oben Cover, Titel und
-/// Tags, darunter die Ausgaben wie Folgen. Der jüngste Lauf steht als
-/// „Neueste Ausgabe“ oben, mit allen seinen Teilen.
+/// Tags, darunter die Ausgaben wie Folgen. Die jüngste Ausgabe steht als
+/// „Neueste Ausgabe“ oben, bei einem älteren Lauf in Teilen mit allen Teilen.
 struct SmartFeedDetailView: View {
 
     let feedID: SmartFeedID
@@ -724,25 +724,23 @@ struct SmartFeedHeader: View {
         }
     }
 
-    /// „Kapitel mit einem der Tags, je Teil 20 Minuten“.
+    /// „Kapitel mit einem der Tags“.
     private var modeLine: String {
-        let length = feed.editionMode.budget?.shortDescription ?? feed.editionMode.label
         if feed.followsTrends {
             guard !model.isWaitingForTrends(feed) else { return AppModel.nothingTrendingNote }
-            return String(localized: "Kapitel mit einem der angesagten Tags, je Teil \(length). Die Tags wechseln mit den Trends.")
+            return String(localized: "Kapitel mit einem der angesagten Tags. Die Tags wechseln mit den Trends.")
         }
         if feed.topicIDs.isEmpty {
-            return String(localized: "Alle Tags, denen du folgst, je Teil \(length)")
+            return String(localized: "Alle Tags, denen du folgst")
         }
         switch feed.effectiveMatchMode {
-        case .any: return String(localized: "Kapitel mit einem der Tags, je Teil \(length)")
-        case .all: return String(localized: "Nur Kapitel mit allen Tags, je Teil \(length)")
+        case .any: return String(localized: "Kapitel mit einem der Tags")
+        case .all: return String(localized: "Nur Kapitel mit allen Tags")
         }
     }
 }
 
-/// Eine Ausgabe in der Liste, wie eine Folge: Cover, Titel, Datum, Länge
-/// und Teil.
+/// Eine Ausgabe in der Liste, wie eine Folge: Cover, Titel, Datum und Länge.
 struct EditionRow: View {
 
     let episode: PersonalEpisode
@@ -768,7 +766,6 @@ struct EditionRow: View {
     private var details: String {
         var parts = [episode.publishedAt.formatted(date: .abbreviated, time: .omitted),
                      episode.totalMediaDuration.shortDescription]
-        if let part = model.partLabel(for: episode) { parts.append(part) }
         if episode.newStatementCount > 0 { parts.append(NewStatements.text(episode.newStatementCount)) }
         if episode.heardFraction(in: model.ledger) >= AppModel.editionHeardThreshold {
             parts.append(String(localized: "gehört"))
@@ -779,7 +776,7 @@ struct EditionRow: View {
 
 // MARK: - Seite einer Ausgabe
 
-/// Kopf einer Ausgabe: Cover, Titel, Teil, Umfang und „Abspielen“.
+/// Kopf einer Ausgabe: Cover, Titel, Umfang und „Abspielen“.
 struct EditionHeader: View {
 
     let episode: PersonalEpisode
@@ -805,12 +802,6 @@ struct EditionHeader: View {
             }
             Text(episode.title)
                 .font(.title2.weight(.bold))
-            if let part = model.partLabel(for: episode) {
-                Text(part)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.accentColor)
-                    .accessibilityIdentifier("edition.part")
-            }
             if let subtitle = episode.subtitle {
                 Text(subtitle)
                     .font(.subheadline)
@@ -1101,7 +1092,6 @@ struct NewSmartFeedSheet: View {
     @State private var title = ""
     @State private var selected: Set<InterestID> = []
     @State private var matchMode: TagMatchMode = .any
-    @State private var minutes = 20
     /// Leer heißt: alle abonnierten Quellen.
     @State private var selectedSources: Set<SourceID> = []
     @State private var prepared = false
@@ -1185,18 +1175,16 @@ struct NewSmartFeedSheet: View {
                     Text("Verknüpfung")
                 }
                 Section {
-                    Stepper("\(minutes) Minuten je Teil", value: $minutes, in: 5...120, step: 5)
-                        .accessibilityIdentifier("feed.length")
+                    Text(editionScope)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("feed.editionScope")
+                } header: {
+                    Text("Ausgaben")
                 } footer: {
-                    VStack(alignment: .leading, spacing: Design.Spacing.small) {
-                        Text("""
-                            Ein Kapitel kommt ganz hinein, wenn es in einen Teil passt. Was nicht mehr passt, \
-                            kommt in Teil 2, Teil 3 und so weiter, höchstens fünf Teile auf einmal.
-                            """)
-                        // Wann Ausgaben entstehen, steht schon hier und nicht
-                        // erst, wenn die erste ausbleibt.
-                        Text(AppModel.editionRule(for: publicationPolicy))
-                    }
+                    // Wann Ausgaben entstehen, steht schon hier und nicht
+                    // erst, wenn die erste ausbleibt.
+                    Text(AppModel.editionRule(for: publicationPolicy))
                 }
                 if !model.sources.isEmpty {
                     Section {
@@ -1270,6 +1258,18 @@ struct NewSmartFeedSheet: View {
         }
     }
 
+    /// Was in eine Ausgabe kommt. Die Grenzen stammen aus dem Code, der die
+    /// Ausgabe baut (`EditionLimits`).
+    private var editionScope: String {
+        let limits = EditionLimits()
+        return String(localized: """
+            Jede Ausgabe bringt alle passenden Kapitel, die du noch nicht gehört hast, Folge für Folge und die \
+            neueste zuerst. Kapitel über \(limits.maximumChapterLength.shortDescription) kürzt die App auf die \
+            Stellen mit deinen Tags. Kommt einmal mehr als \(limits.maximumLength.shortDescription) zusammen, \
+            bleibt der Rest für die nächste Ausgabe.
+            """)
+    }
+
     /// Die Regel des Updates, beim Anlegen die übliche.
     private var publicationPolicy: PublicationPolicy {
         editing?.publicationPolicy ?? SmartPodcastFeed(title: "", topicIDs: []).publicationPolicy
@@ -1291,10 +1291,6 @@ struct NewSmartFeedSheet: View {
             let known = Set(model.profile.tags.map(\.id))
             selected = Set(editing.topicIDs).intersection(known)
             matchMode = selected.count < 2 ? .any : editing.matchMode
-            if let budget = editing.editionMode.budget {
-                let value = Int(budget.milliseconds / 60_000)
-                minutes = min(120, max(5, (value + 2) / 5 * 5))
-            }
             let live = Set(model.sources.map(\.id))
             selectedSources = Set(editing.restrictedToSourceIDs).intersection(live)
             return
@@ -1318,7 +1314,6 @@ struct NewSmartFeedSheet: View {
             feed.title = name
             feed.topicIDs = topicIDs
             feed.matchMode = mode
-            feed.editionMode = .budgeted(MediaDuration(minutes: minutes))
             feed.restrictedToSourceIDs = sourceIDs
             model.updateSmartFeed(feed)
             dismiss()
@@ -1327,7 +1322,7 @@ struct NewSmartFeedSheet: View {
         // Die erste Ausgabe baut das Modell, sobald der Feed gesichert ist,
         // unabhängig von diesem Blatt. Sie startet keinen Ton.
         model.createSmartFeed(
-            title: name, topicIDs: topicIDs, matchMode: mode, minutes: minutes, sourceIDs: sourceIDs,
+            title: name, topicIDs: topicIDs, matchMode: mode, sourceIDs: sourceIDs,
             buildFirstEdition: true)
         dismiss()
     }
