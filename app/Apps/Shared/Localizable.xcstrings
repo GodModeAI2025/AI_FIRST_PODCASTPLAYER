@@ -873,22 +873,6 @@
         }
       }
     },
-    "%lld davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. Diese versucht die App nicht noch einmal." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld davon hat das Modell abgelehnt, etwa wegen seiner Schutzregeln. Diese versucht die App nicht noch einmal."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The model declined %lld of them, for example because of its safety rules. The app won't try these again."
-          }
-        }
-      }
-    },
     "%lld gefolgt" : {
       "localizations" : {
         "de" : {
@@ -3722,22 +3706,6 @@
         }
       }
     },
-    "Aus dieser Folge ließen sich keine Fakten ermitteln: %lld von %lld Abschnitten fehlen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Aus dieser Folge ließen sich keine Fakten ermitteln: %1$lld von %2$lld Abschnitten fehlen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't extract any facts from this episode: %1$lld of %2$lld sections are missing."
-          }
-        }
-      }
-    },
     "Aus heißt: Fragen, Transkriptstellen und Interessen bleiben auf dem Gerät. Das Modell dort rechnet dann alles selbst, und das Gerät kann dabei spürbar langsamer werden." : {
       "localizations" : {
         "de" : {
@@ -4102,22 +4070,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "Bei %lld davon ging aus einem anderen Grund etwas schief. Ein neuer Versuch kann sie nachholen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bei %lld davon ging aus einem anderen Grund etwas schief. Ein neuer Versuch kann sie nachholen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld of them failed for another reason. Trying again can fill them in."
           }
         }
       }
@@ -4535,6 +4487,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chat"
+          }
+        }
+      }
+    },
+    "Cover für Themen-Updates" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cover für Themen-Updates"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Covers for topic updates"
           }
         }
       }
@@ -5963,38 +5931,6 @@
         }
       }
     },
-    "Der neue Lauf fand keine überprüfbaren Aussagen. Die bisherigen Fakten bleiben." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der neue Lauf fand keine überprüfbaren Aussagen. Die bisherigen Fakten bleiben."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The new run found no verifiable statements. The previous facts are kept."
-          }
-        }
-      }
-    },
-    "Der neue Lauf fand nur %@ statt %lld. Die bisherigen Fakten bleiben." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Der neue Lauf fand nur %1$@ statt %2$lld. Die bisherigen Fakten bleiben."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The new run found only %1$@ instead of %2$lld. The previous facts are kept."
-          }
-        }
-      }
-    },
     "Der übersprungene Teil zählt nicht als gehört" : {
       "localizations" : {
         "de" : {
@@ -6311,38 +6247,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The facts couldn't be extracted."
-          }
-        }
-      }
-    },
-    "Die Fakten konnten nicht ermittelt werden. %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Die Fakten konnten nicht ermittelt werden. %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The facts couldn't be extracted. %@"
-          }
-        }
-      }
-    },
-    "Die Fakten sind unvollständig: %lld von %lld Abschnitten der Folge fehlen." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Die Fakten sind unvollständig: %1$lld von %2$lld Abschnitten der Folge fehlen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The facts are incomplete: %1$lld of %2$lld sections of the episode are missing."
           }
         }
       }
@@ -8519,22 +8423,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Collect Facts Automatically"
-          }
-        }
-      }
-    },
-    "Fakten lassen sich gerade nicht ermitteln. %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fakten lassen sich gerade nicht ermitteln. %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Facts can't be extracted right now. %@"
           }
         }
       }
@@ -10783,22 +10671,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No episodes were found in this podcast."
-          }
-        }
-      }
-    },
-    "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In dieser Folge hat das Modell keine überprüfbaren Aussagen gefunden."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The model found no verifiable statements in this episode."
           }
         }
       }
@@ -20066,22 +19938,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "^[%lld source passage](inflect: true)"
-          }
-        }
-      }
-    },
-    "^[%lld Fakt](inflect: true)" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld Fakt](inflect: true)"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "^[%lld fact](inflect: true)"
           }
         }
       }

@@ -304,8 +304,8 @@ extension FeedRefresher {
             capabilities: capabilities, language: feed.language ?? existing?.language
         ).forSingleEpisode(existing: existing)
         try await store.upsert(source: source)
-        _ = try await store.upsert(episodes: [makeEpisode(item, sourceID: sourceID)], forSource: sourceID)
-        return AddedSource(title: source.title, episodeCount: 1)
+        let inserted = try await store.upsertEpisodes([makeEpisode(item, sourceID: sourceID)], forSource: sourceID)
+        return AddedSource(title: source.title, episodeCount: 1, newEpisodes: inserted)
     }
 
     /// Legt das Video aus einem YouTube-Link unter seinem Kanal an, ohne den
@@ -338,7 +338,7 @@ extension FeedRefresher {
                 publishedAt: video.publishedAt, artworkURL: video.thumbnailURL,
                 webPageURL: video.watchURL)
         }
-        _ = try await store.upsert(episodes: [episode], forSource: sourceID)
-        return AddedSource(title: source.title, episodeCount: 1)
+        let inserted = try await store.upsertEpisodes([episode], forSource: sourceID)
+        return AddedSource(title: source.title, episodeCount: 1, newEpisodes: inserted)
     }
 }

@@ -47,34 +47,58 @@ public final class DeviceState: Sendable {
     /// Benutzereinstellungen, falls es noch keine Datei gibt. Danach steht
     /// er in der Datei, und der alte Eintrag ist weg.
     public func value<T: Codable & Sendable>(_ type: T.Type, for key: String, legacy: () -> T? = { nil }) -> T? {
+        if case .found(let value) = read(T.self, for: key, legacy: legacy) { return value }
+        return nil
+    }
+
+    /// Wie es um einen Wert steht.
+    public enum Lookup<T> {
+        case found(T)
+        /// Keine Datei und kein alter Wert.
+        case absent
+        /// Die Datei liegt da, lässt sich aber gerade nicht lesen, etwa vor
+        /// dem ersten Entsperren nach einem Neustart des Geräts.
+        case unreadable
+    }
+
+    /// Wie ``value(_:for:legacy:)``, unterscheidet aber „nicht da“ von
+    /// „gerade nicht lesbar“. Wer aus einem leeren Stand schließen würde,
+    /// es sei nichts zu tun, fragt hiermit.
+    public func lookup<T: Codable & Sendable>(_ type: T.Type, for key: String) -> Lookup<T> {
+        read(T.self, for: key, legacy: { nil })
+    }
+
+    private func read<T: Codable & Sendable>(_ type: T.Type, for key: String, legacy: () -> T?) -> Lookup<T> {
         let known: (hit: Bool, value: T?) = contents.withLock { contents in
             if let value = contents.values[key] as? T { return (true, value) }
             return (contents.absent.contains(key), nil)
         }
-        if known.hit || known.value != nil { return known.value }
+        if let value = known.value { return .found(value) }
+        if known.hit { return .absent }
 
         let url = fileURL(for: key)
         let data: Data
         do {
             data = try Data(contentsOf: url)
         } catch CocoaError.fileReadNoSuchFile {
-            return migrate(T.self, for: key, legacy: legacy)
+            return migrate(T.self, for: key, legacy: legacy).map(Lookup.found) ?? .absent
         } catch {
             // Die Datei liegt da, lässt sich aber gerade nicht lesen, etwa
             // vor dem ersten Entsperren. Nichts merken und nichts umziehen,
             // der nächste Zugriff versucht es neu. Wer jetzt trotzdem einen
-            // Wert setzt, überschreibt die Datei damit.
-            return nil
+            // Wert setzt, überschreibt die Datei damit; ``update(_:for:_:)``
+            // tut das nicht.
+            return .unreadable
         }
         guard let decoded = try? JSONDecoder().decode(T.self, from: data) else {
-            return migrate(T.self, for: key, legacy: legacy)
+            return migrate(T.self, for: key, legacy: legacy).map(Lookup.found) ?? .absent
         }
         // Hat inzwischen jemand gesetzt, gilt das, nicht der ältere Stand der Datei.
-        return contents.withLock { contents -> T? in
-            if let newer = contents.values[key] as? T { return newer }
-            if contents.pending[key] != nil || contents.absent.contains(key) { return nil }
+        return contents.withLock { contents -> Lookup<T> in
+            if let newer = contents.values[key] as? T { return .found(newer) }
+            if contents.pending[key] != nil || contents.absent.contains(key) { return .absent }
             contents.values[key] = decoded
-            return decoded
+            return .found(decoded)
         }
     }
 
@@ -98,26 +122,79 @@ public final class DeviceState: Sendable {
     /// Setzt oder löscht einen Wert. Die Datei schreibt eine Queue im
     /// Hintergrund, mit dem jeweils letzten Stand.
     public func set<T: Codable & Sendable>(_ value: T?, for key: String) {
-        let encode: @Sendable () -> Data? = { value.flatMap { try? JSONEncoder().encode($0) } }
         let scheduled = contents.withLock { contents -> Bool in
-            if let value {
-                contents.values[key] = value
-                contents.absent.remove(key)
-            } else {
-                contents.values[key] = nil
-                contents.absent.insert(key)
-            }
-            let already = contents.pending[key] != nil
-            contents.pending[key] = encode
-            return already
+            Self.put(value, for: key, into: &contents)
         }
         guard !scheduled else { return }
         queue.async { [self] in write(key) }
     }
 
+    /// Liest, ändert und setzt einen Wert in einem Zug, unter der Sperre.
+    /// Zwei Änderungen kurz hintereinander verlieren so keine.
+    ///
+    /// Lässt sich die Datei gerade nicht lesen, etwa vor dem ersten
+    /// Entsperren, ändert es nichts und gibt `false` zurück. Ein `set`
+    /// überschriebe die Datei mit einem Stand, der nur das Neue kennt, und
+    /// was vorher darin stand, wäre verloren.
+    @discardableResult
+    public func update<T: Codable & Sendable>(_ type: T.Type, for key: String, _ change: (inout T?) -> Void) -> Bool {
+        if case .unreadable = read(T.self, for: key, legacy: { nil }) { return false }
+        let scheduled = contents.withLock { contents -> Bool in
+            var current = contents.values[key] as? T
+            change(&current)
+            return Self.put(current, for: key, into: &contents)
+        }
+        if !scheduled { queue.async { [self] in write(key) } }
+        return true
+    }
+
+    /// Wie ``update(_:for:_:)``, schreibt aber nur, wenn sich der Wert
+    /// geändert hat. Listen, die oft ohne Änderung angefasst werden, kosten
+    /// dann kein Schreiben.
+    @discardableResult
+    public func update<T: Codable & Sendable & Equatable>(
+        _ type: T.Type, for key: String, _ change: (inout T?) -> Void
+    ) -> Bool {
+        if case .unreadable = read(T.self, for: key, legacy: { nil }) { return false }
+        let scheduled = contents.withLock { contents -> Bool? in
+            let before = contents.values[key] as? T
+            var current = before
+            change(&current)
+            guard current != before else { return nil }
+            return Self.put(current, for: key, into: &contents)
+        }
+        if scheduled == false { queue.async { [self] in write(key) } }
+        return true
+    }
+
+    /// Trägt den Wert ein und merkt das Schreiben vor. `true`, wenn schon
+    /// ein Schreiben für den Schlüssel wartet.
+    private static func put<T: Codable & Sendable>(_ value: T?, for key: String, into contents: inout Contents) -> Bool {
+        let encode: @Sendable () -> Data? = { value.flatMap { try? JSONEncoder().encode($0) } }
+        if let value {
+            contents.values[key] = value
+            contents.absent.remove(key)
+        } else {
+            contents.values[key] = nil
+            contents.absent.insert(key)
+        }
+        let already = contents.pending[key] != nil
+        contents.pending[key] = encode
+        return already
+    }
+
     /// Wartet, bis alles Geschriebene auf der Platte liegt.
     public func flush() {
         queue.sync {}
+    }
+
+    /// Wie ``flush()``, aber ohne den Aufrufer zu blockieren. Für den
+    /// Hauptakteur, etwa bevor der Store eine Folge löscht, deren Absicht
+    /// hier vermerkt ist.
+    public func waitUntilWritten() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            queue.async { continuation.resume() }
+        }
     }
 
     /// Löscht alles, für einen frischen UI-Test. Läuft vor dem Modell.

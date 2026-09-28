@@ -5,7 +5,8 @@
 //  Der eine Weg zu Apple Intelligence. Jeder Aufruf eines Sprachmodells,
 //  auf dem Gerät oder über Private Cloud Compute, geht durch diese Stelle:
 //  Fakten, Satz je Kapitel, Tags, Relevanz, Auswahl für Themen-Updates und
-//  Antworten im Chat.
+//  Antworten im Chat. Seit Schritt 4 der Pipeline auch die Bilder von Image
+//  Playground für die Cover der Themen-Updates (`.cover`).
 //
 //  Warum eine Stelle: Das Gerätemodell rechnet auf GPU und Neural Engine.
 //  Zwei Anfragen gleichzeitig teilen sich beide, und die Oberfläche verliert
@@ -31,7 +32,11 @@ import os
 
 /// Welche Art Arbeit eine Anfrage ist. Für die Anzeige in der Warteschlange.
 public enum AIWorkKind: String, Sendable, CaseIterable, Codable {
-    case answer, chapterSummary, facts, tags, relevance, other
+    case answer, chapterSummary, facts, tags, relevance
+    /// Ein Bild von Image Playground für ein Themen-Update oder eine Ausgabe.
+    /// Es rechnet auf derselben GPU und Neural Engine wie die Sprachmodelle.
+    case cover
+    case other
 }
 
 /// Wer auf das Ergebnis wartet.
@@ -40,6 +45,21 @@ public enum AIWorkPriority: Sendable, Equatable {
     case user
     /// Von selbst, ohne dass jemand wartet.
     case background
+}
+
+/// Wer Anfragen an ein Sprachmodell zuteilt. `AIScheduler` erfüllt es; wer
+/// ein Modell ruft (`KnowledgeExtractor`, `TagSelector`, später die Stufen),
+/// bekommt die Stelle übergeben, statt `AIScheduler.shared` selbst zu
+/// greifen. Tests reichen so eine Stelle hinein, die den Vorrang mitschreibt.
+///
+/// `operation` enthält den ganzen Aufruf, auch das Anlegen der Sitzung: Wird
+/// Arbeit im Hintergrund für eine Anfrage eines Menschen abgebrochen und
+/// wiederholt, beginnt sie mit einer frischen Sitzung ohne alten Verlauf.
+public protocol AIScheduling: Sendable {
+    func run<T: Sendable>(
+        _ kind: AIWorkKind, priority: AIWorkPriority,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T
 }
 
 /// Stand der Stelle für die Warteschlange.
@@ -59,7 +79,7 @@ public struct AIPipelineSnapshot: Sendable, Equatable {
     public var queuedCount: Int { queued.values.reduce(0, +) }
 }
 
-public actor AIScheduler {
+public actor AIScheduler: AIScheduling {
 
     public static let shared = AIScheduler()
     static let signposter = OSSignposter(subsystem: ChatTrace.subsystem, category: "ai")

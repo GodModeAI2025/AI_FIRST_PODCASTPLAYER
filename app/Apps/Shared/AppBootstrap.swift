@@ -46,6 +46,10 @@ public enum AppBootstrap {
     public static func start(with model: AppModel) -> BackgroundWork {
         registerIntentDependencies(model)
         configureAudioSession()
+        // Die Pipeline einmal je Prozess, nicht je Szene: auf dem iPad läuft
+        // `.task` je Fenster. Vor allem anderen, damit kein Ereignis aus dem
+        // Start ins Leere geht.
+        startPipeline(for: model)
         // Vor dem ersten Bild: Cover aus Katalog und Mediathek teilen sich
         // einen größeren Zwischenspeicher.
         PodcastCatalog.configureImageCache()
@@ -56,11 +60,36 @@ public enum AppBootstrap {
         model.aiPipeline.follow(player: model.episodePlayer)
         // Die Sitzungen fürs Laden im Hintergrund stehen, bevor das System
         // ihre Ereignisse zustellt, auch nach einem Start im Hintergrund.
-        BackgroundDownloads.shared.onArrival = { [weak model] _ in model?.backgroundDownloadArrived() }
+        BackgroundDownloads.shared.onArrival = { [weak model] id in model?.backgroundDownloadArrived(id) }
 
         let background = BackgroundWork(model: model)
         background.register()
         return background
+    }
+
+    /// Legt Host, Senke und die Stufen „Wissen“, „Ausgaben“, „Vorbereiten“,
+    /// „Download“ und „Transkript“ an und gibt sie dem Modell.
+    /// Ein zweiter Aufruf für dasselbe Modell ändert nichts.
+    ///
+    /// Reihenfolge laut Plan: erst abonnieren, dann gleicht `load()` mit dem
+    /// Store ab. Das Tor steht schon offen, doch Arbeit bekommt die Stufe
+    /// erst über Ereignisse und den Abgleich.
+    private static func startPipeline(for model: AppModel) {
+        guard model.pipeline == nil else { return }
+        // Das Tor beginnt mit dem Stand beim Start, auch nach einem Start im
+        // Hintergrund und mit einer Pause, die über einen Neustart gilt.
+        let gate = WorkGate(inForeground: model.appInForeground)
+        gate.setPaused(model.queuePaused)
+        let host = PipelineHost(gate: gate)
+        model.pipeline = host
+        let sink = PipelineSink(model: model)
+        model.pipelineSink = sink
+        sink.start(host: host)
+        model.startKnowledgeStage()
+        model.startEditionsStage()
+        model.startPrepareStage()
+        model.startDownloadStage()
+        model.startTranscriptStage()
     }
 
     /// Was `openStore()` geöffnet hat, und was der Nutzer davon wissen muss.

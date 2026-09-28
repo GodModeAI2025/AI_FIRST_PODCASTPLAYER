@@ -20,6 +20,7 @@
 //
 
 import Foundation
+import Synchronization
 import PodcastAIKit
 
 #if canImport(BackgroundTasks)
@@ -147,21 +148,26 @@ public final class BackgroundWork {
             await model.ensureLoaded()
             await model.refreshAll(feedsOnly: true)
         }
+        let completion = TaskCompletion(task)
         task.expirationHandler = { [model] in
             work.cancel()
             // Laufen Transkripte ohne fortgesetzte Verarbeitung, halten sie
             // mit Zwischenstand an, statt mitten im Schub eingefroren zu werden.
             Task { @MainActor in model.stopTranscriptsWithoutCarrier() }
+            completion.finish(success: false)
         }
         Task { @MainActor in
             _ = await work.result
-            task.setTaskCompleted(success: !work.isCancelled)
+            completion.finish(success: !work.isCancelled)
         }
     }
 
     private func handleAnalysis(_ task: BGProcessingTask) {
         scheduleAnalysis()
 
+        // Die Aufgabe gibt Fakten und Themen-Updates Zeit, auch im
+        // Hintergrund. Der Träger steht am Tor, bevor gearbeitet wird.
+        let carrier = model.holdCarrier(.analysisTask)
         let work = Task { @MainActor in
             await model.ensureLoaded()
             await model.processPendingEditions()
@@ -170,30 +176,46 @@ public final class BackgroundWork {
             // die Zeit, bricht die laufende Folge ab und bleibt vorn stehen.
             await model.processPendingFacts()
         }
+        let completion = TaskCompletion(task)
         task.expirationHandler = { [model] in
+            // Erst den Träger entziehen: Die Stufe „Wissen“ hält am Tor an,
+            // ohne dass es als Fehlschlag zählt.
+            carrier?.release()
             work.cancel()
-            Task { @MainActor in model.stopTranscriptsWithoutCarrier() }
+            Task { @MainActor in
+                model.releaseCarrier(carrier)
+                model.stopTranscriptsWithoutCarrier()
+            }
+            completion.finish(success: false)
         }
         Task { @MainActor in
             _ = await work.result
-            task.setTaskCompleted(success: !work.isCancelled)
+            model.releaseCarrier(carrier)
+            completion.finish(success: !work.isCancelled)
         }
     }
 
     private func handleTagging(_ task: BGProcessingTask) {
         scheduleTagging()
 
+        // Zeit nur für die Tags, nicht für die Fakten.
+        let carrier = model.holdCarrier(.taggingTask)
         let work = Task { @MainActor in
             await model.ensureLoaded()
             // Nur Tags. Fakten und Themen-Updates bleiben der Aufgabe mit Strom.
             await model.processPendingTags()
         }
-        task.expirationHandler = {
+        let completion = TaskCompletion(task)
+        task.expirationHandler = { [model] in
+            carrier?.release()
             work.cancel()
+            Task { @MainActor in model.releaseCarrier(carrier) }
+            completion.finish(success: false)
         }
         Task { @MainActor in
             _ = await work.result
-            task.setTaskCompleted(success: !work.isCancelled)
+            model.releaseCarrier(carrier)
+            completion.finish(success: !work.isCancelled)
         }
     }
 
@@ -210,3 +232,30 @@ public final class BackgroundWork {
 
     #endif
 }
+
+#if canImport(BackgroundTasks) && os(iOS)
+/// Meldet eine Hintergrundaufgabe genau einmal als fertig. Endet ihre Zeit,
+/// meldet der `expirationHandler` selbst, und die Arbeit meldet danach
+/// nicht noch einmal. Ein zweiter Aufruf von `setTaskCompleted` wäre ein
+/// Fehler gegenüber dem System.
+///
+/// `@unchecked`: `BGTask` ist nicht als `Sendable` markiert. Das System ruft
+/// den `expirationHandler` auf einer eigenen Queue, und `setTaskCompleted`
+/// ist von dort vorgesehen. Hier geschieht es genau einmal, hinter der Sperre.
+private final class TaskCompletion: @unchecked Sendable {
+    private let task: BGTask
+    private let done = Mutex(false)
+
+    init(_ task: BGTask) {
+        self.task = task
+    }
+
+    func finish(success: Bool) {
+        let first = done.withLock { done -> Bool in
+            defer { done = true }
+            return !done
+        }
+        if first { task.setTaskCompleted(success: success) }
+    }
+}
+#endif

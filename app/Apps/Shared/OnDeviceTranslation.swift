@@ -17,7 +17,6 @@
 //
 
 import SwiftUI
-import Synchronization
 import Translation
 import NaturalLanguage
 import PodcastAIKit
@@ -106,49 +105,35 @@ enum TranslationCache {
     /// nachdem `ticket` gezogen wurde.
     ///
     /// Eine Übersetzung kann noch laufen, während jemand die Folge löscht,
-    /// hier oder auf einem anderen Gerät. Ohne diese Sperre legte ihr
+    /// hier oder auf einem anderen Gerät. Ohne diese Prüfung legte ihr
     /// nächstes Schreiben den Ordner der gelöschten Folge wieder an. Prüfen
-    /// und Schreiben geschehen unter derselben Sperre wie das Löschen, damit
+    /// und Ablegen geschehen unter der Sperre des Löschprotokolls, damit
     /// nichts dazwischenkommt.
-    static func save(_ entries: [Int64: Entry], for key: Key, ticket: Int) async {
+    static func save(_ entries: [Int64: Entry], for key: Key, ticket: RemovalLedger.Ticket) async {
         await Task.detached(priority: .utility) {
-            let url = file(for: key)
             let stored = Dictionary(uniqueKeysWithValues: entries.map { (String($0.key), $0.value) })
             guard let data = try? JSONEncoder().encode(stored) else { return }
-            removals.withLock { state in
-                if let removedAt = state.removed[key.episodeID], removedAt > ticket { return }
-                try? FileManager.default.createDirectory(
-                    at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try? data.write(to: url, options: .atomic)
-            }
+            // Die Zwischendatei liegt im Ordner aller Übersetzungen, nicht im
+            // Ordner der Folge: Sonst legte schon sie den Ordner einer
+            // gelöschten Folge wieder an.
+            RemovalLedger.shared.write(
+                data, to: file(for: key), staging: directory, for: key.episodeID, since: ticket)
         }.value
     }
-
-    /// Löschungen seit dem Start der App: je Folge der Stand, bei dem sie
-    /// gelöscht wurde. Nur für laufende Übersetzungen, darum nicht gesichert.
-    private struct Removals {
-        var count = 0
-        var removed: [EpisodeID: Int] = [:]
-    }
-
-    private static let removals = Mutex(Removals())
 
     /// Der Stand der Löschungen. Eine Übersetzung zieht ihn, bevor sie
     /// liest, und schreibt nur, solange ihre Folge seitdem nicht gelöscht
     /// wurde. Wer die Folge danach neu abonniert und wieder übersetzt,
-    /// zieht einen neuen Stand und darf schreiben.
-    static var ticket: Int { removals.withLock { $0.count } }
+    /// zieht einen neuen Stand und darf schreiben. Es ist das
+    /// Löschprotokoll des Prozesses, dasselbe wie im Modell der App.
+    static var ticket: RemovalLedger.Ticket { RemovalLedger.shared.ticket }
 
-    /// Entfernt alles, was zu diesen Folgen übersetzt wurde.
+    /// Entfernt alles, was zu diesen Folgen übersetzt wurde. Die Löschung
+    /// steht da schon im Löschprotokoll.
     static func remove(episodes: [EpisodeID]) {
-        guard !episodes.isEmpty else { return }
-        removals.withLock { state in
-            state.count += 1
-            for id in episodes {
-                state.removed[id] = state.count
-                try? FileManager.default.removeItem(
-                    at: directory.appendingPathComponent(id.rawValue, isDirectory: true))
-            }
+        for id in episodes {
+            try? FileManager.default.removeItem(
+                at: directory.appendingPathComponent(id.rawValue, isDirectory: true))
         }
     }
 }
@@ -191,7 +176,7 @@ final class ParagraphTranslation {
     private let target: AppLanguage
     private var cacheKey: TranslationCache.Key?
     /// Der Stand der Löschungen, als die Ablage gelesen wurde.
-    private var cacheTicket = 0
+    private var cacheTicket = RemovalLedger.Ticket(0)
     private var cached: [Int64: TranslationCache.Entry] = [:]
     /// Was vom Auftrag noch fehlt, in der Reihenfolge des Textes.
     private var pending: [(key: Int64, text: String)] = []

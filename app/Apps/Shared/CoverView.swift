@@ -248,7 +248,7 @@ struct FeedCoverView: View {
     @Environment(AppModel.self) private var model
 
     private var editionKey: TopicCoverKey? {
-        edition.map { TopicCoverKey(feedID: feed.id, editionID: $0.id) }
+        edition.map(TopicCoverKey.init(edition:))
     }
 
     var body: some View {
@@ -329,6 +329,10 @@ extension View {
 /// neuen Ausgabe im Vordergrund und beim Wechsel in den Vordergrund, nie
 /// aus der Hintergrundaktualisierung. Ein Stand, der schon scheiterte,
 /// wird in diesem Prozess nicht von selbst erneut versucht.
+///
+/// Das Bild einer Ausgabe gehört zu ihrer Menge von Stellen
+/// (`TopicCoverKey(edition:)`, Entscheidung 10). Löschen und Verwerfen
+/// treffen die Ausgabe als Ganzes, zu jeder Menge von Stellen.
 @MainActor
 @Observable
 final class TopicCoverArt {
@@ -344,6 +348,12 @@ final class TopicCoverArt {
 
     /// Nach jedem neuen Bild, damit der Sperrbildschirm nachzieht.
     @ObservationIgnored var onChange: (() -> Void)?
+    /// Die eine Stelle für Apple Intelligence. Gesetzt, sobald
+    /// `AppBootstrap.start` die Stufe „Ausgaben“ anlegt.
+    @ObservationIgnored var scheduler: (any AIScheduling)?
+    /// Wer auf ein wartendes Bild wartet. Wer es geöffnet oder angefordert
+    /// hat, kommt vor Arbeit im Hintergrund.
+    @ObservationIgnored private var priorities: [TopicCoverKey: AIWorkPriority] = [:]
 
     @ObservationIgnored private let store = TopicCoverStore.standard
     @ObservationIgnored private var loads: [TopicCoverKey: Task<Void, Never>] = [:]
@@ -377,12 +387,13 @@ final class TopicCoverArt {
     var mayGenerate: Bool { availability == .unknown || availability == .available }
 
     /// Lädt das abgelegte Bild und erzeugt eins, wenn keins passt.
-    func prepare(_ recipe: TopicCoverRecipe) async {
+    /// `priority` gilt für die Stelle für Apple Intelligence.
+    func prepare(_ recipe: TopicCoverRecipe, priority: AIWorkPriority = .background) async {
         let key = recipe.key
         await loadIfNeeded(key)
         if covers[key]?.stored.matches(recipe) == true { return }
-        guard mayGenerate, attempted[key] != recipe.digest, !removed.contains(key) else { return }
-        enqueue(recipe)
+        guard mayGenerate, attempted[key] != recipe.digest, !removed.contains(key.owner) else { return }
+        enqueue(recipe, priority: priority)
     }
 
     /// Hat dieser Besitzer schon ein Bild, geladen oder abgelegt? Für eine
@@ -411,8 +422,8 @@ final class TopicCoverArt {
         case .unknown, .available: break
         }
         outcomes[key] = nil
-        removed.remove(key)
-        enqueue(recipe)
+        removed.remove(key.owner)
+        enqueue(recipe, priority: .user)
         while generating.contains(key), let worker { await worker.value }
         return outcomes[key] ?? .failed
     }
@@ -443,14 +454,15 @@ final class TopicCoverArt {
         Task.detached(priority: .utility) { store.remove(feedID) }
     }
 
-    /// Eine gelöschte Ausgabe nimmt ihr Bild mit.
+    /// Eine gelöschte Ausgabe nimmt ihr Bild mit, zu jeder Menge von Stellen.
     func removeEdition(_ key: TopicCoverKey) {
         guard key.editionID != nil else { return remove(key.feedID) }
-        forget(key)
-        removed.insert(key)
-        dropPending { $0.key == key }
+        let owner = key.owner
+        for known in knownKeys where known.owner == owner { forget(known) }
+        removed.insert(owner)
+        dropPending { $0.key.owner == owner }
         let store = self.store
-        Task.detached(priority: .utility) { store.remove(key) }
+        Task.detached(priority: .utility) { store.remove(owner) }
     }
 
     /// Eine Ausgabe hat Stellen verloren, weil eine Folge gelöscht oder eine
@@ -459,12 +471,13 @@ final class TopicCoverArt {
     /// neues entstehen, aus den Stellen, die bleiben.
     func invalidateEdition(_ key: TopicCoverKey) {
         guard key.editionID != nil else { return }
-        forget(key)
-        dropPending { $0.key == key }
+        let owner = key.owner
+        for known in knownKeys where known.owner == owner { forget(known) }
+        dropPending { $0.key.owner == owner }
         // Läuft das Bild gerade, wird es nach dem Fertigwerden verworfen.
-        if generating.contains(key) { stale.insert(key) }
+        stale.formUnion(generating.filter { $0.owner == owner })
         let store = self.store
-        Task.detached(priority: .utility) { store.remove(key) }
+        Task.detached(priority: .utility) { store.remove(owner) }
     }
 
     /// Behält nur die Bilder der Updates und Ausgaben, die es noch gibt.
@@ -492,7 +505,7 @@ final class TopicCoverArt {
     func nowPlayingArtwork(
         for feed: SmartPodcastFeed, edition: PersonalEpisode?, layout: CoverAsset
     ) -> EpisodePlayer.FocusArtwork {
-        let keys = [edition.map { TopicCoverKey(feedID: feed.id, editionID: $0.id) },
+        let keys = [edition.map(TopicCoverKey.init(edition:)),
                     TopicCoverKey(feedID: feed.id)].compactMap { $0 }
         for key in keys {
             if let cover = covers[key] {
@@ -539,6 +552,7 @@ final class TopicCoverArt {
         loads[key] = nil
         outcomes[key] = nil
         followUps[key] = nil
+        priorities[key] = nil
     }
 
     private func loadIfNeeded(_ key: TopicCoverKey) async {
@@ -553,15 +567,17 @@ final class TopicCoverArt {
                       let image = TopicCoverStore.loadImage(at: stored.url) else { return nil }
                 return TopicCover(stored: stored, image: image)
             }.value
-            if let found, covers[key] == nil, !removed.contains(key) { covers[key] = found }
+            if let found, covers[key] == nil, !removed.contains(key.owner) { covers[key] = found }
         }
         loads[key] = load
         await load.value
     }
 
-    private func enqueue(_ recipe: TopicCoverRecipe) {
+    private func enqueue(_ recipe: TopicCoverRecipe, priority: AIWorkPriority = .background) {
         let key = recipe.key
         attempted[key] = recipe.digest
+        // Wer wartet, hebt den Vorrang eines Bildes, das schon wartet.
+        if priority == .user || priorities[key] == nil { priorities[key] = priority }
         // Entsteht dieses Bild schon, gilt das neueste Rezept. Wartet es
         // noch, ersetzt es das alte. Läuft es gerade, kommt es danach dran.
         // Sonst bliebe das Bild zu den alten Tags stehen.
@@ -573,7 +589,7 @@ final class TopicCoverArt {
             }
             return
         }
-        removed.remove(key)
+        removed.remove(key.owner)
         generating.insert(key)
         pending.append(recipe)
         if worker == nil {
@@ -584,12 +600,13 @@ final class TopicCoverArt {
     private func drain() async {
         while !pending.isEmpty {
             let recipe = pending.removeFirst()
-            let outcome = await generate(recipe)
+            let outcome = await generate(recipe, priority: priorities[recipe.key] ?? .background)
             // Ein verworfenes Bild ist erledigt, auch wenn es gar nicht
             // fertig wurde. Sonst träfe es später das neue Bild.
             stale.remove(recipe.key)
             outcomes[recipe.key] = outcome
             generating.remove(recipe.key)
+            priorities[recipe.key] = nil
             // Während das Bild entstand, änderten sich die Tags. Gleich
             // weiter geht es nur, wenn Image Playground bereitsteht. Nach
             // einem Aufschub versucht es das nächste Erscheinen ohnehin.
@@ -601,16 +618,17 @@ final class TopicCoverArt {
         worker = nil
     }
 
-    private func generate(_ recipe: TopicCoverRecipe) async -> Outcome {
+    private func generate(_ recipe: TopicCoverRecipe, priority: AIWorkPriority) async -> Outcome {
         let store = self.store
         let key = recipe.key
+        let scheduler = self.scheduler
         do {
             let cover = try await Task.detached(priority: .userInitiated) {
-                try await store.generate(for: recipe)
+                try await store.generate(for: recipe, scheduler: scheduler, priority: priority)
             }.value
             availability = .available
             // Während das Bild entstand, wurde sein Besitzer gelöscht.
-            guard !removed.contains(key), !removed.contains(TopicCoverKey(feedID: key.feedID)) else {
+            guard !removed.contains(key.owner), !removed.contains(TopicCoverKey(feedID: key.feedID)) else {
                 Task.detached(priority: .utility) { store.remove(key) }
                 return .failed
             }
@@ -640,6 +658,10 @@ final class TopicCoverArt {
             attempted[key] = nil
             return .postponed
         } catch TopicCoverGenerator.Failure.cancelled {
+            attempted[key] = nil
+            return .postponed
+        } catch is CancellationError {
+            // Abgebrochen, während es auf die Stelle für Apple Intelligence wartete.
             attempted[key] = nil
             return .postponed
         } catch {
@@ -688,9 +710,13 @@ extension AppModel {
     /// Legt das Cover einer Ausgabe an, falls es fehlt. Nur im Vordergrund
     /// sinnvoll; im Hintergrund lehnt Image Playground ab, und der nächste
     /// Wechsel in den Vordergrund holt es nach.
-    func prepareCover(for edition: PersonalEpisode) async {
+    ///
+    /// `origin`: `.user`, wenn jemand die Ausgabe geöffnet hat oder abspielt,
+    /// sonst `.automatic`. Danach richtet sich der Vorrang bei der Stelle
+    /// für Apple Intelligence (`AIPriorityPolicy`, Art `.cover`).
+    func prepareCover(for edition: PersonalEpisode, origin: Origin = .user) async {
         guard let feed = smartFeeds.first(where: { $0.id == edition.feedID }) else { return }
-        let key = TopicCoverKey(feedID: feed.id, editionID: edition.id)
+        let key = TopicCoverKey(edition: edition)
         // Liste, Kopf und Player zeigen dieselbe Ausgabe oft gleichzeitig.
         // Das Rezept mit seinen Namen entsteht trotzdem nur einmal.
         guard coverArt.mayGenerate, !coverArt.wasAttempted(key), coverArt.beginPreparing(key) else { return }
@@ -702,7 +728,7 @@ extension AppModel {
         // Stand, und das nächste Öffnen rechnet neu.
         let current = editions[feed.id]?.first { $0.id == edition.id }
         guard current?.segments.map(\.id) == edition.segments.map(\.id) else { return }
-        await coverArt.prepare(recipe)
+        await coverArt.prepare(recipe, priority: AIPriorityPolicy.priority(kind: .cover, origin: origin))
     }
 
     /// Holt die Cover der neuesten Ausgaben nach, etwa von Ausgaben, die im
@@ -711,9 +737,12 @@ extension AppModel {
     /// sie jemand öffnet.
     func prepareMissingEditionCovers() async {
         guard coverArt.mayGenerate else { return }
+        // Das Nachholen wartet die Pause ab (Entscheidung 3); die Stufe
+        // „Ausgaben“ holt es danach nach.
+        if let editionsStage, !(await editionsStage.mayPrepareAutomaticCovers()) { return }
         for feed in smartFeeds {
             for edition in PersonalEpisode.latestRun(in: editions[feed.id] ?? []) {
-                await prepareCover(for: edition)
+                await prepareCover(for: edition, origin: .automatic)
             }
         }
     }

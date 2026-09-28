@@ -191,7 +191,7 @@ extension AppModel {
             titles[episode.id] = podcast.isEmpty ? episode.title : "\(episode.title) (\(podcast))"
         }
         // Was ab hier gelöscht wird, liefern die Werkzeuge nicht mehr.
-        let ticket = removalCount
+        let ticket = removals.ticket
         var source: any ChatLookupSource = LibraryLookupSource(
             pool: pool, titles: titles, store: store,
             removed: { [weak self] ids, podcasts in
@@ -262,12 +262,12 @@ extension AppModel {
     /// Die Folgen unter `ids`, die seit `ticket` gelöscht oder deren Podcast
     /// seitdem abbestellt wurde, wie bei `citesRemovedContent`.
     func lookupRemoved(_ ids: Set<EpisodeID>, podcasts: [EpisodeID: SourceID],
-                       since ticket: Int) -> Set<EpisodeID> {
-        guard removalCount > ticket else { return [] }
+                       since ticket: RemovalLedger.Ticket) -> Set<EpisodeID> {
+        guard removals.hasRemovals(since: ticket) else { return [] }
         return ids.filter { id in
             if wasRemoved(id, since: ticket) { return true }
             guard let podcast = podcasts[id], !podcast.rawValue.isEmpty else { return false }
-            return (removedSourceTickets[podcast] ?? 0) > ticket
+            return removals.wasRemoved(source: podcast, since: ticket)
         }
     }
 

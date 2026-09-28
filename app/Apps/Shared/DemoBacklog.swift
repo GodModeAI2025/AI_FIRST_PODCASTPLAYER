@@ -139,5 +139,9 @@ enum DemoBacklog {
                 quotedText: slice.map(\.text).joined(separator: " ")))
         }
         try await store.store(evidence: evidence)
+        // Die Folgen stehen für eigene Transkripte. Ihre Fakten warten nicht
+        // 20 Minuten auf ein anderes Gerät, sonst liefe während einer
+        // Messung keine Arbeit.
+        PipelineIntents().markOwn([episodeID])
     }
 }

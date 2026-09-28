@@ -3,15 +3,16 @@
 //  PodcastAICore
 //
 //  Pausieren und Abbrechen der Warteschlange als reine Regeln, ohne
-//  Oberfläche und ohne Aufgaben. Das Modell der App fragt hier, ob der
-//  Worker eine Folge beginnen darf und was „Alle abbrechen“ wegnimmt.
+//  Oberfläche und ohne Aufgaben. Das Tor (`WorkGate`) fragt hier, ob die
+//  Stufe „Transkript“ eine Folge beginnen darf, die Stufe selbst, was
+//  „Alle abbrechen“ wegnimmt.
 //
 
 import Foundation
 
 public enum AnalysisQueueControl {
 
-    /// Darf der Worker jetzt eine neue Folge beginnen? Transkripte beginnen
+    /// Darf die Stufe „Transkript“ jetzt eine neue Folge beginnen? Transkripte beginnen
     /// nur vorn, nie während einer Pause und nie, während „Alle abbrechen“
     /// die Warteschlange gerade leert.
     public static func mayStart(paused: Bool, inForeground: Bool, cancelling: Bool) -> Bool {

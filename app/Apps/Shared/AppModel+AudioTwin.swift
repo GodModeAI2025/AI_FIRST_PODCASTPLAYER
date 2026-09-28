@@ -69,13 +69,12 @@ extension AppModel {
     /// Schritt 2 für diese Folge, oder `nil`, wenn er entfällt: ohne
     /// Schlüssel, ohne erlaubtes Netz, in der Wartezeit nach einem Versuch
     /// oder ohne Weg zu einem Zwilling.
-    func twinCaptionHook(for episode: Episode) -> TwinCaptionHook? {
+    func twinCaptionHook(for episode: Episode, automatic: Bool) -> TwinCaptionHook? {
         guard let audioURL = episode.audioURL,
               let podcast = sources.first(where: { $0.id == episode.sourceID }),
               AudioTwinPlanner.audioAllowsAlignment(audioURL: audioURL, onDevice: hasAudioForTranscript(episode),
                                                     declaredDuration: episode.declaredDuration)
         else { return nil }
-        let automatic = isQueuedAutomatically(episode.id)
         let record = audioTwinRecords[episode.id.rawValue]
         let subscribed = subscribedTwin(for: episode)
         let inputs = AudioTwinPlanner.Inputs(

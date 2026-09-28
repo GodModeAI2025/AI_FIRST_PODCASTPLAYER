@@ -36,9 +36,10 @@ public struct AnalysisQueueSnapshot: Codable, Equatable, Sendable {
         self.entries = entries
     }
 
-    /// Hält die Reihenfolge fest. Die laufende Folge gehört vorn dazu: der
-    /// Worker hat sie schon aus der Warteschlange genommen, und ohne sie
-    /// ginge genau die Arbeit verloren, die gerade lief. Jede Folge einmal.
+    /// Hält die Reihenfolge fest. Die laufende Folge gehört vorn dazu: die
+    /// Stufe „Transkript“ hat sie schon aus der Warteschlange genommen, und
+    /// ohne sie ginge genau die Arbeit verloren, die gerade lief. Jede Folge
+    /// einmal.
     public init(running: EpisodeID?, queue: [EpisodeID], automatic: Set<EpisodeID>, backlog: Set<EpisodeID>) {
         var seen: Set<EpisodeID> = []
         entries = ([running].compactMap { $0 } + queue)

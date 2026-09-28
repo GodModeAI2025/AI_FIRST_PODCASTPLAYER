@@ -73,12 +73,17 @@ public final class BackgroundContinuation {
     /// Meldet den Fortschritt der laufenden Folge. `fraction` ist der Anteil
     /// des Transkripts, von 0 bis 1. Er füllt die Strecke zwischen „geladen“
     /// und „transkribiert“ in feinen Schritten, damit das System Fortschritt
-    /// sieht und die Arbeit nicht für hängend hält.
-    public func update(_ stage: ProcessingStage, fraction: Double? = nil) {
+    /// sieht und die Arbeit nicht für hängend hält. `downloadFraction` ist
+    /// der Anteil des Downloads und füllt ebenso die Strecke zwischen
+    /// „begonnen“ und „geladen“: Bis 0.13 stand die Anzeige während eines
+    /// langen Downloads still (docs/plan-pipeline.md, Schritt 5a).
+    public func update(_ stage: ProcessingStage, fraction: Double? = nil, downloadFraction: Double? = nil) {
         #if os(iOS)
         let value: Int64
         if let fraction {
             value = 100 + Int64((min(max(fraction, 0), 1) * 850).rounded())
+        } else if let downloadFraction {
+            value = 20 + Int64((min(max(downloadFraction, 0), 1) * 80).rounded())
         } else {
             value = switch stage {
             case .discovered: 20
@@ -88,8 +93,9 @@ public final class BackgroundContinuation {
             }
         }
         // Eine neue Folge beginnt wieder vorn. Innerhalb einer Folge geht es
-        // nur vorwärts.
-        guard stage == .discovered || value >= pendingProgress else { return }
+        // nur vorwärts, auch beim Laden.
+        let restarts = stage == .discovered && downloadFraction == nil
+        guard restarts || value >= pendingProgress else { return }
         pendingProgress = value
         task?.progress.completedUnitCount = value
         #endif

@@ -4,6 +4,13 @@
 Aus dem TestFlight-Feedback zu 0.13:
 - Läuft eine Ausgabe eines Themen-Updates, zeigt ihre Seite „Pause“ statt „Abspielen“, angehalten „Weiter“.
 
+Verarbeitung als Pipeline aus Stufen (Umbau nach 0.12, docs/plan-pipeline.md):
+- Vorbereiten, Laden, Transkript, Fakten mit Tags und Themen-Updates laufen als eigene Stufen, die sich über Ereignisse Bescheid geben. Die Oberfläche bleibt dieselbe. Nach einem Absturz oder Neustart findet jede Stufe selbst, was offen ist.
+- Alle Anfragen an Apple Intelligence gehen durch eine Stelle, eine zur Zeit, Menschen zuerst. Eine Frage im Chat bricht Arbeit im Hintergrund ab, die danach von vorn beginnt.
+- „Folge löschen“ erreicht jede Stufe, bevor die Datenbank löscht, und das Aufräumen setzt nach einem Neustart fort. Was eine Stufe schreibt, prüft vorher ein Wächter in der Datenbank.
+- Der Abgleich mit anderen Geräten liest nur noch, was sich geändert hat.
+- Private Cloud Compute zuerst, das Warten ohne Netz, Trends, Widget, Nachschlagen im Chat und die Mac-Oberfläche laufen im neuen Aufbau wie vorher.
+
 Apple Intelligence rechnet auf Apples Servern (Entscheidung vom 27. September 2026, „PCC Cloud für alles“):
 - Fakten, Tags je Kapitel, der Satz je Kapitel, die Relevanz für Themen-Updates und der Chat laufen zuerst auf Private Cloud Compute. Das Modell auf dem Gerät ließ das iPhone stocken, und im Hintergrund beendete das System die Arbeit. Es springt nur noch ein, wenn Apples Server fehlen: ohne Netz, mit aufgebrauchtem Kontingent oder wenn „Apple-Server nutzen“ aus ist.
 - Tags wählt auf Apples Servern das allgemeine Modell aus derselben Liste von Kennungen. Den Anwendungsfall für Tags gibt es nur auf dem Gerät.

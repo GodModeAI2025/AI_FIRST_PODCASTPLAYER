@@ -48,7 +48,7 @@ let package = Package(
         .target(name: "PodcastAIPlayback", dependencies: ["PodcastAICore", "PodcastAIKnowledge", "PodcastAIMedia"], resources: [.process("Localizable.xcstrings")]),
 
         // Persönliche Themenfeeds.
-        .target(name: "PodcastAISmartFeeds", dependencies: ["PodcastAICore", "PodcastAIKnowledge", "PodcastAIPlayback"], resources: [.process("Localizable.xcstrings")]),
+        .target(name: "PodcastAISmartFeeds", dependencies: ["PodcastAICore", "PodcastAIIntelligence", "PodcastAIKnowledge", "PodcastAIPlayback"], resources: [.process("Localizable.xcstrings")]),
 
         // Eingang für „An PodcastAI senden“: Übergabe über die App Group.
         // Nur Foundation und die Linkregeln aus den Quellen, damit die

@@ -52,10 +52,15 @@ public struct KnowledgeExtractor: Sendable {
         .unknown(String(localized: "Auf dieser Plattform gibt es kein Apple-Sprachmodell.", bundle: .module))
     }
 
-    public init(configuration: ExtractorConfiguration = ExtractorConfiguration()) {}
+    public init(
+        configuration: ExtractorConfiguration = ExtractorConfiguration(),
+        priority: AIWorkPriority? = nil,
+        scheduler: any AIScheduling = AIScheduler.shared
+    ) {}
 
     public func selectRelevant(
-        from evidence: [Evidence], profile: InterestProfile, availability: ModelStatus
+        from evidence: [Evidence], profile: InterestProfile, availability: ModelStatus,
+        priority: AIWorkPriority? = nil
     ) async throws -> ValidatedSelection {
         throw ExtractorError.modelUnavailable(Self.reason)
     }

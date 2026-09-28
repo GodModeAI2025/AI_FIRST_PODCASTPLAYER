@@ -56,9 +56,9 @@ extension AppModel {
     }
 
     /// Die Adresse, die an Supadata geht und an der die Medienfassung hängt.
+    /// Die Regel steht im Paket, der Wächter im Store prüft danach.
     func captionURL(of episode: Episode) -> URL? {
-        guard episode.audioURL == nil else { return nil }
-        return watchURL(of: episode) ?? socialPostURL(of: episode)
+        CaptionAnalysis.captionURL(of: episode)
     }
 
     /// Kann die App für diese Folge ein Transkript erstellen? Mit Ton immer,
@@ -353,11 +353,18 @@ extension AppModel {
         metadataTask = Task { [weak self] in
             for episode in wanted {
                 guard let self, !Task.isCancelled, self.allowsSupadataRequests,
-                      self.preparationWait == nil else { break }
+                      self.preparationWait == nil, self.metadataMayRun else { break }
                 await self.loadMetadata(for: episode)
             }
             self?.metadataTask = nil
         }
+    }
+
+    /// Pause und „Alle abbrechen“ halten auch die Metadaten an, die die App
+    /// von selbst holt (Entscheidung 3). Was jemand öffnet oder neu lädt,
+    /// holt sie weiter gleich. Das Tor kennt beides.
+    var metadataMayRun: Bool {
+        pipeline?.gate.mayRun(.metadata, origin: .automatic) ?? true
     }
 
     /// Beim Öffnen einer Folge: fehlen ihr Beschreibung, Länge oder Bild,
