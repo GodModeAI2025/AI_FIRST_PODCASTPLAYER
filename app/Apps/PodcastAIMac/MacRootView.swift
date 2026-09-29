@@ -6,6 +6,7 @@
 //  Inspektor, der Player in der Symbolleiste.
 //
 
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 import PodcastAIKit
@@ -100,6 +101,7 @@ struct MacRootView: View {
                 router.selection = SidebarItem(storageValue: storedItem)
                 #if DEBUG
                 applyTestSidebarArgument()
+                captureStoreShotsIfRequested()
                 #endif
             }
         }
@@ -172,6 +174,55 @@ struct MacRootView: View {
             guard openEpisode else { return }
             await model.loadEpisodes(for: source.id)
             if let episode = model.episodes[source.id]?.first { router.push(.episode(episode)) }
+        }
+    }
+
+    /// Für die Bilder im App Store: `-store-shots <Ordner>` zeigt die
+    /// wichtigsten Bereiche nacheinander und legt je ein Bild des Fensters
+    /// ab. Das Fenster zeichnet sich selbst, das braucht keine Freigabe für
+    /// Bildschirmaufnahmen. Danach beendet sich die App.
+    private func captureStoreShotsIfRequested() {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let index = arguments.firstIndex(of: "-store-shots"), index + 1 < arguments.count else { return }
+        let folder = URL(fileURLWithPath: arguments[index + 1], isDirectory: true)
+        Task {
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            await model.ensureLoaded()
+            for _ in 0..<50 where model.sources.isEmpty {
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+            try? await Task.sleep(for: .seconds(2))
+            if let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) {
+                window.setContentSize(NSSize(width: 1440, height: 900))
+                window.center()
+            }
+            var steps: [(String, () -> Void)] = [
+                ("01-fuer-dich", { router.show(.forYou) }),
+                ("02-meine-podcasts", { router.show(.library) }),
+            ]
+            if let source = model.sources.first {
+                await model.loadEpisodes(for: source.id)
+                steps.append(("03-podcast", { router.show(.podcast(source.id)) }))
+                if let episode = model.episodes[source.id]?.first {
+                    steps.append(("04-folge", { router.show(.podcast(source.id)); router.push(.episode(episode)) }))
+                }
+            }
+            steps += [
+                ("05-themen-updates", { router.show(.feeds) }),
+                ("06-chat", { router.show(.chat) }),
+                ("07-meine-tags", { router.show(.interests) }),
+            ]
+            for (name, show) in steps {
+                show()
+                try? await Task.sleep(for: .seconds(3))
+                guard let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }),
+                      let frameView = window.contentView?.superview,
+                      let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else { continue }
+                frameView.cacheDisplay(in: frameView.bounds, to: rep)
+                try? rep.representation(using: .png, properties: [:])?
+                    .write(to: folder.appendingPathComponent("mac-\(name).png"))
+            }
+            NSApp.terminate(nil)
         }
     }
     #endif

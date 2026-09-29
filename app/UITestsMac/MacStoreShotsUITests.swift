@@ -11,25 +11,17 @@ import XCTest
 @MainActor
 final class MacStoreShotsUITests: XCTestCase {
 
-    private func snap(_ app: XCUIApplication, _ name: String) {
-        sleep(2)
-        let shot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
-        shot.name = "mac-\(name)"
-        shot.lifetime = .keepAlways
-        add(shot)
-    }
-
+    /// Die App fotografiert ihr eigenes Fenster (`-store-shots`, nur Debug)
+    /// und legt die Bilder in /tmp/pai-macshots ab. Der Test startet sie nur
+    /// und wartet, denn er selbst sieht ohne Bedienungshilfen kein Fenster.
     func testCaptureStoreShots() throws {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["RUN_ATLAS"] == "1"
                           || ProcessInfo.processInfo.environment["TEST_RUNNER_RUN_ATLAS"] == "1")
         let app = XCUIApplication()
-        app.launchArguments = ["-uitest-fresh", "-skip-onboarding", "-demo-content", "-AppleLanguages", "(de)"]
+        app.launchArguments = ["-uitest-fresh", "-skip-onboarding", "-demo-content", "-AppleLanguages", "(de)",
+                               "-store-shots", "/tmp/pai-macshots"]
         app.launch()
-        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 15))
-        sleep(3)
-        for (key, name) in [("1", "01"), ("2", "02"), ("3", "03"), ("4", "04"), ("5", "05")] {
-            app.typeKey(key, modifierFlags: .command)
-            snap(app, name)
-        }
+        let last = URL(fileURLWithPath: "/tmp/pai-macshots/mac-07-meine-tags.png")
+        for _ in 0..<60 where !FileManager.default.fileExists(atPath: last.path) { sleep(2) }
     }
 }
