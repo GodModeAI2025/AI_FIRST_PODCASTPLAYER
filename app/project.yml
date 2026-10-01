@@ -207,6 +207,30 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: PlayerAccentColor
         SKIP_INSTALL: YES
 
+  # Apple TV: reiner Player ohne KI, eigene App mit eigener Bundle-ID. Hängt
+  # nur am Paketprodukt PodcastAIPlayerKit. Entitlements: nur iCloud. Das
+  # Symbol liegt als Ebenen im eigenen Katalog (scripts/make-tv-icons.py
+  # erzeugt ihn aus dem App-Symbol).
+  PodcastAITV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: Apps/PodcastAITV
+        excludes:
+          - "*.entitlements"
+      - path: Apps/PlayerShared
+    dependencies:
+      - package: PodcastAIKit
+        product: PodcastAIPlayerKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.tv
+        PRODUCT_NAME: PodcastAI
+        INFOPLIST_FILE: Apps/PodcastAITV/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Apps/PodcastAITV/PodcastAITV.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+
   PodcastAIUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -270,5 +294,11 @@ schemes:
   PodcastAIWatch:
     build:
       targets: { PodcastAIWatch: all }
+    run: { config: Debug }
+    archive: { config: Release }
+
+  PodcastAITV:
+    build:
+      targets: { PodcastAITV: all }
     run: { config: Debug }
     archive: { config: Release }
