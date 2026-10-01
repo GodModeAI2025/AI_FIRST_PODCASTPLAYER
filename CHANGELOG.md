@@ -3,6 +3,16 @@
 ## Nächste Version
 Mac: „Meine Tags“ zeigt Tags als umbrechende Kapseln mit Häkchen für gefolgte Tags, Zahl der Kapitel, Hover und Erklärung je Gruppe.
 
+Neu: PodcastAI gibt es als reinen Podcast-Player ohne KI für die Apple Watch, für Apple TV und für CarPlay. Sie zeigen deine Abos und Folgen aus iCloud, spielen sie mit Tempo, Schlaf-Timer, Kapiteln und „Als Nächstes“ und merken sich, wo du aufgehört hast, auch über die Geräte hinweg. Transkripte, Fakten, Tags, Chat, Themen-Updates und Apple Intelligence gibt es dort nicht. Nichts spielt von selbst: Ton beginnt erst mit einem Tipp, einem Klick oder einer Anforderung im Auto.
+
+Apple Watch: Die Uhr-App steckt in der iPhone-App und läuft auch ohne iPhone. Abos, Neu, Folgenlisten, Wiedergabe mit Sprüngen, Tempo, Schlaf-Timer und Kapiteln, Als Nächstes sowie Laden für unterwegs. Ton spielt über Bluetooth-Kopfhörer, auch im Hintergrund.
+
+Apple TV: Eigene App mit den Reitern Abos, Neu, Warteschlange und Wiedergabe. Cover als Karten, Bedienung mit der Siri Remote, Wiedergabetaste, Sprünge, Kapitel, Tempo und Schlaf-Timer. Der Ton wird gestreamt.
+
+CarPlay: Der Code für Abos, Neu, Warteschlange und Wiedergabe ist in der iPhone-App. Eingeschaltet ist er noch nicht, weil Apple die Berechtigung CarPlay Audio erst erteilen muss. Bis dahin baut und läuft die iPhone-App wie bisher. Die Schritte zum Einschalten stehen in docs/plan-player-plattformen.md.
+
+Unter der Haube: Das neue Paketprodukt PodcastAIPlayerKit enthält nur das, was ein Player braucht, und bindet weder FoundationModels noch Spracherkennung noch Bildanalyse ein. Es liest dieselben iCloud-Datensätze wie die anderen Apps mit einem schmalen Modell (Podcast, Folge, Hörzustand); ein Test vergleicht es mit dem Hauptschema. Das CloudKit-Schema ändert sich nicht. Jedes Gerät schreibt nur seine eigene Zeile des Hörzustands.
+
 ## App 1.0 · 2026-09-28
 Erste Version für den App Store, inhaltlich wie 0.15.
 

@@ -64,7 +64,11 @@ Geschrieben wird nie ein fremder Datensatz:
 ## Grenzen
 
 - Up Next liegt heute in den Benutzereinstellungen und nicht im Schema. Ohne Schemaänderung gibt es keine Warteschlange über Geräte hinweg. Uhr und Fernseher führen eine eigene.
-- Die Fortsetzungsstelle reist über iCloud, aber nur für Folgen, die eine Fassungskennung haben (die iPhone-App legt sie beim Laden an). Eine nie auf dem iPhone geladene Folge hat auf der Uhr nur die lokale Stelle.
+- Die Fortsetzungsstelle reist über iCloud. Die Kennung der Fassung folgt aus der Audioadresse (`Episode.streamMediaVersionID`), wie auf dem iPhone, auch für gestreamte Folgen. Ändert ein Podcast die Adresse einer Folge, beginnt sie auf allen Geräten neu.
+- Downloads auf der Uhr laufen nur, solange die App offen ist. Für Hintergrund-Downloads bräuchte die Uhr eigene Hintergrundaufgaben, die es hier nicht gibt.
+- Uhr und Fernseher haben keine Push-Berechtigung in den Entitlements. Der iCloud-Abgleich läuft beim Öffnen; ob das für Änderungen während der Nutzung reicht, zeigt sich erst auf einem Gerät. Wenn nicht, kommt `aps-environment` dazu.
+- Der Player schreibt gehörte Bereiche wie die iPhone-App, aber ohne Wissen: „Ungehört“ in Themen-Updates auf dem iPhone berücksichtigt sie.
+- Die Uhr holt höchstens alle 15 Minuten alle Feeds (höchstens 8 MB je Feed), einzelne Podcasts beim Öffnen. Der Fernseher lädt Feeds gleich, mit 64 MB je Feed.
 - Podcasts hinzufügen geht nur auf iPhone, iPad und Mac. Die Player zeigen, was iCloud liefert.
 - Auf der Uhr spielt Ton nur über Bluetooth-Kopfhörer oder einen anderen Audioweg, den das System anbietet. Das gilt für Streaming und für geladene Folgen gleich.
 - Ob iCloud bei einem Teilschema auf Uhr und Fernseher wirklich nur die drei Entitäten abgleicht, lässt sich im Simulator nicht prüfen. Es braucht ein echtes Gerät mit iCloud-Konto.
@@ -79,9 +83,9 @@ Geschrieben wird nie ein fremder Datensatz:
 ## Was Apple freigeben muss
 
 1. CarPlay Audio: Antrag unter developer.apple.com/contact/carplay, App-Kategorie Audio, App `com.godmodeai.podcastai.mobile`. Apple prüft einzeln und meldet sich per E-Mail. Ohne Zusage lässt sich keine signierte Fassung mit CarPlay bauen. Im Simulator geht es auch ohne.
-2. Neue App-IDs im Developer-Portal: `com.godmodeai.podcastai.mobile.watchkitapp` (iCloud mit Container `iCloud.com.godmodeai.podcastai`, Hintergrundmodi sind keine Berechtigung) und `com.godmodeai.podcastai.tv` (iCloud mit demselben Container).
+2. Neue App-IDs im Developer-Portal: `com.godmodeai.podcastai.mobile.watchkitapp` (iCloud mit Container `iCloud.com.godmodeai.podcastai`, Hintergrundmodi sind keine Berechtigung) und `com.godmodeai.podcastai.tv` (iCloud mit demselben Container). Wichtig: Die Uhr steckt jetzt in der iOS-App. Der nächste Archiv-Lauf von `app/scripts/upload-testflight.sh` braucht deshalb die App-ID der Uhr samt Profil. Mit `-allowProvisioningUpdates` und automatischer Signierung legt Xcode sie an, wenn das Konto Rechte dazu hat. Sonst vorher von Hand anlegen, sonst scheitert auch das Archiv der iOS-App.
 3. App Store Connect: für die Uhr kein eigener Eintrag, sie hängt an der iOS-App (watchOS-Plattform der App ergänzen). Für den Fernseher eine neue Plattform „tvOS“ in der bestehenden App oder eine neue App mit der Bundle-ID `com.godmodeai.podcastai.tv`, mit Screenshots 1920x1080 und App-Symbol in Schichten. Datenschutzangaben wie bei der iOS-App, Hinweis, dass die Player keine KI nutzen.
-4. Provisioning-Profile für die drei IDs, Automatic Signing mit Team `SP73Z8JWXM` erzeugt sie.
+4. Provisioning-Profile für die drei IDs, Automatic Signing mit Team `SP73Z8JWXM` erzeugt sie. Das Upload-Skript archiviert nur `PodcastAI` (iOS, mit der Uhr) und `PodcastAIMac`. Für Apple TV kommt das Schema `PodcastAITV` mit Ziel `generic/platform=tvOS` dazu, wenn die App-Store-Connect-Plattform steht.
 5. CloudKit: der Container braucht nichts Neues. Das Production-Schema bleibt, wie es ist.
 
 ## Freischaltung von CarPlay, sobald Apple zusagt
@@ -92,6 +96,8 @@ Geschrieben wird nie ein fremder Datensatz:
 4. Bauen und archivieren wie gewohnt. Das Archiv trägt jetzt `PodcastAICarPlay.entitlements` und `InfoCarPlay.plist`.
 5. Im CarPlay-Simulator (Xcode, I/O, External Displays, CarPlay) prüfen: Abos, Neu, Warteschlange, Wiedergabe.
 6. Rückweg: Einstellung entfernen und neu generieren.
+
+Zwei Nebenwirkungen der Fassung für CarPlay: `UIApplicationSupportsMultipleScenes` steht dort auf `YES` (die CarPlay-Szene braucht es), damit erlaubt die iOS-App auf dem iPad auch mehrere Fenster. Und: Schickt ein Auto beim Verbinden von selbst „Wiedergabe“ (Einstellung des Autos), nimmt die App den Befehl an wie einen Tastendruck. Zum Prüfen vor dem ersten Upload mit CarPlay lässt sich die Fassung auch für den Simulator bauen: `xcodebuild -scheme PodcastAI -destination 'generic/platform=iOS Simulator' PODCASTAI_VARIANT=CarPlay CODE_SIGNING_ALLOWED=NO build`.
 
 ## Reihenfolge der Umsetzung
 
