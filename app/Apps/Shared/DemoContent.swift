@@ -23,6 +23,9 @@ enum DemoContent {
 
     static let sourceID = SourceID(stable: "demo-quelle")
     static let episodeID = EpisodeID(stable: "demo-folge-1")
+    /// Cover von „Think Different. Think AI.“, dem eigenen Podcast der Entwickler.
+    /// So zeigen Bildschirmfotos ein echtes Cover statt grauer Flächen.
+    static let cover = URL(string: "https://images.podigee-cdn.net/0x,sAE8UK6g-Ieww4BUW8NLmSowb8AaF32C0DPb_7WKVQlY=/https://main.podigee-cdn.net/uploads/u73317/3ac9af23-95e3-4669-97c5-0d2f8ba90198.jpeg")!
     static let audio = URL(string: "https://audio.podigee-cdn.net/2598733-m-21b7bc55dcb4707563cae78e503f9c5e.mp3")!
     /// Die Länge der Audiodatei, beide Beispielfolgen spielen sie.
     static let audioLength = MediaDuration(seconds: 3_190)
@@ -52,7 +55,7 @@ enum DemoContent {
     static func seed(into store: LibraryStore) async {
         guard ((try? await store.sources()) ?? []).isEmpty else { return }
         let source = Source(id: sourceID, kind: .podcastRSS, title: "Beispiel: Arbeit und KI",
-                            author: "PodcastAI Demo", capabilities: .fullPodcast, language: "de")
+                            author: "PodcastAI Demo", artworkURL: cover, capabilities: .fullPodcast, language: "de")
         // „Für dich“ ordnet einen Beleg über seinen Anfang einem Kapitel zu,
         // und jeder Beleg fasst 80 Sekunden. Das Kapitel Datenschutz beginnt
         // deshalb mit dem Beleg ab 1:20, der den Datenschutz anspricht. So
