@@ -2,9 +2,9 @@
 //  TVApp.swift
 //  PodcastAI (Apple TV)
 //
-//  Ein reiner Podcast-Player: Abos, Neu, Warteschlange, Wiedergabe. Keine KI,
-//  kein Transkript, kein Chat. Die Bibliothek kommt über iCloud von iPhone,
-//  iPad und Mac, der Ton wird gestreamt.
+//  Ein reiner Podcast-Player: Abos, Neu, Warteschlange, Wiedergabe. Keine KI.
+//  Die Bibliothek kommt über iCloud von iPhone, iPad und Mac, der Ton wird
+//  gestreamt.
 //
 //  Regel 1: Nichts spielt von selbst. Die App füllt beim Start nur Listen;
 //  Ton beginnt mit einem Klick auf eine Folge, auf „Wiedergabe“ oder mit der

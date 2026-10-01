@@ -64,6 +64,7 @@
 		3076172CE5C4D7E95DE8B738 /* MentionsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37E8615CB68420FED978CB4A /* MentionsUITests.swift */; };
 		30EF56FB0D392A4344BAE04E /* PlanningContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56ED3EE14562899B30A5330 /* PlanningContext.swift */; };
 		31CB1B91AEC90AC62B680FC3 /* ActivityStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7641049000356ED13234E65F /* ActivityStatus.swift */; };
+		31F4335D1FC8779ACE24BD1E /* CarPlay.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2A9961443DE7537DA817609A /* CarPlay.xcstrings */; };
 		34D5EB8F6F14EF0A1D9793B3 /* MacSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB8C5BA45BDC57DE4558C77C /* MacSidebar.swift */; };
 		34D838F358924883EEE77A8D /* AppModel+AudioTwin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75A2BB4A1796E5F5E2BE25BB /* AppModel+AudioTwin.swift */; };
 		34E766C1667880DA20E4AAE2 /* CatalogViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6182DA089D756B2AC57F0C4 /* CatalogViews.swift */; };
@@ -225,6 +226,7 @@
 		B566BD140CB93C2C4D3AC056 /* AppModel+YouTube.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FA018631BABE7A70910A54 /* AppModel+YouTube.swift */; };
 		B59309493A2578D57A3BC1E6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 851268CAA4049793F42805BB /* Assets.xcassets */; };
 		B89F182B2B7341EAB183CF34 /* ShareIntake.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB325A055654F2CB8FFD2D5 /* ShareIntake.swift */; };
+		B98954EEFE49C45F27785BD3 /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9767221D85CF00B35B711D8 /* CarPlaySceneDelegate.swift */; };
 		BB5E4795C55BF4AA6A5838AA /* PlanningContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56ED3EE14562899B30A5330 /* PlanningContext.swift */; };
 		BC2D1B0066574EFA8E65AA61 /* OnDeviceTranslation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2287AB2F6E783053CE73015 /* OnDeviceTranslation.swift */; };
 		BC962C7CE9AC899E6652EB5B /* AppModel+ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11939AAF0E3AEFC0231A691 /* AppModel+ShareInbox.swift */; };
@@ -282,6 +284,7 @@
 		DFA7E1BE6ED9941B118EAA39 /* WidgetSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 864C08792239DB1EA4B3F06D /* WidgetSnapshotTests.swift */; };
 		E463FB2ECBBE33C7D75C251E /* RemovedEpisodeQueryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E62E4AD033F13CC6F5377BDB /* RemovedEpisodeQueryTests.swift */; };
 		E57701F1E07D2F1A5D969A91 /* ChatActionsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DD905FD21B1A4A032EC0272 /* ChatActionsUITests.swift */; };
+		E61DBA63D0E8186C41B81049 /* CarPlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DABEBE77F1C6398E75CB8BF /* CarPlayController.swift */; };
 		E769686F1FAB4C5F2B24FC86 /* EpisodeProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FC8DCCF7CFA68CF3407B66 /* EpisodeProgress.swift */; };
 		E7E1287BB7D9E75C519A8664 /* BetaFeedbackUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C2BFB9A41A80DC63C8F6ED /* BetaFeedbackUITests.swift */; };
 		E8D6A1DBFEBEDC83AB2D81C2 /* ChatTokenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2BF25E2D647C5B2D9F731B /* ChatTokenTests.swift */; };
@@ -457,6 +460,7 @@
 		281F826578CE818635B0CB4D /* TagsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagsUITests.swift; sourceTree = "<group>"; };
 		28C03EF19979CE794A08E156 /* TagViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagViews.swift; sourceTree = "<group>"; };
 		29F4A458F56430338E01803C /* MacScenes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacScenes.swift; sourceTree = "<group>"; };
+		2A9961443DE7537DA817609A /* CarPlay.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = CarPlay.xcstrings; sourceTree = "<group>"; };
 		2AFB1EC8AB98CE44E63DBE4F /* AudioTwinTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTwinTests.swift; sourceTree = "<group>"; };
 		2CA0A6EF5C9166797CEA84A0 /* SourceImportUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceImportUITests.swift; sourceTree = "<group>"; };
 		2CAE2B2F38B9AF46F882C5C9 /* ChapterClassificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterClassificationTests.swift; sourceTree = "<group>"; };
@@ -478,7 +482,6 @@
 		3AC15869BDB67306471C1A96 /* EditionsStageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditionsStageTests.swift; sourceTree = "<group>"; };
 		3B8C521E4D4383B78A04A5E1 /* DemoBacklog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoBacklog.swift; sourceTree = "<group>"; };
 		3C1B0E410F5D4C70AC267B92 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
-		3D73FBF11E4059C270D83472 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3DDDA6CEEB01A372CFC82653 /* AppModel+SingleEpisodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+SingleEpisodes.swift"; sourceTree = "<group>"; };
 		3FE30F1CB727C26BF6C887FB /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		40D86CC1E395802F6CBB0634 /* ListeningViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningViews.swift; sourceTree = "<group>"; };
@@ -504,6 +507,7 @@
 		586FE4CF373B2D05E53675C3 /* WatchLists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLists.swift; sourceTree = "<group>"; };
 		5870172A7992D9E82392BEBC /* UserFacingError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFacingError.swift; sourceTree = "<group>"; };
 		5C2BF25E2D647C5B2D9F731B /* ChatTokenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatTokenTests.swift; sourceTree = "<group>"; };
+		5DABEBE77F1C6398E75CB8BF /* CarPlayController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayController.swift; sourceTree = "<group>"; };
 		5E97080FEBD973B64186C924 /* TVLibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVLibraryViews.swift; sourceTree = "<group>"; };
 		60F62DF479AA2922A60430DF /* FactsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FactsTests.swift; sourceTree = "<group>"; };
 		653843CFBEA17360AA358D5D /* AppModel+Knowledge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Knowledge.swift"; sourceTree = "<group>"; };
@@ -600,7 +604,6 @@
 		BBC02E701D0E045410B58C65 /* MacLibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacLibraryGrid.swift; sourceTree = "<group>"; };
 		BC1CD63C9097B86218F87471 /* PlayerArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerArtwork.swift; sourceTree = "<group>"; };
 		BD1F1871B5D8FC7C6B94A3D0 /* PodcastAIShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PodcastAIShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		BF72E0A8E0D7DD1DE3249856 /* PodcastAI.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PodcastAI.entitlements; sourceTree = "<group>"; };
 		C0214559D3F81CE6F87F77AA /* SupadataLiveShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupadataLiveShapeTests.swift; sourceTree = "<group>"; };
 		C1CB73B1C68359276B4EFE5E /* PodcastAIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodcastAIApp.swift; sourceTree = "<group>"; };
 		C1D6118FA32FD91B28B03FBC /* ShareInboxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxTests.swift; sourceTree = "<group>"; };
@@ -647,6 +650,7 @@
 		F4FC8DCCF7CFA68CF3407B66 /* EpisodeProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeProgress.swift; sourceTree = "<group>"; };
 		F6182DA089D756B2AC57F0C4 /* CatalogViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogViews.swift; sourceTree = "<group>"; };
 		F8E1E18C611EA7BA5BC5A810 /* KnowledgeHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeHubView.swift; sourceTree = "<group>"; };
+		F9767221D85CF00B35B711D8 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		FA960FC32F56A1316AAD219D /* MCPHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPHost.swift; sourceTree = "<group>"; };
 		FBAF9CA39AB08D7C319D625B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FBBAFB08FEEEBD35C6D75693 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -842,6 +846,16 @@
 			path = UITests;
 			sourceTree = "<group>";
 		};
+		4B96B39C246566191D9B2057 /* CarPlay */ = {
+			isa = PBXGroup;
+			children = (
+				2A9961443DE7537DA817609A /* CarPlay.xcstrings */,
+				5DABEBE77F1C6398E75CB8BF /* CarPlayController.swift */,
+				F9767221D85CF00B35B711D8 /* CarPlaySceneDelegate.swift */,
+			);
+			path = CarPlay;
+			sourceTree = "<group>";
+		};
 		5C898416B4A169FB1BC1DBA9 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
@@ -925,9 +939,8 @@
 		644C5025AD63BACE1D56898A /* PodcastAI */ = {
 			isa = PBXGroup;
 			children = (
-				3D73FBF11E4059C270D83472 /* Info.plist */,
-				BF72E0A8E0D7DD1DE3249856 /* PodcastAI.entitlements */,
 				C1CB73B1C68359276B4EFE5E /* PodcastAIApp.swift */,
+				4B96B39C246566191D9B2057 /* CarPlay */,
 			);
 			path = PodcastAI;
 			sourceTree = "<group>";
@@ -1520,6 +1533,7 @@
 			files = (
 				24B89406670B6FA9FE58B791 /* AppShortcuts.xcstrings in Resources */,
 				03BBF69F1144971BFADEB132 /* Assets.xcassets in Resources */,
+				31F4335D1FC8779ACE24BD1E /* CarPlay.xcstrings in Resources */,
 				281E073128C76F345B4DD128 /* Localizable.xcstrings in Resources */,
 				8ED10D317026F8F52AEB9125 /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -1634,6 +1648,8 @@
 				2F42E6086EA3CFAFA1AD80F5 /* BackgroundContinuation.swift in Sources */,
 				48AA6A984CC5232F8940A518 /* BackgroundDownloads.swift in Sources */,
 				EB196726340814512BA3A711 /* BackgroundWork.swift in Sources */,
+				E61DBA63D0E8186C41B81049 /* CarPlayController.swift in Sources */,
+				B98954EEFE49C45F27785BD3 /* CarPlaySceneDelegate.swift in Sources */,
 				34E766C1667880DA20E4AAE2 /* CatalogViews.swift in Sources */,
 				A04881EFF57768D7F7D796FE /* ChapterSummaries.swift in Sources */,
 				84E8B61D824C6D5E9F6DD9C4 /* ChapterViews.swift in Sources */,
@@ -2248,14 +2264,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Apps/PodcastAI/PodcastAI.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Apps/PodcastAI/PodcastAI$(PODCASTAI_VARIANT).entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Apps/PodcastAI/Info.plist;
+				INFOPLIST_FILE = "Apps/PodcastAI/Info$(PODCASTAI_VARIANT).plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				PODCASTAI_VARIANT = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.mobile;
 				PRODUCT_NAME = PodcastAI;
 				SDKROOT = iphoneos;
@@ -2300,14 +2317,15 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = Apps/PodcastAI/PodcastAI.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Apps/PodcastAI/PodcastAI$(PODCASTAI_VARIANT).entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Apps/PodcastAI/Info.plist;
+				INFOPLIST_FILE = "Apps/PodcastAI/Info$(PODCASTAI_VARIANT).plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				PODCASTAI_VARIANT = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.mobile;
 				PRODUCT_NAME = PodcastAI;
 				SDKROOT = iphoneos;

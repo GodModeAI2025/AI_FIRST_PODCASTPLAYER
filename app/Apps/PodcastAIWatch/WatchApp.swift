@@ -3,9 +3,8 @@
 //  PodcastAI (Apple Watch)
 //
 //  Ein reiner Podcast-Player: Abos, Folgen, Wiedergabe, Als Nächstes,
-//  Schlaf-Timer, Tempo, Kapitel, Laden für unterwegs. Keine KI, kein
-//  Transkript, kein Chat. Die Bibliothek kommt über iCloud vom iPhone, der
-//  Ton läuft auch ohne iPhone.
+//  Schlaf-Timer, Tempo, Kapitel, Laden für unterwegs. Keine KI. Die
+//  Bibliothek kommt über iCloud vom iPhone, der Ton läuft auch ohne iPhone.
 //
 //  Regel 1: Nichts spielt von selbst. Die App füllt beim Start nur Listen;
 //  Ton beginnt mit einem Tipp auf eine Folge oder auf „Wiedergabe“.

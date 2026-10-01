@@ -35,6 +35,8 @@ struct PodcastAIApp: App {
         let model = AppModel(store: LibraryStore.make(container: opened.container))
         model.syncDescription = opened.description
         _model = State(initialValue: model)
+        // Für die CarPlay-Szene, falls sie aktiviert ist (docs/plan-player-plattformen.md).
+        CarPlayBridge.model = model
         _startupIssue = State(initialValue: StartupIssue(opened))
         // Hier und nicht in `.task`: Intent-Abhängigkeit, Audiositzung und
         // BGTask-Registrierung müssen stehen, bevor der Start fertig ist.

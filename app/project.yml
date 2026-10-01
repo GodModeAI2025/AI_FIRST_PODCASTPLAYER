@@ -51,6 +51,10 @@ targets:
     platform: iOS
     sources:
       - path: Apps/PodcastAI
+        excludes:
+          - "Info.plist"
+          - "InfoCarPlay.plist"
+          - "*.entitlements"
       - path: Apps/Shared
     dependencies:
       - package: PodcastAIKit
@@ -62,10 +66,17 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile
         PRODUCT_NAME: PodcastAI
-        INFOPLIST_FILE: Apps/PodcastAI/Info.plist
+        # CarPlay Audio: ohne Wert gelten Info.plist und PodcastAI.entitlements.
+        # Mit `PODCASTAI_VARIANT: CarPlay` gelten InfoCarPlay.plist und
+        # PodcastAICarPlay.entitlements (mit dem Entitlement
+        # com.apple.developer.carplay-audio). Erst setzen, wenn Apple die
+        # Berechtigung für die App erteilt hat, sonst scheitert die
+        # Signierung. Schritte: docs/plan-player-plattformen.md.
+        PODCASTAI_VARIANT: ""
+        INFOPLIST_FILE: "Apps/PodcastAI/Info$(PODCASTAI_VARIANT).plist"
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
-        CODE_SIGN_ENTITLEMENTS: Apps/PodcastAI/PodcastAI.entitlements
+        CODE_SIGN_ENTITLEMENTS: "Apps/PodcastAI/PodcastAI$(PODCASTAI_VARIANT).entitlements"
         # Auf dem Mac läuft die eigene Mac-App, nicht die iPhone-Fassung
         # mit Tab-Leiste in einem gestreckten Fenster.
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
