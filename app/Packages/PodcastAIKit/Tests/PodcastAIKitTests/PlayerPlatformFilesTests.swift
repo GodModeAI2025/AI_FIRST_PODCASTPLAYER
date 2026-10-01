@@ -100,6 +100,19 @@ struct PlayerPlatformFilesTests {
         #expect(project.contains("PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.tv"))
     }
 
+    @Test func theWatchIconIsTheAppIcon() throws {
+        let shared = try Data(contentsOf: Self.apps.appending(
+            path: "Shared/Assets.xcassets/AppIcon.appiconset/icon-1024.png"))
+        let watch = try Data(contentsOf: Self.apps.appending(
+            path: "PodcastAIWatch/Assets.xcassets/AppIcon.appiconset/icon-1024.png"))
+        #expect(shared == watch, "Das Symbol der Uhr weicht vom App-Symbol ab")
+        // Der gemeinsame Katalog bleibt, wie er war: ein watchOS-Eintrag dort
+        // lässt den Mac-Bau warnen.
+        let contents = try String(contentsOf: Self.apps.appending(
+            path: "Shared/Assets.xcassets/AppIcon.appiconset/Contents.json"), encoding: .utf8)
+        #expect(!contents.contains("watchos"))
+    }
+
     // MARK: Keine KI in den Oberflächen
 
     private static let forbiddenWords = [

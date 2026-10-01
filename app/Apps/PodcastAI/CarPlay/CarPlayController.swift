@@ -32,24 +32,20 @@ final class CarPlayController: NSObject, CPNowPlayingTemplateObserver {
     /// CarPlay zeigt höchstens so viele Zeilen; mehr würde es ohnehin kappen.
     private var rowLimit: Int { min(CPListTemplate.maximumItemCount, 50) }
 
-    private static func text(_ key: String.LocalizationValue) -> String {
-        String(localized: key, table: "CarPlay")
-    }
-
     init(model: AppModel, interfaceController: CPInterfaceController) {
         self.model = model
         self.interface = interfaceController
         showsTemplate = Self.listTemplate(
-            title: Self.text("Abos"), symbol: "square.stack",
-            empty: Self.text("Keine Abos"),
-            detail: Self.text("Abonniere Podcasts auf dem iPhone."))
+            title: String(localized: "Abos", table: "CarPlay"), symbol: "square.stack",
+            empty: String(localized: "Keine Abos", table: "CarPlay"),
+            detail: String(localized: "Abonniere Podcasts auf dem iPhone.", table: "CarPlay"))
         latestTemplate = Self.listTemplate(
-            title: Self.text("Neu"), symbol: "sparkles",
-            empty: Self.text("Keine neuen Folgen"), detail: nil)
+            title: String(localized: "Neu", table: "CarPlay"), symbol: "sparkles",
+            empty: String(localized: "Keine neuen Folgen", table: "CarPlay"), detail: nil)
         queueTemplate = Self.listTemplate(
-            title: Self.text("Warteschlange"), symbol: "list.bullet",
-            empty: Self.text("Nichts in der Warteschlange"),
-            detail: Self.text("Reihe Folgen auf dem iPhone ein."))
+            title: String(localized: "Warteschlange", table: "CarPlay"), symbol: "list.bullet",
+            empty: String(localized: "Nichts in der Warteschlange", table: "CarPlay"),
+            detail: String(localized: "Reihe Folgen auf dem iPhone ein.", table: "CarPlay"))
         super.init()
     }
 
@@ -70,7 +66,7 @@ final class CarPlayController: NSObject, CPNowPlayingTemplateObserver {
         let tabs = CPTabBarTemplate(templates: [showsTemplate, latestTemplate, queueTemplate])
         let nowPlaying = CPNowPlayingTemplate.shared
         nowPlaying.isUpNextButtonEnabled = true
-        nowPlaying.upNextTitle = Self.text("Als Nächstes")
+        nowPlaying.upNextTitle = String(localized: "Als Nächstes", table: "CarPlay")
         nowPlaying.add(self)
         nowPlaying.updateNowPlayingButtons([
             CPNowPlayingPlaybackRateButton { [weak self] _ in self?.cycleRate() },
@@ -118,7 +114,7 @@ final class CarPlayController: NSObject, CPNowPlayingTemplateObserver {
             let count = (model.episodes[show.id] ?? []).filter(model.canPlay).count
             let item = CPListItem(
                 text: show.title,
-                detailText: count > 0 ? Self.text("\(count) Folgen") : nil,
+                detailText: count > 0 ? String(localized: "\(count) Folgen", table: "CarPlay") : nil,
                 image: nil, accessoryImage: nil, accessoryType: .disclosureIndicator)
             item.handler = { [weak self] _, completion in
                 Task { @MainActor in
@@ -178,7 +174,7 @@ final class CarPlayController: NSObject, CPNowPlayingTemplateObserver {
             .sorted { ($0.publishedAt ?? .distantPast) > ($1.publishedAt ?? .distantPast) }
         let items = episodes.prefix(rowLimit).map { episodeItem($0, subtitle: nil) }
         let template = CPListTemplate(title: show.title, sections: [CPListSection(items: items)])
-        template.emptyViewTitleVariants = [Self.text("Keine Folgen")]
+        template.emptyViewTitleVariants = [String(localized: "Keine Folgen", table: "CarPlay")]
         _ = try? await interface.pushTemplate(template, animated: true)
     }
 
@@ -211,8 +207,8 @@ final class CarPlayController: NSObject, CPNowPlayingTemplateObserver {
     nonisolated func nowPlayingTemplateUpNextButtonTapped(_ nowPlayingTemplate: CPNowPlayingTemplate) {
         Task { @MainActor in
             let items = queueItems()
-            let template = CPListTemplate(title: Self.text("Als Nächstes"), sections: [CPListSection(items: items)])
-            template.emptyViewTitleVariants = [Self.text("Nichts in der Warteschlange")]
+            let template = CPListTemplate(title: String(localized: "Als Nächstes", table: "CarPlay"), sections: [CPListSection(items: items)])
+            template.emptyViewTitleVariants = [String(localized: "Nichts in der Warteschlange", table: "CarPlay")]
             _ = try? await interface.pushTemplate(template, animated: true)
         }
     }

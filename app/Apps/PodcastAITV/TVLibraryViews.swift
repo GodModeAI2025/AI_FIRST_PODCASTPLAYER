@@ -94,10 +94,12 @@ struct TVEpisodesView: View {
             }
         }
         .padding(.horizontal, 60)
+        // Die Liste bei jeder Änderung durch iCloud, der Feed nur einmal beim
+        // Öffnen und auf Wunsch (siehe Uhr).
         .task(id: session.library.changeCount) {
             items = session.library.episodes(for: show)
-            await reload()
         }
+        .task { await reload() }
     }
 
     private func reload() async {

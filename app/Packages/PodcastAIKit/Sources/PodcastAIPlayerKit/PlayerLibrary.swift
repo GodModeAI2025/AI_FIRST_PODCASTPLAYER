@@ -49,6 +49,9 @@ public final class PlayerLibrary {
     /// Wird mit jeder Änderung durch iCloud größer.
     public private(set) var changeCount = 0
     public private(set) var isRefreshing = false
+    /// Größte Feed-Datei, die geladen wird. Die Uhr setzt sie niedriger.
+    @ObservationIgnored public var feedByteLimit: Int64 = SafeHTTP.feedLimit
+    @ObservationIgnored private var lastRefreshAll: Date?
 
     @ObservationIgnored private let container: ModelContainer
     @ObservationIgnored private var overlay: [SourceID: [Episode]] = [:]
@@ -268,7 +271,7 @@ public final class PlayerLibrary {
     @discardableResult
     public func refresh(_ show: Source) async throws -> Int {
         guard let feedURL = show.feedURL else { return 0 }
-        let parsed = try await FeedImport.fetch(feedURL, using: session)
+        let parsed = try await FeedImport.fetch(feedURL, using: session, limit: feedByteLimit)
         let fetched = FeedImport.episodes(from: parsed, sourceID: show.id)
         let known = Set(episodes(for: show, limit: .max).map(\.id))
         let removed = removedEpisodeIDs(sourceIdentifier: show.id.rawValue)
@@ -282,10 +285,14 @@ public final class PlayerLibrary {
     }
 
     /// Alle Abos nacheinander. Ein Fehler bei einem Feed hält die anderen
-    /// nicht auf.
-    public func refreshAll() async {
+    /// nicht auf. Wer innerhalb von `minimumInterval` schon geladen hat,
+    /// lädt nicht noch einmal: Uhr und Fernseher sollen nicht bei jedem
+    /// Öffnen einer Liste alle Feeds holen.
+    public func refreshAll(minimumInterval: TimeInterval = 15 * 60) async {
         guard !isRefreshing else { return }
+        if let last = lastRefreshAll, Date().timeIntervalSince(last) < minimumInterval { return }
         isRefreshing = true
+        lastRefreshAll = Date()
         defer { isRefreshing = false }
         for show in shows {
             if Task.isCancelled { break }

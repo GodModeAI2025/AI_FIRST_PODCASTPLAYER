@@ -138,11 +138,12 @@ public final class PlaybackEngine {
                     localized: "Kein Audioweg frei. Verbinde Kopfhörer oder Lautsprecher.", bundle: .module))
                 return
             }
-            guard self.current?.id == item.id, self.player === player else { return }
+            guard self.current?.id == item.id, self.player === player, self.state == .loading else { return }
             if startPosition.seconds > 0 {
                 await player.seek(to: CMTime(seconds: startPosition.seconds, preferredTimescale: 600))
             }
-            guard self.current?.id == item.id, self.player === player else { return }
+            // Wer währenddessen pausiert hat, will keinen Ton (Regel 1).
+            guard self.current?.id == item.id, self.player === player, self.state == .loading else { return }
             player.playImmediately(atRate: self.speed)
             self.state = .playing
             self.beginSegment()
@@ -154,10 +155,17 @@ public final class PlaybackEngine {
     /// ohne Handlung und ohne Folge beginnt kein Ton.
     public func resume() {
         guard let player, current != nil, state == .paused else { return }
+        state = .loading
         Task { [weak self] in
             guard let self else { return }
             try? await Self.activateAudioSession()
-            guard self.player === player else { return }
+            guard self.player === player, self.state == .loading else { return }
+            // Am Ende der Folge beginnt „Wiedergabe“ von vorn.
+            if self.duration > 0, self.position >= self.duration - 1 {
+                await player.seek(to: .zero)
+                self.position = 0
+                guard self.player === player, self.state == .loading else { return }
+            }
             player.playImmediately(atRate: self.speed)
             self.state = .playing
             self.beginSegment()

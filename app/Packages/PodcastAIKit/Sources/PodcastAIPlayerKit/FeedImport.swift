@@ -52,8 +52,10 @@ public enum FeedImport {
 
     /// Lädt einen Feed und liest ihn. Nur über `SafeHTTP`: Adresse geprüft,
     /// Größe begrenzt.
-    public static func fetch(_ feedURL: URL, using session: URLSession) async throws -> ParsedFeed {
-        let data = try await SafeHTTP.load(feedURL, using: session, limit: SafeHTTP.feedLimit, truncating: true)
+    public static func fetch(
+        _ feedURL: URL, using session: URLSession, limit: Int64 = SafeHTTP.feedLimit
+    ) async throws -> ParsedFeed {
+        let data = try await SafeHTTP.load(feedURL, using: session, limit: limit, truncating: true)
         return try FeedParser().parse(data)
     }
 }

@@ -58,7 +58,7 @@ public struct PlayerItem: Hashable, Sendable, Identifiable {
 
 /// Wiedergabetempo. Dieselben Stufen wie in der iOS-App.
 public enum PlaybackSpeed {
-    public static let options: [Float] = [0.8, 1.0, 1.2, 1.5, 1.75, 2.0]
+    public static let options: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
 
     /// Die nächste Stufe, nach der letzten wieder die erste.
     public static func next(after rate: Float) -> Float {

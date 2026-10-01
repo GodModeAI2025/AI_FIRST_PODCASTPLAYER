@@ -193,6 +193,10 @@ targets:
   # auch ohne iPhone. Hängt nur am Paketprodukt PodcastAIPlayerKit (Core,
   # Quellen, Medien), nicht an Wissen, Intelligenz oder Transkription.
   # Entitlements: nur iCloud (CloudKit-Container wie die anderen Apps).
+  # Eigener Katalog: dasselbe App-Symbol (icon-1024.png, gleiche Bytes wie in
+  # Apps/Shared), aber ein watchOS-Eintrag, der im gemeinsamen Katalog beim
+  # Mac-Bau warnen würde, und eine hellere Akzentfarbe, weil die Uhr keine
+  # dunkle Fassung einer Farbe kennt.
   PodcastAIWatch:
     type: application
     platform: watchOS
@@ -201,8 +205,6 @@ targets:
         excludes:
           - "*.entitlements"
       - path: Apps/PlayerShared
-      # Dasselbe App-Symbol wie iOS und Mac.
-      - path: Apps/Shared/Assets.xcassets
     dependencies:
       - package: PodcastAIKit
         product: PodcastAIPlayerKit
@@ -213,9 +215,9 @@ targets:
         INFOPLIST_FILE: Apps/PodcastAIWatch/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIWatch/PodcastAIWatch.entitlements
-        # Die Uhr kennt keine helle und dunkle Fassung einer Farbe. Die
-        # Akzentfarbe der anderen Apps wäre auf Schwarz zu dunkel.
-        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: PlayerAccentColor
+        # Keine App Intents: sonst meldet der Metadaten-Schritt bei jedem Bau
+        # „Metadata extraction skipped“.
+        LM_SKIP_METADATA_EXTRACTION: YES
         SKIP_INSTALL: YES
 
   # Apple TV: reiner Player ohne KI, eigene App mit eigener Bundle-ID. Hängt
@@ -241,6 +243,7 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Apps/PodcastAITV/PodcastAITV.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        LM_SKIP_METADATA_EXTRACTION: YES
 
   PodcastAIUITests:
     type: bundle.ui-testing
@@ -276,6 +279,10 @@ targets:
       - path: Packages/PodcastAIKit/Tests
     dependencies:
       - package: PodcastAIKit
+      # Die Tests des Players binden das Paketprodukt ein, das die Apps nur
+      # auf Uhr und Fernseher benutzen.
+      - package: PodcastAIKit
+        product: PodcastAIPlayerKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.kit.tests

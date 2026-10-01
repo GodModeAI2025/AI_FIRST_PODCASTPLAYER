@@ -69,6 +69,7 @@
 		34D838F358924883EEE77A8D /* AppModel+AudioTwin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75A2BB4A1796E5F5E2BE25BB /* AppModel+AudioTwin.swift */; };
 		34E766C1667880DA20E4AAE2 /* CatalogViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6182DA089D756B2AC57F0C4 /* CatalogViews.swift */; };
 		35EDA751E46F47D5E9C46657 /* AnswerQualityDeterministicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3444D8E3FB4EB8713D3907 /* AnswerQualityDeterministicTests.swift */; };
+		364C1C100072141044CF4625 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2D025007FEAF50F84FF8E3CF /* Assets.xcassets */; };
 		37A850B51AFF9D42252EECB8 /* KnowledgeStageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 242E98151B65726A0E1E8743 /* KnowledgeStageTests.swift */; };
 		3846DB2194E2DABB1A445931 /* TagViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C03EF19979CE794A08E156 /* TagViews.swift */; };
 		38A54E3FA5C040316F4AEB00 /* EditionCoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AB7B022347956448DCF3909 /* EditionCoverTests.swift */; };
@@ -117,6 +118,7 @@
 		602FC808CF6860E259FD15F1 /* AutoRefresh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F96758DF2A58374A7DB60E /* AutoRefresh.swift */; };
 		618C76FC585903E90EEB5274 /* AppModel+Transcripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5590D600C4194450EB91FBB8 /* AppModel+Transcripts.swift */; };
 		61E58749162B15BAC65AB99F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B028E6CFAA38A2071402BF48 /* SettingsView.swift */; };
+		6285606E588C8A6AE97C791B /* PodcastAIPlayerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 424DE25ECC51E6946ABD78D1 /* PodcastAIPlayerKit */; };
 		6317D533674D3EFDC4CD97DD /* TranscriptNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E7870C5FB8193940F87346 /* TranscriptNotifications.swift */; };
 		6371A82DB6E2F775A3C45C5D /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FE30F1CB727C26BF6C887FB /* ShareViewController.swift */; };
 		63CD250392072228DD7AF153 /* DemoTrends.swift in Sources */ = {isa = PBXBuildFile; fileRef = D65BFED3A557B2AD14B47F50 /* DemoTrends.swift */; };
@@ -145,7 +147,6 @@
 		7492810D163A4FE9E2194181 /* EpisodeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1884DC0AEC7E8BD93DC0DB3 /* EpisodeViews.swift */; };
 		74CC35653A501E3443063EAE /* EpisodeArchiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9495AC0605513FFBF05E28FE /* EpisodeArchiveTests.swift */; };
 		75B4D492309D51158B00F418 /* SubscriptionImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28E0C417C0195AC1FFC10BD /* SubscriptionImport.swift */; };
-		760CA864DC6037A10363FD68 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 851268CAA4049793F42805BB /* Assets.xcassets */; };
 		764E5C25F4B2C1905AE77749 /* YouTubeTakeoutImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D410D307332C9E725802615 /* YouTubeTakeoutImport.swift */; };
 		769472D02593CAD260E1088B /* AppModel+Tagging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC6CB36EEB1F8B7ADEF82E0 /* AppModel+Tagging.swift */; };
 		7709997A3DC814A59AF491AA /* PlayerKitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 302D68D2C085574EE9EFB66B /* PlayerKitTests.swift */; };
@@ -177,6 +178,7 @@
 		88341BC353370EE7EF195025 /* QueueControlTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F97F4C71E81FED8DC0689B /* QueueControlTests.swift */; };
 		892155B355C93ED4AFE86904 /* GoalFeaturesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2542A126634BEE731EA9B08D /* GoalFeaturesUITests.swift */; };
 		898C18F63DE7D6A526CFD2F0 /* TagTrendsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0092EE827A6D480194B0FF0D /* TagTrendsUITests.swift */; };
+		8D587EAD6A26FC332FC0F2DB /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ACA42F78B0F21EC8EF893984 /* PrivacyInfo.xcprivacy */; };
 		8E1D61E08C0A834CCF3D12E4 /* TagInterfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1946983D5442F19AA7D248 /* TagInterfaceTests.swift */; };
 		8ED10D317026F8F52AEB9125 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 145839AE5F835BA91C11390C /* PrivacyInfo.xcprivacy */; };
 		8F9062961890D3DC9CA3F026 /* AppModel+SingleEpisodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DDDA6CEEB01A372CFC82653 /* AppModel+SingleEpisodes.swift */; };
@@ -208,6 +210,7 @@
 		A7D1871030670DD8E910A09A /* WhatsNewWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1307876BD4D1611373232F /* WhatsNewWidget.swift */; };
 		A887858A248B71D82F3883DF /* InterestMatchingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 345CD8ADB40A67D9E1BFA336 /* InterestMatchingTests.swift */; };
 		AAF7E62053E113670E91DFFE /* AppModel+Social.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7E52240CAE22B9409DC080A /* AppModel+Social.swift */; };
+		AB6BF8B58AA7EE771A2BF794 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ACA42F78B0F21EC8EF893984 /* PrivacyInfo.xcprivacy */; };
 		AB894B2083D93488396FACAE /* CatalogUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1C08291024B09198C97794 /* CatalogUITests.swift */; };
 		AC6B3867DF0B1C50C61CEDA4 /* AudioTwinTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AFB1EC8AB98CE44E63DBE4F /* AudioTwinTests.swift */; };
 		AD87EA9A0365180F492320D7 /* ListeningViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40D86CC1E395802F6CBB0634 /* ListeningViews.swift */; };
@@ -241,6 +244,7 @@
 		C4A5252E435BBF3BA6E1A8B3 /* PodcastAIShareInbox in Frameworks */ = {isa = PBXBuildFile; productRef = 7408BD63B1AC91774072DAB1 /* PodcastAIShareInbox */; };
 		C55941703BECEB746DF7BEDB /* AppModel+DeviceSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = B83DEB3D7F59375ACCB663A9 /* AppModel+DeviceSync.swift */; };
 		C5BE1A9EB2E2B0108ACACAFE /* CoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08D5A25B13555D56FB04329B /* CoverView.swift */; };
+		C749EC67749BF94F8F452CA7 /* PlayerPlatformFilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F31884AD7EED9354062CA591 /* PlayerPlatformFilesTests.swift */; };
 		C7A844A4412AE30FF5FC3AB1 /* WatchLists.swift in Sources */ = {isa = PBXBuildFile; fileRef = 586FE4CF373B2D05E53675C3 /* WatchLists.swift */; };
 		C865D2D77068220AF26BFC52 /* ChapterClassificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CAE2B2F38B9AF46F882C5C9 /* ChapterClassificationTests.swift */; };
 		C8ACC820D9602D2727ACD79B /* SpotlightIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3F721A5E9D88C34407F9D3 /* SpotlightIndex.swift */; };
@@ -464,6 +468,7 @@
 		2AFB1EC8AB98CE44E63DBE4F /* AudioTwinTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTwinTests.swift; sourceTree = "<group>"; };
 		2CA0A6EF5C9166797CEA84A0 /* SourceImportUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceImportUITests.swift; sourceTree = "<group>"; };
 		2CAE2B2F38B9AF46F882C5C9 /* ChapterClassificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterClassificationTests.swift; sourceTree = "<group>"; };
+		2D025007FEAF50F84FF8E3CF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2E1A062BBD1D9BB7E4EED1F3 /* AnswerQualityModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnswerQualityModelTests.swift; sourceTree = "<group>"; };
 		2E2E535A8807D49BEE9F4DAB /* TagEvalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagEvalTests.swift; sourceTree = "<group>"; };
 		2ECC7B2DA4FC79C3CA93FE3B /* LateWriteAndRejectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LateWriteAndRejectionTests.swift; sourceTree = "<group>"; };
@@ -582,6 +587,7 @@
 		AA12A0BCC4EEA8F13BA35F6A /* AppModel+TagTrends.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+TagTrends.swift"; sourceTree = "<group>"; };
 		AB32EDEA5B02F6B27DE92EB8 /* MacMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMain.swift; sourceTree = "<group>"; };
 		AB8CF4FD3AD87C3D275F9D0B /* CatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogTests.swift; sourceTree = "<group>"; };
+		ACA42F78B0F21EC8EF893984 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AD8FB3520AB14152559FF834 /* ShareInboxUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareInboxUITests.swift; sourceTree = "<group>"; };
 		ADA2CFB6537ED27DB238E866 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
 		AE3DEDB1A7C508B8E298DC2B /* SyncMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMergeTests.swift; sourceTree = "<group>"; };
@@ -645,6 +651,7 @@
 		EEA50A760A22D28142C51D30 /* MainFlowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlowUITests.swift; sourceTree = "<group>"; };
 		F1884DC0AEC7E8BD93DC0DB3 /* EpisodeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeViews.swift; sourceTree = "<group>"; };
 		F18963DA65557516C70741F8 /* TopicUpdateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopicUpdateViews.swift; sourceTree = "<group>"; };
+		F31884AD7EED9354062CA591 /* PlayerPlatformFilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerPlatformFilesTests.swift; sourceTree = "<group>"; };
 		F33A2209E55DEDF473AD0B60 /* CoreInvariantTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreInvariantTests.swift; sourceTree = "<group>"; };
 		F3F97F4C71E81FED8DC0689B /* QueueControlTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueControlTests.swift; sourceTree = "<group>"; };
 		F4FC8DCCF7CFA68CF3407B66 /* EpisodeProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeProgress.swift; sourceTree = "<group>"; };
@@ -731,6 +738,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5020C5CDB2CB146184CA77A4 /* PodcastAIKit in Frameworks */,
+				6285606E588C8A6AE97C791B /* PodcastAIPlayerKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1011,6 +1019,7 @@
 				35784A6AD29DE8BC94716D87 /* PipelineTests.swift */,
 				89059E0F230CFFDB746FF9AD /* PlaybackCoordinatorTests.swift */,
 				302D68D2C085574EE9EFB66B /* PlayerKitTests.swift */,
+				F31884AD7EED9354062CA591 /* PlayerPlatformFilesTests.swift */,
 				1D2FF5E286D2E8BBC303FBB0 /* PlayerSchemaParityTests.swift */,
 				EE84FD6D95BC07760EF75981 /* PrepareDownloadStageTests.swift */,
 				A14568EA062CECC9403A154F /* ProcessingPerformanceTests.swift */,
@@ -1056,6 +1065,7 @@
 			isa = PBXGroup;
 			children = (
 				BC1CD63C9097B86218F87471 /* PlayerArtwork.swift */,
+				ACA42F78B0F21EC8EF893984 /* PrivacyInfo.xcprivacy */,
 			);
 			path = PlayerShared;
 			sourceTree = "<group>";
@@ -1135,6 +1145,7 @@
 		EF3B74F203A4B738EC44DF66 /* PodcastAIWatch */ = {
 			isa = PBXGroup;
 			children = (
+				2D025007FEAF50F84FF8E3CF /* Assets.xcassets */,
 				FBAF9CA39AB08D7C319D625B /* Info.plist */,
 				028594E41AC9CE86D551DACE /* Localizable.xcstrings */,
 				D376BCDFD37D7B76CED3EC23 /* WatchApp.swift */,
@@ -1199,6 +1210,7 @@
 			name = PodcastAIKitTests;
 			packageProductDependencies = (
 				7B5BC2536562E16487C81340 /* PodcastAIKit */,
+				424DE25ECC51E6946ABD78D1 /* PodcastAIPlayerKit */,
 			);
 			productName = PodcastAIKitTests;
 			productReference = EDBFAAEDED094DED2F661F3C /* PodcastAIKitTests.xctest */;
@@ -1465,8 +1477,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				760CA864DC6037A10363FD68 /* Assets.xcassets in Resources */,
+				364C1C100072141044CF4625 /* Assets.xcassets in Resources */,
 				5F7792463F6F7BD712D693AC /* Localizable.xcstrings in Resources */,
+				AB6BF8B58AA7EE771A2BF794 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1485,6 +1498,7 @@
 			files = (
 				3B1143F37AF638B5AF090FC3 /* Assets.xcassets in Resources */,
 				045588049B9EFE37DD0C9B0C /* Localizable.xcstrings in Resources */,
+				8D587EAD6A26FC332FC0F2DB /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1869,6 +1883,7 @@
 				78D3CCA2E169A250AB07C895 /* PipelineTests.swift in Sources */,
 				116B80B1979FA448C693611D /* PlaybackCoordinatorTests.swift in Sources */,
 				7709997A3DC814A59AF491AA /* PlayerKitTests.swift in Sources */,
+				C749EC67749BF94F8F452CA7 /* PlayerPlatformFilesTests.swift in Sources */,
 				675ECE0C160FFF022FB99CE6 /* PlayerSchemaParityTests.swift in Sources */,
 				BE562ED3A34101252BF4A446 /* PrepareDownloadStageTests.swift in Sources */,
 				7D8425830F57858D574FF7E2 /* ProcessingPerformanceTests.swift in Sources */,
@@ -2129,10 +2144,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = PlayerAccentColor;
 				CODE_SIGN_ENTITLEMENTS = Apps/PodcastAIWatch/PodcastAIWatch.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Apps/PodcastAIWatch/Info.plist;
+				LM_SKIP_METADATA_EXTRACTION = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.mobile.watchkitapp;
 				PRODUCT_NAME = PodcastAI;
 				SDKROOT = watchos;
@@ -2145,10 +2160,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = PlayerAccentColor;
 				CODE_SIGN_ENTITLEMENTS = Apps/PodcastAIWatch/PodcastAIWatch.entitlements;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Apps/PodcastAIWatch/Info.plist;
+				LM_SKIP_METADATA_EXTRACTION = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.mobile.watchkitapp;
 				PRODUCT_NAME = PodcastAI;
 				SDKROOT = watchos;
@@ -2403,6 +2418,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LM_SKIP_METADATA_EXTRACTION = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.tv;
 				PRODUCT_NAME = PodcastAI;
 				SDKROOT = appletvos;
@@ -2461,6 +2477,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LM_SKIP_METADATA_EXTRACTION = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.godmodeai.podcastai.tv;
 				PRODUCT_NAME = PodcastAI;
 				SDKROOT = appletvos;
@@ -2615,6 +2632,10 @@
 		1FA87BDC51E9691B1B9F28C8 /* PodcastAIKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = PodcastAIKit;
+		};
+		424DE25ECC51E6946ABD78D1 /* PodcastAIPlayerKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PodcastAIPlayerKit;
 		};
 		5862B7C42AAD247B0503B32C /* PodcastAIKit */ = {
 			isa = XCSwiftPackageProductDependency;

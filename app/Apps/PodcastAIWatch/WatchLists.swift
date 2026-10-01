@@ -58,8 +58,14 @@ struct WatchEpisodesView: View {
             }
         }
         .navigationTitle(show.title)
+        // Die Liste aus der Datenbank bei jeder Änderung durch iCloud, der
+        // Feed nur einmal beim Öffnen. Sonst holte jede Meldung des Abgleichs
+        // (auch die eigene Stelle, die alle 30 Sekunden geschrieben wird) den
+        // ganzen Feed noch einmal.
         .task(id: session.library.changeCount) {
             items = session.library.episodes(for: show)
+        }
+        .task {
             _ = try? await session.library.refresh(show)
             items = session.library.episodes(for: show)
         }

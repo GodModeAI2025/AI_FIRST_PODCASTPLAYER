@@ -39,6 +39,10 @@ public final class PlayerSession {
         let library = opened
         let engine = PlaybackEngine(defaults: defaults)
         let downloads = mediaDirectory.map { PlayerDownloads(directory: $0) }
+        // Eine Uhr hat wenig Speicher und Akku: kleinere Feed-Dateien.
+        #if os(watchOS)
+        library.feedByteLimit = 8 * 1024 * 1024
+        #endif
         self.library = library
         self.engine = engine
         self.downloads = downloads
