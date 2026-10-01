@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 1. Oktober 2026, Version 1.0 (zur Prüfung bei Apple). Die Player für Apple Watch, Apple TV und CarPlay sind seit dem 1. Oktober im Code, aber noch in keinem Upload.
+Stand 1. Oktober 2026, Version 1.0 (iOS, Mac und Apple TV zur Prüfung bei Apple). Der Apple-TV-Player ist hochgeladen und eingereicht. Die Uhr-App geht mit dem nächsten iOS-Upload mit, CarPlay wartet auf Apples Freigabe.
 
 ## Geprüft
 
