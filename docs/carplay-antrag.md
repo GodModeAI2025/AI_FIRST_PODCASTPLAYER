@@ -12,3 +12,7 @@ Formular: https://developer.apple.com/contact/request/carplay/ (angemeldet als K
 - Zum Schluss die Richtlinien bestätigen und „Submit“ wählen.
 
 Nach der Zusage: Capability „CarPlay Audio App“ an der App-ID `com.godmodeai.podcastai.mobile` eintragen, Profile neu laden, in `app/project.yml` im Ziel `PodcastAI` `PODCASTAI_VARIANT: CarPlay` setzen und `cd app && xcodegen generate`. Alle Schritte stehen in `docs/plan-player-plattformen.md`.
+
+## Stand
+
+Am 1. Oktober 2026 abgeschickt (Mark Zimmermann, Mobile Box, mobile_box@icloud.com). Apple meldet sich per E-Mail. Danach die Schritte oben.
