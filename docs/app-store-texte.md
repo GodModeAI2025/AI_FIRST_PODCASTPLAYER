@@ -118,3 +118,29 @@ Conversations in chat: follow-ups like "And what does he say about that?" refer 
 - Screenshots: iPhone 6,9" und iPad 13" aus dem Atlas-Test (app/build/store-screenshots/auswahl), Mac noch offen
 - App-Datenschutzangaben: keine Datenerhebung durch den Entwickler, kein Tracking
 - Hinweise für das Review: kein Konto nötig; Apple Intelligence erforderlich; zum Ausprobieren einen Podcast über die Suche abonnieren, nach dem Transkript im Reiter „Fragen“ eine Frage stellen
+
+## Version 1.1 (vorbereitet)
+
+Gilt für das iOS-Update mit der Uhr-App. Die Mac-Seiten kommen im selben Zug mit ihrem eigenen Text. Das Update wird erst hochgeladen, wenn Apple 1.0 entschieden hat.
+
+**Neu in dieser Version (DE, iPhone und iPad):**
+PodcastAI gibt es jetzt auch auf der Apple Watch. Abos, neue Folgen und deine Warteschlange kommen mit, laden geht für unterwegs, und der Ton läuft über Bluetooth-Kopfhörer auch ohne iPhone. Auf der Uhr gibt es nur den Player, keine KI. Außerdem liegt der Code für CarPlay bereit, sobald Apple es freigibt.
+
+**What's new (EN, iPhone and iPad):**
+PodcastAI is now on Apple Watch. Subscriptions, new episodes and your queue come along, you can download for the road, and audio plays over Bluetooth headphones even without your iPhone. The watch has the player only, no AI. The code for CarPlay is also in place for when Apple approves it.
+
+**Neu in dieser Version (DE, Mac):**
+Themen-Updates, „Für dich“, „Gemerkte Stellen“ und „Gesicherte Antworten“ zeigen ihre Inhalte als Karten im Raster. „Meine Tags“ zeigt Tags als Kapseln mit Häkchen für gefolgte Tags.
+
+**What's new (EN, Mac):**
+Topic updates, For You, saved moments and saved answers now show their content as cards in a grid. My Tags shows tags as capsules with a check mark for the ones you follow.
+
+### Apple Watch (nur Player)
+
+Die Uhr-App steckt in der iPhone-App und braucht keinen eigenen Store-Eintrag. Screenshots für die Uhr (416 × 496, Series 11 46 mm): docs/store-screenshots/watch-01-abos.png, watch-02-neu.png, watch-03-wiedergabe.png. Sie zeigen fiktive Podcasts.
+
+### Apple TV (eingereicht am 1. Oktober 2026)
+
+- Name PodcastAI TV, Untertitel „Podcasts auf dem Fernseher“, Kategorie Nachrichten, Zweitkategorie Bildung, kostenlos, Altersfreigabe 13+
+- Screenshots: docs/store-screenshots/tv-01-abos.png und tv-02-neu.png (1920 × 1080)
+- Review-Hinweis: reiner Player ohne KI, die Bibliothek kommt über iCloud, auf einem frischen Gerät ist sie leer
