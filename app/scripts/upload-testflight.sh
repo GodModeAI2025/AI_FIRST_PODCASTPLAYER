@@ -25,12 +25,19 @@ cat > "$OUT/ExportOptions.plist" <<PLIST
 </dict></plist>
 PLIST
 
-for pair in "PodcastAI:generic/platform=iOS" "PodcastAIMac:generic/platform=macOS"; do
+# PLATFORMS wählt die Ziele, etwa PLATFORMS="PodcastAITV:generic/platform=tvOS".
+# Die iPhone-App bringt die Uhr mit. Apple TV hat in diesem Team kein
+# registriertes Gerät, deshalb wird dort unsigniert archiviert und beim
+# Export mit dem Verteilungszertifikat signiert.
+PLATFORMS=${PLATFORMS:-"PodcastAI:generic/platform=iOS PodcastAIMac:generic/platform=macOS PodcastAITV:generic/platform=tvOS"}
+for pair in $PLATFORMS; do
   scheme=${pair%%:*}; dest=${pair#*:}
   echo "== $scheme: Archiv (Build $BUILD)"
+  extra=()
+  [ "$scheme" = PodcastAITV ] && extra=(CODE_SIGNING_ALLOWED=NO)
   xcodebuild -project PodcastAI.xcodeproj -scheme "$scheme" -configuration Release \
     -destination "$dest" -archivePath "$OUT/$scheme.xcarchive" -allowProvisioningUpdates \
-    archive -quiet
+    ${extra[@]+"${extra[@]}"} archive -quiet
   echo "== $scheme: Upload"
   xcodebuild -exportArchive -archivePath "$OUT/$scheme.xcarchive" \
     -exportOptionsPlist "$OUT/ExportOptions.plist" -exportPath "$OUT/$scheme" \
