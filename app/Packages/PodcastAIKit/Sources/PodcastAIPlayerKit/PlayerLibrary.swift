@@ -320,6 +320,35 @@ public final class PlayerLibrary {
         try? context.save()
     }
 
+    // MARK: - Beispielinhalt (nur Debug)
+
+    #if DEBUG
+    /// Zwei Podcasts mit je drei Folgen, damit sich die Oberflächen im
+    /// Simulator ansehen lassen. Nur im Debug-Build, nur mit `-player-demo`
+    /// und nie mit iCloud-Abgleich, damit nichts davon in die private
+    /// Datenbank wandert.
+    public func loadDemoContent() {
+        guard storage != .synced, shows.isEmpty else { return }
+        let demo: [(String, String, [String])] = [
+            ("demo-1", "Die Hörprobe", ["Warum Kaffee Zeit braucht", "Ein Spaziergang durch Lissabon", "Kapitel, Kapitel, Kapitel"]),
+            ("demo-2", "Radio Nebenan", ["Der Nachbar spricht", "Zwei Stunden Wetter", "Zugabe"]),
+        ]
+        for (index, entry) in demo.enumerated() {
+            let source = Source(id: SourceID(rawValue: entry.0), kind: .podcastRSS, title: entry.1,
+                                feedURL: nil, addedAt: Date(timeIntervalSince1970: Double(index)))
+            insertForTesting(source: source)
+            for (number, title) in entry.2.enumerated() {
+                insertForTesting(episode: Episode(
+                    id: EpisodeID(rawValue: "\(entry.0)-\(number)"), sourceID: source.id, title: title,
+                    publishedAt: Date().addingTimeInterval(-Double(number + index) * 86_400),
+                    declaredDuration: MediaDuration(seconds: Double(1_800 + number * 900)),
+                    audioURL: URL(string: "https://example.com/\(entry.0)-\(number).mp3")))
+            }
+        }
+        reload()
+    }
+    #endif
+
     // MARK: - Nur für Tests
 
     func insertForTesting(source: Source) {

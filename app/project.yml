@@ -4,7 +4,9 @@
 #   cd app && xcodegen generate && open PodcastAI.xcodeproj
 #
 # Zielplattformen sind iOS und macOS. iPadOS läuft über das iOS-Target mit
-# TARGETED_DEVICE_FAMILY "1,2"; watchOS ist bewusst nicht enthalten.
+# TARGETED_DEVICE_FAMILY "1,2". Dazu kommen reine Player ohne KI für die Uhr
+# (PodcastAIWatch, eingebettet in die iOS-App) und für Apple TV
+# (PodcastAITV), siehe docs/plan-player-plattformen.md.
 #
 # Der Mac bekommt ein eigenes natives Target statt Catalyst: die Mediathek,
 # die Wissensansicht und der Export sind auf dem Mac andere Oberflächen,
@@ -17,6 +19,8 @@ options:
   deploymentTarget:
     iOS: "27.0"
     macOS: "27.0"
+    watchOS: "27.0"
+    tvOS: "27.0"
   createIntermediateGroups: true
   defaultConfig: Release
   developmentLanguage: de
@@ -52,6 +56,8 @@ targets:
       - package: PodcastAIKit
       - target: PodcastAIWidget
       - target: PodcastAIShare
+      # Die Uhr-App liegt im Bündel der iOS-App („Embed Watch Content“).
+      - target: PodcastAIWatch
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile
@@ -172,6 +178,35 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
 
+  # Apple Watch: reiner Player ohne KI. Eingebettet in die iOS-App, läuft
+  # auch ohne iPhone. Hängt nur am Paketprodukt PodcastAIPlayerKit (Core,
+  # Quellen, Medien), nicht an Wissen, Intelligenz oder Transkription.
+  # Entitlements: nur iCloud (CloudKit-Container wie die anderen Apps).
+  PodcastAIWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Apps/PodcastAIWatch
+        excludes:
+          - "*.entitlements"
+      - path: Apps/PlayerShared
+      # Dasselbe App-Symbol wie iOS und Mac.
+      - path: Apps/Shared/Assets.xcassets
+    dependencies:
+      - package: PodcastAIKit
+        product: PodcastAIPlayerKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile.watchkitapp
+        PRODUCT_NAME: PodcastAI
+        INFOPLIST_FILE: Apps/PodcastAIWatch/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Apps/PodcastAIWatch/PodcastAIWatch.entitlements
+        # Die Uhr kennt keine helle und dunkle Fassung einer Farbe. Die
+        # Akzentfarbe der anderen Apps wäre auf Schwarz zu dunkel.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: PlayerAccentColor
+        SKIP_INSTALL: YES
+
   PodcastAIUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -228,4 +263,12 @@ schemes:
     test:
       config: Debug
       targets: [PodcastAIKitTests, PodcastAIMacUITests]
+    archive: { config: Release }
+
+  # Apple Watch: Scheme für Simulator und Gerät. Gebaut wird die Uhr-App
+  # auch über das Schema PodcastAI, weil sie dort eingebettet ist.
+  PodcastAIWatch:
+    build:
+      targets: { PodcastAIWatch: all }
+    run: { config: Debug }
     archive: { config: Release }
