@@ -183,6 +183,37 @@ struct TagsView: View {
     }
 
     var body: some View {
+        content
+            .searchable(text: $query, prompt: Text("Tags durchsuchen"))
+            .navigationTitle("Meine Tags")
+            .accessibilityIdentifier("tags.list")
+            .task(id: model.tagTrendsTrigger) { await model.refreshTagTrends() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if os(macOS)
+        if model.profile.tags.isEmpty {
+            ContentUnavailableView {
+                Label("Noch keine Tags", systemImage: "tag")
+            } description: {
+                Text("""
+                    Tags entstehen aus dem Inhalt deiner Folgen, sobald Transkripte fertig sind. \
+                    Mit Plus folgst du einem Tag, dann sammelt „Für dich“ die passenden Kapitel.
+                    """)
+            }
+        } else {
+            MacTagsPage(trending: trending, followed: followed, neutral: neutral,
+                        isSearching: !query.trimmingCharacters(in: .whitespaces).isEmpty,
+                        counts: model.chapterTagCounts)
+        }
+        #else
+        list
+        #endif
+    }
+
+    #if !os(macOS)
+    private var list: some View {
         List {
             if model.profile.tags.isEmpty {
                 ContentUnavailableView {
@@ -226,12 +257,8 @@ struct TagsView: View {
             }
         }
         .yieldsAIWhileScrolling()
-        .readingColumn()
-        .searchable(text: $query, prompt: Text("Tags durchsuchen"))
-        .navigationTitle("Meine Tags")
-        .accessibilityIdentifier("tags.list")
-        .task(id: model.tagTrendsTrigger) { await model.refreshTagTrends() }
     }
+    #endif
 
     /// Ein angesagtes Tag: Name, warum es angesagt ist, Plus oder Minus.
     private func trendRow(_ entry: TrendingTag) -> some View {

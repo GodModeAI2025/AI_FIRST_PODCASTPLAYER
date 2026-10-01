@@ -21864,6 +21864,86 @@
           }
         }
       }
+    },
+    "%@, ^[%lld Kapitel](inflect: true), du folgst" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, ^[%2$lld Kapitel](inflect: true), du folgst"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, ^[%2$lld chapter](inflect: true), you follow it"
+          }
+        }
+      }
+    },
+    "%@, ^[%lld Kapitel](inflect: true)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, ^[%2$lld Kapitel](inflect: true)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, ^[%2$lld chapter](inflect: true)"
+          }
+        }
+      }
+    },
+    "Plus nimmt ein Tag in „Für dich“ und die Themen-Updates auf." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus nimmt ein Tag in „Für dich“ und die Themen-Updates auf."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus adds a tag to For You and the topic updates."
+          }
+        }
+      }
+    },
+    "Minus beendet das Folgen, das Tag bleibt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minus beendet das Folgen, das Tag bleibt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minus stops following, the tag stays."
+          }
+        }
+      }
+    },
+    "Plus nimmt das Tag in „Für dich“ auf." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus nimmt das Tag in „Für dich“ auf."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plus adds the tag to For You."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

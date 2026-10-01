@@ -1,5 +1,8 @@
 # Änderungsverlauf
 
+## Nächste Version
+Mac: „Meine Tags“ zeigt Tags als umbrechende Kapseln mit Häkchen für gefolgte Tags, Zahl der Kapitel, Hover und Erklärung je Gruppe.
+
 ## App 1.0 · 2026-09-28
 Erste Version für den App Store, inhaltlich wie 0.15.
 
