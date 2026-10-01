@@ -1,6 +1,8 @@
 # Änderungsverlauf
 
 ## Nächste Version
+Mac: „Themen-Updates“, „Für dich“, „Gemerkte Stellen“ und „Gesicherte Antworten“ zeigen ihre Inhalte wie „Meine Tags“ als Karten in einem Raster mit Abschnittskopf, Hover und sichtbarem Abspielknopf.
+
 Mac: „Meine Tags“ zeigt Tags als umbrechende Kapseln mit Häkchen für gefolgte Tags, Zahl der Kapitel, Hover und Erklärung je Gruppe.
 
 ## App 1.0 · 2026-09-28

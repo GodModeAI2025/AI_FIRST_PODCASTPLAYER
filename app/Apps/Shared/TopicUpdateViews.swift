@@ -33,11 +33,11 @@ struct SmartFeedListView: View {
     /// die Seite bei jeder Rückkehr in den Tab wieder auf.
     @Binding var linkedTag: InterestID?
 
-    @Environment(AppModel.self) private var model
-    @State private var showingNewFeed = false
-    @State private var editingFeed: SmartPodcastFeed?
-    @State private var pendingDeletion: SmartPodcastFeed?
-    @State private var openedTag: InterestID?
+    @Environment(AppModel.self) var model
+    @State var showingNewFeed = false
+    @State var editingFeed: SmartPodcastFeed?
+    @State var pendingDeletion: SmartPodcastFeed?
+    @State var openedTag: InterestID?
 
     init(linkedTag: Binding<InterestID?> = .constant(nil)) {
         _linkedTag = linkedTag
@@ -45,9 +45,44 @@ struct SmartFeedListView: View {
 
     /// Die Zeile „Angesagt“ und der Schalter erscheinen, sobald etwas
     /// angesagt ist oder das Update schon besteht.
-    private var showsTrending: Bool { !model.trendingTags.isEmpty || model.trendingFeed != nil }
+    var showsTrending: Bool { !model.trendingTags.isEmpty || model.trendingFeed != nil }
 
     var body: some View {
+        content
+            .navigationTitle("Themen-Updates")
+            .activityStatusToolbar()
+            // Rechnet „Angesagt“ und gleicht das gleichnamige Update ab. Spielt nichts.
+            .task(id: model.trendingFeedTrigger) { await model.refreshTrendingFeed() }
+            .navigationDestination(for: SmartFeedID.self) { feedID in
+                SmartFeedDetailView(feedID: feedID)
+            }
+            .navigationDestination(item: $openedTag) { id in TagDetailView(tagID: id) }
+            // Öffnet nur die Seite, abgespielt wird dort nichts.
+            .task(id: linkedTag) {
+                guard let linkedTag else { return }
+                openedTag = linkedTag
+                self.linkedTag = nil
+            }
+            .toolbar {
+                Button { showingNewFeed = true } label: {
+                    Label("Neu", systemImage: "plus")
+                }
+            }
+            .sheet(isPresented: $showingNewFeed) { NewSmartFeedSheet().sheetFeedback().macFormSheet() }
+            .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback().macFormSheet() }
+            .smartFeedDeletionDialog(for: $pendingDeletion)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
+        list
+        #endif
+    }
+
+    private var list: some View {
         List {
             if showsTrending {
                 Section {
@@ -119,28 +154,6 @@ struct SmartFeedListView: View {
         }
         .yieldsAIWhileScrolling()
         .readingColumn()
-        .navigationTitle("Themen-Updates")
-        .activityStatusToolbar()
-        // Rechnet „Angesagt“ und gleicht das gleichnamige Update ab. Spielt nichts.
-        .task(id: model.trendingFeedTrigger) { await model.refreshTrendingFeed() }
-        .navigationDestination(for: SmartFeedID.self) { feedID in
-            SmartFeedDetailView(feedID: feedID)
-        }
-        .navigationDestination(item: $openedTag) { id in TagDetailView(tagID: id) }
-        // Öffnet nur die Seite, abgespielt wird dort nichts.
-        .task(id: linkedTag) {
-            guard let linkedTag else { return }
-            openedTag = linkedTag
-            self.linkedTag = nil
-        }
-        .toolbar {
-            Button { showingNewFeed = true } label: {
-                Label("Neu", systemImage: "plus")
-            }
-        }
-        .sheet(isPresented: $showingNewFeed) { NewSmartFeedSheet().sheetFeedback().macFormSheet() }
-        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback().macFormSheet() }
-        .smartFeedDeletionDialog(for: $pendingDeletion)
     }
 }
 
@@ -313,13 +326,15 @@ struct SmartFeedRow: View {
 
     let feed: SmartPodcastFeed
     let editions: [PersonalEpisode]
+    /// Auf dem Mac größer, wo das Update als Karte steht.
+    var coverSize: CGFloat = 56
     @Environment(AppModel.self) private var model
 
     var body: some View {
         HStack(spacing: Design.Spacing.control) {
             // Ein Themenfeed sieht aus wie ein Podcast, auch bevor die
             // erste Ausgabe da ist.
-            FeedCoverView(feed: feed, size: 56)
+            FeedCoverView(feed: feed, size: coverSize)
             VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                 Text(feed.title).font(.headline)
                 if let tags = model.tagSummary(for: feed) {
@@ -345,7 +360,7 @@ struct SmartFeedRow: View {
         }
     }
 
-    private var status: String {
+    var status: String {
         let run = PersonalEpisode.latestRun(in: editions)
         guard let latest = run.first else {
             return model.editionNotes[feed.id] ?? String(localized: "Noch keine Ausgabe")
@@ -363,7 +378,7 @@ struct SmartFeedRow: View {
     }
 
     /// Wann die nächste Ausgabe kommen kann, kurz.
-    private var next: String {
+    var next: String {
         let policy = feed.publicationPolicy
         if model.isWaitingForTrends(feed) { return String(localized: "Wartet auf angesagte Tags") }
         guard policy.isAutomatic else { return String(localized: "Neue Ausgabe nur auf Knopfdruck") }
@@ -387,36 +402,97 @@ struct SmartFeedRow: View {
 struct SmartFeedDetailView: View {
 
     let feedID: SmartFeedID
-    @Environment(AppModel.self) private var model
+    @Environment(AppModel.self) var model
     @Environment(\.dismiss) private var dismiss
     @State private var editingFeed: SmartPodcastFeed?
     @State private var pendingDeletion: SmartPodcastFeed?
     /// Läuft ein Zusammenstellen, um das hier jemand gebeten hat?
-    @State private var requesting = false
+    @State var requesting = false
     /// Wann das letzte Zusammenstellen von hier aus fertig war.
-    @State private var resultAt: Date?
-    @State private var openedTag: InterestID?
+    @State var resultAt: Date?
+    @State var openedTag: InterestID?
     /// Der Systemdialog von Image Playground, wenn die App selbst kein Bild erzeugen kann.
     @State private var showingPlayground = false
 
-    private var feed: SmartPodcastFeed? { model.smartFeeds.first { $0.id == feedID } }
-    private var editions: [PersonalEpisode] {
+    var feed: SmartPodcastFeed? { model.smartFeeds.first { $0.id == feedID } }
+    var editions: [PersonalEpisode] {
         (model.editions[feedID] ?? []).sorted { $0.publishedAt > $1.publishedAt }
     }
-    private var latestRun: [PersonalEpisode] { PersonalEpisode.latestRun(in: editions) }
-    private var earlier: [PersonalEpisode] {
+    var latestRun: [PersonalEpisode] { PersonalEpisode.latestRun(in: editions) }
+    var earlier: [PersonalEpisode] {
         let latest = Set(latestRun.map(\.id))
         return editions.filter { !latest.contains($0.id) }
     }
-    private var isBuilding: Bool { requesting || model.buildingFeeds.contains(feedID) }
+    var isBuilding: Bool { requesting || model.buildingFeeds.contains(feedID) }
 
     /// Tags des Updates, zu denen keine Stelle passt.
-    private var topicsWithoutHits: [Interest] {
+    var topicsWithoutHits: [Interest] {
         let ids = model.editionChecks[feedID]?.topicsWithoutHits ?? []
         return model.profile.interests.filter { ids.contains($0.id) }
     }
 
     var body: some View {
+        content
+            .navigationTitle(feed?.title ?? String(localized: "Themen-Update"))
+            .navigationDestination(item: $openedTag) { id in TagDetailView(tagID: id) }
+            .toolbar {
+                if let feed {
+                    Menu {
+                        // „Angesagt“ bekommt seine Tags aus den Trends. Was man
+                        // hier änderte, schriebe der nächste Abgleich um.
+                        if !feed.followsTrends {
+                            Button { editingFeed = feed } label: {
+                                Label("Bearbeiten", systemImage: "pencil")
+                            }
+                        }
+                        if model.coverArt.canCreate {
+                            Button { createCover(for: feed) } label: {
+                                Label("Neues Cover erzeugen", systemImage: "wand.and.sparkles")
+                            }
+                            .disabled(model.coverArt.isGenerating(feed.id))
+                        }
+                        if let latest = latestRun.first {
+                            ShareLink(item: ShownotesBuilder().markdown(for: latest)) {
+                                Label("Neueste Ausgabe als Text teilen", systemImage: "square.and.arrow.up")
+                            }
+                        }
+                        Button(role: .destructive) { pendingDeletion = feed } label: {
+                            if feed.followsTrends {
+                                Label("Ausschalten", systemImage: "trash")
+                            } else {
+                                Label("Löschen", systemImage: "trash")
+                            }
+                        }
+                    } label: {
+                        Label("Mehr", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
+            .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback().macFormSheet() }
+            .coverPlaygroundSheet(isPresented: $showingPlayground, recipe: feed.map(model.coverRecipe(for:))) { url in
+                guard let feed else { return }
+                let recipe = model.coverRecipe(for: feed)
+                Task {
+                    if await model.coverArt.adopt(fileAt: url, for: recipe) {
+                        AccessibilityNotification.Announcement(String(localized: "Neues Cover ist fertig")).post()
+                    } else {
+                        model.lastError = String(localized: "Das Cover konnte nicht übernommen werden. Das bisherige bleibt.")
+                    }
+                }
+            }
+            .smartFeedDeletionDialog(for: $pendingDeletion) { dismiss() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
+        list
+        #endif
+    }
+
+    private var list: some View {
         List {
             if let feed {
                 Section {
@@ -507,54 +583,6 @@ struct SmartFeedDetailView: View {
         }
         .yieldsAIWhileScrolling()
         .readingColumn()
-        .navigationTitle(feed?.title ?? String(localized: "Themen-Update"))
-        .navigationDestination(item: $openedTag) { id in TagDetailView(tagID: id) }
-        .toolbar {
-            if let feed {
-                Menu {
-                    // „Angesagt“ bekommt seine Tags aus den Trends. Was man
-                    // hier änderte, schriebe der nächste Abgleich um.
-                    if !feed.followsTrends {
-                        Button { editingFeed = feed } label: {
-                            Label("Bearbeiten", systemImage: "pencil")
-                        }
-                    }
-                    if model.coverArt.canCreate {
-                        Button { createCover(for: feed) } label: {
-                            Label("Neues Cover erzeugen", systemImage: "wand.and.sparkles")
-                        }
-                        .disabled(model.coverArt.isGenerating(feed.id))
-                    }
-                    if let latest = latestRun.first {
-                        ShareLink(item: ShownotesBuilder().markdown(for: latest)) {
-                            Label("Neueste Ausgabe als Text teilen", systemImage: "square.and.arrow.up")
-                        }
-                    }
-                    Button(role: .destructive) { pendingDeletion = feed } label: {
-                        if feed.followsTrends {
-                            Label("Ausschalten", systemImage: "trash")
-                        } else {
-                            Label("Löschen", systemImage: "trash")
-                        }
-                    }
-                } label: {
-                    Label("Mehr", systemImage: "ellipsis.circle")
-                }
-            }
-        }
-        .sheet(item: $editingFeed) { feed in NewSmartFeedSheet(editing: feed).sheetFeedback().macFormSheet() }
-        .coverPlaygroundSheet(isPresented: $showingPlayground, recipe: feed.map(model.coverRecipe(for:))) { url in
-            guard let feed else { return }
-            let recipe = model.coverRecipe(for: feed)
-            Task {
-                if await model.coverArt.adopt(fileAt: url, for: recipe) {
-                    AccessibilityNotification.Announcement(String(localized: "Neues Cover ist fertig")).post()
-                } else {
-                    model.lastError = String(localized: "Das Cover konnte nicht übernommen werden. Das bisherige bleibt.")
-                }
-            }
-        }
-        .smartFeedDeletionDialog(for: $pendingDeletion) { dismiss() }
     }
 
     /// Eine Ausgabe wie eine Folge: öffnet ihre Seite, spielt nichts.
@@ -600,7 +628,7 @@ struct SmartFeedDetailView: View {
     /// Stellt von Hand eine Ausgabe zusammen. Der Fortschritt bleibt kurz
     /// sichtbar, auch wenn die Prüfung sofort fertig ist: sonst sähe der
     /// Tipp aus, als hätte er nichts getan. Spielt nichts ab.
-    private func requestEdition() {
+    func requestEdition() {
         guard !isBuilding else { return }
         requesting = true
         Task {
@@ -697,37 +725,43 @@ struct SmartFeedHeader: View {
         .padding(.vertical, Design.Spacing.small)
     }
 
+    private var counts: [TagStatementCount] { model.statementCounts(for: feed, statistics: statistics) }
+    private var modeLine: String { model.modeLine(for: feed) }
+}
+
+extension AppModel {
+
     /// Die Tags des Updates mit ihren Zahlen, auch mit null: Hier geht es
     /// um dieses Update, nicht um das, was gerade neu ist.
-    private var counts: [TagStatementCount] {
+    func statementCounts(for feed: SmartPodcastFeed, statistics: SmartFeedStatistics?) -> [TagStatementCount] {
         // „Angesagt“ nur mit den Tags, aus denen die nächste Ausgabe
         // entsteht, ohne die mit Minus.
         if feed.followsTrends {
-            let current = Set(model.trendingFeedForEdition(feed).topicIDs)
-            return allCounts.filter { current.contains($0.tagID) }
+            let current = Set(trendingFeedForEdition(feed).topicIDs)
+            return allCounts(for: feed, statistics: statistics).filter { current.contains($0.tagID) }
         }
-        return allCounts
+        return allCounts(for: feed, statistics: statistics)
     }
 
-    private var allCounts: [TagStatementCount] {
+    private func allCounts(for feed: SmartPodcastFeed, statistics: SmartFeedStatistics?) -> [TagStatementCount] {
         if let statistics, !statistics.tags.isEmpty {
             return statistics.tags.map { entry in
                 entry.label.isEmpty
                     ? TagStatementCount(tagID: entry.tagID,
-                                        label: model.labels(forTags: [entry.tagID]).first ?? "",
+                                        label: labels(forTags: [entry.tagID]).first ?? "",
                                         count: entry.count)
                     : entry
             }.filter { !$0.label.isEmpty }
         }
         return feed.topicIDs.compactMap { id in
-            model.labels(forTags: [id]).first.map { TagStatementCount(tagID: id, label: $0, count: 0) }
+            labels(forTags: [id]).first.map { TagStatementCount(tagID: id, label: $0, count: 0) }
         }
     }
 
     /// „Kapitel mit einem der Tags“.
-    private var modeLine: String {
+    func modeLine(for feed: SmartPodcastFeed) -> String {
         if feed.followsTrends {
-            guard !model.isWaitingForTrends(feed) else { return AppModel.nothingTrendingNote }
+            guard !isWaitingForTrends(feed) else { return AppModel.nothingTrendingNote }
             return String(localized: "Kapitel mit einem der angesagten Tags. Die Tags wechseln mit den Trends.")
         }
         if feed.topicIDs.isEmpty {
@@ -837,11 +871,44 @@ struct EditionHeader: View {
         .padding(.vertical, Design.Spacing.small)
     }
 
+    private var isCurrent: Bool { playback.isCurrent }
+    private var isRunning: Bool { playback.isRunning }
+
+    private var playback: EditionPlayback { EditionPlayback(episode: episode, model: model) }
+
+    private var playLabel: LocalizedStringKey {
+        guard isCurrent else { return "Abspielen" }
+        return isRunning ? "Pause" : "Weiter"
+    }
+
+    private var playSymbol: String { isRunning ? "pause.fill" : "play.fill" }
+
+    private func primaryAction() { playback.toggle() }
+
+    /// Zwei feste Sätze statt `inflect`: „Originalstelle“ kennt die
+    /// automatische Beugung im Deutschen nicht, sie bliebe in der Einzahl.
+    private var playHint: String {
+        let count = episode.segments.count
+        return count == 1
+            ? String(localized: "Spielt 1 Originalstelle ab")
+            : String(localized: "Spielt \(count) Originalstellen nacheinander ab")
+    }
+}
+
+/// Wie eine Ausgabe abgespielt wird und ob sie gerade läuft. Gemeinsam für
+/// den Kopf der Ausgabe und die Karte auf dem Mac. Gestartet wird nur auf
+/// einen Klick.
+@MainActor
+struct EditionPlayback {
+
+    let episode: PersonalEpisode
+    let model: AppModel
+
     /// Ob der Player gerade diese Ausgabe spielt oder angehalten hält. Der
     /// Plan trägt keine Kennung der Ausgabe, deshalb vergleicht die Ansicht
     /// Titel und Stellen. Stellen aus YouTube-Videos fehlen im Plan, weil
     /// sie der Player nicht spielt.
-    private var isCurrent: Bool {
+    var isCurrent: Bool {
         guard let plan = model.playerPlan, plan.route == .smartFeedEpisode,
               plan.requestSummary == episode.title, !plan.segments.isEmpty else { return false }
         switch model.playerState {
@@ -852,7 +919,7 @@ struct EditionHeader: View {
         return plan.segments.allSatisfy { own.contains($0.mediaVersionID) }
     }
 
-    private var isRunning: Bool {
+    var isRunning: Bool {
         guard isCurrent else { return false }
         switch model.playerState {
         case .preparing, .playing: return true
@@ -860,28 +927,13 @@ struct EditionHeader: View {
         }
     }
 
-    private var playLabel: LocalizedStringKey {
-        guard isCurrent else { return "Abspielen" }
-        return isRunning ? "Pause" : "Weiter"
-    }
-
-    private var playSymbol: String { isRunning ? "pause.fill" : "play.fill" }
-
-    private func primaryAction() {
+    /// Spielt die Ausgabe, hält sie an oder setzt sie fort.
+    func toggle() {
         guard isCurrent else { return play() }
         if isRunning { model.pausePlayback() } else { model.resumePlayback() }
     }
 
-    /// Zwei feste Sätze statt `inflect`: „Originalstelle“ kennt die
-    /// automatische Beugung im Deutschen nicht, sie bliebe in der Einzahl.
-    private var playHint: String {
-        let count = episode.segments.count
-        return count == 1
-            ? String(localized: "Spielt 1 Originalstelle ab")
-            : String(localized: "Spielt \(count) Originalstellen nacheinander ab")
-    }
-
-    private func play() {
+    func play() {
         let plan = ValidatedPlaybackPlan(
             segments: episode.segments.map { segment in
                 PlanSegment(

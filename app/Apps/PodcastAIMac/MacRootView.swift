@@ -196,6 +196,29 @@ struct MacRootView: View {
                 window.setContentSize(NSSize(width: 1440, height: 900))
                 window.center()
             }
+            // Nur für die Bilder: je zwei gemerkte Stellen und gesicherte Antworten,
+            // damit die Karten zu sehen sind. Sie landen nicht im Speicher.
+            let seedKnowledge = {
+                let episode = DemoContent.episodeID
+                model.highlights = [
+                    Highlight(evidenceID: EvidenceID(), note: "Für den Workshop merken", capturedVia: .player,
+                              quote: "Modelle auf dem Gerät verarbeiten Text lokal, dadurch verlassen Daten das Telefon nicht.",
+                              episodeID: episode, episodeTitle: "KI im Arbeitsalltag: Datenschutz, Regeln, Haftung",
+                              sourceTitle: "Beispiel: Arbeit und KI", positionMs: 135_000),
+                    Highlight(evidenceID: EvidenceID(), capturedVia: .transcript,
+                              quote: "Wer heute anfängt, sollte mit einem kleinen, messbaren Projekt starten.",
+                              episodeID: episode, episodeTitle: "KI im Arbeitsalltag: Datenschutz, Regeln, Haftung",
+                              sourceTitle: "Beispiel: Arbeit und KI", positionMs: 780_000),
+                ]
+                model.trails = [
+                    KnowledgeTrail(question: "Wie schütze ich Daten beim Einsatz von KI im Team?",
+                                   evidenceIDs: [EvidenceID(), EvidenceID(), EvidenceID()],
+                                   answerText: "Modelle auf dem Gerät verarbeiten Text lokal. Für größere Aufgaben gibt es Serverlösungen, die Anfragen nicht speichern."),
+                    KnowledgeTrail(question: "Wer haftet für Fehler eines Modells?",
+                                   evidenceIDs: [EvidenceID()],
+                                   answerText: "Die europäische KI-Verordnung verlangt Transparenz und Risikobewertung."),
+                ]
+            }
             var steps: [(String, () -> Void)] = [
                 ("01-fuer-dich", { router.show(.forYou) }),
                 ("02-meine-podcasts", { router.show(.library) }),
@@ -211,6 +234,8 @@ struct MacRootView: View {
                 ("05-themen-updates", { router.show(.feeds) }),
                 ("06-chat", { router.show(.chat) }),
                 ("07-meine-tags", { router.show(.interests) }),
+                ("08-gemerkte-stellen", { seedKnowledge(); router.show(.knowledge) }),
+                ("09-gesicherte-antworten", { seedKnowledge(); router.show(.trails) }),
             ]
             NSApp.activate(ignoringOtherApps: true)
             for (name, show) in steps {

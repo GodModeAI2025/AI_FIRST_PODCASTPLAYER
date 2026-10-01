@@ -14,34 +14,52 @@ import PodcastAIKit
 /// Der Einstieg. Nicht „neue Folgen“, sondern „was davon solltest du wissen“.
 struct ForYouView: View {
 
-    @Environment(AppModel.self) private var model
+    @Environment(AppModel.self) var model
 
-    @State private var addingSource = false
+    @State var addingSource = false
 
     var body: some View {
+        content
+            .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
+            .navigationTitle("Für dich")
+            .activityStatusToolbar()
+            .refreshable { await model.refreshAll(byUser: true) }
+            .toolbar {
+                // Auf dem Mac liegt „Als Nächstes“ im Inspektor (⌥⌘U).
+                #if os(iOS)
+                NavigationLink { QueueView() } label: {
+                    Label("Warteschlange", systemImage: "list.bullet")
+                }
+                #endif
+                // Nach dem ersten Abo verschwindet der große Suchknopf. Weitere
+                // Podcasts kommen dann über das Plus dazu.
+                Button { addingSource = true } label: {
+                    Label("Podcast hinzufügen", systemImage: "plus")
+                }
+                .accessibilityIdentifier("forYou.add")
+                #if os(iOS)
+                SettingsToolbarLink()
+                #endif
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
+        list
+        #endif
+    }
+
+    private var list: some View {
         List {
             let resume = model.continueListening
             if !resume.isEmpty {
                 Section {
-                    #if os(macOS)
-                    // Auf dem Mac ein Regal zum Blättern statt einer Zeile je Folge.
-                    ScrollView(.horizontal) {
-                        LazyHStack(spacing: Design.Spacing.standard) {
-                            ForEach(resume, id: \.episode.id) { entry in
-                                ResumeTile(episode: entry.episode, position: entry.position)
-                            }
-                        }
-                        .scrollTargetLayout()
-                        .padding(.vertical, Design.Spacing.small)
-                    }
-                    .scrollTargetBehavior(.viewAligned)
-                    .scrollIndicators(.hidden)
-                    .listRowSeparator(.hidden)
-                    #else
                     ForEach(resume, id: \.episode.id) { entry in
                         ResumeRow(episode: entry.episode, position: entry.position)
                     }
-                    #endif
                 } header: {
                     ForYouSectionHeader("Weiterhören", symbol: "play.circle",
                                         explanation: Self.resumeExplanation)
@@ -131,28 +149,7 @@ struct ForYouView: View {
         }
         .yieldsAIWhileScrolling()
         .readingColumn()
-        .sheet(isPresented: $addingSource) { AddSourceSheet().sheetFeedback() }
         .listStyle(.plain)
-        .navigationTitle("Für dich")
-        .activityStatusToolbar()
-        .refreshable { await model.refreshAll(byUser: true) }
-        .toolbar {
-            // Auf dem Mac liegt „Als Nächstes“ im Inspektor (⌥⌘U).
-            #if os(iOS)
-            NavigationLink { QueueView() } label: {
-                Label("Warteschlange", systemImage: "list.bullet")
-            }
-            #endif
-            // Nach dem ersten Abo verschwindet der große Suchknopf. Weitere
-            // Podcasts kommen dann über das Plus dazu.
-            Button { addingSource = true } label: {
-                Label("Podcast hinzufügen", systemImage: "plus")
-            }
-            .accessibilityIdentifier("forYou.add")
-            #if os(iOS)
-            SettingsToolbarLink()
-            #endif
-        }
     }
 }
 
@@ -400,9 +397,8 @@ struct ResumeRow: View {
 }
 
 #if os(macOS)
-/// Eine angefangene Folge als Kachel im Regal „Weiterhören“. Ein Klick
-/// öffnet die Folge, weiter spielt der Knopf beim Überfahren oder das
-/// Kontextmenü.
+/// Eine angefangene Folge als Kachel im Raster „Weiterhören“. Ein Klick
+/// öffnet die Folge, weiter spielt der Knopf rechts oder das Kontextmenü.
 ///
 /// Der Knopf liegt über der Kachel, nicht in ihr: ein Knopf im Link
 /// konnte mit demselben Klick öffnen und abspielen.
@@ -411,7 +407,6 @@ struct ResumeTile: View {
     let position: Double
     @Environment(AppModel.self) private var model
     @Environment(MacRouter.self) private var router: MacRouter?
-    @State private var hovering = false
 
     private var duration: Double { episode.declaredDuration?.seconds ?? 0 }
 
@@ -423,6 +418,7 @@ struct ResumeTile: View {
                                size: 72)
                 VStack(alignment: .leading, spacing: Design.Spacing.micro) {
                     Text(episode.title).font(.body.weight(.medium)).lineLimit(2)
+                        .multilineTextAlignment(.leading)
                     if let podcast = model.sources.first(where: { $0.id == episode.sourceID })?.title {
                         Text(podcast).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     }
@@ -437,37 +433,74 @@ struct ResumeTile: View {
                             .font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
+                // Platz für den Knopf, der über der Kachel liegt.
+                Color.clear.frame(width: 36, height: 36)
             }
             .padding(Design.Spacing.control)
-            .frame(width: 300, height: 104, alignment: .topLeading)
-            .background(.quaternary.opacity(hovering ? 0.7 : 0.4),
-                        in: .rect(cornerRadius: Design.Radius.card, style: .continuous))
-            .contentShape(.rect(cornerRadius: Design.Radius.card))
+            .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(MacCardButtonStyle())
         .accessibilityElement(children: .combine)
         .accessibilityAction(named: "Weiterhören") { model.playEpisode(episode, at: position) }
-        .overlay(alignment: .topLeading) {
-            if hovering {
-                Button { model.playEpisode(episode, at: position) } label: {
-                    Label("Weiterhören", systemImage: "play.circle.fill")
-                        .labelStyle(.iconOnly)
-                        .font(.largeTitle)
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(.white, Color.black.opacity(0.45))
-                        .frame(width: 72, height: 72)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            MacPlayButton(label: "Weiterhören", size: 36) { model.playEpisode(episode, at: position) }
                 .padding(Design.Spacing.control)
-                .help("Weiterhören")
                 .accessibilityHidden(true)
-            }
         }
-        .onHover { hovering = $0 }
         .contextMenu {
             Button("Weiterhören") { model.playEpisode(episode, at: position) }
             Button("Öffnen") { router?.push(.episode(episode)) }
+        }
+    }
+}
+
+/// Eine neue Folge aus den Abos als Kachel: Cover, Titel, Podcast, Alter.
+/// Ein Klick öffnet die Folge, der Knopf rechts spielt sie ab.
+struct MacFreshTile: View {
+    let episode: Episode
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let source = model.sources.first(where: { $0.id == episode.sourceID })
+        NavigationLink(value: MacRoute.episode(episode)) {
+            HStack(alignment: .center, spacing: Design.Spacing.control) {
+                EpisodeArtwork(url: episode.artworkURL, fallback: source?.artworkURL, size: 64)
+                VStack(alignment: .leading, spacing: Design.Spacing.micro) {
+                    Text(episode.title).font(.body.weight(.medium)).lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    HStack(spacing: Design.Spacing.micro) {
+                        if let source { Text(source.title).lineLimit(1) }
+                        if let published = episode.publishedAt {
+                            if source != nil { Text(verbatim: "·") }
+                            Text(published, format: .relative(presentation: .named)).lineLimit(1).fixedSize()
+                        }
+                    }
+                    .font(.subheadline).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Color.clear.frame(width: 36, height: 36)
+            }
+            .padding(Design.Spacing.control)
+            .frame(maxWidth: .infinity, minHeight: 88, alignment: .leading)
+        }
+        .buttonStyle(MacCardButtonStyle())
+        .accessibilityElement(children: .combine)
+        .overlay(alignment: .trailing) {
+            if model.canPlay(episode) {
+                MacPlayButton(label: "Abspielen", size: 36) { model.playEpisode(episode) }
+                    .padding(.trailing, Design.Spacing.control)
+                    .accessibilityHidden(true)
+            }
+        }
+        .contextMenu {
+            if model.canPlay(episode) {
+                Button { model.playEpisode(episode) } label: { Label("Abspielen", systemImage: "play.fill") }
+                Button { model.addToUpNext(episode) } label: {
+                    Label("Als Nächstes hören", systemImage: "text.line.first.and.arrowtriangle.forward")
+                }
+            } else {
+                OpenEpisodeWebButton(episode: episode)
+            }
         }
     }
 }

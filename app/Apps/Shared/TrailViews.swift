@@ -87,9 +87,23 @@ struct SessionClosureSheet: View {
 /// Gesicherte Antworten. Jede lässt sich öffnen und löschen.
 struct TrailListView: View {
 
-    @Environment(AppModel.self) private var model
+    @Environment(AppModel.self) var model
 
     var body: some View {
+        content
+            .navigationTitle("Gesicherte Antworten")
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
+        list
+        #endif
+    }
+
+    private var list: some View {
         List {
             if model.trails.isEmpty {
                 ContentUnavailableView {
@@ -122,12 +136,11 @@ struct TrailListView: View {
             }
         }
         .readingColumn()
-        .navigationTitle("Gesicherte Antworten")
     }
 }
 
 /// Eine Zeile der Liste: Frage, Anfang der Antwort, was dazugehört.
-private struct TrailRow: View {
+struct TrailRow: View {
 
     let trail: KnowledgeTrail
     let noteCount: Int
@@ -152,7 +165,10 @@ private struct TrailRow: View {
         .padding(.vertical, Design.Spacing.micro / 2)
     }
 
-    private var details: String {
+    private var details: String { Self.details(of: trail, noteCount: noteCount) }
+
+    /// „2 Belege · 1 Notiz · gesichert am 3. Okt. 2026“.
+    static func details(of trail: KnowledgeTrail, noteCount: Int) -> String {
         let count = trail.evidenceIDs.count
         var parts = [String(AttributedString(localized: "^[\(count) Beleg](inflect: true)").characters)]
         if noteCount > 0 {

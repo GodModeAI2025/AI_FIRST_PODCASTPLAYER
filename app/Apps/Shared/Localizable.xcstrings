@@ -21944,6 +21944,230 @@
           }
         }
       }
+    },
+    "Jedes Update sammelt Kapitel zu seinen Tags und baut daraus Ausgaben." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jedes Update sammelt Kapitel zu seinen Tags und baut daraus Ausgaben."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each update collects chapters for its tags and builds editions from them."
+          }
+        }
+      }
+    },
+    "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus den Tags, denen du folgst, baut PodcastAI einen eigenen Podcast."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PodcastAI builds a podcast of its own from the tags you follow."
+          }
+        }
+      }
+    },
+    "Läuft gerade" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Läuft gerade"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playing now"
+          }
+        }
+      }
+    },
+    "Abonniere deine Lieblingssendungen, dann stehen hier neue Folgen und die Stellen zu deinen Tags." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abonniere deine Lieblingssendungen, dann stehen hier neue Folgen und die Stellen zu deinen Tags."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subscribe to your favourite shows and new episodes and passages for your tags show up here."
+          }
+        }
+      }
+    },
+    "Noch nichts für dich" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch nichts für dich"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing for you yet"
+          }
+        }
+      }
+    },
+    "Folge einem Tag, dann sammelt diese Seite die passenden Kapitel." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folge einem Tag, dann sammelt diese Seite die passenden Kapitel."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Follow a tag and this page collects the matching chapters."
+          }
+        }
+      }
+    },
+    "Deine Stellen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Stellen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your moments"
+          }
+        }
+      }
+    },
+    "Momente, die du beim Hören gemerkt hast, mit Zeitmarke, Zitat und Kommentar." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Momente, die du beim Hören gemerkt hast, mit Zeitmarke, Zitat und Kommentar."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moments you saved while listening, with timestamp, quote and comment."
+          }
+        }
+      }
+    },
+    "Tippe beim Hören auf „Moment merken“, dann steht die Stelle mit Zeitmarke und Zitat hier." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe beim Hören auf „Moment merken“, dann steht die Stelle mit Zeitmarke und Zitat hier."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap “Save Moment” while listening and it shows up here with timestamp and quote."
+          }
+        }
+      }
+    },
+    "Deine Antworten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Antworten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your answers"
+          }
+        }
+      }
+    },
+    "Eine gesicherte Antwort hält eine Frage mit ihren Belegen und Notizen fest. Aufbewahrt, nicht zugestimmt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine gesicherte Antwort hält eine Frage mit ihren Belegen und Notizen fest. Aufbewahrt, nicht zugestimmt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A saved answer keeps a question with its evidence and notes. Kept, not endorsed."
+          }
+        }
+      }
+    },
+    "Im Chat steht an jeder Antwort „Antwort sichern“, dann liegt sie mit ihren Belegen hier." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Chat steht an jeder Antwort „Antwort sichern“, dann liegt sie mit ihren Belegen hier."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In the chat, every answer has “Save Answer”, and it lands here with its evidence."
+          }
+        }
+      }
+    },
+    "Deine Podcasts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Podcasts"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your podcasts"
+          }
+        }
+      }
+    },
+    "Ein Klick öffnet die Folgen eines Podcasts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Klick öffnet die Folgen eines Podcasts."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One click opens a podcast's episodes."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

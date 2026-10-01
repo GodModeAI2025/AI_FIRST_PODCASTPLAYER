@@ -1198,16 +1198,60 @@ extension ProcessingStage {
 /// Gemerkte Stellen und ihr Weg nach draußen.
 struct KnowledgeView: View {
 
-    @Environment(AppModel.self) private var model
+    @Environment(AppModel.self) var model
     @State private var exported: String?
     @State private var editing: Highlight?
     @State private var editText = ""
     /// Folgen, die noch da sind. `nil`, solange das noch nicht geprüft ist.
-    @State private var availableEpisodes: [EpisodeID: Episode]?
+    @State var availableEpisodes: [EpisodeID: Episode]?
     /// Für die VoiceOver-Aktionen der Zeilen: ansagen, was passiert ist.
-    @Environment(\.confirm) private var confirm
+    @Environment(\.confirm) var confirm
 
     var body: some View {
+        content
+            .navigationTitle("Gemerkte Stellen")
+            .task(id: model.highlights.compactMap(\.episodeID)) {
+                model.fillMissingNoteTitles()
+                availableEpisodes = await model.noteEpisodes(for: model.highlights)
+            }
+            // „Mit Quelle kopiert“ und „Spielt ab 4:00“.
+            .confirmationBanner()
+            .sheet(item: $editing) { highlight in
+                NoteSheet(position: highlight.positionMs.map { Double($0) / 1000 }, quote: highlight.quote,
+                          text: $editText) {
+                    model.updateNote(highlight.id, text: editText)
+                }
+                .presentationDetents([.medium])
+                .sheetFeedback()
+            }
+            .toolbar {
+                if !model.highlights.isEmpty {
+                    Button {
+                        Task { exported = await model.exportKnowledge() }
+                    } label: {
+                        Label("Als Markdown exportieren", systemImage: "square.and.arrow.up")
+                    }
+                }
+            }
+            .sheet(item: Binding(
+                get: { exported.map(ExportPreview.init) },
+                set: { exported = $0?.text }
+            )) { preview in
+                ExportPreviewSheet(text: preview.text, fileName: String(localized: "Gemerkte Stellen"))
+                    .sheetFeedback()
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        #if os(macOS)
+        macContent
+        #else
+        list
+        #endif
+    }
+
+    private var list: some View {
         List {
             if model.highlights.isEmpty {
                 ContentUnavailableView {
@@ -1238,50 +1282,19 @@ struct KnowledgeView: View {
         }
         .yieldsAIWhileScrolling()
         .readingColumn()
-        .navigationTitle("Gemerkte Stellen")
-        .task(id: model.highlights.compactMap(\.episodeID)) {
-            model.fillMissingNoteTitles()
-            availableEpisodes = await model.noteEpisodes(for: model.highlights)
-        }
-        // „Mit Quelle kopiert“ und „Spielt ab 4:00“.
-        .confirmationBanner()
-        .sheet(item: $editing) { highlight in
-            NoteSheet(position: highlight.positionMs.map { Double($0) / 1000 }, quote: highlight.quote,
-                      text: $editText) {
-                model.updateNote(highlight.id, text: editText)
-            }
-            .presentationDetents([.medium])
-            .sheetFeedback()
-        }
-        .toolbar {
-            if !model.highlights.isEmpty {
-                Button {
-                    Task { exported = await model.exportKnowledge() }
-                } label: {
-                    Label("Als Markdown exportieren", systemImage: "square.and.arrow.up")
-                }
-            }
-        }
-        .sheet(item: Binding(
-            get: { exported.map(ExportPreview.init) },
-            set: { exported = $0?.text }
-        )) { preview in
-            ExportPreviewSheet(text: preview.text, fileName: String(localized: "Gemerkte Stellen"))
-                .sheetFeedback()
-        }
     }
 
-    private func edit(_ highlight: Highlight) {
+    func edit(_ highlight: Highlight) {
         editing = highlight
         editText = highlight.note ?? ""
     }
 
-    private func episode(of highlight: Highlight) -> Episode? {
+    func episode(of highlight: Highlight) -> Episode? {
         highlight.episodeID.flatMap { availableEpisodes?[$0] }
     }
 
     /// Abspielbar ist eine Notiz nur mit Folge und Zeitmarke.
-    private func isPlayable(_ highlight: Highlight) -> Bool {
+    func isPlayable(_ highlight: Highlight) -> Bool {
         episode(of: highlight) != nil && highlight.positionMs != nil
     }
 

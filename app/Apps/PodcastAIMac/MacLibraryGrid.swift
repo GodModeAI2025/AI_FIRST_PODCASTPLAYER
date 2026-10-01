@@ -17,21 +17,24 @@ struct MacLibraryGrid: View {
     @Environment(MacRouter.self) private var router: MacRouter?
 
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 160, maximum: 220), spacing: Design.Spacing.section)],
-                      alignment: .leading, spacing: Design.Spacing.large) {
-                ForEach(model.sources) { source in
-                    Button { router?.show(.podcast(source.id)) } label: {
-                        MacPodcastCover(source: source)
+        MacPage {
+            MacSection(header: MacSectionHeader(
+                title: Text("Deine Podcasts"), count: model.sources.count,
+                note: Text("Ein Klick öffnet die Folgen eines Podcasts.")
+            )) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160, maximum: 220), spacing: Design.Spacing.section)],
+                          alignment: .leading, spacing: Design.Spacing.large) {
+                    ForEach(model.sources) { source in
+                        Button { router?.show(.podcast(source.id)) } label: {
+                            MacPodcastCover(source: source)
+                        }
+                        .buttonStyle(.plain)
+                        .help(source.title)
+                        .contextMenu { menu(for: source) }
                     }
-                    .buttonStyle(.plain)
-                    .help(source.title)
-                    .contextMenu { menu(for: source) }
                 }
             }
-            .padding(.vertical, Design.Spacing.section)
         }
-        .readingColumn()
     }
 
     @ViewBuilder
