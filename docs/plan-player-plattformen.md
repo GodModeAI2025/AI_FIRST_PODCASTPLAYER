@@ -94,8 +94,9 @@ Geschrieben wird nie ein fremder Datensatz:
 2. In `app/project.yml` im Ziel `PodcastAI` die Einstellung `PODCASTAI_VARIANT: CarPlay` setzen.
 3. `cd app && xcodegen generate`.
 4. Bauen und archivieren wie gewohnt. Das Archiv trägt jetzt `PodcastAICarPlay.entitlements` und `InfoCarPlay.plist`.
-5. Im CarPlay-Simulator (Xcode, I/O, External Displays, CarPlay) prüfen: Abos, Neu, Warteschlange, Wiedergabe.
-6. Rückweg: Einstellung entfernen und neu generieren.
+5. Zuerst auf einem iPhone ohne verbundenes CarPlay starten und prüfen, dass das Hauptfenster wie gewohnt erscheint. `InfoCarPlay.plist` nennt nur die CarPlay-Rolle im Szenen-Eintrag; SwiftUI liefert die Fenster-Szene normalerweise selbst. Gebaut ist die Fassung, gestartet wurde sie bisher nie. Bleibt das Fenster leer, kommt in `InfoCarPlay.plist` ein Eintrag `UIWindowSceneSessionRoleApplication` dazu.
+6. Im CarPlay-Simulator (Xcode, I/O, External Displays, CarPlay) prüfen: Abos, Neu, Warteschlange, Wiedergabe.
+7. Rückweg: Einstellung entfernen und neu generieren.
 
 Zwei Nebenwirkungen der Fassung für CarPlay: `UIApplicationSupportsMultipleScenes` steht dort auf `YES` (die CarPlay-Szene braucht es), damit erlaubt die iOS-App auf dem iPad auch mehrere Fenster. Und: Schickt ein Auto beim Verbinden von selbst „Wiedergabe“ (Einstellung des Autos), nimmt die App den Befehl an wie einen Tastendruck. Zum Prüfen vor dem ersten Upload mit CarPlay lässt sich die Fassung auch für den Simulator bauen: `xcodebuild -scheme PodcastAI -destination 'generic/platform=iOS Simulator' PODCASTAI_VARIANT=CarPlay CODE_SIGNING_ALLOWED=NO build`.
 
