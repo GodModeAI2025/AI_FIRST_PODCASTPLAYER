@@ -40,7 +40,7 @@ struct PodcastAITVApp: App {
 struct TVRootView: View {
 
     @Environment(PlayerSession.self) private var session
-    @State private var selection: Area = .shows
+    @State private var selection: Area = Self.initialArea
 
     /// Nicht `Tab` genannt: das verdeckte `SwiftUI.Tab`.
     enum Area: Hashable {
@@ -63,6 +63,21 @@ struct TVRootView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+    }
+
+    private static var initialArea: Area {
+        #if DEBUG
+        // Nur für Bildschirmfotos im Simulator.
+        if let value = UserDefaults.standard.string(forKey: "tv-area") {
+            switch value {
+            case "latest": return .latest
+            case "queue": return .queue
+            case "nowPlaying": return .nowPlaying
+            default: break
+            }
+        }
+        #endif
+        return .shows
     }
 
     private func openNowPlaying() {

@@ -337,17 +337,24 @@ public final class PlayerLibrary {
     public func loadDemoContent() {
         guard storage != .synced, shows.isEmpty else { return }
         let demo: [(String, String, [String])] = [
-            ("demo-1", "Die Hörprobe", ["Warum Kaffee Zeit braucht", "Ein Spaziergang durch Lissabon", "Kapitel, Kapitel, Kapitel"]),
-            ("demo-2", "Radio Nebenan", ["Der Nachbar spricht", "Zwei Stunden Wetter", "Zugabe"]),
+            ("demo-1", "Die Hörprobe", ["Warum Kaffee Zeit braucht", "Ein Spaziergang durch Lissabon", "Kapitel, Kapitel, Kapitel", "Was ein Mikrofon hört", "Stille als Werkzeug"]),
+            ("demo-2", "Radio Nebenan", ["Der Nachbar spricht", "Zwei Stunden Wetter", "Zugabe", "Hinterhofgeschichten", "Die Treppenhaus-Folge"]),
+            ("demo-3", "Wissen to go", ["Wie Brot aufgeht", "Brücken, die halten", "Ein Tag im Archiv", "Warum Katzen schnurren", "Licht und Schatten"]),
+            ("demo-4", "Abendlauf", ["Hundert Kilometer", "Der letzte Kilometer", "Regen", "Pausen", "Gegenwind"]),
+            ("demo-5", "Kleine Gespräche", ["Über das Zuhören", "Handwerk", "Sommerpause", "Neuanfang", "Alte Platten"]),
         ]
+        // Eigene Cover für Bildschirmfotos: Ordner über PAI_DEMO_COVERS, damit
+        // keine fremden Cover in Store-Bildern landen.
+        let covers = ProcessInfo.processInfo.environment["PAI_DEMO_COVERS"]
         for (index, entry) in demo.enumerated() {
+            let cover = covers.map { URL(fileURLWithPath: $0).appending(path: "c\(index).png") }
             let source = Source(id: SourceID(rawValue: entry.0), kind: .podcastRSS, title: entry.1,
-                                feedURL: nil, addedAt: Date(timeIntervalSince1970: Double(index)))
+                                feedURL: nil, artworkURL: cover, addedAt: Date(timeIntervalSince1970: Double(index)))
             insertForTesting(source: source)
             for (number, title) in entry.2.enumerated() {
                 insertForTesting(episode: Episode(
                     id: EpisodeID(rawValue: "\(entry.0)-\(number)"), sourceID: source.id, title: title,
-                    publishedAt: Date().addingTimeInterval(-Double(number + index) * 86_400),
+                    publishedAt: Date().addingTimeInterval(-Double(number * 5 + index) * 7_200),
                     declaredDuration: MediaDuration(seconds: Double(1_800 + number * 900)),
                     audioURL: URL(string: "https://example.com/\(entry.0)-\(number).mp3")))
             }
