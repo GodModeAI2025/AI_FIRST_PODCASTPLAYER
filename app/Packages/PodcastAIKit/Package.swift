@@ -7,6 +7,8 @@ let package = Package(
     platforms: [
         .iOS("27.0"),
         .macOS("27.0"),
+        .watchOS("27.0"),
+        .tvOS("27.0"),
     ],
     products: [
         .library(name: "PodcastAIKit", targets: ["PodcastAIKit"]),
@@ -15,6 +17,9 @@ let package = Package(
         // Für die Erweiterung „An PodcastAI senden“: nur der Eingang und die
         // Linkregeln, ohne Datenbank, Medien und Modelle.
         .library(name: "PodcastAIShareInbox", targets: ["PodcastAIShareInbox"]),
+        // Für Apple Watch, Apple TV und CarPlay: ein Player ohne KI. Hängt nur
+        // an Core, Quellen und Medien, die auf watchOS und tvOS bauen.
+        .library(name: "PodcastAIPlayerKit", targets: ["PodcastAIPlayerKit"]),
     ],
     targets: [
         // Reine Domäne: Foundation only, keine Apple-Frameworks, vollständig testbar.
@@ -62,6 +67,15 @@ let package = Package(
         // die Widget-Erweiterung klein bleibt. Keine Texte für die Oberfläche.
         .target(name: "PodcastAIWidgetData"),
 
+        // Player ohne KI für watchOS und tvOS: schmales Datenmodell auf dem
+        // CloudKit-Schema der Hauptapp, Bibliothek, Wiedergabe, Warteschlange.
+        // Bewusst nur an Core, Quellen (Feed lesen) und Medien. Wissen,
+        // Intelligenz, Transkription, Persistenz und Wiedergabe-Koordination
+        // der Hauptapp gehören nicht dazu; ein Test hält das fest.
+        .target(name: "PodcastAIPlayerKit", dependencies: [
+            "PodcastAICore", "PodcastAISources", "PodcastAIMedia",
+        ], resources: [.process("Localizable.xcstrings")]),
+
         // Sammelziel für die App-Targets.
         .target(name: "PodcastAIKit", dependencies: [
             "PodcastAICore", "PodcastAISources", "PodcastAIMedia", "PodcastAITranscription",
@@ -70,6 +84,6 @@ let package = Package(
             "PodcastAIShareInbox",
         ], resources: [.process("Localizable.xcstrings")]),
 
-        .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit", "PodcastAIExport", "PodcastAIWidgetData", "PodcastAIShareInbox"]),
+        .testTarget(name: "PodcastAIKitTests", dependencies: ["PodcastAIKit", "PodcastAIExport", "PodcastAIWidgetData", "PodcastAIShareInbox", "PodcastAIPlayerKit"]),
     ]
 )

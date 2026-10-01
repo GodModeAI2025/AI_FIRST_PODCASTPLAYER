@@ -1,0 +1,86 @@
+{
+  "sourceLanguage" : "de",
+  "strings" : {
+    "%lld Minuten" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Minuten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld minutes"
+          }
+        }
+      }
+    },
+    "Am Ende der Folge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Am Ende der Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "At end of episode"
+          }
+        }
+      }
+    },
+    "Die Audiodatei lässt sich nicht abspielen." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Audiodatei lässt sich nicht abspielen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The audio file can't be played."
+          }
+        }
+      }
+    },
+    "Diese Folge hat keine Audioadresse." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Folge hat keine Audioadresse."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This episode has no audio address."
+          }
+        }
+      }
+    },
+    "Kein Audioweg frei. Verbinde Kopfhörer oder Lautsprecher." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Audioweg frei. Verbinde Kopfhörer oder Lautsprecher."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No audio route available. Connect headphones or a speaker."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
