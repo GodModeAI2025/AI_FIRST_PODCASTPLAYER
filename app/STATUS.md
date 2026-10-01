@@ -1,6 +1,6 @@
 # Funktionsstand
 
-Stand 28. September 2026, Version 1.0 (zur Prüfung bei Apple).
+Stand 1. Oktober 2026, Version 1.0 (zur Prüfung bei Apple). Die Player für Apple Watch, Apple TV und CarPlay sind seit dem 1. Oktober im Code, aber noch in keinem Upload.
 
 ## Geprüft
 
@@ -35,6 +35,10 @@ Stand 28. September 2026, Version 1.0 (zur Prüfung bei Apple).
 | Fortschritt der Arbeit im Hintergrund: wächst nur, über Folgen, Fakten und Tags hinweg, rückt in langen Schritten weiter, ohne das Ende zu erreichen | Swift-Tests ohne Uhr (`BackgroundRunProgressTests`, `BackgroundWorkLoadTests`) |
 | Mac-Oberfläche: Seitenleiste, Player in der Symbolleiste, Inspektor, Podcast als Tabelle, Menüs | Baut ohne Warnung; jede Seite startet mit Demo-Inhalten ohne Absturz (`-uitest-sidebar`, nur Debug), erstes Fenster 1280 × 820 |
 | Themen-Updates als eine Ausgabe je Lauf: alle passenden Kapitel in einer Folge, Grenze von drei Stunden mit Rest für die nächste Ausgabe, gespeicherte Teile ohne „Teil x von y“ | 941 Swift-Tests im Paket (neu in `ChapterEditionTests` und `EditionCoverTests`), beide Apps bauen ohne Fehler und Warnung, 11 UI-Tests zu Themen-Updates im iOS-Simulator grün (darunter `testEditionCollectsAllChaptersInOneEdition`) |
+| Player auf watchOS und tvOS: Paketziele, Datenmodell, Warteschlange, Fortsetzungsstelle, Regel 1 | Swift-Tests im Paket (`PlayerKitTests`, `PlayerSchemaParityTests`, `PlayerPlatformFilesTests`): Schema jeder Eigenschaft gegen `LibraryStore.schema`, keine KI-, Sprach- oder Bildmodule im Abhängigkeitsabschluss, nur die eigene Zeile des Hörzustands, Stelle des zuletzt hörenden Geräts, Start ohne Ton, Dateien von CarPlay im Gleichschritt mit den Standarddateien. Paketziele einzeln mit `swift build --target` gegen watchOS 27, tvOS 27 und iOS 27 gebaut |
+| Apple-Watch-App | Baut für den Simulator und eingebettet in die iPhone-App ohne Fehler und Warnung. Im watchOS-27-Simulator gestartet: Startliste, leere Liste, Beispielinhalt mit `-player-demo` (Neu, Folgen eines Podcasts, Wiedergabe-Ansicht mit Sprüngen und Fortschritt), Akzentfarbe geprüft. Ton und Tippen durch die Ansichten nicht ausprobiert |
+| Apple-TV-App | Baut für den tvOS-27-Simulator ohne Fehler und Warnung, App-Symbol als Ebenen und Top-Shelf-Bilder kompiliert. Nicht gestartet: Auf diesem Rechner ist nur die Laufzeit tvOS 26.4 installiert, die App verlangt 27 |
+| CarPlay | Baut ohne Warnung mit und ohne `PODCASTAI_VARIANT=CarPlay` für den iOS-Simulator; die Standard-Info.plist hat keine Szene, die Fassung für CarPlay hat sie. Nicht gestartet: Der CarPlay-Simulator war nicht Teil dieses Auftrags (keine iOS-Simulatoren für UI-Tests) |
 
 ## Noch auf einem Gerät zu prüfen
 
@@ -56,6 +60,9 @@ Stand 28. September 2026, Version 1.0 (zur Prüfung bei Apple).
 | Transkripte, Fakten und Tags im Hintergrund | Die Fortschrittsanzeige des Systems gibt es nur auf einem iPhone oder iPad. Offen: ob iOS die fortgesetzte Verarbeitung mit dem neuen Fortschritt über einen ganzen Lauf mit Fakten bei Private Cloud Compute trägt, ob die Anmeldung beim Verlassen der App angenommen wird und ob nach einem Ablauf alles beim Öffnen weiterläuft |
 | Agentenzugang mit dem signierten Mac-Build | Geprüft ist nur der unsignierte Build und eine ad hoc signierte Kopie mit Sandbox. Offen: ob Claude Desktop und Claude Code das Programm aus der TestFlight-Mac-App starten, ob der Prozess dort Freigabe und Mediathek des App-Containers sieht und wie er sich verhält, während die App mit iCloud abgleicht. Auf einem Mac mit Apple-Chip installiert TestFlight womöglich die iPad-App unter demselben Namen `PodcastAI.app`; sie hat keinen Agentenzugang |
 | Siri und Kurzbefehle | Brauchen ein installiertes Build auf einem Gerät |
+| Uhr, Fernseher und iCloud | Ob ein Abgleich mit nur drei Entitäten im selben Container sauber läuft (CloudKit ignoriert die übrigen Record-Typen), ob ohne Push-Berechtigung der Abgleich beim Öffnen reicht und wie schnell die Bibliothek nach der ersten Anmeldung auf der Uhr erscheint, braucht eine echte Uhr und einen echten Apple TV mit derselben Apple-ID. Der Simulator hat keinen iCloud-Abgleich |
+| Ton auf der Uhr und am Fernseher | Hintergrundton, Sperrbildschirm, Siri Remote, Kopfhörer abziehen und Unterbrechungen sind nur auf Hardware zu prüfen. Auch die Wiedergabe einer echten Folge ist im Simulator nicht geprüft |
+| CarPlay im Auto | Brauchen die Berechtigung von Apple und ein Fahrzeug oder den CarPlay-Simulator. Offen: ob ein Auto beim Verbinden von selbst „Wiedergabe“ schickt (Einstellung des Autos); die App unterscheidet das nicht von einem Tastendruck |
 | Mac-Oberfläche im Betrieb | Die UI-Tests `PodcastAIMacUITests` (⌘1 bis ⌘7, ⌥⌘U, Hilfe-Menü, gesperrtes Abspielen, Öffnen spielt nichts) sind gebaut, liefen aber noch nicht: ohne Signatur startet der Test-Runner nicht. Offen sind außerdem, ob die Anzeige in der Symbolleiste bei 1000 Punkt Breite ohne Überlauf passt, ob die Leertaste in Textfeldern ankommt, wie Hell und Dunkel, „Bewegung reduzieren“ und Gelb oder Graphit als Akzentfarbe aussehen und ob die Kacheln und Tabellen mit Tastatur erreichbar sind |
 | „An PodcastAI senden“ | Das Teilen-Menü lässt sich im UI-Test nicht bedienen; geprüft sind Eingang, Vorschau und Audiodatei über Startargumente. Offen: ob die Erweiterung nur bei Links und Audio erscheint, wie Finder und AirDrop Dateien anbieten, ob der Mac die App öffnet, wie lange eine große Datei beim Kopieren braucht. Signierte Builds brauchen einmal neue Profile mit der App Group |
 
@@ -63,8 +70,8 @@ Stand 28. September 2026, Version 1.0 (zur Prüfung bei Apple).
 
 - Audio und Untertitel fremder YouTube-Videos.
 - Pausen kürzen und Lautstärke angleichen. Beides bräuchte eine eigene Audio-Verarbeitung statt AVPlayer.
-- CarPlay. Dafür vergibt Apple eine eigene Berechtigung.
-- Apple Watch App.
+- Auf Apple Watch, Apple TV und in CarPlay: Transkripte, Fakten, Tags, Chat, Themen-Updates, Apple Intelligence, MCP, Widgets mit KI-Inhalt und die Teilen-Erweiterung.
+- Podcasts hinzufügen oder abbestellen auf Uhr, Fernseher und im Auto. Das geht auf iPhone, iPad und Mac.
 
 ## In Version 0.7 behobene Fehler
 

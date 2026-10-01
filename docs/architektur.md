@@ -18,6 +18,7 @@ Die Logik liegt im Swift-Paket `app/Packages/PodcastAIKit`, die Oberfläche in `
 | PodcastAIPersistence | SwiftData mit Abgleich über iCloud |
 | PodcastAIWidgetData | Schnappschuss fürs Widget in der App Group, Adressen `podcastai://`; nur Foundation, damit die Widget-Erweiterung klein bleibt |
 | PodcastAIShareInbox | Eingang für „An PodcastAI senden“ in der App Group und die Linkregeln der Erweiterung, eigenes Produkt nur mit Foundation |
+| PodcastAIPlayerKit | Player ohne KI für Apple Watch und Apple TV (und das Datenmodell dahinter): schmale Modelle auf dem Hauptschema, Bibliothek, Wiedergabe, Warteschlange, Downloads. Hängt nur an Core, Quellen und Medien |
 | PodcastAIKit | Sammelziel für die Apps; in `AgentAccess/` der lesende Agentenzugang über MCP, nur für macOS gebaut |
 
 ## Vom Feed zur Antwort
@@ -290,6 +291,16 @@ Leertaste, ⇧⌘←/→ und ⌘⌫ sind Menübefehle. Steht der Cursor in einem
 Geteilte Bausteine mit Mac-Zweig: `readingColumn()` (Seiten höchstens 1080 Punkt breit, der Rollbalken bleibt am Rand), `macFormSheet()`, `ProminentActionButtonStyle` als `.glassProminent`, `.pressable` als randloser Systemknopf, `Design.minimumTapTarget` 28 statt 44, `PlaybackScrubber` (im Player gestapelt, in der Symbolleiste in einer Zeile) und `QueueView(parts: .processing)`. Texte mit „Tippen“ haben im String-Katalog eine Variante für den Mac (`device: mac`).
 
 Mit `-uitest-sidebar <Eintrag>` beginnt ein Debug-Build bei einem Eintrag, mit `firstPodcast` beim ersten Podcast, `-uitest-open-episode` öffnet dort die neueste Folge. Die UI-Tests `PodcastAIMacUITests` liegen in `app/UITestsMac`.
+
+## Player auf Uhr, Fernseher und im Auto
+
+Apple Watch (`Apps/PodcastAIWatch`), Apple TV (`Apps/PodcastAITV`) und CarPlay (`Apps/PodcastAI/CarPlay`) sind reine Player. Plan, Grenzen und Freigaben: [plan-player-plattformen.md](plan-player-plattformen.md).
+
+- Auf watchOS und tvOS 27 bauen nur `PodcastAICore`, `PodcastAISources` und `PodcastAIMedia`. Wissen, Intelligenz, Persistenz und Wiedergabe-Koordination hängen an FoundationModels und fehlen dort. Darum liegt das Datenmodell der Player in `PodcastAIPlayerKit`: `StoredSource`, `StoredEpisode` und `StoredListeningState` mit denselben Namen, Typen und Standardwerten wie in `PodcastAIPersistence`, ohne die Beziehung zu den Medienfassungen. Das Schema ist ein Ausschnitt desselben CloudKit-Schemas; `PlayerSchemaParityTests` vergleicht jede Eigenschaft.
+- Die Player schreiben nie fremde Zeilen. Die Fortsetzungsstelle liegt in der eigenen Zeile `<Fassung>#<Gerät>` des Hörzustands, die Kennung der Fassung folgt aus der Audioadresse (`Episode.streamMediaVersionID`), wie auf dem iPhone. Quellen und Folgen schreiben sie nur ohne iCloud-Abgleich; mit Abgleich liegen frische Folgen aus dem Feed im Speicher.
+- Die Warteschlange ist je Gerät lokal (Benutzereinstellungen), sie liegt nicht im Schema. Auf Apple TV liegt die Datenbank in Caches, iCloud füllt sie wieder.
+- Die Wiedergabe (`PlaybackEngine`) startet Ton nur in `play(_:)`. Nach einer Unterbrechung beginnt sie nicht von selbst, nach einer Folge läuft nur die selbst gelegte Warteschlange weiter.
+- CarPlay nutzt den vorhandenen Player und das `AppModel` der iPhone-App. Entitlement `com.apple.developer.carplay-audio` und Szenen-Eintrag stehen nur in `PodcastAICarPlay.entitlements` und `InfoCarPlay.plist`. Die Build-Einstellung `PODCASTAI_VARIANT: CarPlay` schaltet sie ein, Standard ist leer.
 
 ## Was wo liegt
 
