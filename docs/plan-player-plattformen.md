@@ -107,3 +107,7 @@ Zwei Nebenwirkungen der Fassung für CarPlay: `UIApplicationSupportsMultipleScen
 3. tvOS-App.
 4. CarPlay in der iOS-App.
 5. Dokumentation, Review des eigenen Diffs.
+
+## Entscheidung zu Regel 1 in CarPlay (1. Oktober 2026)
+
+Manche Autos schicken beim Verbinden von selbst „Wiedergabe“. Die App nimmt ein solches Kommando von außen in den ersten zehn Sekunden nach dem Verbinden nicht an (`EpisodePlayer.ignoresRemotePlayUntil`). Ein Tipp auf eine Folge in CarPlay hebt die Sperre sofort auf, danach gelten Wiedergabe, Pause und Springen wie sonst. Ton im Auto beginnt also nur nach einem Tipp.

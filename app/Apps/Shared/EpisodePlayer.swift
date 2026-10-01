@@ -124,6 +124,12 @@ public final class EpisodePlayer {
     /// folgt. Liefert `true`, wenn die nächste Folge aus „Als Nächstes“
     /// startet. Sonst springt die Folge um die eingestellte Weite vor.
     @ObservationIgnored public var onNextTrack: (() -> Bool)?
+    /// Bis zu diesem Zeitpunkt wird ein „Wiedergabe“ von außen nicht angenommen.
+    /// Manche Autos schicken es beim Verbinden von selbst. Regel 1: Ton
+    /// beginnt erst nach einem Tipp, auch in CarPlay. Ein Tipp in CarPlay
+    /// hebt die Sperre auf.
+    @ObservationIgnored public var ignoresRemotePlayUntil: Date?
+    private var isRemotePlayHeld: Bool { ignoresRemotePlayUntil.map { $0 > Date() } ?? false }
     /// Podcastname und Cover einer Folge für den Sperrbildschirm. Der Player
     /// kennt die Quellen nicht, das Modell schon.
     @ObservationIgnored public var nowPlayingDetails: ((Episode) -> (podcast: String?, artworkURL: URL?))?
@@ -904,6 +910,7 @@ public final class EpisodePlayer {
     }
 
     private func remotePlay() {
+        if isRemotePlayHeld { return }
         if let focus = activeFocus { focus.remote.resume() } else { resume() }
     }
 
@@ -960,7 +967,12 @@ public final class EpisodePlayer {
             MainActor.assumeIsolated { self?.remotePause() }; return .success
         }
         center.togglePlayPauseCommand.addTarget { [weak self] _ in
-            MainActor.assumeIsolated { self?.toggleActivePlayback() }; return .success
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if self.isRemotePlayHeld, !self.isPlaying { return }
+                self.toggleActivePlayback()
+            }
+            return .success
         }
         updateSkipIntervals()
         center.skipForwardCommand.addTarget { [weak self] _ in

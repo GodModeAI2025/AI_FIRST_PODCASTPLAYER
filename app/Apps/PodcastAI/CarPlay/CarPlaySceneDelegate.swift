@@ -45,6 +45,9 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
                 waited += 1
             }
             guard let model = CarPlayBridge.model else { return }
+            // Ein „Wiedergabe“, das das Auto beim Verbinden von selbst schickt,
+            // startet nichts. Erst ein Tipp in CarPlay gibt den Ton frei.
+            model.episodePlayer.ignoresRemotePlayUntil = Date().addingTimeInterval(10)
             let controller = CarPlayController(model: model, interfaceController: interfaceController)
             self.controller = controller
             await controller.start()

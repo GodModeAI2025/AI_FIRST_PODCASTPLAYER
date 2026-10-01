@@ -181,6 +181,7 @@ final class CarPlayController: NSObject, CPNowPlayingTemplateObserver {
     // MARK: - Spielen
 
     private func play(_ episode: Episode) {
+        model.episodePlayer.ignoresRemotePlayUntil = nil
         model.playEpisode(episode)
         showNowPlaying()
     }
