@@ -203,7 +203,7 @@ struct MacRootView: View {
             if let source = model.sources.first {
                 await model.loadEpisodes(for: source.id)
                 steps.append(("03-podcast", { router.show(.podcast(source.id)) }))
-                if let episode = model.episodes[source.id]?.first {
+                if let episode = model.episodes[source.id]?.last {
                     steps.append(("04-folge", { router.show(.podcast(source.id)); router.push(.episode(episode)) }))
                 }
             }
@@ -212,18 +212,37 @@ struct MacRootView: View {
                 ("06-chat", { router.show(.chat) }),
                 ("07-meine-tags", { router.show(.interests) }),
             ]
+            NSApp.activate(ignoringOtherApps: true)
             for (name, show) in steps {
                 show()
+                if let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) {
+                    window.makeKeyAndOrderFront(nil)
+                }
                 try? await Task.sleep(for: .seconds(3))
-                guard let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }),
-                      let frameView = window.contentView?.superview,
-                      let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else { continue }
-                frameView.cacheDisplay(in: frameView.bounds, to: rep)
-                try? rep.representation(using: .png, properties: [:])?
-                    .write(to: folder.appendingPathComponent("mac-\(name).png"))
+                guard let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) else { continue }
+                let png = Self.windowPNG(window)
+                try? png?.write(to: folder.appendingPathComponent("mac-\(name).png"))
             }
             NSApp.terminate(nil)
         }
+    }
+
+    /// Das Fenster samt Seitenleiste und Glas. `cacheDisplay` lässt die
+    /// Materialien weg; die Fensterliste des Systems zeigt, was auf dem
+    /// Bildschirm steht. Für das eigene Fenster braucht das keine Freigabe.
+    private static func windowPNG(_ window: NSWindow) -> Data? {
+        typealias Create = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+        if let symbol = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CGWindowListCreateImage") {
+            let create = unsafeBitCast(symbol, to: Create.self)
+            // Nur dieses Fenster (8), ohne Rahmenschatten (1), volle Auflösung (8).
+            if let image = create(.null, 8, UInt32(window.windowNumber), 1 | 8)?.takeRetainedValue() {
+                return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+            }
+        }
+        guard let frameView = window.contentView?.superview,
+              let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else { return nil }
+        frameView.cacheDisplay(in: frameView.bounds, to: rep)
+        return rep.representation(using: .png, properties: [:])
     }
     #endif
 
