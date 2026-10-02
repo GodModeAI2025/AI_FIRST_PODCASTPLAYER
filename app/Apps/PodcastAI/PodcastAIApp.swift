@@ -278,70 +278,68 @@ struct MiniPlayerAccessory: View {
     }
 
     private func focusBar(_ plan: ValidatedPlaybackPlan) -> some View {
-        Group {
-            HStack(spacing: Design.Spacing.control) {
-                // Ein Tipp auf die Leiste öffnet den Fokus-Player mit
-                // Begründung, „Stelle überspringen“ und „Diese Stelle
-                // merken“. In der Leiste selbst ist dafür kein Platz.
-                Button { showingFocusPlayer = true } label: {
-                    HStack(spacing: Design.Spacing.control) {
-                        Image(systemName: "waveform")
-                            .font(.body)
-                            .foregroundStyle(.tint)
-                            .symbolEffect(.variableColor.iterative, isActive: isPlaying)
-
-                        VStack(alignment: .leading, spacing: Design.Spacing.micro / 4) {
-                            Text(plan.requestSummary)
-                                .font(.subheadline.weight(.medium))
-                                .lineLimit(1)
-                            Text(subtitle(for: plan))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-
-                        Spacer(minLength: Design.Spacing.small)
-                    }
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Wiedergabe öffnen, \(plan.requestSummary)")
-                .accessibilityValue(subtitle(for: plan))
-                .accessibilityIdentifier("focusbar.open")
-
-                Button {
-                    isPlaying ? model.pausePlayback() : model.resumePlayback()
-                } label: {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+        HStack(spacing: Design.Spacing.control) {
+            // Ein Tipp auf die Leiste öffnet den Fokus-Player mit
+            // Begründung, „Stelle überspringen“ und „Diese Stelle
+            // merken“. In der Leiste selbst ist dafür kein Platz.
+            Button { showingFocusPlayer = true } label: {
+                HStack(spacing: Design.Spacing.control) {
+                    Image(systemName: "waveform")
                         .font(.body)
-                        .tappableArea()
-                }
-                .buttonStyle(.pressable)
-                .accessibilityLabel(isPlaying ? "Pause" : "Fortsetzen")
+                        .foregroundStyle(.tint)
+                        .symbolEffect(.variableColor.iterative, isActive: isPlaying)
 
-                Button {
-                    model.stopPlayback()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.footnote.weight(.semibold))
-                        .tappableArea()
+                    VStack(alignment: .leading, spacing: Design.Spacing.micro / 4) {
+                        Text(plan.requestSummary)
+                            .font(.subheadline.weight(.medium))
+                            .lineLimit(1)
+                        Text(subtitle(for: plan))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: Design.Spacing.small)
                 }
-                .buttonStyle(.pressable)
-                .accessibilityLabel("Wiedergabe beenden")
+                .contentShape(.rect)
             }
-            .padding(.horizontal, Design.Spacing.control)
-            .sheet(isPresented: $showingFocusPlayer) {
-                NavigationStack {
-                    FocusPlayerView()
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Fertig") { showingFocusPlayer = false }
-                            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Wiedergabe öffnen, \(plan.requestSummary)")
+            .accessibilityValue(subtitle(for: plan))
+            .accessibilityIdentifier("focusbar.open")
+
+            Button {
+                isPlaying ? model.pausePlayback() : model.resumePlayback()
+            } label: {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .font(.body)
+                    .tappableArea()
+            }
+            .buttonStyle(.pressable)
+            .accessibilityLabel(isPlaying ? "Pause" : "Fortsetzen")
+
+            Button {
+                model.stopPlayback()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.footnote.weight(.semibold))
+                    .tappableArea()
+            }
+            .buttonStyle(.pressable)
+            .accessibilityLabel("Wiedergabe beenden")
+        }
+        .padding(.horizontal, Design.Spacing.control)
+        .sheet(isPresented: $showingFocusPlayer) {
+            NavigationStack {
+                FocusPlayerView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Fertig") { showingFocusPlayer = false }
                         }
-                }
-                .sheetFeedback()
-                .environment(model)
+                    }
             }
+            .sheetFeedback()
+            .environment(model)
         }
     }
 

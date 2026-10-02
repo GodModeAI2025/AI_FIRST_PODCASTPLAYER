@@ -270,14 +270,15 @@ struct MentionTests {
 
     @Test("ISO-Daten und Daten mit Bindestrich werden Termine")
     func isoDates() throws {
-        let found = extract(shownotes: "Termin: 2026-11-12, Anmeldung bis 2026-10-01.", published: date(2026, 9, 1))
+        // Weit in der Zukunft, weil die Datumserkennung vergangene Tage verwirft.
+        let found = extract(shownotes: "Termin: 2099-11-12, Anmeldung bis 2099-10-01.", published: date(2026, 9, 1))
         let dates = found.filter { $0.kind == .date }
-        #expect(dates.map(\.date) == [date(2026, 10, 1), date(2026, 11, 12)])
+        #expect(dates.map(\.date) == [date(2099, 10, 1), date(2099, 11, 12)])
         #expect(dates.allSatisfy { !$0.isVague })
 
-        let hyphen = try #require(extract(shownotes: "Anmeldeschluss: 12-11-2026", published: date(2026, 9, 1))
+        let hyphen = try #require(extract(shownotes: "Anmeldeschluss: 12-11-2099", published: date(2026, 9, 1))
             .first { $0.kind == .date })
-        #expect(hyphen.date == date(2026, 11, 12))
+        #expect(hyphen.date == date(2099, 11, 12))
         #expect(!hyphen.isVague)
     }
 
