@@ -48,6 +48,10 @@ Transkription braucht Apples Spracherkennung auf dem Gerät. Fragen, Fakten und 
 
 Interne Builds für iOS und macOS laufen über TestFlight im Team Mobile Box. Die Apps heißen „PodcastAI“ und „PodcastAI Mac“, die Testgruppe „Intern“ verteilt neue Builds automatisch.
 
+## Support
+
+Fragen, Fehler und Wünsche stehen im Bereich [Issues](https://github.com/GodModeAI2025/AI_FIRST_PODCASTPLAYER/issues). Antworten auf häufige Fragen, auch zu Apple TV und Apple Watch, stehen in [SUPPORT.md](SUPPORT.md). Datenschutz: [docs/datenschutz.md](docs/datenschutz.md).
+
 ## Mehr
 
 - [Änderungen je Version](CHANGELOG.md)
