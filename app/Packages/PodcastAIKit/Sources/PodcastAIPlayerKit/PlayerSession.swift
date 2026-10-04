@@ -15,7 +15,7 @@ import PodcastAICore
 @Observable
 public final class PlayerSession {
 
-    public let library: PlayerLibrary
+    public private(set) var library: PlayerLibrary
     public let engine: PlaybackEngine
     /// `nil` auf Geräten ohne Downloads (Apple TV streamt nur).
     public let downloads: PlayerDownloads?
@@ -48,9 +48,30 @@ public final class PlayerSession {
         self.downloads = downloads
 
         engine.localFileURL = { downloads?.localURL(for: $0) }
+        wire(library)
+    }
+
+    private func wire(_ library: PlayerLibrary) {
         engine.resumeProvider = { [library] in library.resume(for: $0) }
         engine.onListened = { [library] item, range in library.recordPlayed(item, range: range) }
     }
+
+    /// Beispielmodus für Prüfung und Vorführung: eine Bibliothek nur im
+    /// Arbeitsspeicher mit dem öffentlichen Podcast „Think Different. Think AI.“
+    /// der Entwickler. Sie berührt weder die Datenbank noch iCloud und
+    /// verschwindet mit dem Beenden der App. Startet keinen Ton (Regel 1).
+    public func startExampleMode() async {
+        guard !isExampleMode,
+              let container = try? PlayerLibrary.makeContainer(storeURL: nil, sync: false) else { return }
+        let example = PlayerLibrary(container: container, storage: .temporary, deviceID: library.deviceID)
+        example.addExampleShow()
+        library = example
+        wire(example)
+        isExampleMode = true
+        await example.refreshAll(minimumInterval: 0)
+    }
+
+    public private(set) var isExampleMode = false
 
     /// Wohin die Datenbank des Players kommt. Apple TV darf nur in Caches
     /// schreiben; das System kann den Ordner leeren, iCloud ist dort die
@@ -71,6 +92,7 @@ public final class PlayerSession {
         library.reload()
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-player-demo") { library.loadDemoContent() }
+        if ProcessInfo.processInfo.arguments.contains("-player-example") { await startExampleMode() }
         #endif
         library.observeRemoteChanges()
         engine.restoreUpNext(library.items(forIdentifiers: UpNextQueue.storedIdentifiers()))

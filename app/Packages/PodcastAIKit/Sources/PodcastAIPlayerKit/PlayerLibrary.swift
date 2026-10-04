@@ -327,6 +327,22 @@ public final class PlayerLibrary {
         try? context.save()
     }
 
+    // MARK: - Beispielmodus
+
+    /// Der Podcast der Entwickler, öffentlich und frei abrufbar.
+    static let exampleFeed = URL(string: "https://think-ai.podigee.io/feed/mp3")!
+    static let exampleArtwork = URL(string: "https://images.podigee-cdn.net/0x,sAE8UK6g-Ieww4BUW8NLmSowb8AaF32C0DPb_7WKVQlY=/https://main.podigee-cdn.net/uploads/u73317/3ac9af23-95e3-4669-97c5-0d2f8ba90198.jpeg")!
+
+    /// Legt den Beispiel-Podcast an. Nur für eine Bibliothek ohne Abgleich.
+    func addExampleShow() {
+        guard storage != .synced else { return }
+        insertForTesting(source: Source(
+            id: SourceID(rawValue: "example-think-ai"), kind: .podcastRSS,
+            title: "Think Different. Think AI.", author: "Mark und Jens",
+            feedURL: Self.exampleFeed, artworkURL: Self.exampleArtwork, language: "de"))
+        reload()
+    }
+
     // MARK: - Beispielinhalt (nur Debug)
 
     #if DEBUG

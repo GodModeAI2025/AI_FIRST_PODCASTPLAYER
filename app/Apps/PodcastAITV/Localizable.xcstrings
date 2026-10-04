@@ -145,6 +145,22 @@
         }
       }
     },
+    "Beispiel ansehen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beispiel ansehen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Example"
+          }
+        }
+      }
+    },
     "Drücke bei einer Folge lange und wähle „Als Nächstes“ oder „Zuletzt“." : {
       "localizations" : {
         "de" : {

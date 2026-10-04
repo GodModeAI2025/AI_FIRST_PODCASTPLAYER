@@ -25,6 +25,10 @@ struct TVShowsView: View {
                     Label("Keine Abos", systemImage: "square.stack")
                 } description: {
                     Text("Abonniere Podcasts auf iPhone, iPad oder Mac. Sie erscheinen hier über iCloud.")
+                } actions: {
+                    Button("Beispiel ansehen") {
+                        Task { await session.startExampleMode() }
+                    }
                 }
             } else {
                 ScrollView {
