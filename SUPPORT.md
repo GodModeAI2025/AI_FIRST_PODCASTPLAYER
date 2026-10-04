@@ -12,7 +12,7 @@ PodcastAI läuft auf iPhone, iPad, Mac, Apple Watch und Apple TV. Hier stehen di
 
 **Die Uhr zeigt nichts Neues.** Öffne die App auf der Uhr, damit sie die Feeds liest. Laden für unterwegs geht nur bei geöffneter App.
 
-**Ich will Daten löschen.** „Folge löschen“ entfernt die Folge mit allem, was daraus entstanden ist. „Audio entfernen“ löscht nur die Audiodatei. Alles Weitere steht in der [Datenschutzerklärung](datenschutz.md).
+**Ich will Daten löschen.** „Folge löschen“ entfernt die Folge mit allem, was daraus entstanden ist. „Audio entfernen“ löscht nur die Audiodatei. Alles Weitere steht in der [Datenschutzerklärung](docs/datenschutz.md).
 
 **Wo stehen meine Daten?** Auf deinem Gerät und in deiner privaten iCloud. Wir haben keinen Zugriff darauf.
 
@@ -36,7 +36,7 @@ PodcastAI runs on iPhone, iPad, Mac, Apple Watch and Apple TV. Common questions 
 
 **The watch shows nothing new.** Open the app on the watch so it can read the feeds. Downloads for the road only work while the app is open.
 
-**I want to delete data.** "Delete episode" removes the episode and everything made from it. "Remove audio" deletes only the audio file. See the [privacy policy](datenschutz.md) for the rest.
+**I want to delete data.** "Delete episode" removes the episode and everything made from it. "Remove audio" deletes only the audio file. See the [privacy policy](docs/datenschutz.md) for the rest.
 
 **Where is my data?** On your device and in your private iCloud. We have no access to it.
 
