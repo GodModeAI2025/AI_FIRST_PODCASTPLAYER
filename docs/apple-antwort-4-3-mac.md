@@ -43,23 +43,22 @@ The app is a Mac app in its own right, not a scaled-up iPhone app: a sidebar for
 
 **4. Beta testing**
 
-We tested through TestFlight from 0.1 (22 September 2026) to 1.0 (28 September 2026) on iPhone, iPad and Mac, and applied feedback in each build. The release notes of every build list what came from testers. Examples that went into the production build:
+We are a small company, and we do not have a group of external testers. I tested the app myself through TestFlight, on iPhone, iPad and Mac, from the first build (0.1, 22 September 2026) to 1.0 (28 September 2026), mainly to make sure the app runs reliably end to end. I have to be open about that: there was no outside beta group, and the examples below are findings from my own testing, which I fixed in later builds. The release notes list each of them.
 
 - Feeds from Transistor (for example `feeds.transistor.fm/ai-to-the-dna`) could not be subscribed because the app took them for web pages. Fixed in the feed detection.
 - Direct MP3 links (for example from Podigee) failed at a size limit. They now become single episodes.
-- Several episodes started at once caused the "Maximum number of recognizers" error. Episodes are now processed one after another.
+- Starting several episodes at once caused the "Maximum number of recognizers" error. Episodes are now processed one after another.
 - Background work on the iPhone stopped after a short time because iOS ended it when the progress display did not move. The progress now counts the whole run (download by bytes, transcript, facts per section, tags), and the app registers the background task earlier.
-- The chat was slow under load. All Apple Intelligence requests now go through one queue, user actions first. Time to first word dropped from 6.7 s to 3.6 s in our measurement.
-- Testers asked for whole episodes instead of snippets, for chapters, a queue, and clearer error messages. Each of these is in the production build.
+- The chat was slow under load. All Apple Intelligence requests now go through one queue, user actions first. Time to first word dropped from 6.7 s to 3.6 s in my measurement.
 - A running Topic Update edition showed "Play" instead of "Pause". Fixed.
 
-The test suite grew with it and now has more than 1,000 automated tests.
+Besides, the app has more than 1,000 automated tests, and I reviewed every screen in the simulator on iPhone, iPad and Mac before each submission. If it helps your review, I can provide a TestFlight invitation for your reviewers.
 
 **5. Standalone product or part of a suite**
 
-PodcastAI is part of a small portfolio of apps from MOBILE BOX, each with a different purpose. It is the only podcast player on our account. The other apps deal with different tasks: for example AgendusPro (tasks, projects, kanban boards, calendar and time tracking), MeetingBrain (transcribing and reviewing meetings), Argus Brain (screenshots and PDF), BrainSpeak, Sealed Time Capsule and LocalMCP. None of them plays, subscribes to or manages podcasts, and none has a feed reader, an episode library or a player. PodcastAI does not duplicate what any of them does.
+PodcastAI is a product of its own, and MOBILE BOX also publishes other, unrelated apps under the same account. PodcastAI is the only podcast player among them. The other apps deal with different tasks: for example AgendusPro (tasks, projects, kanban boards, calendar and time tracking), MeetingBrain (transcribing and reviewing meetings), Argus Brain (screenshots and PDF), BrainSpeak, Sealed Time Capsule and LocalMCP. None of them plays, subscribes to or manages podcasts, and none has a feed reader, an episode library or a player. PodcastAI does not duplicate what any of them does.
 
-PodcastAI also ships as separate, differently scoped binaries within the same product line, each with its own bundle identifier: the iPhone and iPad app (with an Apple Watch player), this native Mac app, and an Apple TV player. The Mac app is a native macOS app, not a Catalyst build of the iPhone app.
+Inside the PodcastAI product line there are several versions of the same app for different platforms, each with its own bundle identifier and an adapted interface: the iPhone and iPad app (with an Apple Watch player), this native macOS app, and a tvOS player. They are the same product on different devices, not different apps competing for the same users. The Mac app is a native macOS app, not a Catalyst build of the iPhone app, and it has Mac-only features: a sidebar for subscriptions, tags, saved moments and topic updates, the player in the toolbar, keyboard control and the read-only MCP interface.
 
 **6. Could this be an in-app purchase or feature of another app on the account?**
 
@@ -67,7 +66,7 @@ No. A podcast library needs feed ingestion (RSS, Atom, OPML, Podcast Index and A
 
 **7. Shared code, frameworks or assets with other apps on the account**
 
-No significant shared code, frameworks or assets. PodcastAI is built on its own Swift package, `PodcastAIKit` (14 modules, about 87,000 lines of Swift in the apps and the package, plus about 23,000 lines of tests), written only for this product. It contains the feed parsing, the playback engine, the transcription pipeline, the retrieval and Topic Update logic, the CloudKit schema and the export. The binary uses only Apple system frameworks (SwiftUI, SwiftData, CloudKit, AVFoundation, Speech, FoundationModels, Private Cloud Compute). It contains no third-party SDKs and no shared framework with another app on our account.
+No shared code, frameworks or assets with any other app on our account. PodcastAI is built on its own Swift package, `PodcastAIKit` (14 modules, about 87,000 lines of Swift in the apps and the package, plus about 23,000 lines of tests), written only for this product. It contains the feed parsing, the playback engine, the transcription pipeline, the retrieval and Topic Update logic, the CloudKit schema and the export. The binary uses only Apple system frameworks (SwiftUI, SwiftData, CloudKit, AVFoundation, Speech, FoundationModels, Private Cloud Compute). It contains no third-party SDKs and no shared framework with another app on our account. The only thing the apps have in common is the tooling: they were written with the same Xcode and the same AI coding skills, not with shared source code. The iPhone, Mac and Apple TV versions of PodcastAI do share the package `PodcastAIKit`, because they are the same product.
 
 **8. Shared codebase, SDK or content library with a third-party app**
 
