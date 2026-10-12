@@ -1,6 +1,8 @@
 # Funktionsstand
 
-Stand 1. Oktober 2026, Version 1.0 (iOS, Mac und Apple TV zur Prüfung bei Apple). Der Apple-TV-Player ist hochgeladen und eingereicht. Die Uhr-App geht mit dem nächsten iOS-Upload mit, CarPlay wartet auf Apples Freigabe.
+Stand 12. Oktober 2026. iOS 1.1 (mit Uhr-App) ist im App Store. macOS 1.0 wurde am 5. Oktober wegen 4.3 (Spam) zurückgewiesen, die Antwort an Apple steht in `docs/apple-antwort-4-3-mac.md` und ist am 6. Oktober gesendet. Apple TV 1.0 wurde wegen 2.1(a) und 1.5 zurückgewiesen, mit Beispielmodus und Support-Seite neu eingereicht. CarPlay wartet auf Apples Freigabe.
+
+**Wer getestet hat:** Alle TestFlight-Builds hat der Entwickler allein auf eigenen Geräten geprüft, es gab keine externe Testgruppe. Die Läufe mit 50, 10 und 12 Personas sind simulierte Durchgänge mit Screenshots, Code und Simulator, keine echten Nutzer. Was nur im Simulator oder in Swift-Tests belegt ist, steht in der Spalte „Wie geprüft“ so da.
 
 ## Geprüft
 
@@ -39,6 +41,8 @@ Stand 1. Oktober 2026, Version 1.0 (iOS, Mac und Apple TV zur Prüfung bei Apple
 | Apple-Watch-App | Baut für den Simulator und eingebettet in die iPhone-App ohne Fehler und Warnung. Im watchOS-27-Simulator gestartet: Startliste, leere Liste, Beispielinhalt mit `-player-demo` (Neu, Folgen eines Podcasts, Wiedergabe-Ansicht mit Sprüngen und Fortschritt), Akzentfarbe geprüft. Ton und Tippen durch die Ansichten nicht ausprobiert |
 | Apple-TV-App | Baut für den tvOS-27-Simulator ohne Fehler und Warnung, App-Symbol als Ebenen und Top-Shelf-Bilder kompiliert. Nicht gestartet: Auf diesem Rechner ist nur die Laufzeit tvOS 26.4 installiert, die App verlangt 27 |
 | CarPlay | Baut ohne Warnung mit und ohne `PODCASTAI_VARIANT=CarPlay` für den iOS-Simulator; die Standard-Info.plist hat keine Szene, die Fassung für CarPlay hat sie. Nicht gestartet: Der CarPlay-Simulator war nicht Teil dieses Auftrags (keine iOS-Simulatoren für UI-Tests) |
+| Hängende KI-Anfrage: `AIScheduler` gibt eine Anfrage frei, die nach Frist (Antwort 90 s, Hintergrund 240 s, ohne Lebenszeichen) nichts meldet oder einen Abbruch ignoriert; Herzschlag aus Streaming und Chat-Werkzeugen; Abbruch kehrt nach 5 s Schonfrist zurück | Swift-Tests ohne Modell (`AISchedulerStallTests`, 6 Fälle). Nicht auf dem Gerät mit einer wirklich hängenden PCC-Anfrage geprüft. |
+| Signatur vor dem Upload: `scripts/verify-signing.py` liest die Berechtigungen der signierten App (Private Cloud Compute, iCloud, Push, Sandbox, kein Debug) | Gegen ein echtes Mac-Archiv gelaufen: ohne Fehler im Archiv, mit `--distribution` meldet es zu Recht die Entwicklungs-Push-Umgebung, die erst der Export auf production setzt. Für iOS noch nicht gegen ein Archiv gelaufen. |
 
 ## Noch auf einem Gerät zu prüfen
 
