@@ -145,6 +145,22 @@
         }
       }
     },
+    "Das Modell hat seit %lld Sekunden nicht geantwortet." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell hat seit %lld Sekunden nicht geantwortet."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model has not responded for %lld seconds."
+          }
+        }
+      }
+    },
     "Das Modell hat zu lange gebraucht. Noch einmal versuchen." : {
       "localizations" : {
         "de" : {

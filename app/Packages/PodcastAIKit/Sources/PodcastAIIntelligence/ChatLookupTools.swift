@@ -110,7 +110,8 @@ struct SearchPassagesTool: Tool {
     }
 
     @concurrent func call(arguments: Arguments) async throws -> String {
-        try await slot.perform(.passages(query: arguments.query, episode: arguments.episode,
+        AIStall.beat()
+        return try await slot.perform(.passages(query: arguments.query, episode: arguments.episode,
                                          chapter: arguments.chapter))
     }
 }
@@ -128,7 +129,8 @@ struct EpisodeFactsTool: Tool {
     }
 
     @concurrent func call(arguments: Arguments) async throws -> String {
-        try await slot.perform(.facts(episode: arguments.episode))
+        AIStall.beat()
+        return try await slot.perform(.facts(episode: arguments.episode))
     }
 }
 
@@ -147,7 +149,8 @@ struct EpisodeMentionsTool: Tool {
     }
 
     @concurrent func call(arguments: Arguments) async throws -> String {
-        try await slot.perform(.mentions(episode: arguments.episode, kind: arguments.kind))
+        AIStall.beat()
+        return try await slot.perform(.mentions(episode: arguments.episode, kind: arguments.kind))
     }
 }
 
@@ -164,7 +167,8 @@ struct EpisodeChaptersTool: Tool {
     }
 
     @concurrent func call(arguments: Arguments) async throws -> String {
-        try await slot.perform(.chapters(episode: arguments.episode))
+        AIStall.beat()
+        return try await slot.perform(.chapters(episode: arguments.episode))
     }
 }
 

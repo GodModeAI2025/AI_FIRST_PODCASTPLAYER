@@ -23,6 +23,11 @@
 //  4. Während einer Frage im Chat (`withUserActivity`) beginnt nichts im
 //     Hintergrund, auch nicht zwischen Token zählen und Antwort.
 //
+//  5. Hängt eine Anfrage, gibt die Stelle sie frei. Eine Anfrage, die keinen
+//     Fortschritt meldet und sich nicht abbrechen lässt, würde sonst die
+//     einzige Stelle der App für immer besetzen und jede weitere Frage und
+//     jede Arbeit im Hintergrund festhalten (siehe ``AIStall``).
+//
 //  Die Stelle ruft selbst kein Modell. Sie entscheidet nur, wer wann darf.
 //
 
@@ -79,6 +84,110 @@ public struct AIPipelineSnapshot: Sendable, Equatable {
     public var queuedCount: Int { queued.values.reduce(0, +) }
 }
 
+/// Eine Anfrage hat zu lange nichts gemeldet und wurde freigegeben.
+///
+/// Das Modell kann dabei durchaus noch rechnen. Die Stelle wartet nicht
+/// länger darauf, damit die nächste Anfrage drankommt. Die Aufrufer
+/// behandeln den Fehler wie jeden anderen der Modelle: Private Cloud
+/// Compute fällt auf das Gerät zurück, Arbeit im Hintergrund wartet.
+public struct AIStalledError: Error, LocalizedError, Sendable, Equatable {
+    public let kind: AIWorkKind
+    public let seconds: Int
+
+    public init(kind: AIWorkKind, seconds: Int) {
+        self.kind = kind; self.seconds = seconds
+    }
+
+    public var errorDescription: String? {
+        String(localized: "Das Modell hat seit \(seconds) Sekunden nicht geantwortet.", bundle: .module)
+    }
+}
+
+/// Wie lange eine Anfrage ohne Lebenszeichen laufen darf.
+///
+/// Ein Lebenszeichen ist neuer Text einer streamenden Antwort oder der
+/// Aufruf eines Werkzeugs. Anfragen, die nichts melden, haben nur ihre
+/// Gesamtzeit. Die Werte sind großzügig: Private Cloud Compute braucht
+/// bei vollem Fenster und Werkzeugen auch einmal eine Minute.
+public struct AIStallLimits: Sendable, Equatable {
+    public var answer: Duration
+    public var summary: Duration
+    public var background: Duration
+    public var cover: Duration
+    /// So lange darf eine Anfrage nach einem Abbruch noch zurückkehren,
+    /// bevor die Stelle sie freigibt.
+    public var cancellationGrace: Duration
+
+    public init(answer: Duration = .seconds(90), summary: Duration = .seconds(90),
+                background: Duration = .seconds(240), cover: Duration = .seconds(180),
+                cancellationGrace: Duration = .seconds(5)) {
+        self.answer = answer; self.summary = summary
+        self.background = background; self.cover = cover
+        self.cancellationGrace = cancellationGrace
+    }
+
+    public static let standard = AIStallLimits()
+
+    func limit(for kind: AIWorkKind) -> Duration {
+        switch kind {
+        case .answer: answer
+        case .chapterSummary: summary
+        case .cover: cover
+        case .facts, .tags, .relevance, .other: background
+        }
+    }
+}
+
+/// Der Herzschlag einer Anfrage. Wer streamt oder ein Werkzeug ruft,
+/// meldet mit ``AIStall/beat()``, dass es weitergeht.
+public enum AIStall {
+    final class Heartbeat: Sendable {
+        private let last = Mutex(ContinuousClock.now)
+        func touch() { last.withLock { $0 = .now } }
+        var idle: Duration { ContinuousClock.now - last.withLock { $0 } }
+    }
+
+    @TaskLocal static var heartbeat: Heartbeat?
+
+    /// Meldet ein Lebenszeichen der Anfrage, in der der Aufruf läuft.
+    /// Außerhalb einer Anfrage der Stelle tut es nichts.
+    public static func beat() { heartbeat?.touch() }
+}
+
+/// Lässt genau einen von mehreren Ausgängen zu: das Ergebnis der Anfrage,
+/// ihre Freigabe wegen Stillstand oder die Rückkehr nach einem Abbruch.
+private final class Outcome<T: Sendable>: Sendable {
+    private let continuation = Mutex<CheckedContinuation<Result<T, any Error>, Never>?>(nil)
+    private let decided = Mutex(false)
+    private let pending = Mutex<Result<T, any Error>?>(nil)
+
+    func attach(_ continuation: CheckedContinuation<Result<T, any Error>, Never>) {
+        let early = pending.withLock { value -> Result<T, any Error>? in defer { value = nil }; return value }
+        if let early { continuation.resume(returning: early) } else {
+            self.continuation.withLock { $0 = continuation }
+        }
+    }
+
+    /// Gibt `true` zurück, wenn dieser Ausgang gilt.
+    @discardableResult
+    func decide(_ result: Result<T, any Error>) -> Bool {
+        let first = decided.withLock { done -> Bool in
+            if done { return false }
+            done = true
+            return true
+        }
+        guard first else { return false }
+        let waiting = continuation.withLock { value -> CheckedContinuation<Result<T, any Error>, Never>? in
+            defer { value = nil }
+            return value
+        }
+        if let waiting { waiting.resume(returning: result) } else { pending.withLock { $0 = result } }
+        return true
+    }
+
+    var isDecided: Bool { decided.withLock { $0 } }
+}
+
 public actor AIScheduler: AIScheduling {
 
     public static let shared = AIScheduler()
@@ -88,6 +197,8 @@ public actor AIScheduler: AIScheduling {
     public let idleInterval: Duration
     /// Pause zwischen zwei Anfragen im Hintergrund.
     public let backgroundPause: Duration
+    /// Wie lange eine Anfrage ohne Lebenszeichen laufen darf.
+    public let stallLimits: AIStallLimits
 
     private struct Waiter {
         let id: UInt64
@@ -126,9 +237,11 @@ public actor AIScheduler: AIScheduling {
     public nonisolated let snapshots: AsyncStream<AIPipelineSnapshot>
     private var lastSnapshot = AIPipelineSnapshot()
 
-    public init(idleInterval: Duration = .seconds(2), backgroundPause: Duration = .milliseconds(500)) {
+    public init(idleInterval: Duration = .seconds(2), backgroundPause: Duration = .milliseconds(500),
+                stallLimits: AIStallLimits = .standard) {
         self.idleInterval = idleInterval
         self.backgroundPause = backgroundPause
+        self.stallLimits = stallLimits
         (snapshots, updates) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))
     }
 
@@ -183,6 +296,7 @@ public actor AIScheduler: AIScheduling {
     ) async throws -> T {
         while true {
             let id = try await acquire(kind, priority: priority)
+            let heartbeat = AIStall.Heartbeat()
             let task = Task.detached(priority: priority == .user ? .userInitiated : .utility) {
                 // Jede Anfrage ist ein Intervall in Instruments (Kategorie `ai`).
                 let signposter = AIScheduler.signposter
@@ -190,16 +304,50 @@ public actor AIScheduler: AIScheduling {
                     "KI-Anfrage", id: signposter.makeSignpostID(),
                     "\(kind.rawValue, privacy: .public) \(priority == .user ? "Mensch" : "Hintergrund", privacy: .public)")
                 defer { signposter.endInterval("KI-Anfrage", state) }
-                return try await operation()
+                // Die Frist zählt ab dem Beginn der Anfrage, nicht ab dem Anlegen der Aufgabe.
+                heartbeat.touch()
+                return try await AIStall.$heartbeat.withValue(heartbeat) { try await operation() }
             }
-            running?.cancel = { task.cancel() }
-            // Kam eine Anfrage eines Menschen dazwischen, gilt der Abbruch jetzt.
-            if running?.preempted == true { task.cancel() }
-            let result = await withTaskCancellationHandler {
-                await task.result
-            } onCancel: {
+            let outcome = Outcome<T>()
+            let limits = stallLimits
+            let limit = limits.limit(for: kind)
+            // Ein Abbruch erreicht eine hängende Anfrage nicht. Deshalb gibt die
+            // Stelle sie nach der Schonfrist frei, auch ohne dass sie zurückkehrt.
+            let cancelRequest = { @Sendable in
                 task.cancel()
+                Task {
+                    try? await Task.sleep(for: limits.cancellationGrace)
+                    outcome.decide(.failure(CancellationError()))
+                }
             }
+            running?.cancel = cancelRequest
+            // Kam eine Anfrage eines Menschen dazwischen, gilt der Abbruch jetzt.
+            if running?.preempted == true { cancelRequest() }
+            let watchdog = Task {
+                while !outcome.isDecided {
+                    try? await Task.sleep(for: min(.seconds(1), limit / 4))
+                    if Task.isCancelled { return }
+                    if heartbeat.idle >= limit {
+                        let seconds = Int(limit.components.seconds)
+                        if outcome.decide(.failure(AIStalledError(kind: kind, seconds: seconds))) {
+                            task.cancel()
+                            AIScheduler.signposter.emitEvent("KI-Anfrage freigegeben")
+                        }
+                        return
+                    }
+                }
+            }
+            let result: Result<T, any Error> = await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    outcome.attach(continuation)
+                    // Wartet unstrukturiert: Hängt die Anfrage, bleibt dieser Warter
+                    // zurück, aber die Stelle ist frei.
+                    Task { outcome.decide(await task.result) }
+                }
+            } onCancel: {
+                cancelRequest()
+            }
+            watchdog.cancel()
             let preempted = running?.id == id && running?.preempted == true
             release(id)
             if case .failure = result, preempted, priority == .background, !Task.isCancelled {

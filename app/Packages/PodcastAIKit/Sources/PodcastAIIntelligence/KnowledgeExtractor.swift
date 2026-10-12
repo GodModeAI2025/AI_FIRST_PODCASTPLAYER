@@ -422,6 +422,7 @@ public struct KnowledgeExtractor: Sendable {
         var held: String?
         var shownAt: ContinuousClock.Instant?
         for try await snapshot in stream {
+            AIStall.beat()
             if last == nil {
                 ChatTrace.event("Erstes Token")
                 ChatTrace.log("Zeit bis zum ersten Token", since: started)

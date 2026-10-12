@@ -202,3 +202,92 @@ struct AISchedulerTests {
         #expect(histories.all == ["Verlauf vorher 0", "Verlauf vorher 0"])
     }
 }
+
+
+@Suite("Eine hängende Anfrage hält die Stelle nicht fest")
+struct AISchedulerStallTests {
+
+    private static let quick = AIStallLimits(
+        answer: .milliseconds(400), summary: .milliseconds(400),
+        background: .milliseconds(400), cover: .milliseconds(400),
+        cancellationGrace: .milliseconds(100))
+
+    /// Eine Anfrage, die nie zurückkehrt und sich nicht abbrechen lässt.
+    private static let hang: @Sendable () async throws -> String = {
+        await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
+        return "nie"
+    }
+
+    @Test("Ohne Lebenszeichen gibt die Stelle frei, und die nächste Anfrage kommt dran")
+    func stalledRequestIsReleased() async throws {
+        let scheduler = AIScheduler(idleInterval: .zero, backgroundPause: .zero, stallLimits: Self.quick)
+        let hanging = Task { try await scheduler.run(.answer, priority: .user, operation: Self.hang) }
+        try await Task.sleep(for: .milliseconds(20))
+        let next = Task { try await scheduler.run(.answer, priority: .user) { "danach" } }
+
+        await #expect(throws: AIStalledError.self) { _ = try await hanging.value }
+        let value = try await next.value
+        #expect(value == "danach")
+    }
+
+    @Test("Der Fehler nennt die Art der Anfrage und die Frist")
+    func errorCarriesKindAndSeconds() async throws {
+        let scheduler = AIScheduler(idleInterval: .zero, backgroundPause: .zero, stallLimits: Self.quick)
+        do {
+            _ = try await scheduler.run(.facts, priority: .background, operation: Self.hang)
+            Issue.record("Die Anfrage hätte freigegeben werden müssen.")
+        } catch let error as AIStalledError {
+            #expect(error.kind == .facts)
+            #expect(error.seconds == 0)
+            #expect(error.errorDescription?.isEmpty == false)
+        }
+    }
+
+    @Test("Ein Lebenszeichen verlängert die Frist")
+    func heartbeatExtendsTheLimit() async throws {
+        let scheduler = AIScheduler(idleInterval: .zero, backgroundPause: .zero, stallLimits: Self.quick)
+        let result = try await scheduler.run(.answer, priority: .user) {
+            // Zusammen länger als die Frist, aber nie so lange still.
+            for _ in 0..<6 {
+                try await Task.sleep(for: .milliseconds(100))
+                AIStall.beat()
+            }
+            return "fertig"
+        }
+        #expect(result == "fertig")
+    }
+
+    @Test("Ohne Lebenszeichen reicht die Gesamtzeit nicht")
+    func silenceEndsTheRequest() async throws {
+        let scheduler = AIScheduler(idleInterval: .zero, backgroundPause: .zero, stallLimits: Self.quick)
+        await #expect(throws: AIStalledError.self) {
+            _ = try await scheduler.run(.answer, priority: .user) {
+                try await Task.sleep(for: .seconds(5))
+                return "zu spät"
+            }
+        }
+    }
+
+    @Test("Ein Abbruch durch den Aufrufer kehrt auch bei einer Anfrage zurück, die ihn ignoriert")
+    func cancellationReturnsDespiteHang() async throws {
+        let scheduler = AIScheduler(
+            idleInterval: .zero, backgroundPause: .zero,
+            stallLimits: AIStallLimits(answer: .seconds(30), cancellationGrace: .milliseconds(100)))
+        let task = Task { try await scheduler.run(.answer, priority: .user, operation: Self.hang) }
+        try await Task.sleep(for: .milliseconds(50))
+        task.cancel()
+        await #expect(throws: CancellationError.self) { _ = try await task.value }
+        // Die Stelle ist wieder frei.
+        let free = try await scheduler.run(.answer, priority: .user) { "frei" }
+        #expect(free == "frei")
+    }
+
+    @Test("Normale Anfragen sind vom Watchdog unberührt")
+    func normalRequestsPass() async throws {
+        let scheduler = AIScheduler(idleInterval: .zero, backgroundPause: .zero)
+        for index in 0..<3 {
+            let value = try await scheduler.run(.tags, priority: .background) { index }
+            #expect(value == index)
+        }
+    }
+}

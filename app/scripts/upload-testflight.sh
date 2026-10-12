@@ -3,6 +3,8 @@
 # nach TestFlight hoch. Nutzt den in Xcode angemeldeten Account.
 # INTERNAL_ONLY=true lädt Builds nur für interne Tester hoch; solche Builds
 # lassen sich nicht im App Store einreichen.
+# Vor dem Upload prüft scripts/verify-signing.py die Berechtigungen der
+# signierten App (Private Cloud Compute, iCloud, Push, Sandbox).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -38,6 +40,12 @@ for pair in $PLATFORMS; do
   xcodebuild -project PodcastAI.xcodeproj -scheme "$scheme" -configuration Release \
     -destination "$dest" -archivePath "$OUT/$scheme.xcarchive" -allowProvisioningUpdates \
     ${extra[@]+"${extra[@]}"} archive -quiet
+  # Fehlt der App eine Berechtigung (Private Cloud Compute, iCloud), läuft sie
+  # an, meldet aber auf dem Gerät „nicht verfügbar“. Deshalb vor dem Upload prüfen.
+  case $scheme in
+    PodcastAI|PodcastAIMac)
+      python3 scripts/verify-signing.py "$OUT/$scheme.xcarchive/Products/Applications/PodcastAI.app" ;;
+  esac
   echo "== $scheme: Upload"
   xcodebuild -exportArchive -archivePath "$OUT/$scheme.xcarchive" \
     -exportOptionsPlist "$OUT/ExportOptions.plist" -exportPath "$OUT/$scheme" \
