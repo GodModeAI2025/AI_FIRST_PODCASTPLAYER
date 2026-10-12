@@ -949,6 +949,17 @@ struct AnswerCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // Eine Antwort des Modells kann falsch sein. Die Belege darunter
+            // zeigen, woher jede Aussage stammt. Ein Hinweis ohne Modell
+            // („noch kein Transkript“) ist keine Antwort des Modells.
+            if !withdrawn, answer.modelLabel != nil {
+                Text("KI kann sich irren. Die Belege zeigen, woher eine Aussage stammt.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("chat.aiCaveat")
+            }
+
             if !numbered.isEmpty {
                 citationList
             }

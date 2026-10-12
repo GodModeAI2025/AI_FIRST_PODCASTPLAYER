@@ -54,3 +54,12 @@ Keine sichtbaren Texte geändert, daher keine Einträge im String Catalog.
 ## Prüfung
 
 `swift test` im Paket: 1020 Tests, grün. Alle vier Schemata (PodcastAI, PodcastAIMac, PodcastAIWatch, PodcastAITV, Debug) bauen ohne Fehler. Nicht im Simulator angesehen und keine UI-Tests gelaufen; das neue Grün ist nur gerechnet (hell über 6 : 1, dunkel über 10 : 1), nicht gesehen.
+
+## Nachtrag 12. Oktober 2026: Entscheidungen zu den offenen Funden
+
+- **Hinweis „KI kann sich irren“ (Fund 5): umgesetzt.** Unter jeder Antwort des Modells steht in einer Zeile: „KI kann sich irren. Die Belege zeigen, woher eine Aussage stammt.“ Ein Hinweis ohne Modell („noch kein Transkript“) und eine zurückgezogene Antwort bekommen ihn nicht. Deutsch und Englisch im String Catalog.
+- **Fortschrittsbalken ohne Namen (Fund 9): umgesetzt** für den OPML-Import und den YouTube-Import („Fortschritt“). Die Balken im Player haben ihre Zeitangabe als Nachbartext und bleiben.
+- **Knöpfe unter 44 pt (Fund 4): bewusst offen.** Die wichtigen Knöpfe tragen schon `Design.minimumTapTarget`. Die kleinen Knöpfe mit `.controlSize(.small)` sitzen in Listenzeilen, in denen die Zeile selbst die große Trefferfläche ist, und ein Rahmen darum würde die Optik ändern. Das ist eine Sichtprüfung am Gerät wert, kein Umbau.
+- **Erhöhter Kontrast, Reduzierte Transparenz (Fund 6): offen,** erst nach einer Durchsicht mit VoiceOver und den Systemschaltern am Gerät.
+- **Haptik und „Rückgängig“ in der Bestätigungszeile (Fund 10): nicht umgesetzt.** Das wäre neues Verhalten ohne Fund, der es verlangt.
+- Geprüft: 1.023 Swift-Tests, iOS und Mac bauen, `ConversationUITests` laufen auf dem iPhone-Simulator (ein Lauf brach ab, ein Wiederholungslauf bestand).

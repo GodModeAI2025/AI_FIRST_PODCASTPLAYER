@@ -412,6 +412,7 @@ struct TakeoutImportSheet: View {
             VStack(alignment: .leading, spacing: Design.Spacing.small) {
                 if run.isSearching {
                     ProgressView(value: Double(selection.lookupDoneCount), total: Double(max(selection.channels.count, 1)))
+                        .accessibilityLabel("Fortschritt")
                     Text("Suche Audio-Podcasts bei Apple: \(selection.lookupDoneCount) von \(selection.channels.count)")
                         .font(.callout)
                         .accessibilityIdentifier("takeout.searchProgress")
@@ -439,6 +440,7 @@ struct TakeoutImportSheet: View {
         case .subscribing, .finished:
             VStack(alignment: .leading, spacing: Design.Spacing.small) {
                 ProgressView(value: Double(run.doneCount), total: Double(max(run.total, 1)))
+                    .accessibilityLabel("Fortschritt")
                 Text(summary)
                     .font(.callout)
                     .accessibilityIdentifier("takeout.summary")

@@ -251,6 +251,7 @@ struct OPMLImportSheet: View {
                     Section {
                         VStack(alignment: .leading, spacing: Design.Spacing.small) {
                             ProgressView(value: Double(doneCount), total: Double(max(total, 1)))
+                                .accessibilityLabel("Fortschritt")
                             Text(summary)
                                 .font(.callout)
                                 .accessibilityIdentifier("opml.summary")

@@ -1,6 +1,38 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "KI kann sich irren. Die Belege zeigen, woher eine Aussage stammt." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KI kann sich irren. Die Belege zeigen, woher eine Aussage stammt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI can be wrong. The sources show where a statement comes from."
+          }
+        }
+      }
+    },
+    "Fortschritt" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fortschritt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Progress"
+          }
+        }
+      }
+    },
     "%@" : {
       "localizations" : {
         "de" : {
