@@ -153,7 +153,7 @@ struct PreviewEpisodeRow: View {
                     ProgressView()
                 case .subscribed, .added:
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Design.Palette.confirmed)
                         .accessibilityLabel("In deiner Bibliothek")
                         .accessibilityIdentifier("episode.single.done")
                 }
@@ -195,7 +195,7 @@ private struct OptionButton: View {
             .accessibilityIdentifier(identifier)
         case .subscribed, .added:
             Label(done, systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(Design.Palette.confirmed)
                 .accessibilityIdentifier(identifier + ".done")
         }
     }

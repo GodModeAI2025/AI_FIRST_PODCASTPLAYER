@@ -135,7 +135,7 @@ struct MacCardChrome: ViewModifier {
             .contentShape(.rect(cornerRadius: Design.Radius.card, style: .continuous))
             .scaleEffect(pressed && !reduceMotion ? 0.992 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.08), value: pressed)
+            .animation(reduceMotion ? nil : Design.Motion.snappy, value: pressed)
     }
 
     private var fill: Color {

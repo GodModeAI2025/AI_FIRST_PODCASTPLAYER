@@ -41,6 +41,16 @@ public enum Design {
         public static let generous: CGFloat = 48
     }
 
+    // MARK: - Farben
+
+    /// Bestätigungen wie „Abonniert“. Das Systemgrün hat auf hellem Grund
+    /// nur gut 2 : 1 und fällt als Schrift unter die 4,5 : 1 der WCAG. Mit
+    /// einem Anteil der Grundfarbe beigemischt liegt es im hellen Modus bei
+    /// über 6 : 1 und wird im dunklen Modus eher heller als dunkler.
+    public enum Palette {
+        public static let confirmed: Color = Color.green.mix(with: .primary, by: 0.45)
+    }
+
     // MARK: - Eckenradien
 
     /// Konzentrische Radien: ein Element **in** einem anderen bekommt einen

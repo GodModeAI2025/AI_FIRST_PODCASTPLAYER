@@ -1139,6 +1139,7 @@ struct FactWording: View {
     var episode: Episode? = nil
     @Environment(AppModel.self) private var model
     @Environment(\.confirm) private var confirm
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
     @State private var foreign = false
     @State private var translating = false
@@ -1147,7 +1148,7 @@ struct FactWording: View {
         VStack(alignment: .leading, spacing: Design.Spacing.micro) {
             HStack(spacing: Design.Spacing.standard) {
                 Button {
-                    withAnimation { shown.toggle() }
+                    withAnimation(Design.Motion.respectingReduceMotion(Design.Motion.smooth, reduceMotion: reduceMotion)) { shown.toggle() }
                 } label: {
                     // Das Symbol ist Schmuck. VoiceOver las „Liedtext“.
                     Label {
@@ -1279,8 +1280,8 @@ struct TranscriptSection: View {
     /// Solange jemand im Suchfeld tippt, springt die Liste nicht zur
     /// laufenden Stelle.
     @FocusState private var searchFocused: Bool
-    #if os(macOS)
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    #if os(macOS)
     /// Die Zeile unter dem Zeiger. Nur dort stehen Merken und Kopieren.
     @State private var hoveredLine: Int64?
     #endif
@@ -1453,12 +1454,8 @@ struct TranscriptSection: View {
             // außerhalb des Bildes, und die Suche wirkte, als täte sie nichts.
             .onChange(of: currentStart) { _, start in
                 guard let start, trimmedQuery.isEmpty, !searchFocused else { return }
-                #if os(macOS)
                 // Mit „Bewegung reduzieren“ springt die Liste, statt zu gleiten.
-                withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(start, anchor: .center) }
-                #else
-                withAnimation { proxy.scrollTo(start, anchor: .center) }
-                #endif
+                withAnimation(reduceMotion ? nil : Design.Motion.smooth) { proxy.scrollTo(start, anchor: .center) }
             }
             // Jede neue Eingabe zeigt die Treffer von oben.
             .onChange(of: trimmedQuery) { _, now in
@@ -2883,6 +2880,7 @@ private final class ConfirmationState {
 /// antippen will.
 private struct ConfirmationBanner: ViewModifier {
     @State private var state = ConfirmationState()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         content
@@ -2898,12 +2896,12 @@ private struct ConfirmationBanner: ViewModifier {
                         .padding(.vertical, Design.Spacing.small)
                         .glassEffect(.regular, in: .rect(cornerRadius: Design.Radius.card))
                         .padding(Design.Spacing.standard)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                         .allowsHitTesting(false)
                         .accessibilityIdentifier("confirmation")
                 }
             }
-            .animation(.default, value: state.message)
+            .animation(Design.Motion.respectingReduceMotion(Design.Motion.smooth, reduceMotion: reduceMotion), value: state.message)
     }
 }
 

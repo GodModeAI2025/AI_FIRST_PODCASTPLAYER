@@ -1174,6 +1174,8 @@ struct NewSmartFeedSheet: View {
             Form {
                 Section("Name") {
                     TextField("z. B. Mein KI Update", text: $title)
+                        // Der Platzhalter verschwindet beim Tippen. Der Name bleibt.
+                        .accessibilityLabel("Name")
                 }
                 Section {
                     if !chipTags.isEmpty {

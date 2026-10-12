@@ -263,7 +263,7 @@ struct CatalogPodcastRow: View {
             // Außerhalb des Knopfs, damit es ein eigener Text bleibt.
             if case .added(let count) = state {
                 Text("Abonniert · ^[\(count) Folge](inflect: true) gefunden")
-                    .font(.caption).foregroundStyle(.green)
+                    .font(.caption).foregroundStyle(Design.Palette.confirmed)
                     .padding(.leading, typeSize.isAccessibilitySize ? 0 : min(artworkSize, 96) + Design.Spacing.control)
             }
         }
@@ -293,7 +293,7 @@ struct CatalogPodcastRow: View {
             ProgressView()
         case .subscribed, .added:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(Design.Palette.confirmed)
                 .accessibilityLabel("Abonniert")
         }
     }
@@ -720,10 +720,10 @@ struct CatalogPodcastDetailView: View {
             } icon: {
                 Image(systemName: "checkmark.circle.fill")
             }
-            .foregroundStyle(.green)
+            .foregroundStyle(Design.Palette.confirmed)
         case .subscribed:
             Label("Schon abonniert", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(Design.Palette.confirmed)
         case .open, .working:
             let working = subscriptions.state(of: podcast, in: model) == .working
             Button {

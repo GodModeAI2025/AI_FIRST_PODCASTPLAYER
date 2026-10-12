@@ -615,7 +615,7 @@ private struct TakeoutChannelRow: View {
         case .running:
             Text("wird abonniert …").foregroundStyle(.secondary)
         case .added(let count):
-            Text("Abonniert · ^[\(count) Folge](inflect: true)").foregroundStyle(.green)
+            Text("Abonniert · ^[\(count) Folge](inflect: true)").foregroundStyle(Design.Palette.confirmed)
         case .failed(let reason):
             // Das rote Symbol daneben sagt, dass es gescheitert ist. Der Grund bleibt lesbar.
             Text(reason).foregroundStyle(.secondary)
@@ -673,7 +673,7 @@ private struct TakeoutChannelRow: View {
             ProgressView()
         case .added:
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
+                .foregroundStyle(Design.Palette.confirmed)
                 .accessibilityLabel("Abonniert")
         case .failed:
             Image(systemName: Design.Notice.failure.symbol)
