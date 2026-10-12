@@ -1,6 +1,6 @@
 # Änderungsverlauf
 
-## App 1.2 · 2026-10-12 (Build 202610120921, TestFlight)
+## App 1.2 · 2026-10-12 (Build 202610120921, iOS und Mac am 12.10. zur Prüfung eingereicht)
 Neu: Eine KI-Anfrage, die lange nichts meldet oder sich nicht abbrechen lässt, hält die Warteschlange nicht mehr fest. Private Cloud Compute fällt dann auf das Gerät zurück, Arbeit im Hintergrund wartet und läuft weiter.
 
 Bedienbarkeit: Unter jeder Antwort des Modells steht „KI kann sich irren. Die Belege zeigen, woher eine Aussage stammt.“ Bestätigungen in Grün sind besser lesbar. Bestätigungszeile, Wortlaut-Umschalter und das Mitlaufen des Transkripts beachten „Bewegung reduzieren“. Fortschrittsbalken im Import tragen einen Namen für VoiceOver.
