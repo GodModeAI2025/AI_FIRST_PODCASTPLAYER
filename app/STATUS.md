@@ -43,6 +43,7 @@ Stand 12. Oktober 2026. iOS 1.1 (mit Uhr-App) ist im App Store. macOS 1.0 wurde 
 | CarPlay | Baut ohne Warnung mit und ohne `PODCASTAI_VARIANT=CarPlay` für den iOS-Simulator; die Standard-Info.plist hat keine Szene, die Fassung für CarPlay hat sie. Nicht gestartet: Der CarPlay-Simulator war nicht Teil dieses Auftrags (keine iOS-Simulatoren für UI-Tests) |
 | Hängende KI-Anfrage: `AIScheduler` gibt eine Anfrage frei, die nach Frist (Antwort 90 s, Hintergrund 240 s, ohne Lebenszeichen) nichts meldet oder einen Abbruch ignoriert; Herzschlag aus Streaming und Chat-Werkzeugen; Abbruch kehrt nach 5 s Schonfrist zurück | Swift-Tests ohne Modell (`AISchedulerStallTests`, 6 Fälle). Nicht auf dem Gerät mit einer wirklich hängenden PCC-Anfrage geprüft. |
 | Signatur vor dem Upload: `scripts/verify-signing.py` liest die Berechtigungen der signierten App (Private Cloud Compute, iCloud, Push, Sandbox, kein Debug) | Gegen ein echtes Mac-Archiv gelaufen: ohne Fehler im Archiv, mit `--distribution` meldet es zu Recht die Entwicklungs-Push-Umgebung, die erst der Export auf production setzt. Für iOS noch nicht gegen ein Archiv gelaufen. |
+| Chat schlägt nach: erwartete Abläufe (Szenarien mit gescriptetem Modell und echten Werkzeugen: Suche und Fakten, fremde Folge anfragen, erfundene Kennungen, vierte Abfrage, Befehl im Ergebnistext) | Swift-Tests `ChatLookupTrajectoryTests`, 3 Tests mit 6 Szenarien. Prüft Bereich der Frage, höchstens drei Abfragen, keine Kennung bei einer Folge, Ergebnisse als Daten. Kein echtes Modell. |
 
 ## Noch auf einem Gerät zu prüfen
 
