@@ -46,7 +46,7 @@ Transkription braucht Apples Spracherkennung auf dem Gerät. Fragen, Fakten und 
 
 ## Testen über TestFlight
 
-Interne Builds für iOS und macOS laufen über TestFlight im Team Mobile Box. Die Apps heißen „PodcastAI“ und „PodcastAI Mac“, die Testgruppe „Intern“ verteilt neue Builds automatisch.
+Interne Builds für iOS, macOS und tvOS laufen über TestFlight im Team Mobile Box. Seit dem 18. Oktober 2026 ist PodcastAI ein App-Store-Eintrag für alle Plattformen (Universalkauf, Bundle-ID `com.godmodeai.podcastai.mobile`). Die frühen Einträge „PodcastAI Mac“ und „PodcastAI TV“ sind zurückgezogen und werden nicht mehr benutzt. Die Testgruppe „Intern“ verteilt neue Builds automatisch.
 
 ## Support
 
