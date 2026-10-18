@@ -93,7 +93,7 @@ targets:
       - target: PodcastAIShareMac
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile
         PRODUCT_NAME: PodcastAI
         INFOPLIST_FILE: Apps/PodcastAIMac/Info.plist
         GENERATE_INFOPLIST_FILE: NO
@@ -136,7 +136,7 @@ targets:
         product: PodcastAIWidgetData
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac.widget
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile.widget
         PRODUCT_NAME: PodcastAIMacWidget
         INFOPLIST_FILE: Apps/PodcastAIWidget/Info.plist
         GENERATE_INFOPLIST_FILE: YES
@@ -181,7 +181,7 @@ targets:
         product: PodcastAIShareInbox
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mac.share
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile.share
         PRODUCT_NAME: PodcastAIShare
         INFOPLIST_FILE: Apps/ShareExtension/macOS/Info.plist
         GENERATE_INFOPLIST_FILE: NO
@@ -237,7 +237,7 @@ targets:
         product: PodcastAIPlayerKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.tv
+        PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile
         MARKETING_VERSION: "1.0"
         PRODUCT_NAME: PodcastAI
         INFOPLIST_FILE: Apps/PodcastAITV/Info.plist

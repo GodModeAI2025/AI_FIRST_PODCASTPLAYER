@@ -20,7 +20,7 @@ open PodcastAI.xcodeproj
 
 Signiert wird automatisch mit dem Team Mobile Box (`SP73Z8JWXM`).
 
-Beide Apps betten die Share Extension „An PodcastAI senden“ ein (`PodcastAIShare` in `com.godmodeai.podcastai.mobile.share`, `PodcastAIShareMac` in `com.godmodeai.podcastai.mac.share`). Apps und Erweiterungen teilen die App Group `group.com.godmodeai.podcastai`. Der erste signierte Build danach braucht `-allowProvisioningUpdates` (das TestFlight-Skript setzt es) oder einmal Xcode mit angemeldetem Account, damit die beiden App-IDs entstehen und die Gruppe in die Profile kommt. Ohne Signatur (`CODE_SIGNING_ALLOWED=NO`) bauen beide Schemata auch vorher.
+Beide Apps betten die Share Extension „An PodcastAI senden“ ein (`PodcastAIShare` in `com.godmodeai.podcastai.mobile.share`, `PodcastAIShareMac` in `com.godmodeai.podcastai.mobile.share`, dieselbe ID wie auf dem iPhone). Apps und Erweiterungen teilen die App Group `group.com.godmodeai.podcastai`. Der erste signierte Build danach braucht `-allowProvisioningUpdates` (das TestFlight-Skript setzt es) oder einmal Xcode mit angemeldetem Account, damit die beiden App-IDs entstehen und die Gruppe in die Profile kommt. Ohne Signatur (`CODE_SIGNING_ALLOWED=NO`) bauen beide Schemata auch vorher.
 
 ## Tests
 
@@ -62,7 +62,7 @@ PodcastAI.app/Contents/MacOS/PodcastAI -initialize-cloudkit-schema
 
 ## Widget und App Group
 
-Beide Apps betten eine Widget-Erweiterung ein: `PodcastAIWidget` (`com.godmodeai.podcastai.mobile.widget`) und `PodcastAIMacWidget` (`com.godmodeai.podcastai.mac.widget`). Apps und Erweiterungen teilen die App Group `group.com.godmodeai.podcastai`; dort legt die App den Schnappschuss ab, den das Widget liest. Für einen signierten Build müssen App Group und die beiden neuen Bundle-IDs im Entwicklerkonto stehen. Das erledigt die automatische Signatur, wenn sie Profile anlegen darf: einmal in Xcode bauen oder `-allowProvisioningUpdates` mitgeben, wie es `scripts/upload-testflight.sh` tut. Ohne Signatur (`CODE_SIGNING_ALLOWED=NO`) bauen alle Targets, das Widget bleibt dann leer.
+Beide Apps betten eine Widget-Erweiterung ein: `PodcastAIWidget` (`com.godmodeai.podcastai.mobile.widget`) und `PodcastAIMacWidget` (`com.godmodeai.podcastai.mobile.widget`, dieselbe ID wie auf dem iPhone). Apps und Erweiterungen teilen die App Group `group.com.godmodeai.podcastai`; dort legt die App den Schnappschuss ab, den das Widget liest. Für einen signierten Build müssen App Group und die beiden neuen Bundle-IDs im Entwicklerkonto stehen. Das erledigt die automatische Signatur, wenn sie Profile anlegen darf: einmal in Xcode bauen oder `-allowProvisioningUpdates` mitgeben, wie es `scripts/upload-testflight.sh` tut. Ohne Signatur (`CODE_SIGNING_ALLOWED=NO`) bauen alle Targets, das Widget bleibt dann leer.
 
 Das Widget öffnet die App über `podcastai://topicupdates` und `podcastai://tag/<Kennung>`.
 

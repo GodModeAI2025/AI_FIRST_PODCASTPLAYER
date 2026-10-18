@@ -97,7 +97,7 @@ struct PlayerPlatformFilesTests {
         let project = try String(
             contentsOf: Self.apps.deletingLastPathComponent().appending(path: "project.yml"), encoding: .utf8)
         #expect(project.contains("PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile.watchkitapp"))
-        #expect(project.contains("PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.tv"))
+        #expect(project.contains("PRODUCT_BUNDLE_IDENTIFIER: com.godmodeai.podcastai.mobile"))
     }
 
     @Test func theWatchIconIsTheAppIcon() throws {

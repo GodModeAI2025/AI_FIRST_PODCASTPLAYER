@@ -144,6 +144,8 @@ struct ChatView: View {
                     guard let newest else { return }
                     withAnimation(scrollAnimation) { proxy.scrollTo(newest, anchor: .top) }
                 }
+                // Ein Tick, wenn die Antwort steht. Wer weggeschaut hat, merkt es.
+                .sensoryFeedback(.success, trigger: pendingQuestion) { old, new in old != nil && new == nil }
             }
 
             VStack(spacing: Design.Spacing.none) {

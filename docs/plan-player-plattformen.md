@@ -14,7 +14,7 @@ Regel 1 gilt überall: Nichts spielt, bevor jemand es antippt, an der Fernbedien
 |---|---|---|---|
 | PodcastAI (bestehend) | `com.godmodeai.podcastai.mobile` | iOS, iPadOS | zusätzlich CarPlay-Szene (Code ist da, Berechtigung fehlt noch) |
 | PodcastAIWatch | `com.godmodeai.podcastai.mobile.watchkitapp` | watchOS 27 | eingebettet in die iOS-App, läuft auch ohne iPhone |
-| PodcastAITV | `com.godmodeai.podcastai.tv` | tvOS 27 | eigene App, eigener App-Store-Eintrag |
+| PodcastAITV | `com.godmodeai.podcastai.mobile` | tvOS 27 | eigene App, aber derselbe App-Store-Eintrag wie iPhone und Mac (Universal Purchase) |
 | PodcastAIPlayerKit | (Paketprodukt) | iOS, macOS, watchOS, tvOS | Datenmodell, Bibliothek, Player, Warteschlange, Feed-Abruf |
 
 ## Was geteilt wird
