@@ -29,8 +29,9 @@ extension LibraryStore {
         case stale(CommitGuard.StaleReason)
     }
 
-    /// Prüft Folge, Quelle und Löschprotokoll. Läuft im selben Schritt wie
-    /// das Schreiben danach, also kann dazwischen nichts geschehen.
+    /// Prüft Folge, Quelle, Löschprotokoll und die Sperre, die der Wächter
+    /// nennt. Läuft im selben Schritt wie das Schreiben danach, also kann
+    /// dazwischen nichts geschehen.
     ///
     /// Gelöscht heißt hier wie beim Bereinigen: Es gibt keine lebende Kopie,
     /// oder eine Kopie unter derselben Quelle trägt das Merkzeichen. Ein
@@ -45,6 +46,13 @@ extension LibraryStore {
     /// Quellzeile gelöscht hat, bevor die umgehängte Folge hier ankam. Das
     /// nächste Bereinigen hängt sie wieder an. Erst ohne diese Quelle ist sie
     /// abbestellt, hier oder auf einem anderen Gerät.
+    ///
+    /// Nennt der Wächter eine Sperre über Geräte hinweg, darf kein anderes
+    /// Gerät eine gültige halten, die vor der eigenen gilt
+    /// (``leaseHeldElsewhere(_:for:device:now:)``). Zwei Geräte können sie
+    /// beide genommen haben, bevor der Abgleich die Zeile des anderen
+    /// brachte, und ein kurzer Lauf ist fertig, bevor er zum ersten Mal
+    /// verlängert.
     func verify(_ commitGuard: CommitGuard) throws -> GuardVerdict {
         // Eine Löschung auf diesem Gerät gilt, bevor der Store sie ausführt.
         if commitGuard.ledger.wasRemoved(commitGuard.episodeID, since: commitGuard.ticket) {
@@ -79,6 +87,11 @@ extension LibraryStore {
             return subscribedAt.map { removedAt >= $0 } ?? false
         }) {
             return .stale(.episodeRemoved)
+        }
+        // Zuletzt, damit eine gelöschte Folge als gelöscht gilt und nicht als wartend.
+        if let lease = commitGuard.lease,
+           try leaseHeldElsewhere(lease.kind, for: commitGuard.episodeID, device: lease.device, now: Date()) {
+            return .stale(.heldElsewhere)
         }
         return .live(row)
     }

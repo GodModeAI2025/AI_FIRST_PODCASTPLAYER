@@ -71,7 +71,7 @@ Das Merkzeichen „Quelle abbestellt“ (`StoredSourceRemoval.swift`). Je Abbest
 
 ## CD_StoredProcessingLease
 
-Die Sperre über Geräte hinweg (`StoredProcessingLease.swift`). Eine Zeile je Gerät, Folge und Art, sie wird während der Arbeit alle fünf Minuten verlängert und danach gelöscht. Verliert ein Gerät beim Verlängern gegen eine ältere Zeile, löscht es seine eigene.
+Die Sperre über Geräte hinweg (`StoredProcessingLease.swift`). Eine Zeile je Gerät, Folge und Art, sie wird während der Arbeit alle fünf Minuten verlängert und danach gelöscht. Verliert ein Gerät beim Verlängern gegen eine ältere Zeile, löscht es seine eigene. Vor dem Schreiben der Fakten liest der Store die Zeilen noch einmal und schreibt nichts, wenn die gültige Zeile eines anderen Geräts vor der eigenen gilt. Dabei ändert er keine Zeile, und am Schema ändert sich nichts. Offen bleibt die Zeit, bis der Abgleich die Zeile des anderen gebracht hat: Ist ein Lauf vorher fertig, schreiben beide Geräte. Hat das andere Gerät seine Zeile schon wieder gelöscht, weil es fertig ist, schreibt der spätere Lauf ebenfalls und ersetzt dessen Fakten.
 
 | Feld | Swift | CloudKit |
 |---|---|---|

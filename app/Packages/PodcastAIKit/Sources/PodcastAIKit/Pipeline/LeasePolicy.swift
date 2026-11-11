@@ -14,7 +14,13 @@
 //       Gerät die Sperre, etwa weil beide sie nahmen, bevor der Abgleich
 //       die Zeile des anderen brachte, hat dieses verloren: Die Arbeit an
 //       der Folge bricht ab, und die Folge wartet wie in 1.
-//    3. Danach gibt sie die Sperre frei. Nur ein Anhalten (Zeit im
+//    3. Fakten sind meist fertig, bevor die Stufe zum ersten Mal verlängert.
+//       Deshalb liest der Store die Sperre noch einmal, im selben Schritt,
+//       in dem er die Fakten schreibt (`CommitGuard.lease`). Hält dann ein
+//       anderes Gerät sie, schreibt er nichts, und die Folge wartet wie in
+//       1. Eine Sperre ändert er dabei nicht. Transkript und Kapitel-Tags
+//       fragen beim Schreiben nicht nach ihr.
+//    4. Danach gibt sie die Sperre frei. Nur ein Anhalten (Zeit im
 //       Hintergrund zu Ende, Pause) lässt sie bis zum Ablauf stehen: Dieses
 //       Gerät hat einen Zwischenstand und setzt dort an, wenn es innerhalb
 //       der Frist weitermacht.
@@ -29,15 +35,23 @@ import PodcastAIPersistence
 
 /// Die Sperre, unter der die Arbeit an einer Folge läuft, und ob sie
 /// inzwischen an ein anderes Gerät gegangen ist. Die Stufe vermerkt das,
-/// bevor sie die Arbeit abbricht. Verloren ist nicht angehalten: Die Folge
-/// wartet auf das andere Gerät, und die Fakten sichern beim Abbruch auch
-/// ihre fertigen Abschnitte nicht, denn die schreibt jetzt das andere.
+/// bevor sie die Arbeit abbricht, und die Fakten vermerken es selbst, wenn
+/// der Store ihr Schreiben deshalb ablehnt. Verloren ist nicht angehalten:
+/// Die Folge wartet auf das andere Gerät, und die Fakten sichern beim
+/// Abbruch auch ihre fertigen Abschnitte nicht, denn die schreibt jetzt das
+/// andere.
 final class HeldLease: Sendable {
     /// Die Sperre der Arbeit, in deren Aufgabe gefragt wird. Die Stufe
     /// „Wissen“ bindet sie um die Fakten einer Folge.
     @TaskLocal static var current: HeldLease?
 
+    /// Das Gerät, das die Sperre genommen hat. Die Fakten nennen es dem
+    /// Wächter im Store (`CommitGuard.lease`). Ohne Richtlinie keins, und
+    /// der Store fragt beim Schreiben nach keiner Sperre.
+    let device: String?
     private let lost = Mutex(false)
+
+    init(device: String? = nil) { self.device = device }
 
     var isLost: Bool { lost.withLock { $0 } }
     func markLost() { lost.withLock { $0 = true } }

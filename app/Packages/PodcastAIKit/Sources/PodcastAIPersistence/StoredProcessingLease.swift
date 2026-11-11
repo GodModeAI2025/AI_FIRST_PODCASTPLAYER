@@ -16,11 +16,16 @@
 //  ihre Sperre, bevor der Abgleich die andere gebracht hat, gilt unter den
 //  gültigen die älteste, bei Gleichstand die kleinere Gerätekennung
 //  (`LibraryStore+Leases.swift`). Wer dabei verliert, erfährt es beim
-//  nächsten Verlängern und bricht ab (`LeasePolicy`). Das Fenster wird so
-//  klein, ganz schließt es sich nicht: Arbeit, die vor dem ersten
-//  Verlängern fertig ist, fragt nie. Entsteht doch ein zweites Transkript,
-//  trägt es dieselbe Kennung (feste Sprache, `TranscriptID.forMedia`), und
-//  das Bereinigen behält eines.
+//  nächsten Verlängern und bricht ab (`LeasePolicy`). Fakten sind meist
+//  vorher fertig. Deshalb liest der Store die Sperre noch einmal, wenn er
+//  die Fakten schreibt, und lässt es, solange das andere Gerät gilt
+//  (`CommitGuard.lease`). Das Fenster wird so klein, ganz schließt es sich
+//  nicht: Kommt die Zeile des anderen erst nach dem Schreiben an, können
+//  die Fakten beider Geräte nebeneinander stehen. Hat das andere seine Zeile
+//  schon freigegeben, ersetzt der spätere Lauf dessen Fakten. Ein Transkript
+//  fragt beim Schreiben nicht. Entsteht ein zweites, trägt es dieselbe
+//  Kennung (feste Sprache, `TranscriptID.forMedia`), und das Bereinigen
+//  behält eines.
 //
 //  CloudKit-tauglich: jedes Feld mit Standardwert, keine eindeutigen
 //  Schlüssel, keine Beziehungen. Ältere Fassungen der App kennen die Art

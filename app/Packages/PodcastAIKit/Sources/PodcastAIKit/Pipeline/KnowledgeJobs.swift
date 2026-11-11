@@ -407,9 +407,14 @@ public struct KnowledgeJobs: KnowledgeWorking {
         var saveFailure: String?
         var receipt: WriteReceipt?
         do {
-            switch try await store.commit(facts: kept, under: commitGuard(for: episode, since: ticket)) {
+            switch try await commit(kept, of: episode, since: ticket) {
             case .written(let written, _):
                 receipt = written
+            case .stale(.heldElsewhere):
+                // Wie nach dem Verlust beim Verlängern: abgebrochen, nicht
+                // erledigt. So lässt die Stufe die Folge auf das andere
+                // Gerät warten, statt sie aus der Warteschlange zu nehmen.
+                return .cancelled
             case .stale(let reason):
                 // Der Wächter im Store hat widersprochen: Die Folge ist weg,
                 // oder ihre Belege sind nicht mehr die, aus denen die Fakten
@@ -463,8 +468,7 @@ public struct KnowledgeJobs: KnowledgeWorking {
         let receipt: WriteReceipt
         do {
             // Widerspricht der Wächter im Store, bleibt alles, wie es war.
-            guard let written = try await store.commit(
-                facts: kept, under: commitGuard(for: episode, since: ticket)).receipt else { return .cancelled }
+            guard let written = try await commit(kept, of: episode, since: ticket).receipt else { return .cancelled }
             receipt = written
         } catch {
             return .cancelled
@@ -479,6 +483,20 @@ public struct KnowledgeJobs: KnowledgeWorking {
         await reporter.showFacts(shown, for: id, unlessRemovedSince: ticket)
         recordGaps(missing.union(unfinished.map { KnowledgeMarks.factSliceID(slices[$0]) }), for: id, since: ticket)
         return .cancelled
+    }
+
+    /// Schreibt die Fakten hinter dem Wächter, der dafür auch die Sperre der
+    /// Stufe nennt. Ein Lauf ist meist fertig, bevor er die Sperre zum ersten
+    /// Mal verlängert, und erführe sonst nie, dass ein anderes Gerät sie
+    /// hält. Lehnt der Store deshalb ab, vermerkt die Arbeit den Verlust, wie
+    /// es die Stufe beim Verlängern tut.
+    private func commit(_ facts: [EpisodeFact], of episode: Episode,
+                        since ticket: RemovalLedger.Ticket) async throws -> CommitResult<Void> {
+        let held = HeldLease.current
+        let result = try await store.commit(
+            facts: facts, under: commitGuard(for: episode, since: ticket, device: held?.device))
+        if result.staleReason == .heldElsewhere { held?.markLost() }
+        return result
     }
 
     /// Merkt sich die Lücken, außer die Folge wurde inzwischen gelöscht.
@@ -639,9 +657,12 @@ public struct KnowledgeJobs: KnowledgeWorking {
     }
 
     /// Der Wächter für das Schreiben: Folge, Quelle und Löschungen seit
-    /// `ticket`, dazu die Fassung, auf die der Feed zeigt.
-    private func commitGuard(for episode: Episode, since ticket: RemovalLedger.Ticket) -> CommitGuard {
+    /// `ticket`, dazu die Fassung, auf die der Feed zeigt. Mit `device` auch
+    /// die Sperre der Stufe „Wissen“, die dieses Gerät genommen hat.
+    private func commitGuard(for episode: Episode, since ticket: RemovalLedger.Ticket,
+                             device: String? = nil) -> CommitGuard {
         CommitGuard(episode: episode.id, source: episode.sourceID, since: ticket, ledger: ledger,
+                    lease: device.map { (.knowledge, $0) },
                     feedMedia: { CaptionAnalysis.feedMediaVersionID(of: $0) })
     }
 
@@ -704,6 +725,10 @@ public struct KnowledgeJobs: KnowledgeWorking {
         let selector = TagSelector(useCase: .contentTagging, excerptLimit: Self.tagExcerptLimit, scheduler: scheduler)
         let priority = AIPriorityPolicy.priority(kind: .tags, origin: origin)
         // Jedes Schreiben dieser Einordnung geht durch den Wächter im Store.
+        // Ohne Sperre, auch gleich nach den Fakten: Tags aus dem Rückstand
+        // laufen ohne eine. Was der Wächter hier ablehnte, schriebe also der
+        // nächste Durchgang. Gleiche Kapitel-Tags zweier Geräte legt das
+        // Bereinigen zusammen.
         let writeGuard = commitGuard(for: episode, since: ticket)
         // Erkannte Tags, die diese Einordnung neu angelegt hat. Wird die Folge
         // gelöscht, gehen sie mit, sofern nichts anderes auf sie zeigt.

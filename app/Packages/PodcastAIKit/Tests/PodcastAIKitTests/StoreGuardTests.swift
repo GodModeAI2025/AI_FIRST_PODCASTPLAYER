@@ -383,6 +383,119 @@ struct KnowledgeCommitTests {
         #expect(try await store.facts(forEpisode: episodeID).map(\.id) == ["f1"])
     }
 
+    // MARK: Sperre über Geräte hinweg
+
+    /// Der Wächter der Fakten, die dieses Gerät unter seiner Sperre gesammelt hat.
+    func guardHolding(_ device: String, _ ledger: RemovalLedger = RemovalLedger()) -> CommitGuard {
+        CommitGuard(episode: episodeID, since: ledger.ticket, ledger: ledger, lease: (.knowledge, device))
+    }
+
+    func leases(in store: LibraryStore) async throws -> [ProcessingLease] {
+        try await store.leases(for: episodeID).sorted { $0.deviceID < $1.deviceID }
+    }
+
+    @Test("Nahmen zwei Geräte die Sperre, schreibt nur das mit der älteren Fakten, und keine Sperre ändert sich")
+    func onlyTheLeaseWinnerWritesFacts() async throws {
+        let (store, written) = try await analyzedStore()
+        let evidenceID = try #require(written.first?.id)
+        _ = try await store.commit(facts: [fact("alt", citing: evidenceID)], under: guardNow())
+        // Beide nahmen die Sperre, bevor der Abgleich die Zeile des anderen brachte. Der Mac war eine Minute früher.
+        let now = Date()
+        try await store.insertLeaseForTesting(.knowledge, for: episodeID, device: "mac",
+                                              acquiredAt: now.addingTimeInterval(-60), expiresAt: now.addingTimeInterval(600))
+        try await store.insertLeaseForTesting(.knowledge, for: episodeID, device: "iphone",
+                                              acquiredAt: now, expiresAt: now.addingTimeInterval(600))
+        let before = try await leases(in: store)
+
+        let lost = try await store.commit(facts: [fact("iphone", citing: evidenceID)], under: guardHolding("iphone"))
+        #expect(lost.staleReason == .heldElsewhere)
+        #expect(lost.staleReason?.meansRemoved == false, "Die Folge wartet, sie ist nicht gelöscht")
+        #expect(try await store.facts(forEpisode: episodeID).map(\.id) == ["alt"], "nichts ersetzt, nichts daneben")
+        #expect(try await leases(in: store) == before, "Der Wächter liest die Sperren nur")
+
+        let won = try await store.commit(facts: [fact("mac", citing: evidenceID)], under: guardHolding("mac"))
+        #expect(won.receipt?.factIDs == ["mac"])
+        #expect(try await store.facts(forEpisode: episodeID).map(\.id) == ["mac"])
+        #expect(try await leases(in: store) == before)
+    }
+
+    @Test("Ohne gültige fremde Sperre schreibt ein Gerät Fakten wie bisher, auch wenn es selbst keine mehr hält")
+    func withoutForeignLeaseFactsAreWritten() async throws {
+        let (store, written) = try await analyzedStore()
+        let evidenceID = try #require(written.first?.id)
+        let now = Date()
+        // Gar keine Zeile: Die Sperre ließ sich beim Start nicht schreiben und galt als genommen.
+        #expect(try await store.commit(facts: [fact("f1", citing: evidenceID)], under: guardHolding("iphone"))
+            .receipt?.factIDs == ["f1"])
+        // Die eigene ist abgelaufen, während das Gerät schlief, und niemand hat übernommen.
+        try await store.insertLeaseForTesting(.knowledge, for: episodeID, device: "iphone",
+                                              acquiredAt: now.addingTimeInterval(-1_800), expiresAt: now.addingTimeInterval(-900))
+        #expect(try await store.commit(facts: [fact("f2", citing: evidenceID)], under: guardHolding("iphone"))
+            .receipt?.factIDs == ["f2"])
+        // Eine ältere Sperre des Macs, die abgelaufen ist, hält niemanden auf.
+        try await store.insertLeaseForTesting(.knowledge, for: episodeID, device: "mac",
+                                              acquiredAt: now.addingTimeInterval(-3_600), expiresAt: now.addingTimeInterval(-60))
+        #expect(try await store.commit(facts: [fact("f3", citing: evidenceID)], under: guardHolding("iphone"))
+            .receipt?.factIDs == ["f3"])
+        // Hat der Mac inzwischen übernommen, schreibt dieses Gerät nicht mehr, auch ohne gültige eigene Zeile.
+        try await store.insertLeaseForTesting(.knowledge, for: episodeID, device: "mac",
+                                              acquiredAt: now, expiresAt: now.addingTimeInterval(600))
+        #expect(try await store.commit(facts: [fact("f4", citing: evidenceID)], under: guardHolding("iphone"))
+            .staleReason == .heldElsewhere)
+        #expect(try await store.facts(forEpisode: episodeID).map(\.id) == ["f3"])
+    }
+
+    @Test("Eine fremde Sperre gilt nur für ihre Art, nur wenn der Wächter eine nennt, und nie vor einer Löschung")
+    func foreignLeaseStopsOnlyItsOwnWork() async throws {
+        let (store, written) = try await analyzedStore()
+        let evidenceID = try #require(written.first?.id)
+        let now = Date()
+        // Der Mac transkribiert gerade: Das ist eine andere Sperre als die der Fakten.
+        try await store.insertLeaseForTesting(.transcript, for: episodeID, device: "mac",
+                                              acquiredAt: now.addingTimeInterval(-60), expiresAt: now.addingTimeInterval(600))
+        #expect(try await store.commit(facts: [fact("f1", citing: evidenceID)], under: guardHolding("iphone"))
+            .receipt?.factIDs == ["f1"])
+        // Jetzt sammelt er auch die Fakten. Wer ohne Sperre schreibt, etwa in Tests, wird nicht gefragt.
+        try await store.insertLeaseForTesting(.knowledge, for: episodeID, device: "mac",
+                                              acquiredAt: now.addingTimeInterval(-60), expiresAt: now.addingTimeInterval(600))
+        #expect(try await store.commit(facts: [fact("f2", citing: evidenceID)], under: guardNow()).receipt?.factIDs == ["f2"])
+        #expect(try await store.commit(facts: [fact("f3", citing: evidenceID)], under: guardHolding("iphone"))
+            .staleReason == .heldElsewhere)
+        // Das Merkzeichen eines anderen Geräts kommt an. Gelöscht geht vor:
+        // Der Grund entscheidet, ob von der Folge etwas bleibt.
+        try await store.insertEpisodeCopyForTesting(
+            episode, removedAt: Date(timeIntervalSinceNow: 60), withoutSource: true)
+        let removed = try await store.commit(facts: [fact("f4", citing: evidenceID)], under: guardHolding("iphone"))
+        #expect(removed.staleReason == .episodeRemoved)
+        #expect(removed.staleReason?.meansRemoved == true)
+        #expect(try await store.facts(forEpisode: episodeID).map(\.id) == ["f2"])
+    }
+
+    @Test("Nennt ein Wächter eine Sperre, fragt der Store sie vor jedem geschützten Schreiben, nicht nur vor den Fakten")
+    func everyGuardedCommitAsksTheNamedLease() async throws {
+        let store = try makeStore()
+        try await subscribe(store)
+        let ledger = RemovalLedger()
+        let now = Date()
+        // Der Mac hält beide Sperren der Folge.
+        for kind in ProcessingLeaseKind.allCases {
+            try await store.insertLeaseForTesting(kind, for: episodeID, device: "mac",
+                                                  acquiredAt: now.addingTimeInterval(-60), expiresAt: now.addingTimeInterval(600))
+        }
+        func holding(_ kind: ProcessingLeaseKind) -> CommitGuard {
+            CommitGuard(episode: episodeID, since: ledger.ticket, ledger: ledger, lease: (kind, "iphone"))
+        }
+        let text = transcript()
+        #expect(try await store.commit(transcript: text, media: media(), evidence: evidence(of: text), rebuild: rebuild,
+                                       under: holding(.transcript)).staleReason == .heldElsewhere)
+        #expect(try await store.transcript(forMedia: mediaID) == nil)
+        #expect(try await store.addDetectedTag(label: "Quantencomputer", under: holding(.knowledge)).staleReason
+                == .heldElsewhere)
+        #expect(try await store.resolveTag("Quantencomputer") == nil)
+        #expect(try await store.commit(chapterTags: [], media: mediaID, transcriptRevision: .initial,
+                                       under: holding(.knowledge)).staleReason == .heldElsewhere)
+    }
+
     @Test("Kapitel-Tags gelten nur für die Fassung, die eine Einordnung jetzt lesen würde")
     func chapterTagsFollowTheCurrentVersion() async throws {
         let (store, _) = try await analyzedStore()

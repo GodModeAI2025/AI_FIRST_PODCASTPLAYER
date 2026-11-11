@@ -12,8 +12,13 @@
 import Testing
 import Foundation
 import Synchronization
+#if canImport(FoundationModels)
+// Nur dieser Typ: FoundationModels hat einen eigenen `Transcript`.
+import struct FoundationModels.GeneratedContent
+#endif
 @testable import PodcastAIKit
 @testable import PodcastAIPersistence
+@testable import PodcastAIIntelligence
 
 // MARK: - Bausteine
 
@@ -72,6 +77,10 @@ private final class RecordingWork: KnowledgeWorking {
         var hangs: Set<EpisodeID> = []
         /// Die Tags dieser Folgen hängen, bis die Stufe abbricht.
         var tagHangs: Set<EpisodeID> = []
+        /// Beim ersten Lauf dieser Folgen lehnt der Store das Schreiben der
+        /// Fakten ab, weil inzwischen die Sperre eines anderen Geräts ankam.
+        /// Der Abschluss legt sie an.
+        var refusals: [EpisodeID: @Sendable () async -> Void] = [:]
     }
 
     private let state = Mutex<(calls: [String], plan: Plan)>(([], Plan()))
@@ -87,15 +96,23 @@ private final class RecordingWork: KnowledgeWorking {
 
     func gatherFacts(for episode: Episode, force: Bool, origin: Origin,
                      since ticket: RemovalLedger.Ticket) async -> FactsOutcome {
-        let (outcome, hangs) = state.withLock { state -> (FactsOutcome, Bool) in
+        let (outcome, hangs, refusal) = state.withLock { state -> (FactsOutcome, Bool, (@Sendable () async -> Void)?) in
             state.calls.append("facts:\(episode.title)\(force ? "!" : "")")
             let hangs = state.plan.hangs.remove(episode.id) != nil
             var list = state.plan.facts[episode.id] ?? []
             let next = list.isEmpty ? FactsOutcome.stored : list.removeFirst()
             state.plan.facts[episode.id] = list
-            return (next, hangs)
+            return (next, hangs, state.plan.refusals.removeValue(forKey: episode.id))
         }
         startedContinuation.yield("facts:\(episode.title)")
+        if let refusal {
+            // Wie `KnowledgeJobs`, wenn der Wächter im Store wegen der Sperre ablehnt.
+            await refusal()
+            let held = HeldLease.current
+            held?.markLost()
+            state.withLock { $0.calls.append("abgelehnt für \(held?.device ?? "niemanden"):\(episode.title)") }
+            return .cancelled
+        }
         if hangs {
             try? await Task.sleep(for: .seconds(60))
             if HeldLease.current?.isLost == true {
@@ -755,6 +772,25 @@ private final class FailingScheduler: AIScheduling {
     }
 }
 
+#if canImport(FoundationModels)
+/// Spielt das Modell für die Fakten: eine Aussage zur ersten Stelle der
+/// Liste. Die Sitzung entstünde erst in der Operation, es läuft also keins.
+private struct ClaimingScheduler: AIScheduling {
+    struct UnexpectedRequest: Error {}
+
+    func run<T: Sendable>(
+        _ kind: AIWorkKind, priority: AIWorkPriority,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        let output = try ClaimExtractionOutput(GeneratedContent(json: #"""
+            {"claims": [{"passage": 1, "statement": "Die Folge besteht aus einem einzigen Satz."}], "openQuestions": ""}
+            """#))
+        guard let answer = UncheckedBox(output) as? T else { throw UnexpectedRequest() }
+        return answer
+    }
+}
+#endif
+
 /// Zählt, wie oft die Kapiteldatei geladen wird.
 private final class ChapterLoader: Sendable {
     private let count = Mutex(0)
@@ -771,7 +807,7 @@ private final class ChapterLoader: Sendable {
 
 private func makeJobs(
     store: LibraryStore, ledger: RemovalLedger = RemovalLedger(), state: DeviceState = makeState(),
-    scheduler: FailingScheduler = FailingScheduler(), reporter: RecordingReporter = RecordingReporter(),
+    scheduler: any AIScheduling = FailingScheduler(), reporter: RecordingReporter = RecordingReporter(),
     status: ModelStatus = ready, network: Bool = true, loader: ChapterLoader = ChapterLoader()
 ) -> KnowledgeJobs {
     KnowledgeJobs(
@@ -893,11 +929,65 @@ struct KnowledgeJobsTests {
         let withoutLease = await HeldLease.$current.withValue(lost) { await keep() }
         #expect(withoutLease == .cancelled)
         #expect(try await store.facts(forEpisode: a.id).isEmpty)
+        // Die Stufe weiß es noch nicht, aber die Zeile des Macs ist schon da: Der Store lehnt ab.
+        let now = Date()
+        try await store.insertLeaseForTesting(.knowledge, for: a.id, device: "mac",
+                                              acquiredAt: now.addingTimeInterval(-60), expiresAt: now.addingTimeInterval(600))
+        let unaware = HeldLease(device: "iphone")
+        let refused = await HeldLease.$current.withValue(unaware) { await keep() }
+        #expect(refused == .cancelled)
+        #expect(unaware.isLost)
+        #expect(try await store.facts(forEpisode: a.id).isEmpty)
         // Angehalten mit gültiger Sperre, etwa am Tor: Was fertig ist, bleibt.
-        let withLease = await HeldLease.$current.withValue(HeldLease()) { await keep() }
+        try await store.releaseLease(.knowledge, for: a.id, device: "mac")
+        let withLease = await HeldLease.$current.withValue(HeldLease(device: "iphone")) { await keep() }
         #expect(withLease == .cancelled)
         #expect(try await store.facts(forEpisode: a.id).map(\.id) == ["fakt-a"])
     }
+
+    #if canImport(FoundationModels)
+    @Test("Hält beim Schreiben ein anderes Gerät die Sperre, schreibt der Faktenlauf nichts und kennt den Verlust")
+    func factsRunLosesToForeignLeaseAtCommit() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let jobs = makeJobs(store: store, scheduler: ClaimingScheduler())
+        // Beide nahmen die Sperre. Die des Macs, eine Minute älter, kam erst während des Laufs an.
+        let now = Date()
+        try await store.insertLeaseForTesting(.knowledge, for: a.id, device: "iphone",
+                                              acquiredAt: now, expiresAt: now.addingTimeInterval(600))
+        try await store.insertLeaseForTesting(.knowledge, for: a.id, device: "mac",
+                                              acquiredAt: now.addingTimeInterval(-60), expiresAt: now.addingTimeInterval(600))
+        func gather(under held: HeldLease) async -> FactsOutcome {
+            await HeldLease.$current.withValue(held) {
+                await jobs.gatherFacts(for: a, force: false, origin: .automatic, since: RemovalLedger.Ticket(0))
+            }
+        }
+        let iphone = HeldLease(device: "iphone")
+        #expect(await gather(under: iphone) == .cancelled, "Abgebrochen, nicht erledigt: Die Stufe lässt die Folge warten")
+        #expect(iphone.isLost)
+        #expect(try await store.facts(forEpisode: a.id).isEmpty)
+        // Derselbe Lauf unter der Sperre, die gilt, schreibt.
+        let mac = HeldLease(device: "mac")
+        #expect(await gather(under: mac) == .stored)
+        #expect(!mac.isLost)
+        #expect(try await store.facts(forEpisode: a.id).map(\.statement) == ["Die Folge besteht aus einem einzigen Satz."])
+    }
+
+    @Test("Bemerkt die Stufe den Verlust der Sperre erst nach dem letzten Abschnitt, schreibt auch der ganze Lauf nichts")
+    func factsRunKnowingTheLossWritesNothing() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let jobs = makeJobs(store: store, scheduler: ClaimingScheduler())
+        // Im Store steht keine fremde Sperre mehr, er hätte nichts einzuwenden.
+        let lost = HeldLease(device: "iphone")
+        lost.markLost()
+        let outcome = await HeldLease.$current.withValue(lost) {
+            await jobs.gatherFacts(for: a, force: false, origin: .automatic, since: RemovalLedger.Ticket(0))
+        }
+        #expect(outcome == .cancelled)
+        #expect(try await store.facts(forEpisode: a.id).isEmpty)
+    }
+    #endif
 }
 
 // MARK: - Vermerke in `DeviceState` aus mehreren Threads (Schritt 3b)
@@ -1034,5 +1124,39 @@ struct DeviceMarksConcurrencyTests {
         await harness.stage.untilIdle()
         #expect(Array(harness.work.calls.suffix(2)) == ["facts:A", "tags:A:automatic"])
         #expect(try await store.leases(for: a.id).isEmpty)
+    }
+
+    @Test("Lehnt der Store die Fakten ab, weil ein anderes Gerät die Sperre hält, wartet die Folge, und die nächste läuft")
+    func leaseLostAtCommitParksFacts() async throws {
+        let a = episode("A", daysAgo: 1), b = episode("B", daysAgo: 2)
+        let store = try await makeStore([a, b], transcripts: true)
+        let clock = TestClock()
+        var plan = RecordingWork.Plan()
+        // Die Sperre des Macs kommt während des Laufs über iCloud an, genommen eine Minute vor der eigenen.
+        plan.refusals[a.id] = {
+            try? await store.insertLeaseForTesting(.knowledge, for: a.id, device: "mac",
+                                                   acquiredAt: clock.date.addingTimeInterval(-60),
+                                                   expiresAt: clock.date.addingTimeInterval(600))
+        }
+        // Verlängert wird erst nach fünf Minuten. Von diesem Verlust erfährt die Stufe nur über das Schreiben.
+        let harness = await makeHarness(
+            store: store, work: RecordingWork(plan), clock: clock, leases: LeasePolicy(deviceID: "iphone"))
+        await harness.stage.enqueue(a)
+        await harness.stage.enqueue(b)
+        harness.gate.setInForeground(true)
+        #expect(await next(harness.work.started) == "facts:A")
+        // Ohne Anstoß von außen geht der Lauf mit B weiter.
+        guard await next(harness.work.started) == "facts:B" else {
+            Issue.record("Nach dem abgelehnten Schreiben steht der ganze Lauf")
+            return
+        }
+        await harness.stage.untilIdle()
+        // Die Arbeit kannte das Gerät ihrer Sperre, A begann kein zweites Mal und bekam keine Tags.
+        #expect(harness.work.calls == ["facts:A", "abgelehnt für iphone:A", "facts:B", "tags:B:automatic"])
+        #expect(await harness.stage.queuedFacts.isEmpty)
+        #expect(await harness.stage.snapshot.queue.map(\.id) == [a.id], "A wartet auf den Mac")
+        #expect(await harness.stage.snapshot.issues.isEmpty, "Abgelehnt zählt nicht als Fehlschlag")
+        #expect(try await store.leases(for: a.id).map(\.deviceID) == ["mac"], "Beim neuen Fragen ging die eigene Sperre")
+        await harness.stage.stop()
     }
 }

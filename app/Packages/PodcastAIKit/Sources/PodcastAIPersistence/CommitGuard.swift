@@ -25,6 +25,12 @@
 //  Abruf, und ein Aktualisieren mitten im Transkript nähme sonst die ganze
 //  Arbeit weg.
 //
+//  Fakten entstehen unter einer Sperre über Geräte hinweg
+//  (`StoredProcessingLease`). Nennt der Wächter sie (`lease`), liest der
+//  Store ihre Zeilen im selben Schritt noch einmal: Hält ein anderes Gerät
+//  eine gültige Sperre, die vor der eigenen gilt, schreibt er nichts. Die
+//  Folge ist dann nicht weg, sie wartet auf das andere Gerät.
+//
 //  Geht das Schreiben durch, kommt ein Beleg über das Geschriebene zurück
 //  (`WriteReceipt`). Wird die Folge gleich danach gelöscht, räumt die Arbeit
 //  genau diese Zeilen wieder weg, auch bei YouTube-Folgen ohne Audioadresse.
@@ -58,6 +64,10 @@ public struct CommitGuard: Sendable {
         case inputChanged
         /// Es liegt schon ein Ergebnis aus einer neueren Eingabe vor.
         case superseded
+        /// Ein anderes Gerät hält die Sperre, unter der die Arbeit lief
+        /// (``CommitGuard/lease``). Die Folge gibt es noch, an ihr arbeitet
+        /// jetzt das andere Gerät.
+        case heldElsewhere
 
         public var description: String { rawValue }
 
@@ -66,7 +76,7 @@ public struct CommitGuard: Sendable {
         public var meansRemoved: Bool {
             switch self {
             case .episodeMissing, .episodeRemoved, .sourceMissing, .removedWhileRunning: true
-            case .mediaChanged, .inputChanged, .superseded: false
+            case .mediaChanged, .inputChanged, .superseded, .heldElsewhere: false
             }
         }
     }
@@ -82,6 +92,12 @@ public struct CommitGuard: Sendable {
     /// Der Stand des Löschprotokolls beim Start der Arbeit.
     public let ticket: RemovalLedger.Ticket
     public let ledger: RemovalLedger
+    /// Die Sperre über Geräte hinweg, unter der die Arbeit lief: ihre Art
+    /// und dieses Gerät. Hält beim Schreiben ein anderes Gerät eine gültige
+    /// Sperre, die vor der eigenen gilt, schreibt der Store nichts
+    /// (`heldElsewhere`). Die Zeilen liest er dafür nur. Ohne Angabe prüft
+    /// er keine Sperre.
+    public let lease: (kind: ProcessingLeaseKind, device: String)?
     /// Auf welche Fassung der Feed jetzt zeigt, aus der frisch gelesenen
     /// Zeile der Folge: die Audioadresse, bei Videos die Adresse des Videos.
     /// Die Regel für Videos kennt erst `PodcastAIKit`, sie kommt deshalb von
@@ -93,12 +109,14 @@ public struct CommitGuard: Sendable {
         source: SourceID? = nil,
         since ticket: RemovalLedger.Ticket,
         ledger: RemovalLedger = .shared,
+        lease: (kind: ProcessingLeaseKind, device: String)? = nil,
         feedMedia: @escaping @Sendable (Episode) -> MediaVersionID? = { CommitGuard.audioMedia(of: $0) }
     ) {
         self.episodeID = episode
         self.sourceID = source.flatMap { $0.rawValue.isEmpty ? nil : $0 }
         self.ticket = ticket
         self.ledger = ledger
+        self.lease = lease
         self.feedMedia = feedMedia
     }
 

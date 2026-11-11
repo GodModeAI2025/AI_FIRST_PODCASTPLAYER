@@ -12,6 +12,8 @@
 //      beide Zeilen kennt.
 //    - Verliert ein Gerät, löscht es seine eigene Zeile, damit das andere
 //      nicht auf sie wartet.
+//    - Vor dem Schreiben der Fakten fragt der Wächter dieselbe Regel noch
+//      einmal (`leaseHeldElsewhere`). Dort wird nur gelesen.
 //
 //  Die Zeiten kommen vom Aufrufer (`now`), damit Tests eine Uhr steuern.
 //
@@ -118,6 +120,21 @@ extension LibraryStore {
         winner.expiresAt = until
         try modelContext.save()
         return .granted(until: until)
+    }
+
+    /// Hält ein anderes Gerät eine gültige Sperre, die vor der dieses Geräts
+    /// gilt? Die Frage des Wächters beim Schreiben, dieselbe Regel wie beim
+    /// Verlängern: Ohne gültige Sperre, auch ohne eigene, hat kein anderes
+    /// Gerät übernommen.
+    ///
+    /// Liest nur. Verlängerte oder löschte das Schreiben eine Sperre, käme
+    /// das beim anderen Gerät als Änderung an, auf die es neu fragt, und
+    /// zwei Geräte stießen sich über den Abgleich ohne Ende an.
+    func leaseHeldElsewhere(
+        _ kind: ProcessingLeaseKind, for episodeID: EpisodeID, device: String, now: Date
+    ) throws -> Bool {
+        guard let winner = Self.winner(of: try leaseRows(kind, episodeID), at: now) else { return false }
+        return winner.deviceIdentifier != device
     }
 
     /// Gibt die eigene Sperre frei, nach getaner Arbeit.

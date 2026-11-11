@@ -34,7 +34,9 @@
 //  Fakten derselben Folge, wartet sie bis zum Ablauf dieser Sperre; gemerkt
 //  wird sie in der Zeit wie jede wartende Folge. Geht die Sperre während der
 //  Arbeit an ein anderes Gerät, bricht die Arbeit ab, ohne ihren
-//  Zwischenstand zu schreiben, und die Folge wartet genauso.
+//  Zwischenstand zu schreiben, und die Folge wartet genauso. Davon erfährt
+//  die Stufe beim Verlängern. Ist der Lauf vorher fertig, sagt es ihr der
+//  Store, der die Fakten dann nicht schreibt.
 //
 //  Was die Arbeit an einer Folge tut, sagt `KnowledgeWorking`. Die Stufe
 //  liest Folge, Kapitel und Belege dafür beim Start frisch aus dem Store,
@@ -205,8 +207,9 @@ public actor KnowledgeStage {
         let work: Work
         var task: Task<Void, Never>?
         /// Die Stufe hat angehalten, weil das Tor zu ist, die Folge gelöscht
-        /// wurde oder ihre Sperre an ein anderes Gerät ging. Kein Grund, den
-        /// Lauf ganz zu beenden.
+        /// wurde oder ihre Sperre an ein anderes Gerät ging. Dazu zählt ein
+        /// Schreiben, das der Store wegen der Sperre abgelehnt hat. Kein
+        /// Grund, den Lauf ganz zu beenden.
         var stoppedByStage = false
         /// Die Folge im Platz wurde gelöscht (`episodesRemoved`). Sie kommt
         /// nicht zurück in eine Warteschlange und in keinen Vermerk, auch
@@ -1022,7 +1025,7 @@ public actor KnowledgeStage {
         var outcome = FactsOutcome.nothingToDo
         var tags: ChapterTagsRun?
         var heartbeat: Task<Void, Never>?
-        let held = HeldLease()
+        let held = HeldLease(device: leases?.deviceID)
         if let episode = try? await store.episodes(ids: [entry.id]).first, !ledger.wasRemoved(entry.id, since: ticket) {
             // Sperre über Geräte hinweg: Sammelt ein anderes Gerät die Fakten
             // gerade, wartet die Folge bis zum Ablauf seiner Sperre.
@@ -1072,6 +1075,11 @@ public actor KnowledgeStage {
             await leases.release(.knowledge, for: entry.id, in: store)
         }
         guard slot?.token == token else { return }
+        // Der Store hat das Schreiben abgelehnt, weil ein anderes Gerät die
+        // Sperre hält. Das zählt wie der Verlust beim Verlängern: Sonst
+        // beendete ein Abbruch, den die Stufe nicht ausgelöst hat, den Lauf
+        // für alle Folgen.
+        if held.isLost { slot?.stoppedByStage = true }
         if let tags { applyChained(tags, to: entry.id, since: ticket) }
         if factsFinished(entry, outcome: outcome, since: ticket) { await coolDown(token) }
         end(token)
