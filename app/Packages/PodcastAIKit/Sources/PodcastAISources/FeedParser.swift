@@ -49,7 +49,7 @@ public struct ParsedItem: Sendable, Equatable {
     /// Stabile Kennung aus dem Feed. Grundlage der Deduplizierung — zweimal
     /// einlesen darf keine zweite Folge erzeugen. `nil`, wenn der Feed
     /// dieselbe GUID an Folgen mit verschiedenen Audiodateien vergibt; dann
-    /// zählt die Audioadresse.
+    /// zählt die Audioadresse, ohne Audio der Titel.
     public var guid: String?
     public var title: String
     public var summary: String?
@@ -220,6 +220,12 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
     /// der Eintrag an der Stelle nichts.
     private var audioIsLate = false
     private var pageIsLate = false
+    /// Je Eintrag in `feed.items`: War er schon nach den älteren Regeln eine
+    /// brauchbare Folge?
+    private var usableBefore: [Bool] = []
+    /// Je Eintrag: eine Folge von früher, deren Audiodatei erst die neueren
+    /// Regeln lesen. Für ihre GUID zählt diese Datei nicht.
+    private var gainedAudio: [Bool] = []
     private var inImage = false
     private var itemCount = 0
     /// Höchstens so viele Rubriken und Stichworte, gegen entartete Feeds.
@@ -244,24 +250,50 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
 
     func finish() -> ParsedFeed {
         var result = feed
-        result.items = result.items.filter(\.isUsable)
+
+        // Eine GUID gehört zuerst den Folgen, die es schon nach den älteren
+        // Regeln gab: sie liegen mit ihr in den Bibliotheken. Eine Folge, die
+        // erst die neueren Regeln zulassen, gibt sie ab, außer sie hat
+        // dieselbe Audiodatei wie eine von jenen und ist damit deren Doppel.
+        // Dafür zählt nur eine Datei, die schon nach den älteren Regeln galt.
+        // Sonst fiele die GUID gleich auch bei der alten Folge weg, oder die
+        // neue schriebe sich unter derselben Kennung in deren Zeile.
+        var audioBefore: [String: Set<String>] = [:]
+        for index in result.items.indices where usableBefore[index] {
+            guard let guid = result.items[index].guid else { continue }
+            let audio = gainedAudio[index] ? nil : result.items[index].audioURL?.absoluteString
+            audioBefore[guid, default: []].formUnion(audio.map { [$0] } ?? [])
+        }
+        for index in result.items.indices where !usableBefore[index] {
+            let audio = result.items[index].audioURL?.absoluteString
+            if let guid = result.items[index].guid, let files = audioBefore[guid],
+               audio.map(files.contains) != true {
+                result.items[index].guid = nil
+            }
+        }
 
         // Manche Hoster setzen bei jeder Folge dieselbe GUID ein, etwa die
         // Startseite. Steht eine GUID an Folgen mit verschiedenen
         // Audiodateien, unterscheidet sie nichts: sie fällt dort weg, und es
         // zählt wie ohne GUID die Audioadresse. Echte Doppelte, also gleiche
-        // GUID und gleiche Datei, behalten sie.
+        // GUID und gleiche Datei, behalten sie. Eine Folge von früher, die
+        // ihre Audiodatei erst jetzt bekommt, bleibt dabei außen vor: sie
+        // hatte die GUID ohne Datei, und so behalten sie und ihre Nachbarn
+        // die Kennung.
+        // Gefiltert wird erst am Ende, vorher passen die Marken je Eintrag.
+        let usable = result.items.indices.filter { result.items[$0].isUsable && !gainedAudio[$0] }
         var audioByGUID: [String: Set<String>] = [:]
-        for item in result.items {
-            if let guid = item.guid, let audio = item.audioURL?.absoluteString {
+        for index in usable {
+            if let guid = result.items[index].guid, let audio = result.items[index].audioURL?.absoluteString {
                 audioByGUID[guid, default: []].insert(audio)
             }
         }
-        for index in result.items.indices where result.items[index].audioURL != nil {
+        for index in usable where result.items[index].audioURL != nil {
             if let guid = result.items[index].guid, audioByGUID[guid, default: []].count > 1 {
                 result.items[index].guid = nil
             }
         }
+        result.items = result.items.filter(\.isUsable)
         return result
     }
 
@@ -397,15 +429,18 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
                 // Was erst seit den neueren Regeln gilt, steht dabei hinten:
                 // die Folge gab es vorher schon, etwa ohne Audio mit ihrer
                 // Seite als Kennung, und die behält sie.
-                if item.guid == nil {
-                    let audio = item.audioURL?.absoluteString
-                    let page = item.webPageURL?.absoluteString
-                    item.guid = (audioIsLate ? nil : audio)
-                        ?? (pageIsLate ? nil : page)
-                        ?? item.youTubeVideoID
-                        ?? audio ?? page
-                }
+                let audio = item.audioURL?.absoluteString
+                let page = item.webPageURL?.absoluteString
+                let keyBefore = (audioIsLate ? nil : audio)
+                    ?? (pageIsLate ? nil : page)
+                    ?? item.youTubeVideoID
+                if item.guid == nil { item.guid = keyBefore ?? audio ?? page }
                 feed.items.append(item)
+                // Hatte der Eintrag vorher weder Audio noch Seite noch Video,
+                // war er keine Folge.
+                let before = keyBefore != nil && item.isUsable
+                usableBefore.append(before)
+                gainedAudio.append(before && audioIsLate)
             }
             currentItem = nil
 

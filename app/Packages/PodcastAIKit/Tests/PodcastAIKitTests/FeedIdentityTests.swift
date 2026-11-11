@@ -263,4 +263,152 @@ struct FeedIdentityTests {
         ])
         #expect(without.map(\.guid) == ["https://example.com/seite-1", "https://cdn.example.com/2.mp3"])
     }
+
+    // MARK: Dieselbe GUID an alten und neu erkannten Folgen
+
+    /// Die veröffentlichte App kannte aus diesem Feed nur „Von früher“. Die
+    /// GUID war dort eindeutig und bleibt die Kennung dieser Folge, auch wenn
+    /// sie an Folgen wiederkehrt, die erst die neueren Regeln lesen. Die
+    /// bekommen wie ohne GUID ihre Audioadresse. Nur das Doppel mit derselben
+    /// Datei bleibt bei seinem Original.
+    @Test("Eine Folge von früher behält die GUID, die neu erkannten geben sie ab")
+    func episodeFromBeforeKeepsSharedGUID() throws {
+        let feed = try FeedParser().parse(rss("""
+        <item><guid>g</guid><title>Neu, Anhang ohne Typ</title>
+          <enclosure url="https://example.com/3.mp3"/></item>
+        <item><guid>g</guid><title>Von früher</title>
+          <enclosure url="https://example.com/2.mp3" type="audio/mpeg"/></item>
+        <item><guid>g</guid><title>Neu, relative Adresse</title>
+          <enclosure url="/media/1.mp3" type="audio/mpeg"/></item>
+        <item><guid>g</guid><title>Neu, dieselbe Datei wie früher</title>
+          <enclosure url="https://example.com/2.mp3"/></item>
+        """), baseURL: URL(string: "https://example.com/feed.xml"))
+        #expect(feed.items.map(\.guid) == [nil, "g", nil, "g"])
+        #expect(episodeIDs(feed) == [
+            episodeID("https://example.com/3.mp3"), episodeID("g"),
+            episodeID("https://example.com/media/1.mp3"), episodeID("g"),
+        ])
+    }
+
+    /// Es zählen die Dateien der Folgen von früher, nicht deren Anzahl. Zwei
+    /// Einträge mit derselben Datei waren schon vorher eine Folge unter
+    /// dieser GUID.
+    @Test("Doppelte von früher behalten die GUID gegenüber einer neu erkannten Folge")
+    func duplicatesFromBeforeKeepSharedGUID() throws {
+        let feed = try FeedParser().parse(rss("""
+        <item><guid>g</guid><title>Von früher</title>
+          <enclosure url="https://example.com/1.mp3" type="audio/mpeg"/></item>
+        <item><guid>g</guid><title>Von früher, noch einmal</title>
+          <enclosure url="https://example.com/1.mp3" type="audio/mpeg"/></item>
+        <item><guid>g</guid><title>Neu, andere Datei</title><enclosure url="https://example.com/2.mp3"/></item>
+        """))
+        #expect(feed.items.map(\.guid) == ["g", "g", nil])
+    }
+
+    /// Von früher ist auch die Folge, die es nur mit ihrer Seite oder als
+    /// Video gab, selbst wenn sie ihre Audiodatei erst jetzt bekommt.
+    @Test("Auch eine Folge, die früher nur Seite oder Video war, behält die GUID")
+    func webOnlyEpisodeFromBeforeKeepsSharedGUID() throws {
+        let feed = try FeedParser().parse(rss("""
+        <item><guid>h</guid><title>Von früher, Seite und Anhang ohne Typ</title>
+          <link>https://example.com/h</link><enclosure url="https://example.com/h1.mp3"/></item>
+        <item><guid>h</guid><title>Neu</title><enclosure url="https://example.com/h2.mp3"/></item>
+
+        <item><guid>i</guid><title>Von früher, nur Seite</title><link>https://example.com/i</link></item>
+        <item><guid>i</guid><title>Neu</title><enclosure url="https://example.com/i.mp3"/></item>
+
+        <item xmlns:yt="http://www.youtube.com/xml/schemas/2015"><guid>y</guid><yt:videoId>abc</yt:videoId>
+          <title>Von früher, Video</title></item>
+        <item><guid>y</guid><title>Neu</title><enclosure url="https://example.com/y.mp3"/></item>
+        """))
+        #expect(feed.items.map(\.guid) == ["h", nil, "i", nil, "y", nil])
+    }
+
+    /// Beide Folgen gab es schon, die eine nur mit ihrer Seite. Ihre
+    /// Audiodatei lesen erst die neueren Regeln. Die macht die GUID nicht
+    /// mehrdeutig, sonst wechselte die andere Folge deshalb ihre Kennung.
+    @Test("Die neu erkannte Audiodatei einer Folge von früher nimmt keiner Folge die GUID", arguments: [false, true])
+    func lateAudioOfEpisodeFromBeforeKeepsSharedGUID(reversed: Bool) throws {
+        let items = [
+            """
+            <item><guid>g</guid><title>Von früher, Seite und Anhang ohne Typ</title>
+              <link>https://example.com/a</link><enclosure url="https://example.com/a.mp3"/></item>
+            """,
+            """
+            <item><guid>g</guid><title>Von früher, mit Audio</title>
+              <enclosure url="https://example.com/b.mp3" type="audio/mpeg"/></item>
+            """,
+        ]
+        let feed = try FeedParser().parse(rss((reversed ? items.reversed() : items).joined()))
+        #expect(feed.items.map(\.guid) == ["g", "g"])
+
+        // Auch zwei Folgen, die beide nur ihre Seite hatten, teilen sie weiter.
+        // Und eine neu erkannte Folge mit der Datei der ersten nimmt der
+        // Folge mit Audio von früher nichts.
+        let more = try FeedParser().parse(rss("""
+        <item><guid>h</guid><title>Von früher, Seite 1</title>
+          <link>https://example.com/h1</link><enclosure url="https://example.com/h1.mp3"/></item>
+        <item><guid>h</guid><title>Von früher, Seite 2</title>
+          <link>https://example.com/h2</link><enclosure url="https://example.com/h2.mp3"/></item>
+        <item><guid>h</guid><title>Von früher, mit Audio</title>
+          <enclosure url="https://example.com/h3.mp3" type="audio/mpeg"/></item>
+        <item><guid>h</guid><title>Neu, Datei wie Seite 1</title><enclosure url="https://example.com/h1.mp3"/></item>
+        """))
+        #expect(more.items.map(\.guid) == ["h", "h", "h", nil])
+    }
+
+    /// Mit derselben Kennung schriebe sich die neu erkannte Folge in die
+    /// Zeile der alten. Der letzte Eintrag im Feed gewinnt die Zeile, die
+    /// alte Folge verlöre dort Titel und Audiodatei.
+    @Test("Eine neu erkannte Folge ohne Audio teilt keine Kennung mit einer von früher")
+    func lateWebOnlyEpisodeGivesUpSharedGUID() throws {
+        let feed = try FeedParser().parse(rss("""
+        <item><guid>g</guid><title>Von früher</title>
+          <enclosure url="https://example.com/1.mp3" type="audio/mpeg"/></item>
+        <item><guid>g</guid><title>Neu, nur Seite</title><link>/seite</link></item>
+        <item><title>Von früher, ohne GUID</title><link>https://example.com/artikel</link></item>
+        <item><title>Neu, ohne GUID, dieselbe Seite</title><link>/artikel</link></item>
+        """), baseURL: URL(string: "https://example.com/feed.xml"))
+        // Das gilt auch, wenn die Kennung der alten Folge ihre Seite ist und
+        // die neue ohne GUID auf dieselbe Seite zeigt.
+        #expect(feed.items.map(\.guid) == ["g", nil, "https://example.com/artikel", nil])
+        // Ohne GUID und ohne Audio bleibt als Schlüssel der Titel.
+        #expect(episodeIDs(feed) == [
+            episodeID("g"), episodeID("Neu, nur Seite"),
+            episodeID("https://example.com/artikel"), episodeID("Neu, ohne GUID, dieselbe Seite"),
+        ])
+    }
+
+    /// Diese Fälle gehen aus wie vor der Regel für neu erkannte Folgen.
+    @Test("Mehrere Folgen von früher, nur neu erkannte, echte Doppelte: alles wie bisher")
+    func sharedGUIDOtherwiseUnchanged() throws {
+        let feed = try FeedParser().parse(rss("""
+        <item><guid>zwei-alte</guid><title>Von früher 1</title>
+          <enclosure url="https://example.com/a1.mp3" type="audio/mpeg"/></item>
+        <item><guid>zwei-alte</guid><title>Von früher 2</title>
+          <enclosure url="https://example.com/a2.mp3" type="audio/mpeg"/></item>
+        <item><guid>zwei-alte</guid><title>Von früher, ohne Audio</title><link>https://example.com/a</link></item>
+        <item><guid>zwei-alte</guid><title>Neu</title><enclosure url="https://example.com/a3.mp3"/></item>
+        <item><guid>zwei-alte</guid><title>Neu, Datei wie „Von früher 1“</title>
+          <enclosure url="https://example.com/a1.mp3"/></item>
+
+        <item><guid>nur-neue</guid><title>Neu 1</title><enclosure url="https://example.com/b1.mp3"/></item>
+        <item><guid>nur-neue</guid><title>Neu 2</title><enclosure url="https://example.com/b2.mp3"/></item>
+
+        <item><guid>doppelt</guid><title>Von früher</title>
+          <enclosure url="https://example.com/c.mp3" type="audio/mpeg"/></item>
+        <item><guid>doppelt</guid><title>Neu, dieselbe Datei</title><enclosure url="https://example.com/c.mp3"/></item>
+
+        <item><guid>ohne-titel</guid><enclosure url="https://example.com/d1.mp3" type="audio/mpeg"/></item>
+        <item><guid>ohne-titel</guid><title>Neu, die GUID trägt sonst keine Folge</title>
+          <enclosure url="https://example.com/d2.mp3"/></item>
+        """))
+        #expect(feed.items.map(\.guid) == [
+            nil, nil, "zwei-alte", nil, nil,
+            nil, nil,
+            "doppelt", "doppelt",
+            // Der Eintrag ohne Titel war nie eine Folge und hält keine GUID.
+            "ohne-titel",
+        ])
+    }
 }
