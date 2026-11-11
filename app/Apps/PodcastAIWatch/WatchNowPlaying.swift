@@ -21,7 +21,8 @@ struct WatchNowPlayingView: View {
                 VStack(spacing: 8) {
                     header(item)
                     transport
-                    progress
+                    PlayerProgress(position: engine.position, duration: engine.duration,
+                                   spacing: 2, font: .caption2)
                     options
                     if case .failed(let message) = engine.state {
                         Text(message)
@@ -58,30 +59,6 @@ struct WatchNowPlayingView: View {
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private var progress: some View {
-        VStack(spacing: 2) {
-            ProgressView(value: engine.duration > 0 ? min(engine.position / engine.duration, 1) : 0)
-            HStack {
-                Text(PlayerFormat.clock(engine.position))
-                Spacer()
-                if engine.duration > 0 {
-                    Text("−" + PlayerFormat.clock(max(0, engine.duration - engine.position)))
-                }
-            }
-            .font(.caption2.monospacedDigit())
-            .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Fortschritt"))
-        .accessibilityValue(Text(progressSpoken))
-    }
-
-    private var progressSpoken: String {
-        let done = PlayerFormat.spoken(engine.position)
-        guard engine.duration > 0 else { return done }
-        return String(localized: "\(done) von \(PlayerFormat.spoken(engine.duration))")
     }
 
     private var transport: some View {

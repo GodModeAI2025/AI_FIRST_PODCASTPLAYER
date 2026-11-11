@@ -68,6 +68,7 @@
 		30EF56FB0D392A4344BAE04E /* PlanningContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56ED3EE14562899B30A5330 /* PlanningContext.swift */; };
 		31CB1B91AEC90AC62B680FC3 /* ActivityStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7641049000356ED13234E65F /* ActivityStatus.swift */; };
 		31F4335D1FC8779ACE24BD1E /* CarPlay.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2A9961443DE7537DA817609A /* CarPlay.xcstrings */; };
+		31F75B5121A6EF7E92A8D2F6 /* PlayerProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2EDBD668A6AF7C612A6E371 /* PlayerProgress.swift */; };
 		34D5EB8F6F14EF0A1D9793B3 /* MacSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB8C5BA45BDC57DE4558C77C /* MacSidebar.swift */; };
 		34D838F358924883EEE77A8D /* AppModel+AudioTwin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75A2BB4A1796E5F5E2BE25BB /* AppModel+AudioTwin.swift */; };
 		34E766C1667880DA20E4AAE2 /* CatalogViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6182DA089D756B2AC57F0C4 /* CatalogViews.swift */; };
@@ -314,6 +315,7 @@
 		ED007FAF5D505809947A08DD /* InterestPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654C51C37619544003228BF8 /* InterestPersistenceTests.swift */; };
 		EE0449C7334D71C99541A5FB /* MacKnowledgePages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07F63A038CE664B5EA245048 /* MacKnowledgePages.swift */; };
 		EE129AC4E2EE4BAE98FF84E9 /* MacMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB32EDEA5B02F6B27DE92EB8 /* MacMain.swift */; };
+		EE7C854602F3E0E1959912C3 /* PlayerProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2EDBD668A6AF7C612A6E371 /* PlayerProgress.swift */; };
 		EF5F07F52D9A464A2EF104D3 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 278DEEB6F8834409BF55232C /* Localizable.xcstrings */; };
 		F07B51BEF922EE6A90312258 /* AppModel+Conversations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 697E839346FDC9173C0DA128 /* AppModel+Conversations.swift */; };
 		F0F9D0E263113EE0ED7CA770 /* AIPipelineStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6633763B1B17A42B6726E1A8 /* AIPipelineStatus.swift */; };
@@ -646,6 +648,7 @@
 		CE257548AF66C99839AD7F22 /* StoreGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreGuardTests.swift; sourceTree = "<group>"; };
 		CF4145180FCAF8FD5E003CB8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		CFA01B5EB221EFC54B9033F9 /* AgentDriverUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentDriverUITests.swift; sourceTree = "<group>"; };
+		D2EDBD668A6AF7C612A6E371 /* PlayerProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProgress.swift; sourceTree = "<group>"; };
 		D376BCDFD37D7B76CED3EC23 /* WatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchApp.swift; sourceTree = "<group>"; };
 		D5557E1EF9E660C096E6C097 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		D61ECAD30C896BB2802DA98C /* SupadataSocialTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupadataSocialTests.swift; sourceTree = "<group>"; };
@@ -1102,6 +1105,7 @@
 			isa = PBXGroup;
 			children = (
 				BC1CD63C9097B86218F87471 /* PlayerArtwork.swift */,
+				D2EDBD668A6AF7C612A6E371 /* PlayerProgress.swift */,
 				ACA42F78B0F21EC8EF893984 /* PrivacyInfo.xcprivacy */,
 			);
 			path = PlayerShared;
@@ -1617,6 +1621,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B3C4509648796521F49C668E /* PlayerArtwork.swift in Sources */,
+				EE7C854602F3E0E1959912C3 /* PlayerProgress.swift in Sources */,
 				A6F5382157E921D297291080 /* WatchApp.swift in Sources */,
 				C7A844A4412AE30FF5FC3AB1 /* WatchLists.swift in Sources */,
 				F336407B2710E848238B5426 /* WatchNowPlaying.swift in Sources */,
@@ -1870,6 +1875,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				124241E4F6A8DEBAB476E58B /* PlayerArtwork.swift in Sources */,
+				31F75B5121A6EF7E92A8D2F6 /* PlayerProgress.swift in Sources */,
 				DCAE5A84CD8CA6A4EE76FAD1 /* TVApp.swift in Sources */,
 				F9EDCEB55C4F122B63BEE853 /* TVLibraryViews.swift in Sources */,
 				4364959EE61BE66456BF61E0 /* TVNowPlaying.swift in Sources */,

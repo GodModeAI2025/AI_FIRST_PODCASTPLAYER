@@ -130,6 +130,12 @@ public final class EpisodePlayer {
     /// hebt die Sperre auf.
     @ObservationIgnored public var ignoresRemotePlayUntil: Date?
     private var isRemotePlayHeld: Bool { ignoresRemotePlayUntil.map { $0 > Date() } ?? false }
+    /// Zehn Sekunden nach einem neuen Audiogerät, etwa einem Autoradio über
+    /// Bluetooth ohne CarPlay. Gilt nur für `playCommand` und steht deshalb
+    /// nicht in `isRemotePlayHeld`: `togglePlayPauseCommand` bleibt frei. Ein
+    /// Druck am Kopfhörer gleich nach dem Verbinden soll wirken, und am
+    /// Anschluss lässt sich ein Auto nicht von einem Kopfhörer unterscheiden.
+    @ObservationIgnored private var ignoresPlayCommandUntil: Date?
     /// Podcastname und Cover einer Folge für den Sperrbildschirm. Der Player
     /// kennt die Quellen nicht, das Modell schon.
     @ObservationIgnored public var nowPlayingDetails: ((Episode) -> (podcast: String?, artworkURL: URL?))?
@@ -213,6 +219,7 @@ public final class EpisodePlayer {
     #if os(iOS)
     @ObservationIgnored private var interruptionObserver: NSObjectProtocol?
     @ObservationIgnored private var resumptionObserver: NSObjectProtocol?
+    @ObservationIgnored private var routeObserver: NSObjectProtocol?
     /// Lief die Folge, als das System sie für einen Anruf oder Siri anhielt?
     @ObservationIgnored private var resumeAfterInterruption = false
     /// Wann das System die Folge zuletzt angehalten hat. Die Pause kann vor
@@ -257,6 +264,16 @@ public final class EpisodePlayer {
             let context = note.userInfo?[AVAudioSession.resumptionContextKey] as? AVAudioSession.ResumptionContext
             let shouldResume = context?.recommendation == .shouldResume
             MainActor.assumeIsolated { self?.interruptionEnded(shouldResume: shouldResume) }
+        }
+        // Ein Autoradio schickt beim Verbinden über Bluetooth oft von selbst
+        // „Wiedergabe“. Die Sitzung meldet das neue Gerät als Wechsel des Audiowegs.
+        routeObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            let reason = (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt)
+                .flatMap(AVAudioSession.RouteChangeReason.init(rawValue:))
+            guard reason == .newDeviceAvailable else { return }
+            MainActor.assumeIsolated { self?.ignoresPlayCommandUntil = Date().addingTimeInterval(10) }
         }
         #endif
     }
@@ -587,20 +604,6 @@ public final class EpisodePlayer {
         }
     }
 
-    /// Setzt einen Timer mit seiner Restzeit wieder ein, etwa nachdem die
-    /// Folge neu geladen wurde. `stop()` räumt den Timer sonst ab, und wer
-    /// eingeschlafen ist, hört die ganze Nacht weiter.
-    public func restoreSleepTimer(_ timer: SleepTimer?, remaining: TimeInterval?) {
-        setSleepTimer(timer)
-        guard case .minutes = timer, let remaining else { return }
-        if isPlaying {
-            sleepDeadline = Date().addingTimeInterval(remaining)
-        } else {
-            // Die Folge lädt noch. `resume()` macht daraus die Frist.
-            sleepPausedRemaining = remaining
-        }
-    }
-
     /// Hält den Minuten-Timer an. Beim Fortsetzen läuft er mit der Restzeit weiter.
     private func suspendSleepCountdown() {
         guard let deadline = sleepDeadline else { return }
@@ -909,8 +912,16 @@ public final class EpisodePlayer {
         return (focusRemote, info)
     }
 
+    /// Ein Tipp in CarPlay gibt „Wiedergabe“ von außen frei. Beide Sperren
+    /// fallen: CarPlay zu verbinden ändert auch den Audioweg.
+    public func liftRemotePlayHold() {
+        ignoresRemotePlayUntil = nil
+        ignoresPlayCommandUntil = nil
+    }
+
     private func remotePlay() {
         if isRemotePlayHeld { return }
+        if let until = ignoresPlayCommandUntil, until > Date() { return }
         if let focus = activeFocus { focus.remote.resume() } else { resume() }
     }
 

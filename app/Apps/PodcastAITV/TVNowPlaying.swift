@@ -27,7 +27,8 @@ struct TVNowPlayingView: View {
                         .shadow(radius: 20, y: 10)
                     VStack(alignment: .leading, spacing: 24) {
                         titles(item)
-                        progress
+                        PlayerProgress(position: engine.position, duration: engine.duration,
+                                       spacing: 8, font: .callout)
                         transport
                         options
                         if case .failed(let message) = engine.state {
@@ -69,30 +70,6 @@ struct TVNowPlayingView: View {
             }
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private var progress: some View {
-        VStack(spacing: 8) {
-            ProgressView(value: engine.duration > 0 ? min(engine.position / engine.duration, 1) : 0)
-            HStack {
-                Text(PlayerFormat.clock(engine.position))
-                Spacer()
-                if engine.duration > 0 {
-                    Text("−" + PlayerFormat.clock(max(0, engine.duration - engine.position)))
-                }
-            }
-            .font(.callout.monospacedDigit())
-            .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("Fortschritt"))
-        .accessibilityValue(Text(progressSpoken))
-    }
-
-    private var progressSpoken: String {
-        let done = PlayerFormat.spoken(engine.position)
-        guard engine.duration > 0 else { return done }
-        return String(localized: "\(done) von \(PlayerFormat.spoken(engine.duration))")
     }
 
     private var transport: some View {

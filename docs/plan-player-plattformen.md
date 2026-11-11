@@ -98,7 +98,7 @@ Geschrieben wird nie ein fremder Datensatz:
 6. Im CarPlay-Simulator (Xcode, I/O, External Displays, CarPlay) prüfen: Abos, Neu, Warteschlange, Wiedergabe.
 7. Rückweg: Einstellung entfernen und neu generieren.
 
-Zwei Nebenwirkungen der Fassung für CarPlay: `UIApplicationSupportsMultipleScenes` steht dort auf `YES` (die CarPlay-Szene braucht es), damit erlaubt die iOS-App auf dem iPad auch mehrere Fenster. Und: Schickt ein Auto beim Verbinden von selbst „Wiedergabe“ (Einstellung des Autos), nimmt die App den Befehl an wie einen Tastendruck. Zum Prüfen vor dem ersten Upload mit CarPlay lässt sich die Fassung auch für den Simulator bauen: `xcodebuild -scheme PodcastAI -destination 'generic/platform=iOS Simulator' PODCASTAI_VARIANT=CarPlay CODE_SIGNING_ALLOWED=NO build`.
+Eine Nebenwirkung der Fassung für CarPlay: `UIApplicationSupportsMultipleScenes` steht dort auf `YES` (die CarPlay-Szene braucht es), damit erlaubt die iOS-App auf dem iPad auch mehrere Fenster. Zum Prüfen vor dem ersten Upload mit CarPlay lässt sich die Fassung auch für den Simulator bauen: `xcodebuild -scheme PodcastAI -destination 'generic/platform=iOS Simulator' PODCASTAI_VARIANT=CarPlay CODE_SIGNING_ALLOWED=NO build`.
 
 ## Reihenfolge der Umsetzung
 
@@ -111,3 +111,9 @@ Zwei Nebenwirkungen der Fassung für CarPlay: `UIApplicationSupportsMultipleScen
 ## Entscheidung zu Regel 1 in CarPlay (1. Oktober 2026)
 
 Manche Autos schicken beim Verbinden von selbst „Wiedergabe“. Die App nimmt ein solches Kommando von außen in den ersten zehn Sekunden nach dem Verbinden nicht an (`EpisodePlayer.ignoresRemotePlayUntil`). Ein Tipp auf eine Folge in CarPlay hebt die Sperre sofort auf, danach gelten Wiedergabe, Pause und Springen wie sonst. Ton im Auto beginnt also nur nach einem Tipp.
+
+Ein Autoradio ohne CarPlay, ein Lautsprecher oder ein Kopfhörer kann beim Verbinden dasselbe tun. Seit dem 11. November 2026 gilt deshalb eine eigene Sperre für jedes neue Audiogerät, auf iPhone und iPad ebenso wie auf Uhr und Fernseher. Meldet die Audiositzung ein neues Gerät (`AVAudioSession.routeChangeNotification` mit dem Grund `newDeviceAvailable`), startet zehn Sekunden lang kein „Wiedergabe“ von außen (`playCommand`). Auf iPhone und iPad führt `EpisodePlayer` die Frist (`ignoresPlayCommandUntil`), auf Uhr und Fernseher `PlaybackEngine` (`holdRemotePlay`).
+
+Diese Sperre ist enger als die von CarPlay. Der Wechsel zwischen Wiedergabe und Pause (`togglePlayPauseCommand`) und jeder Tipp in der App wirken sofort: Ein Druck am Kopfhörer gleich nach dem Verbinden soll gelten, und am Anschluss lässt sich ein Auto nicht von einem Kopfhörer unterscheiden. Die Sperre von CarPlay hält in ihren zehn Sekunden auch diesen Wechsel auf, solange die Folge nicht spielt. Ein Tipp auf eine Folge in CarPlay hebt beide Sperren auf (`EpisodePlayer.liftRemotePlayHold`), weil CarPlay beim Verbinden auch den Audioweg ändert. Auf Uhr und Fernseher hebt kein Tipp die Sperre auf, sie läuft nach zehn Sekunden ab.
+
+Was sie nicht leistet: Schickt ein Gerät statt „Wiedergabe“ den Wechsel, setzt es die Folge fort. Kommt „Wiedergabe“ später als zehn Sekunden nach der Meldung, ebenfalls. Kam es kurz vor der Meldung, hält die App die Folge nicht nachträglich an. Und die Sperre greift nur, wenn die App läuft und die Meldung vor dem Kommando eintrifft. War die App angehalten oder beendet, als sich das Gerät verband, kann das Kommando zuerst ankommen. Was ein bestimmtes Radio schickt und in welcher Reihenfolge, zeigt nur ein echtes Gerät.
