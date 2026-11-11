@@ -22,8 +22,13 @@ let package = Package(
         .library(name: "PodcastAIPlayerKit", targets: ["PodcastAIPlayerKit"]),
     ],
     targets: [
+        // Zwei Datumsvergleiche, die den Betas von 27.2 fehlen (siehe die Datei).
+        // Core und die Widget-Daten hängen daran, so steckt die Fassung in
+        // jeder App und jeder Erweiterung genau einmal.
+        .target(name: "PodcastAIDateShim"),
+
         // Reine Domäne: Foundation only, keine Apple-Frameworks, vollständig testbar.
-        .target(name: "PodcastAICore", resources: [.process("Localizable.xcstrings")]),
+        .target(name: "PodcastAICore", dependencies: ["PodcastAIDateShim"], resources: [.process("Localizable.xcstrings")]),
 
         // Quellen: RSS/Atom/OPML, Linkauflösung. Foundation + XMLParser.
         .target(name: "PodcastAISources", dependencies: ["PodcastAICore"], resources: [.process("Localizable.xcstrings")]),
@@ -65,7 +70,7 @@ let package = Package(
 
         // Schnappschuss fürs Widget in der App Group. Nur Foundation, damit
         // die Widget-Erweiterung klein bleibt. Keine Texte für die Oberfläche.
-        .target(name: "PodcastAIWidgetData"),
+        .target(name: "PodcastAIWidgetData", dependencies: ["PodcastAIDateShim"]),
 
         // Player ohne KI für watchOS und tvOS: schmales Datenmodell auf dem
         // CloudKit-Schema der Hauptapp, Bibliothek, Wiedergabe, Warteschlange.
