@@ -758,6 +758,8 @@ public actor ContentPipeline {
     /// Reihenfolge: deterministische Vorauswahl, dann — sofern verfügbar —
     /// Modellbestätigung. Das Modell kann die Auswahl nur **verengen**, nie
     /// erweitern: es sieht ausschließlich, was die Vorauswahl zugelassen hat.
+    /// Verworfen wird nur, was ihm vorlag und es nicht gewählt hat. Seine
+    /// Liste fasst nicht jede Vorauswahl; der Rest bleibt als Stichworttreffer.
     /// Fällt es aus oder wählt es nichts, entsteht die Ausgabe trotzdem und
     /// ist als nur stichwortbasiert erkennbar. `priority` kommt aus
     /// ``AIPriorityPolicy``.
@@ -784,7 +786,8 @@ public actor ContentPipeline {
 
         let byID = Dictionary(uniqueKeysWithValues: evidence.map { ($0.id, $0) })
 
-        var confirmed: Set<EvidenceID>?
+        var confirmed: Set<EvidenceID> = []
+        var declined: Set<EvidenceID> = []
         if case .success = availability.resolve(.recommend) {
             // Treffer über Kapitel-Tags sind schon eingeordnet. Das Modell
             // prüft nur, was über Stichworte kam.
@@ -799,18 +802,19 @@ public actor ContentPipeline {
                 .selectRelevant(from: shortlist, profile: profile, availability: availability, priority: priority),
                !selection.evidenceIDs.isEmpty {
                 confirmed = Set(selection.evidenceIDs)
+                declined = selection.declinedIDs
             }
         }
 
         return matches.compactMap { match -> SegmentCandidate? in
             guard let item = byID[match.evidenceID] else { return nil }
-            if let confirmed, !match.isModelConfirmed, !confirmed.contains(match.evidenceID) { return nil }
+            if !match.isModelConfirmed, declined.contains(match.evidenceID) { return nil }
 
             let stamped = RelevanceMatch(
                 evidenceID: match.evidenceID, interestID: match.interestID,
                 interestLabel: match.interestLabel, kind: match.kind,
                 score: match.score, matchedTerms: match.matchedTerms,
-                isModelConfirmed: match.isModelConfirmed || (confirmed?.contains(match.evidenceID) ?? false)
+                isModelConfirmed: match.isModelConfirmed || confirmed.contains(match.evidenceID)
             )
             let title = titles[item.episodeID]
             return SegmentCandidate(
@@ -833,8 +837,10 @@ public actor ContentPipeline {
     ///
     /// Hat die Bibliothek Kapitel-Tags, zählen nur sie. Erst wenn es noch
     /// gar keine gibt, sucht `RelevanceScorer` über Stichworte, und das
-    /// Modell darf dessen Treffer nur verengen. Die Grenze je Tag setzt
-    /// hier niemand; sie greift im Publisher nach dem Hörzustand.
+    /// Modell darf dessen Treffer nur verengen: um die, die ihm vorlagen und
+    /// die es nicht gewählt hat. Treffer, die nicht mehr in seine Liste
+    /// passten, bleiben. Die Grenze je Tag setzt hier niemand; sie greift
+    /// im Publisher nach dem Hörzustand.
     ///
     /// `tags`: die Tags des Updates oder, ohne eigene, die gefolgten.
     /// Für bloße Zahlen reicht weniger: `titledSections: false` spart die
@@ -868,8 +874,7 @@ public actor ContentPipeline {
                     .selectRelevant(from: shortlist, profile: profile, availability: availability,
                                     priority: priority),
                    !selection.evidenceIDs.isEmpty {
-                    let confirmed = Set(selection.evidenceIDs)
-                    matches = matches.filter { confirmed.contains($0.evidenceID) }
+                    matches = matches.filter { !selection.declinedIDs.contains($0.evidenceID) }
                 }
             }
             episodeIDs = Set(matches.compactMap { byID[$0.evidenceID]?.episodeID })

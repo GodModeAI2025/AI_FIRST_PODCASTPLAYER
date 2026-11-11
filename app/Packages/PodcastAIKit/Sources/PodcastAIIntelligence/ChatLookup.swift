@@ -740,10 +740,13 @@ public final class ChatLookupLedger: Sendable {
 
     // MARK: - Fremder Text
 
-    /// Fremder Text für ein Ergebnis: ohne Steuerzeichen, in einer Zeile,
+    /// Fremder Text für einen Datenblock: ohne Steuerzeichen, in einer Zeile,
     /// gekürzt. Eckige Klammern werden rund, damit kein Text eine
     /// Verweisnummer vortäuscht, und Linien aus Binde- oder Gedankenstrichen
-    /// fallen weg, damit kein Text das Ende des Blocks vortäuscht.
+    /// fallen weg, damit kein Text das Ende des Blocks vortäuscht. Gilt für
+    /// die Ergebnisse der Werkzeuge, das bisherige Gespräch, die
+    /// Kandidatenliste, den Block BIBLIOTHEK und den Kapiteltitel beim Satz
+    /// je Kapitel.
     static func dataText(_ raw: String, limit: Int) -> String {
         var text = EvidenceSelectionValidator.sanitize(raw, limit: limit)
         text = text.replacingOccurrences(of: "[", with: "(").replacingOccurrences(of: "]", with: ")")

@@ -73,6 +73,38 @@ public enum AnswerMarkers {
         return numbers
     }
 
+    /// Die Verweisklammern eines Textes in seiner Reihenfolge, jede mit
+    /// ihrem Bereich samt Klammern und ihren Nummern.
+    ///
+    /// Eine Verweisklammer ist ein Paar „[“ und „]“ ohne weitere eckige
+    /// Klammer dazwischen, das nur enthält, was ``numbers(inBrackets:)`` als
+    /// Verweis liest. Steckt sie in einer anderen Klammer, zählt sie
+    /// trotzdem: „[Musik [3]]“ verweist auf 3.
+    ///
+    /// Wer Verweise in einem Antworttext sucht, nimmt diese Funktion. Mit
+    /// einer eigenen Suche je Stelle las der Extraktor dort die 3 und die
+    /// Anzeige nichts. Der Beleg stand dann unter der Antwort, zählte im
+    /// Text aber nicht als Verweis.
+    public static func citations(in text: String) -> [(range: Range<String.Index>, numbers: [Int])] {
+        var result: [(range: Range<String.Index>, numbers: [Int])] = []
+        var open: String.Index?
+        for index in text.indices {
+            switch text[index] {
+            case "[":
+                open = index
+            case "]":
+                if let start = open {
+                    let numbers = numbers(inBrackets: text[text.index(after: start)..<index])
+                    if !numbers.isEmpty { result.append((start..<text.index(after: index), numbers)) }
+                }
+                open = nil
+            default:
+                break
+            }
+        }
+        return result
+    }
+
     /// Die Sätze eines Antworttextes, in der Sprache des Textes getrennt.
     ///
     /// Ein Verweis hinter dem Punkt gehört zum Satz davor, und „am 12. Sept.“

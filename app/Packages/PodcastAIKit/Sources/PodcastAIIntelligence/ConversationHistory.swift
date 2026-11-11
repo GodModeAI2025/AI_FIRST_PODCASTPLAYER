@@ -138,15 +138,9 @@ public struct ConversationHistory: Sendable, Equatable {
     static func removingMarkers(_ text: String) -> String {
         var result = ""
         var index = text.startIndex
-        while let open = text[index...].firstIndex(of: "[") {
-            guard let close = text[open...].firstIndex(of: "]") else { break }
-            if AnswerMarkers.numbers(inBrackets: text[text.index(after: open)..<close]).isEmpty {
-                result += text[index...open]
-                index = text.index(after: open)
-                continue
-            }
-            result += text[index..<open]
-            index = text.index(after: close)
+        for citation in AnswerMarkers.citations(in: text) {
+            result += text[index..<citation.range.lowerBound]
+            index = citation.range.upperBound
         }
         result += text[index...]
         return result

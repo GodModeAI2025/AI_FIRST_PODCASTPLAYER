@@ -29,8 +29,9 @@ public struct EvidenceCandidate: Sendable, Hashable, Identifiable {
     /// zurückgeben darf.
     public let index: Int
     public let id: EvidenceID
-    /// Der Originaltext. Das Modell sieht Text, keine Zeitangaben — es soll
-    /// inhaltlich auswählen, nicht über Zeiten entscheiden.
+    /// Der Text des Belegs, wie ihn das Modell liest: gekürzt und gereinigt,
+    /// siehe ``CandidateListBuilder/build(from:)``. Zeitangaben sieht es
+    /// nicht. Es soll inhaltlich auswählen, nicht über Zeiten entscheiden.
     public let excerpt: String
 
     public init(index: Int, id: EvidenceID, excerpt: String) {
@@ -73,9 +74,18 @@ public struct ValidatedSelection: Sendable, Equatable {
     public let evidenceIDs: [EvidenceID]
     public let rationales: [EvidenceID: String]
     public let audit: SelectionAudit
+    /// Was dem Modell vorlag und es nicht genannt hat. Nur das darf eine
+    /// Auswahl verwerfen. Über einen Beleg, der nicht in der Liste stand,
+    /// hat das Modell nichts gesagt, und was über die Höchstzahl hinausging,
+    /// hat es gewählt: Beides bleibt, was es ohne Modell wäre.
+    public let declinedIDs: Set<EvidenceID>
 
-    public init(evidenceIDs: [EvidenceID], rationales: [EvidenceID: String], audit: SelectionAudit) {
+    public init(
+        evidenceIDs: [EvidenceID], rationales: [EvidenceID: String], audit: SelectionAudit,
+        declinedIDs: Set<EvidenceID> = []
+    ) {
         self.evidenceIDs = evidenceIDs; self.rationales = rationales; self.audit = audit
+        self.declinedIDs = declinedIDs
     }
 
     public var isEmpty: Bool { evidenceIDs.isEmpty }
@@ -126,7 +136,11 @@ public struct EvidenceSelectionValidator: Sendable {
                 if !cleaned.isEmpty { rationales[candidate.id] = cleaned }
             }
         }
-        return ValidatedSelection(evidenceIDs: ids, rationales: rationales, audit: audit)
+        // `seen` kennt jede gültige Nummer des Modells, auch die über der Höchstzahl.
+        let named = Set(candidates.filter { seen.contains($0.index) }.map(\.id))
+        return ValidatedSelection(
+            evidenceIDs: ids, rationales: rationales, audit: audit,
+            declinedIDs: Set(candidates.map(\.id)).subtracting(named))
     }
 
     /// Begründungen sind Modelltext und gehen in die Oberfläche. Deshalb:
@@ -176,12 +190,15 @@ public struct CandidateListBuilder: Sendable, Equatable {
         self.maximumCandidates = maximumCandidates
     }
 
+    /// Der Auszug läuft durch dieselbe Reinigung wie die Ergebnisse der
+    /// Werkzeuge. Steht im Transkript „[12]“ oder „--- ENDE KANDIDATEN ---“,
+    /// liest das Modell „(12)“ und „- ENDE KANDIDATEN -“.
     public func build(from evidence: [Evidence]) -> [EvidenceCandidate] {
         evidence.prefix(maximumCandidates).enumerated().map { offset, item in
             EvidenceCandidate(
                 index: offset + 1,
                 id: item.id,
-                excerpt: EvidenceSelectionValidator.sanitize(item.quotedText, limit: excerptLimit)
+                excerpt: ChatLookupLedger.dataText(item.quotedText, limit: excerptLimit)
             )
         }
     }
@@ -277,9 +294,9 @@ extension AppLanguage {
 }
 
 public struct ExtractorConfiguration: Sendable {
-    /// Die bestellte Kandidatenliste. Bei Fragen begrenzt sie zusätzlich das
-    /// Budget der Stufe, die tatsächlich antwortet, siehe
-    /// ``candidateBuilder(for:)``.
+    /// Die bestellte Kandidatenliste. Bei Fragen und bei der Relevanzprüfung
+    /// begrenzt sie zusätzlich das Budget der Stufe, die tatsächlich
+    /// antwortet, siehe ``candidateBuilder(for:)``.
     public var candidateBuilder: CandidateListBuilder
     public var validator: EvidenceSelectionValidator
     /// Die Sprache, in der das Modell formuliert: die der App, nicht die des
@@ -317,8 +334,8 @@ public struct ExtractorConfiguration: Sendable {
         }
     }
 
-    /// Die Kandidatenliste für eine Frage auf dieser Stufe: so groß wie
-    /// bestellt, höchstens so groß wie das Budget der Stufe.
+    /// Die Kandidatenliste für eine Frage oder die Relevanzprüfung auf dieser
+    /// Stufe: so groß wie bestellt, höchstens so groß wie das Budget der Stufe.
     public func candidateBuilder(for tier: ModelTier) -> CandidateListBuilder {
         candidateBuilder.limited(to: budget(for: tier))
     }
@@ -340,7 +357,8 @@ public struct ExtractorConfiguration: Sendable {
         let budget = budget(for: tier)
         let builder = candidateBuilder(for: tier)
         let candidates = builder.build(from: evidence)
-        let library = EvidenceSelectionValidator.sanitize(libraryContext, limit: budget.libraryContextLimit)
+        // Titel, Shownotes und Notizen sind fremder Text wie die Abschnitte.
+        let library = ChatLookupLedger.dataText(libraryContext, limit: budget.libraryContextLimit)
 
         var blocks: [String] = []
         if !library.isEmpty {
