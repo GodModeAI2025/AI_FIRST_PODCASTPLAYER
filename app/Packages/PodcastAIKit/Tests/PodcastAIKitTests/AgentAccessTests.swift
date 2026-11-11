@@ -14,7 +14,7 @@
 import Testing
 import Foundation
 @testable import PodcastAIKit
-import PodcastAIPersistence
+@testable import PodcastAIPersistence
 
 @MainActor
 @Suite("Agentenzugang über MCP")
@@ -80,6 +80,29 @@ struct AgentAccessTests {
             mediaVersionID: media, episodeID: episode, sourceID: source,
             transcriptID: TranscriptID(stable: "t-\(episode.rawValue)"), transcriptRevision: .initial,
             range: range, quotedText: text)
+    }
+
+    /// Wie `fixture()`, dazu eine neuere Folge des geheimen Podcasts mit
+    /// drei Belegen. Bei einer Grenze von drei füllt sie den Bestand der
+    /// Belege allein, und was freigegeben ist, steht nicht mehr darin.
+    static func fixtureWithNewerSecretEpisode(poolLimit: Int?) async throws -> Fixture {
+        let fixture = try await Self.fixture()
+        let newer = EpisodeID(stable: "mcp-neue-geheime-folge")
+        _ = try await fixture.store.upsert(episodes: [Episode(
+            id: newer, sourceID: secret, title: "Neue geheime Folge",
+            publishedAt: Date(timeIntervalSince1970: 1_790_100_000),
+            audioURL: URL(string: "https://example.org/c.mp3")!)], forSource: secret)
+        try await fixture.store.store(evidence: (0..<3).map { index in
+            makeEvidence("Im geheimen Podcast geht es um Gartenarbeit, Teil \(index).",
+                         index: index, episode: newer, source: secret)
+        })
+        fixture.access.poolLimitForTesting = poolLimit
+        if let poolLimit {
+            let pool = try await fixture.store.evidenceForAnalyzedEpisodes(limit: poolLimit)
+            #expect(pool.count == poolLimit && pool.allSatisfy { $0.episodeID == newer },
+                    "Der Bestand sollte nur die neue geheime Folge halten")
+        }
+        return fixture
     }
 
     // MARK: - Hilfen für Anfragen
@@ -242,6 +265,83 @@ struct AgentAccessTests {
         #expect(podcasts.count == 1)
         #expect(podcasts.first?["title"] as? String == "Arbeit und KI")
         #expect(podcasts.first?["episodesWithTranscript"] as? Int == 1)
+    }
+
+    @Test("listPodcasts zählt jede Folge mit Transkript, auch wenn der Bestand der Belege nur neuere hält",
+          arguments: [nil, 3] as [Int?])
+    func podcastsAreCountedBeyondThePool(poolLimit: Int?) async throws {
+        let fixture = try await Self.fixtureWithNewerSecretEpisode(poolLimit: poolLimit)
+        // Dazu eine noch ältere Folge mit Transkript und eine ganz ohne.
+        let older = EpisodeID(stable: "mcp-alte-folge")
+        _ = try await fixture.store.upsert(episodes: [
+            Episode(id: older, sourceID: Self.shared, title: "Aus dem Archiv",
+                    publishedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                    audioURL: URL(string: "https://example.org/d.mp3")!),
+            Episode(id: EpisodeID(stable: "mcp-folge-ohne-transkript"), sourceID: Self.shared,
+                    title: "Noch nicht transkribiert", audioURL: URL(string: "https://example.org/e.mp3")!),
+        ], forSource: Self.shared)
+        try await fixture.store.store(evidence: [
+            Self.makeEvidence("Früher ging es hier um Tabellenkalkulation.", index: 0, episode: older, source: Self.shared),
+        ])
+        Self.grantAll(fixture)
+
+        let result = try await Self.call(fixture.server, "listPodcasts")
+        let podcasts = try #require((result["structuredContent"] as? [String: Any])?["podcasts"] as? [[String: Any]])
+        #expect(podcasts.count == 1)
+        #expect(podcasts.first?["episodesWithTranscript"] as? Int == 2)
+    }
+
+    @Test("Suche in einem Podcast findet seine Folgen, auch wenn der Bestand der Belege nur neuere hält, und nichts Fremdes",
+          arguments: [nil, 3] as [Int?])
+    func podcastSearchReachesBeyondThePool(poolLimit: Int?) async throws {
+        let fixture = try await Self.fixtureWithNewerSecretEpisode(poolLimit: poolLimit)
+        // Liegt unter der Kennung der freigegebenen Folge, gehört aber dem
+        // geheimen Podcast. Der Speicher liest Belege nach Folge, die
+        // Freigabe gilt nach Podcast.
+        let stray = Self.makeEvidence("Der Schatz liegt unter der alten Eiche.", index: 7,
+                                      episode: Self.episode, source: Self.secret)
+        try await fixture.store.store(evidence: [stray])
+        Self.grantAll(fixture)
+
+        let found = try await Self.call(fixture.server, "searchEvidence",
+                                        ["query": "Datenschutz", "podcastID": Self.shared.rawValue])
+        let structured = try #require(found["structuredContent"] as? [String: Any])
+        let hits = try #require(structured["results"] as? [[String: Any]])
+        #expect(hits.first?["id"] as? String == fixture.evidence[1].id.rawValue)
+        #expect(structured["hint"] == nil)
+
+        let treasure = try await Self.call(fixture.server, "searchEvidence",
+                                           ["query": "Schatz Eiche", "podcastID": Self.shared.rawValue])
+        let strayHits = try #require((treasure["structuredContent"] as? [String: Any])?["results"] as? [[String: Any]])
+        #expect(strayHits.allSatisfy { $0["podcastID"] as? String == Self.shared.rawValue })
+        #expect(!strayHits.contains { $0["id"] as? String == stray.id.rawValue })
+
+        // Ein Podcast außerhalb der Freigabe antwortet wie einer, den es
+        // nicht gibt, auch wenn seine Belege gerade den Bestand füllen.
+        let foreign = try await Self.call(fixture.server, "searchEvidence",
+                                          ["query": "Gartenarbeit", "podcastID": Self.secret.rawValue])
+        let unknown = try await Self.call(fixture.server, "searchEvidence",
+                                          ["query": "Gartenarbeit", "podcastID": "gibt-es-nicht"])
+        #expect(((foreign["structuredContent"] as? [String: Any])?["results"] as? [[String: Any]])?.isEmpty == true)
+        #expect(Self.text(of: foreign) == Self.text(of: unknown))
+    }
+
+    @Test("listPodcasts zählt dieselben Folgen, die die Suche im Podcast liest: Eine anderswo gelöschte fehlt in beiden")
+    func countMatchesWhatPodcastSearchReads() async throws {
+        let fixture = try await Self.fixture()
+        // Das Merkzeichen vom anderen Gerät ist schon da. Die Kopie von hier
+        // und ihre Belege hat die App noch nicht aufgeräumt.
+        try await fixture.store.insertEpisodeCopyForTesting(
+            Episode(id: Self.episode, sourceID: Self.shared, title: "Datenschutz im Team"), removedAt: Date())
+        Self.grantAll(fixture)
+
+        let listed = try await Self.call(fixture.server, "listPodcasts")
+        let podcasts = try #require((listed["structuredContent"] as? [String: Any])?["podcasts"] as? [[String: Any]])
+        #expect(podcasts.first?["episodesWithTranscript"] as? Int == 0)
+
+        let found = try await Self.call(fixture.server, "searchEvidence",
+                                        ["query": "Datenschutz", "podcastID": Self.shared.rawValue])
+        #expect(((found["structuredContent"] as? [String: Any])?["results"] as? [[String: Any]])?.isEmpty == true)
     }
 
     @Test("getEvidence: fremde und unbekannte Kennung sehen gleich aus")

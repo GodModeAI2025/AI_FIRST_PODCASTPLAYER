@@ -315,6 +315,9 @@ public final class MCPAccess {
     /// Ein eigener Index statt des gemeinsamen der App. Er lebt so lange
     /// wie der Prozess des Agenten.
     private let passageIndex = PassageIndex()
+    /// Nur für Tests: eine kleine Grenze für den Bestand der Belege. Ohne
+    /// Angabe gilt die des Speichers, die er nicht nach außen nennt.
+    var poolLimitForTesting: Int?
 
     /// Ein Eintrag im Protokoll.
     public struct AuditEntry: Identifiable, Codable, Equatable, Sendable {
@@ -504,15 +507,20 @@ public final class MCPAccess {
 
     private func listPodcasts(grant: MCPGrant) async throws -> [PodcastSummary] {
         let sources = try await store.sources().filter { grant.allowedSourceIDs.contains($0.id) }
-        await store.forgetCachedEvidence()
-        var episodes: [SourceID: Set<EpisodeID>] = [:]
-        for item in try await store.evidenceForAnalyzedEpisodes() where grant.allowedSourceIDs.contains(item.sourceID) {
-            episodes[item.sourceID, default: []].insert(item.episodeID)
+        // Gezählt wird im Speicher und nicht im Bestand der Belege. Der hält
+        // über seiner Grenze nur die neuesten Folgen der ganzen Mediathek,
+        // ein Podcast mit älteren Folgen stünde hier mit zu wenigen oder mit
+        // null. Es zählen genau die Folgen, die die Suche mit dieser
+        // podcastID liest: die des Podcasts, soweit sie Belege mit Zeitmarke
+        // haben. Die Hinweise der Suche verweisen auf diese Zahl.
+        let analyzed = try await store.analyzedEpisodeIDs()
+        var podcasts: [PodcastSummary] = []
+        for source in sources {
+            let episodes = try await store.episodes(forSource: source.id).count { analyzed.contains($0.id) }
+            podcasts.append(PodcastSummary(id: source.id.rawValue, title: source.title, author: source.author,
+                                           language: source.language, episodesWithTranscript: episodes))
         }
-        return sources.map { source in
-            PodcastSummary(id: source.id.rawValue, title: source.title, author: source.author,
-                           language: source.language, episodesWithTranscript: episodes[source.id]?.count ?? 0)
-        }
+        return podcasts
     }
 
     /// Sucht wie der Chat der App: Stichworte gewichtet nach Seltenheit und
@@ -525,12 +533,27 @@ public final class MCPAccess {
         // denn der Speicher merkt sich die Belege bis zur nächsten eigenen
         // Änderung.
         await store.forgetCachedEvidence()
-        let all = try await store.evidenceForAnalyzedEpisodes()
+        let wanted = podcastID.map { SourceID(rawValue: $0) }
+        let all: [Evidence]
+        if let wanted, grant.allowedSourceIDs.contains(wanted) {
+            // Für einen Podcast die Belege seiner Folgen statt des Bestands.
+            // Über dessen Grenze stehen dort nur die neuesten Folgen der
+            // Mediathek, und ein Podcast ohne neue Folge sähe aus wie einer
+            // ohne Transkript.
+            all = try await timedEvidence(forEpisodes: try await store.episodes(forSource: wanted).map(\.id))
+        } else if wanted == nil {
+            all = try await evidencePool()
+        } else {
+            // Nach einer fremden Kennung wird der Speicher nicht gefragt. So
+            // dauert die Antwort gleich lang, ob es den Podcast gibt oder nicht.
+            all = []
+        }
 
         // Scope zuerst: was nicht freigegeben ist, wird gar nicht erst durchsucht.
         // Ein Podcast außerhalb der Freigabe ergibt dieselbe leere Menge
         // wie einer ohne Transkript. Die Antwort verrät nicht, ob es ihn gibt.
-        let wanted = podcastID.map { SourceID(rawValue: $0) }
+        // Der Filter gilt auch für die Belege eines Podcasts: Der Speicher
+        // liest sie nach Folge, die Freigabe gilt nach Podcast.
         let inScope = all.filter { item in
             grant.allowedSourceIDs.contains(item.sourceID) && (wanted == nil || item.sourceID == wanted)
         }
@@ -657,6 +680,19 @@ public final class MCPAccess {
 
     private func podcastTitles() async throws -> [SourceID: String] {
         Dictionary(try await store.sources().map { ($0.id, $0.title) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// Der Bestand der Belege, wie ihn der Speicher für alle Folgen hält.
+    private func evidencePool() async throws -> [Evidence] {
+        guard let poolLimitForTesting else { return try await store.evidenceForAnalyzedEpisodes() }
+        return try await store.evidenceForAnalyzedEpisodes(limit: poolLimitForTesting)
+    }
+
+    /// Die Belege dieser Folgen. Ob der Bestand dafür reicht oder seine
+    /// Grenze gegriffen hat, entscheidet der Speicher.
+    private func timedEvidence(forEpisodes episodes: [EpisodeID]) async throws -> [Evidence] {
+        guard let poolLimitForTesting else { return try await store.timedEvidence(forEpisodes: episodes) }
+        return try await store.timedEvidence(forEpisodes: episodes, poolLimit: poolLimitForTesting)
     }
 
     // MARK: - Protokoll
