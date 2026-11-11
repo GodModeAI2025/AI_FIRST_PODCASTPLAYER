@@ -1,5 +1,47 @@
 # Änderungsverlauf
 
+## App 1.3 · 2026-11-11 (iOS, Mac und Apple TV)
+Diese Version behebt, was eine Durchsicht des ganzen Codes gefunden hat. Neue Funktionen gibt es nicht.
+
+Daten und Abgleich:
+- Gemerkte Stellen, gesicherte Antworten und Themen-Updates, die ein anderes Gerät angelegt hat, gehen nicht mehr verloren, wenn du hier etwas änderst, bevor die Liste neu geladen ist. Das hält erst, wenn alle deine Geräte 1.3 haben.
+- Ein Löschen, das die Datenbank nicht ausführen konnte, wird beim nächsten Start wiederholt, statt vergessen zu werden.
+- Beginnen zwei Geräte dieselbe Folge fast gleichzeitig, bricht das spätere ab, sobald es vom anderen erfährt, und schreibt keine Fakten mehr. Ganz geschlossen ist die Lücke nicht: Sind beide fertig, bevor der Abgleich die Sperre des anderen gebracht hat, schreiben beide.
+- Apple TV: Der Build trägt jetzt die iCloud-Berechtigung. Die Fassung 1.0 im Store war ohne sie signiert und zeigte deshalb keine Abos aus iCloud.
+
+Feeds:
+- Eine unsinnige Dauer oder Dateilänge im Feed oder vom Server beendet die App nicht mehr.
+- Folgen mit leerer GUID und Feeds, die eine GUID mehrfach vergeben, fallen nicht mehr zu einer Folge zusammen. Bei solchen Feeds erscheinen die betroffenen Folgen nach dem ersten Aktualisieren einzeln, und die bisherige gemeinsame Zeile bleibt einmal als Doppel stehen. Folgen mit eigener GUID behalten ihre Kennung.
+- Zweistellige Jahreszahlen, Zeitzonen wie CEST und das Erscheinungsdatum in Atom-Feeds werden richtig gelesen. Nachträglich bearbeitete alte Folgen tauchen nicht mehr als neu auf.
+- Anhänge ohne Typangabe und relative Adressen werden erkannt.
+- Feeds liegen jetzt auf der Platte. Antwortet der Server „nicht geändert“, wird nichts erneut übertragen. Der Cache kann bis 1,3 GB belegen, liegt im Cache-Ordner des Systems und steht nicht in der Speicheranzeige der App.
+- Große Feeds mit viel HTML in den Shownotes werden um Größenordnungen schneller gelesen.
+- Reste abgebrochener Downloads werden nach einer Stunde geräumt.
+
+Wiedergabe:
+- Ein neues Audiogerät, etwa ein Autoradio über Bluetooth, startet keine pausierte Folge mehr: Zehn Sekunden lang nimmt die App kein „Wiedergabe“ von außen an, auf iPhone, iPad, Apple Watch und Apple TV. Die Tasten in der App wirken sofort. War die App beim Verbinden beendet, greift die Sperre nicht.
+- Fehlt mitten in einem Themen-Update oder beim Vertiefen der Ton einer Stelle, endet die Wiedergabe mit einem Hinweis, statt auf „spielt“ stehen zu bleiben.
+- „Vertiefen“ spielt die gesuchte Aussage und nicht nur den Satz davor.
+- Die Tempotaste in CarPlay nimmt dieselben Stufen wie der Player.
+
+Fragen und Themen-Updates:
+- Ab etwa 330 transkribierten Stunden durchsucht der Chat die neuesten Folgen statt einer zufälligen Auswahl und sagt, wie viele es sind.
+- Themen-Updates ohne Kapitel-Tags behalten Treffer, die das Modell nie gesehen hat. Bisher blieben höchstens zwölf Stellen.
+- Die Prüfung der Treffer auf dem Gerät scheitert nicht mehr an Texten, die viele Token brauchen, etwa Japanisch.
+- Transkript, Shownotes und Kapiteltitel sind im Prompt so abgesichert wie die Ergebnisse der Werkzeuge.
+- Ein Verweis in einer anderen Klammer, etwa „[Musik [3]]“, zählt überall als Verweis.
+- „Für dich“ zeigt keine Treffer mehr, die eine neuere Berechnung oder „Nicht relevant“ gerade entfernt hat.
+
+Mac und Agentenzugang:
+- Das Protokoll des Agentenzugangs verliert keinen Eintrag mehr, wenn zwei Agenten gleichzeitig anfragen. Zählung und Suche je Podcast stimmen auch in sehr großen Bibliotheken.
+- Wer auf dem Mac von einer TestFlight-Fassung vor dem gemeinsamen App-Eintrag kommt, hat einen neuen App-Container: Supadata-Schlüssel neu eintragen, Agentenzugang neu freigeben, Downloads neu laden.
+
+Für Entwickler:
+- Das CloudKit-Schema ändert sich nicht. Die neuen Indizes auf Belegen, Fassungen, Transkripten, Tags und Notizen bekommt nur eine neu angelegte Datenbank, eine vorhandene bleibt, wie sie ist.
+- `PodcastAIDateShim` bringt eigene Fassungen von `Date <=` und `>=` mit, weil frühe Betas von 27.2 sie nicht haben und die App dort abstürzte.
+- Das Upload-Skript signiert das Apple-TV-Archiv mit Berechtigungen, prüft jede exportierte App und stellt die Buildnummer zurück, wenn nichts hochgeladen wurde.
+- Ungenutzter Code ist entfernt, die Folgenkennung, die Tempostufen und der Parser für Verweise stehen je einmal im Paket.
+
 ## App 1.2 · 2026-10-12 (Build 202610120921, iOS und Mac am 12.10. zur Prüfung eingereicht)
 Neu: Eine KI-Anfrage, die lange nichts meldet oder sich nicht abbrechen lässt, hält die Warteschlange nicht mehr fest. Private Cloud Compute fällt dann auf das Gerät zurück, Arbeit im Hintergrund wartet und läuft weiter.
 

@@ -2,8 +2,7 @@
 //  PlayerArtwork.swift
 //  Gemeinsam für Apple Watch und Apple TV (nicht in der iOS- und Mac-App).
 //
-//  Cover und Zeitangaben. Ohne Texte, damit jede App ihren eigenen String
-//  Catalog behält.
+//  Cover und Zeitangaben.
 //
 
 import SwiftUI
