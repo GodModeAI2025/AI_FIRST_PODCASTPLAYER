@@ -11,7 +11,8 @@
 //  geöffnetes „Wiedergabe“ und der Start der App starten keinen Ton. Nach dem
 //  Ende einer Folge läuft nur weiter, was jemand selbst in „Als Nächstes“
 //  gelegt hat. Nach einer Unterbrechung (Anruf, Wecker) beginnt der Ton nicht
-//  von selbst wieder.
+//  von selbst wieder. Das „Wiedergabe“, das ein Kopfhörer oder Lautsprecher
+//  beim Verbinden von selbst schickt, setzt nichts fort.
 //
 
 #if canImport(AVFoundation)
@@ -84,6 +85,8 @@ public final class PlaybackEngine {
     @ObservationIgnored private var artworkTask: Task<Void, Never>?
     @ObservationIgnored private var artwork: MPMediaItemArtwork?
     @ObservationIgnored private var remoteCommandsInstalled = false
+    /// Bis dahin gilt ein „Wiedergabe“ von außen nicht, siehe `holdRemotePlay`.
+    @ObservationIgnored private var ignoresRemotePlayUntil: Date?
     @ObservationIgnored private lazy var session = SafeHTTP.makeSession()
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -282,11 +285,6 @@ public final class PlaybackEngine {
         upNext.save(to: defaults)
     }
 
-    public func clearUpNext() {
-        upNext.removeAll()
-        upNext.save(to: defaults)
-    }
-
     /// Spielt die nächste Folge aus „Als Nächstes“. `false`, wenn die
     /// Warteschlange leer ist.
     @discardableResult
@@ -481,13 +479,32 @@ public final class PlaybackEngine {
         }
     }
 
+    /// Ein Audiogerät ist dazugekommen. Manche Kopfhörer und Lautsprecher
+    /// schicken beim Verbinden von selbst „Wiedergabe“. Zehn Sekunden lang
+    /// startet das nichts (Regel 1), wie in der iOS-App nach dem Verbinden
+    /// von CarPlay.
+    func holdRemotePlay(from now: Date = Date()) {
+        ignoresRemotePlayUntil = now.addingTimeInterval(10)
+    }
+
+    /// „Wiedergabe“ von außen (`playCommand`), etwa aus der Systemanzeige oder
+    /// von einem Lautsprecher. `false`, solange die Sperre gilt. Der Wechsel
+    /// zwischen Wiedergabe und Pause (`togglePlayPauseCommand`) geht nicht
+    /// hier durch: er gilt als Tastendruck und wirkt auch während der Sperre.
+    @discardableResult
+    func remotePlay(at now: Date = Date()) -> Bool {
+        if let until = ignoresRemotePlayUntil, now < until { return false }
+        resume()
+        return true
+    }
+
     private func installRemoteCommands() {
         guard !remoteCommandsInstalled else { return }
         remoteCommandsInstalled = true
         let center = MPRemoteCommandCenter.shared()
 
         center.playCommand.addTarget { [weak self] _ in
-            Task { @MainActor in self?.resume() }
+            Task { @MainActor in self?.remotePlay() }
             return .success
         }
         center.pauseCommand.addTarget { [weak self] _ in
@@ -528,7 +545,8 @@ public final class PlaybackEngine {
     }
 
     /// Eine Unterbrechung oder ein abgezogener Kopfhörer hält an. Weiter geht
-    /// es erst, wenn jemand es verlangt (Regel 1).
+    /// es erst, wenn jemand es verlangt (Regel 1). Ein neues Audiogerät sperrt
+    /// kurz das „Wiedergabe“ von außen.
     private func installSessionObservers() {
         #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
         guard sessionObservers.isEmpty else { return }
@@ -543,9 +561,15 @@ public final class PlaybackEngine {
         sessionObservers.append(center.addObserver(
             forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
         ) { [weak self] note in
-            let lost = (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt)
-                .flatMap(AVAudioSession.RouteChangeReason.init(rawValue:)) == .oldDeviceUnavailable
-            MainActor.assumeIsolated { if lost { self?.pause() } }
+            let reason = (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt)
+                .flatMap(AVAudioSession.RouteChangeReason.init(rawValue:))
+            MainActor.assumeIsolated {
+                switch reason {
+                case .oldDeviceUnavailable: self?.pause()
+                case .newDeviceAvailable: self?.holdRemotePlay()
+                default: break
+                }
+            }
         })
         #endif
     }

@@ -67,10 +67,12 @@ struct PlayerValueTests {
         #expect(makeItem("a", seconds: 600, resume: nil).startPosition == .zero)
     }
 
+    /// Die Stufen stehen in Core: nur dort erreicht sie auch die iOS-App mit
+    /// CarPlay.
     @Test func speedCyclesThroughTheOptions() {
-        #expect(PlaybackSpeed.next(after: 1.0) == 1.2)
-        #expect(PlaybackSpeed.next(after: 2.0) == 0.8)
-        #expect(PlaybackSpeed.next(after: 1.3) == 1.0)
+        #expect(PodcastAICore.PlaybackSpeed.next(after: 1.0) == 1.2)
+        #expect(PodcastAICore.PlaybackSpeed.next(after: 2.0) == 0.8)
+        #expect(PodcastAICore.PlaybackSpeed.next(after: 1.3) == 1.0)
     }
 
     @Test func onlyHTTPSAndHTTPStreamAndHTTPIsUpgraded() {
@@ -79,14 +81,26 @@ struct PlayerValueTests {
         #expect(makeItem("a", audio: "ftp://example.com/a.mp3").streamURL == nil)
     }
 
-    @Test func episodeIdentifierFollowsTheRuleOfTheMainApp() {
-        var parsed = ParsedItem(guid: "guid-1", title: "Titel", audioURL: URL(string: "https://example.com/a.mp3"))
+    /// Die Regel steht einmal in `PodcastAISources`. Erwartet werden die
+    /// Schlüssel, die die früheren Fassungen in der iOS-App und im Player
+    /// lieferten: GUID, sonst Audioadresse, sonst Titel.
+    @Test func episodeIdentifierFollowsTheSharedRule() {
         let source = SourceID(stable: "https://example.com/feed.xml")
-        let episode = FeedImport.episode(from: parsed, sourceID: source)
-        #expect(episode.id == EpisodeID(stable: "\(source.rawValue)|guid-1"))
-        parsed.guid = nil
-        let byURL = FeedImport.episode(from: parsed, sourceID: source)
-        #expect(byURL.id == EpisodeID(stable: "\(source.rawValue)|https://example.com/a.mp3"))
+        let audio = URL(string: "https://example.com/a.mp3")
+        let cases: [(item: ParsedItem, key: String)] = [
+            (ParsedItem(guid: "guid-1", title: "Titel", audioURL: audio), "guid-1"),
+            (ParsedItem(title: "Titel", audioURL: audio), "https://example.com/a.mp3"),
+            (ParsedItem(title: "Titel"), "Titel"),
+            // Eine leere GUID zählt als GUID. Mit dieser Kennung liegen Folgen
+            // aus solchen Feeds schon in den Bibliotheken.
+            (ParsedItem(guid: "", title: "Titel", audioURL: audio), ""),
+        ]
+        for (item, key) in cases {
+            #expect(item.episodeKey == key)
+            let expected = EpisodeID(stable: "\(source.rawValue)|\(key)")
+            #expect(item.episodeID(in: source) == expected)
+            #expect(FeedImport.episode(from: item, sourceID: source).id == expected)
+        }
     }
 }
 
@@ -207,6 +221,19 @@ struct PlayerRuleOneTests {
         engine.restoreUpNext([makeItem("b")])
         #expect(engine.state == .idle)
         #expect(engine.current == nil)
+    }
+
+    /// Manche Kopfhörer und Lautsprecher schicken beim Verbinden von selbst
+    /// „Wiedergabe“. Zehn Sekunden lang nimmt die Wiedergabe es nicht an.
+    @Test func aNewAudioDeviceHoldsRemotePlayForTenSeconds() {
+        let engine = PlaybackEngine(defaults: UserDefaults(suiteName: "pai-test-\(UUID().uuidString)")!)
+        let connected = Date(timeIntervalSince1970: 1_700_000_000)
+        #expect(engine.remotePlay(at: connected))
+        engine.holdRemotePlay(from: connected)
+        #expect(!engine.remotePlay(at: connected))
+        #expect(!engine.remotePlay(at: connected.addingTimeInterval(9.9)))
+        #expect(engine.remotePlay(at: connected.addingTimeInterval(10)))
+        #expect(engine.state == .idle)
     }
 
     @Test func anItemWithoutAudioFailsInsteadOfPlaying() {

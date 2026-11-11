@@ -2,10 +2,11 @@
 //  FeedImport.swift
 //  PodcastAIPlayerKit
 //
-//  Macht aus einem gelesenen Feed Folgen. Dieselbe Regel für die Kennung wie
-//  in der iOS-App (`Services.makeEpisode`): Podcast und Feed-GUID, nicht der
-//  Titel. Dieselbe Folge bekommt so auf jedem Gerät dieselbe Kennung, und der
-//  Hörzustand passt zusammen.
+//  Macht aus einem gelesenen Feed Folgen. Die Kennung kommt aus
+//  `ParsedItem.episodeID(in:)` in `PodcastAISources`, derselben Regel wie in
+//  der iOS-App: Podcast und Feed-GUID, nicht der Titel. Dieselbe Folge
+//  bekommt so auf jedem Gerät dieselbe Kennung, und der Hörzustand passt
+//  zusammen.
 //
 
 import Foundation
@@ -13,11 +14,6 @@ import PodcastAICore
 import PodcastAISources
 
 public enum FeedImport {
-
-    /// Kennung aus der Feed-GUID, sonst der Audioadresse, sonst dem Titel.
-    static func episodeKey(_ item: ParsedItem) -> String {
-        item.guid ?? item.audioURL?.absoluteString ?? item.title
-    }
 
     public static func episodes(from feed: ParsedFeed, sourceID: SourceID) -> [Episode] {
         feed.items.filter(\.isUsable).map { episode(from: $0, sourceID: sourceID) }
@@ -33,7 +29,7 @@ public enum FeedImport {
             if chapters.isEmpty { chapters = TimestampChapters.parse(item.summary, duration: duration) }
         }
         return Episode(
-            id: EpisodeID(stable: "\(sourceID.rawValue)|\(episodeKey(item))"),
+            id: item.episodeID(in: sourceID),
             sourceID: sourceID,
             title: item.title,
             summary: item.summary,

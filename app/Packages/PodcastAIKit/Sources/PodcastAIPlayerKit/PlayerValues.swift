@@ -2,9 +2,10 @@
 //  PlayerValues.swift
 //  PodcastAIPlayerKit
 //
-//  Wertetypen des Players: die Folge samt Podcast, Tempo, Schlaf-Timer und
+//  Wertetypen des Players: die Folge samt Podcast, Schlaf-Timer und
 //  Warteschlange. Alles ohne Oberfläche und ohne Datenbank, damit es sich
-//  auf dem Mac testen lässt.
+//  auf dem Mac testen lässt. Das Tempo steht in Core (`PlaybackSpeed`), weil
+//  auch die iOS-App es braucht.
 //
 
 import Foundation
@@ -53,22 +54,6 @@ public struct PlayerItem: Hashable, Sendable, Identifiable {
         let total = episode.declaredDuration?.milliseconds ?? 0
         if total > 0, resume.milliseconds >= total - 15_000 { return .zero }
         return resume
-    }
-}
-
-/// Wiedergabetempo. Dieselben Stufen wie in der iOS-App.
-public enum PlaybackSpeed {
-    public static let options: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
-
-    /// Die nächste Stufe, nach der letzten wieder die erste.
-    public static func next(after rate: Float) -> Float {
-        guard let index = options.firstIndex(where: { abs($0 - rate) < 0.01 }) else { return 1.0 }
-        return options[(index + 1) % options.count]
-    }
-
-    public static func label(_ rate: Float) -> String {
-        let text = rate.formatted(.number.precision(.fractionLength(0...2)))
-        return "\(text)×"
     }
 }
 
@@ -142,8 +127,6 @@ public struct UpNextQueue: Equatable, Sendable {
     public mutating func remove(_ id: EpisodeID) {
         items.removeAll { $0.id == id }
     }
-
-    public mutating func removeAll() { items.removeAll() }
 
     public mutating func popFirst() -> PlayerItem? {
         items.isEmpty ? nil : items.removeFirst()

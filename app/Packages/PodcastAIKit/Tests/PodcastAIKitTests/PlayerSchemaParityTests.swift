@@ -20,6 +20,14 @@ struct PlayerSchemaParityTests {
         try #require(schema.entities.first { $0.name == name })
     }
 
+    /// `Date()` als Standardwert ist der Augenblick, in dem das Schema gebaut
+    /// wurde. Die beiden Schemata entstehen nacheinander, ihre Daten liegen
+    /// also knapp auseinander und als Text manchmal eine Sekunde.
+    private func sameDefault(_ lhs: Any?, _ rhs: Any?) -> Bool {
+        if let lhs = lhs as? Date, let rhs = rhs as? Date { return abs(lhs.timeIntervalSince(rhs)) < 60 }
+        return String(describing: lhs) == String(describing: rhs)
+    }
+
     @Test(arguments: ["StoredSource", "StoredEpisode", "StoredListeningState"])
     func everyPlayerPropertyMatchesTheMainSchema(name: String) throws {
         let player = try entity(name, in: PlayerLibrary.schema)
@@ -31,7 +39,7 @@ struct PlayerSchemaParityTests {
             let counterpart = try #require(main.attributes.first { $0.name == attribute.name })
             #expect(String(describing: attribute.valueType) == String(describing: counterpart.valueType),
                     "\(name).\(attribute.name): anderer Typ")
-            #expect(String(describing: attribute.defaultValue) == String(describing: counterpart.defaultValue),
+            #expect(sameDefault(attribute.defaultValue, counterpart.defaultValue),
                     "\(name).\(attribute.name): anderer Standardwert")
             #expect(String(describing: attribute.options) == String(describing: counterpart.options),
                     "\(name).\(attribute.name): andere Optionen")
