@@ -120,7 +120,7 @@ Für UI-Tests gibt es `-catalog-fixtures`: Charts, Einzelheiten, beide Suchen un
 app/scripts/upload-testflight.sh
 ```
 
-Das Skript erhöht die Buildnummer, archiviert iOS und macOS und lädt beide über den in Xcode angemeldeten Account hoch. Voraussetzung sind die beiden App-Einträge in App Store Connect.
+Das Skript erhöht die Buildnummer, archiviert iOS, macOS und tvOS und lädt die Builds über den in Xcode angemeldeten Account hoch. Vor jedem Upload exportiert es die App einmal lokal, und `scripts/verify-signing.py` prüft, ob die für den Vertrieb signierte App ihre Berechtigungen trägt. Scheitert der Lauf vor dem ersten Upload, gilt wieder die alte Buildnummer. Voraussetzung ist der gemeinsame App-Eintrag in App Store Connect.
 
 ## Aufbau
 
