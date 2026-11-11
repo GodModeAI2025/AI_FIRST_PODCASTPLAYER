@@ -138,25 +138,6 @@ public enum InterestFeedback: String, Codable, Sendable {
     }
 }
 
-public struct FeedbackEvent: Hashable, Codable, Sendable {
-    public let feedback: InterestFeedback
-    public let evidenceID: EvidenceID
-    public let interestID: InterestID?
-    public let sourceID: SourceID
-    public let at: Date
-    /// Zählt zur aktuellen Lernepoche. Ein Zurücksetzen erhöht die Epoche,
-    /// statt Ereignisse zu löschen — append-only.
-    public let epoch: Int
-
-    public init(
-        feedback: InterestFeedback, evidenceID: EvidenceID, interestID: InterestID? = nil,
-        sourceID: SourceID, at: Date = Date(), epoch: Int
-    ) {
-        self.feedback = feedback; self.evidenceID = evidenceID; self.interestID = interestID
-        self.sourceID = sourceID; self.at = at; self.epoch = epoch
-    }
-}
-
 /// Das vollständige, jederzeit einsehbare und korrigierbare Interessenprofil.
 public struct InterestProfile: Codable, Sendable {
 

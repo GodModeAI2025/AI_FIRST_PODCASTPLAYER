@@ -557,6 +557,35 @@ struct ChapterEditionTests {
         #expect(first.sourceTitle == "Quelle")
     }
 
+    @Test("Eine kurze letzte Stelle bringt ihr ganzes Kapitel")
+    func shortLastPassageBringsItsChapter() throws {
+        // Die letzte Stelle einer Folge ist oft kürzer als der kürzeste
+        // Abschnitt, hier 20 statt 25 Sekunden. Ihr Kapitel von acht Minuten
+        // kommt trotzdem: Die Mindestlänge gilt für das Kapitel, nicht für
+        // die Stelle, die das Tag trifft.
+        let episodeID = EpisodeID(rawValue: "ep-a")
+        let tail = evidence("ende", media: "a", ms(15) - 20_000, ms(15), text: "Zum Schluss der Datenschutz.")
+        let marks = [0, ms(4), ms(7)].map {
+            Chapter(start: MediaTime(milliseconds: $0), title: "Kapitel", provenance: .original)
+        }
+        // Ohne Kapitel-Tags: Der Stichworttreffer der Stelle gibt dem Kapitel sein Tag.
+        let chapters = EditionChapterBuilder.build(
+            evidence: [tail], chapterTags: [],
+            episodes: [episodeID: Episode(
+                id: episodeID, sourceID: SourceID(rawValue: "s-a"), title: "Folge",
+                declaredDuration: MediaDuration(minutes: 15), publisherChapters: marks)],
+            facts: [], titles: [:], tags: [privacy], terms: [privacy: ["Datenschutz"]],
+            keywordMatches: [RelevanceMatch(
+                evidenceID: tail.id, interestID: privacy, interestLabel: "Datenschutz", kind: .topic,
+                score: 0.9, matchedTerms: ["Datenschutz"])],
+            jumps: { _ in nil })
+        #expect(chapters.map(\.range) == [range(ms(7), ms(15))])
+
+        let edition = try #require(parts(run(feed([privacy]), chapters)).first)
+        #expect(edition.segments.map(\.coreRange) == [range(ms(7), ms(15))])
+        #expect(edition.segments[0].evidenceIDs == [tail.id])
+    }
+
     // MARK: Hilfen
 
     /// Ein Teil eines Laufs, wie ihn 0.11 bis 0.14 gespeichert haben.

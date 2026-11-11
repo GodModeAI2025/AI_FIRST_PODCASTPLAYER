@@ -40,40 +40,6 @@ public struct TimedTranscriptionResult: Sendable, Equatable {
     }
 }
 
-/// Wiederaufnahmepunkt einer unterbrochenen Analyse.
-///
-/// Der modellinterne Zustand von `SpeechAnalyzer` ist nicht als dauerhaft
-/// serialisierbar vorausgesetzt. Wiederaufnahme heißt deshalb: ab einer
-/// bekannten Medienposition neu analysieren, mit kleinem Überlappungsbereich,
-/// und die Überlappung anschließend deduplizieren.
-public struct TranscriptionCheckpoint: Codable, Sendable, Equatable {
-    public let mediaVersionID: MediaVersionID
-    /// Bis hierhin liegen finalisierte Ergebnisse vor.
-    public let committedThrough: MediaTime
-    public let locale: String
-    /// Fassung der Analysekonfiguration. Ändert sie sich, ist eine
-    /// Wiederaufnahme nicht mehr mit dem Bestehenden vergleichbar.
-    public let configurationRevision: Revision
-    public let textRevision: Revision
-
-    public init(
-        mediaVersionID: MediaVersionID, committedThrough: MediaTime, locale: String,
-        configurationRevision: Revision, textRevision: Revision
-    ) {
-        self.mediaVersionID = mediaVersionID; self.committedThrough = committedThrough
-        self.locale = locale; self.configurationRevision = configurationRevision
-        self.textRevision = textRevision
-    }
-
-    /// Wie weit vor dem Wiederaufnahmepunkt erneut analysiert wird. Ein
-    /// harter Schnitt zerreißt ein Wort oder einen Satz.
-    public static let overlap = MediaDuration(seconds: 5)
-
-    public var resumeFrom: MediaTime {
-        MediaTime(milliseconds: committedThrough.milliseconds - Self.overlap.milliseconds)
-    }
-}
-
 public enum TranscriptionError: Error, LocalizedError {
     case alreadyRunning
     case localeNotSupported(String)
@@ -115,12 +81,8 @@ public actor TimedTranscriptionEngine {
 
     /// Analysiert eine lokale Mediendatei vollständig.
     ///
-    /// Der Zeitbezug entsteht aus zwei unabhängigen Quellen, die
-    /// gegeneinander geprüft werden:
-    ///   1. dem `audioTimeRange`-Attribut des Analyseergebnisses,
-    ///   2. der Sampleposition des eingespeisten Puffers.
-    /// Fehlt das Attribut, dient die Sampleposition als Rückfall — sie ist
-    /// weniger genau, aber immer noch Medienzeit und nie Wanduhrzeit.
+    /// Der Zeitbezug kommt aus dem `audioTimeRange`-Attribut des
+    /// Analyseergebnisses. Fehlt es, hat das Ergebnis keinen Bereich.
     public func transcribeFile(
         at url: URL,
         mediaVersionID: MediaVersionID,
@@ -167,19 +129,12 @@ public actor TimedTranscriptionEngine {
         self.inputContinuation = continuation
         try await analyzer.start(inputSequence: inputSequence)
 
-        // Puffer einspeisen. Die Sampleposition wird mitgeführt, damit auch
-        // ohne Zeitattribut ein Medienbezug vorliegt.
-        let feeding = Task(priority: Self.analysisPriority) { [weak self] in
+        let feeding = Task(priority: Self.analysisPriority) {
             do {
                 let converter = BufferConverter()
-                var framesFed: AVAudioFramePosition = 0
                 for try await buffer in AudioFileReader.stream(from: url, startingAt: offset) {
                     let converted = try converter.convert(buffer, to: analyzerFormat)
                     await Self.feed(AnalyzerInput(buffer: converted), into: continuation)
-                    framesFed += AVAudioFramePosition(buffer.frameLength)
-                    await self?.recordFedPosition(
-                        frames: framesFed, sampleRate: buffer.format.sampleRate, offset: offset
-                    )
                 }
                 continuation.finish()
                 // Eingabe ist zu Ende: jetzt abschließen. Erst danach endet
@@ -298,17 +253,6 @@ public actor TimedTranscriptionEngine {
     }
 
     // MARK: - Zustand
-
-    private var fedThrough: MediaTime = .zero
-
-    private func recordFedPosition(frames: AVAudioFramePosition, sampleRate: Double, offset: MediaTime) {
-        guard sampleRate > 0 else { return }
-        let ms = Int64((Double(frames) / sampleRate * 1000).rounded()) + offset.milliseconds
-        fedThrough = MediaTime(milliseconds: ms)
-    }
-
-    /// Bis wohin Audio eingespeist wurde — die Obergrenze für einen Checkpoint.
-    public func fedPosition() -> MediaTime { fedThrough }
 
     private func markStopped() {
         isRunning = false

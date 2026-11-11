@@ -98,12 +98,6 @@ public struct HighlightCapture: Sendable {
         return MediaTimeRange(start: start, end: end)
     }
 
-    /// Rastet den Bereich auf Segmentgrenzen ein, damit das Zitat nicht
-    /// mitten im Satz beginnt.
-    public func snapped(_ range: MediaTimeRange, in transcript: Transcript) -> MediaTimeRange {
-        transcript.snappedToSegmentBounds(range)
-    }
-
     /// Der Satz, der beim Merken gerade läuft: das Segment, in dem die
     /// Position liegt. Sein Anfang wird die Zeitmarke, sein Text das Zitat.
     ///
