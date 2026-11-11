@@ -2183,6 +2183,10 @@ extension AppModel {
         // Auch Stellen aus Folgen, die nicht mehr an der Quelle hingen.
         if case .source(let sourceID) = purge.scope {
             pruneEditions(removedEpisodes: [], removedSources: [sourceID])
+            // Der gespeicherte Feed geht mit. Alle statt nur dieser: hinter
+            // einer Weiterleitung liegt er unter der Zieladresse, und die
+            // kennt hier niemand. Das kostet einmal ein volles Laden.
+            FeedRefresher.feedCache.removeAllCachedResponses()
         }
         reindexSpotlight()
         forgetDeviceMarks(of: ids, metadataKeys: purge.metadataKeys)

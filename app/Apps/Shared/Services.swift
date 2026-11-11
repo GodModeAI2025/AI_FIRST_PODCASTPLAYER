@@ -85,9 +85,39 @@ public actor FeedRefresher {
     let resolver = SourceResolver()
     let parser = FeedParser()
     let session: URLSession
+    /// Webseiten beim Abonnieren und Suchen. Ohne Cache: niemand liest sie
+    /// ein zweites Mal, und im Feed-Cache lägen sie samt den Kopfzeilen der
+    /// Anfrage auf der Platte, bei YouTube also mit dem Cookie. Die Fristen
+    /// sind die der Feed-Session.
+    let pageSession = SafeHTTP.makeSession { configuration in
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
+        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForResource = 180
+        configuration.waitsForConnectivity = false
+    }
     /// Die zuletzt angesehene Vorschau. Wer gleich danach abonniert, lädt
     /// einen großen Feed nicht ein zweites Mal.
     var previewed: (url: URL, feedURL: URL, feed: ParsedFeed, at: Date)?
+    /// So lange gilt sie. Danach zählt wieder, was der Server sagt.
+    static let previewLifetime: TimeInterval = 600
+
+    /// Was über die Feed-Session kommt, liegt auch auf der Platte: Feeds und
+    /// Kapiteldateien. Erst damit kann der Server auf die Nachfrage mit 304
+    /// antworten, auch im Hintergrund, wo der Prozess frisch startet; der
+    /// Inhalt kommt dann von hier. Ein Cache für alle: `AppModel.replaceStore`
+    /// baut den `FeedRefresher` neu, und zwei `URLCache` auf demselben Ordner
+    /// darf es nicht geben.
+    ///
+    /// `URLCache` nimmt nur Antworten bis 5 % der Plattenkapazität an, und
+    /// es zählt die entpackte Größe (gemessen mit macOS 27.2 und iOS 27.0).
+    /// Mit dem Zwanzigfachen von `SafeHTTP.feedLimit` passt jeder Feed
+    /// hinein, den die App lädt. Das ist die Obergrenze, belegt wird nur,
+    /// was die geladenen Feeds entpackt groß sind.
+    static let feedCache = URLCache(
+        memoryCapacity: 0,
+        diskCapacity: 20 * Int(SafeHTTP.feedLimit),
+        directory: URL.cachesDirectory.appending(path: "PodcastAI/Feeds", directoryHint: .isDirectory))
 
     public init(store: LibraryStore) {
         self.store = store
@@ -96,7 +126,10 @@ public actor FeedRefresher {
         // hatte diese Session gar keinen Delegaten — Weiterleitungen eines
         // fremden Feeds liefen ungeprüft durch.
         self.session = SafeHTTP.makeSession { configuration in
+            // Die Richtlinie und der Cache gehören zusammen. Ohne sie käme
+            // ein Feed aus dem Cache, ohne dass der Server gefragt wird.
             configuration.requestCachePolicy = .reloadRevalidatingCacheData
+            configuration.urlCache = Self.feedCache
             // Kommt 20 Sekunden lang nichts, gilt der Server als nicht
             // erreichbar. Ein großer Feed, der stetig lädt, darf länger
             // brauchen, aber nicht ewig.
@@ -172,8 +205,12 @@ public actor FeedRefresher {
         case .youTubeVideo, .youTubeChannelPage:
             linkFeedURL = try await discoverYouTubeChannelFeed(for: link)
             kind = .youTubeChannel; capabilities = .youTubeMetadataOnly
-        case .webPageNeedingDiscovery(let page) where previewed?.url == page:
+        case .webPageNeedingDiscovery(let page)
+            where previewed?.url == page
+                && Date().timeIntervalSince(previewed?.at ?? .distantPast) <= Self.previewLifetime:
             // Gerade in der Vorschau gelesen, `fetchFeed` nimmt ihn von dort.
+            // Eine abgelaufene Vorschau nähme es nicht mehr und lüde die
+            // Webseite über die Feed-Session. Sie geht deshalb unten weiter.
             linkFeedURL = page; kind = .podcastRSS; capabilities = .fullPodcast
         case .webPageNeedingDiscovery:
             let found = try await discoverFeedOnPage(for: link)
@@ -275,7 +312,7 @@ public actor FeedRefresher {
         // Ohne diese Angabe leitet YouTube in der EU auf eine Einwilligungsseite um.
         let html: String
         do {
-            let data = try await SafeHTTP.load(pageURL, using: session, limit: Self.pageLimit,
+            let data = try await SafeHTTP.load(pageURL, using: pageSession, limit: Self.pageLimit,
                                                headers: ["Cookie": "SOCS=CAI", "Accept-Language": "de"])
             html = String(decoding: data, as: UTF8.self)
         } catch {
@@ -325,7 +362,7 @@ public actor FeedRefresher {
         #endif
         if let kept = previewed {
             // Nur einmal und nur kurz: danach zählt wieder, was der Server sagt.
-            if Date().timeIntervalSince(kept.at) > 600 {
+            if Date().timeIntervalSince(kept.at) > Self.previewLifetime {
                 previewed = nil
             } else if kept.url == url {
                 previewed = nil
@@ -349,7 +386,7 @@ public actor FeedRefresher {
             pages.append(root)
         }
         for page in pages {
-            guard let data = try? await SafeHTTP.load(page, using: session, limit: Self.pageLimit) else { continue }
+            guard let data = try? await SafeHTTP.load(page, using: pageSession, limit: Self.pageLimit) else { continue }
             let html = String(decoding: data, as: UTF8.self)
             for candidate in FeedDiscovery.feedLinks(inHTML: html, base: page) where candidate != url {
                 if let parsed = try? parser.parse(try await fetch(candidate), baseURL: candidate) {
@@ -435,7 +472,7 @@ public actor FeedRefresher {
         // Anlegen von der Kanalseite.
         if parsed.artworkURL == nil, source.kind == .youTubeChannel,
            let page = source.websiteURL, YouTubeLinks.videoID(in: page) == nil,
-           let html = try? await SafeHTTP.load(page, using: session, limit: Self.pageLimit,
+           let html = try? await SafeHTTP.load(page, using: pageSession, limit: Self.pageLimit,
                                                headers: ["Cookie": "SOCS=CAI", "Accept-Language": "de"]),
            let image = Self.metaContent("og:image", in: String(decoding: html, as: UTF8.self))
                 .flatMap(URL.init(string:)),
@@ -577,8 +614,11 @@ public actor FeedRefresher {
         // Mit der Grenze für Feeds, nicht der für Seiten: viele Feed-Adressen
         // sehen nicht nach Feed aus, etwa `feeds.transistor.fm/ai-to-the-dna`
         // oder `feeds.megaphone.fm/ESHO5419936864`. Ein Feed mit 2000 Folgen
-        // hat über 20 MB und scheiterte hier an der Seitengrenze.
-        let data = try await fetch(page)
+        // hat über 20 MB und scheiterte hier an der Seitengrenze. Trotzdem
+        // über die Seiten-Session: meist kommt eine Webseite, und die gehört
+        // nicht in den Feed-Cache. Ist es doch ein Feed, legt ihn das erste
+        // Aktualisieren dort ab.
+        let data = try await SafeHTTP.load(page, using: pageSession, limit: SafeHTTP.feedLimit, truncating: true)
         if let feed = try? parser.parse(data, baseURL: page) { return (page, feed) }
         let html = String(decoding: data, as: UTF8.self)
 
@@ -604,7 +644,7 @@ public actor FeedRefresher {
         // um, und dort steht keine Kanalkennung.
         let data: Data
         do {
-            data = try await SafeHTTP.load(page, using: session, limit: Self.pageLimit,
+            data = try await SafeHTTP.load(page, using: pageSession, limit: Self.pageLimit,
                                            headers: ["Cookie": "SOCS=CAI", "Accept-Language": "de"])
         } catch HTTPTransferError.httpStatus(404) where handle != nil {
             throw FeedRefreshError.noChannelForHandle(handle ?? "")

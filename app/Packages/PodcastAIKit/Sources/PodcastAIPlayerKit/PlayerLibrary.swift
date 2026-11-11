@@ -56,7 +56,29 @@ public final class PlayerLibrary {
     @ObservationIgnored private let container: ModelContainer
     @ObservationIgnored private var overlay: [SourceID: [Episode]] = [:]
     @ObservationIgnored private var observation: Task<Void, Never>?
-    @ObservationIgnored private lazy var session = SafeHTTP.makeSession()
+
+    /// Feeds auf der Platte, wie `FeedRefresher.feedCache` in der iOS-App:
+    /// der Server kann auf die Nachfrage mit 304 antworten. `URLCache`
+    /// nimmt Antworten bis 5 % seiner Kapazität; die Uhr lädt höchstens
+    /// 8 MB je Feed (`PlayerSession`).
+    static let feedCache: URLCache = {
+        #if os(watchOS)
+        let largestFeed = 8 * 1024 * 1024
+        #else
+        let largestFeed = Int(SafeHTTP.feedLimit)
+        #endif
+        return URLCache(
+            memoryCapacity: 0, diskCapacity: 20 * largestFeed,
+            directory: URL.cachesDirectory.appending(path: "PodcastAIPlayer/Feeds", directoryHint: .isDirectory))
+    }()
+
+    @ObservationIgnored lazy var session = SafeHTTP.makeSession { configuration in
+        // Jede Ladung fragt beim Server nach. Ohne diese Zeile liefert die
+        // Session einen kleinen Feed aus dem Speicher, ohne zu fragen, und
+        // mit dem Cache darunter jeden.
+        configuration.requestCachePolicy = .reloadRevalidatingCacheData
+        configuration.urlCache = PlayerLibrary.feedCache
+    }
 
     private var context: ModelContext { container.mainContext }
 
@@ -121,7 +143,12 @@ public final class PlayerLibrary {
 
     /// Lädt Abos und neueste Folgen neu.
     public func reload() {
+        let before = Set(shows.map(\.id))
         shows = loadShows()
+        // Ein Abo ist weg, meist über iCloud: sein gespeicherter Feed geht
+        // mit. Alle statt nur dieser, wie in `AppModel.runPurge`. Geleert
+        // wird der Cache der Session, damit ein Test seinen eigenen zählt.
+        if !before.isSubset(of: shows.map(\.id)) { session.configuration.urlCache?.removeAllCachedResponses() }
         latest = loadLatest(limit: 60)
     }
 

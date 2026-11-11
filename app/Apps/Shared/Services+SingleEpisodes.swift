@@ -137,7 +137,7 @@ extension FeedRefresher {
         }
         // Nicht unter den neuesten bei Apple, oder GUID und Adresse passen
         // nicht zum Feed: dann Titel und GUID von der Seite der Folge.
-        if index == nil, let data = try? await SafeHTTP.load(link, using: session, limit: Self.pageLimit) {
+        if index == nil, let data = try? await SafeHTTP.load(link, using: pageSession, limit: Self.pageLimit) {
             var locator = EpisodePageHints.parse(html: String(decoding: data, as: UTF8.self), pageURL: link).locator
             // Die Seite bei Apple ist keine Folgenseite des Podcasts.
             locator.pageURLs = []
@@ -153,7 +153,8 @@ extension FeedRefresher {
     /// Seite einer Folge. Nur wenn der Feed die Folge der Seite führt, gibt
     /// es eine Vorschau mit „Nur diese Folge“; sonst wird wie bisher abonniert.
     private func inspectPage(_ page: URL) async throws -> LinkTarget {
-        let data = try await fetch(page)
+        // Wie in `discoverFeedOnPage`: die Grenze für Feeds, die Session für Seiten.
+        let data = try await SafeHTTP.load(page, using: pageSession, limit: SafeHTTP.feedLimit, truncating: true)
         if let feed = try? parser.parse(data, baseURL: page) {
             previewed = (page, page, feed, Date())
             return .direct
@@ -277,7 +278,7 @@ extension FeedRefresher {
     /// Ohne das Cookie leitet YouTube in der EU auf eine Einwilligungsseite
     /// um, und dort steht weder Kanal noch Video.
     private func loadYouTubePage(_ url: URL) async throws -> Data {
-        try await SafeHTTP.load(url, using: session, limit: Self.pageLimit,
+        try await SafeHTTP.load(url, using: pageSession, limit: Self.pageLimit,
                                 headers: ["Cookie": "SOCS=CAI", "Accept-Language": "de"])
     }
 
