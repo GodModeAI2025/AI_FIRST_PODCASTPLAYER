@@ -50,8 +50,11 @@ public enum CalendarFile {
         text.replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: ";", with: "\\;")
             .replacingOccurrences(of: ",", with: "\\,")
-            .replacingOccurrences(of: "\r\n", with: "\\n")
-            .replacingOccurrences(of: "\n", with: "\\n")
+            // `.literal`: ohne sie bliebe ein Umbruch stehen, dem ein
+            // kombinierendes Zeichen wie ein Akzent folgt.
+            .replacingOccurrences(of: "\r\n", with: "\\n", options: .literal)
+            .replacingOccurrences(of: "\n", with: "\\n", options: .literal)
+            .replacingOccurrences(of: "\r", with: "\\n", options: .literal)
     }
 
     /// Zeilen über 75 Byte werden umbrochen, die Fortsetzung beginnt mit einem Leerzeichen.

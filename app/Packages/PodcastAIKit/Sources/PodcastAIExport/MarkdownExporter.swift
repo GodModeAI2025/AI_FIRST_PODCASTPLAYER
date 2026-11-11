@@ -55,7 +55,15 @@ public struct SafeSourceLink: Sendable, Equatable {
     /// Hex-/Base64-Alphabet ist kein Folgentitel. Im Zweifel kein Link —
     /// der Export nennt dann Titel, Anbieter und Originalzeit.
     static func pathLooksLikeToken(_ path: String) -> Bool {
-        for segment in path.split(separator: "/") where segment.count >= 16 {
+        for segment in path.split(separator: "/") {
+            // Kurze Zahlen zwischen Trennern sind Datum, Staffel oder
+            // Folgennummer. Bei der Länge zählen sie nicht mit, sonst gälte
+            // „2024-01-15-ep-42-xyz“ als Token. Ein Token am Stück und eine
+            // UUID bleiben auch ohne sie lang genug.
+            let shortNumbers = segment.split(whereSeparator: { $0 == "-" || $0 == "_" })
+                .filter { $0.count <= 4 && $0.allSatisfy(\.isNumber) }
+                .reduce(0) { $0 + $1.count }
+            guard segment.count - shortNumbers >= 16 else { continue }
             let alphabet = segment.allSatisfy {
                 $0.isHexDigit || $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_"
             }

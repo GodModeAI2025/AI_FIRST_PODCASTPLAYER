@@ -328,6 +328,27 @@ struct SharedLinkClassificationTests {
         #expect(SharedLinks.link(in: "file:///Users/x/folge.mp3") == nil)
     }
 
+    @Test("Klammern und Satzzeichen um den Link gehören nicht zur Adresse")
+    func linkWithoutSurroundingPunctuation() {
+        #expect(SharedLinks.link(in: "Neue Folge: https://example.com/ep1).")?.absoluteString
+                == "https://example.com/ep1")
+        #expect(SharedLinks.link(in: "Hör mal (https://example.com/ep1)")?.absoluteString
+                == "https://example.com/ep1")
+        #expect(SharedLinks.link(in: "https://example.com/feed.xml")?.absoluteString == "https://example.com/feed.xml")
+        // Die Abo-Schemata gelten mitten im Satz wie vorher.
+        #expect(SharedLinks.link(in: "Abonnieren: feed://example.com/feeds/morgenlage.xml, jetzt")?.absoluteString
+                == "feed://example.com/feeds/morgenlage.xml")
+        // Ohne `://` im Text bleibt es dabei: kein Link, auch wenn die
+        // Erkennung aus einer Domain oder Mailadresse eine Adresse macht.
+        for text in ["heute.de", "Schau mal auf heute.de vorbei", "Schreib an hallo@example.com, bitte"] {
+            #expect(SharedLinks.link(in: text) == nil, "\(text)")
+        }
+        // Sehr lange Adressen kappt die Erkennung mitten im Wort. Sie kommen
+        // trotzdem ganz an.
+        let long = "https://example.com/" + String(repeating: "a", count: 400)
+        #expect(SharedLinks.link(in: "Hör mal \(long) und mehr")?.absoluteString == long)
+    }
+
     /// Die Erweiterung erfindet keine eigenen Regeln: Was `SourceResolver`,
     /// `EpisodeLinks` und `SocialLinks` sagen, sagt auch die Einordnung.
     @Test("Dieselben Regeln wie SourceResolver, EpisodeLinks und SocialLinks")

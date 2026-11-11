@@ -42,6 +42,25 @@ struct FeedLimitTests {
         #expect(feed.items.first?.title == "Folge 40")
     }
 
+    /// Die Grenze je Textknoten zählt Bytes. Nach Zeichen gezählt lief der
+    /// Parser bei jedem Stück durch den ganzen bisherigen Text, und dieser
+    /// Feed brauchte Sekunden.
+    @Test("Ein Textknoten endet nach einem Megabyte, auch wenn er aus Umlauten besteht")
+    func textNodeLimitCountsBytes() throws {
+        let xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel><title>Lang</title>
+        <item><guid>lang</guid><title>Folge</title>\
+        <description>\(String(repeating: "ä", count: 600_000))</description>\
+        <enclosure url="https://example.com/lang.mp3" length="1000" type="audio/mpeg"/></item>
+        </channel></rss>
+        """
+        let feed = try FeedParser().parse(Data(xml.utf8))
+        let bytes = try #require(feed.items.first?.summary).utf8.count
+        #expect(bytes >= 1_000_000)
+        #expect(bytes < 1_100_000)
+    }
+
     @Test("http wird zu https, alles andere bleibt")
     func upgradesHTTP() {
         let http = URL(string: "http://feeds.feedburner.com/marketingovercoffee?x=1")!

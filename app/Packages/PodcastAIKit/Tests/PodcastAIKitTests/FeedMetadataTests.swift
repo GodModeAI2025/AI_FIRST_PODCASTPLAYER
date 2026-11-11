@@ -339,6 +339,23 @@ struct FeedMetadataTests {
         #expect(try ChapterFile.parse(Data(chapters.utf8)).map(\.title) == ["Intro"])
     }
 
+    @Test("Eine absurde Dauer fällt weg, statt beim Rechnen überzulaufen")
+    func absurdDurationDoesNotTrap() {
+        #expect(FeedDateParser.durationSeconds(from: "999999999999999999:00") == nil)
+        #expect(FeedDateParser.durationSeconds(from: "999999999999999999:00:00") == nil)
+        #expect(FeedDateParser.durationSeconds(from: "1:02:03") == 3723)
+        #expect(FeedDateParser.durationSeconds(from: "62:03") == 3723)
+        #expect(FeedDateParser.durationSeconds(from: "3723") == 3723)
+        // Auf der Uhr hat `Int` 32 Bit. Schon 600000 Stunden liefen dort beim
+        // Rechnen über, und 2147484 Sekunden beim Ablegen in Millisekunden.
+        // Hier läuft der Test in 64 Bit, deshalb prüft er die Grenze selbst.
+        #expect(FeedDateParser.durationSeconds(from: "600000:00:00") == nil)
+        #expect(FeedDateParser.durationSeconds(from: "2147484") == nil)
+        #expect(FeedDateParser.durationSeconds(from: "1000001") == nil)
+        #expect(FeedDateParser.durationSeconds(from: "277:46:40") == 1_000_000)
+        #expect(FeedDateParser.durationSeconds(from: ":") == nil)
+    }
+
     @Test("Zwei Sprecher im selben Zeitbereich werden ein Stück")
     func sameRangeCuesCollapse() throws {
         let vtt = """

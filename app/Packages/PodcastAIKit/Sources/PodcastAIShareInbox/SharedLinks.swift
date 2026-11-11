@@ -40,12 +40,25 @@ public enum SharedLinks {
     /// Die Adresse aus einer Freigabe. Viele Apps teilen einen Satz mit dem
     /// Link am Ende, andere nur den Link. Genommen wird der erste Link, den
     /// `SourceResolver` annimmt; Dateien auf dem Gerät zählen nicht.
+    ///
+    /// Wo ein Link im Satz anfängt und aufhört, sagt `NSDataDetector`: die
+    /// Klammer davor und Klammer oder Punkt dahinter gehören nicht dazu. Was
+    /// der Detektor selbst zu einer Adresse ergänzt, etwa „heute.de“ oder
+    /// eine Mailadresse, fällt in `accepted` durch, weil im Text kein `://`
+    /// steht.
     public static func link(in text: String) -> URL? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         if let whole = accepted(trimmed) { return whole }
-        for word in trimmed.split(whereSeparator: \.isWhitespace) where word.contains("://") {
-            if let url = accepted(String(word)) { return url }
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        for match in detector?.matches(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) ?? [] {
+            guard let range = Range(match.range, in: trimmed) else { continue }
+            // Sehr lange Adressen kappt der Detektor mitten im Wort. Stehen
+            // bis zum nächsten Leerzeichen noch Buchstaben oder Ziffern,
+            // gilt deshalb das ganze Wort.
+            let rest = trimmed[range.upperBound...].prefix(while: { !$0.isWhitespace })
+            let end = rest.contains(where: { $0.isLetter || $0.isNumber }) ? rest.endIndex : range.upperBound
+            if let url = accepted(String(trimmed[range.lowerBound..<end])) { return url }
         }
         return nil
     }

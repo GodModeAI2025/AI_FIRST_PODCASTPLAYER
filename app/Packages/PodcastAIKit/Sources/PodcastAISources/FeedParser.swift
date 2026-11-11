@@ -47,7 +47,9 @@ public struct ParsedFeed: Sendable, Equatable {
 
 public struct ParsedItem: Sendable, Equatable {
     /// Stabile Kennung aus dem Feed. Grundlage der Deduplizierung — zweimal
-    /// einlesen darf keine zweite Folge erzeugen.
+    /// einlesen darf keine zweite Folge erzeugen. `nil`, wenn der Feed
+    /// dieselbe GUID an Folgen mit verschiedenen Audiodateien vergibt; dann
+    /// zählt die Audioadresse.
     public var guid: String?
     public var title: String
     public var summary: String?
@@ -168,13 +170,16 @@ public struct FeedParser: Sendable {
 
     public init() {}
 
-    public func parse(_ data: Data) throws -> ParsedFeed {
+    /// `baseURL` ist die Adresse, von der der Feed kam. Relative Verweise wie
+    /// `/media/ep1.mp3` oder `../ep1.mp3` werden dagegen aufgelöst; ohne sie
+    /// fallen sie wie bisher weg. `xml:base` wird nicht ausgewertet.
+    public func parse(_ data: Data, baseURL: URL? = nil) throws -> ParsedFeed {
         guard !data.isEmpty else { throw FeedParseError.empty }
         guard data.count <= Self.maximumBytes else {
             throw FeedParseError.tooLarge(bytes: data.count)
         }
 
-        let delegate = FeedParserDelegate()
+        let delegate = FeedParserDelegate(baseURL: baseURL)
         let parser = XMLParser(data: data)
         parser.delegate = delegate
         // XXE-Abwehr: keine externen Entitäten, kein Netzwerkzugriff beim Parsen.
@@ -203,9 +208,18 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
     var feed = ParsedFeed()
     var sawFeedRoot = false
 
+    /// Die Adresse des Feeds, gegen die relative Verweise aufgelöst werden.
+    private let baseURL: URL?
     private var elementStack: [String] = []
     private var text = ""
     private var currentItem: ParsedItem?
+    /// `updated` des laufenden Atom-Eintrags, falls `published` fehlt.
+    private var updatedAt: Date?
+    /// Audiodatei und Seite des laufenden Eintrags gelten erst seit den
+    /// neueren Regeln: Anhang ohne Audiotyp, relative Adresse. Vorher hatte
+    /// der Eintrag an der Stelle nichts.
+    private var audioIsLate = false
+    private var pageIsLate = false
     private var inImage = false
     private var itemCount = 0
     /// Höchstens so viele Rubriken und Stichworte, gegen entartete Feeds.
@@ -224,9 +238,30 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
         static let dc = "http://purl.org/dc/elements/1.1/"
     }
 
+    init(baseURL: URL?) {
+        self.baseURL = baseURL
+    }
+
     func finish() -> ParsedFeed {
         var result = feed
         result.items = result.items.filter(\.isUsable)
+
+        // Manche Hoster setzen bei jeder Folge dieselbe GUID ein, etwa die
+        // Startseite. Steht eine GUID an Folgen mit verschiedenen
+        // Audiodateien, unterscheidet sie nichts: sie fällt dort weg, und es
+        // zählt wie ohne GUID die Audioadresse. Echte Doppelte, also gleiche
+        // GUID und gleiche Datei, behalten sie.
+        var audioByGUID: [String: Set<String>] = [:]
+        for item in result.items {
+            if let guid = item.guid, let audio = item.audioURL?.absoluteString {
+                audioByGUID[guid, default: []].insert(audio)
+            }
+        }
+        for index in result.items.indices where result.items[index].audioURL != nil {
+            if let guid = result.items[index].guid, audioByGUID[guid, default: []].count > 1 {
+                result.items[index].guid = nil
+            }
+        }
         return result
     }
 
@@ -252,11 +287,14 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
             }
             itemCount += 1
             currentItem = ParsedItem()
+            updatedAt = nil
+            audioIsLate = false
+            pageIsLate = false
 
         case (NS.itunes, "image"):
             // Vor dem allgemeinen `image`: sonst fing jenes auch
             // `itunes:image` ab, und dessen `href` ging verloren.
-            if let url = Self.url(attributeDict["href"]) {
+            if let url = resolved(attributeDict["href"]) {
                 if isInsideItem { currentItem?.artworkURL = url } else { feed.artworkURL = url }
             }
 
@@ -271,22 +309,19 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
 
         case (_, "enclosure"):
             // RSS-Audioanhang.
-            if attributeDict["type"]?.lowercased().hasPrefix("audio") ?? false,
-               let url = Self.url(attributeDict["url"]) {
-                currentItem?.audioURL = url
+            if takeAudio(attributeDict["url"], type: attributeDict["type"]) {
                 currentItem?.audioMimeType = attributeDict["type"]
                 currentItem?.audioByteCount = attributeDict["length"].flatMap(Int64.init)
             }
 
         case (NS.media, "content"):
             if let type = attributeDict["type"]?.lowercased(), type.hasPrefix("audio"),
-               let url = Self.url(attributeDict["url"]) {
-                currentItem?.audioURL = url
+               takeAudio(attributeDict["url"], type: type) {
                 currentItem?.audioMimeType = type
             }
 
         case (NS.media, "thumbnail"):
-            if let url = Self.url(attributeDict["url"]) {
+            if let url = resolved(attributeDict["url"]) {
                 if isInsideItem { currentItem?.artworkURL = url } else { feed.artworkURL = url }
             }
 
@@ -297,10 +332,10 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
             }
 
         case (NS.podcast20, "chapters"):
-            if let url = Self.url(attributeDict["url"]) { currentItem?.chaptersURL = url }
+            if let url = resolved(attributeDict["url"]) { currentItem?.chaptersURL = url }
 
         case (NS.podcast20, "transcript"):
-            if let url = Self.url(attributeDict["url"]), let type = attributeDict["type"] {
+            if let url = resolved(attributeDict["url"]), let type = attributeDict["type"] {
                 currentItem?.transcripts.append(
                     ParsedTranscriptRef(url: url, mimeType: type, language: attributeDict["language"])
                 )
@@ -308,16 +343,15 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
 
         case (NS.atom, "link"):
             let rel = attributeDict["rel"] ?? "alternate"
-            guard let href = Self.url(attributeDict["href"]) else { break }
+            guard let href = resolved(attributeDict["href"]) else { break }
             switch rel {
             case "alternate":
-                if isInsideItem { currentItem?.webPageURL = href } else { feed.websiteURL = href }
+                if isInsideItem { takePage(href, raw: attributeDict["href"]) } else { feed.websiteURL = href }
             case "next":
                 // Paginiertes Archiv: hier endet das Feedfenster, nicht das Archiv.
                 if !isInsideItem { feed.nextPageURL = href }
             case "enclosure":
-                if attributeDict["type"]?.lowercased().hasPrefix("audio") ?? false {
-                    currentItem?.audioURL = href
+                if takeAudio(attributeDict["href"], type: attributeDict["type"]) {
                     currentItem?.audioMimeType = attributeDict["type"]
                 }
             default:
@@ -330,14 +364,16 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
     }
 
     func parser(_ parser: XMLParser, foundCharacters string: String) {
-        // Obergrenze je Textknoten gegen entartete Dokumente.
-        guard text.count < 1_000_000 else { return }
+        // Obergrenze je Textknoten gegen entartete Dokumente. In Bytes:
+        // `count` liefe bei jedem Aufruf durch den ganzen Text, und der
+        // Parser ruft für jede Entität und alle paar hundert Byte neu auf.
+        guard text.utf8.count < 1_000_000 else { return }
         text += string
     }
 
     func parser(_ parser: XMLParser, foundCDATA CDATABlock: Data) {
         guard let string = String(data: CDATABlock, encoding: .utf8) else { return }
-        guard text.count < 1_000_000 else { return }
+        guard text.utf8.count < 1_000_000 else { return }
         text += string
     }
 
@@ -356,11 +392,18 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
         switch (namespaceURI, name) {
         case (_, "item"), (NS.atom, "entry"):
             if var item = currentItem {
+                if item.publishedAt == nil { item.publishedAt = updatedAt }
                 // Ohne GUID die stabilste verfügbare Ersatzkennung bilden.
+                // Was erst seit den neueren Regeln gilt, steht dabei hinten:
+                // die Folge gab es vorher schon, etwa ohne Audio mit ihrer
+                // Seite als Kennung, und die behält sie.
                 if item.guid == nil {
-                    item.guid = item.audioURL?.absoluteString
-                        ?? item.webPageURL?.absoluteString
+                    let audio = item.audioURL?.absoluteString
+                    let page = item.webPageURL?.absoluteString
+                    item.guid = (audioIsLate ? nil : audio)
+                        ?? (pageIsLate ? nil : page)
                         ?? item.youTubeVideoID
+                        ?? audio ?? page
                 }
                 feed.items.append(item)
             }
@@ -375,12 +418,14 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
 
         case (_, "link"):
             // Atom-Links kommen über Attribute; hier nur der RSS-Textknoten.
-            guard let url = Self.url(value) else { break }
-            if isInsideItem { currentItem?.webPageURL = url }
+            guard let url = resolved(value) else { break }
+            if isInsideItem { takePage(url, raw: value) }
             else if !inImage { feed.websiteURL = url }
 
         case (_, "guid"), (NS.atom, "id"), (NS.yt, "videoid"):
-            if isInsideItem, currentItem?.guid == nil { currentItem?.guid = value }
+            // Eine leere GUID ist keine: sonst hätten alle Folgen eines Feeds
+            // mit `<guid></guid>` dieselbe Kennung.
+            if isInsideItem, currentItem?.guid == nil, !value.isEmpty { currentItem?.guid = value }
             if namespaceURI == NS.yt { currentItem?.youTubeVideoID = value }
 
         case (NS.content, "encoded"):
@@ -393,10 +438,16 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
                 feed.summary = value
             }
 
-        case (_, "pubdate"), (NS.atom, "published"), (NS.atom, "updated"):
+        case (_, "pubdate"), (NS.atom, "published"):
             if isInsideItem, currentItem?.publishedAt == nil {
                 currentItem?.publishedAt = FeedDateParser.date(from: value)
             }
+
+        case (NS.atom, "updated"):
+            // Nur Ersatz für ein fehlendes `published`. WordPress nennt
+            // `updated` zuerst und setzt es bei jeder Korrektur neu; als Datum
+            // der Folge erschiene ein alter Beitrag damit wieder als neu.
+            if isInsideItem, updatedAt == nil { updatedAt = FeedDateParser.date(from: value) }
 
         case (NS.itunes, "duration"):
             currentItem?.duration = FeedDateParser.durationSeconds(from: value)
@@ -452,11 +503,59 @@ private final class FeedParserDelegate: NSObject, XMLParserDelegate {
 
         case (_, "url"):
             // `<image><url>` in RSS.
-            if inImage, !isInsideItem, let url = Self.url(value) { feed.artworkURL = url }
+            if inImage, !isInsideItem, let url = resolved(value) { feed.artworkURL = url }
 
         default:
             break
         }
+    }
+
+    /// Nimmt einen Anhang als Audiodatei des Eintrags, wenn er eine ist.
+    ///
+    /// Sagt der Typ „audio“ und ist die Adresse vollständig, gilt der Anhang
+    /// wie bisher, und der letzte gewinnt. Neuer sind zwei Fälle: die
+    /// relative Adresse, und der Anhang, dessen Typ fehlt oder nichts sagt
+    /// (`application/octet-stream`); bei ihm entscheidet die Dateiendung.
+    /// Beide füllen nur eine Lücke: hat der Eintrag schon eine Audiodatei,
+    /// bleibt sie. `mp4` zählt über die Endung nicht, ohne Typ ist das im
+    /// Feed meist ein Video.
+    private func takeAudio(_ raw: String?, type: String?) -> Bool {
+        guard let url = resolved(raw) else { return false }
+        let type = type?.lowercased() ?? ""
+        if type.hasPrefix("audio"), Self.url(raw) != nil {
+            audioIsLate = false
+        } else {
+            let untyped = ["", "application/octet-stream"].contains(type.trimmingCharacters(in: .whitespaces))
+            let byExtension = untyped && SourceResolver.looksLikeAudioURL(url)
+                && url.pathExtension.lowercased() != "mp4"
+            guard currentItem?.audioURL == nil, type.hasPrefix("audio") || byExtension else { return false }
+            audioIsLate = true
+        }
+        currentItem?.audioURL = url
+        return true
+    }
+
+    /// Die Seite der Folge. Eine relative Adresse füllt wie bei der
+    /// Audiodatei nur eine Lücke.
+    private func takePage(_ url: URL, raw: String?) {
+        let late = Self.url(raw) == nil
+        if late, currentItem?.webPageURL != nil { return }
+        currentItem?.webPageURL = url
+        pageIsLate = late
+    }
+
+    /// Wie `Self.url`, löst aber einen relativen Verweis gegen die Adresse
+    /// des Feeds auf. Geprüft wird, was dabei herauskommt.
+    ///
+    /// Relativ ist nur, was mit `/`, `.` oder `?` beginnt. Feeds schreiben
+    /// auch „siriusxm.com“ oder „www.example.com/folge.mp3“ und meinen eine
+    /// Adresse ohne Schema, keinen Pfad neben dem Feed. Aufgelöst entstünde
+    /// daraus eine Adresse, die es nicht gibt. So etwas fällt wie bisher weg.
+    private func resolved(_ string: String?) -> URL? {
+        if let url = Self.url(string) { return url }
+        guard let baseURL, let string = string?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let first = string.first, "/.?".contains(first) else { return nil }
+        return Self.url(URL(string: string, relativeTo: baseURL)?.absoluteString)
     }
 
     /// Nimmt eine Rubrik oder ein Stichwort auf: getrimmt, nicht leer, nicht

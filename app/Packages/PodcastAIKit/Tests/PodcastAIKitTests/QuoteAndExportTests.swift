@@ -158,3 +158,49 @@ struct MarkdownFileExportTests {
         #expect(!text.contains("\\#") && !text.contains("**"))
     }
 }
+
+@Suite("Export: Kalenderdatei und Quellenlinks")
+struct CalendarAndLinkExportTests {
+
+    @Test("Ein einzelner Wagenrücklauf bricht keine Zeile der Kalenderdatei um")
+    func loneCarriageReturnIsEscaped() {
+        let text = CalendarFile.event(
+            title: "Workshop\rBerlin", start: Date(timeIntervalSince1970: 1_790_000_000), allDay: false,
+            notes: "Zeile eins\rZeile zwei\r\nZeile drei")
+        #expect(text.contains("SUMMARY:Workshop\\nBerlin\r\n"))
+        #expect(text.contains("DESCRIPTION:Zeile eins\\nZeile zwei\\nZeile drei\r\n"))
+        // Außer an den Zeilenenden steht nirgends mehr ein Wagenrücklauf.
+        #expect(!text.components(separatedBy: "\r\n").contains { $0.contains("\r") })
+        // Auch nicht, wenn dem Umbruch ein kombinierendes Zeichen folgt: die
+        // Suche nach Schriftzeichen fände ihn dann nicht.
+        for lineBreak in ["\r", "\n", "\r\n"] {
+            #expect(CalendarFile.escape("eins\(lineBreak)\u{0301}zwei") == "eins\\n\u{0301}zwei")
+        }
+    }
+
+    @Test("Datum und Folgennummer im Pfad machen aus einem Link kein Token")
+    func dateSlugsStayLinks() {
+        for slug in ["2024-01-15-ep-42-xyz", "ep-123-2024-01-15", "2024_01_15_ep_42", "s03e12-2024-01-15-kurz"] {
+            #expect(!SafeSourceLink.pathLooksLikeToken("/folgen/\(slug)"), "\(slug)")
+        }
+        #expect(SafeSourceLink(publicURL: URL(string: "https://example.com/2024-01-15-ep-42-xyz")) != nil)
+    }
+
+    /// Die Prüfung erkennt ein Token an fehlenden Vokalen. Kurze Zahlen
+    /// darin oder ein Datum davor dürfen daran nichts ändern.
+    @Test("Ein Token bleibt ein Token, auch mit Datum davor und Zahlengruppen darin")
+    func tokensStayTokens() {
+        let tokens = [
+            "3f9c2b7d4c8b1f6d9c0b3d2f5c7b8d1f",        // Hex
+            "kJ8sXq2LmZ9pQwRt7YvB3nHc",                // wie Base64
+            "kJ8sXq2L-mZ9pQwRt_7YvB3nHc",              // Base64 für Adressen, mit - und _
+            "3f2b8c1d-1234-4d5f-9b2c-1d3f5b7c9d2b",    // UUID mit einer Gruppe nur aus Ziffern
+            "XkQzRtWpLmNbVcDfGhJk",                    // zufällige Groß- und Kleinbuchstaben
+            "2024-01-15-3f9c2b7d4c8b1f6d",             // Datum vor einem Token
+        ]
+        for token in tokens {
+            #expect(SafeSourceLink.pathLooksLikeToken("/feed/\(token)"), "\(token)")
+            #expect(SafeSourceLink(publicURL: URL(string: "https://example.com/feed/\(token)/rss")) == nil, "\(token)")
+        }
+    }
+}
