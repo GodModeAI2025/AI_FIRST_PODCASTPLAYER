@@ -745,8 +745,7 @@ public final class ChatLookupLedger: Sendable {
     /// Verweisnummer vortäuscht, und Linien aus Binde- oder Gedankenstrichen
     /// fallen weg, damit kein Text das Ende des Blocks vortäuscht. Gilt für
     /// die Ergebnisse der Werkzeuge, das bisherige Gespräch, die
-    /// Kandidatenliste, den Block BIBLIOTHEK und den Kapiteltitel beim Satz
-    /// je Kapitel.
+    /// Kandidatenliste, den Block BIBLIOTHEK, Kapiteltitel und Schlagworte.
     static func dataText(_ raw: String, limit: Int) -> String {
         var text = EvidenceSelectionValidator.sanitize(raw, limit: limit)
         text = text.replacingOccurrences(of: "[", with: "(").replacingOccurrences(of: "]", with: ")")

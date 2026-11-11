@@ -158,11 +158,11 @@ extension AppModel {
     }
 
     /// Kennt die Liste im Speicher genau die gesicherten Updates? Nur dann
-    /// schreibt die App „Angesagt“ von selbst. Das Sichern schreibt die ganze
-    /// Liste: Was ihr fehlt, etwa ein Update, das gerade über iCloud kam,
-    /// verschwände aus der Datenbank, und was nur sie noch hat, weil ein
-    /// anderes Gerät es gelöscht hat, käme zurück. Stimmt es nicht, holt das
-    /// nächste Abgleichen nach dem Neuladen das Schreiben nach.
+    /// schreibt die App „Angesagt“ von selbst. Geschrieben wird zwar nur noch
+    /// die eigene Zeile, entschieden wird aber aus der Liste: Ist sie
+    /// veraltet, überschriebe die App die Tags, die ein anderes Gerät gerade
+    /// geschrieben hat. Stimmt es nicht, holt das nächste Abgleichen nach dem
+    /// Neuladen das Schreiben nach.
     private func storeMatchesSmartFeeds() async -> Bool {
         guard let stored = try? await store.smartFeeds() else { return false }
         return Set(stored.map(\.id)) == Set(smartFeeds.map(\.id))

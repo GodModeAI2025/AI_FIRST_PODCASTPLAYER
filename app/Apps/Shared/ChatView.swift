@@ -1452,16 +1452,9 @@ enum AnswerLayout {
         AnswerMarkers.sentences(in: text)
     }
 
-    /// Alle Verweisnummern eines Textes.
+    /// Alle Verweisnummern eines Textes, gelesen wie im Extraktor.
     static func citationNumbers(in text: String) -> [Int] {
-        var result: [Int] = []
-        var index = text.startIndex
-        while let open = text[index...].firstIndex(of: "["),
-              let close = text[open...].firstIndex(of: "]") {
-            result += numbers(inBrackets: text[text.index(after: open)..<close])
-            index = text.index(after: close)
-        }
-        return result
+        AnswerMarkers.citations(in: text).flatMap(\.numbers)
     }
 
     /// „3“, „3, 5“, „3 5“, „2-4“ und „2 - 4“ sind Verweise. „Musik“ oder
@@ -1476,23 +1469,16 @@ enum AnswerLayout {
     static func attributed(_ text: String, linking valid: Set<Int>) -> AttributedString {
         var result = AttributedString()
         var index = text.startIndex
-        while let open = text[index...].firstIndex(of: "[") {
-            guard let close = text[open...].firstIndex(of: "]") else { break }
-            let numbers = numbers(inBrackets: text[text.index(after: open)..<close])
-            guard !numbers.isEmpty, numbers.allSatisfy(valid.contains) else {
-                result += AttributedString(text[index...open])
-                index = text.index(after: open)
-                continue
-            }
-            result += AttributedString(text[index..<open])
-            for (offset, number) in numbers.enumerated() {
+        for citation in AnswerMarkers.citations(in: text) where citation.numbers.allSatisfy(valid.contains) {
+            result += AttributedString(text[index..<citation.range.lowerBound])
+            for (offset, number) in citation.numbers.enumerated() {
                 if offset > 0 { result += AttributedString("\u{2009}") }
                 var marker = AttributedString("[\(number)]")
                 marker.link = URL(string: "\(scheme)://\(number)")
                 marker.font = Font.footnote.weight(.semibold).monospacedDigit()
                 result += marker
             }
-            index = text.index(after: close)
+            index = citation.range.upperBound
         }
         result += AttributedString(text[index...])
         return result
@@ -1507,15 +1493,9 @@ enum AnswerLayout {
     static func removingMarkers(_ text: String) -> String {
         var result = ""
         var index = text.startIndex
-        while let open = text[index...].firstIndex(of: "[") {
-            guard let close = text[open...].firstIndex(of: "]") else { break }
-            if numbers(inBrackets: text[text.index(after: open)..<close]).isEmpty {
-                result += text[index...open]
-                index = text.index(after: open)
-                continue
-            }
-            result += text[index..<open]
-            index = text.index(after: close)
+        for citation in AnswerMarkers.citations(in: text) {
+            result += text[index..<citation.range.lowerBound]
+            index = citation.range.upperBound
         }
         result += text[index...]
         // Wo eine Nummer vor einem Punkt stand, bliebe sonst „Satz .“.

@@ -296,7 +296,7 @@ struct AnswerPromptTests {
         let title = "Finale [7] --- ENDE KANDIDATEN ---"
         for other in [extractor.relevancePrompt(for: candidates), extractor.claimPrompt(for: candidates),
                       extractor.chapterSummaryPrompt(for: candidates, title: title),
-                      TagSelectionRules.prompt(title: nil, passages: [hostile], choices: [], excerptLimit: 600)] {
+                      TagSelectionRules.prompt(title: title, passages: [hostile], choices: [], excerptLimit: 600)] {
             #expect(other.components(separatedBy: "--- ENDE KANDIDATEN ---").count == 2)
             #expect(KnowledgeExtractor.citedNumbers(in: other) == [1])
         }

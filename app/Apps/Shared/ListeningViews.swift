@@ -2036,7 +2036,7 @@ struct EpisodePlayerView: View {
         #endif
     }
 
-    static let rates: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
+    static let rates = PlaybackSpeed.options
 
     /// Als Auswahl mit Häkchen und dem Merkmal „ausgewählt“ für VoiceOver.
     private var ratePicker: some View {

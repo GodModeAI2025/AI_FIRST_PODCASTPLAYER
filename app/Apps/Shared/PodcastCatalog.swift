@@ -92,7 +92,7 @@ final class PodcastCatalog {
         #if DEBUG
         if usesFixtures {
             guard let data = CatalogFixtures.feed(for: feed) else { throw CatalogError.unreadableAnswer }
-            return PodcastPreview(try FeedParser().parse(data), feedURL: feed)
+            return PodcastPreview(try FeedParser().parse(data, baseURL: feed), feedURL: feed)
         }
         #endif
         return try await model.previewPodcast(feed)

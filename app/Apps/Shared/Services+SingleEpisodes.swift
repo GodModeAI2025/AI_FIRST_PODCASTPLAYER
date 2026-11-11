@@ -154,7 +154,7 @@ extension FeedRefresher {
     /// es eine Vorschau mit „Nur diese Folge“; sonst wird wie bisher abonniert.
     private func inspectPage(_ page: URL) async throws -> LinkTarget {
         let data = try await fetch(page)
-        if let feed = try? parser.parse(data) {
+        if let feed = try? parser.parse(data, baseURL: page) {
             previewed = (page, page, feed, Date())
             return .direct
         }
@@ -238,7 +238,7 @@ extension FeedRefresher {
             } catch {
                 throw FeedRefreshError.youTubeFeedUnavailable
             }
-            let feed = try parser.parse(data)
+            let feed = try parser.parse(data, baseURL: feedURL)
             playlistFeed = feed
             playlist = YouTubeLinkPreview.Playlist(
                 title: feed.title.isEmpty ? String(localized: "Playlist") : feed.title, feedURL: feedURL)
@@ -258,7 +258,7 @@ extension FeedRefresher {
         if let channelFeedURL {
             // YouTube liefert den Feed nicht immer. Die Vorschau zeigt dann
             // Kanal und Möglichkeiten ohne Videoliste.
-            channelFeed = try? parser.parse(try await fetch(channelFeedURL))
+            channelFeed = try? parser.parse(try await fetch(channelFeedURL), baseURL: channelFeedURL)
         }
         let name = pageInfo?.title ?? channelFeed?.author ?? channelFeed?.title
             ?? playlistFeed?.author ?? String(localized: "YouTube-Kanal")
@@ -287,7 +287,7 @@ extension FeedRefresher {
     /// Ist er schon abonniert, bleibt er es.
     public func addSingleEpisode(key: String, from preview: PodcastPreview) async throws -> AddedSource {
         guard let feedURL = preview.feedURL,
-              let item = preview.feed.items.first(where: { Self.episodeKey($0) == key }) else {
+              let item = preview.feed.items.first(where: { $0.episodeKey == key }) else {
             throw FeedRefreshError.episodeNotInFeed
         }
         let feed = preview.feed

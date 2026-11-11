@@ -192,15 +192,9 @@ final class CarPlayController: NSObject, CPNowPlayingTemplateObserver {
         Task { _ = try? await interface.pushTemplate(template, animated: true) }
     }
 
-    private static let rates: [Float] = [0.8, 1.0, 1.2, 1.5, 1.8, 2.0]
-
     private func cycleRate() {
         let player = model.episodePlayer
-        guard let index = Self.rates.firstIndex(where: { abs($0 - player.rate) < 0.01 }) else {
-            player.rate = 1.0
-            return
-        }
-        player.rate = Self.rates[(index + 1) % Self.rates.count]
+        player.rate = PlaybackSpeed.next(after: player.rate)
     }
 
     // MARK: - CPNowPlayingTemplateObserver

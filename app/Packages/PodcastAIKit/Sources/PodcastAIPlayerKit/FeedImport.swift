@@ -52,6 +52,6 @@ public enum FeedImport {
         _ feedURL: URL, using session: URLSession, limit: Int64 = SafeHTTP.feedLimit
     ) async throws -> ParsedFeed {
         let data = try await SafeHTTP.load(feedURL, using: session, limit: limit, truncating: true)
-        return try FeedParser().parse(data)
+        return try FeedParser().parse(data, baseURL: feedURL)
     }
 }

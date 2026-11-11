@@ -309,7 +309,7 @@ public final class PlayerLibrary {
             let row = StoredEpisode(identifier: episode.id.rawValue, title: episode.title)
             row.summary = episode.summary
             row.publishedAt = episode.publishedAt
-            row.declaredDurationMs = Int(episode.declaredDuration?.milliseconds ?? 0)
+            row.declaredDurationMs = Int(clamping: episode.declaredDuration?.milliseconds ?? 0)
             row.webPageURLString = episode.webPageURL?.absoluteString
             row.audioURLString = episode.audioURL?.absoluteString
             row.artworkURLString = episode.artworkURL?.absoluteString
@@ -396,7 +396,7 @@ public final class PlayerLibrary {
         let row = StoredEpisode(identifier: episode.id.rawValue, title: episode.title)
         row.publishedAt = episode.publishedAt
         row.audioURLString = episode.audioURL?.absoluteString
-        row.declaredDurationMs = Int(episode.declaredDuration?.milliseconds ?? 0)
+        row.declaredDurationMs = Int(clamping: episode.declaredDuration?.milliseconds ?? 0)
         row.removedAt = removedAt
         row.source = (try? context.fetch(FetchDescriptor<StoredSource>(
             predicate: #Predicate { $0.identifier == sid })))?.first

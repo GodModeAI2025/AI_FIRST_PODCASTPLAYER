@@ -2031,10 +2031,8 @@ public final class AppModel {
         player.stop()
         playerPlan = nil
         playerPosition = .zero
-        // `player.stop()` meldet selbst `.finished`, und der Beobachter
-        // bietet die Abschlusskarte dann schon an. Der Aufruf hier ist die
-        // Sicherung für den Fall, dass er das einmal nicht tut —
-        // `closureOfferedThisSession` macht den zweiten Aufruf wirkungslos.
+        // `player.stop()` meldet nur `.idle`, nie `.finished`. Die
+        // Abschlusskarte nach einem Stopp kommt deshalb von hier.
         offerClosure(ending: .userStopped, for: plan)
     }
 

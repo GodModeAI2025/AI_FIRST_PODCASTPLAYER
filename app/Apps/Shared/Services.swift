@@ -74,7 +74,7 @@ public struct PodcastPreview: Sendable {
 
     static func item(_ parsed: ParsedItem, at index: Int) -> Item {
         Item(id: index, title: parsed.title, publishedAt: parsed.publishedAt, duration: parsed.duration,
-             key: FeedRefresher.episodeKey(parsed),
+             key: parsed.episodeKey,
              canBeAdded: parsed.audioURL != nil || parsed.webPageURL != nil)
     }
 }
@@ -320,7 +320,7 @@ public actor FeedRefresher {
         // UI-Tests mit `-catalog-fixtures` abonnieren die Beispiel-Feeds ohne Netz.
         if ProcessInfo.processInfo.arguments.contains("-catalog-fixtures"),
            let data = CatalogFixtures.feed(for: url) {
-            return (url, try parser.parse(data))
+            return (url, try parser.parse(data, baseURL: url))
         }
         #endif
         if let kept = previewed {
@@ -334,7 +334,7 @@ public actor FeedRefresher {
         }
         var firstError: Error?
         do {
-            let parsed = try parser.parse(try await fetch(url))
+            let parsed = try parser.parse(try await fetch(url), baseURL: url)
             return (url, parsed)
         } catch {
             firstError = error
@@ -352,7 +352,7 @@ public actor FeedRefresher {
             guard let data = try? await SafeHTTP.load(page, using: session, limit: Self.pageLimit) else { continue }
             let html = String(decoding: data, as: UTF8.self)
             for candidate in FeedDiscovery.feedLinks(inHTML: html, base: page) where candidate != url {
-                if let parsed = try? parser.parse(try await fetch(candidate)) {
+                if let parsed = try? parser.parse(try await fetch(candidate), baseURL: candidate) {
                     return (candidate, parsed)
                 }
             }
@@ -396,7 +396,7 @@ public actor FeedRefresher {
         for source in try await store.sources() where source.refreshesAutomatically {
             guard let feedURL = source.feedURL else { continue }
             do {
-                let parsed = try parser.parse(try await fetch(feedURL))
+                let parsed = try parser.parse(try await fetch(feedURL), baseURL: feedURL)
                 newEpisodes += try await apply(parsed, to: source, insertingNewEpisodes: true).newEpisodes
             } catch {
                 // Eine kaputte Quelle darf den Lauf nicht abbrechen.
@@ -429,7 +429,7 @@ public actor FeedRefresher {
         guard let feedURL = source.feedURL else { throw FeedRefreshError.needsDiscovery }
         let data: Data
         if let feedData { data = feedData } else { data = try await fetch(feedURL) }
-        let parsed = try parser.parse(data)
+        let parsed = try parser.parse(data, baseURL: feedURL)
         var result = try await apply(parsed, to: source, insertingNewEpisodes: source.refreshesAutomatically)
         // YouTube-Feeds nennen kein Kanalbild. Fehlt es, kommt es wie beim
         // Anlegen von der Kanalseite.
@@ -511,14 +511,7 @@ public actor FeedRefresher {
         return text.isEmpty ? nil : String(text.prefix(4_000))
     }
 
-    /// Kennung aus der Feed-GUID. Der Titel taugt nicht: er ändert sich,
-    /// und zwei Folgen können gleich heißen.
-    nonisolated static func episodeKey(_ item: ParsedItem) -> String {
-        item.guid ?? item.audioURL?.absoluteString ?? item.title
-    }
-
     func makeEpisode(_ item: ParsedItem, sourceID: SourceID) -> Episode {
-        let key = Self.episodeKey(item)
         let duration = item.duration.map { MediaDuration(seconds: Double($0)) }
         // Kapitel: Podlove im Feed, sonst die Kapiteldatei, sonst die
         // Zeitmarken in Shownotes oder Beschreibung. Mit einer Kapiteldatei
@@ -529,7 +522,7 @@ public actor FeedRefresher {
             if chapters.isEmpty { chapters = TimestampChapters.parse(item.summary, duration: duration) }
         }
         return Episode(
-            id: EpisodeID(stable: "\(sourceID.rawValue)|\(key)"),
+            id: item.episodeID(in: sourceID),
             sourceID: sourceID,
             title: item.title,
             summary: item.summary,
@@ -586,7 +579,7 @@ public actor FeedRefresher {
         // oder `feeds.megaphone.fm/ESHO5419936864`. Ein Feed mit 2000 Folgen
         // hat über 20 MB und scheiterte hier an der Seitengrenze.
         let data = try await fetch(page)
-        if let feed = try? parser.parse(data) { return (page, feed) }
+        if let feed = try? parser.parse(data, baseURL: page) { return (page, feed) }
         let html = String(decoding: data, as: UTF8.self)
 
         guard let feedURL = FeedDiscovery.feedLinks(inHTML: html, base: page).first else {
