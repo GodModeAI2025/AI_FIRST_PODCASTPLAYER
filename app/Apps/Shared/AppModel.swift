@@ -492,6 +492,12 @@ public final class AppModel {
     /// Fakten je Folge, wie sie die Folgenansicht, der Chat und der Export zeigen.
     /// Je Folge beobachtbar, siehe `EpisodeProgress`.
     public var facts: EpisodeProgressMap<[EpisodeFact]> { EpisodeProgressMap(episodeProgress, \.facts) }
+    /// Folgen, deren Fakten eine Ansicht in diesem Start geladen hat. Ändert
+    /// ein Abgleich Fakten, ohne die Folgen zu nennen, liest die App nur
+    /// diese neu. In `facts` steht auch jede Folge, deren Fakten die Stufe
+    /// „Wissen“ gesammelt hat. Sie alle neu zu lesen kostete nach Tagen am
+    /// Mac über hundert Abfragen je Abgleich, für Folgen, die niemand ansieht.
+    @ObservationIgnored var factsShown: Set<EpisodeID> = []
     public internal(set) var factsInProgress: Set<EpisodeID> = []
 
     // MARK: Fakten im Hintergrund (Stufe „Wissen“, Spiegel in PipelineSink.swift)
@@ -836,9 +842,14 @@ public final class AppModel {
             }
             // Alle Folgen im Speicher halten: Chat, Warteschlange und das
             // Vorbereiten brauchen sie, nicht nur die gerade geöffnete Liste.
+            // Zugewiesen wird nur, was sich geändert hat, denn jede Zuweisung
+            // zeichnet alles neu, was Folgen zeigt. Und je Quelle gleich nach
+            // dem Lesen: Alle Listen erst am Ende einzutragen überschriebe,
+            // was währenddessen gelöscht oder frischer geladen wurde.
             for source in sources {
                 let list = try await store.episodes(forSource: source.id)
-                episodes[source.id] = withSupadataMetadata(list)
+                let shown = withSupadataMetadata(list)
+                if episodes[source.id] != shown { episodes[source.id] = shown }
                 RemoteMediaRegistry.shared.register(list)
             }
             // Kanalbild und -name aus Metadaten, jetzt, da die Folgen da sind.
@@ -940,10 +951,15 @@ public final class AppModel {
     }
 
     /// So viele Stellen mit Zeitmarke lesen „Für dich“, die Vorschläge und
-    /// der Chat. Die Voreinstellung des Speichers liefert
-    /// nur 500, und zwar die ältesten. Nach gut einem Dutzend Folgen mit
-    /// Transkript fiele alles Neue heraus.
+    /// der Chat. Liegen mehr vor, liefert der Speicher die der neuesten
+    /// Folgen (`evidenceForAnalyzedEpisodes(limit:)`).
     static let evidencePoolLimit = 20_000
+
+    /// Zählt die Läufe von `refreshRelevantToday()`. Nur der jüngste schreibt
+    /// sein Ergebnis. Ein älterer Lauf rechnet noch mit dem Profil und dem
+    /// Hörzustand von vorher und brächte sonst zurück, was der neuere schon
+    /// weggelassen hat.
+    @ObservationIgnored private var relevantTicket = 0
 
     /// Stellt „Für dich“ zusammen.
     ///
@@ -964,6 +980,8 @@ public final class AppModel {
     public func refreshRelevantToday() async {
         let trace = ProcessingTrace.begin("Für dich")
         defer { ProcessingTrace.end("Für dich", trace) }
+        relevantTicket += 1
+        let ticket = relevantTicket
         do {
             let evidence = try await store.evidenceForAnalyzedEpisodes(limit: Self.evidencePoolLimit)
             // Über Kapitel-Tags, denen jemand folgt. Folgen, die noch kein
@@ -980,12 +998,17 @@ public final class AppModel {
                                        ledger: ledger, dismissed: dismissedRelevant)
                 }
             }.value
+            // Inzwischen hat ein neuerer Lauf begonnen: Er schreibt, dieser nicht.
+            guard ticket == relevantTicket else { return }
             guard !picked.isEmpty else {
                 relevantToday = []
                 return
             }
             let titles = try await store.titles(forEpisodes: Array(Set(picked.map(\.item.episodeID))))
-            relevantToday = picked.map { pick in
+            guard ticket == relevantTicket else { return }
+            // Was jemand während des Rechnens aussortiert hat, kommt nicht zurück.
+            let dismissed = dismissedRelevant
+            relevantToday = picked.filter { !dismissed.contains($0.item.id.rawValue) }.map { pick in
                 let item = pick.item
                 let title = titles[item.episodeID]
                 return RelevantItem(
@@ -1127,15 +1150,6 @@ public final class AppModel {
         // Späte Meldungen eines beendeten Downloads tragen nichts mehr ein.
         guard downloading.contains(id) else { return }
         downloadProgress[id] = DownloadProgress(received: received, expected: expected)
-    }
-
-    /// Ausdrücklich für unterwegs geladen? Dann nimmt das Aufräumen das
-    /// Audio nicht vom Gerät. Liest den Speicherzähler mit, damit Ansichten
-    /// nach „Laden (offline)“ neu prüfen.
-    public func isKeptOffline(_ episode: Episode) -> Bool {
-        _ = mediaStorageChanged
-        _ = downloading
-        return keptOffline.contains(episode.id)
     }
 
     /// Warum ein Download für unterwegs gescheitert ist, in Worten, die zum
@@ -2105,7 +2119,7 @@ public final class AppModel {
         )
         removedSmartFeeds.remove(id)
         smartFeeds.append(feed)
-        let saving = persistSmartFeeds()
+        let saving = Task { await persist { try await $0.save(smartFeeds: [feed]) } }
         guard buildFirstEdition else { return feed.id }
         // Schon während des Sicherns „wird zusammengestellt“ zeigen, nicht
         // kurz „Noch keine Ausgabe“.
@@ -2135,7 +2149,7 @@ public final class AppModel {
         // Die letzte Rückmeldung galt für die alten Themen.
         editionNotes[feed.id] = nil
         editionChecks[feed.id] = nil
-        persistSmartFeeds()
+        Task { await persist { try await $0.replace(smartFeeds: [updated]) } }
         scheduleStatisticsRefresh()
     }
 
@@ -2149,7 +2163,7 @@ public final class AppModel {
         editionChecks[feedID] = nil
         smartFeedStatistics[feedID] = nil
         coverArt.remove(feedID)
-        persistSmartFeeds()
+        Task { await persist { try await $0.removeSmartFeed(feedID) } }
         Task { await persist { try await $0.save(editions: [], forFeed: feedID) } }
     }
 
@@ -2214,7 +2228,7 @@ public final class AppModel {
         // überall. So entsteht keine Ausgabe, bis jemand andere Podcasts
         // wählt oder die alten wieder abonniert.
         guard !removedSources.isEmpty else { return }
-        var feedsChanged = false
+        var changed: [SmartPodcastFeed] = []
         for index in smartFeeds.indices
         where smartFeeds[index].restrictedToSourceIDs.contains(where: removedSources.contains) {
             let remaining = smartFeeds[index].restrictedToSourceIDs.filter { !removedSources.contains($0) }
@@ -2223,9 +2237,10 @@ public final class AppModel {
                 continue
             }
             smartFeeds[index].restrictedToSourceIDs = remaining
-            feedsChanged = true
+            changed.append(smartFeeds[index])
         }
-        if feedsChanged { persistSmartFeeds() }
+        guard !changed.isEmpty else { return }
+        Task { await persist { try await $0.replace(smartFeeds: changed) } }
     }
 
     /// Ist das Themen-Update auf Podcasts beschränkt, von denen keiner mehr
@@ -2242,17 +2257,6 @@ public final class AppModel {
             """)
     }
 
-    /// Sichert die selbst angelegten Bestände.
-    ///
-    /// Bewusst als eigene, kurze Methoden und nicht als eine große: jede
-    /// Änderung sichert genau das, was sie geändert hat. Ein gemerkter
-    /// Gedanke schreibt keine Themenfeeds neu.
-    @discardableResult
-    private func persistSmartFeeds() -> Task<Void, Never> {
-        let feeds = smartFeeds
-        return Task { await persist { try await $0.save(smartFeeds: feeds) } }
-    }
-
     /// Schreibt geänderte Ausgaben je Zeile und löscht verschwundene.
     /// Andere Zeilen des Updates bleiben unberührt.
     @discardableResult
@@ -2267,11 +2271,16 @@ public final class AppModel {
         }
     }
 
-    func saveHighlights() { persistHighlights() }
-
-    private func persistHighlights() {
-        let list = highlights
-        Task { await persist { try await $0.save(highlights: list) } }
+    /// Sichert eine Änderung an den gemerkten Stellen und meldet sie der
+    /// Systemsuche.
+    ///
+    /// `work` nennt genau die Zeilen, wie bei Themen-Updates und gesicherten
+    /// Antworten: `save` für Neues, `replace` für Geändertes,
+    /// `removeHighlight` zum Löschen. Nie die ganze Liste. Die kennt eine
+    /// Notiz noch nicht, die über iCloud gerade von einem anderen Gerät
+    /// gekommen ist, und bis 1.2 löschte der Store alles, was in ihr fehlte.
+    func saveHighlights(_ work: @escaping @Sendable (LibraryStore) async throws -> Void) {
+        Task { await persist(work) }
         reindexSpotlight()
     }
 
@@ -2289,11 +2298,6 @@ public final class AppModel {
             let evidence = (try? await store.evidence(ids: list.map(\.evidenceID))) ?? [:]
             await spotlight.index(highlights: list, evidence: evidence)
         }
-    }
-
-    private func persistTrails() {
-        let list = trails
-        Task { await persist { try await $0.save(trails: list) } }
     }
 
     /// Ein fehlgeschlagenes Sichern wird gemeldet, nicht verschluckt.
@@ -2749,7 +2753,7 @@ public final class AppModel {
             positionMs: Int(max(0, position.milliseconds))
         )
         highlights.insert(highlight, at: 0)
-        persistHighlights()
+        saveHighlights { try await $0.save(highlights: [highlight]) }
         return String(localized: "Gemerkt: \(position.timecode).")
     }
 
@@ -2902,12 +2906,13 @@ public final class AppModel {
     /// dazu, sonst trüge jede Karte die ganze Mediathek mit sich.
     public func park(_ closure: SessionClosure) {
         pendingClosure = nil
-        trails.insert(KnowledgeTrail(
+        let trail = KnowledgeTrail(
             question: closure.question,
             evidenceIDs: closure.supportingEvidenceIDs,
             highlightIDs: closure.noteIDs(in: highlights)
-        ), at: 0)
-        persistTrails()
+        )
+        trails.insert(trail, at: 0)
+        Task { await persist { try await $0.save(trails: [trail]) } }
     }
 
     /// Sichert eine Chat-Antwort als Wissenslandkarte: Frage, Antworttext,
@@ -2927,7 +2932,7 @@ public final class AppModel {
         case .library(let filter): referenced += filter.episodeIDs.sorted { $0.rawValue < $1.rawValue }
         case .smartFeed, .allAnalyzed: break
         }
-        trails.insert(KnowledgeTrail(
+        let trail = KnowledgeTrail(
             id: id,
             question: answer.question,
             evidenceIDs: answer.citations.map(\.id),
@@ -2936,8 +2941,9 @@ public final class AppModel {
             answerText: answer.text,
             citationNumbers: numbers.isEmpty ? nil : numbers,
             referencedEpisodeIDs: referenced.isEmpty ? nil : referenced
-        ), at: 0)
-        persistTrails()
+        )
+        trails.insert(trail, at: 0)
+        Task { await persist { try await $0.save(trails: [trail]) } }
     }
 
     /// Die Karte einer Antwort trägt deren Kennung. So sieht die Antwort,
@@ -2954,7 +2960,7 @@ public final class AppModel {
     /// Löscht eine Wissenslandkarte. Belege und Notizen bleiben.
     public func removeTrail(_ id: KnowledgeNodeID) {
         trails.removeAll { $0.id == id }
-        persistTrails()
+        Task { await persist { try await $0.removeTrail(id) } }
     }
 
     /// Nimmt gelöschte Belege aus den Karten. Was aus ihnen formuliert war,
@@ -2963,14 +2969,30 @@ public final class AppModel {
     /// wenn kein Beleg aus ihr stammt.
     func pruneTrails(removedEvidence: Set<EvidenceID>, removedEpisodes: Set<EpisodeID> = []) {
         guard !removedEvidence.isEmpty || !removedEpisodes.isEmpty else { return }
-        let pruned = trails.compactMap { $0.removing(evidence: removedEvidence)?.removing(episodes: removedEpisodes) }
-        let changed = pruned.count != trails.count || zip(pruned, trails).contains {
-            $0.evidenceIDs != $1.evidenceIDs || $0.counterpointEvidenceIDs != $1.counterpointEvidenceIDs
-                || $0.answerText != $1.answerText
+        var kept: [KnowledgeTrail] = []
+        var changed: [KnowledgeTrail] = []
+        var removed: [KnowledgeNodeID] = []
+        for trail in trails {
+            guard let pruned = trail.removing(evidence: removedEvidence)?.removing(episodes: removedEpisodes) else {
+                removed.append(trail.id)
+                continue
+            }
+            kept.append(pruned)
+            if pruned.evidenceIDs != trail.evidenceIDs
+                || pruned.counterpointEvidenceIDs != trail.counterpointEvidenceIDs
+                || pruned.answerText != trail.answerText {
+                changed.append(pruned)
+            }
         }
-        guard changed else { return }
-        trails = pruned
-        persistTrails()
+        guard !changed.isEmpty || !removed.isEmpty else { return }
+        trails = kept
+        // Je Zeile: gekürzte Karten überschreiben, leere ausdrücklich löschen.
+        Task {
+            await persist { store in
+                try await store.replace(trails: changed)
+                for id in removed { try await store.removeTrail(id) }
+            }
+        }
     }
 
     /// Vertiefen: erzeugt eine neue, begrenzte Hörsession aus den Stellen,
@@ -3075,18 +3097,6 @@ public final class AppModel {
     /// Stellen, die der Nutzer als „Nicht relevant“ aussortiert hat.
     var dismissedRelevant: Set<String> {
         Set(UserDefaults.standard.stringArray(forKey: Self.dismissedRelevantKey) ?? [])
-    }
-
-    /// Hebt einen Vorschlag zu einem bestätigten Interesse.
-    public func confirmInterest(_ id: InterestID) async {
-        profile.confirm(id)
-        guard let interest = profile.interests.first(where: { $0.id == id }) else { return }
-        do {
-            try await store.upsert(interest: interest)
-            try await reloadProfile()
-        } catch {
-            lastError = UserFacingError.describe(error)
-        }
     }
 
     public func clearError() { lastError = nil }

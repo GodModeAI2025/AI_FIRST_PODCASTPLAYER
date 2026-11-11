@@ -236,6 +236,7 @@
 		B59309493A2578D57A3BC1E6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 851268CAA4049793F42805BB /* Assets.xcassets */; };
 		B89F182B2B7341EAB183CF34 /* ShareIntake.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBB325A055654F2CB8FFD2D5 /* ShareIntake.swift */; };
 		B98954EEFE49C45F27785BD3 /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9767221D85CF00B35B711D8 /* CarPlaySceneDelegate.swift */; };
+		BB487BDB171D10C1BA6D02D0 /* OwnRecordRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD29399446A292AB86695E4B /* OwnRecordRowTests.swift */; };
 		BB5E4795C55BF4AA6A5838AA /* PlanningContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56ED3EE14562899B30A5330 /* PlanningContext.swift */; };
 		BC2D1B0066574EFA8E65AA61 /* OnDeviceTranslation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2287AB2F6E783053CE73015 /* OnDeviceTranslation.swift */; };
 		BC962C7CE9AC899E6652EB5B /* AppModel+ShareInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11939AAF0E3AEFC0231A691 /* AppModel+ShareInbox.swift */; };
@@ -678,6 +679,7 @@
 		FC2DF930D8F6FB3823B061EB /* MentionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MentionTests.swift; sourceTree = "<group>"; };
 		FC2E56D149D92E617ADC0ECF /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		FCA596D4A48ED1F0791C8772 /* LiveAnalysisTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveAnalysisTests.swift; sourceTree = "<group>"; };
+		FD29399446A292AB86695E4B /* OwnRecordRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnRecordRowTests.swift; sourceTree = "<group>"; };
 		FEEB73D5CC3FA11DC2B4E201 /* MacWindowUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacWindowUITests.swift; sourceTree = "<group>"; };
 		FF38752CD2899DB974BC9B53 /* AISeamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AISeamTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -1033,6 +1035,7 @@
 				90521683E4277BA42BBC35C4 /* MediaReuseTests.swift */,
 				FC2DF930D8F6FB3823B061EB /* MentionTests.swift */,
 				E7672CE5DCCCB1D969DA4174 /* ModelRoutingTests.swift */,
+				FD29399446A292AB86695E4B /* OwnRecordRowTests.swift */,
 				A6E3863976ED3820B7DB9368 /* PassageRankerBudgetTests.swift */,
 				B38C3397E401958CDBFD8770 /* PipelineFoundationTests.swift */,
 				35784A6AD29DE8BC94716D87 /* PipelineTests.swift */,
@@ -1906,6 +1909,7 @@
 				2114FC258323A34C2765D0D7 /* MediaReuseTests.swift in Sources */,
 				7ECEE4ABCEDEF76E4279EE4C /* MentionTests.swift in Sources */,
 				DD6D4D632C0D217B3D1F071C /* ModelRoutingTests.swift in Sources */,
+				BB487BDB171D10C1BA6D02D0 /* OwnRecordRowTests.swift in Sources */,
 				7B206037310616E362DCE3FE /* PassageRankerBudgetTests.swift in Sources */,
 				97F060869DEB5809823A69F7 /* PipelineFoundationTests.swift in Sources */,
 				78D3CCA2E169A250AB07C895 /* PipelineTests.swift in Sources */,

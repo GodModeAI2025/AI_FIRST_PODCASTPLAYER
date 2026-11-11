@@ -55,17 +55,24 @@ extension AppModel {
     public func reloadAfterSync(_ changes: ChangeSet = .all) async {
         guard !changes.isEmpty else { return }
         if changes.isEverything {
-            // `load()` räumt dabei auch weg, was ein anderes Gerät gelöscht hat.
+            // `load()` liest dabei alle Folgenlisten und räumt weg, was ein
+            // anderes Gerät gelöscht hat.
             await load()
-            for source in sources where episodes[source.id] != nil {
-                if let list = try? await store.episodes(forSource: source.id) {
-                    episodes[source.id] = withSupadataMetadata(list)
-                    RemoteMediaRegistry.shared.register(list)
-                }
-            }
-            for id in Array(facts.keys) { await loadFacts(for: id) }
         } else {
             await reloadChanged(changes)
+        }
+        // Die gemerkten Fakten: nur die Folgen, deren Fakten oder Belege sich
+        // geändert haben. Sind die Folgen unbekannt, etwa nach einer Löschung,
+        // nur die, deren Fakten eine Ansicht geladen hat (`factsShown`). Die
+        // übrigen Einträge bleiben, wie sie sind. Leeren ginge nicht: Eine
+        // offene Folge lädt nur beim Erscheinen und stünde ohne Fakten da, und
+        // das Löschen von woanders erkennt an den Einträgen, was dieses Gerät
+        // selbst erschlossen hat.
+        if changes.touches(.fact, .evidence, .transcript, .segment, .episode, .source) {
+            let changed = changes.episodeIDs
+            for id in facts.keys where changed?.contains(id) ?? factsShown.contains(id) {
+                await reloadFacts(for: id)
+            }
         }
         // Merkzeichen von dort hat das Neuladen schon als `episodesRemoved`
         // gemeldet. Die Stufen gleichen jetzt mit dem Store ab, soweit ihre
@@ -151,14 +158,6 @@ extension AppModel {
         if changes.touches(.source, .episode, .mediaVersion, .transcript, .evidence, .fact, .chapterTag) {
             await queueMissingFacts()
         }
-        // Die gezeigten Fakten: nur die Folgen, deren Fakten oder Belege sich
-        // geändert haben, bei unbekannten alle.
-        if changes.touches(.fact, .evidence, .transcript, .segment, .episode, .source) {
-            let changed = changes.episodeIDs
-            for id in Array(facts.keys) where changed?.contains(id) ?? true {
-                await loadFacts(for: id)
-            }
-        }
     }
 
     /// Wendet Löschungen an, die über iCloud von einem anderen Gerät kommen.
@@ -197,9 +196,15 @@ extension AppModel {
         await pendingPurges.waitUntilWritten()
         // Was dieses Gerät erschlossen hat, bevor die Löschung ankam, geht mit.
         var report = LibraryStore.RemovalReport()
-        for id in purge.storeEpisodeIDs {
-            guard let one = try? await store.removeEpisode(id) else { continue }
-            report.merge(one)
+        do {
+            for id in purge.storeEpisodeIDs { report.merge(try await store.removeEpisode(id)) }
+        } catch {
+            // Der Vermerk bleibt offen. Das nächste Laden versucht es noch
+            // einmal (`resumePendingPurges`), statt die Daten stehen zu lassen.
+            // Was schon gelöscht ist, hält er fest.
+            pendingPurges.update(purge.id) { $0.recordStoreRemoval(report, done: false) }
+            purgesInFlight.remove(purge.id)
+            return
         }
         // Dateien, Zwischenspeicher, Antworten, Pfade, Ausgaben und die
         // Vermerke dieses Geräts, wie nach „Folge löschen“.
@@ -498,7 +503,16 @@ extension AppModel {
             pool = await fetched
             let known = episodes.values.flatMap { $0 }.count
             let analyzed = analyzedEpisodes.count
-            if known > analyzed {
+            // Greift die Grenze des Bestands, stehen nur die neuesten Folgen
+            // darin. Der Hinweis nennt dann, wie viele es wirklich sind.
+            let searched = pool.count < poolLimit ? analyzed
+                : await Task.detached(priority: .userInitiated) { Set(pool.map(\.episodeID)).count }.value
+            if searched < analyzed {
+                caveat = String(AttributedString(localized: """
+                    Durchsucht wurden nur die neuesten Folgen: \(searched) von \
+                    ^[\(analyzed) Folge](inflect: true) mit Transkript.
+                    """).characters)
+            } else if known > analyzed {
                 caveat = String(AttributedString(localized: """
                     \(analyzed) von ^[\(known) Folge](inflect: true) mit Transkript. Nur diese wurden durchsucht.
                     """).characters)
@@ -827,7 +841,9 @@ extension AppModel {
         if !chapters.isEmpty {
             lines.append("Kapitel: " + chapters.map { "\($0.start.timecode) \($0.title)" }.joined(separator: "; "))
         }
-        var known = facts[id] ?? []
+        // Gemerkte Fakten nur, wenn der Abgleich sie aktuell hält (`factsShown`).
+        // Der Chat der Mediathek fragt auch zu Folgen, die niemand geöffnet hat.
+        var known = factsShown.contains(id) ? facts[id] ?? [] : []
         if known.isEmpty { known = ((try? await store.facts(forEpisode: id)) ?? []).compactMap(\.cleaned) }
         if !known.isEmpty {
             lines.append("Bereits ermittelte Fakten: " + known.prefix(15).map(\.statement).joined(separator: " | "))
@@ -959,7 +975,7 @@ extension AppModel {
             sourceTitle: sources.first { $0.id == episode.sourceID }?.title,
             positionMs: Int(position.milliseconds))
         highlights.insert(highlight, at: 0)
-        saveHighlights()
+        saveHighlights { try await $0.save(highlights: [highlight]) }
         return highlight
     }
 
@@ -1064,12 +1080,13 @@ extension AppModel {
         guard let index = highlights.firstIndex(where: { $0.id == id }) else { return }
         let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
         highlights[index].note = (trimmed?.isEmpty ?? true) ? nil : trimmed
-        saveHighlights()
+        let changed = highlights[index]
+        saveHighlights { try await $0.replace(highlights: [changed]) }
     }
 
     public func removeHighlight(_ id: HighlightID) {
         highlights.removeAll { $0.id == id }
-        saveHighlights()
+        saveHighlights { try await $0.removeHighlight(id) }
         // Neu melden ergänzt nur. Was gelöscht ist, muss auch aus der
         // Systemsuche verschwinden.
         Task { await spotlight.remove(id) }
@@ -1092,16 +1109,18 @@ extension AppModel {
     /// Quellentitel nachgetragen. Zitat und Zeitmarke lassen sich nicht
     /// mehr herleiten, die Notiz bleibt deshalb ohne Sprung in den Ton.
     public func fillMissingNoteTitles() {
-        var changed = false
+        var filled: [Highlight] = []
         for index in highlights.indices where highlights[index].episodeTitle == nil {
             guard let media = highlights[index].mediaVersionID,
                   let episode = episodes.values.joined().first(where: { $0.streamMediaVersionID == media })
             else { continue }
             highlights[index].episodeTitle = episode.title
             highlights[index].sourceTitle = sources.first { $0.id == episode.sourceID }?.title
-            changed = true
+            filled.append(highlights[index])
         }
-        if changed { saveHighlights() }
+        guard !filled.isEmpty else { return }
+        let changed = filled
+        saveHighlights { try await $0.replace(highlights: changed) }
     }
 
     /// Welche Folgen dieser Notizen noch da sind. Notizen gelöschter Folgen
@@ -1295,7 +1314,17 @@ extension AppModel {
     /// ein neues Modell bekommt eine neue Gelegenheit. Nur auf diesem Gerät.
     static var factsSettledKey: String { KnowledgeMarks.factsSettledKey }
 
+    /// Liest die Fakten einer Folge für ihre Ansicht. Ab dann hält der
+    /// Abgleich sie aktuell (`factsShown`).
     public func loadFacts(for episodeID: EpisodeID) async {
+        factsShown.insert(episodeID)
+        await reloadFacts(for: episodeID)
+    }
+
+    /// Liest die gemerkten Fakten einer Folge neu, ohne sie als gezeigt zu
+    /// führen. So ruft der Abgleich: Sonst gälte bald jede vorbereitete Folge
+    /// als gezeigt.
+    private func reloadFacts(for episodeID: EpisodeID) async {
         // Wird die Folge gelöscht, während hier gelesen wird, reiht die Stufe
         // „Wissen“ sie nicht mehr ein.
         let ticket = removals.ticket
@@ -1323,10 +1352,7 @@ extension AppModel {
     /// Nummern aneinanderhängen („… 2 | Ich habe …“), zeigt die App nicht.
     /// Steht nur vorn eine Nummer oder am Ende ein Verweis, zeigt sie den
     /// Fakt ohne sie.
-    nonisolated static func cleanedOffMain(_ list: [EpisodeFact]) async -> [EpisodeFact] {
-        await KnowledgeJobs.cleaned(list)
-    }
-
+    ///
     /// Dieselbe Regel wie in `KnowledgeJobs`, abseits des Hauptthreads.
     func anchoredFacts(_ list: [EpisodeFact], episodeID: EpisodeID) async -> [EpisodeFact] {
         await KnowledgeJobs.anchored(list, episodeID: episodeID, store: store)
@@ -2090,27 +2116,34 @@ extension AppModel {
             purgesInFlight.insert(purge.id)
             if !purge.storeDone {
                 var report = LibraryStore.RemovalReport()
-                switch purge.scope {
-                case .source(let sourceID):
-                    // Seit dem Abbestellen neu abonniert: Das neue Abo bleibt.
-                    let current = sources.first { $0.id == sourceID }
-                    if current.map({ $0.addedAt <= purge.requestedAt }) ?? true {
-                        // Wie beim Abbestellen: erst im Löschprotokoll, dann im Store.
-                        removals.markRemoved(purge.episodeIDs, source: sourceID)
-                        // Mit dem Zeitpunkt der Abbestellung. Ein Merkzeichen,
-                        // das sie schon abdeckt, bekommt der Store kein zweites.
-                        report = (try? await store.removeSource(
-                            sourceID, recordingRemovalAt: purge.requestedAt, device: deviceID)) ?? report
-                        episodes[sourceID] = nil
-                        sources.removeAll { $0.id == sourceID }
+                do {
+                    switch purge.scope {
+                    case .source(let sourceID):
+                        // Seit dem Abbestellen neu abonniert: Das neue Abo bleibt.
+                        let current = sources.first { $0.id == sourceID }
+                        if current.map({ $0.addedAt <= purge.requestedAt }) ?? true {
+                            // Wie beim Abbestellen: erst im Löschprotokoll, dann im Store.
+                            removals.markRemoved(purge.episodeIDs, source: sourceID)
+                            // Mit dem Zeitpunkt der Abbestellung. Ein Merkzeichen,
+                            // das sie schon abdeckt, bekommt der Store kein zweites.
+                            report = try await store.removeSource(
+                                sourceID, recordingRemovalAt: purge.requestedAt, device: deviceID)
+                            episodes[sourceID] = nil
+                            sources.removeAll { $0.id == sourceID }
+                        }
+                    case .episode, .elsewhere:
+                        for id in purge.storeEpisodeIDs { report.merge(try await store.removeEpisode(id)) }
+                        let gone = Set(purge.episodeIDs)
+                        for key in Array(episodes.keys) { episodes[key]?.removeAll { gone.contains($0.id) } }
                     }
-                case .episode, .elsewhere:
-                    for id in purge.storeEpisodeIDs {
-                        guard let one = try? await store.removeEpisode(id) else { continue }
-                        report.merge(one)
-                    }
-                    let gone = Set(purge.episodeIDs)
-                    for key in Array(episodes.keys) { episodes[key]?.removeAll { gone.contains($0.id) } }
+                } catch {
+                    // Der Store hat nicht gelöscht: Der Vermerk bleibt offen, und
+                    // das nächste Laden versucht es noch einmal. Als erledigt
+                    // gälte er sonst, und die Daten blieben für immer stehen.
+                    // Was schon gelöscht ist, hält er fest.
+                    pendingPurges.update(purge.id) { $0.recordStoreRemoval(report, done: false) }
+                    purgesInFlight.remove(purge.id)
+                    continue
                 }
                 purge.recordStoreRemoval(report)
                 pendingPurges.update(purge.id) { $0.recordStoreRemoval(report) }

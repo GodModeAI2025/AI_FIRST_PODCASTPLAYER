@@ -350,7 +350,7 @@ struct StableTranscriptIDTests {
         try await store.save(transcript: legacy, media: MediaVersion(id: mediaID, episodeID: episodeID, remoteURL: audio),
                              forEpisode: episodeID)
         #expect(try await store.transcript(forMedia: mediaID)?.id == legacy.id)
-        #expect(try await store.mediaVersionsWithTranscript([mediaID]) == [mediaID])
+        #expect(try await store.transcriptFingerprint(forMedia: mediaID)?.id == legacy.id)
     }
 
     @Test("Ein verwaistes Transkript mit fester Kennung findet seine Fassung wieder und geht beim Löschen mit")
@@ -535,6 +535,24 @@ struct SchemaChangeSetTests {
         // CloudKit: keine eindeutigen Attribute in irgendeinem Modell.
         for entity in LibraryStore.schema.entities {
             #expect(entity.uniquenessConstraints.isEmpty, "\(entity.name) trägt eine Eindeutigkeit")
+        }
+    }
+}
+
+// MARK: - Indizes der lokalen Datei
+
+@Suite("Indizes für Abfragen nach Kennung")
+struct LookupIndexTests {
+
+    @Test("Belege tragen Indizes auf Kennung, Folge und Fassung, die anderen Arten auf ihrer Kennung")
+    func lookupFieldsAreIndexed() {
+        // Je Index nennt das Schema seine Art und dann das Feld.
+        let indexed = Dictionary(uniqueKeysWithValues: LibraryStore.schema.entities.map {
+            ($0.name, Set($0.indices.compactMap(\.last)))
+        })
+        #expect(indexed["StoredEvidence"] == ["identifier", "episodeIdentifier", "mediaVersionIdentifier"])
+        for name in ["StoredMediaVersion", "StoredTranscript", "StoredInterest", "StoredHighlight"] {
+            #expect(indexed[name]?.contains("identifier") == true, "\(name) ohne Index auf der Kennung")
         }
     }
 }

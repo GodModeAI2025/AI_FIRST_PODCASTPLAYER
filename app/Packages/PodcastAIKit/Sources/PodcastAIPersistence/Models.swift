@@ -158,6 +158,7 @@ public final class StoredEpisode {
 
 @Model
 public final class StoredMediaVersion {
+    #Index<StoredMediaVersion>([\.identifier])
     public var identifier: String = ""
     public var remoteURLString: String?
     /// Nur noch für ältere Fassungen der App. Seit dem Schema nach 0.14
@@ -201,6 +202,7 @@ public final class StoredMediaVersion {
 
 @Model
 public final class StoredTranscript {
+    #Index<StoredTranscript>([\.identifier])
     public var identifier: String = ""
     public var revisionValue: Int = 0
     public var originRaw: String = TranscriptOrigin.speechAnalysis.rawValue
@@ -370,6 +372,7 @@ public final class StoredListeningState {
 /// CloudKit-Schema nur ergänzt wird.
 @Model
 public final class StoredInterest {
+    #Index<StoredInterest>([\.identifier])
     public var identifier: String = ""
     public var label: String = ""
     public var kindRaw: String = InterestKind.topic.rawValue
@@ -458,6 +461,13 @@ public final class StoredChapterTag {
 
 @Model
 public final class StoredEvidence {
+    // Ohne Index liest jede Abfrage nach Kennung, Folge oder Fassung die ganze
+    // Tabelle. Den Index bekommt nur eine neu angelegte Datei: Core Data
+    // rechnet Indizes nicht in den Hash des Modells, eine Datei bis 1.2 gilt
+    // als passend und bleibt, wie sie ist. Dasselbe gilt für die Indizes auf
+    // der Kennung von Fassung, Transkript, Tag und Notiz. Abfragen in einer
+    // Schleife je Beleg oder je Folge bleiben dort deshalb teuer.
+    #Index<StoredEvidence>([\.identifier], [\.episodeIdentifier], [\.mediaVersionIdentifier])
     public var identifier: String = ""
     public var mediaVersionIdentifier: String = ""
     public var episodeIdentifier: String = ""
@@ -492,6 +502,7 @@ public final class StoredEvidence {
 
 @Model
 public final class StoredHighlight {
+    #Index<StoredHighlight>([\.identifier])
     public var identifier: String = ""
     public var evidenceIdentifier: String = ""
     public var note: String?

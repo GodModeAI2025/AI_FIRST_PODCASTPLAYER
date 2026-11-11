@@ -77,9 +77,13 @@ public struct PendingPurge: Codable, Sendable, Equatable, Identifiable {
         detectedTagIDs = Self.union(detectedTagIDs, tags)
     }
 
-    /// Trägt ein, was der Store gelöscht hat.
-    public mutating func recordStoreRemoval(_ report: LibraryStore.RemovalReport) {
-        storeDone = true
+    /// Trägt ein, was der Store gelöscht hat. Ist er mittendrin gescheitert,
+    /// bleibt der Vermerk mit `done: false` offen und hält trotzdem fest, was
+    /// schon weg ist. Diese Belege nennt der Store beim nächsten Versuch
+    /// nicht mehr, und gesicherte Antworten, die sie zitieren, blieben sonst
+    /// stehen.
+    public mutating func recordStoreRemoval(_ report: LibraryStore.RemovalReport, done: Bool = true) {
+        if done { storeDone = true }
         episodeIDs = Self.union(episodeIDs, report.episodeIDs)
         mediaVersionIDs = Self.union(mediaVersionIDs, report.mediaVersionIDs)
         evidenceIDs = Self.union(evidenceIDs, report.evidenceIDs)

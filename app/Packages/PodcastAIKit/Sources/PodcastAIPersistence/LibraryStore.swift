@@ -54,14 +54,6 @@ public actor LibraryStore: ModelActor {
     private var historyToken: DefaultHistoryToken?
     private var historyRead = false
 
-    /// Kam seit dem letzten Aufruf eine Änderung von woanders, etwa über
-    /// iCloud von einem anderen Gerät? Wie ``foreignChanges()``, nur ja
-    /// oder nein. Beide lesen dieselbe Historie weiter, wer fragt, nimmt
-    /// eines von beiden.
-    public func hasForeignChanges() -> Bool {
-        foreignChanges() != nil
-    }
-
     /// Was seit dem letzten Aufruf von woanders kam, etwa über iCloud von
     /// einem anderen Gerät. `nil`, wenn nichts.
     ///
@@ -1993,23 +1985,6 @@ public actor LibraryStore: ModelActor {
         return Set(try modelContext.fetch(descriptor).map { MediaVersionID(rawValue: $0.mediaVersionIdentifier) })
     }
 
-    /// Welche dieser Fassungen schon ein Transkript mit Segmenten haben, in
-    /// einem Schritt des Stores. Die Vorprüfung der Stufe „Transkript“
-    /// (docs/plan-pipeline.md, Vertrag (I)). Gefragt wird über die Fassung,
-    /// nicht über die Kennung des Transkripts: Bei älteren Fassungen der App
-    /// trägt sie die Sprache des Geräts, das transkribiert hat.
-    public func mediaVersionsWithTranscript(_ ids: some Sequence<MediaVersionID>) throws -> Set<MediaVersionID> {
-        var found: Set<MediaVersionID> = []
-        for id in Set(ids) {
-            guard let row = try latestTranscriptRow(forMedia: id.rawValue) else { continue }
-            let owner = row.persistentModelID
-            let count = try modelContext.fetchCount(FetchDescriptor<StoredSegment>(
-                predicate: #Predicate { $0.transcript?.persistentModelID == owner }))
-            if count > 0 { found.insert(id) }
-        }
-        return found
-    }
-
     /// Die jüngste Revision des Transkripts einer Fassung, wie in
     /// ``transcript(forMedia:)``, aber ohne Segmente.
     func latestTranscriptRow(forMedia key: String) throws -> StoredTranscript? {
@@ -2077,16 +2052,14 @@ public actor LibraryStore: ModelActor {
             sortBy: [SortDescriptor(\.startMs)])).uniqued(by: \.identifier).map(\.snapshot)
     }
 
-    /// Alle Fakten, etwa für den Chat über alle Folgen.
-    public func allFacts(limit: Int = 2_000) throws -> [EpisodeFact] {
-        var descriptor = FetchDescriptor<StoredFact>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
-        descriptor.fetchLimit = limit
-        return try modelContext.fetch(descriptor).uniqued(by: \.identifier).map(\.snapshot)
-    }
-
     /// Belege aller Quellen, die für einen Themenfeed infrage kommen.
-    /// Die Grenze schützt nur vor einem Ausreißer. 500 schnitten schon bei
-    /// einem mittleren Bestand neue Folgen ab, und Themen-Updates sahen sie nie.
+    ///
+    /// Bis zur Grenze kommen alle. Liegen mehr vor, kommen genau `limit`
+    /// Belege, und zwar die der neuesten Folgen
+    /// (``newestTimedEvidence(limit:)``). Bis 1.2 schnitt die Datenbank dann
+    /// irgendwo ab, praktisch nach den ältesten Zeilen: Chat, Themen-Updates
+    /// und die Suche der Agenten sahen ab etwa 330 Stunden Transkript keine
+    /// neue Folge mehr.
     ///
     /// Das Ergebnis bleibt bis zur nächsten Änderung an den Belegen gemerkt.
     /// Jede Frage im Chat las sonst bis zu 20.000 Zeilen neu. Was Belege
@@ -2097,9 +2070,71 @@ public actor LibraryStore: ModelActor {
         var descriptor = FetchDescriptor<StoredEvidence>(
             predicate: #Predicate { $0.hasTiming == true }
         )
-        descriptor.fetchLimit = limit
-        let items = try modelContext.fetch(descriptor).uniqued(by: \.identifier).map(\.snapshot)
+        // Eine Zeile mehr als erlaubt: Kommt sie, greift die Grenze.
+        descriptor.fetchLimit = limit + 1
+        let rows = try modelContext.fetch(descriptor)
+        let items = rows.count > limit
+            ? try newestTimedEvidence(limit: limit)
+            : rows.uniqued(by: \.identifier).map(\.snapshot)
         timedEvidence = (limit, items)
+        return items
+    }
+
+    /// Die Belege mit Zeitmarke der neuesten Folgen, Folge für Folge, bis
+    /// `limit` erreicht ist. Die letzte Folge kann angeschnitten sein.
+    ///
+    /// Neu heißt nach Erscheinungsdatum, nicht nach dem Tag der Auswertung:
+    /// Wer heute ein altes Archiv aufbereitet, verdrängt damit nicht die
+    /// Folgen vom letzten Monat. Die Auswahl steht fest, bei jedem Lesen und
+    /// auf jedem Gerät. Gelesen wird in wenigen Abfragen statt einer je
+    /// Folge, denn ältere Dateien haben keinen Index auf der Folge.
+    private func newestTimedEvidence(limit: Int) throws -> [Evidence] {
+        // Wie viele Zeilen jede Folge hat, ohne die Texte zu lesen.
+        var counting = FetchDescriptor<StoredEvidence>(predicate: #Predicate { $0.hasTiming == true })
+        counting.propertiesToFetch = [\.episodeIdentifier]
+        var rowCounts: [String: Int] = [:]
+        for row in try modelContext.fetch(counting) { rowCounts[row.episodeIdentifier, default: 0] += 1 }
+
+        let keys = Array(rowCounts.keys)
+        var dated = FetchDescriptor<StoredEpisode>(predicate: #Predicate { keys.contains($0.identifier) })
+        dated.propertiesToFetch = [\.identifier, \.publishedAt]
+        var published: [String: Date] = [:]
+        for row in try modelContext.fetch(dated) {
+            guard let date = row.publishedAt else { continue }
+            published[row.identifier] = max(published[row.identifier] ?? date, date)
+        }
+        // Neueste zuerst. Ohne Datum oder ohne Zeile der Folge ganz hinten,
+        // bei gleichem Datum nach Kennung.
+        var waiting = keys.sorted {
+            let lhs = published[$0] ?? .distantPast, rhs = published[$1] ?? .distantPast
+            return lhs == rhs ? $0 < $1 : lhs > rhs
+        }[...]
+
+        var items: [Evidence] = []
+        var seen: Set<String> = []
+        while items.count < limit, !waiting.isEmpty {
+            // So viele Folgen auf einmal, wie nach der Zahl ihrer Zeilen noch
+            // hineinpassen. Waren Zeilen doppelt, bleibt Platz, und die
+            // nächste Runde füllt ihn.
+            var batch: [String] = []
+            var expected = items.count
+            while expected < limit, let key = waiting.popFirst() {
+                batch.append(key)
+                expected += rowCounts[key] ?? 0
+            }
+            // Nach Zeit sortiert die Datenbank. Das Gruppieren behält die
+            // Reihenfolge je Folge.
+            let rows = try modelContext.fetch(FetchDescriptor<StoredEvidence>(
+                predicate: #Predicate { batch.contains($0.episodeIdentifier) && $0.hasTiming == true },
+                sortBy: [SortDescriptor(\.startMs), SortDescriptor(\.identifier)]))
+            let byEpisode = Dictionary(grouping: rows, by: \.episodeIdentifier)
+            for key in batch {
+                for row in byEpisode[key] ?? [] where seen.insert(row.identifier).inserted {
+                    items.append(row.snapshot)
+                    if items.count == limit { return items }
+                }
+            }
+        }
         return items
     }
 
@@ -2108,15 +2143,22 @@ public actor LibraryStore: ModelActor {
     ///
     /// Kommt aus den gemerkten Belegen aller Folgen. Bis 0.9 las jede Frage
     /// an einen Podcast die Belege jeder Folge einzeln. Hat die Grenze des
-    /// Bestands gegriffen, fehlen dort womöglich welche, dann wird wie
-    /// bisher je Folge gelesen.
+    /// Bestands gegriffen, fehlen dort womöglich welche, dann liest eine
+    /// eigene Abfrage die Belege dieser Folgen.
     public func timedEvidence(forEpisodes episodeIDs: [EpisodeID], poolLimit: Int = 20_000) throws -> [Evidence] {
         guard !episodeIDs.isEmpty else { return [] }
         let known = try evidenceForAnalyzedEpisodes(limit: poolLimit)
         guard known.count < poolLimit else {
-            var all: [Evidence] = []
-            for id in episodeIDs { all += try evidence(forEpisode: id) }
-            return all.filter { $0.range != nil }
+            // Eine Abfrage für alle Folgen, nicht eine je Folge. Eine Datei
+            // bis 1.2 hat keinen Index auf der Folge, jede einzelne Abfrage
+            // las dort die ganze Tabelle. Am Mac mit 42.000 Belegen brauchten
+            // 300 Folgen so knapp vier Sekunden, jetzt 0,3.
+            let keys = Set(episodeIDs.map(\.rawValue))
+            let rows = try modelContext.fetch(FetchDescriptor<StoredEvidence>(
+                predicate: #Predicate { keys.contains($0.episodeIdentifier) && $0.hasTiming == true },
+                sortBy: [SortDescriptor(\.startMs)]))
+            let found = Dictionary(grouping: rows, by: \.episodeIdentifier)
+            return episodeIDs.flatMap { (found[$0.rawValue] ?? []).uniqued(by: \.identifier).map(\.snapshot) }
         }
         let wanted = Set(episodeIDs)
         var byEpisode: [EpisodeID: [Evidence]] = [:]
@@ -2224,32 +2266,54 @@ public actor LibraryStore: ModelActor {
         return decoder
     }()
 
-    public func save(smartFeeds: [SmartPodcastFeed]) throws {
-        let keep = Set(smartFeeds.map(\.id.rawValue))
-        var existing: [String: [StoredSmartFeed]] = [:]
-        // Ein Durchlauf: behalten oder löschen. Ein zweiter `fetch` nach
-        // dem Löschen sähe die gelöschten Zeilen noch.
-        for row in try modelContext.fetch(FetchDescriptor<StoredSmartFeed>()) {
-            if keep.contains(row.identifier) {
-                // Alle Kopien, nicht nur die letzte: Doppelte, die das
-                // Bereinigen stehen lässt, sollen gleich bleiben.
-                existing[row.identifier, default: []].append(row)
-            } else {
-                // Was der Nutzer gelöscht hat, verschwindet auch hier.
-                modelContext.delete(row)
-            }
-        }
+    //  Themen-Updates, gesicherte Antworten und gemerkte Stellen werden je
+    //  Zeile geschrieben. Bis 1.2 nahm jedes Sichern die ganze Liste aus dem
+    //  Speicher der App und löschte jede Zeile, die darin fehlte. Kam gerade
+    //  eine Notiz über iCloud von einem anderen Gerät, kannte die Liste sie
+    //  noch nicht: Die nächste Änderung hier löschte sie, und die Löschung
+    //  ging an das andere Gerät zurück. Ausgaben hatten denselben Fehler
+    //  (LibraryStore+Editions.swift). `save` schreibt nur, was es bekommt,
+    //  `replace` nur, was es noch gibt, und gelöscht wird allein über
+    //  `remove…`.
 
-        for feed in smartFeeds {
+    /// Schreibt diese Themen-Updates, jedes in alle Kopien seiner Zeile, und
+    /// legt an, was es noch nicht gibt. Andere Zeilen bleiben unberührt.
+    public func save(smartFeeds: [SmartPodcastFeed]) throws {
+        try write(smartFeeds, creating: true)
+    }
+
+    /// Schreibt geänderte Themen-Updates in ihre Zeilen. Gibt es eine Zeile
+    /// nicht mehr, etwa weil ein anderes Gerät das Update gelöscht hat,
+    /// bleibt es dabei.
+    public func replace(smartFeeds: [SmartPodcastFeed]) throws {
+        try write(smartFeeds, creating: false)
+    }
+
+    /// Löscht ein Themen-Update, alle Kopien seiner Zeile. Seine Ausgaben
+    /// gehen über ``save(editions:forFeed:)`` mit leerer Liste.
+    public func removeSmartFeed(_ id: SmartFeedID) throws {
+        let identifier = id.rawValue
+        let rows = try modelContext.fetch(
+            FetchDescriptor<StoredSmartFeed>(predicate: #Predicate { $0.identifier == identifier }))
+        guard !rows.isEmpty else { return }
+        for row in rows { modelContext.delete(row) }
+        try modelContext.save()
+    }
+
+    private func write(_ feeds: [SmartPodcastFeed], creating: Bool) throws {
+        for feed in feeds {
+            let identifier = feed.id.rawValue
+            // Alle Kopien, nicht nur eine: Doppelte, die das Bereinigen
+            // stehen lässt, sollen gleich bleiben.
+            let rows = try modelContext.fetch(
+                FetchDescriptor<StoredSmartFeed>(predicate: #Predicate { $0.identifier == identifier }))
             let payload = try Self.encoder.encode(feed)
-            if let rows = existing[feed.id.rawValue] {
-                for row in rows {
-                    row.title = feed.title
-                    row.payload = payload
-                }
-            } else {
-                modelContext.insert(StoredSmartFeed(
-                    identifier: feed.id.rawValue, title: feed.title, payload: payload))
+            if rows.isEmpty, creating {
+                modelContext.insert(StoredSmartFeed(identifier: identifier, title: feed.title, payload: payload))
+            }
+            for row in rows {
+                row.title = feed.title
+                row.payload = payload
             }
         }
         try modelContext.save()
@@ -2312,28 +2376,41 @@ public actor LibraryStore: ModelActor {
         return result
     }
 
+    /// Schreibt diese gesicherten Antworten wie ``save(smartFeeds:)``: jede
+    /// in alle Kopien ihrer Zeile, neue werden angelegt, andere bleiben.
     public func save(trails: [KnowledgeTrail]) throws {
-        let keep = Set(trails.map(\.id.rawValue))
-        let stored = try modelContext.fetch(FetchDescriptor<StoredKnowledgeTrail>())
-        var existing: [String: [StoredKnowledgeTrail]] = [:]
-        for row in stored {
-            if keep.contains(row.identifier) {
-                existing[row.identifier, default: []].append(row)
-            } else {
-                modelContext.delete(row)
-            }
-        }
+        try write(trails, creating: true)
+    }
+
+    /// Schreibt geänderte Antworten in ihre Zeilen. Was es nicht mehr gibt,
+    /// bleibt gelöscht.
+    public func replace(trails: [KnowledgeTrail]) throws {
+        try write(trails, creating: false)
+    }
+
+    /// Löscht eine gesicherte Antwort, alle Kopien ihrer Zeile.
+    public func removeTrail(_ id: KnowledgeNodeID) throws {
+        let identifier = id.rawValue
+        let rows = try modelContext.fetch(
+            FetchDescriptor<StoredKnowledgeTrail>(predicate: #Predicate { $0.identifier == identifier }))
+        guard !rows.isEmpty else { return }
+        for row in rows { modelContext.delete(row) }
+        try modelContext.save()
+    }
+
+    private func write(_ trails: [KnowledgeTrail], creating: Bool) throws {
         for trail in trails {
+            let identifier = trail.id.rawValue
+            let rows = try modelContext.fetch(
+                FetchDescriptor<StoredKnowledgeTrail>(predicate: #Predicate { $0.identifier == identifier }))
             let payload = try Self.encoder.encode(trail)
-            if let rows = existing[trail.id.rawValue] {
-                for row in rows {
-                    row.question = trail.question
-                    row.payload = payload
-                }
-            } else {
+            if rows.isEmpty, creating {
                 modelContext.insert(StoredKnowledgeTrail(
-                    identifier: trail.id.rawValue, question: trail.question,
-                    parkedAt: trail.parkedAt, payload: payload))
+                    identifier: identifier, question: trail.question, parkedAt: trail.parkedAt, payload: payload))
+            }
+            for row in rows {
+                row.question = trail.question
+                row.payload = payload
             }
         }
         try modelContext.save()
@@ -2347,32 +2424,44 @@ public actor LibraryStore: ModelActor {
         }
     }
 
+    /// Schreibt diese gemerkten Stellen wie ``save(smartFeeds:)``: jede in
+    /// alle Kopien ihrer Zeile, neue werden angelegt, andere bleiben.
     public func save(highlights: [Highlight]) throws {
-        let keep = Set(highlights.map(\.id.rawValue))
-        let stored = try modelContext.fetch(FetchDescriptor<StoredHighlight>())
-        var existing: [String: [StoredHighlight]] = [:]
-        for row in stored {
-            if keep.contains(row.identifier) {
-                existing[row.identifier, default: []].append(row)
-            } else {
-                modelContext.delete(row)
-            }
-        }
+        try write(highlights, creating: true)
+    }
+
+    /// Schreibt geänderte Stellen in ihre Zeilen. Was es nicht mehr gibt,
+    /// bleibt gelöscht.
+    public func replace(highlights: [Highlight]) throws {
+        try write(highlights, creating: false)
+    }
+
+    /// Löscht eine gemerkte Stelle, alle Kopien ihrer Zeile.
+    public func removeHighlight(_ id: HighlightID) throws {
+        let identifier = id.rawValue
+        let rows = try modelContext.fetch(
+            FetchDescriptor<StoredHighlight>(predicate: #Predicate { $0.identifier == identifier }))
+        guard !rows.isEmpty else { return }
+        for row in rows { modelContext.delete(row) }
+        try modelContext.save()
+    }
+
+    private func write(_ highlights: [Highlight], creating: Bool) throws {
         for highlight in highlights {
+            let identifier = highlight.id.rawValue
+            let rows = try modelContext.fetch(
+                FetchDescriptor<StoredHighlight>(predicate: #Predicate { $0.identifier == identifier }))
             let payload = try Self.encoder.encode(highlight)
-            if let rows = existing[highlight.id.rawValue] {
-                for row in rows {
-                    row.note = highlight.note
-                    row.payload = payload
-                }
-            } else {
-                let row = StoredHighlight(
-                    identifier: highlight.id.rawValue,
-                    evidenceIdentifier: highlight.evidenceID.rawValue)
+            if rows.isEmpty, creating {
+                let row = StoredHighlight(identifier: identifier, evidenceIdentifier: highlight.evidenceID.rawValue)
                 row.note = highlight.note
                 row.createdAt = highlight.capturedAt
                 row.payload = payload
                 modelContext.insert(row)
+            }
+            for row in rows {
+                row.note = highlight.note
+                row.payload = payload
             }
         }
         try modelContext.save()

@@ -25,16 +25,16 @@ struct ForeignChangeTests {
         let store = LibraryStore.make(container: container)
 
         // Beim ersten Mal ist der Stand unbekannt.
-        #expect(await store.hasForeignChanges())
+        #expect(await store.foreignChanges() != nil)
         try await store.upsert(source: Source(id: SourceID(stable: "eigen"), kind: .podcastRSS, title: "Eigen"))
-        #expect(await store.hasForeignChanges() == false)
+        #expect(await store.foreignChanges() == nil)
 
         // Ein anderer Kontext ohne den Namen des Stores, wie der Abgleich mit iCloud.
         let other = ModelContext(container)
         other.author = "NSCloudKitMirroringDelegate.import"
         other.insert(StoredSource(identifier: SourceID(stable: "fremd").rawValue, kind: .podcastRSS, title: "Fremd"))
         try other.save()
-        #expect(await store.hasForeignChanges())
-        #expect(await store.hasForeignChanges() == false)
+        #expect(await store.foreignChanges() != nil)
+        #expect(await store.foreignChanges() == nil)
     }
 }

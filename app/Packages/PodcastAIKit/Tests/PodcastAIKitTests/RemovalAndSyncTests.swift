@@ -102,7 +102,27 @@ struct RemovalAndSyncTests {
         #expect(report.episodeIDs == [episodeID])
         #expect(try await store.sources().isEmpty)
         #expect(try await store.evidence(forEpisode: episodeID).isEmpty)
-        #expect(try await store.allFacts().isEmpty)
+        #expect(try await store.facts(forEpisodes: [episodeID]).isEmpty)
+    }
+
+    @Test("Löschen lässt sich wiederholen, wenn die Zeilen schon weg sind")
+    func removingAgainDoesNotFail() async throws {
+        let store = try await seededStore()
+        // Ein offener Vermerk löscht beim nächsten Laden noch einmal
+        // (`resumePendingPurges`). Das darf nicht daran scheitern, dass der
+        // erste Versuch schon alles entfernt hat.
+        _ = try await store.removeEpisode(episodeID)
+        let again = try await store.removeEpisode(episodeID)
+        #expect(again.evidenceIDs.isEmpty)
+        #expect(try await store.episodes(forSource: sourceID).isEmpty)
+        // Eine Folge, die hier nie ankam.
+        #expect(try await store.removeEpisode(EpisodeID(stable: "nie angekommen")).isEmpty)
+
+        let removedAt = Date()
+        _ = try await store.removeSource(sourceID, recordingRemovalAt: removedAt, device: "test")
+        #expect(try await store.removeSource(sourceID, recordingRemovalAt: removedAt, device: "test").isEmpty)
+        // Das Merkzeichen der ersten Abbestellung bekommt keinen Zwilling.
+        #expect(try await store.rowCountForTesting(StoredSourceRemoval.self) == 1)
     }
 
     @Test("Doppelte Datensätze aus dem Abgleich werden bereinigt")

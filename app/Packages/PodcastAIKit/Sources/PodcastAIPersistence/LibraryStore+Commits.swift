@@ -224,14 +224,18 @@ extension LibraryStore {
     /// Legt Belege an, die es noch nicht gibt. Belege sind unveränderlich,
     /// wie in ``store(evidence:)``. Zurück kommen die neuen Kennungen.
     private func insertEvidence(_ evidence: [Evidence]) throws -> [EvidenceID] {
+        guard !evidence.isEmpty else { return [] }
+        // Eine Abfrage für alle Kennungen statt einer je Beleg. Eine Datei
+        // aus der Zeit vor dem Index auf der Kennung bekommt ihn nicht
+        // nachträglich, dort las jede einzelne Abfrage die ganze Tabelle.
+        let wanted = Set(evidence.map(\.id.rawValue))
+        var known = FetchDescriptor<StoredEvidence>(predicate: #Predicate { wanted.contains($0.identifier) })
+        known.propertiesToFetch = [\.identifier]
+        var seen = Set(try modelContext.fetch(known).map(\.identifier))
         var inserted: [EvidenceID] = []
-        var seen: Set<String> = []
         for item in evidence {
             let identifier = item.id.rawValue
             guard seen.insert(identifier).inserted else { continue }
-            let existing = try modelContext.fetchCount(FetchDescriptor<StoredEvidence>(
-                predicate: #Predicate { $0.identifier == identifier }))
-            guard existing == 0 else { continue }
             let stored = StoredEvidence(identifier: identifier)
             stored.mediaVersionIdentifier = item.mediaVersionID.rawValue
             stored.episodeIdentifier = item.episodeID.rawValue

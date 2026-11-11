@@ -39,7 +39,7 @@ final class StoreExecutor: SerialModelExecutor, @unchecked Sendable {
             // jeder Änderung.
             context.autosaveEnabled = false
             // Eigene Änderungen tragen diesen Namen in der Historie. So erkennt
-            // `LibraryStore.hasForeignChanges()` Änderungen von anderen Geräten.
+            // `LibraryStore.foreignChanges()` Änderungen von anderen Geräten.
             context.author = LibraryStore.localAuthor
             return context
         }

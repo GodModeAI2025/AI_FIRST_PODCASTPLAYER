@@ -168,12 +168,50 @@ struct ChatCacheTests {
             for id in scope { expected += try await store.evidence(forEpisode: id) }
             let scoped = try await store.timedEvidence(forEpisodes: scope)
             #expect(scoped == expected.filter { $0.range != nil })
+            // Greift die Grenze des Bestands, kommt dasselbe aus einer
+            // eigenen Abfrage: Folge für Folge wie gefragt, je Folge nach Zeit.
+            let limited = try await store.timedEvidence(forEpisodes: scope, poolLimit: 2)
+            #expect(limited == expected.filter { $0.range != nil })
         }
-        // Greift die Grenze des Bestands, wird wie bisher einzeln gelesen.
-        let limited = try await store.timedEvidence(forEpisodes: [a.id], poolLimit: 2)
-        #expect(limited == (try await store.evidence(forEpisode: a.id)))
         _ = try await store.removeEpisode(a.id)
         #expect(try await store.timedEvidence(forEpisodes: [a.id]).isEmpty)
+    }
+
+    @Test("Über der Grenze des Bestands kommen die neuesten Folgen nach Erscheinungsdatum, bei jedem Lesen dieselben")
+    func cutPoolKeepsNewestEpisodes() async throws {
+        let store = LibraryStore.make(container: try LibraryStore.makeContainer(inMemory: true))
+        let source = SourceID(stable: "quelle")
+        try await store.upsert(source: Source(id: source, kind: .podcastRSS, title: "Quelle"))
+        // Erschienen ist „alt“ vor „mitte“ vor „neu“. Ausgewertet wird die
+        // mittlere Folge zuerst und das alte Archiv zuletzt: Weder die
+        // Reihenfolge der Zeilen noch ihre Umkehrung ergibt die neuesten.
+        let day = 86_400.0
+        for (name, age) in [("mitte", 20.0), ("neu", 10.0), ("alt", 30.0)] {
+            let episode = Episode(id: EpisodeID(stable: name), sourceID: source, title: name,
+                                  publishedAt: Date(timeIntervalSince1970: 1_800_000_000 - age * day))
+            _ = try await store.upsert(episodes: [episode], forSource: source)
+            try await store.store(evidence: (0..<3).reversed().map { index in
+                Self.evidence("\(name)-\(index)", episode: name, text: "Satz \(index)", at: Int64(index) * 60)
+            })
+        }
+        let newest = try await store.evidence(forEpisode: EpisodeID(stable: "neu"))
+        let middle = try await store.evidence(forEpisode: EpisodeID(stable: "mitte"))
+        // Zwei Belege der neuesten Folge noch einmal, wie nach einem Abgleich.
+        // Sie zählen nicht doppelt und verdrängen keine Stelle.
+        for copy in newest.prefix(2) { try await store.insertDuplicateEvidenceForTesting(copy) }
+
+        // Neun Belege, Platz für fünf: die neueste Folge ganz, die mittlere
+        // bis zur Grenze, je Folge nach Zeit. Das Archiv bleibt draußen.
+        let expected = (newest + middle.prefix(2)).map(\.id)
+        let pool = try await store.evidenceForAnalyzedEpisodes(limit: 5)
+        #expect(pool.map(\.id) == expected)
+        await store.forgetCachedEvidence()
+        #expect(try await store.evidenceForAnalyzedEpisodes(limit: 5).map(\.id) == expected)
+
+        // Wer nach dem Archiv fragt, bekommt es trotzdem.
+        #expect(try await store.timedEvidence(forEpisodes: [EpisodeID(stable: "alt")], poolLimit: 5).count == 3)
+        // Unter der Grenze kommen alle.
+        #expect(Set(try await store.evidenceForAnalyzedEpisodes(limit: 20).map(\.id)).count == 9)
     }
 
     @Test("Der Fingerabdruck passt zum Transkript und ändert sich mit ihm")

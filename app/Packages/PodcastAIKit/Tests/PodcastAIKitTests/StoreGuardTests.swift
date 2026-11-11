@@ -613,6 +613,32 @@ struct PendingPurgeTests {
         #expect(!purge.storeDone)
     }
 
+    @Test("Scheitert der Store mittendrin, bleibt der Vermerk offen und kennt, was schon gelöscht ist")
+    func failedStoreRemovalStaysOpen() {
+        let other = EpisodeID(rawValue: "zweite")
+        var purge = PendingPurge(scope: .elsewhere, episodeIDs: [episodeID, other],
+                                 storeEpisodeIDs: [episodeID, other])
+        // Die erste Folge ist gelöscht, bei der zweiten scheitert der Store.
+        var first = LibraryStore.RemovalReport()
+        first.episodeIDs = [episodeID]
+        first.evidenceIDs = [EvidenceID(rawValue: "e1")]
+        first.mediaVersionIDs = [mediaID]
+        purge.recordStoreRemoval(first, done: false)
+        #expect(!purge.storeDone)
+        #expect(purge.evidenceIDs == [EvidenceID(rawValue: "e1")])
+        #expect(purge.mediaVersionIDs == [mediaID])
+
+        // Der nächste Versuch gelingt. Die Belege der ersten Folge nennt der
+        // Store dabei nicht mehr, der Vermerk kennt sie noch.
+        var second = LibraryStore.RemovalReport()
+        second.episodeIDs = [episodeID, other]
+        second.evidenceIDs = [EvidenceID(rawValue: "e2")]
+        purge.recordStoreRemoval(second)
+        #expect(purge.storeDone)
+        #expect(purge.episodeIDs == [episodeID, other])
+        #expect(purge.evidenceIDs == [EvidenceID(rawValue: "e1"), EvidenceID(rawValue: "e2")])
+    }
+
     @Test("Ein älterer Eintrag ohne neue Felder lässt sich lesen")
     func readsOlderEntries() throws {
         let json = """

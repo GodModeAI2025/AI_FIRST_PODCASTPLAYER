@@ -7347,6 +7347,22 @@
         }
       }
     },
+    "Durchsucht wurden nur die neuesten Folgen: %lld von ^[%lld Folge](inflect: true) mit Transkript." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Durchsucht wurden nur die neuesten Folgen: %1$lld von ^[%2$lld Folge](inflect: true) mit Transkript."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the newest episodes were searched: %1$lld of ^[%2$lld episode](inflect: true) with a transcript."
+          }
+        }
+      }
+    },
     "E-Mail schreiben" : {
       "localizations" : {
         "de" : {

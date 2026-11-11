@@ -215,8 +215,10 @@ struct ChatScopeAndTrailTests {
         let loaded = try #require(try await store.trails().first)
         #expect(loaded.answerText == "Antwort [1] und [3].")
         #expect(loaded.citationNumbers == [1: e1, 3: e3])
-        // Löschen heißt: nicht mehr in der Liste, die gespeichert wird.
+        // Gelöscht wird ausdrücklich. Eine Liste ohne die Karte löscht sie nicht.
         try await store.save(trails: [])
+        #expect(try await store.trails().map(\.id) == [trail.id])
+        try await store.removeTrail(trail.id)
         #expect(try await store.trails().isEmpty)
     }
 }

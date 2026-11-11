@@ -247,7 +247,7 @@ struct TrendingFeedTests {
         try await store.save(editions: [ownRun.edition], forFeed: own.id)
 
         // Derselbe Weg wie `AppModel.removeSmartFeed`.
-        try await store.save(smartFeeds: [own])
+        try await store.removeSmartFeed(TrendingFeed.id)
         try await store.save(editions: [], forFeed: TrendingFeed.id)
 
         #expect(try await store.smartFeeds().map(\.id) == [own.id])
