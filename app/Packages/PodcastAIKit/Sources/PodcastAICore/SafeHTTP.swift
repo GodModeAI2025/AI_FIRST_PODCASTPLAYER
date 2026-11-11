@@ -74,6 +74,20 @@ public enum SafeHTTP {
     /// `invalidateAndCancel()` oder `finishTasksAndInvalidate()`. Das ist
     /// hier gewollt: die Session lebt so lange wie der Dienst, der sie
     /// besitzt.
+    ///
+    /// Zum Zwischenspeichern, gemessen mit macOS 27.2 und iOS 27.0:
+    /// `ephemeral` bringt 512 KB im Arbeitsspeicher mit und nichts auf der
+    /// Platte, und `URLCache` nimmt nur Antworten bis 5 % seiner Kapazität
+    /// an. Ohne weitere Einstellung merkt sich die Session also nur, was
+    /// kleiner als 25 KB ist, und liefert das ohne Anfrage aus, solange es
+    /// nach den Regeln von HTTP als frisch gilt. Wer immer den Stand des
+    /// Servers braucht, etwa bei Feeds, setzt in `configure` die
+    /// `requestCachePolicy` auf `.reloadRevalidatingCacheData`. Damit der
+    /// Server dann mit 304 antworten kann, statt alles neu zu schicken,
+    /// gehört ein `URLCache` auf der Platte dazu, zwanzigmal so groß wie
+    /// die größte Antwort (es zählt die entpackte Größe). `bytes(for:)`
+    /// legt dort ab, was vollständig ankam. Den Cache ohne diese
+    /// Richtlinie zu setzen, liefert veraltete Feeds.
     public static func makeSession(
         configure: (URLSessionConfiguration) -> Void = { _ in }
     ) -> URLSession {
@@ -171,7 +185,10 @@ public enum SafeHTTP {
         _ stream: URLSession.AsyncBytes, expected: Int64, limit: Int64, truncating: Bool
     ) async throws -> Data {
         var data = Data()
-        data.reserveCapacity(min(Int(max(expected, 0)), 1 << 20))
+        // Erst begrenzen, dann umwandeln: `expected` ist die Content-Length
+        // des Servers, und auf Uhren mit 32-Bit-`Int` (arm64_32) beendet
+        // `Int(…)` die App bei allem über 2 GB.
+        data.reserveCapacity(Int(min(max(expected, 0), 1 << 20)))
         var count: Int64 = 0
         for try await byte in stream {
             if count >= limit {

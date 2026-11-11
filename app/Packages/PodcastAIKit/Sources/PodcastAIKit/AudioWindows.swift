@@ -119,8 +119,10 @@ struct RemoteMP3Windows: AudioWindowSource {
             throw AudioWindowError.unsupported
         }
         let head = try await fetch(url, 0...(headBytes - 1), headBytes + 1024)
+        // Die Länge nennt der Server. Was größer ist, als die App je lädt,
+        // ist keine Folge, und mit so einer Zahl rechnet hier nichts weiter.
         guard head.status == 206, let total = MPEGAudio.totalLength(contentRange: head.contentRange),
-              total > headBytes else { throw AudioWindowError.unsupported }
+              total > headBytes, total <= MediaDownloader.maximumBytes else { throw AudioWindowError.unsupported }
         guard let id3 = MPEGAudio.id3Length(head.data) else { throw AudioWindowError.unsupported }
 
         var data = head.data

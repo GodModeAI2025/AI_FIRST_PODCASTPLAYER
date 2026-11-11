@@ -65,7 +65,9 @@ public enum MPEGAudio {
 
     /// Liest den Kopf eines Rahmens an `offset`, falls dort einer beginnt.
     public static func header(in data: Data, at offset: Int) -> FrameHeader? {
-        guard offset >= 0, offset + 4 <= data.count else { return nil }
+        // Abziehen statt addieren: `offset + 4` liefe bei einem Wert nahe
+        // `Int.max` über.
+        guard offset >= 0, offset <= data.count - 4 else { return nil }
         let base = data.startIndex + offset
         let b0 = data[base], b1 = data[base + 1], b2 = data[base + 2], b3 = data[base + 3]
         guard b0 == 0xFF, b1 & 0xE0 == 0xE0 else { return nil }
@@ -95,7 +97,7 @@ public enum MPEGAudio {
     /// Stroms folgen. Ein einzelnes 0xFF mitten im Ton ist kein Rahmen.
     public static func firstFrame(in data: Data, from start: Int = 0, following: Int = 2) -> Int? {
         var offset = max(0, start)
-        while offset + 4 <= data.count {
+        while offset <= data.count - 4 {
             if let head = header(in: data, at: offset), chainHolds(in: data, from: offset, head: head, count: following) {
                 return offset
             }
@@ -106,7 +108,7 @@ public enum MPEGAudio {
 
     private static func chainHolds(in data: Data, from offset: Int, head: FrameHeader, count: Int) -> Bool {
         var position = offset + head.length
-        for _ in 0..<count {
+        for _ in 0..<max(0, count) {
             guard let next = header(in: data, at: position), next.sameStream(as: head) else { return false }
             position += next.length
         }
@@ -139,17 +141,18 @@ public enum MPEGAudio {
 
     /// Welche Kennung der Rahmen an `offset` trägt.
     public static func bitrateTag(in data: Data, frameAt offset: Int, header head: FrameHeader) -> BitrateTag {
-        func tag(at position: Int) -> String? {
-            guard position >= 0, position + 4 <= data.count else { return nil }
-            let base = data.startIndex + position
+        // `distance` zählt ab dem Rahmen. Erst prüfen, dann addieren.
+        func tag(at distance: Int) -> String? {
+            guard offset >= 0, offset <= data.count - distance - 4 else { return nil }
+            let base = data.startIndex + offset + distance
             return String(bytes: data[base..<(base + 4)], encoding: .ascii)
         }
-        switch tag(at: offset + head.xingOffset) {
+        switch tag(at: head.xingOffset) {
         case "Xing": return .variable
         case "Info": return .info
         default: break
         }
-        return tag(at: offset + 36) == "VBRI" ? .variable : .none
+        return tag(at: 36) == "VBRI" ? .variable : .none
     }
 
     /// Liegen ab `offset` nur Rahmen mit dieser Bitrate? Gibt das Ende des
@@ -192,30 +195,36 @@ public struct CBRAudioLayout: Equatable, Sendable {
         self.sampleRate = sampleRate
     }
 
+    // Die Länge nennt der Server, und `bytes 0-1/9000000000000000000` ist
+    // eine gültige Kopfzeile. Mal acht läuft das in 64 Bit über, und ein
+    // Überlauf beendet in Swift die App. Deshalb rechnet alles hier in
+    // 128 Bit und sättigt erst das Ergebnis.
+
     /// Byte je Sekunde.
-    public var bytesPerSecond: Int64 { Int64(bitrateKbps) * 125 }
+    public var bytesPerSecond: Int64 { Int64(clamping: Int128(bitrateKbps) * 125) }
 
     /// Länge des Tons. Ein ID3v1-Block am Ende (128 Byte) fällt nicht ins Gewicht.
     public var duration: MediaDuration {
-        MediaDuration(milliseconds: max(0, totalLength - audioStart) * 8 / Int64(bitrateKbps))
+        MediaDuration(milliseconds: milliseconds(atByte: totalLength))
     }
 
     /// Die Zeit eines Rahmens, der bei `byte` beginnt. Bits geteilt durch
-    /// Kilobit je Sekunde ergibt Millisekunden.
+    /// Kilobit je Sekunde ergibt Millisekunden. Ohne Bitrate 0.
     public func milliseconds(atByte byte: Int64) -> Int64 {
-        max(0, byte - audioStart) * 8 / Int64(bitrateKbps)
+        guard bitrateKbps > 0 else { return 0 }
+        return Int64(clamping: max(0, Int128(byte) - Int128(audioStart)) * 8 / Int128(bitrateKbps))
     }
 
     /// Das Byte zu einer Zeit, auf den Rahmen genau erst nach dem Laden.
     public func byte(atMilliseconds milliseconds: Int64) -> Int64 {
-        audioStart + max(0, milliseconds) * Int64(bitrateKbps) / 8
+        Int64(clamping: Int128(audioStart) + Int128(max(0, milliseconds)) * Int128(bitrateKbps) / 8)
     }
 
     /// Aus dem Anfang der Datei: Beginn des Tons und Bitrate. `data` beginnt
     /// bei Byte `dataOffset` der Datei. `nil` bei variabler Bitrate oder wenn
     /// sich kein Rahmen findet.
     public static func parse(head data: Data, dataOffset: Int64, searchFrom: Int64, totalLength: Int64) -> CBRAudioLayout? {
-        let local = Int(max(0, searchFrom - dataOffset))
+        let local = Int(clamping: max(0, Int128(searchFrom) - Int128(dataOffset)))
         guard let frame = MPEGAudio.firstFrame(in: data, from: local),
               let head = MPEGAudio.header(in: data, at: frame) else { return nil }
         var start = frame
@@ -224,7 +233,10 @@ public struct CBRAudioLayout: Equatable, Sendable {
         case .info: start = frame + head.length
         case .none: break
         }
-        return CBRAudioLayout(audioStart: dataOffset + Int64(start), totalLength: totalLength,
+        // Ein Anfang jenseits von 64 Bit ist keine Stelle in einer Datei.
+        let (audioStart, overflow) = dataOffset.addingReportingOverflow(Int64(start))
+        guard !overflow else { return nil }
+        return CBRAudioLayout(audioStart: audioStart, totalLength: totalLength,
                               bitrateKbps: head.bitrateKbps, sampleRate: head.sampleRate)
     }
 }

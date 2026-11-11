@@ -41,6 +41,10 @@ public actor MediaDownloader {
     /// füllt sonst die Platte, bevor irgendjemand nachsieht.
     public static let maximumBytes: Int64 = 2 * 1024 * 1024 * 1024
 
+    /// So lange darf eine Folge im Vordergrund laden. Danach bricht die
+    /// Sitzung ab, und was unter `incoming` noch älter ist, lädt niemand mehr.
+    static let resourceTimeout: TimeInterval = 60 * 60
+
     private let directory: URL
     private let temporaryDirectory: URL
     private let session: URLSession
@@ -49,13 +53,36 @@ public actor MediaDownloader {
         let staging = directory.appendingPathComponent("incoming", isDirectory: true)
         try? FileManager.default.createDirectory(
             at: staging, withIntermediateDirectories: true)
+        Self.removeAbandoned(in: staging)
         self.directory = directory
         self.temporaryDirectory = staging
         self.session = SafeHTTP.makeSession { configuration in
             // Eine Folge darf lange laden; nur der einzelne Leseschritt hat
             // ein kurzes Zeitfenster.
             configuration.timeoutIntervalForRequest = 60
-            configuration.timeoutIntervalForResource = 60 * 60
+            configuration.timeoutIntervalForResource = Self.resourceTimeout
+        }
+    }
+
+    /// Räumt die Reste abgebrochener Downloads weg. Beendet das System die
+    /// App mitten im Laden, wirft niemand einen Fehler, der die halbe Datei
+    /// löschte, und sonst kennt keiner den Ordner: sie bliebe für immer
+    /// liegen, bis zu `maximumBytes` groß.
+    ///
+    /// Gelöscht wird nach dem Alter der letzten Änderung, nie der ganze
+    /// Ordner. Die Auswertung und „Laden (offline)“ legen je einen eigenen
+    /// `MediaDownloader` auf dasselbe Verzeichnis, und was der andere gerade
+    /// lädt, muss liegen bleiben. Ein laufender Download schreibt alle
+    /// 256 KB und endet spätestens nach `resourceTimeout`.
+    private static func removeAbandoned(in staging: URL) {
+        let entries = (try? FileManager.default.contentsOfDirectory(
+            at: staging, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        let oldest = Date().addingTimeInterval(-resourceTimeout)
+        for entry in entries {
+            // Ohne lesbares Datum bleibt die Datei liegen.
+            guard let modified = try? entry.resourceValues(forKeys: [.contentModificationDateKey])
+                .contentModificationDate, modified < oldest else { continue }
+            try? FileManager.default.removeItem(at: entry)
         }
     }
 

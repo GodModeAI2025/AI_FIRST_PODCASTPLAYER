@@ -472,4 +472,34 @@ struct MPEGAudioLayoutTests {
         let mixed = frames(10) + frames(5, bitrateByte: 0xA0) + frames(10)
         #expect(MPEGAudio.constantBitrateEnd(in: mixed, from: 0, bitrateKbps: 128) == nil)
     }
+
+    @Test("Unsinnig große Zahlen vom Server beenden die App nicht")
+    func survivesAbsurdNumbers() throws {
+        // `bytes 0-1/9223372036854775807`: mal acht passt das nicht mehr in 64 Bit.
+        let huge = CBRAudioLayout(audioStart: 684, totalLength: .max, bitrateKbps: 128, sampleRate: 44_100)
+        #expect(huge.duration.milliseconds == (Int64.max - 684) / 16)
+        #expect(huge.milliseconds(atByte: .max) == (Int64.max - 684) / 16)
+        #expect(huge.byte(atMilliseconds: .max) == .max)
+
+        // Ein Abstand, der selbst nicht in 64 Bit passt.
+        let apart = CBRAudioLayout(audioStart: .min, totalLength: .max, bitrateKbps: 8, sampleRate: 8_000)
+        #expect(apart.duration.milliseconds == .max)
+        #expect(apart.byte(atMilliseconds: 0) == .min)
+
+        // Ohne Bitrate gibt es keine Zeit, aber auch keine Division durch 0.
+        let silent = CBRAudioLayout(audioStart: 0, totalLength: .max, bitrateKbps: 0, sampleRate: 44_100)
+        #expect(silent.duration == .zero)
+        #expect(CBRAudioLayout(audioStart: 0, totalLength: 0, bitrateKbps: .max, sampleRate: 1).bytesPerSecond == .max)
+
+        // Eine Stelle jenseits der Daten ist kein Rahmen.
+        let data = frames(4, tag: "Info")
+        let head = try #require(MPEGAudio.header(in: data, at: 0))
+        #expect(MPEGAudio.header(in: data, at: .max) == nil)
+        #expect(MPEGAudio.firstFrame(in: data, from: .max) == nil)
+        #expect(MPEGAudio.firstFrame(in: data, following: -1) == 0)
+        #expect(MPEGAudio.bitrateTag(in: data, frameAt: .max, header: head) == MPEGAudio.BitrateTag.none)
+        #expect(CBRAudioLayout.parse(head: data, dataOffset: .min, searchFrom: .max, totalLength: .max) == nil)
+        // Der Info-Rahmen schöbe den Anfang über 64 Bit hinaus.
+        #expect(CBRAudioLayout.parse(head: data, dataOffset: .max, searchFrom: .max, totalLength: .max) == nil)
+    }
 }
