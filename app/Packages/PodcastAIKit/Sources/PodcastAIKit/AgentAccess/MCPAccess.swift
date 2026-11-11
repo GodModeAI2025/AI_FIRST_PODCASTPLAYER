@@ -412,11 +412,13 @@ public final class MCPAccess {
     /// Merkt sich einen Agenten, der sich gemeldet hat. Die Einstellungen
     /// bieten seinen Namen zur Wahl an, so muss ihn niemand abtippen.
     public func noteClient(name: String, version: String?, at now: Date = Date()) {
-        var records = knownClients.filter { $0.name != name }
-        records.insert(ClientRecord(name: name, version: version, lastSeen: now), at: 0)
-        if records.count > Self.clientLimit { records.removeLast(records.count - Self.clientLimit) }
-        guard let data = try? JSONEncoder().encode(records) else { return }
-        defaults.set(data, forKey: Self.clientsKey)
+        exclusively {
+            var records = knownClients.filter { $0.name != name }
+            records.insert(ClientRecord(name: name, version: version, lastSeen: now), at: 0)
+            if records.count > Self.clientLimit { records.removeLast(records.count - Self.clientLimit) }
+            guard let data = try? JSONEncoder().encode(records) else { return }
+            defaults.set(data, forKey: Self.clientsKey)
+        }
     }
 
     /// Ob eine Anfrage dieses Agenten jetzt etwas bekommt.
@@ -666,12 +668,35 @@ public final class MCPAccess {
     }
 
     private func log(_ tool: MCPTool, query: String?, count: Int, client: String?, refusal: MCPRefusal.Kind?) {
-        var entries = auditLog
-        entries.insert(AuditEntry(tool: tool, query: query, resultCount: count,
-                                  at: Date(), client: client, refusal: refusal), at: 0)
-        if entries.count > Self.auditLimit { entries.removeLast(entries.count - Self.auditLimit) }
-        guard let data = try? JSONEncoder().encode(entries) else { return }
-        defaults.set(data, forKey: Self.auditKey)
+        exclusively {
+            var entries = auditLog
+            entries.insert(AuditEntry(tool: tool, query: query, resultCount: count,
+                                      at: Date(), client: client, refusal: refusal), at: 0)
+            if entries.count > Self.auditLimit { entries.removeLast(entries.count - Self.auditLimit) }
+            guard let data = try? JSONEncoder().encode(entries) else { return }
+            defaults.set(data, forKey: Self.auditKey)
+        }
+    }
+
+    /// Die Datei, deren Sperre Protokoll und Agentenliste schützt.
+    static let lockPath = NSTemporaryDirectory() + "com.podcastai.mcp.lock"
+
+    /// Liest, ändert und schreibt eine Liste, ohne dass ein zweiter Prozess
+    /// dazwischenkommt. Jeder Agent startet seinen eigenen Prozess mit
+    /// `--mcp`, Claude Desktop und Claude Code also zwei. Ohne die Sperre
+    /// läse der eine die Liste, bevor der andere geschrieben hat, und
+    /// überschriebe dessen Eintrag.
+    ///
+    /// Nicht ineinander aufrufen: Die zweite Sperre wartete auf die erste.
+    private func exclusively(_ change: () -> Void) {
+        let lock = open(Self.lockPath, O_CREAT | O_RDWR, 0o600)
+        // Ohne Sperrdatei lieber ungeschützt schreiben als gar nicht.
+        if lock >= 0 { flock(lock, LOCK_EX) }
+        change()
+        // Wartet, bis der Eintrag in der Datenbank der Einstellungen steht.
+        // Vorher darf kein anderer Prozess lesen.
+        defaults.synchronize()
+        if lock >= 0 { close(lock) }
     }
 }
 

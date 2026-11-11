@@ -587,4 +587,35 @@ struct TranscriptStageTests {
         #expect(await expectSignal("ende:leer", in: harness.work.signals))
         #expect(try await store.leases(for: a.id).isEmpty)
     }
+
+    @Test("Geht die Sperre während der Arbeit an ein anderes Gerät, hält nur diese Folge an und wartet")
+    func leaseLostWhileRunningParksEpisode() async throws {
+        let a = episode("A"), b = episode("B")
+        let store = try await makeStore([a, b])
+        let plan = RecordingWork.Plan(hangs: [a.id])
+        let harness = await makeHarness(
+            store: store, plan: plan, leases: LeasePolicy(deviceID: "iphone", renewal: .milliseconds(50)))
+        await harness.stage.handle(.enqueue(a, .automatic))
+        await harness.stage.handle(.enqueue(b, .automatic))
+        harness.gate.setInForeground(true)
+        #expect(await expectSignal("job:A", in: harness.work.signals))
+        // Die Sperre des Macs kommt über iCloud an, genommen eine Minute vor der eigenen.
+        try await store.insertLeaseForTesting(.transcript, for: a.id, device: "mac",
+                                              acquiredAt: Date().addingTimeInterval(-60),
+                                              expiresAt: Date().addingTimeInterval(600))
+        // Beim nächsten Verlängern hält A an. B läuft, und der Lauf endet leer, nicht angehalten.
+        #expect(await expectSignal("ende:leer", in: harness.work.signals))
+        #expect(Array(harness.work.calls.prefix(4)) == ["start:A", "job:A", "job:B", "ende:leer"])
+        #expect(await harness.stage.queuedIDs == [a.id], "A wartet auf den Mac und beginnt nicht von selbst neu")
+        #expect(try await store.leases(for: a.id).map(\.deviceID) == ["mac"], "Die eigene Sperre ist weg")
+        #expect(try await store.mediaVersionsWithEvidence([media(of: a)]).isEmpty, "Geschrieben hat A nichts")
+
+        // Der Mac gibt auf, ohne dass ein Transkript ankam: Dieses Gerät macht weiter.
+        try await store.releaseLease(.transcript, for: a.id, device: "mac")
+        await harness.stage.receive(.changedElsewhere(ChangeSet(rows: [.lease: .init(deleted: 1)])))
+        #expect(await expectSignal("job:A", in: harness.work.signals))
+        #expect(await expectSignal("ende:leer", in: harness.work.signals))
+        #expect(!harness.work.calls.contains("ende:angehalten"))
+        #expect(try await store.leases(for: a.id).isEmpty)
+    }
 }

@@ -400,6 +400,10 @@ public struct KnowledgeJobs: KnowledgeWorking {
         // Beim Kürzen bleibt jedes Kapitel vertreten.
         let kept = ChapterSections.balanced(
             Array(unique), across: sections, quota: plan.quota, limit: plan.limit) { $0.range.start }
+        // Die Sperre ging an ein anderes Gerät, als der letzte Abschnitt schon
+        // fertig war: Auch der ganze Lauf schreibt dann nichts, wie in
+        // `keepFinished`. Die Stufe hat ihn abgebrochen und lässt die Folge warten.
+        guard HeldLease.current?.isLost != true else { return .cancelled }
         var saveFailure: String?
         var receipt: WriteReceipt?
         do {
@@ -442,13 +446,17 @@ public struct KnowledgeJobs: KnowledgeWorking {
     /// das Gerät als Lücken. Der nächste Lauf rechnet dann nur noch sie.
     ///
     /// Nicht bei „Neu ermitteln“ über vorhandene Fakten (`replacing`): Ein
-    /// halber neuer Lauf ersetzte sonst die ganzen alten Fakten.
-    private func keepFinished(
+    /// halber neuer Lauf ersetzte sonst die ganzen alten Fakten. Auch nicht,
+    /// wenn die Sperre an ein anderes Gerät gegangen ist (`HeldLease`): Das
+    /// schreibt seine eigenen Fakten, und der Zwischenstand von hier
+    /// ersetzte sie oder stünde daneben.
+    func keepFinished(
         _ result: [EpisodeFact], stored: [EpisodeFact], of episode: Episode, unfinished: Set<Int>,
         slices: [[Evidence]], missing: Set<String>, replacing: Bool, ticket: RemovalLedger.Ticket
     ) async -> FactsOutcome {
         let id = episode.id
-        guard !result.isEmpty, !replacing, !ledger.wasRemoved(id, since: ticket) else { return .cancelled }
+        guard !result.isEmpty, !replacing, HeldLease.current?.isLost != true,
+              !ledger.wasRemoved(id, since: ticket) else { return .cancelled }
         let unique = Dictionary((stored + result).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }).values
             .sorted { $0.range.start.milliseconds < $1.range.start.milliseconds }
         let kept = Self.evenlySpaced(Array(unique), count: Self.factLimit)

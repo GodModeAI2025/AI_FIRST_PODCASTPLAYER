@@ -29,7 +29,8 @@ public enum ProcessingLeaseKind: String, Sendable, CaseIterable {
     case knowledge
 }
 
-/// Wie der Versuch ausging, eine Folge zu sperren.
+/// Wie der Versuch ausging, eine Folge zu sperren oder ihre Sperre zu
+/// verlängern.
 public enum LeaseDecision: Sendable, Equatable {
     /// Dieses Gerät hält die Sperre bis `until`.
     case granted(until: Date)
@@ -93,18 +94,30 @@ extension LibraryStore {
 
     /// Verlängert die eigene Sperre während der Arbeit. Legt nichts neu an:
     /// Wurde die Folge inzwischen gelöscht, ist mit ihr auch die Sperre weg,
-    /// und so bleibt es. `false`, wenn dieses Gerät die Sperre nicht mehr
-    /// hält, etwa weil sie abgelaufen ist und ein anderes übernommen hat.
+    /// und so bleibt es.
+    ///
+    /// `.heldElsewhere` heißt verloren: Ein anderes Gerät hält eine gültige
+    /// Sperre, die vor der eigenen gilt, etwa weil beide sie nahmen, bevor
+    /// der Abgleich die Zeile des anderen brachte. Wie beim Nehmen geht dann
+    /// die eigene Zeile. `nil` heißt nur, dass es nichts zu verlängern gibt:
+    /// Keine Sperre ist mehr gültig, auch keine fremde.
     @discardableResult
     public func renewLease(
         _ kind: ProcessingLeaseKind, for episodeID: EpisodeID, device: String,
         duration: TimeInterval, now: Date = Date()
-    ) throws -> Bool {
+    ) throws -> LeaseDecision? {
         let rows = try leaseRows(kind, episodeID)
-        guard let winner = Self.winner(of: rows, at: now), winner.deviceIdentifier == device else { return false }
-        winner.expiresAt = now.addingTimeInterval(duration)
+        guard let winner = Self.winner(of: rows, at: now) else { return nil }
+        guard winner.deviceIdentifier == device else {
+            let own = rows.filter { $0.deviceIdentifier == device }
+            for row in own { modelContext.delete(row) }
+            if !own.isEmpty { try modelContext.save() }
+            return .heldElsewhere(device: winner.deviceIdentifier, until: winner.expiresAt)
+        }
+        let until = now.addingTimeInterval(duration)
+        winner.expiresAt = until
         try modelContext.save()
-        return true
+        return .granted(until: until)
     }
 
     /// Gibt die eigene Sperre frei, nach getaner Arbeit.

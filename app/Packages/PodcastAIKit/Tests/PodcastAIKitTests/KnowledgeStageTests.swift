@@ -63,6 +63,8 @@ private func makeStore(_ episodes: [Episode], transcripts: Bool = false) async t
 
 /// Eine Arbeit, die mitschreibt, was sie tun soll. Fakten einer Folge
 /// können hängen, bis die Stufe abbricht; dann kommt `.cancelled` zurück.
+/// Ist beim Abbruch die Sperre an ein anderes Gerät gegangen, schreibt sie
+/// auch das mit: Die echte Arbeit lässt dann ihren Zwischenstand weg.
 private final class RecordingWork: KnowledgeWorking {
 
     struct Plan: Sendable {
@@ -96,6 +98,9 @@ private final class RecordingWork: KnowledgeWorking {
         startedContinuation.yield("facts:\(episode.title)")
         if hangs {
             try? await Task.sleep(for: .seconds(60))
+            if HeldLease.current?.isLost == true {
+                state.withLock { $0.calls.append("ohne Sperre:\(episode.title)") }
+            }
             return .cancelled
         }
         return outcome
@@ -867,6 +872,32 @@ struct KnowledgeJobsTests {
         #expect(reporter.events.contains("chapters:2"))
         #expect(try await store.episodes(ids: [a.id]).first?.publisherChapters.map(\.title) == ["Anfang", "Mitte"])
     }
+
+    @Test("Abgebrochen ohne Sperre bleibt der Zwischenstand ungeschrieben, mit Sperre steht er im Store")
+    func cancelledWithoutLeaseKeepsNothing() async throws {
+        let a = episode("A", daysAgo: 1)
+        let store = try await makeStore([a], transcripts: true)
+        let evidence = try #require(try await store.evidence(forEpisode: a.id).first)
+        let finished = [EpisodeFact(
+            id: "fakt-a", episodeID: a.id, sourceID: sourceID, evidenceID: evidence.id,
+            mediaVersionID: evidence.mediaVersionID, statement: "Ein Satz über A.",
+            range: try #require(evidence.range), modelTier: "onDevice")]
+        let jobs = makeJobs(store: store)
+        func keep() async -> FactsOutcome {
+            await jobs.keepFinished(finished, stored: [], of: a, unfinished: [], slices: [], missing: [],
+                                    replacing: false, ticket: RemovalLedger.Ticket(0))
+        }
+        // Die Sperre ging an ein anderes Gerät: Das schreibt seine eigenen Fakten.
+        let lost = HeldLease()
+        lost.markLost()
+        let withoutLease = await HeldLease.$current.withValue(lost) { await keep() }
+        #expect(withoutLease == .cancelled)
+        #expect(try await store.facts(forEpisode: a.id).isEmpty)
+        // Angehalten mit gültiger Sperre, etwa am Tor: Was fertig ist, bleibt.
+        let withLease = await HeldLease.$current.withValue(HeldLease()) { await keep() }
+        #expect(withLease == .cancelled)
+        #expect(try await store.facts(forEpisode: a.id).map(\.id) == ["fakt-a"])
+    }
 }
 
 // MARK: - Vermerke in `DeviceState` aus mehreren Threads (Schritt 3b)
@@ -945,6 +976,9 @@ struct DeviceMarksConcurrencyTests {
         try await store.insertLeaseForTesting(.knowledge, for: a.id, device: "mac", acquiredAt: clock.date,
                                               expiresAt: clock.date.addingTimeInterval(0.2))
         let harness = await makeHarness(store: store, clock: clock, leases: LeasePolicy(deviceID: "iphone"))
+        // Gemerkt wird erst nach dem ersten Abgleich. Der vom Start kommt
+        // unter Last manchmal später als die Prüfung unten.
+        await harness.stage.reconcile()
         await harness.stage.request(a)
         await harness.stage.enqueue(b)
         harness.gate.setInForeground(true)
@@ -960,5 +994,45 @@ struct DeviceMarksConcurrencyTests {
         #expect(harness.work.calls.contains("facts:A!"))
         await harness.stage.untilIdle()
         #expect(try await store.leases(for: a.id).isEmpty, "Nach den Fakten ist die eigene Sperre frei")
+    }
+
+    @Test("Geht die Sperre während der Fakten an ein anderes Gerät, bricht die Arbeit ab, und die Folge wartet")
+    func leaseLostWhileGatheringParksFacts() async throws {
+        let a = episode("A", daysAgo: 1), b = episode("B", daysAgo: 2)
+        let store = try await makeStore([a, b], transcripts: true)
+        let clock = TestClock()
+        var plan = RecordingWork.Plan()
+        plan.hangs = [a.id]
+        let harness = await makeHarness(
+            store: store, work: RecordingWork(plan), clock: clock,
+            leases: LeasePolicy(deviceID: "iphone", renewal: .milliseconds(50)))
+        await harness.stage.enqueue(a)
+        await harness.stage.enqueue(b)
+        harness.gate.setInForeground(true)
+        #expect(await next(harness.work.started) == "facts:A")
+        // Die Sperre des Macs kommt über iCloud an, genommen eine Minute vor der eigenen.
+        try await store.insertLeaseForTesting(.knowledge, for: a.id, device: "mac",
+                                              acquiredAt: clock.date.addingTimeInterval(-60),
+                                              expiresAt: clock.date.addingTimeInterval(600))
+        // Beim nächsten Verlängern bricht A ab, und B kommt dran.
+        guard await next(harness.work.started) == "facts:B" else {
+            Issue.record("A läuft weiter, obwohl der Mac die Sperre hält")
+            return
+        }
+        await harness.stage.untilIdle()
+        // A hat einmal begonnen, beim Abbruch von der verlorenen Sperre gewusst und keine Tags bekommen.
+        #expect(harness.work.calls == ["facts:A", "ohne Sperre:A", "facts:B", "tags:B:automatic"])
+        #expect(await harness.stage.queuedFacts.isEmpty)
+        #expect(await harness.stage.snapshot.queue.map(\.id) == [a.id], "A wartet auf den Mac")
+        #expect(await harness.stage.snapshot.issues.isEmpty, "Verloren zählt nicht als Fehlschlag")
+        #expect(try await store.leases(for: a.id).map(\.deviceID) == ["mac"], "Die eigene Sperre ist weg")
+
+        // Der Mac gibt auf, ohne dass Fakten ankamen: Dieses Gerät macht weiter.
+        try await store.releaseLease(.knowledge, for: a.id, device: "mac")
+        await harness.stage.receive(.changedElsewhere(ChangeSet(rows: [.lease: .init(deleted: 1)])))
+        while let signal = await next(harness.work.started), signal != "facts:A" { continue }
+        await harness.stage.untilIdle()
+        #expect(Array(harness.work.calls.suffix(2)) == ["facts:A", "tags:A:automatic"])
+        #expect(try await store.leases(for: a.id).isEmpty)
     }
 }

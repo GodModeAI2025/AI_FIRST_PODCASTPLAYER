@@ -358,6 +358,26 @@ struct AgentAccessTests {
         #expect(logged.count <= 201)
     }
 
+    @Test("Protokoll und Agentenliste schreiben unter der Sperre, die Agentenprozesse voneinander trennt")
+    func listsAreWrittenUnderTheLock() throws {
+        let store = LibraryStore.make(container: try LibraryStore.makeContainer(inMemory: true))
+        let defaults = MemoryDefaults()
+        let access = MCPAccess(store: store, defaults: defaults)
+        // Wie ein zweiter Agentenprozess, der im selben Augenblick schreiben
+        // will. Bekäme er die Sperre, überschriebe einer den Eintrag des anderen.
+        var held: [String: Bool] = [:]
+        defaults.onSet = { key in
+            let other = open(MCPAccess.lockPath, O_CREAT | O_RDWR, 0o600)
+            defer { close(other) }
+            held[key] = flock(other, LOCK_EX | LOCK_NB) != 0
+        }
+        access.noteClient(name: "claude-code", version: nil)
+        access.noteInvalidArguments(for: .getEvidence, client: "claude-code")
+        #expect(held == ["com.podcastai.mcp.clients": true, "com.podcastai.mcp.audit": true])
+        #expect(access.knownClients.map(\.name) == ["claude-code"])
+        #expect(access.auditLog.map(\.refusal) == [.invalidArguments])
+    }
+
     @Test("Eine Freigabe für einen Agenten gilt für ihn, und ein Erneuern behält den Umfang")
     func grantForOneClient() async throws {
         let fixture = try await Self.fixture()
@@ -485,6 +505,8 @@ struct AgentAccessTests {
 final class MemoryDefaults: UserDefaults {
     private let lock = NSLock()
     private var values: [String: Any] = [:]
+    /// Läuft vor jedem Schreiben, mit dem Schlüssel.
+    var onSet: ((String) -> Void)?
 
     init() {
         super.init(suiteName: nil)!
@@ -495,6 +517,7 @@ final class MemoryDefaults: UserDefaults {
     }
 
     override func set(_ value: Any?, forKey defaultName: String) {
+        onSet?(defaultName)
         lock.withLock { values[defaultName] = value }
     }
 

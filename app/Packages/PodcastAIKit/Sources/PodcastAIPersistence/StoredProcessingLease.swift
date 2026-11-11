@@ -15,10 +15,12 @@
 //  CloudKit kennt kein atomares „nimm, wenn frei“. Schreiben zwei Geräte
 //  ihre Sperre, bevor der Abgleich die andere gebracht hat, gilt unter den
 //  gültigen die älteste, bei Gleichstand die kleinere Gerätekennung
-//  (`LibraryStore+Leases.swift`). Das Fenster wird so klein, ganz schließt
-//  es sich nicht. Entsteht doch ein zweites Transkript, trägt es dieselbe
-//  Kennung (feste Sprache, `TranscriptID.forMedia`), und das Bereinigen
-//  behält eines.
+//  (`LibraryStore+Leases.swift`). Wer dabei verliert, erfährt es beim
+//  nächsten Verlängern und bricht ab (`LeasePolicy`). Das Fenster wird so
+//  klein, ganz schließt es sich nicht: Arbeit, die vor dem ersten
+//  Verlängern fertig ist, fragt nie. Entsteht doch ein zweites Transkript,
+//  trägt es dieselbe Kennung (feste Sprache, `TranscriptID.forMedia`), und
+//  das Bereinigen behält eines.
 //
 //  CloudKit-tauglich: jedes Feld mit Standardwert, keine eindeutigen
 //  Schlüssel, keine Beziehungen. Ältere Fassungen der App kennen die Art

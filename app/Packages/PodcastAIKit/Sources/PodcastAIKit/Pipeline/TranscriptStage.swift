@@ -36,7 +36,9 @@
 //  Geräte hinweg (`LeasePolicy`). Transkribiert ein anderes Gerät die Folge
 //  gerade, bleibt sie in der Warteschlange stehen, läuft aber erst nach dem
 //  Ablauf dieser Sperre oder wenn der Abgleich eine Änderung daran bringt.
-//  Kommt vorher das Transkript an, fällt sie still heraus.
+//  Kommt vorher das Transkript an, fällt sie still heraus. Geht die Sperre
+//  während der Arbeit an ein anderes Gerät, hält die Folge an und wartet
+//  genauso; ihr Zwischenstand bleibt auf diesem Gerät.
 //
 //  Befehle kommen über `submit(_:)` in der Reihenfolge, in der der
 //  Hauptakteur sie schickt. Die Arbeit an einer Folge (`Environment.transcribe`)
@@ -623,7 +625,6 @@ public actor TranscriptStage {
             }
             // Sperre über Geräte hinweg: Transkribiert ein anderes Gerät die
             // Folge gerade, wartet sie an ihrem Platz bis zum Ablauf.
-            var heartbeat: Task<Void, Never>?
             if let leases {
                 let decision = await leases.acquire(.transcript, for: entry.id, in: store, now: clock())
                 if case .heldElsewhere(_, let until) = decision {
@@ -636,14 +637,22 @@ public actor TranscriptStage {
                     changed()
                     continue
                 }
-                heartbeat = leases.heartbeat(.transcript, for: entry.id, in: store, clock: clock)
             }
             let ticket = ledger.ticket
             let id = entry.id
             let job = TranscriptJob(
                 episode: entry.episode, origin: entry.origin, ticket: ticket, remaining: queue.count,
                 currentOrigin: { [weak self] in await self?.origin(of: id) ?? entry.origin })
-            let outcome = await environment.transcribe(job)
+            // Als eigene Aufgabe: Geht die Sperre an ein anderes Gerät, hält
+            // nur diese Folge an, und der Lauf geht mit der nächsten weiter.
+            let transcribe = environment.transcribe
+            let work = Task(priority: .utility) { await transcribe(job) }
+            let held = HeldLease()
+            let heartbeat = leases?.heartbeat(.transcript, for: id, in: store, clock: clock) {
+                held.markLost()
+                work.cancel()
+            }
+            let outcome = await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
             heartbeat?.cancel()
             // Angehalten bleibt die Sperre bis zum Ablauf: Dieses Gerät hat
             // einen Zwischenstand und setzt dort an.
@@ -657,8 +666,10 @@ public actor TranscriptStage {
             // Angehalten heißt: Der Lauf ist zu Ende, auch wenn der Befehl
             // dazu noch unterwegs ist. `pauseTranscripts()` bricht die Arbeit
             // sofort ab, `.interrupt` kommt erst danach an; die Folge begänne
-            // sonst gleich wieder, ohne Zeit vom System.
-            if outcome == .interrupted { runStopped = true }
+            // sonst gleich wieder, ohne Zeit vom System. Nicht nach dem
+            // Verlust der Sperre: Der nächste Durchgang fragt sie neu, und
+            // die Folge wartet an ihrem Platz, bis die fremde abläuft.
+            if outcome == .interrupted, !held.isLost { runStopped = true }
         }
         let cancelled = Task.isCancelled || runStopped
         lease?.release()

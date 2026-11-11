@@ -32,7 +32,9 @@
 //  Seit dem Schema nach 0.14 nehmen die Fakten vor dem Start eine Sperre
 //  über Geräte hinweg (`LeasePolicy`). Sammelt ein anderes Gerät gerade die
 //  Fakten derselben Folge, wartet sie bis zum Ablauf dieser Sperre; gemerkt
-//  wird sie in der Zeit wie jede wartende Folge.
+//  wird sie in der Zeit wie jede wartende Folge. Geht die Sperre während der
+//  Arbeit an ein anderes Gerät, bricht die Arbeit ab, ohne ihren
+//  Zwischenstand zu schreiben, und die Folge wartet genauso.
 //
 //  Was die Arbeit an einer Folge tut, sagt `KnowledgeWorking`. Die Stufe
 //  liest Folge, Kapitel und Belege dafür beim Start frisch aus dem Store,
@@ -202,8 +204,9 @@ public actor KnowledgeStage {
         let token: UInt64
         let work: Work
         var task: Task<Void, Never>?
-        /// Die Stufe hat angehalten, weil das Tor zu ist oder die Folge
-        /// gelöscht wurde. Kein Grund, den Lauf ganz zu beenden.
+        /// Die Stufe hat angehalten, weil das Tor zu ist, die Folge gelöscht
+        /// wurde oder ihre Sperre an ein anderes Gerät ging. Kein Grund, den
+        /// Lauf ganz zu beenden.
         var stoppedByStage = false
         /// Die Folge im Platz wurde gelöscht (`episodesRemoved`). Sie kommt
         /// nicht zurück in eine Warteschlange und in keinen Vermerk, auch
@@ -1019,6 +1022,7 @@ public actor KnowledgeStage {
         var outcome = FactsOutcome.nothingToDo
         var tags: ChapterTagsRun?
         var heartbeat: Task<Void, Never>?
+        let held = HeldLease()
         if let episode = try? await store.episodes(ids: [entry.id]).first, !ledger.wasRemoved(entry.id, since: ticket) {
             // Sperre über Geräte hinweg: Sammelt ein anderes Gerät die Fakten
             // gerade, wartet die Folge bis zum Ablauf seiner Sperre.
@@ -1030,11 +1034,17 @@ public actor KnowledgeStage {
                     end(token)
                     return
                 }
-                heartbeat = leases.heartbeat(.knowledge, for: entry.id, in: store, clock: clock)
+                heartbeat = leases.heartbeat(.knowledge, for: entry.id, in: store, clock: clock) { [weak self] in
+                    await self?.leaseLost(held, token: token)
+                }
             }
             let work = self.work
-            outcome = await ProcessingTrace.interval("Fakten einer Folge") {
-                await work.gatherFacts(for: episode, force: entry.requested, origin: entry.origin, since: ticket)
+            // Die Arbeit sieht ihre Sperre: Ohne sie schreibt ein Abbruch
+            // keinen Zwischenstand.
+            outcome = await HeldLease.$current.withValue(held) {
+                await ProcessingTrace.interval("Fakten einer Folge") {
+                    await work.gatherFacts(for: episode, force: entry.requested, origin: entry.origin, since: ticket)
+                }
             }
             await announce([.factsDone], of: entry.id, since: ticket) {
                 [.factsDone(entry.id, $0, outcome, entry.origin)]
@@ -1239,6 +1249,17 @@ public actor KnowledgeStage {
         persistQueue()
         publish()
         kick()
+    }
+
+    /// Ein anderes Gerät hält die Sperre der Folge im Platz. Die Arbeit hält
+    /// an wie am Tor, nur ohne Zwischenstand. Die Folge steht danach wieder
+    /// vorn, fragt die Sperre neu und wartet, bis die fremde abläuft.
+    private func leaseLost(_ held: HeldLease, token: UInt64) {
+        guard var current = slot, current.token == token else { return }
+        current.stoppedByStage = true
+        slot = current
+        held.markLost()
+        current.task?.cancel()
     }
 
     private func coolDown(_ token: UInt64) async {

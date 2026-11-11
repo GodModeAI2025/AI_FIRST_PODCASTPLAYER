@@ -406,7 +406,8 @@ struct ProcessingLeaseTests {
 
         // Das iPad verlängert zu spät: Es hält die Sperre nicht mehr.
         #expect(try await store.renewLease(.transcript, for: episodeID, device: "ipad", duration: 600,
-                                           now: expired.addingTimeInterval(1)) == false)
+                                           now: expired.addingTimeInterval(1))
+                == .heldElsewhere(device: "iphone", until: expired.addingTimeInterval(600)))
         #expect(try await store.acquireLease(.transcript, for: episodeID, device: "ipad", duration: 600,
                                              now: expired.addingTimeInterval(2))
                 == .heldElsewhere(device: "iphone", until: expired.addingTimeInterval(600)))
@@ -418,7 +419,8 @@ struct ProcessingLeaseTests {
         let start = Date(timeIntervalSince1970: 2_000_000_000)
         _ = try await store.acquireLease(.knowledge, for: episodeID, device: "mac", duration: 60, now: start)
         #expect(try await store.renewLease(.knowledge, for: episodeID, device: "mac", duration: 60,
-                                           now: start.addingTimeInterval(50)))
+                                           now: start.addingTimeInterval(50))
+                == .granted(until: start.addingTimeInterval(110)))
         // Ohne das Verlängern wäre sie jetzt abgelaufen.
         #expect(try await store.acquireLease(.knowledge, for: episodeID, device: "iphone", duration: 60,
                                              now: start.addingTimeInterval(80))
@@ -438,12 +440,40 @@ struct ProcessingLeaseTests {
         // Die Sperre des Macs kam über iCloud, genommen zwei Sekunden früher.
         try await store.insertLeaseForTesting(.transcript, for: episodeID, device: "mac", acquiredAt: start,
                                               expiresAt: start.addingTimeInterval(600))
+        // Beim Verlängern erfährt das iPhone, dass es verloren hat und an wen.
         #expect(try await store.renewLease(.transcript, for: episodeID, device: "iphone", duration: 600,
-                                           now: start.addingTimeInterval(3)) == false)
+                                           now: start.addingTimeInterval(3))
+                == .heldElsewhere(device: "mac", until: start.addingTimeInterval(600)))
+        #expect(try await store.leases(for: episodeID).map(\.deviceID) == ["mac"], "Die eigene Zeile ist weg")
         #expect(try await store.acquireLease(.transcript, for: episodeID, device: "iphone", duration: 600,
                                              now: start.addingTimeInterval(3))
                 == .heldElsewhere(device: "mac", until: start.addingTimeInterval(600)))
-        #expect(try await store.leases(for: episodeID).map(\.deviceID) == ["mac"], "Die eigene Zeile ist weg")
+        // Der Mac merkt davon nichts und verlängert wie immer.
+        #expect(try await store.renewLease(.transcript, for: episodeID, device: "mac", duration: 600,
+                                           now: start.addingTimeInterval(4))
+                == .granted(until: start.addingTimeInterval(604)))
+    }
+
+    @Test("Ohne gültige fremde Sperre ist nichts verloren, auch wenn es nichts zu verlängern gibt")
+    func renewingWithoutForeignLeaseIsNoLoss() async throws {
+        let store = try await store()
+        let start = Date(timeIntervalSince1970: 2_000_000_000)
+        // Nie genommen.
+        #expect(try await store.renewLease(.knowledge, for: episodeID, device: "iphone", duration: 600,
+                                           now: start) == nil)
+        // Die eigene ist abgelaufen, und niemand hat übernommen.
+        _ = try await store.acquireLease(.knowledge, for: episodeID, device: "iphone", duration: 600, now: start)
+        #expect(try await store.renewLease(.knowledge, for: episodeID, device: "iphone", duration: 600,
+                                           now: start.addingTimeInterval(601)) == nil)
+        #expect(try await store.leases(for: episodeID).map(\.deviceID) == ["iphone"], "Dabei entsteht und geht keine Zeile")
+        // Eine ältere Sperre des Macs, die abgelaufen ist, schlägt die eigene gültige nicht.
+        _ = try await store.acquireLease(.knowledge, for: episodeID, device: "iphone", duration: 600,
+                                         now: start.addingTimeInterval(700))
+        try await store.insertLeaseForTesting(.knowledge, for: episodeID, device: "mac", acquiredAt: start,
+                                              expiresAt: start.addingTimeInterval(705))
+        #expect(try await store.renewLease(.knowledge, for: episodeID, device: "iphone", duration: 600,
+                                           now: start.addingTimeInterval(710))
+                == .granted(until: start.addingTimeInterval(1_310)))
     }
 
     @Test("Für eine gelöschte Folge entsteht keine Sperre, und Löschen nimmt vorhandene mit (Regel 5)")
@@ -455,7 +485,7 @@ struct ProcessingLeaseTests {
         #expect(try await store.leases(for: episodeID).isEmpty)
         _ = try await store.acquireLease(.transcript, for: episodeID, device: "iphone", duration: 600)
         #expect(try await store.leases(for: episodeID).isEmpty)
-        #expect(try await store.renewLease(.transcript, for: episodeID, device: "iphone", duration: 600) == false)
+        #expect(try await store.renewLease(.transcript, for: episodeID, device: "iphone", duration: 600) == nil)
     }
 
     @Test("Sperren abgestürzter Geräte gehen beim Start nach einem Tag")

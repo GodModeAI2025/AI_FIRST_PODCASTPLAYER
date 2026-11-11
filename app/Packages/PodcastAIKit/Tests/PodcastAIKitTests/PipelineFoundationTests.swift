@@ -467,4 +467,53 @@ struct PipelineStoreTests {
         #expect(version.segmentCount == 2)
         #expect(version.lastEndMs == 9_500)
     }
+
+    @Test("Das Verlängern der Sperre meldet nur den Verlust an ein anderes Gerät, und den einmal")
+    func heartbeatReportsOnlyLossToAnotherDevice() async throws {
+        let store = try await emptyStore()
+        let item = make("sperre")
+        _ = try await store.upsertEpisodes([item], forSource: sourceID)
+        // Jedes Verlängern fragt zuerst die Uhr. So sieht der Test, was dazwischen geschah.
+        let (signals, signal) = AsyncStream<String>.makeStream()
+        let heartbeat = LeasePolicy(deviceID: "iphone", renewal: .milliseconds(20)).heartbeat(
+            .transcript, for: item.id, in: store,
+            clock: {
+                signal.yield("Takt")
+                return Date()
+            },
+            lost: { signal.yield("verloren") })
+        defer { heartbeat.cancel() }
+        Task {
+            await heartbeat.value
+            signal.finish()
+        }
+        var seen = signals.makeAsyncIterator()
+        // Keine Sperre in der Datenbank: nichts zu verlängern, aber kein Verlust.
+        // Der zweite Takt zeigt, dass das Verlängern nach dem ersten weiterlief.
+        #expect(await seen.next() == "Takt")
+        #expect(await seen.next() == "Takt")
+        // Die eigene Sperre gilt und wird verlängert.
+        let taken = Date()
+        _ = try await store.acquireLease(.transcript, for: item.id, device: "iphone", duration: 60, now: taken)
+        var renewed = false
+        var beats = 0
+        while !renewed, beats < 500, await seen.next() == "Takt" {
+            beats += 1
+            renewed = try await store.leases(for: item.id).contains { $0.expiresAt > taken.addingTimeInterval(60) }
+        }
+        #expect(renewed)
+        // Die Sperre des Macs kommt über iCloud an, genommen eine Minute vor der eigenen.
+        try await store.insertLeaseForTesting(.transcript, for: item.id, device: "mac",
+                                              acquiredAt: taken.addingTimeInterval(-60),
+                                              expiresAt: taken.addingTimeInterval(600))
+        // Was davor noch verlängert hat, zählt nicht.
+        var last = await seen.next()
+        while last == "Takt", beats < 1_000 {
+            beats += 1
+            last = await seen.next()
+        }
+        #expect(last == "verloren")
+        #expect(await seen.next() == nil, "Danach verlängert nichts mehr")
+        #expect(try await store.leases(for: item.id).map(\.deviceID) == ["mac"])
+    }
 }
