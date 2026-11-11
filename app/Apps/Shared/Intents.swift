@@ -138,7 +138,6 @@ struct PlaySmartFeedIntent: AppIntent {
         // `play` meldet einen Fehler nur über `lastError`. Läuft der Plan
         // nicht, sagt Siri das, statt eine Ausgabe anzukündigen, die still bleibt.
         guard model.playerPlan?.id == plan.id else {
-            model.policy.endFocusSession()
             let reason = model.lastError ?? String(localized: "Die Stellen sind gerade nicht abspielbar.")
             model.lastError = nil
             return .result(dialog: "„\(edition.title)“ lässt sich nicht abspielen. \(reason)")
@@ -239,7 +238,6 @@ struct StopPlaybackIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         model.stopPlayback()
-        model.policy.endFocusSession()
         // Auch eine ganze Folge hört auf, wie beim Menübefehl auf dem Mac.
         model.episodePlayer.stop()
         return .result()

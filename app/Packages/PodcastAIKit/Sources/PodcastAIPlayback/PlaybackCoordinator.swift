@@ -204,8 +204,8 @@ public final class PlaybackCoordinator {
         player.removeAllItems()
         player.insert(item, after: nil)
 
-        installEndObserver(for: item, token: token)
-        installTimeObserver(for: segment, token: token)
+        installEndObserver(for: item, index: index, token: token)
+        installTimeObserver(for: segment, index: index, token: token)
 
         seekGeneration += 1
         let generation = seekGeneration
@@ -234,49 +234,53 @@ public final class PlaybackCoordinator {
         }
     }
 
-    private func installEndObserver(for item: AVPlayerItem, token: Int) {
+    private func installEndObserver(for item: AVPlayerItem, index: Int, token: Int) {
         let registration = NotificationCenter.default.addObserver(
             forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                guard let self, token == self.sessionToken else { return }
-                self.completeCurrentSegment(token: token, reachedEnd: true)
+                // Auch der Zeitbeobachter meldet dieses Ende, und beide
+                // Meldungen können warten, bevor die erste drankommt. Die
+                // zweite träfe dann schon den nächsten Abschnitt und zählte
+                // ihn als gehört, obwohl er nie lief. Deshalb der Index.
+                guard let self, token == self.sessionToken, index == self.segmentIndex else { return }
+                self.completeCurrentSegment(token: token)
             }
         }
         observers.replaceEnd(registration)
     }
 
-    private func installTimeObserver(for segment: PlanSegment, token: Int) {
+    private func installTimeObserver(for segment: PlanSegment, index: Int, token: Int) {
         // Nur für Anzeige und als zweite Sicherung. Die Grenze selbst hängt
         // nicht an diesem Intervall.
         let interval = CMTime(value: 1, timescale: 4)
         let handle = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) {
             [weak self] time in
             Task { @MainActor in
-                guard let self, token == self.sessionToken else { return }
+                // Der Index wie beim Endbeobachter: nur der eigene Abschnitt.
+                guard let self, token == self.sessionToken, index == self.segmentIndex else { return }
                 let position = MediaTime(time)
-                self.observer?.playbackProgressed(segmentIndex: self.segmentIndex, position: position)
+                self.observer?.playbackProgressed(segmentIndex: index, position: position)
 
                 // Zweite Sicherung: sollte forwardPlaybackEndTime einmal nicht
                 // greifen, wird hier trotzdem beendet.
                 if position >= segment.range.end {
-                    self.completeCurrentSegment(token: token, reachedEnd: true)
+                    self.completeCurrentSegment(token: token)
                 }
             }
         }
         observers.replaceTime(handle)
     }
 
-    private func completeCurrentSegment(token: Int, reachedEnd: Bool) {
+    /// Der laufende Abschnitt ist bis zu seinem Ende gespielt.
+    private func completeCurrentSegment(token: Int) {
         guard token == sessionToken, let plan = activePlan,
               segmentIndex < plan.segments.count else { return }
 
         let segment = plan.segments[segmentIndex]
-        let heardEnd = reachedEnd ? segment.range.end : MediaTime(player.currentTime())
-        let heard = MediaTimeRange(start: segment.range.start, end: heardEnd)
 
         teardownObservers()
-        observer?.segmentCompleted(segmentIndex: segmentIndex, heard: heard,
+        observer?.segmentCompleted(segmentIndex: segmentIndex, heard: segment.range,
                                    mediaVersionID: segment.mediaVersionID)
 
         let next = segmentIndex + 1
@@ -284,7 +288,9 @@ public final class PlaybackCoordinator {
             // Innerhalb einer bewusst gestarteten Sitzung darf der nächste
             // Abschnitt ohne erneute Bestätigung folgen — das ist der Sinn
             // einer Fokus-Sitzung. Die Sitzung selbst wurde freigegeben.
-            try? playSegment(at: next, token: token)
+            // Fehlt sein Medium, etwa nach „Audio entfernen“, endet der Plan
+            // mit dem Grund. Sonst bliebe er für immer auf „spielt“ stehen.
+            do { try playSegment(at: next, token: token) } catch { fail(error.localizedDescription) }
         } else {
             finish(token: token)
         }
@@ -334,7 +340,7 @@ public final class PlaybackCoordinator {
         }
         let next = segmentIndex + 1
         if next < plan.segments.count {
-            try? playSegment(at: next, token: token)
+            do { try playSegment(at: next, token: token) } catch { fail(error.localizedDescription) }
         } else {
             finish(token: token)
         }
@@ -342,11 +348,10 @@ public final class PlaybackCoordinator {
 
     /// Bricht ab und stellt die vorherige Warteschlange wieder her.
     public func stop() {
-        let token = sessionToken
+        // Was bis hierher lief, zählt, auch nach einer Pause des Systems.
+        // Die nächste Stelle beginnt dabei nicht.
         switch state {
-        case .playing: completeCurrentSegment(token: token, reachedEnd: false)
-        // Auch nach einer Pause des Systems zählt, was davor lief.
-        case .paused: recordPausedSegment()
+        case .playing, .paused: recordPlayedPart()
         default: break
         }
         sessionToken += 1                                   // alle Callbacks entwerten
@@ -371,6 +376,9 @@ public final class PlaybackCoordinator {
 
     private func finish(token: Int) {
         guard token == sessionToken else { return }
+        // Der Sprung einer übersprungenen letzten Stelle kann noch ausstehen.
+        // Seine Bestätigung stellte den beendeten Plan sonst auf „spielt“.
+        sessionToken += 1                                   // alle Callbacks entwerten
         seekInFlight = false
         teardownObservers()
         player.pause()
@@ -393,9 +401,9 @@ public final class PlaybackCoordinator {
         setState(.failed(reason))
     }
 
-    /// Was vom pausierten Abschnitt schon erklungen ist. Wie beim
-    /// Überspringen zählt nur der tatsächlich abgespielte Teil.
-    private func recordPausedSegment() {
+    /// Was vom laufenden oder pausierten Abschnitt schon erklungen ist. Wie
+    /// beim Überspringen zählt nur der tatsächlich abgespielte Teil.
+    private func recordPlayedPart() {
         guard !seekInFlight, let plan = activePlan, segmentIndex < plan.segments.count else { return }
         let segment = plan.segments[segmentIndex]
         let position = min(MediaTime(player.currentTime()), segment.range.end)

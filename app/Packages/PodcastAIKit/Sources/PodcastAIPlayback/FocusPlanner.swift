@@ -210,12 +210,15 @@ public struct FocusPlanner: Sendable {
                 of: effective, in: evidence.mediaVersionID,
                 minimumFragment: options.minimumSegmentDuration
             )
-            guard let first = unheard.ranges.first else {
+            // Zusammenhängend bleiben: das größte ungehörte Stück gewinnt,
+            // statt die Passage in Schnipsel zu zerlegen. Es zählen nur
+            // Stücke, in denen die Fundstelle selbst noch vorkommt. Sonst
+            // liefe ihr Vorlauf unter ihrer Begründung.
+            guard let largest = unheard.ranges.filter({ $0.overlaps(range) })
+                .max(by: { $0.duration < $1.duration }) else {
                 return .failure(.alreadyHeard(id))
             }
-            // Zusammenhängend bleiben: das größte ungehörte Stück gewinnt,
-            // statt die Passage in Schnipsel zu zerlegen.
-            effective = unheard.ranges.max { $0.duration < $1.duration } ?? first
+            effective = largest
         }
 
         guard effective.duration >= options.minimumSegmentDuration else {

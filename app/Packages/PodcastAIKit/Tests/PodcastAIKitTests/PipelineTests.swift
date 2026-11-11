@@ -168,6 +168,51 @@ struct FocusPlannerTests {
         #expect(plan.isEmpty)
         #expect(plan.excluded.first?.reason == TestLanguage.pick(de: "Medium derzeit nicht verfügbar", en: "Media currently unavailable"))
     }
+
+    private func range(_ start: Int64, _ end: Int64) -> MediaTimeRange {
+        MediaTimeRange(start: MediaTime(milliseconds: start), end: MediaTime(milliseconds: end))
+    }
+
+    /// Ein Hörzustand, in dem die genannten Bereiche von „m1“ gehört sind.
+    private func ledger(heard ranges: [MediaTimeRange]) -> ListeningLedger {
+        var ledger = ListeningLedger()
+        ledger.apply(ranges.map {
+            LedgerEvent(mediaVersionID: MediaVersionID(rawValue: "m1"), range: $0,
+                        kind: .played, via: .originalEpisode, deviceID: "test")
+        })
+        return ledger
+    }
+
+    @Test("Ist die Fundstelle selbst gehört, spielt der Plan nicht ihren Vorlauf")
+    func heardEvidenceIsNotReplacedByItsContext() {
+        // Fundstelle 5:00–5:30, mit Kontext 4:40–5:50. Ungehört sind nur die
+        // zwanzig Sekunden davor und danach.
+        let evidence = makeEvidence("a", 300_000, 330_000)
+        let plan = FocusPlanner(context: context([evidence])).plan(
+            from: PlaylistProposal(evidenceIDs: [evidence.id], requestSummary: "x"),
+            route: .interestFocus,
+            options: FocusPlannerOptions(contextPadding: MediaDuration(seconds: 20),
+                                         ledger: ledger(heard: [range(300_000, 330_000)]))
+        )
+        #expect(plan.isEmpty)
+        #expect(plan.excluded == [.alreadyHeard(evidence.id)])
+    }
+
+    @Test("Von einer teils gehörten Fundstelle bleibt das Stück, in dem sie noch vorkommt")
+    func partlyHeardEvidenceKeepsItsOwnRemainder() {
+        // Fundstelle 5:00–6:00, mit Kontext 4:30–6:30. Gehört sind 5:00–5:40
+        // und 6:05–6:30. Das größte ungehörte Stück ist der Vorlauf, der Rest
+        // der Fundstelle liegt aber in 5:40–6:05.
+        let evidence = makeEvidence("a", 300_000, 360_000)
+        let plan = FocusPlanner(context: context([evidence])).plan(
+            from: PlaylistProposal(evidenceIDs: [evidence.id], requestSummary: "x"),
+            route: .interestFocus,
+            options: FocusPlannerOptions(
+                contextPadding: MediaDuration(seconds: 30),
+                ledger: ledger(heard: [range(300_000, 340_000), range(365_000, 390_000)]))
+        )
+        #expect(plan.segments.map(\.range) == [range(340_000, 365_000)])
+    }
 }
 
 // MARK: - Modellauswahl
