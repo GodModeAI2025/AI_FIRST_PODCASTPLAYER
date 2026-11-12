@@ -7,6 +7,8 @@
     <array><string>iCloud.com.godmodeai.podcastai</string></array>
     <key>com.apple.developer.icloud-services</key>
     <array><string>CloudKit</string></array>
+    <!-- CloudKit meldet Änderungen per Push. Apple nimmt eine tvOS-App mit CloudKit ohne diese Berechtigung nicht an. -->
+    <key>aps-environment</key><string>development</string>
     <!-- Bewusst nicht dabei: Apple Intelligence, Private Cloud Compute, App Group, MCP. Der Fernseher ist ein reiner Player. -->
 </dict>
 </plist>

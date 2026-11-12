@@ -1,6 +1,6 @@
 # Änderungsverlauf
 
-## App 1.3 · 2026-11-11 (iOS, Mac und Apple TV)
+## App 1.3 · 2026-11-12 (Build 202611120525 für iOS und Mac, 202611120537 für Apple TV)
 Diese Version behebt, was eine Durchsicht des ganzen Codes gefunden hat. Neue Funktionen gibt es nicht.
 
 Daten und Abgleich:
@@ -39,7 +39,7 @@ Mac und Agentenzugang:
 Für Entwickler:
 - Das CloudKit-Schema ändert sich nicht. Die neuen Indizes auf Belegen, Fassungen, Transkripten, Tags und Notizen bekommt nur eine neu angelegte Datenbank, eine vorhandene bleibt, wie sie ist.
 - `PodcastAIDateShim` bringt eigene Fassungen von `Date <=` und `>=` mit, weil frühe Betas von 27.2 sie nicht haben und die App dort abstürzte.
-- Das Upload-Skript signiert das Apple-TV-Archiv mit Berechtigungen, prüft jede exportierte App und stellt die Buildnummer zurück, wenn nichts hochgeladen wurde.
+- Das Upload-Skript signiert das Apple-TV-Archiv mit Berechtigungen, prüft jede exportierte App und stellt die Buildnummer zurück, wenn nichts hochgeladen wurde. Die Apple-TV-App trägt dazu `aps-environment`, ohne das Apple eine tvOS-App mit CloudKit abweist.
 - Ungenutzter Code ist entfernt, die Folgenkennung, die Tempostufen und der Parser für Verweise stehen je einmal im Paket.
 
 ## App 1.2 · 2026-10-12 (Build 202610120921, iOS und Mac am 12.10. zur Prüfung eingereicht)

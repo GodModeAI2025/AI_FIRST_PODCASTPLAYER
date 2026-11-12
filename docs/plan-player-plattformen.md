@@ -66,7 +66,7 @@ Geschrieben wird nie ein fremder Datensatz:
 - Up Next liegt heute in den Benutzereinstellungen und nicht im Schema. Ohne Schemaänderung gibt es keine Warteschlange über Geräte hinweg. Uhr und Fernseher führen eine eigene.
 - Die Fortsetzungsstelle reist über iCloud. Die Kennung der Fassung folgt aus der Audioadresse (`Episode.streamMediaVersionID`), wie auf dem iPhone, auch für gestreamte Folgen. Ändert ein Podcast die Adresse einer Folge, beginnt sie auf allen Geräten neu.
 - Downloads auf der Uhr laufen nur, solange die App offen ist. Für Hintergrund-Downloads bräuchte die Uhr eigene Hintergrundaufgaben, die es hier nicht gibt.
-- Uhr und Fernseher haben keine Push-Berechtigung in den Entitlements. Der iCloud-Abgleich läuft beim Öffnen; ob das für Änderungen während der Nutzung reicht, zeigt sich erst auf einem Gerät. Wenn nicht, kommt `aps-environment` dazu.
+- Der Fernseher trägt seit 1.3 `aps-environment`: Apple nimmt eine tvOS-App mit CloudKit ohne diese Berechtigung nicht an. Die Uhr hat keine Push-Berechtigung. Dort läuft der iCloud-Abgleich beim Öffnen; ob das für Änderungen während der Nutzung reicht, zeigt sich erst auf einem Gerät. Wenn nicht, kommt `aps-environment` auch dort dazu.
 - Der Player schreibt gehörte Bereiche wie die iPhone-App, aber ohne Wissen: „Ungehört“ in Themen-Updates auf dem iPhone berücksichtigt sie.
 - Die Uhr holt höchstens alle 15 Minuten alle Feeds (höchstens 8 MB je Feed), einzelne Podcasts beim Öffnen. Der Fernseher lädt Feeds gleich, mit 64 MB je Feed.
 - Podcasts hinzufügen geht nur auf iPhone, iPad und Mac. Die Player zeigen, was iCloud liefert.

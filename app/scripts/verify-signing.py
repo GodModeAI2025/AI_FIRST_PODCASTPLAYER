@@ -42,10 +42,12 @@ REQUIRED = {
         "com.apple.security.network.client": True,
         "com.apple.developer.aps-environment": ("development", "production"),
     },
-    # Der Fernseher ist ein reiner Player: nur der Abgleich, kein Push, keine KI.
+    # Der Fernseher ist ein reiner Player: nur der Abgleich, keine KI. Push
+    # gehört zum Abgleich, Apple weist eine tvOS-App mit CloudKit sonst ab.
     "tv": {
         "com.apple.developer.icloud-services": ["CloudKit"],
         "com.apple.developer.icloud-container-identifiers": [ICLOUD_CONTAINER],
+        "aps-environment": ("development", "production"),
     },
 }
 
@@ -101,10 +103,10 @@ def contains(actual, expected) -> bool:
 def check(app: Path, platform: str, distribution: bool = False) -> list[str]:
     found = entitlements(app)
     problems = []
-    if distribution and platform != "tv":
+    if distribution:
         # Im Archiv steckt noch die Entwicklungssignatur; erst der Export signiert
         # für den Vertrieb. Dort muss die Push-Umgebung „production“ heißen.
-        key = "aps-environment" if platform == "ios" else "com.apple.developer.aps-environment"
+        key = "com.apple.developer.aps-environment" if platform == "mac" else "aps-environment"
         if found.get(key) != "production":
             problems.append(f"{key} = {found.get(key)!r}, erwartet 'production' im Vertrieb")
     for key, expected in REQUIRED[platform].items():
