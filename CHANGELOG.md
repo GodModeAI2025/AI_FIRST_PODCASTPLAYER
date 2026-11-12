@@ -1,6 +1,6 @@
 # Änderungsverlauf
 
-## App 1.3 · 2026-11-12 (Build 202611120525 für iOS und Mac, 202611120537 für Apple TV)
+## App 1.3 · 2026-11-12 (Build 202611120655 für iOS und Mac, 202611120537 für Apple TV)
 Diese Version behebt, was eine Durchsicht des ganzen Codes gefunden hat. Neue Funktionen gibt es nicht.
 
 Daten und Abgleich:
@@ -41,6 +41,8 @@ Für Entwickler:
 - `PodcastAIDateShim` bringt eigene Fassungen von `Date <=` und `>=` mit, weil frühe Betas von 27.2 sie nicht haben und die App dort abstürzte.
 - Das Upload-Skript signiert das Apple-TV-Archiv mit Berechtigungen, prüft jede exportierte App und stellt die Buildnummer zurück, wenn nichts hochgeladen wurde. Die Apple-TV-App trägt dazu `aps-environment`, ohne das Apple eine tvOS-App mit CloudKit abweist.
 - Ungenutzter Code ist entfernt, die Folgenkennung, die Tempostufen und der Parser für Verweise stehen je einmal im Paket.
+- Kapiteldateien laden ohne den Feed-Cache, damit nach „Folge löschen“ nichts von ihnen auf der Platte bleibt (Regel 5). Deshalb der zweite Build für iOS und Mac.
+- Die Produktseite im App Store hat eine Kopfzeile: ein Bild ohne Text, Quelle in docs/store-screenshots/kopfzeile.html.
 
 ## App 1.2 · 2026-10-12 (Build 202610120921, iOS und Mac am 12.10. zur Prüfung eingereicht)
 Neu: Eine KI-Anfrage, die lange nichts meldet oder sich nicht abbrechen lässt, hält die Warteschlange nicht mehr fest. Private Cloud Compute fällt dann auf das Gerät zurück, Arbeit im Hintergrund wartet und läuft weiter.

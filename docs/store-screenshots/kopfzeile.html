@@ -1,0 +1,131 @@
+<!doctype html>
+<!--
+  Kopfzeile der Produktseite im App Store (16:9, 5244 × 2950 Pixel).
+
+  Erzeugen (aus diesem Ordner):
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+    --force-device-scale-factor=2 --window-size=2622,1475 --screenshot=kopfzeile-ios.png "file://$PWD/kopfzeile.html"
+  App Store Connect nimmt PNG ohne Transparenz in 5244 × 2950 oder 3840 × 1646 Pixel.
+  Im Repo liegt nur die verkleinerte Vorschau kopfzeile-vorschau.png.
+
+  Gezeichnet auf 2622 × 1475 Punkt. Der Store zeigt davon nur einen Ausschnitt
+  (gemessen in der Gerätevorschau von App Store Connect, 12.11.2026):
+    iPhone hochkant:  x 607 bis 2016, y 0 bis 924. Oben mittig die Dynamic Island,
+                      in den Ecken (bis y 390, x unter 826 und über 1806) Zurück und Teilen.
+    iPad quer:        x 128 bis 2494, y 164 bis 875. Oben mittig die Reiterleiste bis y 298.
+    iPad hochkant:    y 84 bis 929, Reiterleiste bis y 243.
+  Das Motiv bleibt deshalb in x 819 bis 1803 und y 365 bis 799. Ohne Text: Der wäre
+  auf dem iPhone angeschnitten, und der Name der App steht direkt darunter.
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; background: #2a62b3; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" width="2622" height="1475" viewBox="0 0 2622 1475">
+  <defs>
+    <!-- Der Verlauf des App-Symbols: Violett oben links, Blau, Türkis unten rechts. -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4b3a9e"/>
+      <stop offset="0.42" stop-color="#2a62b3"/>
+      <stop offset="1" stop-color="#069ccf"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.16" cy="0.08" r="0.62">
+      <stop offset="0" stop-color="#7a5be0" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#7a5be0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.9" cy="0.98" r="0.6">
+      <stop offset="0" stop-color="#3fd3f2" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#3fd3f2" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="spot" cx="0.5" cy="0.39" r="0.34">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.11"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="26" flood-color="#0b1f5c" flood-opacity="0.34"/>
+    </filter>
+    <filter id="barShadow" x="-80%" y="-20%" width="260%" height="150%">
+      <feDropShadow dx="0" dy="11" stdDeviation="13" flood-color="#0b1f5c" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="2622" height="1475" fill="url(#bg)"/>
+  <rect width="2622" height="1475" fill="url(#glowA)"/>
+  <rect width="2622" height="1475" fill="url(#glowB)"/>
+  <rect width="2622" height="1475" fill="url(#spot)"/>
+
+  <!-- Die Tonwelle noch einmal groß und kaum sichtbar: an den Seiten für das iPad,
+       unten für Stellen, die das ganze Bild zeigen. -->
+  <g fill="#ffffff" opacity="0.055">
+    <rect x="60"   y="250" width="150" height="360" rx="75"/>
+    <rect x="290"  y="130" width="150" height="600" rx="75"/>
+    <rect x="2182" y="110" width="150" height="640" rx="75"/>
+    <rect x="2412" y="230" width="150" height="400" rx="75"/>
+  </g>
+  <g fill="#ffffff" opacity="0.045">
+    <rect x="130"  y="1180" width="110" height="420" rx="55"/>
+    <rect x="330"  y="1090" width="110" height="520" rx="55"/>
+    <rect x="530"  y="1230" width="110" height="380" rx="55"/>
+    <rect x="730"  y="1040" width="110" height="560" rx="55"/>
+    <rect x="930"  y="1150" width="110" height="460" rx="55"/>
+    <rect x="1130" y="1000" width="110" height="600" rx="55"/>
+    <rect x="1330" y="1120" width="110" height="480" rx="55"/>
+    <rect x="1530" y="1210" width="110" height="400" rx="55"/>
+    <rect x="1730" y="1060" width="110" height="540" rx="55"/>
+    <rect x="1930" y="1170" width="110" height="440" rx="55"/>
+    <rect x="2130" y="1010" width="110" height="600" rx="55"/>
+    <rect x="2330" y="1140" width="110" height="460" rx="55"/>
+  </g>
+
+  <!-- Das Motiv, um seine Mitte vergrößert und nach unten gerückt: Oben liegen
+       auf jedem Gerät Leisten und Tasten über dem Bild. -->
+  <g transform="translate(1311 582) scale(1.04) translate(-1311 -470)">
+  <!-- Links der Ton: die sieben Balken des App-Symbols, einer gelb. -->
+  <g filter="url(#barShadow)">
+    <g fill="#ffffff">
+      <rect x="838"  y="409"   width="47" height="122" rx="23.5"/>
+      <rect x="911"  y="355"   width="47" height="230" rx="23.5"/>
+      <rect x="984"  y="294.5" width="47" height="351" rx="23.5"/>
+      <rect x="1057" y="369"   width="47" height="202" rx="23.5"/>
+      <rect x="1203" y="334.5" width="47" height="271" rx="23.5"/>
+      <rect x="1276" y="388"   width="47" height="164" rx="23.5"/>
+    </g>
+    <rect x="1130" y="261" width="47" height="418" rx="23.5" fill="#ffd166"/>
+  </g>
+
+  <!-- Dazwischen drei Punkte: aus dem Ton wird Text. -->
+  <g fill="#ffffff">
+    <circle cx="1356" cy="470" r="9" opacity="0.5"/>
+    <circle cx="1388" cy="470" r="9" opacity="0.72"/>
+    <circle cx="1420" cy="470" r="9" opacity="0.95"/>
+  </g>
+
+  <!-- Rechts der Text: ein Blatt mit Zeilen. Die gelbe Zeile ist die Stelle,
+       auf die eine Antwort zeigt, darunter die Marke zum Hinspringen. -->
+  <g filter="url(#soft)">
+    <rect x="1453" y="287.5" width="331" height="365" rx="46" fill="url(#card)"
+          stroke="#ffffff" stroke-opacity="0.45" stroke-width="2.5"/>
+  </g>
+  <g>
+    <rect x="1493" y="330" width="180" height="24" rx="12" fill="#ffffff" opacity="0.93"/>
+    <rect x="1493" y="378" width="251" height="24" rx="12" fill="#ffffff" opacity="0.93"/>
+    <rect x="1493" y="426" width="251" height="38" rx="19" fill="#ffd166"/>
+    <rect x="1493" y="488" width="222" height="24" rx="12" fill="#ffffff" opacity="0.93"/>
+    <rect x="1493" y="536" width="150" height="24" rx="12" fill="#ffffff" opacity="0.93"/>
+    <rect x="1493" y="586" width="92" height="34" rx="17" fill="#ffffff" opacity="0.24"/>
+    <path d="M1510 594 l0 18 l15 -9 z" fill="#ffffff"/>
+    <rect x="1534" y="598" width="36" height="10" rx="5" fill="#ffffff" opacity="0.9"/>
+  </g>
+  </g>
+</svg>
+</body>
+</html>

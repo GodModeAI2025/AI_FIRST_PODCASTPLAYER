@@ -116,6 +116,7 @@ Conversations in chat: follow-ups like "And what does he say about that?" refer 
 - Support-URL: https://github.com/GodModeAI2025/AI_FIRST_PODCASTPLAYER/issues
 - Kategorie: Nachrichten, Zweitkategorie Bildung
 - Screenshots: iPhone 6,9" und iPad 13" aus dem Atlas-Test (app/build/store-screenshots/auswahl), Mac noch offen
+- Kopfzeile der Produktseite (nur iOS, seit 1.3): ein Bild ohne Text, 5244 × 2950 Pixel, PNG ohne Transparenz. Quelle und Befehl zum Erzeugen in docs/store-screenshots/kopfzeile.html, Vorschau in kopfzeile-vorschau.png. Der Store zeigt je Gerät nur einen Ausschnitt; die gemessenen Bereiche stehen im Kopf der Quelle
 - App-Datenschutzangaben: keine Datenerhebung durch den Entwickler, kein Tracking
 - Hinweise für das Review: kein Konto nötig; Apple Intelligence erforderlich; zum Ausprobieren einen Podcast über die Suche abonnieren, nach dem Transkript im Reiter „Fragen“ eine Frage stellen
 
