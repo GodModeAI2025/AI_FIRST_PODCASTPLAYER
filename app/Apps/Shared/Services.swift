@@ -85,10 +85,10 @@ public actor FeedRefresher {
     let resolver = SourceResolver()
     let parser = FeedParser()
     let session: URLSession
-    /// Webseiten beim Abonnieren und Suchen. Ohne Cache: niemand liest sie
-    /// ein zweites Mal, und im Feed-Cache lägen sie samt den Kopfzeilen der
-    /// Anfrage auf der Platte, bei YouTube also mit dem Cookie. Die Fristen
-    /// sind die der Feed-Session.
+    /// Webseiten beim Abonnieren und Suchen, dazu die Kapiteldateien. Ohne
+    /// Cache: Seiten liest niemand ein zweites Mal, und im Feed-Cache lägen
+    /// sie samt den Kopfzeilen der Anfrage auf der Platte, bei YouTube also
+    /// mit dem Cookie. Die Fristen sind die der Feed-Session.
     let pageSession = SafeHTTP.makeSession { configuration in
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
@@ -102,8 +102,8 @@ public actor FeedRefresher {
     /// So lange gilt sie. Danach zählt wieder, was der Server sagt.
     static let previewLifetime: TimeInterval = 600
 
-    /// Was über die Feed-Session kommt, liegt auch auf der Platte: Feeds und
-    /// Kapiteldateien. Erst damit kann der Server auf die Nachfrage mit 304
+    /// Was über die Feed-Session kommt, liegt auch auf der Platte, und das
+    /// sind nur Feeds. Erst damit kann der Server auf die Nachfrage mit 304
     /// antworten, auch im Hintergrund, wo der Prozess frisch startet; der
     /// Inhalt kommt dann von hier. Ein Cache für alle: `AppModel.replaceStore`
     /// baut den `FeedRefresher` neu, und zwei `URLCache` auf demselben Ordner
@@ -581,7 +581,9 @@ public actor FeedRefresher {
 
     /// Lädt Kapitel aus einer Podcasting-2.0-Kapiteldatei.
     public func loadChapters(from url: URL) async -> [Chapter]? {
-        guard let data = try? await SafeHTTP.load(url, using: session, limit: 2 * 1024 * 1024) else { return nil }
+        // Ohne Cache: Die Datei gehört zu einer Folge, und nach „Folge löschen“
+        // darf von ihr nichts auf der Platte bleiben (Regel 5).
+        guard let data = try? await SafeHTTP.load(url, using: pageSession, limit: 2 * 1024 * 1024) else { return nil }
         return try? ChapterFile.parse(data)
     }
 
