@@ -1,6 +1,6 @@
 # Änderungsverlauf
 
-## App 1.3 · 2026-11-12 (Build 202611120655 für iOS und Mac, 202611120537 für Apple TV)
+## App 1.3 · 2026-11-12 (Build 202611120655 für iOS und Mac, 202611120537 für Apple TV, alle drei am 12.11. zur Prüfung eingereicht)
 Diese Version behebt, was eine Durchsicht des ganzen Codes gefunden hat. Neue Funktionen gibt es nicht.
 
 Daten und Abgleich:
